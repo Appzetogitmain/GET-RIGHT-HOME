@@ -16,6 +16,7 @@ import { legalService, userService } from './services/apiService';
 import adminService from './services/adminService';
 import { requestNotificationPermission, onMessageListener } from './utils/firebase';
 import logo from './assets/rokologin-removebg-preview.png';
+import { CityProvider } from './homster/context/CityContext';
 
 // Lazy Imports - User Pages
 const Home = React.lazy(() => import('./pages/user/Home'));
@@ -414,7 +415,8 @@ function App() {
   }, []);
 
   return (
-    <Router>
+    <CityProvider>
+      <Router>
       <ScrollToTop />
       <Toaster position="top-center" reverseOrder={false} />
       <Layout>
@@ -553,6 +555,7 @@ function App() {
         </Suspense>
       </Layout>
     </Router>
+    </CityProvider>
   );
 }
 

@@ -252,7 +252,7 @@ export const publicCatalogService = {
     const query = cityId ? `?cityId=${cityId}` : '';
     const response = await api.get(`/public/categories${query}`);
     if (response.data.success) {
-      apiCache.set(cacheKey, response.data, 300); // 5 minutes
+      apiCache.set(cacheKey, response.data, 30); // 30 seconds for categories
     }
     return response.data;
   },
