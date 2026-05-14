@@ -25,6 +25,7 @@ import {
     User
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { publicCatalogService } from '../../homster/services/catalogService';
 
 const HomeServicesPage = () => {
     const navigate = useNavigate();
@@ -37,7 +38,7 @@ const HomeServicesPage = () => {
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 20);
         };
-        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', handleScroll, { passive: true });
 
         // Auto-play for Banner
         const timer = setInterval(() => {
@@ -59,6 +60,13 @@ const HomeServicesPage = () => {
         };
     }, []);
 
+    const getYoutubeId = (url) => {
+        if (!url) return null;
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+    };
+
     const handleBannerScroll = (e) => {
         const scrollLeft = e.target.scrollLeft;
         const width = e.target.offsetWidth;
@@ -66,74 +74,62 @@ const HomeServicesPage = () => {
         setActiveBanner(index);
     };
 
-    const categories = [
-        { id: 'cooler', name: 'Cooler', image: 'https://images.unsplash.com/photo-1591016844941-6e3e5c944f2d?auto=format&fit=crop&q=80&w=200', hasSale: true },
-        { id: 'truliq', name: 'Truliq Home Service', image: '/truliq-logo.png', isBrand: true },
-        { id: 'ac', name: 'AC', image: 'https://images.unsplash.com/photo-1590424744257-fdb03ed78ae0?auto=format&fit=crop&q=80&w=200' },
-        { id: 'led', name: 'LED', image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&q=80&w=200' },
-        { id: 'chimney', name: 'Kitchen Chimney', image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=200' },
-        { id: 'washing', name: 'Washing Machine', image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=200' },
-        { id: 'fridge', name: 'Fridge', image: 'https://images.unsplash.com/photo-1571175432291-384337ada243?auto=format&fit=crop&q=80&w=200' },
-        { id: 'ro', name: 'R.O. Purifier', image: 'https://images.unsplash.com/photo-1585704032915-c3400ca1f963?auto=format&fit=crop&q=80&w=200' },
-        { id: 'microwave', name: 'Microwave', image: 'https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?auto=format&fit=crop&q=80&w=200' },
-    ];
+    const [homeData, setHomeData] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [categories, setCategories] = useState([]);
+    const [promos, setPromos] = useState([]);
+    const [curations, setCurations] = useState([]);
+    const [noteworthy, setNoteworthy] = useState([]);
+    const [mostBooked, setMostBooked] = useState([]);
+    const [playingVideoIdx, setPlayingVideoIdx] = useState(null);
 
-    const promos = [
-        {
-            id: 1,
-            title: "AC Repair & Service",
-            subtitle: "Gas Charging & AMC",
-            image: "https://images.unsplash.com/photo-1590424744257-fdb03ed78ae0?auto=format&fit=crop&q=80&w=800",
-            features: ["AC Repair & Service", "Gas Charging & AMC"]
-        },
-        {
-            id: 2,
-            title: "Home Deep Cleaning",
-            subtitle: "Expert Professionals",
-            image: "https://images.unsplash.com/photo-1581578731548-c64695cc6958?auto=format&fit=crop&q=80&w=800",
-            features: ["Full Home Cleaning", "Sofa & Carpet Spa"]
-        },
-        {
-            id: 3,
-            title: "Washing Machine Repair",
-            subtitle: "Genuine Spare Parts",
-            image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=800",
-            features: ["Front & Top Load", "AMC Available"]
-        }
-    ];
+    useEffect(() => {
+        const fetchHomeData = async () => {
+            try {
+                setIsLoading(true);
+                // 1. Fetch Home Content (Banners, Promos, Sections)
+                const contentRes = await publicCatalogService.getHomeContent();
+                if (contentRes?.success && contentRes.homeContent) {
+                    const hc = contentRes.homeContent;
+                    setHomeData(hc);
+                    setPromos(hc.promos || []);
+                    setNoteworthy(hc.noteworthy || []);
+                    setMostBooked(hc.booked || []);
+                    setCurations(hc.curated || []);
+                }
 
-    const featuredServices = [
-        {
-            id: 101,
-            title: "Full Home Deep Cleaning",
-            rating: 4.8,
-            reviews: "2.4k",
-            price: 2499,
-            originalPrice: 3999,
-            image: "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&q=80&w=400",
-            duration: "4-6 hrs"
-        },
-        {
-            id: 102,
-            title: "Sofa Spa & Shampoo",
-            rating: 4.9,
-            reviews: "1.8k",
-            price: 799,
-            originalPrice: 1299,
-            image: "https://images.unsplash.com/photo-1550581190-9c1c48d21d6c?auto=format&fit=crop&q=80&w=400",
-            duration: "1.5 hrs"
-        },
-        {
-            id: 103,
-            title: "Kitchen Deep Cleaning",
-            rating: 4.7,
-            reviews: "950",
-            price: 1299,
-            originalPrice: 1899,
-            image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=400",
-            duration: "2-3 hrs"
-        }
-    ];
+                // 2. Fetch Categories
+                const catRes = await publicCatalogService.getCategories();
+                if (catRes?.success) {
+                    setCategories(catRes.categories || []);
+                }
+
+                // 3. Fetch Curations (Thoughtful Curations)
+                if (contentRes?.homeContent?.curated) {
+                    setCurations(contentRes.homeContent.curated);
+                }
+
+            } catch (error) {
+                console.error("Error fetching home service data:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchHomeData();
+    }, []);
+
+    // Removed hardcoded arrays (categories, promos, featuredServices)
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-16 h-16 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin mb-4"></div>
+                <h3 className="text-xl font-black text-gray-900 mb-2">Loading Home Services</h3>
+                <p className="text-gray-500 text-sm font-bold uppercase tracking-widest">Quality you can trust</p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-24 font-sans">
@@ -180,17 +176,21 @@ const HomeServicesPage = () => {
                         {promos.map((promo) => (
                             <motion.div 
                                 key={promo.id}
-                                className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200"
+                                onClick={() => {
+                                    if (promo.slug) navigate(`/service/${promo.slug}`);
+                                    else if (promo.targetCategoryId) navigate(`/category/${promo.targetCategoryId}`);
+                                }}
+                                className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200 cursor-pointer"
                             >
                                 <img 
-                                    src={promo.image} 
+                                    src={promo.imageUrl || promo.image} 
                                     alt={promo.title} 
                                     className="absolute inset-0 w-full h-full object-cover"
                                 />
                                 {/* Bottom Overlay */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 md:p-8">
                                     <div className="space-y-1.5 md:space-y-2">
-                                        {promo.features.map((feature, i) => (
+                                        {(promo.features || [promo.title, promo.subtitle].filter(Boolean)).map((feature, i) => (
                                             <div key={i} className="flex items-center gap-2">
                                                 <div className="bg-orange-500 rounded-md p-0.5">
                                                     <CheckCircle2 size={12} className="text-white fill-orange-500" />
@@ -229,86 +229,143 @@ const HomeServicesPage = () => {
                 <div className="grid grid-cols-4 gap-y-8 gap-x-4">
                     {categories.map((cat) => (
                         <motion.button 
-                            key={cat.id}
+                            key={cat.id || cat._id}
                             whileHover={{ y: -5 }}
                             whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate(`/category/${cat.id || cat._id}`)}
                             className="flex flex-col items-center group relative"
                         >
                             <div className="w-16 h-16 md:w-20 md:h-20 bg-white border border-gray-100 rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-gray-200/50 overflow-hidden relative p-2">
-                                {cat.hasSale && (
+                                {cat.isPopular && (
                                     <div className="absolute top-1.5 -right-1 z-10">
                                         <div className="bg-[#D68F35] text-white text-[8px] font-black px-2 py-0.5 rounded-l-full shadow-sm">
-                                            SALE
+                                            POPULAR
                                         </div>
                                     </div>
                                 )}
                                 <img 
-                                    src={cat.image} 
-                                    alt={cat.name} 
+                                    src={cat.imageUrl || cat.image} 
+                                    alt={cat.title || cat.name} 
                                     className={`w-full h-full object-contain transition-transform duration-500 group-hover:scale-110 ${cat.isBrand ? 'opacity-70' : ''}`} 
                                 />
                             </div>
                             <span className="text-[10px] md:text-[11px] font-bold text-gray-900 mt-3 text-center leading-tight max-w-[80px]">
-                                {cat.name}
+                                {cat.title || cat.name}
                             </span>
                         </motion.button>
                     ))}
                 </div>
             </section>
 
-            {/* Trending Services */}
-            <section className="mt-12 px-5 max-w-7xl mx-auto">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex flex-col">
-                        <h2 className="text-xl font-black text-gray-900 tracking-tight">Trending Services</h2>
-                        <p className="text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Most booked by neighbors</p>
+            {/* Thoughtful Curations */}
+            {homeData?.isCuratedVisible !== false && curations.length > 0 && (
+                <section className="mt-12 px-5 max-w-7xl mx-auto">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex flex-col">
+                            <h2 className="text-xl font-black text-gray-900 tracking-tight">Thoughtful Curations</h2>
+                            <p className="text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Handpicked for your home</p>
+                        </div>
                     </div>
-                    <button className="text-emerald-600 font-bold text-sm flex items-center gap-1">
-                        See All <ChevronRight size={16} />
-                    </button>
-                </div>
 
-                <div className="flex overflow-x-auto gap-5 no-scrollbar pb-6 -mx-1 px-1">
-                    {featuredServices.map((service) => (
-                        <motion.div 
-                            key={service.id}
-                            whileHover={{ y: -8 }}
-                            className="min-w-[280px] bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/40 overflow-hidden group"
-                        >
-                            <div className="relative h-40 overflow-hidden">
-                                <img 
-                                    src={service.image} 
-                                    alt={service.title} 
-                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                                />
-                                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 text-[10px] font-black shadow-sm">
-                                    <Star size={10} className="text-orange-400 fill-orange-400" />
-                                    {service.rating}
-                                </div>
-                            </div>
-                            <div className="p-5">
-                                <h4 className="font-black text-gray-900 mb-1 line-clamp-1">{service.title}</h4>
-                                <div className="flex items-center gap-3 text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-4">
-                                    <div className="flex items-center gap-1">
-                                        <Clock size={12} /> {service.duration}
+                    <div className="flex overflow-x-auto gap-5 no-scrollbar pb-6 -mx-1 px-1 snap-x snap-mandatory">
+                        {curations.map((item, idx) => {
+                            const youtubeId = getYoutubeId(item.youtubeUrl);
+                            const isPlaying = playingVideoIdx === idx;
+                            
+                            if (youtubeId) {
+                                return (
+                                    <div 
+                                        key={idx}
+                                        className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200/40 bg-black group"
+                                    >
+                                        {isPlaying ? (
+                                            <iframe
+                                                src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1`}
+                                                title={item.title}
+                                                className="absolute inset-0 w-full h-full border-0"
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                allowFullScreen
+                                            ></iframe>
+                                        ) : (
+                                            <div 
+                                                className="absolute inset-0 w-full h-full cursor-pointer"
+                                                onClick={() => setPlayingVideoIdx(idx)}
+                                            >
+                                                <img 
+                                                    src={`https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`}
+                                                    alt={item.title}
+                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                    onError={(e) => {
+                                                        e.target.src = `https://img.youtube.com/vi/${youtubeId}/0.jpg`;
+                                                    }}
+                                                />
+                                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                                    <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-2xl transition-transform group-hover:scale-110 active:scale-95">
+                                                        <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[18px] border-l-white border-b-[10px] border-b-transparent ml-1" />
+                                                    </div>
+                                                </div>
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6">
+                                                    <h4 className="font-black text-white text-lg leading-tight">{item.title}</h4>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="w-1 h-1 bg-gray-300 rounded-full" />
-                                    <span>{service.reviews} reviews</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <span className="text-lg font-black text-emerald-600">₹{service.price}</span>
-                                        <span className="text-xs text-gray-400 line-through ml-2 font-bold">₹{service.originalPrice}</span>
+                                );
+                            }
+
+                            return (
+                                <motion.div 
+                                    key={idx}
+                                    whileHover={{ y: -8 }}
+                                    onClick={() => {
+                                        if (item.slug) navigate(`/service/${item.slug}`);
+                                        else if (item.targetCategoryId) navigate(`/category/${item.targetCategoryId}`);
+                                    }}
+                                    className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200/40 group bg-gray-900 cursor-pointer"
+                                >
+                                    <div className="relative h-full overflow-hidden">
+                                        {item.gifUrl ? (
+                                            (() => {
+                                                const isImage = item.gifUrl.match(/\.(gif|webp|jpg|jpeg|png)$/i);
+                                                
+                                                if (isImage) {
+                                                    return (
+                                                        <img 
+                                                            src={item.gifUrl} 
+                                                            alt={item.title} 
+                                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                                        />
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <video 
+                                                            key={item.gifUrl}
+                                                            src={item.gifUrl} 
+                                                            className="w-full h-full object-cover" 
+                                                            autoPlay 
+                                                            loop 
+                                                            muted 
+                                                            playsInline
+                                                            preload="auto"
+                                                        />
+                                                    );
+                                                }
+                                            })()
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                                <Sparkles className="text-gray-300 w-12 h-12" />
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-5 pointer-events-none">
+                                            <h4 className="font-black text-white text-lg leading-tight">{item.title}</h4>
+                                        </div>
                                     </div>
-                                    <button className="px-6 py-2 bg-emerald-600 text-white text-xs font-black rounded-xl hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-600/20">
-                                        ADD
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    ))}
-                </div>
-            </section>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
 
             {/* Why Hoomzo Services */}
             <section className="mt-8 px-5 max-w-7xl mx-auto">
@@ -346,17 +403,18 @@ const HomeServicesPage = () => {
             <section className="mt-12 px-5 max-w-7xl mx-auto">
                 <h2 className="text-xl font-black text-gray-900 mb-6 tracking-tight">New and noteworthy</h2>
                 <div className="flex overflow-x-auto gap-4 no-scrollbar pb-4">
-                    {[
-                        { id: 1, title: 'AC Service and Repair', image: 'https://images.unsplash.com/photo-1590424744257-fdb03ed78ae0?auto=format&fit=crop&q=80&w=400' },
-                        { id: 2, title: 'Washing Machine Service', image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=400' }
-                    ].map((item) => (
+                    {noteworthy.map((item) => (
                         <motion.div 
-                            key={item.id}
+                            key={item.id || item._id}
                             whileTap={{ scale: 0.98 }}
-                            className="min-w-[240px] bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/40 p-4"
+                            onClick={() => {
+                                if (item.slug) navigate(`/service/${item.slug}`);
+                                else if (item.targetCategoryId) navigate(`/category/${item.targetCategoryId}`);
+                            }}
+                            className="min-w-[240px] bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/40 p-4 cursor-pointer"
                         >
                             <div className="aspect-square bg-gray-50 rounded-2xl overflow-hidden mb-4">
-                                <img src={item.image} alt={item.title} className="w-full h-full object-contain" />
+                                <img src={item.imageUrl || item.image} alt={item.title} className="w-full h-full object-contain" />
                             </div>
                             <h4 className="font-bold text-gray-800 text-sm">{item.title}</h4>
                         </motion.div>
@@ -368,17 +426,18 @@ const HomeServicesPage = () => {
             <section className="mt-12 px-5 max-w-7xl mx-auto">
                 <h2 className="text-xl font-black text-gray-900 mb-6 tracking-tight">Most booked services</h2>
                 <div className="flex overflow-x-auto gap-4 no-scrollbar pb-6">
-                    {[
-                        { id: 1, title: 'Fridge At Home', rating: 4.2, price: 499, image: 'https://images.unsplash.com/photo-1571175432291-384337ada243?auto=format&fit=crop&q=80&w=400' },
-                        { id: 2, title: 'washing Machine Repair and Service', rating: 4.4, price: 599, image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=400' }
-                    ].map((service) => (
+                    {mostBooked.map((service) => (
                         <motion.div 
-                            key={service.id}
+                            key={service.id || service._id}
                             whileHover={{ y: -5 }}
-                            className="min-w-[200px] bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/40 overflow-hidden"
+                            onClick={() => {
+                                if (service.slug) navigate(`/service/${service.slug}`);
+                                else if (service.targetCategoryId) navigate(`/category/${service.targetCategoryId}`);
+                            }}
+                            className="min-w-[200px] bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/40 overflow-hidden cursor-pointer"
                         >
                             <div className="h-48 bg-gray-50 p-2 overflow-hidden">
-                                <img src={service.image} alt={service.title} className="w-full h-full object-contain" />
+                                <img src={service.imageUrl || service.image} alt={service.title} className="w-full h-full object-contain" />
                             </div>
                             <div className="p-4">
                                 <h4 className="font-bold text-gray-800 text-[13px] line-clamp-2 mb-3 h-10 leading-tight">
@@ -386,7 +445,7 @@ const HomeServicesPage = () => {
                                 </h4>
                                 <div className="flex items-center gap-1.5 text-xs font-black text-gray-700 mb-4">
                                     <Star size={14} className="text-yellow-400 fill-yellow-400" />
-                                    {service.rating}
+                                    {service.rating || '4.0'}
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-black text-gray-900">₹{service.price}</span>

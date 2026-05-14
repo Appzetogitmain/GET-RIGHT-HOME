@@ -1510,26 +1510,6 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-base font-bold text-gray-900 mb-2">Button Text</label>
-              <input
-                value={promoForm.buttonText}
-                onChange={(e) => setPromoForm((p) => ({ ...p, buttonText: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
-                placeholder="Explore"
-              />
-            </div>
-            <div>
-              <label className="block text-base font-bold text-gray-900 mb-2">Gradient Class</label>
-              <input
-                value={promoForm.gradientClass}
-                onChange={(e) => setPromoForm((p) => ({ ...p, gradientClass: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
-                placeholder="from-blue-600 to-blue-800"
-              />
-            </div>
-          </div>
           <RedirectionSelector
             categories={categories}
             allServices={allServices}
@@ -1538,15 +1518,6 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
             onChange={(patch) => setPromoForm((p) => ({ ...p, ...patch }))}
             label="Redirect to..."
           />
-          <div>
-            <label className="block text-base font-bold text-gray-900 mb-2">Scroll To Section (optional)</label>
-            <input
-              value={promoForm.scrollToSection}
-              onChange={(e) => setPromoForm((p) => ({ ...p, scrollToSection: e.target.value }))}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
-              placeholder="Waxing & threading"
-            />
-          </div>
           <div className="flex gap-3 pt-4">
             <button
               onClick={savePromo}

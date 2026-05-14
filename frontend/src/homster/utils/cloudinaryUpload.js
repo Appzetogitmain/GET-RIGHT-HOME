@@ -24,7 +24,7 @@ export const uploadToCloudinary = async (file, folder = 'appzeto', onProgress) =
       throw new Error('Failed to get upload signature');
     }
 
-    const { signature, timestamp, apiKey, cloudName } = signResponse.data;
+    const { signature, timestamp, apiKey, cloudName, folder: signedFolder } = signResponse.data;
 
     // 2. Prepare Form Data
     const formData = new FormData();
@@ -32,7 +32,7 @@ export const uploadToCloudinary = async (file, folder = 'appzeto', onProgress) =
     formData.append('api_key', apiKey);
     formData.append('timestamp', timestamp);
     formData.append('signature', signature);
-    formData.append('folder', folder);
+    formData.append('folder', signedFolder);
 
     // 3. Upload directly to Cloudinary
     const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;

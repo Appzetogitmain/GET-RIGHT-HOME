@@ -208,4 +208,27 @@ export const deleteVideoFromCloudinary = async (publicId) => {
   }
 };
 
+/**
+ * Generate signature for Cloudinary direct upload
+ * @param {string} folder - Target folder
+ * @returns {Object} - Signature, timestamp, apiKey, cloudName
+ */
+export const generateSignature = (folder = 'general') => {
+  const fullFolder = `rukkoin/${folder}`;
+  const timestamp = Math.round(new Date().getTime() / 1000);
+  const signature = cloudinary.utils.api_sign_request(
+    { timestamp, folder: fullFolder },
+    process.env.CLOUDINARY_API_SECRET
+  );
+
+  return {
+    signature,
+    timestamp,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    folder: fullFolder
+  };
+};
+
 export default cloudinary;
+
