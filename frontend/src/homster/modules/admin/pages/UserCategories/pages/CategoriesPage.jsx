@@ -55,13 +55,14 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
         if (response.success && response.categories) {
           // Map backend format to frontend format
           const mappedCategories = response.categories.map(cat => ({
-            id: cat.id, // Backend returns id (not _id)
+            id: cat._id || cat.id, // Use _id from Mongoose
             title: cat.title,
             slug: cat.slug,
             homeIconUrl: cat.homeIconUrl || "",
             homeBadge: cat.homeBadge || "",
             hasSaleBadge: cat.hasSaleBadge || false,
             showOnHome: cat.showOnHome !== false,
+            homeOrder: cat.homeOrder || 0,
           }));
 
           // Update catalog with fetched categories
@@ -225,16 +226,16 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
         // Create new category
         const response = await categoryService.create(categoryData);
         if (response.success) {
-          savedCategory = {
-            id: response.category.id,
-            title: response.category.title,
-            slug: response.category.slug,
-            homeIconUrl: response.category.homeIconUrl || "",
-            homeBadge: response.category.homeBadge || "",
-            hasSaleBadge: response.category.hasSaleBadge || false,
-            showOnHome: response.category.showOnHome !== false,
-            homeOrder: response.category.homeOrder || 0,
-          };
+            savedCategory = {
+              id: response.category._id || response.category.id,
+              title: response.category.title,
+              slug: response.category.slug,
+              homeIconUrl: response.category.homeIconUrl || "",
+              homeBadge: response.category.homeBadge || "",
+              hasSaleBadge: response.category.hasSaleBadge || false,
+              showOnHome: response.category.showOnHome !== false,
+              homeOrder: response.category.homeOrder || 0,
+            };
         } else {
           throw new Error(response.message || 'Failed to create category');
         }
@@ -658,7 +659,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
             <button
               onClick={upsert}
               disabled={loading}
-              className="flex-1 py-3.5 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${loading ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
+              style={{ backgroundColor: loading ? '#cbd5e1' : '#2874F0' }}
             >
               <FiSave className="w-5 h-5" />
               {loading ? "Saving..." : (editing ? "Update Category" : "Add Category")}

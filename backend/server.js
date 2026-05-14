@@ -133,6 +133,7 @@ import hsBrandRoutes from './routes/hsBrandRoutes.js';
 import hsServiceRoutes from './routes/hsServiceRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
+import { getPublicCategories, getPublicBrands } from './controllers/homeServiceController.js';
 
 
 
@@ -163,6 +164,8 @@ app.use('/api/admin/categories', hsCategoryRoutes);
 app.use('/api/admin/brands', hsBrandRoutes);
 app.use('/api/admin/services', hsServiceRoutes);
 app.get('/api/public/home-content', getPublicHomeContent);
+app.get('/api/public/categories', getPublicCategories);
+app.get('/api/public/brands', getPublicBrands);
 app.use('/api/upload', uploadRoutes);
 
 

@@ -26,9 +26,11 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { publicCatalogService } from '../../homster/services/catalogService';
+import { useCity } from '../../homster/context/CityContext';
 
 const HomeServicesPage = () => {
     const navigate = useNavigate();
+    const { currentCity } = useCity();
     const [searchQuery, setSearchQuery] = useState('');
     const [isScrolled, setIsScrolled] = useState(false);
     const [activeBanner, setActiveBanner] = useState(0);
@@ -88,7 +90,8 @@ const HomeServicesPage = () => {
             try {
                 setIsLoading(true);
                 // 1. Fetch Home Content (Banners, Promos, Sections)
-                const contentRes = await publicCatalogService.getHomeContent();
+                const cityId = currentCity?._id || currentCity?.id;
+                const contentRes = await publicCatalogService.getHomeContent(cityId);
                 if (contentRes?.success && contentRes.homeContent) {
                     const hc = contentRes.homeContent;
                     setHomeData(hc);
@@ -99,9 +102,14 @@ const HomeServicesPage = () => {
                 }
 
                 // 2. Fetch Categories
-                const catRes = await publicCatalogService.getCategories();
-                if (catRes?.success) {
-                    setCategories(catRes.categories || []);
+                try {
+                    const cityId = currentCity?._id || currentCity?.id;
+                    const catRes = await publicCatalogService.getCategories(cityId);
+                    if (catRes?.success) {
+                        setCategories(catRes.categories || []);
+                    }
+                } catch (err) {
+                    console.error("Error fetching categories:", err);
                 }
 
                 // 3. Fetch Curations (Thoughtful Curations)
@@ -117,7 +125,7 @@ const HomeServicesPage = () => {
         };
 
         fetchHomeData();
-    }, []);
+    }, [currentCity]);
 
     // Removed hardcoded arrays (categories, promos, featuredServices)
 
@@ -232,7 +240,7 @@ const HomeServicesPage = () => {
                             key={cat.id || cat._id}
                             whileHover={{ y: -5 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => navigate(`/category/${cat.id || cat._id}`)}
+                            onClick={() => navigate(`/category/${cat._id || cat.id}`)}
                             className="flex flex-col items-center group relative"
                         >
                             <div className="w-16 h-16 md:w-20 md:h-20 bg-white border border-gray-100 rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-gray-200/50 overflow-hidden relative p-2">
@@ -244,7 +252,7 @@ const HomeServicesPage = () => {
                                     </div>
                                 )}
                                 <img 
-                                    src={cat.imageUrl || cat.image} 
+                                    src={cat.homeIconUrl || cat.imageUrl || cat.image} 
                                     alt={cat.title || cat.name} 
                                     className={`w-full h-full object-contain transition-transform duration-500 group-hover:scale-110 ${cat.isBrand ? 'opacity-70' : ''}`} 
                                 />
