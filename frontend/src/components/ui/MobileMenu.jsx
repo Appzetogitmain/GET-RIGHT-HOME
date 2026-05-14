@@ -214,10 +214,12 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                 <div className="flex flex-col gap-1">{bookingItems.map((item, idx) => <MenuItem key={idx} {...item} />)}</div>
                             </div>
 
+                            {/* 
                             <div>
                                 <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pl-2">Grow with GRH</h4>
                                 <div className="flex flex-col gap-1">{growthItems.map((item, idx) => <MenuItem key={idx} {...item} />)}</div>
                             </div>
+                            */}
 
                             <div>
                                 <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pl-2">App Settings</h4>

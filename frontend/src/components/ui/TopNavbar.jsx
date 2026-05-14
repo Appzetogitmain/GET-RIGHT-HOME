@@ -39,9 +39,11 @@ const TopNavbar = () => {
                     Bookings
                 </Link>
 
+                {/* 
                 <Link to="/refer" className="text-gray-500 font-bold text-sm hover:text-emerald-600 transition tracking-tight">
                     Refer & Earn
                 </Link>
+                */}
             </div>
 
             {/* User Actions */}

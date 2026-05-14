@@ -298,7 +298,9 @@ const PartnerProtectedRoute = ({ children }) => {
       '/hotel/join',
       '/hotel/join-',
       '/hotel/properties',
-      '/hotel/notifications'
+      '/hotel/inventory',
+      '/hotel/notifications',
+      '/properties'
     ];
     if (!allowedUserPaths.some(p => location.pathname.includes(p))) {
       // If a user tries to access partner-only pages like wallet/subscription
@@ -437,6 +439,7 @@ function App() {
             <Route path="/list-property/join-pg" element={<UserProtectedRoute><AddPGWizard /></UserProtectedRoute>} />
             <Route path="/list-property/join-homestay" element={<UserProtectedRoute><AddHomestayWizard /></UserProtectedRoute>} />
             <Route path="/my-properties" element={<UserProtectedRoute><MyProperties /></UserProtectedRoute>} />
+            <Route path="/properties/:id" element={<UserProtectedRoute><PartnerPropertyDetails /></UserProtectedRoute>} />
 
             {/* Hotel/Partner Module Routes */}
             <Route path="/hotel/login" element={<HotelLogin />} />
