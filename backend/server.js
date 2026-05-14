@@ -126,6 +126,15 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import reelRoutes from './routes/reelRoutes.js';
 import bannerRoutes from './routes/bannerRoutes.js';
+import homeContentRoutes from './routes/homeContentRoutes.js';
+import cityRoutes from './routes/cityRoutes.js';
+import hsCategoryRoutes from './routes/hsCategoryRoutes.js';
+import hsBrandRoutes from './routes/hsBrandRoutes.js';
+import hsServiceRoutes from './routes/hsServiceRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
+import { getPublicHomeContent } from './controllers/homeContentController.js';
+
+
 
 
 app.use('/api/auth', authRoutes);
@@ -148,6 +157,15 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/reels', reelRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/admin/home-content', homeContentRoutes);
+app.use('/api/admin/cities', cityRoutes);
+app.use('/api/admin/categories', hsCategoryRoutes);
+app.use('/api/admin/brands', hsBrandRoutes);
+app.use('/api/admin/services', hsServiceRoutes);
+app.get('/api/public/home-content', getPublicHomeContent);
+app.use('/api/upload', uploadRoutes);
+
+
 
 
 // Global Error Handler
