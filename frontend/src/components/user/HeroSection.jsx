@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Menu, Bell, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import logo from '../../assets/rokologin-removebg-preview.png';
+import navLogo from '../../assets/grh-logo.png';
 import MobileMenu from '../../components/ui/MobileMenu';
 import { useNavigate } from 'react-router-dom';
 import walletService from '../../services/walletService';
@@ -86,16 +86,8 @@ const HeroSection = ({ theme, selectedType, onSearch }) => {
                 </button>
 
                 {/* Logo */}
-                <div className="flex flex-col items-start leading-none ml-3">
-                    <span className="text-2xl font-black tracking-tight text-white flex items-center gap-0 drop-shadow-md">
-                        HOOM<span style={{ color: accentColor }} className="drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]">ZO</span>
-                    </span>
-                    <motion.div
-                        className="h-[3px] w-8 rounded-full"
-                        style={{ backgroundColor: accentColor }}
-                        animate={{ width: [32, 24, 32] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    />
+                <div className="flex items-center ml-2">
+                    <img src={navLogo} alt="GRH Logo" className="h-16 w-auto object-cover" />
                 </div>
 
                 <div className="flex-1" />

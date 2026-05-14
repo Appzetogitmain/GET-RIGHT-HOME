@@ -71,7 +71,7 @@ const ContactPage = () => {
             </div>
             <div>
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Email</p>
-              <p className="text-xs text-gray-500">support@hoomzo.in</p>
+              <p className="text-xs text-gray-500">support@getrighthome.in</p>
             </div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">

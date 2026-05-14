@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Mail, ArrowRight, Loader2, Shield } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import logo from '../../assets/rokologin-removebg-preview.png';
+import logo from '../../assets/grh-logo.png';
 import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
 import toast from 'react-hot-toast';
@@ -158,17 +158,12 @@ const UserLogin = () => {
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", delay: 0.1 }}
-                        className="inline-block mb-6"
+                        className="inline-block mb-2"
                     >
-                        <div className="flex flex-col items-start">
-                            <span className="text-4xl font-black tracking-tighter text-[#111827] flex items-center gap-1">
-                                HOOM<span className="text-amber-600">ZO</span>
-                            </span>
-                            <div className="h-1 w-8 bg-amber-600 rounded-full -mt-1 shadow-sm"></div>
-                        </div>
+                        <img src={logo} alt="GRH Logo" className="h-32 w-auto mx-auto object-contain" />
                     </motion.div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight">Welcome Back</h1>
-                    <p className="text-gray-400 text-xs font-medium mt-1">Login to continue your journey</p>
+                    <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Welcome Back</h1>
+                    <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Get-Right-Home Hub</p>
                 </div>
 
                 {/* Main Card */}
@@ -324,7 +319,7 @@ const UserLogin = () => {
 
                 {/* Footer */}
                 <p className="text-center text-gray-400 text-xs mt-8 font-medium">
-                    New to HoomZo?{' '}
+                    New to Get-Right-Home?{' '}
                     <button
                         onClick={() => navigate('/signup')}
                         className="text-amber-600 font-bold hover:underline"

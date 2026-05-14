@@ -241,7 +241,7 @@ const UserLoginPage = () => {
             {/* Footer */}
             <div className="mt-8 text-center">
                 <p className="text-gray-500 text-sm">
-                    New to HoomZo?{' '}
+                    New to Get-Right-Home?{' '}
                     <button onClick={() => navigate('/signup')} className="text-amber-600 font-bold hover:underline">
                         Create Account
                     </button>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Globe } from 'lucide-react';
-import logo from '../../assets/rokologin-removebg-preview.png';
+import logo from '../../assets/grh-logo.png';
 import { Link } from 'react-router-dom';
 
 const TopNavbar = () => {
@@ -13,11 +13,14 @@ const TopNavbar = () => {
 
             {/* Logo */}
             <Link to="/">
-                <div className="flex flex-col items-start leading-tight group">
-                    <span className="text-2xl font-black tracking-tighter text-gray-900">
-                        HOOM<span className="text-emerald-600">ZO</span>
-                    </span>
-                    <div className="h-0.5 w-6 bg-emerald-500 rounded-full group-hover:w-full transition-all duration-300"></div>
+                <div className="flex items-center gap-2 group">
+                    <img src={logo} alt="GRH Logo" className="h-14 w-auto object-contain" />
+                    <div className="flex flex-col leading-none">
+                        <span className="text-xl font-black tracking-tighter text-gray-900 uppercase">
+                            Get-Right<span className="text-orange-600">-Home</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Real Estate Hub</span>
+                    </div>
                 </div>
             </Link>
 

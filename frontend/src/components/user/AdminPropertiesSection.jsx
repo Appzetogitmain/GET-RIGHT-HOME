@@ -263,7 +263,7 @@ const AdminPropertiesSection = ({ searchCity }) => {
                             </h2>
                         </div>
                         <p className="text-sm text-gray-400 ml-3">
-                            Handpicked listings by the HoomZo team — Select your city below
+                            Handpicked listings by the GRH team — Select your city below
                         </p>
                     </div>
 

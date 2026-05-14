@@ -156,7 +156,7 @@ const HomeServices = () => {
                             <ShieldCheck size={32} />
                         </div>
                         <div>
-                            <h4 className="text-white font-bold text-lg">HoomZo Service Guarantee</h4>
+                            <h4 className="text-white font-bold text-lg">GRH Service Guarantee</h4>
                             <p className="text-gray-400 text-sm">Verified Professionals • Fixed Prices • 30 Day Warranty</p>
                         </div>
                     </div>

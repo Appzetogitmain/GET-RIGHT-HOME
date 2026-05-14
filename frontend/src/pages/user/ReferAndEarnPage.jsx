@@ -58,9 +58,9 @@ const ReferAndEarnPage = () => {
 
     const shareOptions = [
         { icon: MessageCircle, label: "WhatsApp", color: "bg-[#25D366]", action: () => window.open(`https://wa.me/?text=Book hotels at amazing prices! Use my referral code ${referralData.code} and get ₹200 off! ${referralData.link}`) },
-        { icon: Twitter, label: "Twitter", color: "bg-[#1DA1F2]", action: () => window.open(`https://twitter.com/intent/tweet?text=Get ₹200 off on your first hotel booking with HoomZo! Use code: ${referralData.code}`) },
+        { icon: Twitter, label: "Twitter", color: "bg-[#1DA1F2]", action: () => window.open(`https://twitter.com/intent/tweet?text=Get ₹200 off on your first hotel booking with Get-Right-Home! Use code: ${referralData.code}`) },
         { icon: Facebook, label: "Facebook", color: "bg-[#4267B2]", action: () => { } },
-        { icon: Mail, label: "Email", color: "bg-gray-600", action: () => window.open(`mailto:?subject=Get ₹200 off on HoomZo&body=Use my code ${referralData.code} to get ₹200 off! ${referralData.link}`) },
+        { icon: Mail, label: "Email", color: "bg-gray-600", action: () => window.open(`mailto:?subject=Get ₹200 off on Get-Right-Home&body=Use my code ${referralData.code} to get ₹200 off! ${referralData.link}`) },
     ];
 
     const howItWorks = [
@@ -80,8 +80,8 @@ const ReferAndEarnPage = () => {
 
     const handleShare = async () => {
         const shareData = {
-            title: 'Join HoomZo & Get ₹200!',
-            text: `Hey! Book hotels at amazing prices on HoomZo. Use my referral code ${referralData.code} to get ₹200 OFF on your first booking!`,
+            title: 'Join Get-Right-Home & Get ₹200!',
+            text: `Hey! Book hotels at amazing prices on Get-Right-Home. Use my referral code ${referralData.code} to get ₹200 OFF on your first booking!`,
             url: referralData.link || 'https://hoomzo.in'
         };
 

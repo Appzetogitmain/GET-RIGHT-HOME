@@ -17,7 +17,7 @@ const PartnerLandingPage = () => {
                     <button onClick={() => navigate(-1)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition backdrop-blur-md">
                         <ArrowLeft size={20} />
                     </button>
-                    <span className="text-sm font-bold tracking-widest text-white/70 uppercase">HoomZo Partner</span>
+                    <span className="text-sm font-bold tracking-widest text-white/70 uppercase">Get-Right-Home Partner</span>
                 </div>
 
                 <div className="flex-1 flex flex-col justify-center pb-20">
@@ -31,7 +31,7 @@ const PartnerLandingPage = () => {
                             <span className="text-accent">Business</span> with us.
                         </h1>
                         <p className="text-white/80 text-lg leading-relaxed max-w-sm">
-                            Join thousands of hotels and homeowners who trust HoomZo to increase their revenue.
+                            Join thousands of hotels and homeowners who trust Get-Right-Home to increase their revenue.
                         </p>
                     </motion.div>
 

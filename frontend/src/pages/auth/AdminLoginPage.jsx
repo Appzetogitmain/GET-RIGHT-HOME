@@ -72,7 +72,7 @@ const AdminLoginPage = () => {
                         <Shield size={40} className="text-white" />
                     </motion.div>
                     <h1 className="text-3xl font-black text-white mb-1">Admin Portal</h1>
-                    <p className="text-slate-400 text-sm">HoomZo Master Control</p>
+                    <p className="text-slate-400 text-sm uppercase tracking-widest">GRH Master Control</p>
                 </div>
 
                 {/* Form Card */}

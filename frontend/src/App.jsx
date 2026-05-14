@@ -214,9 +214,9 @@ const Layout = ({ children }) => {
                 </div>
                 <div className="flex flex-col items-center leading-none">
                   <span className="text-3xl font-black tracking-tighter text-white flex items-center gap-1 uppercase">
-                    HOOM<span className="text-amber-400">ZO</span>
+                    GET-RIGHT<span className="text-orange-600">-HOME</span>
                   </span>
-                  <div className="h-1 w-8 bg-amber-400 rounded-full mt-1"></div>
+                  <div className="h-1 w-8 bg-orange-600 rounded-full mt-1"></div>
                 </div>
               </div>
               <h1 className="text-2xl md:text-3xl font-black text-white mb-3 leading-snug">

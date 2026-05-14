@@ -154,7 +154,7 @@ const HotelLoginPage = () => {
                     className="mb-8 text-center space-y-1"
                 >
                     <h1 className="text-xl font-bold text-[#003836]">Partner Login</h1>
-                    <p className="text-gray-400 text-xs font-medium">Log in to HoomZo</p>
+                    <p className="text-gray-400 text-xs font-medium uppercase tracking-widest">Log in to GRH Hub</p>
                 </motion.div>
 
                 {/* Form Area */}
@@ -311,7 +311,7 @@ const HotelLoginPage = () => {
                 {/* Footer */}
                 <div className="py-8 text-center mt-auto">
                     <p className="text-gray-400 text-sm font-medium">
-                        New to HoomZo?{' '}
+                        New to Get-Right-Home?{' '}
                         <button
                             onClick={() => navigate('/hotel/register')}
                             className="text-[#004F4D] font-bold hover:underline"

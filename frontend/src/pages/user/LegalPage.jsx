@@ -112,7 +112,7 @@ const LegalPage = () => {
                     </div>
                     {renderContent(
                         'Privacy Policy',
-                        'At HoomZo, we take your privacy seriously. This policy describes how we collect, use, and handle your data.',
+                        'At Get-Right-Home, we take your privacy seriously. This policy describes how we collect, use, and handle your data.',
                         privacy
                     )}
                 </div>
@@ -126,7 +126,7 @@ const LegalPage = () => {
                     </div>
                     {renderContent(
                         'Terms & Conditions',
-                        'By using HoomZo, you agree to the latest booking, cancellation and usage terms defined by the platform.',
+                        'By using Get-Right-Home, you agree to the latest booking, cancellation and usage terms defined by the platform.',
                         terms
                     )}
                 </div>

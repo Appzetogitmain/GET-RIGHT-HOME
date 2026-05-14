@@ -14,7 +14,7 @@ const SettingsPage = () => {
         {
             title: "About & Legal",
             items: [
-                { icon: Info, label: "About HoomZo", type: "nav", path: "/about" },
+                { icon: Info, label: "About Get-Right-Home", type: "nav", path: "/about" },
                 { icon: Phone, label: "Contact Us", type: "nav", path: "/contact" },
                 { icon: Shield, label: "Privacy Policy", type: "nav", path: "/legal" },
                 { icon: FileText, label: "Terms & Conditions", type: "nav", path: "/legal" },

@@ -34,7 +34,7 @@ const AboutPage = () => {
     };
   }, []);
 
-  const content = page?.content || 'HoomZo helps you discover, compare and book stays that match your style, from budget hostels to premium villas, with a mobile-first experience.';
+  const content = page?.content || 'Get-Right-Home helps you discover, compare and book stays that match your style, from budget hostels to premium villas, with a mobile-first experience.';
   const paragraphs = typeof content === 'string' ? content.split('\n').filter(Boolean) : [];
 
   return (
@@ -50,7 +50,7 @@ const AboutPage = () => {
           <h1 className="text-xl font-bold">About Us</h1>
         </div>
         <p className="text-xs text-white/70 max-w-xs">
-          Learn more about the story, mission and values behind HoomZo.
+          Learn more about the story, mission and values behind Get-Right-Home.
         </p>
       </div>
 

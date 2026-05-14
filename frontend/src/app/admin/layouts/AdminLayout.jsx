@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 
-import logo from '../../../assets/rokologin-removebg-preview.png';
+import logo from '../../../assets/grh-logo.png';
 import useAdminStore from '../store/adminStore';
 import toast from 'react-hot-toast';
 import adminService from '../../../services/adminService';
@@ -116,13 +116,15 @@ const AdminLayout = () => {
                 {/* Sidebar Header - Kitchen Appliance Style */}
                 <div className={`p-5 flex items-center justify-between bg-white border-b border-gray-50 transition-all duration-300 ${!isSidebarOpen && 'flex-col gap-4 p-4'}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
-                            <img src={logo} alt="Logo" className="w-6 h-6 object-contain opacity-80" />
+                        <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
+                            <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
                         </div>
                         {isSidebarOpen && (
                             <div className="flex flex-col min-w-0">
-                                <h2 className="text-[13px] font-black text-gray-900 truncate tracking-tight uppercase">HoomZo Panel</h2>
-                                <p className="text-[9px] text-gray-400 font-bold tracking-widest">ADMIN PANEL</p>
+                                <span className="text-[13px] font-black text-gray-900 truncate tracking-tight uppercase">
+                                    GET RIGHT <span className="text-orange-600">HOME</span>
+                                </span>
+                                <p className="text-[9px] text-gray-400 font-bold tracking-widest uppercase">Admin Panel</p>
                             </div>
                         )}
                     </div>
@@ -156,7 +158,10 @@ const AdminLayout = () => {
                                         <Link
                                             key={item.path}
                                             to={item.path}
-                                            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group relative text-[13px] font-medium tracking-tight ${isActive
+                                            className={`flex items-center transition-all group relative text-[13px] font-medium tracking-tight ${isSidebarOpen 
+                                                ? 'gap-3 px-4 py-2.5 rounded-xl' 
+                                                : 'justify-center w-12 h-12 rounded-xl mx-auto mb-1'
+                                                } ${isActive
                                                 ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
                                                 : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
                                                 }`}
@@ -204,8 +209,8 @@ const AdminLayout = () => {
                 {/* Topbar */}
                 <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">
                     <div className="flex items-center gap-4 flex-1">
-                        <h1 className="text-xl font-bold text-gray-800">
-                            HoomZo Admin
+                        <h1 className="text-xl font-bold text-gray-800 uppercase tracking-tighter">
+                            GET RIGHT <span className="text-orange-600">HOME</span>
                         </h1>
                         <div className="hidden md:flex items-center relative max-w-md w-full ml-8">
                             <Search size={16} className="absolute left-3 text-gray-400" />

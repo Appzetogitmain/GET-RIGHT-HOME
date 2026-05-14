@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Wallet, Heart, Gift, HelpCircle, FileText, Shield, ChevronRight, LogOut, Settings, BookOpen, Building, Briefcase, Bell, Edit3, Video } from 'lucide-react';
-import logo from '../../assets/rokologin-removebg-preview.png';
+import logo from '../../assets/grh-logo.png';
 import { userService } from '../../services/apiService';
 
 import { useNavigate } from 'react-router-dom';
@@ -159,10 +159,9 @@ const MobileMenu = ({ isOpen, onClose }) => {
 
                         <div className="flex items-center justify-between p-5 pb-2">
                             <div className="flex flex-col items-start leading-none">
-                                <span className="text-2xl font-black tracking-tighter text-[#111827] flex items-center gap-0.5">
-                                    HOOM<span className="text-emerald-600">ZO</span>
+                                <span className="text-lg font-black tracking-tighter text-[#111827] flex items-center gap-1 uppercase">
+                                    GET RIGHT <span className="text-orange-600">HOME</span>
                                 </span>
-                                <div className="h-0.5 w-6 bg-emerald-500 rounded-full mt-0.5"></div>
                             </div>
                             <button onClick={onClose} className="p-2 rounded-full bg-gray-50 hover:bg-gray-100 transition border border-gray-100">
                                 <X size={20} className="text-gray-500" />
@@ -216,7 +215,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
                             </div>
 
                             <div>
-                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pl-2">Grow with HOOMZO</h4>
+                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pl-2">Grow with GRH</h4>
                                 <div className="flex flex-col gap-1">{growthItems.map((item, idx) => <MenuItem key={idx} {...item} />)}</div>
                             </div>
 
