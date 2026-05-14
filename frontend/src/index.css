@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+
+@theme {
+  --color-background: #F8FAFC;
+  /* Clean slate-50 background */
+
+  --color-surface: #059669;
+  /* Emerald 600 - Primary brand color */
+  --color-accent: #10B981;
+  /* Emerald 500 - Accent highlights */
+  --color-textLight: #F0FDF4;
+  /* Very light emerald text */
+  --color-textDark: #064E3B;
+  /* Emerald 900 - Dark professional text */
+
+  --color-honey: #F59E0B;
+  --color-cardWhite: #FFFFFF;
+
+  --font-sans: "Inter", sans-serif;
+
+
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+
+  /* Professional Emerald Theme */
+  --color-partner-bg: #FFFFFF;
+  --color-partner-text-primary: #059669;
+  --color-partner-text-secondary: #064E3B;
+  --color-partner-btn: #059669;
+  --color-partner-card: #F0FDF4;
+  --color-partner-border: #BBF7D0;
+}
+
+@layer base {
+  body {
+    /* 
+       Reverted Background:
+       Clean Light Gray/White as per "Light Theme" preference.
+       The previous teal gradient was rejected.
+    */
+    @apply bg-slate-50 text-textDark font-sans min-h-screen selection:bg-emerald-100;
+
+    /* Prevent pull-to-refresh and overscroll in some containers if needed */
+    /* overscroll-behavior-y: none; */
+
+    /* Better touch handling for mobile apps */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Prevent zoom on focus for iOS by ensuring font-size is at least 16px */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* COMPATIBILITY: Force dark background for Hotel Module to match white text */
+/* Hotel Partner Module Reset */
+body:has(#hotel-root) {
+  background-color: var(--color-partner-bg);
+  color: var(--color-partner-text-primary);
+}
+
+.text-muted {
+  @apply text-slate-400;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.input {
+  @apply w-full px-4 py-3 rounded-xl border-2 border-gray-200 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--color-surface)] focus:ring-4 focus:ring-[var(--color-surface)]/10 bg-white text-gray-900 font-medium shadow-sm hover:border-emerald-300;
+}
+
+@media print {
+
+  /* Hide Navbar and specific buttons during print */
+  nav,
+  .navbar,
+  footer,
+  .bottom-nav,
+  button[class*="print:hidden"],
+  [aria-label="Bottom Navigation"] {
+    display: none !important;
+  }
+}
