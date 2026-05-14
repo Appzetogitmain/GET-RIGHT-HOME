@@ -46,14 +46,10 @@ const AdminRoutes = () => {
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
         {/* Login route - outside of layout (public) */}
-        <Route path="/login" element={<PublicRoute userType="admin"><Login /></PublicRoute>} />
+        <Route path="login" element={<PublicRoute userType="admin"><Login /></PublicRoute>} />
 
         {/* Protected routes - inside layout */}
-        <Route path="/" element={
-          <ProtectedRoute userType="admin">
-            <AdminLayout />
-          </ProtectedRoute>
-        }>
+        <Route path="/" element={<AdminLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users/*" element={<Users />} />

@@ -1,7 +1,7 @@
 [
   {
     "title": "Dashboard",
-    "route": "/admin/dashboard",
+    "route": "/admin/home-service/dashboard",
     "allowedRoles": [
       "super_admin",
       "admin"
@@ -9,34 +9,8 @@
     "children": []
   },
   {
-    "title": "Users",
-    "route": "/admin/users",
-    "allowedRoles": [
-      "super_admin",
-      "admin"
-    ],
-    "children": [
-      "All Users",
-      "User Bookings",
-      "User Analytics"
-    ]
-  },
-  {
-    "title": "Vendors",
-    "route": "/admin/vendors",
-    "allowedRoles": [
-      "super_admin",
-      "admin"
-    ],
-    "children": [
-      "All Vendors",
-      "Vendor Bookings",
-      "Vendor Analytics"
-    ]
-  },
-  {
     "title": "Workers",
-    "route": "/admin/workers",
+    "route": "/admin/home-service/workers",
     "allowedRoles": [
       "super_admin",
       "admin"
@@ -49,7 +23,7 @@
   },
   {
     "title": "Bookings",
-    "route": "/admin/bookings",
+    "route": "/admin/home-service/bookings",
     "allowedRoles": [
       "super_admin",
       "admin"
@@ -61,17 +35,8 @@
     ]
   },
   {
-    "title": "Scrap Items",
-    "route": "/admin/scrap",
-    "allowedRoles": [
-      "super_admin",
-      "admin"
-    ],
-    "children": []
-  },
-  {
     "title": "Payments",
-    "route": "/admin/payments",
+    "route": "/admin/home-service/payments",
     "allowedRoles": [
       "super_admin"
     ],
@@ -86,7 +51,7 @@
   },
   {
     "title": "Settlements",
-    "route": "/admin/settlements",
+    "route": "/admin/home-service/settlements",
     "allowedRoles": [
       "super_admin"
     ],
@@ -99,7 +64,7 @@
   },
   {
     "title": "User Catalog",
-    "route": "/admin/user-categories",
+    "route": "/admin/home-service/user-categories",
     "allowedRoles": [
       "super_admin",
       "admin"
@@ -112,26 +77,8 @@
     ]
   },
   {
-    "title": "Vendor Services",
-    "route": "/admin/user-categories/vendor-services",
-    "allowedRoles": [
-      "super_admin",
-      "admin"
-    ],
-    "children": []
-  },
-  {
-    "title": "Vendor Parts",
-    "route": "/admin/user-categories/vendor-parts",
-    "allowedRoles": [
-      "super_admin",
-      "admin"
-    ],
-    "children": []
-  },
-  {
     "title": "Reports",
-    "route": "/admin/reports",
+    "route": "/admin/home-service/reports",
     "allowedRoles": [
       "super_admin"
     ],
@@ -143,7 +90,7 @@
   },
   {
     "title": "Reviews",
-    "route": "/admin/reviews",
+    "route": "/admin/home-service/reviews",
     "allowedRoles": [
       "super_admin"
     ],
@@ -151,7 +98,7 @@
   },
   {
     "title": "Plans",
-    "route": "/admin/plans",
+    "route": "/admin/home-service/plans",
     "allowedRoles": [
       "super_admin"
     ],
@@ -159,18 +106,9 @@
   },
   {
     "title": "Worker Plans",
-    "route": "/admin/worker-plans",
+    "route": "/admin/home-service/worker-plans",
     "allowedRoles": [
       "super_admin"
-    ],
-    "children": []
-  },
-  {
-    "title": "Settings",
-    "route": "/admin/settings",
-    "allowedRoles": [
-      "super_admin",
-      "admin"
     ],
     "children": []
   }

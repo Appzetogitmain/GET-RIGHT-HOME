@@ -78,7 +78,7 @@ const ReportsOverview = () => {
       icon: FiDollarSign,
       color: 'text-green-600',
       bg: 'bg-green-50',
-      link: '/admin/reports/revenue'
+      link: '/admin/home-service/reports/revenue'
     },
     {
       title: 'Platform Comm.',
@@ -86,7 +86,7 @@ const ReportsOverview = () => {
       icon: FiTrendingUp,
       color: 'text-primary-600',
       bg: 'bg-primary-50',
-      link: '/admin/reports/revenue'
+      link: '/admin/home-service/reports/revenue'
     },
     {
       title: 'Total Bookings',
@@ -94,7 +94,7 @@ const ReportsOverview = () => {
       icon: FiShoppingBag,
       color: 'text-amber-600',
       bg: 'bg-amber-50',
-      link: '/admin/reports/bookings'
+      link: '/admin/home-service/reports/bookings'
     },
     {
       title: 'Active Users',
@@ -102,7 +102,7 @@ const ReportsOverview = () => {
       icon: FiUsers,
       color: 'text-indigo-600',
       bg: 'bg-indigo-50',
-      link: '/admin/reports/workers' // Just as an example link
+      link: '/admin/home-service/reports/workers' // Just as an example link
     }
   ];
 
@@ -118,7 +118,7 @@ const ReportsOverview = () => {
     <div className="space-y-6">
       {/* Quick Action Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link to="/admin/reports/bookings" className="group">
+        <Link to="/admin/home-service/reports/bookings" className="group">
           <CardShell className="bg-gradient-to-br from-primary-600 to-primary-700 text-white border-none hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -135,7 +135,7 @@ const ReportsOverview = () => {
           </CardShell>
         </Link>
 
-        <Link to="/admin/reports/vendors" className="group">
+        <Link to="/admin/home-service/reports/vendors" className="group">
           <CardShell className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-none hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -152,7 +152,7 @@ const ReportsOverview = () => {
           </CardShell>
         </Link>
 
-        <Link to="/admin/reports/workers" className="group">
+        <Link to="/admin/home-service/reports/workers" className="group">
           <CardShell className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white border-none hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -294,11 +294,11 @@ const Reports = () => {
   };
 
   const navTabs = [
-    { name: 'Overview', path: '/admin/reports', icon: FiActivity, exact: true },
-    { name: 'Revenue', path: '/admin/reports/revenue', icon: FiDollarSign },
-    { name: 'Bookings', path: '/admin/reports/bookings', icon: FiShoppingBag },
-    { name: 'Vendors', path: '/admin/reports/vendors', icon: FiUsers },
-    { name: 'Workers', path: '/admin/reports/workers', icon: FiBriefcase },
+    { name: 'Overview', path: '/admin/home-service/reports', icon: FiActivity, exact: true },
+    { name: 'Revenue', path: '/admin/home-service/reports/revenue', icon: FiDollarSign },
+    { name: 'Bookings', path: '/admin/home-service/reports/bookings', icon: FiShoppingBag },
+    { name: 'Vendors', path: '/admin/home-service/reports/vendors', icon: FiUsers },
+    { name: 'Workers', path: '/admin/home-service/reports/workers', icon: FiBriefcase },
   ];
 
   const isTabActive = (tab) => {

@@ -47,6 +47,7 @@ const BookingCheckoutPage = React.lazy(() => import('./pages/user/BookingCheckou
 const ReelsPage = React.lazy(() => import('./pages/user/ReelsPage'));
 const MyProperties = React.lazy(() => import('./pages/user/MyProperties'));
 const HomeServicesPage = React.lazy(() => import('./pages/user/HomeServicesPage'));
+const HomsterAdminRoutes = React.lazy(() => import('./homster/modules/admin/routes/index.jsx'));
 
 // Lazy Imports - Admin Pages
 const AdminLogin = React.lazy(() => import('./app/admin/pages/AdminLogin'));
@@ -488,6 +489,9 @@ function App() {
 
             {/* Admin App Routes */}
             <Route element={<AdminProtectedRoute />}>
+              {/* Home Service Admin Routes */}
+              <Route path="/admin/home-service/*" element={<HomsterAdminRoutes />} />
+
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
@@ -513,7 +517,6 @@ function App() {
                 <Route path="subscriptions" element={<AdminSubscriptions />} />
                 <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                 <Route path="banners" element={<AdminBanners />} />
-
               </Route>
             </Route>
 

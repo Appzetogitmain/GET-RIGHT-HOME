@@ -46,64 +46,64 @@ const iconMap = {
 // Helper function to convert child name to route path
 const getChildRoute = (parentRoute, childName) => {
   const routeMap = {
-    "/admin/users": {
-      "All Users": "/admin/users/all",
-      "User Bookings": "/admin/users/bookings",
-      "Transactions": "/admin/users/transactions",
-      "User Analytics": "/admin/users/analytics",
+    "/admin/home-service/users": {
+      "All Users": "/admin/home-service/users/all",
+      "User Bookings": "/admin/home-service/users/bookings",
+      "Transactions": "/admin/home-service/users/transactions",
+      "User Analytics": "/admin/home-service/users/analytics",
     },
-    "/admin/vendors": {
-      "All Vendors": "/admin/vendors/all",
-      "Vendor Bookings": "/admin/vendors/bookings",
-      "Vendor Analytics": "/admin/vendors/analytics",
-      "Vendor Payments": "/admin/vendors/payments",
+    "/admin/home-service/vendors": {
+      "All Vendors": "/admin/home-service/vendors/all",
+      "Vendor Bookings": "/admin/home-service/vendors/bookings",
+      "Vendor Analytics": "/admin/home-service/vendors/analytics",
+      "Vendor Payments": "/admin/home-service/vendors/payments",
     },
-    "/admin/workers": {
-      "All Workers": "/admin/workers/all",
-      "Worker Jobs": "/admin/workers/jobs",
-      "Worker Analytics": "/admin/workers/analytics",
-      "Worker Payments": "/admin/workers/payments",
+    "/admin/home-service/workers": {
+      "All Workers": "/admin/home-service/workers/all",
+      "Worker Jobs": "/admin/home-service/workers/jobs",
+      "Worker Analytics": "/admin/home-service/workers/analytics",
+      "Worker Payments": "/admin/home-service/workers/payments",
     },
-    "/admin/bookings": {
-      "All Bookings": "/admin/bookings",
-      "Booking Tracking": "/admin/bookings/tracking",
-      "Booking Notifications": "/admin/bookings/notifications",
+    "/admin/home-service/bookings": {
+      "All Bookings": "/admin/home-service/bookings",
+      "Booking Tracking": "/admin/home-service/bookings/tracking",
+      "Booking Notifications": "/admin/home-service/bookings/notifications",
     },
-    "/admin/user-categories": {
-      "Home": "/admin/user-categories/home",
-      "Manage Categories": "/admin/user-categories/categories",
-      "Manage Brands": "/admin/user-categories/brands",
-      "Manage Services": "/admin/user-categories/sections",
+    "/admin/home-service/user-categories": {
+      "Home": "/admin/home-service/user-categories/home",
+      "Manage Categories": "/admin/home-service/user-categories/categories",
+      "Manage Brands": "/admin/home-service/user-categories/brands",
+      "Manage Services": "/admin/home-service/user-categories/sections",
     },
-    "/admin/payments": {
-      "Payment Overview": "/admin/payments/overview",
-      "User Payments": "/admin/payments/users",
-      "Worker Payments": "/admin/payments/workers",
-      "Vendor Payments": "/admin/payments/vendors",
-      "Admin Revenue": "/admin/payments/revenue",
-      "Payment Reports": "/admin/payments/reports",
+    "/admin/home-service/payments": {
+      "Payment Overview": "/admin/home-service/payments/overview",
+      "User Payments": "/admin/home-service/payments/users",
+      "Worker Payments": "/admin/home-service/payments/workers",
+      "Vendor Payments": "/admin/home-service/payments/vendors",
+      "Admin Revenue": "/admin/home-service/payments/revenue",
+      "Payment Reports": "/admin/home-service/payments/reports",
     },
-    "/admin/reports": {
-      "Revenue Report": "/admin/reports/revenue",
-      "Booking Report": "/admin/reports/bookings",
-      "Payment Report": "/admin/payments/reports",
+    "/admin/home-service/reports": {
+      "Revenue Report": "/admin/home-service/reports/revenue",
+      "Booking Report": "/admin/home-service/reports/bookings",
+      "Payment Report": "/admin/home-service/payments/reports",
     },
-    "/admin/notifications": {
-      "Push Notifications": "/admin/notifications/push",
-      "Custom Messages": "/admin/notifications/messages",
-      "Notification Settings": "/admin/notifications/settings",
+    "/admin/home-service/notifications": {
+      "Push Notifications": "/admin/home-service/notifications/push",
+      "Custom Messages": "/admin/home-service/notifications/messages",
+      "Notification Settings": "/admin/home-service/notifications/settings",
     },
-    "/admin/settings": {
-      "General Settings": "/admin/settings/general",
-      "Worker Assignment": "/admin/settings/worker-assignment",
-      "Service Configuration": "/admin/settings/service-config",
-      "System Settings": "/admin/settings/system",
+    "/admin/home-service/settings": {
+      "General Settings": "/admin/home-service/settings/general",
+      "Worker Assignment": "/admin/home-service/settings/worker-assignment",
+      "Service Configuration": "/admin/home-service/settings/service-config",
+      "System Settings": "/admin/home-service/settings/system",
     },
-    "/admin/settlements": {
-      "Pending": "/admin/settlements/pending",
-      "Withdrawals": "/admin/settlements/withdrawals",
-      "Vendors with Due": "/admin/settlements/vendors",
-      "History": "/admin/settlements/history",
+    "/admin/home-service/settlements": {
+      "Pending": "/admin/home-service/settlements/pending",
+      "Withdrawals": "/admin/home-service/settlements/withdrawals",
+      "Vendors with Due": "/admin/home-service/settlements/vendors",
+      "History": "/admin/home-service/settlements/history",
     },
   };
 
@@ -149,28 +149,28 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
   // Fetch pending counts for badges
   useEffect(() => {
-    const fetchCounts = async () => {
-      try {
-        const response = await dashboardService.getStats();
-        if (response.success && response.data?.stats) {
-          const stats = response.data.stats;
-          setCounts({
-            bookings: stats.pendingBookings || 0,
-            vendors: stats.pendingVendors || 0,
-            withdrawals: stats.pendingWithdrawals || 0,
-            pendingSettlements: stats.pendingSettlements || 0,
-            scraps: stats.pendingScraps || 0
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching sidebar counts:", error);
-      }
-    };
+    // const fetchCounts = async () => {
+    //   try {
+    //     const response = await dashboardService.getStats();
+    //     if (response.success && response.data?.stats) {
+    //       const stats = response.data.stats;
+    //       setCounts({
+    //         bookings: stats.pendingBookings || 0,
+    //         vendors: stats.pendingVendors || 0,
+    //         withdrawals: stats.pendingWithdrawals || 0,
+    //         pendingSettlements: stats.pendingSettlements || 0,
+    //         scraps: stats.pendingScraps || 0
+    //       });
+    //     }
+    //   } catch (error) {
+    //     console.error("Error fetching sidebar counts:", error);
+    //   }
+    // };
 
-    fetchCounts();
+    // fetchCounts();
     // Refresh every 30 seconds
-    const interval = setInterval(fetchCounts, 30000);
-    return () => clearInterval(interval);
+    // const interval = setInterval(fetchCounts, 30000);
+    // return () => clearInterval(interval);
   }, []);
 
   // Check if mobile on mount and resize
@@ -196,8 +196,8 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   // Auto-expand menu items when their route is active
   useEffect(() => {
     const activeItem = filteredMenu.find((item) => {
-      if (item.route === "/admin/dashboard") {
-        return location.pathname === "/admin/dashboard";
+      if (item.route === "/admin/home-service/dashboard") {
+        return location.pathname === "/admin/home-service/dashboard";
       }
       const isChildRoute =
         location.pathname.startsWith(item.route) &&
@@ -218,13 +218,13 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
   // Check if a menu item is active
   const isActive = (route) => {
-    if (route === "/admin/dashboard") {
-      return location.pathname === "/admin/dashboard";
+    if (route === "/admin/home-service/dashboard") {
+      return location.pathname === "/admin/home-service/dashboard";
     }
 
     // Special case for User Catalog to avoid overlap with Vendor Services/Parts
-    if (route === "/admin/user-categories") {
-      if (location.pathname.startsWith("/admin/user-categories/vendor-")) {
+    if (route === "/admin/home-service/user-categories") {
+      if (location.pathname.startsWith("/admin/home-service/user-categories/vendor-")) {
         return false;
       }
     }

@@ -13,9 +13,9 @@ const Users = () => {
   const location = useLocation();
 
   const navTabs = [
-    { name: 'All Users', path: '/admin/users/all', icon: FiUsers },
-    { name: 'User Bookings', path: '/admin/users/bookings', icon: FiShoppingBag },
-    { name: 'User Analytics', path: '/admin/users/analytics', icon: FiActivity },
+    { name: 'All Users', path: '/admin/home-service/users/all', icon: FiUsers },
+    { name: 'User Bookings', path: '/admin/home-service/users/bookings', icon: FiShoppingBag },
+    { name: 'User Analytics', path: '/admin/home-service/users/analytics', icon: FiActivity },
   ];
 
   const getPageTitle = () => {

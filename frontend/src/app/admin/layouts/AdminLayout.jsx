@@ -217,7 +217,23 @@ const AdminLayout = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4" ref={notifRef}>
+                    <div className="flex items-center gap-6" ref={notifRef}>
+                        {/* Admin Mode Toggle */}
+                        <div className="hidden lg:flex items-center bg-gray-100 rounded-full p-1 border border-gray-200">
+                            <button
+                                onClick={() => navigate('/admin/dashboard')}
+                                className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${!location.pathname.includes('/home-service') ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                Property
+                            </button>
+                            <button
+                                onClick={() => navigate('/admin/home-service/dashboard')}
+                                className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${location.pathname.includes('/home-service') ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                Home Service
+                            </button>
+                        </div>
+
                         <div className="relative">
                             <button
                                 onClick={() => setIsNotifOpen(!isNotifOpen)}

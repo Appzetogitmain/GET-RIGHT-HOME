@@ -19,9 +19,9 @@ const Vendors = () => {
   const location = useLocation();
 
   const navTabs = [
-    { name: 'All Vendors', path: '/admin/vendors/all', icon: FiUsers },
-    { name: 'Vendor Bookings', path: '/admin/vendors/bookings', icon: FiBriefcase },
-    { name: 'Vendor Analytics', path: '/admin/vendors/analytics', icon: FiActivity },
+    { name: 'All Vendors', path: '/admin/home-service/vendors/all', icon: FiUsers },
+    { name: 'Vendor Bookings', path: '/admin/home-service/vendors/bookings', icon: FiBriefcase },
+    { name: 'Vendor Analytics', path: '/admin/home-service/vendors/analytics', icon: FiActivity },
   ];
 
   const getPageTitle = () => {

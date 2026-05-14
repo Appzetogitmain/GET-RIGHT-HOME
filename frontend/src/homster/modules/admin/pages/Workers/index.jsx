@@ -13,9 +13,9 @@ const Workers = () => {
   const location = useLocation();
 
   const navTabs = [
-    { name: 'All Workers', path: '/admin/workers/all', icon: FiUsers },
-    { name: 'Worker Jobs', path: '/admin/workers/jobs', icon: FiClock },
-    { name: 'Worker Analytics', path: '/admin/workers/analytics', icon: FiActivity },
+    { name: 'All Workers', path: '/admin/home-service/workers/all', icon: FiUsers },
+    { name: 'Worker Jobs', path: '/admin/home-service/workers/jobs', icon: FiClock },
+    { name: 'Worker Analytics', path: '/admin/home-service/workers/analytics', icon: FiActivity },
   ];
 
   const getPageTitle = () => {

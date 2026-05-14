@@ -106,7 +106,7 @@ const AdminDashboard = () => {
       }
     };
 
-    fetchData();
+    // fetchData();
   }, [period, customDates.start, customDates.end]);
 
   const handleExportCsv = () => {
@@ -152,7 +152,7 @@ const AdminDashboard = () => {
       bgColor: 'bg-gradient-to-br from-green-500 to-emerald-600',
       cardBg: 'bg-gradient-to-br from-green-50 to-emerald-50',
       iconBg: 'bg-white/20',
-      link: '/admin/reports/revenue'
+      link: '/admin/home-service/reports/revenue'
     },
     {
       title: 'Worker Plan Revenue',
@@ -163,7 +163,7 @@ const AdminDashboard = () => {
       bgColor: 'bg-gradient-to-br from-purple-500 to-fuchsia-600',
       cardBg: 'bg-gradient-to-br from-purple-50 to-fuchsia-50',
       iconBg: 'bg-white/20',
-      link: '/admin/workers/analytics'
+      link: '/admin/home-service/workers/analytics'
     },
     {
       title: 'Pending Bookings',
@@ -174,7 +174,7 @@ const AdminDashboard = () => {
       bgColor: 'bg-gradient-to-br from-blue-500 to-indigo-600',
       cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50',
       iconBg: 'bg-white/20',
-      link: '/admin/reports/bookings'
+      link: '/admin/home-service/reports/bookings'
     },
     {
       title: 'Completed Bookings',
@@ -185,41 +185,19 @@ const AdminDashboard = () => {
       bgColor: 'bg-gradient-to-br from-purple-500 to-violet-600',
       cardBg: 'bg-gradient-to-br from-purple-50 to-violet-50',
       iconBg: 'bg-white/20',
-      link: '/admin/reports/bookings'
+      link: '/admin/home-service/reports/bookings'
     },
     {
-      title: 'New Users',
-      value: (stats.totalUsers || 0).toLocaleString(),
-      change: 0,
-      icon: FiUser,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-orange-500 to-amber-600',
-      cardBg: 'bg-gradient-to-br from-orange-50 to-amber-50',
-      iconBg: 'bg-white/20',
-      link: '/admin/users/analytics'
-    },
-    {
-      title: 'New Vendors',
-      value: (stats.totalVendors || 0).toLocaleString(),
-      change: 0,
-      icon: FiBriefcase,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-teal-500 to-cyan-600',
-      cardBg: 'bg-gradient-to-br from-teal-50 to-cyan-50',
-      iconBg: 'bg-white/20',
-      link: '/admin/vendors/analytics'
-    },
-    {
-      title: 'New Workers',
+      title: 'Total Workers',
       value: (stats.totalWorkers || 0).toLocaleString(),
       change: 0,
       icon: FiUsers,
       color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-rose-500 to-pink-600',
-      cardBg: 'bg-gradient-to-br from-rose-50 to-pink-50',
+      bgColor: 'bg-gradient-to-br from-indigo-500 to-blue-600',
+      cardBg: 'bg-gradient-to-br from-indigo-50 to-blue-50',
       iconBg: 'bg-white/20',
-      link: '/admin/workers/analytics'
-    },
+      link: '/admin/home-service/workers/all'
+    }
   ];
 
   return (

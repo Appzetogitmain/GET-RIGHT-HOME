@@ -29,7 +29,8 @@ const PublicRoute = ({ children, userType = 'user', redirectTo = null }) => {
           dataKey = 'workerData';
           break;
         case 'admin':
-          tokenKey = 'adminAccessToken';
+          // Support both Hoomzo's and Homster's token keys
+          tokenKey = localStorage.getItem('adminToken') ? 'adminToken' : 'adminAccessToken';
           refreshTokenKey = 'adminRefreshToken';
           dataKey = 'adminData';
           break;
@@ -112,7 +113,7 @@ const PublicRoute = ({ children, userType = 'user', redirectTo = null }) => {
       user: '/user',
       vendor: '/vendor/dashboard',
       worker: '/worker/dashboard',
-      admin: '/admin/dashboard'
+      admin: '/admin/home-service/dashboard'
     };
 
     const redirectPath = redirectTo || defaultRedirects[userType] || '/user';

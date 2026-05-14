@@ -20,7 +20,7 @@ const AllWorkers = () => {
 
   // Load workers from backend
   useEffect(() => {
-    loadWorkers();
+    // loadWorkers();
   }, []);
 
   const loadWorkers = async () => {
