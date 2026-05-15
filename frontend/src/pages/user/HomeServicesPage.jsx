@@ -545,7 +545,7 @@ const HomeServicesPage = () => {
                                 </div>
                                 <div className="flex items-center justify-between w-full">
                                     <span className="text-xs font-black text-gray-900">₹{service.price}</span>
-                                    <button className="bg-[#D68F35] text-white px-3 py-1 rounded-full text-[9px] font-black uppercase shadow-sm">
+                                    <button className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg shadow-emerald-200/50 hover:shadow-emerald-300/50 transition-all active:scale-95">
                                         Book
                                     </button>
                                 </div>
