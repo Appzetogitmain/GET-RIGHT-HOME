@@ -129,11 +129,11 @@ import bannerRoutes from './routes/bannerRoutes.js';
 import homeContentRoutes from './routes/homeContentRoutes.js';
 import cityRoutes from './routes/cityRoutes.js';
 import hsCategoryRoutes from './routes/hsCategoryRoutes.js';
-import hsBrandRoutes from './routes/hsBrandRoutes.js';
+import hsSubCategoryRoutes from './routes/hsSubCategoryRoutes.js';
 import hsServiceRoutes from './routes/hsServiceRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
-import { getPublicCategories, getPublicBrands } from './controllers/homeServiceController.js';
+import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 
 
 
@@ -161,11 +161,12 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/admin/home-content', homeContentRoutes);
 app.use('/api/admin/cities', cityRoutes);
 app.use('/api/admin/categories', hsCategoryRoutes);
-app.use('/api/admin/brands', hsBrandRoutes);
+app.use('/api/admin/sub-categories', hsSubCategoryRoutes);
 app.use('/api/admin/services', hsServiceRoutes);
 app.get('/api/public/home-content', getPublicHomeContent);
 app.get('/api/public/categories', getPublicCategories);
-app.get('/api/public/brands', getPublicBrands);
+app.get('/api/public/sub-categories', getPublicSubCategories);
+app.get('/api/public/services', getPublicServices);
 app.use('/api/upload', uploadRoutes);
 
 

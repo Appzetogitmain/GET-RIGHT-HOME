@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { FiX, FiLayers, FiArrowLeft, FiPlus, FiCheck } from 'react-icons/fi';
+import { FiX, FiArrowLeft, FiPlus, FiCheck, FiLayers, FiInfo } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
-import { themeColors } from '../../../../../theme';
 import { publicCatalogService } from '../../../../../services/catalogService';
 import { useCart } from '../../../../../context/CartContext';
 import { toast } from 'react-hot-toast';
@@ -16,16 +15,15 @@ const toAssetUrl = (url) => {
   return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
 
-const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCount, currentCity }) => {
+const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const [isClosing, setIsClosing] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const [view, setView] = useState('brands'); // 'brands' | 'services'
-  const [brands, setBrands] = useState([]);
-  const [selectedBrand, setSelectedBrand] = useState(null);
-  const [services, setServices] = useState([]); // Sub-services
+  const [subCategories, setSubCategories] = useState([]);
+  const [services, setServices] = useState([]);
+  const [selectedSubCategory, setSelectedSubCategory] = useState(null);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -38,51 +36,40 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
   useEffect(() => {
     if (!isOpen) {
       setIsClosing(false);
-      // Reset state on close
       setTimeout(() => {
-        setView('brands');
-        setSelectedBrand(null);
-        setBrands([]);
+        setSubCategories([]);
         setServices([]);
+        setSelectedSubCategory(null);
         setIsRedirecting(false);
       }, 300);
-    } else if (category?.id) {
-      if (category.initialBrand) {
-        // Direct to brand services if initialBrand is provided (from search)
-        const brand = category.initialBrand;
-        setSelectedBrand(brand);
-        setView('services');
-        fetchServices(brand.id || brand._id);
-      }
-      // Always fetch brands for this category to populate the background/back-navigation
-      fetchBrands();
+    } else if (category?.id || category?._id) {
+      fetchSubCategories(category.id || category._id);
     }
-  }, [isOpen, category?.id, cityId]);
+  }, [isOpen, category?.id, category?._id, cityId]);
 
-  const fetchBrands = async () => {
+  const fetchSubCategories = async (catId) => {
     try {
       setLoading(true);
-      const response = await publicCatalogService.getBrands({
-        categoryId: category.id,
-        cityId: cityId
+      const response = await publicCatalogService.getSubCategories({
+        cityId: cityId,
+        categoryId: catId
       });
       if (response.success) {
-        setBrands(response.brands || []);
+        setSubCategories(response.subCategories || []);
       }
     } catch (error) {
-      console.error("Failed to load brands:", error);
+      console.error("Failed to load sub-categories:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchServices = async (brandId) => {
+  const fetchServices = async (subCatId) => {
     try {
       setLoading(true);
       const response = await publicCatalogService.getServices({
-        brandId: brandId,
-        cityId: cityId,
-        categoryId: category?.id
+        subCategoryId: subCatId,
+        categoryId: category.id || category._id
       });
       if (response.success) {
         setServices(response.services || []);
@@ -94,51 +81,30 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
     }
   };
 
-  const handleBrandClick = (brand) => {
-    setSelectedBrand(brand);
-    setView('services');
-    fetchServices(brand.id || brand._id);
+  const handleSubCategoryClick = (subCat) => {
+    setSelectedSubCategory(subCat);
+    fetchServices(subCat.id || subCat._id);
   };
 
-  const handleBackToBrands = () => {
-    setView('brands');
-    setSelectedBrand(null);
+  const goBack = () => {
+    setSelectedSubCategory(null);
     setServices([]);
   };
 
   const handleServiceClick = async (service) => {
-    // Add to cart logic
     try {
       const cartItemData = {
         serviceId: service.id || service._id,
-        categoryId: category?.id,
+        categoryId: category?.id || category?._id,
+        subCategoryId: selectedSubCategory?.id || selectedSubCategory?._id,
         title: service.title,
         description: service.description || '',
-        icon: toAssetUrl(service.icon || ''),
+        icon: toAssetUrl(service.icon || service.imageUrl || selectedSubCategory?.iconUrl || ''),
         category: category?.title,
-        categoryTitle: category?.title || '', // Explicit field
-        categoryIcon: toAssetUrl(category?.homeIconUrl || category?.iconUrl || ''), // Explicit field
-        // Brand info — stored as sectionTitle/sectionIcon for booking flow
-        sectionId: selectedBrand?.id || selectedBrand?._id || null, // VITAL: Added for plan benefits
-        sectionTitle: selectedBrand?.title || '',
-        sectionIcon: toAssetUrl(selectedBrand?.iconUrl || selectedBrand?.icon || ''),
-        price: service.discountPrice || service.basePrice,
-        originalPrice: service.discountPrice ? service.basePrice : null,
-        unitPrice: service.discountPrice || service.basePrice,
+        subCategory: selectedSubCategory?.title,
+        price: service.discountPrice || service.basePrice || service.price,
+        unitPrice: service.discountPrice || service.basePrice || service.price,
         serviceCount: 1,
-        rating: "4.8",
-        reviews: "1k+",
-        vendorId: service.vendorId || selectedBrand?.vendorId || null,
-        card: {
-          title: service.title,
-          subtitle: service.description || '',
-          price: service.discountPrice || service.basePrice,
-          originalPrice: service.discountPrice ? service.basePrice : null,
-          duration: service.duration || '',
-          description: service.description || '',
-          imageUrl: toAssetUrl(service.icon || ''),
-          features: service.features || []
-        }
       };
 
       const response = await addToCart(cartItemData);
@@ -162,176 +128,151 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998]"
+            className="fixed inset-0 bg-black/70 backdrop-blur-md z-[9998]"
             onClick={onClose}
-            style={{
-              position: 'fixed',
-              willChange: 'opacity',
-              transform: 'translateZ(0)',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-            }}
           />
 
-          {/* Modal Container */}
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed bottom-0 left-0 right-0 z-[9999]"
-            style={{
-              position: 'fixed',
-              willChange: 'transform',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-            }}
           >
-            {/* Close Button */}
-            <div className="absolute -top-12 right-4 z-[60]">
+            <div className="absolute -top-14 right-4">
               <button
                 onClick={onClose}
-                className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 transition-colors"
+                className="w-10 h-10 bg-white/20 backdrop-blur-xl border border-white/30 rounded-full flex items-center justify-center shadow-2xl hover:bg-white/40 transition-all"
               >
-                <FiX className="w-6 h-6 text-gray-800" />
+                <FiX className="w-6 h-6 text-white" />
               </button>
             </div>
 
-            <div className="bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto min-h-[50vh]">
+            <div className="bg-white rounded-t-[2.5rem] max-h-[85vh] min-h-[40vh] overflow-hidden flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.15)]">
               {isRedirecting ? (
-                <div className="flex flex-col items-center justify-center min-h-[40vh] py-12">
+                <div className="flex flex-col items-center justify-center py-20">
                   <motion.div
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mb-6 shadow-inner"
                   >
-                    <FiCheck className="w-10 h-10 text-green-500" />
+                    <FiCheck className="w-10 h-10 text-emerald-500" />
                   </motion.div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Service Added!</h3>
-                  <p className="text-gray-500 text-sm">Proceeding to checkout...</p>
+                  <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Added to Cart!</h3>
+                  <p className="text-gray-500 font-bold">Redirecting to checkout...</p>
                 </div>
               ) : (
-                <div className="px-4 py-6">
+                <div className="flex flex-col h-full overflow-hidden">
                   {/* Header */}
-                  <div className="flex items-center gap-3 mb-6">
-                    {view === 'services' && (
-                      <button
-                        onClick={handleBackToBrands}
-                        className="p-1 rounded-full hover:bg-gray-100"
-                      >
-                        <FiArrowLeft className="w-6 h-6 text-gray-800" />
-                      </button>
-                    )}
-                    <div>
-                      <h1 className="text-xl font-bold text-gray-900">
-                        {view === 'brands' ? (category?.title || 'Brands') : (selectedBrand?.title || 'Services')}
-                      </h1>
-                      {view === 'services' && <p className="text-xs text-gray-500">Select a service to add</p>}
+                  <div className="p-8 pb-4">
+                    <div className="flex items-center gap-3">
+                      {selectedSubCategory ? (
+                        <button 
+                          onClick={goBack}
+                          className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-gray-100 transition-colors"
+                        >
+                          <FiArrowLeft className="w-5 h-5 text-gray-900" />
+                        </button>
+                      ) : category?.homeIconUrl && (
+                        <div className="w-10 h-10 bg-gray-50 rounded-xl p-1.5 border border-gray-100">
+                          <img src={toAssetUrl(category.homeIconUrl)} alt="" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                      <div>
+                        <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none mb-1 uppercase">
+                          {selectedSubCategory ? selectedSubCategory.title : category?.title || 'Services'}
+                        </h1>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          {selectedSubCategory ? 'Select a service to proceed' : 'Select a sub-category'}
+                        </p>
+                      </div>
+                      {loading && <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin ml-auto"></div>}
                     </div>
-                    {loading && <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin ml-auto"></div>}
                   </div>
 
-                  {/* Content */}
-                  {loading && (view === 'brands' ? brands.length === 0 : services.length === 0) ? (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 animate-pulse">
-                      {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className="flex flex-col items-center">
-                          <div className="w-20 h-20 bg-gray-200 rounded-2xl mb-2"></div>
-                          <div className="h-3 w-16 bg-gray-200 rounded"></div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <>
-                      {view === 'brands' ? (
-                        // Brands Grid
-                        brands.length > 0 ? (
-                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                            {brands.map((brand) => (
-                              <div
-                                key={brand.id || brand._id}
-                                onClick={() => handleBrandClick(brand)}
-                                className="flex flex-col items-center cursor-pointer group active:scale-95 transition-all"
-                              >
-                                <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center mb-2 group-hover:bg-gray-100 transition-colors shadow-sm overflow-hidden border border-gray-100 relative">
-                                  {brand.icon ? (
-                                    <img
-                                      src={toAssetUrl(brand.icon)}
-                                      alt={brand.title}
-                                      className="w-14 h-14 object-contain group-hover:scale-110 transition-transform"
-                                      loading="lazy"
-                                    />
-                                  ) : (
-                                    <FiLayers className="w-8 h-8 text-gray-300" />
-                                  )}
-                                  {brand.badge && (
-                                    <span className="absolute top-0 right-0 bg-purple-100 text-purple-700 text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg">
-                                      {brand.badge}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[11px] font-bold text-gray-800 text-center leading-tight line-clamp-2 px-1">
-                                  {brand.title}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-12 text-gray-500">
-                            <p>No brands found in this category.</p>
-                          </div>
-                        )
-                      ) : (
-                        // Services List
-                        services.length > 0 ? (
-                          <div className="space-y-4">
-                            {services.map((svc) => (
-                              <div key={svc.id || svc._id} className="flex justify-between items-center p-3 border border-gray-100 rounded-xl hover:shadow-md transition-shadow">
-                                <div className="flex-1 pr-4">
-                                  <h3 className="font-black text-gray-900 text-[15px] leading-snug mb-0.5">{svc.title}</h3>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-lg font-black text-emerald-600">₹{svc.discountPrice || svc.basePrice}</span>
-                                    {svc.discountPrice && svc.discountPrice < svc.basePrice && (
-                                      <span className="text-xs text-gray-400 line-through font-bold opacity-60">₹{svc.basePrice}</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => handleServiceClick(svc)}
-                                  className="px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-green-100"
-                                >
-                                  <FiPlus /> Add
-                                </button>
-                              </div>
-                            ))}
-                            
-                            {/* Bottom Disclaimer */}
-                            <div className="mt-8 pt-4 border-t border-gray-50 flex items-start gap-3 bg-gray-50/50 p-4 rounded-2xl">
-                              <div className="mt-0.5 text-gray-400">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                              </div>
-                              <p className="text-[11px] text-rose-500 font-normal italic leading-snug">
-                                * It is a base price only, additional charges may be applicable after service
-                              </p>
+                  {/* Body */}
+                  <div className="flex-1 overflow-y-auto px-6 pb-10 scrollbar-hide">
+                    {loading && (selectedSubCategory ? services.length === 0 : subCategories.length === 0) ? (
+                      <div className="grid grid-cols-3 gap-4 pt-4">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                          <div key={i} className="aspect-square bg-gray-50 rounded-3xl animate-pulse border border-gray-100"></div>
+                        ))}
+                      </div>
+                    ) : !selectedSubCategory ? (
+                      /* Level 1: Sub-category Grid */
+                      <div className="grid grid-cols-3 gap-4 pt-4">
+                        {subCategories.map((sub) => (
+                          <motion.button
+                            key={sub.id || sub._id}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleSubCategoryClick(sub)}
+                            className="flex flex-col items-center group"
+                          >
+                            <div className="w-full aspect-square bg-gray-50 rounded-3xl flex items-center justify-center p-4 border border-gray-100 shadow-sm group-hover:shadow-md group-hover:border-emerald-100 transition-all mb-2 overflow-hidden">
+                              <img src={toAssetUrl(sub.iconUrl || sub.imageUrl)} alt={sub.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" />
                             </div>
+                            <span className="text-[10px] font-bold text-gray-800 text-center leading-tight line-clamp-2 px-1 uppercase tracking-tighter">
+                              {sub.title}
+                            </span>
+                          </motion.button>
+                        ))}
+                        {subCategories.length === 0 && !loading && (
+                          <div className="col-span-3 py-10 text-center">
+                            <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">No options available</p>
                           </div>
-                        ) : (
-                          <div className="text-center py-12 text-gray-500">
-                            <p>No services available for this brand yet.</p>
+                        )}
+                      </div>
+                    ) : (
+                      /* Level 2: Service List */
+                      <div className="space-y-3 pt-4">
+                        {services.map((svc) => (
+                          <motion.div 
+                            initial={{ x: 20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            key={svc.id || svc._id} 
+                            className="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-[1.5rem] shadow-sm hover:shadow-lg hover:shadow-gray-200/40 transition-all group"
+                          >
+                            <div className="flex-1 pr-4">
+                              <h3 className="font-bold text-gray-900 text-base leading-tight mb-1">{svc.title}</h3>
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg font-black text-emerald-600">₹{svc.discountPrice || svc.basePrice || svc.price}</span>
+                                {(svc.discountPrice && svc.discountPrice < (svc.basePrice || svc.price)) && (
+                                  <span className="text-[11px] text-gray-400 line-through font-bold">₹{svc.basePrice || svc.price}</span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleServiceClick(svc)}
+                              className="px-5 py-2 bg-emerald-500 text-white rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-emerald-600 shadow-lg shadow-emerald-100 transition-all active:scale-95"
+                            >
+                              <FiPlus size={14} /> Add
+                            </button>
+                          </motion.div>
+                        ))}
+                        
+                        {services.length === 0 && !loading && (
+                          <div className="flex flex-col items-center justify-center py-10 text-center">
+                            <FiLayers className="w-8 h-8 text-gray-200 mb-2" />
+                            <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">No services found</p>
                           </div>
-                        )
-                      )}
-                    </>
-                  )}
+                        )}
+
+                        {/* Footer Info */}
+                        <div className="mt-10 p-5 bg-gray-50/80 rounded-[2rem] border border-gray-100 flex items-start gap-4">
+                          <div className="mt-0.5 text-emerald-500">
+                            <FiInfo size={18} className="stroke-[3]" />
+                          </div>
+                          <p className="text-[10px] text-gray-500 font-black uppercase tracking-wider leading-relaxed">
+                            * Final price may vary after detailed inspection or specific service requirements.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -346,4 +287,3 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, location, cartCou
 
 CategoryModal.displayName = 'CategoryModal';
 export default CategoryModal;
-

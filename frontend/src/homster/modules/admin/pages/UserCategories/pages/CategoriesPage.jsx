@@ -263,7 +263,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       reset();
     } catch (error) {
       console.error('Upsert category error:', error);
-      toast.error(error.message || 'Failed to save category. Please try again.');
+      const msg = error.response?.data?.message || error.message || 'Failed to save category. Please try again.';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

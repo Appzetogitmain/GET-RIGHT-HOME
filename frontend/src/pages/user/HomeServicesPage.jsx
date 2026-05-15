@@ -27,6 +27,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCity } from '../../homster/context/CityContext';
+import CategoryModal from '../../homster/modules/user/pages/Home/components/CategoryModal';
 
 const HomeServicesPage = () => {
     const navigate = useNavigate();
@@ -76,9 +77,19 @@ const HomeServicesPage = () => {
         setActiveBanner(index);
     };
 
-    const [homeData, setHomeData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [homeData, setHomeData] = useState(null);
     const [categories, setCategories] = useState([]);
+    
+    // Modal State
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+
+    const openCategoryModal = (cat) => {
+        setSelectedCategory(cat);
+        setIsModalOpen(true);
+    };
+
     const [promos, setPromos] = useState([]);
     const [curations, setCurations] = useState([]);
     const [noteworthy, setNoteworthy] = useState([]);
@@ -185,8 +196,12 @@ const HomeServicesPage = () => {
                             <motion.div 
                                 key={promo.id}
                                 onClick={() => {
-                                    if (promo.slug) navigate(`/service/${promo.slug}`);
-                                    else if (promo.targetCategoryId) navigate(`/category/${promo.targetCategoryId}`);
+                                    if (promo.targetCategoryId) {
+                                        const cat = categories.find(c => (c.id || c._id) === promo.targetCategoryId);
+                                        openCategoryModal(cat || { id: promo.targetCategoryId, title: promo.title });
+                                    } else if (promo.slug) {
+                                        navigate(`/service/${promo.slug}`);
+                                    }
                                 }}
                                 className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200 cursor-pointer"
                             >
@@ -226,12 +241,15 @@ const HomeServicesPage = () => {
 
             {/* Service Categories */}
             <section className="mt-8 px-5 max-w-7xl mx-auto">
-                <div className="flex flex-col mb-8">
-                    <h2 className="text-[22px] font-black text-gray-900 tracking-tight flex items-center gap-2">
-                        Service Categories
-                        <div className="w-2.5 h-2.5 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+                <div className="flex flex-col mb-8 group">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse" />
+                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Explore</span>
+                    </div>
+                    <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                        Service <span className="text-emerald-600">Categories</span>
                     </h2>
-                    <p className="text-[10px] text-gray-400 font-black tracking-[0.15em] uppercase mt-0.5">Premium Home Services</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Premium Home Solutions for Every Need</p>
                 </div>
 
                 <div className="grid grid-cols-4 gap-y-8 gap-x-4">
@@ -240,17 +258,24 @@ const HomeServicesPage = () => {
                             key={cat.id || cat._id}
                             whileHover={{ y: -5 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => navigate(`/category/${cat._id || cat.id}`)}
+                            onClick={() => openCategoryModal(cat)}
                             className="flex flex-col items-center group relative"
                         >
                             <div className="w-16 h-16 md:w-20 md:h-20 bg-white border border-gray-100 rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-gray-200/50 overflow-hidden relative p-2">
-                                {cat.isPopular && (
+                                {/* Badge logic */}
+                                {(cat.hasSaleBadge && cat.homeBadge) ? (
+                                    <div className="absolute top-1.5 -right-1 z-10">
+                                        <div className="bg-emerald-500 text-white text-[7px] font-black px-2 py-0.5 rounded-l-full shadow-sm uppercase tracking-tighter">
+                                            {cat.homeBadge}
+                                        </div>
+                                    </div>
+                                ) : cat.isPopular ? (
                                     <div className="absolute top-1.5 -right-1 z-10">
                                         <div className="bg-[#D68F35] text-white text-[8px] font-black px-2 py-0.5 rounded-l-full shadow-sm">
                                             POPULAR
                                         </div>
                                     </div>
-                                )}
+                                ) : null}
                                 <img 
                                     src={cat.homeIconUrl || cat.imageUrl || cat.image} 
                                     alt={cat.title || cat.name} 
@@ -268,11 +293,15 @@ const HomeServicesPage = () => {
             {/* Thoughtful Curations */}
             {homeData?.isCuratedVisible !== false && curations.length > 0 && (
                 <section className="mt-12 px-5 max-w-7xl mx-auto">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex flex-col">
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight">Thoughtful Curations</h2>
-                            <p className="text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Handpicked for your home</p>
+                    <div className="flex flex-col mb-8">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
+                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Handpicked</span>
                         </div>
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                            Thoughtful <span className="text-emerald-600">Curations</span>
+                        </h2>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Expertly selected for your lifestyle</p>
                     </div>
 
                     <div className="flex overflow-x-auto gap-5 no-scrollbar pb-6 -mx-1 px-1 snap-x snap-mandatory">
@@ -326,8 +355,12 @@ const HomeServicesPage = () => {
                                     key={idx}
                                     whileHover={{ y: -8 }}
                                     onClick={() => {
-                                        if (item.slug) navigate(`/service/${item.slug}`);
-                                        else if (item.targetCategoryId) navigate(`/category/${item.targetCategoryId}`);
+                                        if (item.targetCategoryId) {
+                                            const cat = categories.find(c => (c.id || c._id) === item.targetCategoryId);
+                                            openCategoryModal(cat || { id: item.targetCategoryId, title: item.title });
+                                        } else if (item.slug) {
+                                            navigate(`/service/${item.slug}`);
+                                        }
                                     }}
                                     className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200/40 group bg-gray-900 cursor-pointer"
                                 >
@@ -376,32 +409,59 @@ const HomeServicesPage = () => {
             )}
 
             {/* Why Hoomzo Services */}
-            <section className="mt-8 px-5 max-w-7xl mx-auto">
-                <div className="bg-emerald-600 rounded-[3rem] p-8 relative overflow-hidden">
-                    <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white/10 blur-[80px] rounded-full" />
+            <section className="mt-10 px-5 max-w-7xl mx-auto">
+                <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl shadow-emerald-200/50">
+                    {/* Decorative Elements */}
+                    <div className="absolute top-[-20%] right-[-10%] w-80 h-80 bg-white/10 blur-[100px] rounded-full animate-pulse" />
+                    <div className="absolute bottom-[-10%] left-[-5%] w-40 h-40 bg-emerald-400/20 blur-[60px] rounded-full" />
                     
-                    <h3 className="text-2xl font-black text-white mb-8 relative z-10 leading-tight">
-                        Standardizing Home <br /> <span className="text-emerald-200">Services for You.</span>
-                    </h3>
-
-                    <div className="grid grid-cols-1 gap-6 relative z-10">
-                        <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white border border-white/20">
-                                <ShieldCheck size={24} />
-                            </div>
-                            <div>
-                                <h5 className="font-black text-white text-sm mb-1 uppercase tracking-tight">Verified Professionals</h5>
-                                <p className="text-emerald-100 text-xs font-medium leading-relaxed">Background checked & trained experts for every job.</p>
-                            </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="h-[2px] w-8 bg-emerald-300/50 rounded-full" />
+                            <span className="text-[10px] font-bold text-emerald-200/80 uppercase tracking-[0.2em]">Why Choose Us</span>
                         </div>
-                        <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white border border-white/20">
-                                <Sparkles size={24} />
-                            </div>
-                            <div>
-                                <h5 className="font-black text-white text-sm mb-1 uppercase tracking-tight">Satisfaction Guaranteed</h5>
-                                <p className="text-emerald-100 text-xs font-medium leading-relaxed">We ensure 100% quality or we'll make it right.</p>
-                            </div>
+                        
+                        <h3 className="text-3xl font-bold text-white mb-10 leading-tight tracking-tight">
+                            Standardizing Home <br /> 
+                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-200 to-teal-100">
+                                Services for You.
+                            </span>
+                        </h3>
+
+                        <div className="grid grid-cols-1 gap-4">
+                            {[
+                                {
+                                    icon: ShieldCheck,
+                                    title: "Verified Professionals",
+                                    desc: "Background checked & trained experts for every job.",
+                                    color: "from-blue-400 to-indigo-500"
+                                },
+                                {
+                                    icon: Sparkles,
+                                    title: "Satisfaction Guaranteed",
+                                    desc: "We ensure 100% quality or we'll make it right.",
+                                    color: "from-amber-400 to-orange-500"
+                                }
+                            ].map((feature, idx) => (
+                                <motion.div 
+                                    key={idx}
+                                    whileHover={{ x: 5 }}
+                                    className="flex items-center gap-4 bg-white/10 backdrop-blur-xl border border-white/10 p-4 rounded-3xl group transition-all"
+                                >
+                                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white shadow-inner group-hover:scale-110 transition-transform">
+                                        <feature.icon size={22} className="text-emerald-300" />
+                                    </div>
+                                    <div>
+                                        <h5 className="font-bold text-white text-sm mb-0.5 uppercase tracking-tight">{feature.title}</h5>
+                                        <p className="text-emerald-50/70 text-[11px] font-semibold leading-tight">{feature.desc}</p>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+
+                        <div className="mt-8 flex items-center gap-2 text-emerald-200/40">
+                            <CheckCircle2 size={14} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Trusted by 50,000+ Households</span>
                         </div>
                     </div>
                 </div>
@@ -409,55 +469,83 @@ const HomeServicesPage = () => {
 
             {/* New and Noteworthy */}
             <section className="mt-12 px-5 max-w-7xl mx-auto">
-                <h2 className="text-xl font-black text-gray-900 mb-6 tracking-tight">New and noteworthy</h2>
+                <div className="flex flex-col mb-8">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
+                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Fresh</span>
+                    </div>
+                    <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                        New & <span className="text-emerald-600">Noteworthy</span>
+                    </h2>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Discover the latest arrivals</p>
+                </div>
                 <div className="flex overflow-x-auto gap-4 no-scrollbar pb-4">
                     {noteworthy.map((item) => (
                         <motion.div 
                             key={item.id || item._id}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => {
-                                if (item.slug) navigate(`/service/${item.slug}`);
-                                else if (item.targetCategoryId) navigate(`/category/${item.targetCategoryId}`);
+                                if (item.targetCategoryId) {
+                                    const cat = categories.find(c => (c.id || c._id) === item.targetCategoryId);
+                                    openCategoryModal(cat || { id: item.targetCategoryId, title: item.title });
+                                } else if (item.slug) {
+                                    navigate(`/service/${item.slug}`);
+                                }
                             }}
-                            className="min-w-[240px] bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/40 p-4 cursor-pointer"
+                            className="min-w-[170px] bg-white rounded-[1.5rem] border border-gray-100 shadow-lg shadow-gray-200/30 p-3 cursor-pointer"
                         >
-                            <div className="aspect-square bg-gray-50 rounded-2xl overflow-hidden mb-4">
+                            <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-3">
                                 <img src={item.imageUrl || item.image} alt={item.title} className="w-full h-full object-contain" />
                             </div>
-                            <h4 className="font-bold text-gray-800 text-sm">{item.title}</h4>
+                            <h4 className="font-bold text-gray-800 text-[11px] line-clamp-2 text-center px-1 h-8 leading-tight">
+                                {item.title}
+                            </h4>
                         </motion.div>
                     ))}
                 </div>
             </section>
 
             {/* Most Booked Services */}
-            <section className="mt-12 px-5 max-w-7xl mx-auto">
-                <h2 className="text-xl font-black text-gray-900 mb-6 tracking-tight">Most booked services</h2>
+            <section className="mt-12 px-5 pb-32 max-w-7xl mx-auto">
+                <div className="flex flex-col mb-8">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
+                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Trending</span>
+                    </div>
+                    <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                        Most <span className="text-emerald-600">Booked</span> Services
+                    </h2>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Most loved by our community</p>
+                </div>
                 <div className="flex overflow-x-auto gap-4 no-scrollbar pb-6">
                     {mostBooked.map((service) => (
                         <motion.div 
                             key={service.id || service._id}
                             whileHover={{ y: -5 }}
                             onClick={() => {
-                                if (service.slug) navigate(`/service/${service.slug}`);
-                                else if (service.targetCategoryId) navigate(`/category/${service.targetCategoryId}`);
+                                if (service.targetCategoryId) {
+                                    const cat = categories.find(c => (c.id || c._id) === service.targetCategoryId);
+                                    openCategoryModal(cat || { id: service.targetCategoryId, title: service.title });
+                                } else if (service.slug) {
+                                    navigate(`/service/${service.slug}`);
+                                }
                             }}
-                            className="min-w-[200px] bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/40 overflow-hidden cursor-pointer"
+                            className="min-w-[165px] bg-white rounded-[1.5rem] border border-gray-100 shadow-lg shadow-gray-200/30 overflow-hidden cursor-pointer"
                         >
-                            <div className="h-48 bg-gray-50 p-2 overflow-hidden">
+                            <div className="h-40 bg-gray-50 p-2 overflow-hidden">
                                 <img src={service.imageUrl || service.image} alt={service.title} className="w-full h-full object-contain" />
                             </div>
-                            <div className="p-4">
-                                <h4 className="font-bold text-gray-800 text-[13px] line-clamp-2 mb-3 h-10 leading-tight">
+                            <div className="p-3 flex flex-col items-center">
+                                <h4 className="font-bold text-gray-800 text-[11px] line-clamp-2 mb-2 h-8 leading-tight text-center">
                                     {service.title}
                                 </h4>
-                                <div className="flex items-center gap-1.5 text-xs font-black text-gray-700 mb-4">
-                                    <Star size={14} className="text-yellow-400 fill-yellow-400" />
+                                <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-700 mb-3 justify-center">
+                                    <Star size={12} className="text-yellow-400 fill-yellow-400" />
                                     {service.rating || '4.0'}
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm font-black text-gray-900">₹{service.price}</span>
-                                    <button className="bg-gradient-to-r from-[#D68F35] to-[#B07020] text-white px-4 py-1.5 rounded-full text-[10px] font-black shadow-lg shadow-orange-900/10 active:scale-95 transition-all uppercase">
+                                <div className="flex items-center justify-between w-full">
+                                    <span className="text-xs font-black text-gray-900">₹{service.price}</span>
+                                    <button className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg shadow-emerald-200/50 hover:shadow-emerald-300/50 transition-all active:scale-95">
                                         Book
                                     </button>
                                 </div>
@@ -502,6 +590,12 @@ const HomeServicesPage = () => {
                     </button>
                 </div>
             </div>
+            <CategoryModal 
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                category={selectedCategory}
+                currentCity={currentCity}
+            />
         </div>
     );
 };

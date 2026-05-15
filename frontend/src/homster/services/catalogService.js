@@ -54,52 +54,52 @@ export const categoryService = {
 };
 
 /**
- * Brand API calls (Formerly Service)
+ * SubCategory API calls (Formerly Brand)
  */
-export const brandService = {
-  // Get all brands
+export const subCategoryService = {
+  // Get all subCategories
   getAll: async (params = {}) => {
     const queryParams = new URLSearchParams();
     if (params.status) queryParams.append('status', params.status);
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
     if (params.cityId) queryParams.append('cityId', params.cityId);
 
-    const response = await api.get(`/admin/brands${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+    const response = await api.get(`/admin/sub-categories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     return response.data;
   },
 
-  // Get single brand by ID
+  // Get single subCategory by ID
   getById: async (id) => {
-    const response = await api.get(`/admin/brands/${id}`);
+    const response = await api.get(`/admin/sub-categories/${id}`);
     return response.data;
   },
 
-  // Create new brand
+  // Create new subCategory
   create: async (data) => {
-    const response = await api.post('/admin/brands', data);
+    const response = await api.post('/admin/sub-categories', data);
     return response.data;
   },
 
-  // Update brand
+  // Update subCategory
   update: async (id, data) => {
-    const response = await api.put(`/admin/brands/${id}`, data);
+    const response = await api.put(`/admin/sub-categories/${id}`, data);
     return response.data;
   },
 
-  // Delete brand
+  // Delete subCategory
   delete: async (id) => {
-    const response = await api.delete(`/admin/brands/${id}`);
+    const response = await api.delete(`/admin/sub-categories/${id}`);
     return response.data;
   },
 
-  // Update brand page content
+  // Update subCategory page content
   updatePage: async (id, page) => {
-    const response = await api.patch(`/admin/brands/${id}/page`, { page });
+    const response = await api.patch(`/admin/sub-categories/${id}/page`, { page });
     return response.data;
   },
 
-  // Upload brand image/video directly to Cloudinary
-  uploadImage: async (file, folder = 'brands', onProgress) => {
+  // Upload subCategory image/video directly to Cloudinary
+  uploadImage: async (file, folder = 'sub-categories', onProgress) => {
     try {
       const url = await uploadToCloudinary(file, folder, onProgress);
       return {
@@ -125,7 +125,7 @@ export const serviceService = {
   getAll: async (params = {}) => {
     const queryParams = new URLSearchParams();
     if (params.status) queryParams.append('status', params.status);
-    if (params.brandId) queryParams.append('brandId', params.brandId);
+    if (params.subCategoryId) queryParams.append('subCategoryId', params.subCategoryId);
 
     const response = await api.get(`/admin/services${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     return response.data;
@@ -257,31 +257,31 @@ export const publicCatalogService = {
     return response.data;
   },
 
-  // Get all active brands (formerly services)
-  getBrands: async (params = {}) => {
+  // Get all active subCategories (formerly brands)
+  getSubCategories: async (params = {}) => {
     const queryParams = new URLSearchParams();
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
     if (params.categorySlug) queryParams.append('categorySlug', params.categorySlug);
     if (params.search) queryParams.append('search', params.search);
     if (params.cityId) queryParams.append('cityId', params.cityId);
 
-    const cacheKey = `public:brands:${queryParams.toString()}`;
+    const cacheKey = `public:subCategories:${queryParams.toString()}`;
     const cached = apiCache.get(cacheKey);
     if (cached) return cached;
 
-    const response = await api.get(`/public/brands${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+    const response = await api.get(`/public/sub-categories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     if (response.data.success) {
       apiCache.set(cacheKey, response.data, 120); // 2 minutes
     }
     return response.data;
   },
 
-  // Alias for backward compatibility if needed, but preferable to use getBrands
+  // Alias for backward compatibility if needed, but preferable to use getSubCategories
   getServices: async (params = {}) => {
     // New Service model endpoint
     const queryParams = new URLSearchParams();
-    if (params.brandId) queryParams.append('brandId', params.brandId);
-    if (params.brandSlug) queryParams.append('brandSlug', params.brandSlug);
+    if (params.subCategoryId) queryParams.append('subCategoryId', params.subCategoryId);
+    if (params.subCategorySlug) queryParams.append('subCategorySlug', params.subCategorySlug);
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
 
     const cacheKey = `public:services:${queryParams.toString()}`;
@@ -295,14 +295,14 @@ export const publicCatalogService = {
     return response.data;
   },
 
-  // Get brand by slug (cached for 1 minute)
-  getBrandBySlug: async (slug, cityId) => {
-    const cacheKey = `public:brand:${slug}:${cityId || 'default'}`;
+  // Get subCategory by slug (cached for 1 minute)
+  getSubCategoryBySlug: async (slug, cityId) => {
+    const cacheKey = `public:subCategory:${slug}:${cityId || 'default'}`;
     const cached = apiCache.get(cacheKey);
     if (cached) return cached;
 
     const query = cityId ? `?cityId=${cityId}` : '';
-    const response = await api.get(`/public/brands/slug/${slug}${query}`);
+    const response = await api.get(`/public/sub-categories/slug/${slug}${query}`);
     if (response.data.success) {
       apiCache.set(cacheKey, response.data, 60); // 1 minute
     }

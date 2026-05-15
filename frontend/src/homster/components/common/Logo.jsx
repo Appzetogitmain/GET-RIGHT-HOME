@@ -9,8 +9,8 @@ const Logo = forwardRef(({ className = "h-9 sm:h-12 w-auto", ...props }, ref) =>
   return (
     <img
       ref={ref}
-      src="/truliq-logo.png"
-      alt="Truliq - Trusted Home Services"
+      src="/get-right-home-logo.png"
+      alt="Get Right Home - Trusted Home Services"
       className={`${className} object-contain transition-transform duration-300`}
       {...props}
     />
@@ -20,4 +20,3 @@ const Logo = forwardRef(({ className = "h-9 sm:h-12 w-auto", ...props }, ref) =>
 Logo.displayName = 'Logo';
 
 export default Logo;
-
