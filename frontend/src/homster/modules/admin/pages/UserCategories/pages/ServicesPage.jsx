@@ -180,10 +180,24 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   };
 
   const displayedServices = useMemo(() => {
-    if (!searchTerm) return services;
-    const lower = searchTerm.toLowerCase();
-    return services.filter(s => s.title.toLowerCase().includes(lower));
-  }, [services, searchTerm]);
+    let filtered = services;
+    
+    // Filter by category if not "all"
+    if (selectedCategoryFilter !== "all") {
+      filtered = filtered.filter(s => {
+        const sCatId = (s.categoryId?._id || s.categoryId)?.toString();
+        return sCatId === selectedCategoryFilter;
+      });
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      filtered = filtered.filter(s => s.title.toLowerCase().includes(lower));
+    }
+
+    return filtered;
+  }, [services, searchTerm, selectedCategoryFilter]);
 
   return (
     <div className="space-y-6">
