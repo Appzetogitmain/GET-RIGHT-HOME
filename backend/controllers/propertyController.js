@@ -6,8 +6,9 @@ import PropertyDocument from '../models/PropertyDocument.js';
 import Partner from '../models/Partner.js';
 import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
 import emailService from '../services/emailService.js';
-import User from '../models/User.js'; // Needed to find Admins? Or Admin model
+import User from '../models/User.js';
 import Admin from '../models/Admin.js';
+import Booking from '../models/Booking.js';
 
 const notifyAdminOfNewProperty = async (property) => {
   try {
@@ -752,7 +753,7 @@ export const getPropertyDetails = async (req, res) => {
     if (!property) return res.status(404).json({ message: 'Property not found' });
     const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
     const documents = await PropertyDocument.findOne({ propertyId: id });
-    res.json({ property, roomTypes, documents });
+    res.json({ success: true, property, roomTypes, documents });
   } catch (e) {
     res.status(500).json({ message: e.message });
   }
@@ -971,6 +972,56 @@ export const getAdminPropertyCities = async (req, res) => {
   } catch (error) {
     console.error('Get Admin Property Cities Error:', error);
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Get stats for a specific property (for Owner Dashboard)
+ * @route   GET /api/properties/:id/stats
+ * @access  Private (Owner/Admin)
+ */
+export const getPropertyStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const property = await Property.findById(id);
+    if (!property) return res.status(404).json({ message: 'Property not found' });
+
+    // Authorization check
+    if (String(property.partnerId) !== String(req.user._id) && 
+        String(property.userId) !== String(req.user._id) && 
+        req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Unauthorized access to property stats' });
+    }
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [totalBookings, monthBookings, totalRevenue, totalReviews] = await Promise.all([
+      Booking.countDocuments({ propertyId: id, bookingStatus: { $ne: 'cancelled' } }),
+      Booking.countDocuments({ propertyId: id, bookingStatus: { $ne: 'cancelled' }, createdAt: { $gte: startOfMonth } }),
+      Booking.aggregate([
+        { $match: { propertyId: new mongoose.Types.ObjectId(id), bookingStatus: { $in: ['confirmed', 'checked_in', 'checked_out', 'completed'] } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]),
+      // Assuming a Review model exists and is imported, if not just default to 0 for now or fetch from property
+      Promise.resolve(property.totalReviews || 0)
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        totalBookings,
+        bookingsThisMonth: monthBookings,
+        totalRevenue: totalRevenue[0]?.total || 0,
+        totalReviews,
+        avgRating: property.avgRating || 0,
+        totalViews: property.views || 0 // Assuming a views field exists
+      }
+    });
+  } catch (error) {
+    console.error('Get Property Stats Error:', error);
+    res.status(500).json({ message: error.message });
   }
 };
 

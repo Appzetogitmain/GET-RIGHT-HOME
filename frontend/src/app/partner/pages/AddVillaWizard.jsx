@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
 // Compression removed - Cloudinary handles optimization
 import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Upload, X, Clock, Loader2, Camera } from 'lucide-react';
@@ -24,8 +24,9 @@ const ROOM_AMENITIES = [
 const AddVillaWizard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { id } = useParams();
   const existingProperty = location.state?.property || null;
-  const isEditMode = !!existingProperty;
+  const isEditMode = !!(existingProperty || id);
   const initialStep = location.state?.initialStep || 1;
   const [step, setStep] = useState(initialStep);
   const [loading, setLoading] = useState(false);
@@ -74,7 +75,7 @@ const AddVillaWizard = () => {
   const [originalRoomTypeIds, setOriginalRoomTypeIds] = useState([]);
 
   // --- Persistence Logic ---
-  const STORAGE_KEY = `hoomzo_villa_wizard_draft_${existingProperty?._id || 'new'}`;
+  const STORAGE_KEY = `hoomzo_villa_wizard_draft_${id || 'new'}`;
 
   // 1. Load from localStorage
   useEffect(() => {
@@ -115,7 +116,9 @@ const AddVillaWizard = () => {
 
   useEffect(() => {
     const loadForEdit = async () => {
-      if (!isEditMode || !existingProperty?._id) return;
+      if (!isEditMode) return;
+      const targetId = id || existingProperty?._id;
+      if (!targetId) return;
       setLoading(true);
       setError('');
       try {

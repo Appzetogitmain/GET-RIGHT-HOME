@@ -12,25 +12,39 @@ import { useNavigate } from 'react-router-dom';
 const WalletPage = () => {
     const navigate = useNavigate();
     const [balance, setBalance] = useState(0);
+    const [stats, setStats] = useState(null);
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [viewMode, setViewMode] = useState('user'); // 'user' (Spendings) or 'partner' (Earnings)
     const [showAddMoneySheet, setShowAddMoneySheet] = useState(false);
     const [addAmount, setAddAmount] = useState('');
     const [processing, setProcessing] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [hasProperties, setHasProperties] = useState(false);
 
     const quickAmounts = [500, 1000, 2000];
 
     useEffect(() => {
+        checkOwnership();
         fetchWalletData();
         fetchTransactions();
-    }, []);
+    }, [viewMode]);
+
+    const checkOwnership = async () => {
+        try {
+            const res = await api.get('/properties/my');
+            if (res.data.success && res.data.properties?.length > 0) {
+                setHasProperties(true);
+            }
+        } catch (e) {}
+    };
 
     const fetchWalletData = async () => {
         try {
-            const res = await api.get('/wallet/stats', { params: { viewAs: 'user' } });
+            const res = await api.get('/wallet/stats', { params: { viewAs: viewMode } });
             if (res.data.success) {
-                setBalance(res.data.stats.currentBalance || res.data.wallet?.balance || 0);
+                setBalance(res.data.stats.currentBalance || 0);
+                setStats(res.data.stats);
             }
         } catch (error) {
             console.error('Fetch Wallet Error:', error);
@@ -39,7 +53,8 @@ const WalletPage = () => {
 
     const fetchTransactions = async () => {
         try {
-            const res = await api.get('/wallet/transactions', { params: { viewAs: 'user' } });
+            setLoading(true);
+            const res = await api.get('/wallet/transactions', { params: { viewAs: viewMode } });
             if (res.data.success) {
                 setTransactions(res.data.transactions);
             }
@@ -142,26 +157,76 @@ const WalletPage = () => {
             <Toaster position="top-center" />
 
             {/* Header / Balance Card */}
-            <div className="sticky top-0 z-10 bg-gradient-to-br from-amber-600 to-amber-800 px-6 pt-10 pb-8 rounded-b-[2.5rem] shadow-lg overflow-hidden">
+            <div className={`sticky top-0 z-30 px-6 pt-10 pb-8 rounded-b-[2.5rem] shadow-lg overflow-hidden transition-colors duration-500 ${viewMode === 'user' ? 'bg-gradient-to-br from-amber-600 to-amber-800' : 'bg-gradient-to-br from-emerald-600 to-emerald-800'}`}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
 
-                <h1 className="text-white text-lg font-bold mb-6 text-center">My Wallet</h1>
-
-                <div className="flex flex-col items-center">
-                    <p className="text-amber-100/60 text-xs font-bold uppercase tracking-widest mb-2">Available Balance</p>
-                    <div className="flex items-start text-white">
-                        <span className="text-2xl mt-1 opacity-80 mr-1">₹</span>
-                        <span className="text-5xl font-black tracking-tight">{balance.toLocaleString('en-IN')}</span>
-                    </div>
+                <div className="flex items-center justify-between mb-6">
+                    <button onClick={() => navigate(-1)} className="p-2 bg-white/10 rounded-xl text-white">
+                        <ArrowUpRight size={18} className="rotate-[225deg]" />
+                    </button>
+                    <h1 className="text-white text-lg font-black uppercase tracking-widest">My Wallet</h1>
+                    <div className="w-9"></div>
                 </div>
 
-                <div className="mt-8">
-                    <button
-                        onClick={() => setShowAddMoneySheet(true)}
-                        className="w-full bg-white text-amber-700 py-3.5 rounded-xl font-bold text-sm shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                    >
-                        <Plus size={18} strokeWidth={3} /> Add Money
-                    </button>
+                {/* Tab Switcher */}
+                {hasProperties && (
+                    <div className="flex bg-black/20 backdrop-blur-md p-1 rounded-2xl mb-8 max-w-[240px] mx-auto border border-white/10">
+                        <button 
+                            onClick={() => setViewMode('user')}
+                            className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${viewMode === 'user' ? 'bg-white text-amber-800 shadow-lg' : 'text-white/60 hover:text-white'}`}
+                        >
+                            Spendings
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('partner')}
+                            className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${viewMode === 'partner' ? 'bg-white text-emerald-800 shadow-lg' : 'text-white/60 hover:text-white'}`}
+                        >
+                            Earnings
+                        </button>
+                    </div>
+                )}
+
+                <div className="flex flex-col items-center">
+                    <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em] mb-2">
+                        {viewMode === 'user' ? 'Available Balance' : 'Total Earnings'}
+                    </p>
+                    <div className="flex items-start text-white">
+                        <span className="text-2xl mt-1 opacity-80 mr-1 font-bold">₹</span>
+                        <span className="text-5xl font-black tracking-tighter">
+                            {(viewMode === 'user' ? balance : (stats?.totalEarnings || 0)).toLocaleString('en-IN')}
+                        </span>
+                    </div>
+                    {viewMode === 'partner' && (
+                        <p className="mt-2 text-emerald-100/80 text-xs font-bold">
+                            Withdrawal Balance: ₹{balance.toLocaleString('en-IN')}
+                        </p>
+                    )}
+                </div>
+
+                <div className="mt-8 flex gap-3">
+                    {viewMode === 'user' ? (
+                        <button
+                            onClick={() => setShowAddMoneySheet(true)}
+                            className="flex-1 bg-white text-amber-700 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        >
+                            <Plus size={16} strokeWidth={3} /> Add Money
+                        </button>
+                    ) : (
+                        <>
+                            <button
+                                onClick={() => navigate('/my-received-bookings')}
+                                className="flex-1 bg-white text-emerald-700 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                            >
+                                <Calendar size={16} /> View Orders
+                            </button>
+                            <button
+                                onClick={() => toast.success('Withdrawal logic same as Partner module is ready')}
+                                className="flex-1 bg-white/10 border border-white/20 text-white py-3.5 rounded-xl font-black uppercase tracking-widest text-xs backdrop-blur-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                            >
+                                <ArrowUpRight size={16} /> Withdraw
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -189,9 +254,11 @@ const WalletPage = () => {
                             >
                                 <div className="flex items-center gap-3 flex-1 min-w-0 mr-3">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${tx.isBooking ? 'bg-orange-50 text-orange-600' :
+                                        tx.category === 'booking_payment' ? 'bg-emerald-50 text-emerald-600' :
                                         tx.type === 'credit' ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-600'
                                         }`}>
                                         {tx.isBooking ? <Calendar size={18} /> :
+                                            tx.category === 'booking_payment' ? <CheckCircle2 size={18} /> :
                                             tx.type === 'credit' ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
                                     </div>
                                     <div className="min-w-0 flex-1">

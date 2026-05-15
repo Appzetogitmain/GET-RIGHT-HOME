@@ -376,3 +376,37 @@ export const markAllNotificationsRead = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+/**
+ * @desc    Update user role (Owner/Broker)
+ * @route   PUT /api/users/role
+ * @access  Private
+ */
+export const updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['owner', 'broker'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be owner or broker.' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.role = role;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `Role updated to ${role} successfully`,
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Update User Role Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

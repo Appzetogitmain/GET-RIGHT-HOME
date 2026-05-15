@@ -25,10 +25,10 @@ adminRouter.delete('/:id', deletePlan);
 
 router.use('/admin', adminRouter);
 
-// --- PARTNER ROUTES ---
+// --- USER & PARTNER ROUTES ---
 const partnerRouter = express.Router();
 partnerRouter.use(protect);
-partnerRouter.use(authorizedRoles('partner'));
+partnerRouter.use(authorizedRoles('partner', 'user', 'admin'));
 
 partnerRouter.get('/plans', getActivePlans);
 partnerRouter.get('/current', getCurrentSubscription);

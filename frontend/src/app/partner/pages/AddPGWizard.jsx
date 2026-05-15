@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
 import { categoryService } from '../../../services/categoryService';
 // Compression removed - Cloudinary handles optimization
@@ -50,10 +50,11 @@ const ROOM_AMENITIES = [
 const AddPGWizard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { categoryId, id } = useParams();
   const existingProperty = location.state?.property || null;
-  const isEditMode = !!existingProperty;
+  const isEditMode = !!(existingProperty || id);
   const initialStep = location.state?.initialStep || 1;
-  const [pgCategoryId, setPgCategoryId] = useState(location.state?.categoryId || null);
+  const [pgCategoryId, setPgCategoryId] = useState(categoryId || location.state?.categoryId || null);
   const [step, setStep] = useState(initialStep);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -135,7 +136,7 @@ const AddPGWizard = () => {
   const [originalRoomTypeIds, setOriginalRoomTypeIds] = useState([]);
 
   // --- Persistence Logic ---
-  const STORAGE_KEY = `hoomzo_pg_wizard_draft_${existingProperty?._id || 'new'} `;
+  const STORAGE_KEY = `hoomzo_pg_wizard_draft_${id || 'new'}`;
 
   // 1. Load from localStorage
   useEffect(() => {
@@ -176,7 +177,9 @@ const AddPGWizard = () => {
 
   useEffect(() => {
     const loadForEdit = async () => {
-      if (!isEditMode || !existingProperty?._id) return;
+      if (!isEditMode) return;
+      const targetId = id || existingProperty?._id;
+      if (!targetId) return;
       setLoading(true);
       setError('');
       try {
@@ -1213,8 +1216,8 @@ const AddPGWizard = () => {
                   {propertyForm.propertyImages.map((img, i) => (
                     <div key={i} className="relative aspect-square rounded-xl overflow-hidden group bg-gray-100">
                       <img src={img} className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => handleRemoveImage(img, 'gallery', i)} className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm transform scale-90 group-hover:scale-100">
-                        <Trash2 size={12} />
+                      <button type="button" onClick={() => handleRemoveImage(img, 'gallery', i)} className="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md z-10">
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   ))}
@@ -1368,7 +1371,7 @@ const AddPGWizard = () => {
                         {(editingRoomType.images || []).map((img, i) => (
                           <div key={i} className="relative w-20 h-20 flex-shrink-0 rounded-xl border border-gray-200 overflow-hidden group">
                             <img src={img} className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
+                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md z-10"><Trash2 size={12} /></button>
                           </div>
                         ))}
                         {(editingRoomType.images || []).length < 5 && (

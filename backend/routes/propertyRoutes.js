@@ -14,7 +14,8 @@ import {
   revealContact,
   getRecommendedSellers,
   getAdminPropertiesByLocation,
-  getAdminPropertyCities
+  getAdminPropertyCities,
+  getPropertyStats
 } from '../controllers/propertyController.js';
 
 
@@ -25,17 +26,20 @@ router.get('/recommended-sellers', getRecommendedSellers);
 router.get('/admin-added', getAdminPropertiesByLocation);
 router.get('/admin-cities', getAdminPropertyCities);
 
+// User & Partner can manage their own properties
+const ownerRoles = authorizedRoles('partner', 'admin', 'user');
 
-router.get('/my', protect, authorizedRoles('partner', 'admin'), getMyProperties);
+router.get('/my', protect, ownerRoles, getMyProperties);
 router.get('/:id/reveal-contact', revealContact);
+router.get('/:id/stats', protect, ownerRoles, getPropertyStats);
 router.get('/:id', getPropertyDetails);
 
-router.post('/', protect, authorizedRoles('partner', 'admin'), createProperty);
-router.put('/:id', protect, authorizedRoles('partner', 'admin'), updateProperty);
-router.delete('/:id', protect, authorizedRoles('partner', 'admin'), deleteProperty);
-router.post('/:propertyId/room-types', protect, authorizedRoles('partner', 'admin'), addRoomType);
-router.put('/:propertyId/room-types/:roomTypeId', protect, authorizedRoles('partner', 'admin'), updateRoomType);
-router.delete('/:propertyId/room-types/:roomTypeId', protect, authorizedRoles('partner', 'admin'), deleteRoomType);
-router.post('/:propertyId/documents', protect, authorizedRoles('partner', 'admin'), upsertDocuments);
+router.post('/', protect, ownerRoles, createProperty);
+router.put('/:id', protect, ownerRoles, updateProperty);
+router.delete('/:id', protect, ownerRoles, deleteProperty);
+router.post('/:propertyId/room-types', protect, ownerRoles, addRoomType);
+router.put('/:propertyId/room-types/:roomTypeId', protect, ownerRoles, updateRoomType);
+router.delete('/:propertyId/room-types/:roomTypeId', protect, ownerRoles, deleteRoomType);
+router.post('/:propertyId/documents', protect, ownerRoles, upsertDocuments);
 
 export default router;

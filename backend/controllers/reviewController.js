@@ -84,8 +84,10 @@ export const createReview = async (req, res) => {
 
 export const getPartnerReviewStats = async (req, res) => {
   try {
-    // 1. Get all properties for this partner
-    const properties = await Property.find({ partnerId: req.user._id }).select('_id');
+    // 1. Get all properties for this partner or user (C2C)
+    const properties = await Property.find({ 
+      $or: [{ partnerId: req.user._id }, { userId: req.user._id }] 
+    }).select('_id');
     const propertyIds = properties.map(p => p._id);
 
     // 2. Count reviews that have no reply
@@ -114,8 +116,10 @@ export const getPartnerReviews = async (req, res) => {
   try {
     const { status } = req.query; // optional filter: 'pending', 'replied'
 
-    // Get all partner properties
-    const properties = await Property.find({ partnerId: req.user._id }).select('_id propertyName');
+    // Get all partner or user (C2C) properties
+    const properties = await Property.find({ 
+      $or: [{ partnerId: req.user._id }, { userId: req.user._id }] 
+    }).select('_id propertyName');
     const propertyIds = properties.map(p => p._id);
 
     const query = { propertyId: { $in: propertyIds } };
@@ -147,8 +151,11 @@ export const replyToReview = async (req, res) => {
     const review = await Review.findById(reviewId).populate('propertyId');
     if (!review) return res.status(404).json({ message: 'Review not found' });
 
-    // Verify ownership
-    if (String(review.propertyId.partnerId) !== String(req.user._id)) {
+    // Verify ownership (Partner or C2C User)
+    const isOwner = String(review.propertyId.partnerId) === String(req.user._id) || 
+                   String(review.propertyId.userId) === String(req.user._id);
+
+    if (!isOwner) {
       return res.status(403).json({ message: 'Not authorized to reply to this review' });
     }
 

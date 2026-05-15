@@ -49,6 +49,11 @@ const ReelsPage = React.lazy(() => import('./pages/user/ReelsPage'));
 const MyProperties = React.lazy(() => import('./pages/user/MyProperties'));
 const HomeServicesPage = React.lazy(() => import('./pages/user/HomeServicesPage'));
 const HomsterAdminRoutes = React.lazy(() => import('./homster/modules/admin/routes/index.jsx'));
+const UserReceivedBookingsPage = React.lazy(() => import('./pages/user/UserReceivedBookingsPage'));
+const UserSubscriptionsPage = React.lazy(() => import('./pages/user/UserSubscriptionsPage'));
+const UserPropertyDashboard = React.lazy(() => import('./pages/user/UserPropertyDashboard'));
+const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPage'));
+const ListPropertyWizard = React.lazy(() => import('./pages/user/ListPropertyWizard'));
 
 // Lazy Imports - Admin Pages
 const AdminLogin = React.lazy(() => import('./app/admin/pages/AdminLogin'));
@@ -169,14 +174,14 @@ const Layout = ({ children }) => {
   }, []);
 
   // 1. GLOBAL HIDE: Auth pages, Admin, and Property Wizard
-  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/hotel/join', '/hotel/wizard', '/hotel/join-dynamic', '/list-property/join', '/list-property/wizard'];
+  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/hotel/join', '/hotel/wizard', '/hotel/join-dynamic', '/list-property'];
   const shouldGlobalHide = globalHideRoutes.some(route => location.pathname.includes(route));
 
   if (shouldGlobalHide) {
     return <>{children}</>;
   }
 
-  const isUserHotelDetail = /^\/hotel\/[0-9a-fA-F]{24}(\/(amenities|reviews|offers))?$/.test(location.pathname);
+  const isUserHotelDetail = /^\/(hotel|property)\/[0-9a-fA-F]{24}(\/(amenities|reviews|offers))?$/.test(location.pathname);
   const isPartnerApp = location.pathname.startsWith('/hotel') && !isUserHotelDetail;
 
   // 3. NAVBAR VISIBILITY
@@ -432,15 +437,18 @@ function App() {
             <Route path="/privacy" element={<PrivacyPage />} />
 
             {/* User Property Listing (C2C) Routes */}
-            <Route path="/list-property" element={<UserProtectedRoute><PartnerJoinPropertyType /></UserProtectedRoute>} />
-            <Route path="/list-property/wizard/:categoryId" element={<UserProtectedRoute><AddDynamicWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-hotel" element={<UserProtectedRoute><AddHotelWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-resort" element={<UserProtectedRoute><AddResortWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-hostel" element={<UserProtectedRoute><AddHostelWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-villa" element={<UserProtectedRoute><AddVillaWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-pg" element={<UserProtectedRoute><AddPGWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-homestay" element={<UserProtectedRoute><AddHomestayWizard /></UserProtectedRoute>} />
+            <Route path="/list-property" element={<ListPropertyWizard />} />
+            <Route path="/list-property/wizard/:categoryId/:id?" element={<UserProtectedRoute><AddDynamicWizard /></UserProtectedRoute>} />
+            <Route path="/list-property/join-hotel/:id?" element={<UserProtectedRoute><AddHotelWizard /></UserProtectedRoute>} />
+            <Route path="/list-property/join-resort/:id?" element={<UserProtectedRoute><AddResortWizard /></UserProtectedRoute>} />
+            <Route path="/list-property/join-hostel/:id?" element={<UserProtectedRoute><AddHostelWizard /></UserProtectedRoute>} />
+            <Route path="/list-property/join-villa/:id?" element={<UserProtectedRoute><AddVillaWizard /></UserProtectedRoute>} />
+            <Route path="/list-property/join-pg/:id?" element={<UserProtectedRoute><AddPGWizard /></UserProtectedRoute>} />
+            <Route path="/list-property/join-homestay/:id?" element={<UserProtectedRoute><AddHomestayWizard /></UserProtectedRoute>} />
             <Route path="/my-properties" element={<UserProtectedRoute><MyProperties /></UserProtectedRoute>} />
+            <Route path="/my-received-bookings" element={<UserProtectedRoute><UserReceivedBookingsPage /></UserProtectedRoute>} />
+            <Route path="/my-subscriptions" element={<UserProtectedRoute><UserSubscriptionsPage /></UserProtectedRoute>} />
+            <Route path="/my-property-dashboard/:id" element={<UserProtectedRoute><UserPropertyDashboard /></UserProtectedRoute>} />
             <Route path="/properties/:id" element={<UserProtectedRoute><PartnerPropertyDetails /></UserProtectedRoute>} />
 
             {/* Hotel/Partner Module Routes */}
@@ -529,13 +537,22 @@ function App() {
             <Route element={<UserProtectedRoute />}>
               <Route path="/" element={<Home />} />
               <Route path="/reels" element={<ReelsPage />} />
+              <Route path="/profile" element={<Navigate to="/profile/edit" replace />} />
               <Route path="/profile/edit" element={<ProfileEdit />} />
+              
+              {/* Unified Property Details (C2C & Hotel) */}
               <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
               <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
               <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />
               <Route path="/hotel/:id/offers" element={<OffersPage />} />
+              
+              <Route path="/property/:id" element={<UserPropertyDetailsPage />} />
+              <Route path="/property/:id/amenities" element={<AmenitiesPage />} />
+              <Route path="/property/:id/reviews" element={<ReviewsPage />} />
+              <Route path="/property/:id/offers" element={<OffersPage />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/bookings" element={<BookingsPage />} />
+              <Route path="/my-reviews" element={<UserMyReviewsPage />} />
               <Route path="/listings" element={<Navigate to="/search" replace />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/payment" element={<PaymentPage />} />

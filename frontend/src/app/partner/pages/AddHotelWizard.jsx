@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
 // Compression removed - Cloudinary handles optimization
 import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, Clock, Loader2, Camera, X } from 'lucide-react';
@@ -26,8 +26,9 @@ const ROOM_AMENITIES = [
 const AddHotelWizard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { id } = useParams();
   const existingProperty = location.state?.property || null;
-  const isEditMode = !!existingProperty;
+  const isEditMode = !!(existingProperty || id);
   const initialStep = location.state?.initialStep || 1;
   const [step, setStep] = useState(initialStep);
   const [loading, setLoading] = useState(false);
@@ -77,7 +78,7 @@ const AddHotelWizard = () => {
   const [originalRoomTypeIds, setOriginalRoomTypeIds] = useState([]);
 
   // --- Persistence Logic ---
-  const STORAGE_KEY = `hoomzo_hotel_wizard_draft_${existingProperty?._id || 'new'}`;
+  const STORAGE_KEY = `hoomzo_hotel_wizard_draft_${id || 'new'}`;
 
   // 1. Load from localStorage on mount
   useEffect(() => {
@@ -524,7 +525,9 @@ const AddHotelWizard = () => {
 
   useEffect(() => {
     const loadForEdit = async () => {
-      if (!isEditMode || !existingProperty?._id) return;
+      if (!isEditMode) return;
+      const targetId = id || existingProperty?._id;
+      if (!targetId) return;
       setLoading(true);
       setError('');
       try {
@@ -1217,7 +1220,7 @@ const AddHotelWizard = () => {
                       <button
                         type="button"
                         onClick={() => handleRemoveImage(img, 'gallery', i)}
-                        className="absolute top-1 right-1 bg-white/90 text-red-500 rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md z-10"
                       >
                         <Trash2 size={14} />
                       </button>

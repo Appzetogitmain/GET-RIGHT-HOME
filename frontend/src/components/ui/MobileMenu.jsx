@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Wallet, Heart, Gift, HelpCircle, FileText, Shield, ChevronRight, LogOut, Settings, BookOpen, Building, Briefcase, Bell, Edit3, Video } from 'lucide-react';
-import logo from '../../assets/grh-logo.png';
+import {
+    X, User, Wallet, Heart, HelpCircle, FileText, Shield, ChevronRight,
+    LogOut, Settings, BookOpen, Building, Briefcase, Bell, Edit3, Video,
+    Home, Star, CalendarCheck, PlusCircle, CreditCard
+} from 'lucide-react';
 import { userService } from '../../services/apiService';
-
 import { useNavigate } from 'react-router-dom';
 
 const MobileMenu = ({ isOpen, onClose }) => {
@@ -16,13 +18,11 @@ const MobileMenu = ({ isOpen, onClose }) => {
         try {
             return JSON.parse(savedUser);
         } catch (error) {
-            console.error('Error parsing user data:', error);
             return null;
         }
     }, []);
 
     useEffect(() => {
-        // Fetch unread count whenever menu opens
         if (isOpen && user) {
             const fetchUnread = async () => {
                 try {
@@ -38,32 +38,22 @@ const MobileMenu = ({ isOpen, onClose }) => {
         }
     }, [isOpen, user]);
 
-    // Disable body scroll when sidebar is open
+    // Lock scroll when open
     useEffect(() => {
         if (isOpen) {
-            // Save current scroll position
             const scrollY = window.scrollY;
-
-            // Apply styles to prevent scrolling
             document.body.style.position = 'fixed';
             document.body.style.top = `-${scrollY}px`;
             document.body.style.width = '100%';
             document.body.style.overflow = 'hidden';
         } else {
-            // Restore scroll position
             const scrollY = document.body.style.top;
             document.body.style.position = '';
             document.body.style.top = '';
             document.body.style.width = '';
             document.body.style.overflow = '';
-
-            // Restore scroll position
-            if (scrollY) {
-                window.scrollTo(0, parseInt(scrollY || '0') * -1);
-            }
+            if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
         }
-
-        // Cleanup on unmount
         return () => {
             document.body.style.position = '';
             document.body.style.top = '';
@@ -72,34 +62,14 @@ const MobileMenu = ({ isOpen, onClose }) => {
         };
     }, [isOpen]);
 
-    // Grouped Menu Items
-    const bookingItems = [
-        { icon: BookOpen, label: 'My Bookings', path: '/bookings' },
-        { icon: Video, label: 'Reels', path: '/reels' },
-        { icon: Heart, label: 'Saved Places', path: '/saved-places' },
-    ];
-
-
-    const growthItems = [
-        { icon: Gift, label: 'Refer & Earn', path: '/refer' },
-    ];
-
-    const settingItems = [
-        { icon: Bell, label: 'Notifications', path: '/notifications', badge: unreadCount > 0 ? unreadCount : null },
-        { icon: Settings, label: 'Settings', path: '/settings' },
-        { icon: HelpCircle, label: 'Need Help?', path: '/support' },
-    ];
-
-    const legalItems = [
-        { icon: Shield, label: 'Privacy Policy', path: '/legal' },
-        { icon: FileText, label: 'Terms & Conditions', path: '/legal' },
-    ];
-
     const handleNavigation = (path) => {
-        if (path) {
-            navigate(path);
-            onClose();
-        }
+        if (path) { navigate(path); onClose(); }
+    };
+
+    const handleLogout = () => {
+        localStorage.clear();
+        onClose();
+        navigate('/login');
     };
 
     const MenuItem = ({ icon: Icon, label, path, badge }) => (
@@ -111,52 +81,38 @@ const MobileMenu = ({ isOpen, onClose }) => {
                 <Icon size={16} className="text-surface" />
             </div>
             <span className="flex-1 text-left font-medium text-gray-700 text-sm">{label}</span>
-
             {badge && (
                 <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mr-2">
                     {badge}
                 </div>
             )}
-
             <ChevronRight size={14} className="text-gray-300 group-hover:text-surface transition-colors" />
         </button>
     );
 
-    const handleLogout = () => {
-        localStorage.clear();
-        onClose();
-        navigate('/login');
-    };
-
-    const handleEditProfile = () => {
-        navigate('/profile/edit');
-        onClose();
-    };
+    // Section divider
+    const SectionTitle = ({ title }) => (
+        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pl-2 mt-1">{title}</h4>
+    );
 
     return (
         <AnimatePresence>
             {isOpen && (
                 <>
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        onClick={onClose}
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }} onClick={onClose}
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] md:hidden"
                         style={{ pointerEvents: 'auto' }}
                     />
-
                     <motion.div
-                        initial={{ x: '-100%' }}
-                        animate={{ x: 0 }}
-                        exit={{ x: '-100%' }}
+                        initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
                         transition={{ type: 'tween', ease: 'circOut', duration: 0.4 }}
                         className="fixed top-0 left-0 h-[100dvh] w-[85%] max-w-[300px] bg-white z-[101] overflow-y-auto overscroll-contain md:hidden shadow-2xl flex flex-col"
                         style={{ touchAction: 'pan-y' }}
                         onClick={(e) => e.stopPropagation()}
                     >
-
+                        {/* Header */}
                         <div className="flex items-center justify-between p-5 pb-2">
                             <div className="flex flex-col items-start leading-none">
                                 <span className="text-lg font-black tracking-tighter text-[#111827] flex items-center gap-1 uppercase">
@@ -168,29 +124,32 @@ const MobileMenu = ({ isOpen, onClose }) => {
                             </button>
                         </div>
 
+                        {/* Profile Card */}
                         <div className="px-5 mb-4">
                             {user ? (
-                                <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl p-4 text-white shadow-lg shadow-emerald-900/20 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-
+                                <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl p-4 text-white shadow-lg relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
                                     <div className="flex items-start justify-between relative z-10">
                                         <div className="flex items-center gap-3 flex-1">
-                                            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30 backdrop-blur-sm">
-                                                <User size={22} className="text-white" />
+                                            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30 backdrop-blur-sm overflow-hidden">
+                                                {user.profileImage
+                                                    ? <img src={user.profileImage} className="w-full h-full object-cover" alt="profile" />
+                                                    : <User size={22} className="text-white" />
+                                                }
                                             </div>
                                             <div className="flex-1">
-                                                <h3 className="font-bold text-base leading-tight">{user.name}</h3>
-                                                <p className="text-[11px] text-white/80 mt-0.5">{user.phone}</p>
+                                                <h3 className="font-bold text-base leading-tight">{user.name || 'User'}</h3>
+                                                <p className="text-[11px] text-white/80 mt-0.5">{user.phone || user.email || ''}</p>
                                             </div>
                                         </div>
-                                        <button onClick={handleEditProfile} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm">
+                                        <button onClick={() => { navigate('/profile/edit'); onClose(); }} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm">
                                             <Edit3 size={14} className="text-white" />
                                         </button>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="bg-surface rounded-2xl p-4 text-white shadow-lg shadow-surface/20 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                                <div className="bg-surface rounded-2xl p-4 text-white shadow-lg relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
                                     <div className="flex items-center gap-3 relative z-10">
                                         <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border border-white/20">
                                             <User size={20} className="text-white" />
@@ -208,30 +167,61 @@ const MobileMenu = ({ isOpen, onClose }) => {
                             )}
                         </div>
 
-                        <div className="px-5 space-y-4 pb-10">
+                        {/* Menu Items */}
+                        <div className="px-5 space-y-3 pb-10 flex-1">
+
+                            {/* Discover */}
                             <div>
-                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pl-2">Travel & Stays</h4>
-                                <div className="flex flex-col gap-1">{bookingItems.map((item, idx) => <MenuItem key={idx} {...item} />)}</div>
+                                <SectionTitle title="Discover" />
+                                <div className="flex flex-col gap-1">
+                                    <MenuItem icon={BookOpen} label="My Bookings" path="/bookings" />
+                                    <MenuItem icon={Heart} label="Saved Places" path="/saved-places" />
+                                    <MenuItem icon={Video} label="Reels" path="/reels" />
+                                </div>
                             </div>
 
-                            {/* 
-                            <div>
-                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pl-2">Grow with GRH</h4>
-                                <div className="flex flex-col gap-1">{growthItems.map((item, idx) => <MenuItem key={idx} {...item} />)}</div>
-                            </div>
-                            */}
+                            {/* My Properties - only show if logged in */}
+                            {user && (
+                                <div>
+                                    <SectionTitle title="My Properties" />
+                                    <div className="flex flex-col gap-1">
+                                        <MenuItem icon={PlusCircle} label="List a Property" path="/list-property" />
+                                        <MenuItem icon={Building} label="My Listings" path="/my-properties" />
+                                        <MenuItem icon={CalendarCheck} label="Received Bookings" path="/my-received-bookings" />
+                                        <MenuItem icon={Star} label="My Reviews" path="/my-reviews" />
+                                    </div>
+                                </div>
+                            )}
 
+                            {/* Finance - only show if logged in */}
+                            {user && (
+                                <div>
+                                    <SectionTitle title="Finance" />
+                                    <div className="flex flex-col gap-1">
+                                        <MenuItem icon={Wallet} label="My Wallet" path="/wallet" />
+                                        <MenuItem icon={CreditCard} label="Subscription Plans" path="/my-subscriptions" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* App Settings */}
                             <div>
-                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pl-2">App Settings</h4>
-                                <div className="flex flex-col gap-1">{settingItems.map((item, idx) => <MenuItem key={idx} {...item} />)}</div>
+                                <SectionTitle title="Settings" />
+                                <div className="flex flex-col gap-1">
+                                    <MenuItem icon={Bell} label="Notifications" path="/notifications" badge={unreadCount > 0 ? unreadCount : null} />
+                                    <MenuItem icon={Settings} label="Settings" path="/settings" />
+                                    <MenuItem icon={HelpCircle} label="Need Help?" path="/support" />
+                                </div>
                             </div>
 
+                            {/* Legal & Logout */}
                             <div className="pt-2 border-t border-gray-100">
-                                {legalItems.map((item, idx) => (
-                                    <button key={idx} onClick={() => handleNavigation(item.path)} className="flex items-center gap-3 w-full p-2 hover:text-surface transition-colors">
-                                        <span className="text-xs font-medium text-gray-400 hover:text-surface">{item.label}</span>
-                                    </button>
-                                ))}
+                                <button onClick={() => handleNavigation('/legal')} className="flex items-center gap-3 w-full p-2 hover:text-surface transition-colors">
+                                    <span className="text-xs font-medium text-gray-400 hover:text-surface">Privacy Policy</span>
+                                </button>
+                                <button onClick={() => handleNavigation('/terms')} className="flex items-center gap-3 w-full p-2 hover:text-surface transition-colors">
+                                    <span className="text-xs font-medium text-gray-400 hover:text-surface">Terms & Conditions</span>
+                                </button>
                                 {user && (
                                     <button onClick={handleLogout} className="mt-4 flex items-center gap-2 text-red-500 font-medium text-xs px-2 hover:opacity-80">
                                         <LogOut size={14} /> Log Out

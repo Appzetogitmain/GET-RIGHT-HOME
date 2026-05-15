@@ -6,6 +6,8 @@ const router = express.Router();
 
 router.get('/partner/stats', protect, getPartnerReviewStats);
 router.get('/partner/all', protect, getPartnerReviews);
+router.get('/owner/stats', protect, getPartnerReviewStats);
+router.get('/owner', protect, getPartnerReviews);
 router.post('/:reviewId/reply', protect, replyToReview);
 router.post('/:reviewId/helpful', protect, toggleHelpful);
 

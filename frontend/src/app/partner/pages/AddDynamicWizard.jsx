@@ -33,11 +33,11 @@ const ROOM_AMENITIES = [
 ];
 
 const AddDynamicWizard = () => {
-  const { categoryId } = useParams(); // Get dynamic category ID
+  const { categoryId, id } = useParams(); // Get dynamic category ID and optional property ID
   const navigate = useNavigate();
   const location = useLocation();
   const existingProperty = location.state?.property || null;
-  const isEditMode = !!existingProperty;
+  const isEditMode = !!(existingProperty || id);
   const initialStep = location.state?.initialStep || 1;
   const [step, setStep] = useState(initialStep);
   const [loading, setLoading] = useState(false);
@@ -184,7 +184,7 @@ const AddDynamicWizard = () => {
   const [originalRoomTypeIds, setOriginalRoomTypeIds] = useState([]);
 
   // --- Persistence Logic ---
-  const STORAGE_KEY = `hoomzo_hotel_wizard_draft_${existingProperty?._id || (categoryId ? `dynamic_${categoryId}` : 'new')}`;
+  const STORAGE_KEY = `hoomzo_dynamic_wizard_draft_${id || (categoryId ? `dynamic_${categoryId}` : 'new')}`;
 
   // 1. Load from localStorage on mount
   useEffect(() => {
@@ -631,7 +631,9 @@ const AddDynamicWizard = () => {
 
   useEffect(() => {
     const loadForEdit = async () => {
-      if (!isEditMode || !existingProperty?._id) return;
+      if (!isEditMode) return;
+      const targetId = id || existingProperty?._id;
+      if (!targetId) return;
       setLoading(true);
       setError('');
       try {
@@ -1545,7 +1547,7 @@ const AddDynamicWizard = () => {
                       <button
                         type="button"
                         onClick={() => handleRemoveImage(img, 'gallery', i)}
-                        className="absolute top-1 right-1 bg-white/90 text-red-500 rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md z-10"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -1739,7 +1741,7 @@ const AddDynamicWizard = () => {
                         {(editingRoomType.images || []).filter(Boolean).map((img, i) => (
                           <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 group">
                             <img src={img} alt="" className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-0.5 right-0.5 bg-white/90 text-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md z-10">
                               <Trash2 size={12} />
                             </button>
                           </div>

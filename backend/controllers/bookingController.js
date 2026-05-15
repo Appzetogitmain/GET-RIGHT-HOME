@@ -39,26 +39,17 @@ const triggerBookingNotifications = async (booking) => {
       }, { type: 'booking', bookingId: fullBooking._id }, 'user').catch(err => console.error('User Push failed:', err));
     }
 
-    // 3. Partner Notifications
-    if (property && property.partnerId) {
+    // 3. Owner Notifications (Partner or User)
+    const ownerId = property?.partnerId || property?.userId;
+    if (ownerId) {
+      const ownerRole = property?.partnerId ? 'partner' : 'user';
       // Push
-      notificationService.sendToUser(property.partnerId, {
+      notificationService.sendToUser(ownerId, {
         title: 'New Booking Alert!',
         body: `${fullBooking.totalNights} Night, ${fullBooking.guests.adults} Guests. Check App.`
-      }, { type: 'new_booking', bookingId: fullBooking._id }, 'partner').catch(err => console.error('Partner Push failed:', err));
+      }, { type: 'new_booking', bookingId: fullBooking._id }, ownerRole).catch(err => console.error('Owner Push failed:', err));
 
-      // SMS
-      // Need to find Partner Phone. Property has partnerId, need to fetch Partner User.
-      try {
-        const Partner = (await import('../models/Partner.js')).default;
-        const partner = await Partner.findById(property.partnerId);
-        if (partner && partner.phone) {
-          smsService.sendSMS(partner.phone, `New Booking Alert! ${fullBooking.totalNights} Night, ${fullBooking.guests.adults} Guests. Check App.`)
-            .catch(e => console.error('Partner SMS failed:', e));
-        }
-      } catch (smsErr) {
-        console.error('Partner SMS Lookup Error:', smsErr);
-      }
+      // SMS (Logic can be added here if smsService is implemented in future)
     }
 
   } catch (err) {
@@ -1075,6 +1066,138 @@ export const updateInquiryStatus = async (req, res) => {
 
     res.json({ success: true, message: 'Inquiry status updated', inquiry });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Get bookings received on properties owned by the current user
+ * @route   GET /api/bookings/received
+ * @access  Private (Owner/Admin)
+ */
+export const getReceivedBookings = async (req, res) => {
+  try {
+    const { propertyId, status, limit = 50 } = req.query;
+
+    // 1. Get IDs of properties owned by this user
+    const ownerQuery = {
+      $or: [
+        { partnerId: req.user._id },
+        { userId: req.user._id }
+      ]
+    };
+    if (propertyId) ownerQuery._id = propertyId;
+
+    const properties = await Property.find(ownerQuery).select('_id');
+    const propertyIds = properties.map(p => p._id);
+
+    // 2. Find bookings for these properties
+    const bookingQuery = { propertyId: { $in: propertyIds } };
+    if (status && status !== 'All') {
+      bookingQuery.bookingStatus = status.toLowerCase();
+    }
+
+    const bookings = await Booking.find(bookingQuery)
+      .populate('userId', 'name phone email avatar')
+      .populate('propertyId', 'propertyName coverImage address')
+      .populate('roomTypeId', 'name')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    res.json({ success: true, bookings });
+  } catch (error) {
+    console.error('Get Received Bookings Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Confirm a booking (Owner action)
+ * @route   POST /api/bookings/:id/confirm
+ * @access  Private (Owner/Admin)
+ */
+export const confirmBookingByOwner = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await Booking.findById(id).populate('propertyId');
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    // Authorization: Must be owner of the property
+    const prop = booking.propertyId;
+    if (String(prop.partnerId) !== String(req.user._id) && 
+        String(prop.userId) !== String(req.user._id) && 
+        req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to confirm this booking' });
+    }
+
+    if (booking.bookingStatus !== 'pending') {
+      return res.status(400).json({ message: `Cannot confirm booking in ${booking.bookingStatus} status` });
+    }
+
+    booking.bookingStatus = 'confirmed';
+    booking.confirmedAt = new Date();
+    await booking.save();
+
+    // Trigger Notifications
+    triggerBookingNotifications(booking);
+
+    res.json({ success: true, message: 'Booking confirmed successfully', booking });
+  } catch (error) {
+    console.error('Confirm Booking Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Decline/Cancel a booking (Owner action)
+ * @route   POST /api/bookings/:id/decline
+ * @access  Private (Owner/Admin)
+ */
+export const declineBookingByOwner = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const booking = await Booking.findById(id).populate('propertyId');
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    // Authorization
+    const prop = booking.propertyId;
+    if (String(prop.partnerId) !== String(req.user._id) && 
+        String(prop.userId) !== String(req.user._id) && 
+        req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to decline this booking' });
+    }
+
+    booking.bookingStatus = 'cancelled';
+    booking.cancellationReason = reason || 'Declined by property owner';
+    booking.cancelledAt = new Date();
+    booking.cancelledBy = 'owner';
+    await booking.save();
+
+    // Release Inventory
+    await AvailabilityLedger.deleteMany({ referenceId: booking._id });
+
+    // If paid, trigger refund logic (manual or automatic depending on policy)
+    // For now, we follow the cancelBooking pattern of refunding to wallet if paid online
+    if (booking.paymentStatus === 'paid') {
+      let userWallet = await Wallet.findOne({ partnerId: booking.userId, role: 'user' });
+      if (!userWallet) {
+        userWallet = await Wallet.create({ partnerId: booking.userId, role: 'user', balance: 0 });
+      }
+      await userWallet.credit(booking.totalAmount, `Refund (Declined by Owner) for #${booking.bookingId}`, booking.bookingId, 'refund');
+    }
+
+    // Notify User
+    if (booking.userId) {
+       notificationService.sendToUser(booking.userId, {
+        title: 'Booking Declined',
+        body: `Your booking for ${prop.propertyName} has been declined by the owner.`
+      }, { type: 'booking_cancelled', bookingId: booking._id }, 'user').catch(console.error);
+    }
+
+    res.json({ success: true, message: 'Booking declined and inventory released', booking });
+  } catch (error) {
+    console.error('Decline Booking Error:', error);
     res.status(500).json({ message: error.message });
   }
 };

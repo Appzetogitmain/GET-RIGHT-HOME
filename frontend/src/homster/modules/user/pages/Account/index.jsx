@@ -23,7 +23,11 @@ import {
   FiGift,
   FiShield,
   FiZap,
-  FiCheckCircle
+  FiCheckCircle,
+  FiTrendingUp,
+  FiBriefcase,
+  FiDatabase,
+  FiPieChart
 } from 'react-icons/fi';
 import { MdAccountBalanceWallet } from 'react-icons/md';
 import NotificationBell from '../../components/common/NotificationBell';
@@ -334,7 +338,7 @@ const Account = () => {
           {/* Quick Actions Grid */}
           <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-6">
             <button
-              onClick={() => navigate('/user/wallet')}
+              onClick={() => navigate('/wallet')}
               className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all text-left group"
             >
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"
@@ -368,6 +372,45 @@ const Account = () => {
           </motion.div>
 
           {/* Menu Groups */}
+
+          {/* My Properties Section */}
+          <motion.div variants={itemVariants} className="mb-6">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pl-2">My Properties</h3>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <button
+                onClick={() => navigate('/list-property')}
+                className="bg-emerald-50 p-4 rounded-3xl border border-emerald-100 shadow-sm hover:shadow-md transition-all text-left group"
+              >
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-3 bg-emerald-500 text-white shadow-lg shadow-emerald-200">
+                  <FiBriefcase className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Start</span>
+                <p className="text-sm font-black text-emerald-900 mt-0.5">List Property</p>
+              </button>
+
+              <button
+                onClick={() => navigate('/my-properties')}
+                className="bg-orange-50 p-4 rounded-3xl border border-orange-100 shadow-sm hover:shadow-md transition-all text-left group"
+              >
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-3 bg-orange-500 text-white shadow-lg shadow-orange-200">
+                  <FiDatabase className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] text-orange-600 font-bold uppercase tracking-wider">Manage</span>
+                <p className="text-sm font-black text-orange-900 mt-0.5">My Listings</p>
+              </button>
+            </div>
+
+            <MenuItem
+              icon={FiCheckCircle}
+              label="Received Bookings"
+              onClick={() => navigate('/my-received-bookings')}
+            />
+            <MenuItem
+              icon={FiTrendingUp}
+              label="Subscription Plans"
+              onClick={() => navigate('/my-subscriptions')}
+            />
+          </motion.div>
 
           {/* Shopping */}
           <motion.div variants={itemVariants} className="mb-6">
@@ -425,7 +468,7 @@ const Account = () => {
             />
             <motion.button
               whileTap={{ scale: 0.98 }}
-              onClick={() => navigate('/user/about-Truliq')}
+              onClick={() => navigate('/user/about-grh')}
               className="w-full flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group mb-3"
             >
               <div className="flex items-center gap-4">

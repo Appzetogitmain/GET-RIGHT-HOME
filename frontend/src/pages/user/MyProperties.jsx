@@ -44,20 +44,20 @@ const MyProperties = () => {
     const state = { property };
     const type = property.propertyType?.toLowerCase();
     
-    if (type === 'hotel') navigate('/list-property/join-hotel', { state });
-    else if (type === 'villa') navigate('/list-property/join-villa', { state });
-    else if (type === 'hostel') navigate('/list-property/join-hostel', { state });
-    else if (type === 'pg') navigate('/list-property/join-pg', { state });
-    else if (type === 'resort') navigate('/list-property/join-resort', { state });
-    else if (type === 'homestay') navigate('/list-property/join-homestay', { state });
+    if (type === 'hotel') navigate(`/list-property/join-hotel/${property._id}`, { state });
+    else if (type === 'villa') navigate(`/list-property/join-villa/${property._id}`, { state });
+    else if (type === 'hostel') navigate(`/list-property/join-hostel/${property._id}`, { state });
+    else if (type === 'pg') navigate(`/list-property/join-pg/${property._id}`, { state });
+    else if (type === 'resort') navigate(`/list-property/join-resort/${property._id}`, { state });
+    else if (type === 'homestay') navigate(`/list-property/join-homestay/${property._id}`, { state });
     else if (property.dynamicCategory) {
         const catId = typeof property.dynamicCategory === 'object' ? property.dynamicCategory._id : property.dynamicCategory;
-        navigate(`/list-property/wizard/${catId}`, { state });
+        navigate(`/list-property/wizard/${catId}/${property._id}`, { state });
     }
   };
 
   const handleViewDetails = (property) => {
-    navigate(`/properties/${property._id}`);
+    navigate(`/my-property-dashboard/${property._id}`);
   };
 
   const handleDeleteProperty = async () => {
@@ -96,7 +96,7 @@ const MyProperties = () => {
         <div className="px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate(-1)}
               className="p-2 hover:bg-gray-50 rounded-xl transition-colors"
             >
               <ArrowLeft size={20} className="text-gray-600" />
