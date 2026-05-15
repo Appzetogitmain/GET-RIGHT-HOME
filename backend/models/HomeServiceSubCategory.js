@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const homeServiceBrandSchema = new mongoose.Schema({
+const homeServiceSubCategorySchema = new mongoose.Schema({
   title: { type: String, required: true },
   slug: { type: String, required: true, unique: true },
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'HomeServiceCategory', required: true },
@@ -11,4 +11,4 @@ const homeServiceBrandSchema = new mongoose.Schema({
   page: { type: Object, default: {} }
 }, { timestamps: true });
 
-export default mongoose.model('HomeServiceBrand', homeServiceBrandSchema);
+export default mongoose.model('HomeServiceSubCategory', homeServiceSubCategorySchema);

@@ -1,5 +1,5 @@
 import HomeServiceCategory from '../models/HomeServiceCategory.js';
-import HomeServiceBrand from '../models/HomeServiceBrand.js';
+import HomeServiceSubCategory from '../models/HomeServiceSubCategory.js';
 import HomeServiceService from '../models/HomeServiceService.js';
 
 // Categories
@@ -83,8 +83,8 @@ export const deleteCategory = async (req, res) => {
   }
 };
 
-// Brands
-export const getBrands = async (req, res) => {
+// SubCategories
+export const getSubCategories = async (req, res) => {
   try {
     const { categoryId, cityId, status } = req.query;
     const filter = {};
@@ -94,14 +94,14 @@ export const getBrands = async (req, res) => {
       filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
     }
 
-    const brands = await HomeServiceBrand.find(filter).populate('categoryId');
-    res.json({ success: true, brands });
+    const subCategories = await HomeServiceSubCategory.find(filter).populate('categoryId');
+    res.json({ success: true, subCategories });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const getPublicBrands = async (req, res) => {
+export const getPublicSubCategories = async (req, res) => {
   try {
     const { categoryId, cityId } = req.query;
     const filter = { isActive: true };
@@ -110,8 +110,8 @@ export const getPublicBrands = async (req, res) => {
       filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
     }
 
-    const brands = await HomeServiceBrand.find(filter).populate('categoryId');
-    res.json({ success: true, brands });
+    const subCategories = await HomeServiceSubCategory.find(filter).populate('categoryId');
+    res.json({ success: true, subCategories });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -134,26 +134,51 @@ export const getPublicServices = async (req, res) => {
   }
 };
 
-export const createBrand = async (req, res) => {
+export const createSubCategory = async (req, res) => {
   try {
     const { title } = req.body;
     const slug = title.toLowerCase().replace(/\s+/g, '-');
-    const brand = await HomeServiceBrand.create({ ...req.body, slug });
-    res.status(201).json({ success: true, brand });
+    const subCategory = await HomeServiceSubCategory.create({ ...req.body, slug });
+    res.status(201).json({ success: true, subCategory });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const updateSubCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
+    if (req.body.title) {
+      updateData.slug = req.body.title.toLowerCase().replace(/\s+/g, '-');
+    }
+    const subCategory = await HomeServiceSubCategory.findByIdAndUpdate(id, updateData, { new: true });
+    if (!subCategory) return res.status(404).json({ success: false, message: 'Sub-category not found' });
+    res.json({ success: true, subCategory });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteSubCategory = async (req, res) => {
+  try {
+    const subCategory = await HomeServiceSubCategory.findByIdAndDelete(req.params.id);
+    if (!subCategory) return res.status(404).json({ success: false, message: 'Sub-category not found' });
+    res.json({ success: true, message: 'Sub-category deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // Services
 export const getServices = async (req, res) => {
   try {
-    const { brandId, categoryId } = req.query;
+    const { subCategoryId, categoryId } = req.query;
     const filter = {};
-    if (brandId) filter.brandId = brandId;
+    if (subCategoryId) filter.subCategoryId = subCategoryId;
     if (categoryId) filter.categoryId = categoryId;
 
-    const services = await HomeServiceService.find(filter).populate('brandId categoryId');
+    const services = await HomeServiceService.find(filter).populate('subCategoryId categoryId');
     res.json({ success: true, services });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
