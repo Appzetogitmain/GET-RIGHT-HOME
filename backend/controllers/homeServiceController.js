@@ -38,6 +38,13 @@ export const createCategory = async (req, res) => {
   try {
     const { title } = req.body;
     const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    
+    // Check if slug already exists
+    const existing = await HomeServiceCategory.findOne({ slug });
+    if (existing) {
+      return res.status(400).json({ success: false, message: `Category with title "${title}" already exists.` });
+    }
+
     const category = await HomeServiceCategory.create({ ...req.body, slug });
     res.status(201).json({ success: true, category });
   } catch (error) {
@@ -110,6 +117,23 @@ export const getPublicBrands = async (req, res) => {
   }
 };
 
+export const getPublicServices = async (req, res) => {
+  try {
+    const { categoryId, cityId } = req.query;
+    const filter = { isActive: true };
+    
+    if (categoryId) filter.categoryId = categoryId;
+    if (cityId) {
+      filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
+    }
+
+    const services = await HomeServiceService.find(filter).populate('categoryId');
+    res.json({ success: true, services });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const createBrand = async (req, res) => {
   try {
     const { title } = req.body;
@@ -142,6 +166,39 @@ export const createService = async (req, res) => {
     const slug = title.toLowerCase().replace(/\s+/g, '-');
     const service = await HomeServiceService.create({ ...req.body, slug });
     res.status(201).json({ success: true, service });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const updateService = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title } = req.body;
+    
+    const updateData = { ...req.body };
+    if (title) {
+      updateData.slug = title.toLowerCase().replace(/\s+/g, '-');
+    }
+
+    const service = await HomeServiceService.findByIdAndUpdate(id, updateData, { new: true });
+    if (!service) {
+      return res.status(404).json({ success: false, message: 'Service not found' });
+    }
+    res.json({ success: true, service });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteService = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const service = await HomeServiceService.findByIdAndDelete(id);
+    if (!service) {
+      return res.status(404).json({ success: false, message: 'Service not found' });
+    }
+    res.json({ success: true, message: 'Service deleted' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
