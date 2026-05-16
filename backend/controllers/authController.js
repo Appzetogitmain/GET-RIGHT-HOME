@@ -271,11 +271,14 @@ export const verifyOtp = async (req, res) => {
         if (emailExists) return res.status(409).json({ message: 'Email already exists.' });
       }
 
+      // Determine registration role
+      const finalRole = ['owner', 'broker'].includes(role) ? role : 'user';
+
       user = new User({
         name,
         phone,
         email,
-        role: 'user',
+        role: finalRole,
         isVerified: true,
         password: await bcrypt.hash(Math.random().toString(36), 10)
       });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, ArrowLeft, Save, Loader2, MapPin, Navigation, Home, Camera, Building2, ChevronRight } from 'lucide-react';
+import { User, Phone, Mail, ArrowLeft, Save, Loader2, MapPin, Navigation, Home, Camera, Building2, ChevronRight, LogOut } from 'lucide-react';
 import { authService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 import { isFlutterApp, openFlutterCamera, uploadBase64Image } from '../../utils/flutterBridge';
@@ -270,6 +270,13 @@ const ProfileEdit = () => {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    toast.success('Logged out successfully');
+    navigate('/login');
+  };
+
   const handleAddressChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -518,6 +525,19 @@ const ProfileEdit = () => {
             {loading ? <Loader2 size={18} className="animate-spin" /> : 'Update Profile'}
           </button>
         </form>
+
+        <div className="pt-8 pb-10">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 py-4 text-red-500 font-bold text-sm bg-red-50 rounded-2xl border border-red-100 active:scale-[0.98] transition-all"
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
+          <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-4">
+            Version 2.0.4 • Made with ❤️ in India
+          </p>
+        </div>
       </motion.div>
     </div>
   );

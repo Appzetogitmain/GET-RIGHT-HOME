@@ -12,7 +12,7 @@ const BottomNavbar = () => {
         { name: 'Search', icon: Search, route: '/search' },
         { name: 'Reels', icon: Video, route: '/reels' },
         { name: 'Bookings', icon: Briefcase, route: '/bookings' },
-        { name: 'Profile', icon: User, route: '/profile/edit' },
+        { name: 'Profile', icon: User, route: '/profile' },
     ];
 
     const getActiveTab = (path) => {

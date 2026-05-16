@@ -14,7 +14,8 @@ const UserSignup = () => {
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
-        email: ''
+        email: '',
+        role: 'owner' // Default role
     });
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
@@ -58,7 +59,7 @@ const UserSignup = () => {
 
         try {
             setLoading(true);
-            await authService.sendOtp(formData.phone, 'register');
+            await authService.sendOtp(formData.phone, 'register', formData.role);
             setResendTimer(120);
             setCanResend(false);
             setStep(2);
@@ -98,7 +99,7 @@ const UserSignup = () => {
         try {
             setLoading(true);
             setError('');
-            await authService.sendOtp(formData.phone, 'register');
+            await authService.sendOtp(formData.phone, 'register', formData.role);
             setResendTimer(120);
             setCanResend(false);
             setOtp(['', '', '', '', '', '']); // Clear OTP
@@ -126,7 +127,8 @@ const UserSignup = () => {
                 phone: formData.phone,
                 otp: otpString,
                 name: formData.name,
-                email: formData.email || undefined // Only send if provided
+                email: formData.email || undefined,
+                role: formData.role
             });
 
             // Update FCM Token after successful registration
@@ -184,6 +186,28 @@ const UserSignup = () => {
                                 <h2 className="text-xl font-bold text-gray-900 mb-6">Sign Up</h2>
 
                                 <form onSubmit={handleSendOTP} className="space-y-5">
+                                    {/* User Type Selection */}
+                                    <div className="mb-6">
+                                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                            I am an
+                                        </label>
+                                        <div className="flex gap-3">
+                                            {['owner', 'broker'].map((r) => (
+                                                <button
+                                                    key={r}
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, role: r })}
+                                                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold capitalize transition-all border ${
+                                                        formData.role === r
+                                                            ? 'bg-amber-50 text-amber-700 border-amber-500 shadow-sm'
+                                                            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                                                    }`}
+                                                >
+                                                    {r}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                     {/* Name */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">

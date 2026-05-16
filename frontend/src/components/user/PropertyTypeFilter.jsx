@@ -48,6 +48,12 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
 
         const staticList = [
           {
+            id: 'homeservice',
+            label: 'Home Service',
+            icon: LucideIcons.Sparkles,
+            isDynamic: false
+          },
+          {
             id: pgIds.length > 0 ? pgIds.join(',') : 'pg',
             label: 'PG/Co-Living',
             icon: LucideIcons.BedDouble,
@@ -70,16 +76,10 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
             label: 'Plot',
             icon: LucideIcons.TreePine,
             isDynamic: true
-          },
-          {
-            id: 'homeservice',
-            label: 'Home Service',
-            icon: LucideIcons.Sparkles,
-            isDynamic: false
           }
         ];
 
-        setAllTypes([ALL_OPTION, ...staticList]);
+        setAllTypes([...staticList, ALL_OPTION]);
 
       } catch (error) {
         console.error("Error loading categories:", error);
@@ -124,36 +124,26 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
             <button
               key={type.id || 'all'}
               onClick={() => onSelectType(type.id, type.label)}
-              className="flex flex-col items-center gap-1.5 md:gap-1 min-w-[70px] md:min-w-[60px] outline-none group shrink-0"
+              className={`
+                flex flex-col items-center justify-center gap-2 min-w-[85px] w-[85px] h-[105px] rounded-2xl border transition-all shrink-0
+                ${isSelected ? 'border-[#005B9F] shadow-sm bg-blue-50/20' : 'border-gray-200 bg-white shadow-sm'}
+              `}
             >
-              <div className="relative">
-                {isSelected && (
-                  <motion.div
-                    layoutId="activeTabCircle"
-                    className="absolute inset-0 rounded-xl md:rounded-lg"
-                    style={{ backgroundColor: `${accentColor}20` }}
-                    transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
-                  />
-                )}
-                <div
-                  className={`
-                    w-12 h-12 md:w-10 md:h-10 rounded-xl md:rounded-lg flex items-center justify-center transition-all duration-300
-                    ${!isSelected ? 'bg-gray-50 border border-gray-100 group-hover:bg-gray-100' : ''}
-                  `}
-                >
-                  <Icon
-                    className="w-5 h-5 md:w-4.5 md:h-4.5 transition-colors"
-                    style={{ color: isSelected ? accentColor : '#6B7280' }}
-                    strokeWidth={isSelected ? 2.5 : 2}
-                  />
-                </div>
+              <div
+                className={`
+                  w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
+                  ${isSelected ? 'bg-[#005B9F]' : 'bg-[#EAF2FA]'}
+                `}
+              >
+                <Icon
+                  className="w-6 h-6 transition-colors"
+                  style={{ color: isSelected ? '#FFFFFF' : '#005B9F' }}
+                  strokeWidth={2}
+                />
               </div>
 
               <span
-                className={`
-                  text-[11px] md:text-[10px] font-bold tracking-wide transition-colors whitespace-nowrap
-                `}
-                style={{ color: isSelected ? accentColor : '#6B7280' }}
+                className="text-[11px] md:text-xs font-semibold tracking-wide whitespace-nowrap text-[#333]"
               >
                 {type.label}
               </span>

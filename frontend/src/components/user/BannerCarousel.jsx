@@ -43,7 +43,7 @@ const BannerCarousel = () => {
     if (loading || banners.length === 0) return null;
 
     return (
-        <div className="relative w-full h-[220px] md:h-[300px] overflow-hidden rounded-2xl md:rounded-[32px] group">
+        <div className="relative w-full h-[220px] md:h-[300px] overflow-hidden rounded-none group">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={currentIndex}
@@ -59,19 +59,7 @@ const BannerCarousel = () => {
                         className="w-full h-full object-cover"
                     />
                     {/* Optional Overlay Gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent md:bg-gradient-to-r md:from-black/40 md:to-transparent" />
-                    
-                    {/* Text Content (if any) */}
-                    <div className="absolute bottom-6 left-6 right-6 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-12 md:max-w-md">
-                        <motion.h2 
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.3 }}
-                            className="text-white text-xl md:text-3xl font-black leading-tight drop-shadow-lg"
-                        >
-                            {banners[currentIndex].title}
-                        </motion.h2>
-                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent md:bg-gradient-to-r md:from-black/10 md:to-transparent" />
                 </motion.div>
             </AnimatePresence>
 

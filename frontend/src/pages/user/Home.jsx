@@ -103,7 +103,7 @@ const Home = () => {
         setPgFilters({ gender: undefined, occupancy: undefined, foodIncluded: undefined });
     };
 
-    const pageBg = activeTheme.pageBg || '#f8fafc';
+    const pageBg = '#FFFFFF';
 
     // Section Component
     const HomeSection = ({ title, typeId, subtitle }) => (
@@ -138,12 +138,9 @@ const Home = () => {
     return (
         <main className="min-h-screen pb-24 transition-colors duration-700" style={{ backgroundColor: pageBg }}>
             {/* Hero: dark background only (no images), changes per category */}
-            <div className="relative overflow-hidden min-h-[280px] md:min-h-[340px]">
-                <motion.div
-                    className="absolute inset-0 w-full h-full"
-                    animate={{ background: activeTheme.darkBg || THEME_MAP.default.darkBg }}
-                    transition={{ duration: 0.6, ease: 'easeInOut' }}
-                />
+            {/* Hero: Fixed white shade background as per request */}
+            <div className="relative overflow-hidden min-h-[280px] md:min-h-[340px] bg-gray-50/50">
+                <div className="absolute inset-0 w-full h-full bg-white" />
 
                 {/* Bottom fade to theme page background (web + mobile) */}
                 <div className="absolute bottom-0 left-0 right-0 h-24 z-[1]" style={{ background: `linear-gradient(to top, ${pageBg}, transparent)` }} />
@@ -160,7 +157,7 @@ const Home = () => {
                     <div className="pt-0 flex-shrink-0 md:pt-1 md:min-h-0" />
 
                     {/* Filter Bar at bottom of hero */}
-                    <div className="backdrop-blur-md bg-black/10 pt-1">
+                    <div className="bg-white pt-2">
                         <PropertyTypeFilter
                             selectedType={selectedType.id}
                             onSelectType={handleTypeSelect}

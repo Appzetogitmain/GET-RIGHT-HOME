@@ -582,7 +582,7 @@ const HomeServicesPage = () => {
                         <span className="text-[10px] font-bold text-gray-400 group-hover:text-emerald-600 uppercase tracking-tighter">Cart</span>
                     </button>
 
-                    <button onClick={() => navigate('/profile/edit')} className="flex flex-col items-center gap-1">
+                    <button onClick={() => navigate('/profile')} className="flex flex-col items-center gap-1">
                         <div className="w-12 h-12 flex flex-col items-center justify-center bg-[#F3E8FF] rounded-2xl text-purple-600 shadow-sm border border-purple-100">
                             <User size={22} />
                             <span className="text-[9px] font-black uppercase tracking-tighter mt-0.5">Profile</span>

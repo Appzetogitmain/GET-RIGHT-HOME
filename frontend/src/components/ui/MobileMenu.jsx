@@ -142,7 +142,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                                 <p className="text-[11px] text-white/80 mt-0.5">{user.phone || user.email || ''}</p>
                                             </div>
                                         </div>
-                                        <button onClick={() => { navigate('/profile/edit'); onClose(); }} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm">
+                                        <button onClick={() => { navigate('/profile'); onClose(); }} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm">
                                             <Edit3 size={14} className="text-white" />
                                         </button>
                                     </div>
@@ -215,7 +215,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
                             </div>
 
                             {/* Legal & Logout */}
-                            <div className="pt-2 border-t border-gray-100">
+                            <div className="pt-2 border-t border-gray-100 pb-12">
                                 <button onClick={() => handleNavigation('/legal')} className="flex items-center gap-3 w-full p-2 hover:text-surface transition-colors">
                                     <span className="text-xs font-medium text-gray-400 hover:text-surface">Privacy Policy</span>
                                 </button>
@@ -223,8 +223,11 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                     <span className="text-xs font-medium text-gray-400 hover:text-surface">Terms & Conditions</span>
                                 </button>
                                 {user && (
-                                    <button onClick={handleLogout} className="mt-4 flex items-center gap-2 text-red-500 font-medium text-xs px-2 hover:opacity-80">
-                                        <LogOut size={14} /> Log Out
+                                    <button
+                                        onClick={handleLogout}
+                                        className="mt-6 flex items-center justify-center gap-2 w-full py-3 text-red-500 font-bold text-[13px] bg-red-50 rounded-xl border border-red-100 active:scale-[0.95] transition-all"
+                                    >
+                                        <LogOut size={16} /> Logout
                                     </button>
                                 )}
                             </div>

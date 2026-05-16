@@ -539,8 +539,7 @@ function App() {
             <Route element={<UserProtectedRoute />}>
               <Route path="/" element={<Home />} />
               <Route path="/reels" element={<ReelsPage />} />
-              <Route path="/profile" element={<Navigate to="/profile/edit" replace />} />
-              <Route path="/profile/edit" element={<ProfileEdit />} />
+            <Route path="/profile" element={<UserProtectedRoute><ProfileEdit /></UserProtectedRoute>} />
               
               {/* Unified Property Details (C2C & Hotel) */}
               <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
