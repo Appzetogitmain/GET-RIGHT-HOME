@@ -84,17 +84,18 @@ export const deleteCategory = async (req, res) => {
 };
 
 // SubCategories
+// Admin: Get ALL sub-categories (no city filter - admin sees everything)
 export const getSubCategories = async (req, res) => {
   try {
-    const { categoryId, cityId, status } = req.query;
+    const { categoryId, status } = req.query;
     const filter = {};
     if (categoryId) filter.categoryId = categoryId;
     if (status) filter.isActive = status === 'active';
-    if (cityId) {
-      filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
-    }
+    // No cityId filter in admin — show all sub-categories
 
-    const subCategories = await HomeServiceSubCategory.find(filter).populate('categoryId');
+    const subCategories = await HomeServiceSubCategory.find(filter)
+      .populate('categoryId')
+      .sort({ createdAt: -1 });
     res.json({ success: true, subCategories });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -119,15 +120,16 @@ export const getPublicSubCategories = async (req, res) => {
 
 export const getPublicServices = async (req, res) => {
   try {
-    const { categoryId, cityId } = req.query;
+    const { categoryId, subCategoryId, cityId } = req.query;
     const filter = { isActive: true };
     
     if (categoryId) filter.categoryId = categoryId;
+    if (subCategoryId) filter.subCategoryId = subCategoryId;
     if (cityId) {
       filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
     }
 
-    const services = await HomeServiceService.find(filter).populate('categoryId');
+    const services = await HomeServiceService.find(filter).populate('categoryId subCategoryId');
     res.json({ success: true, services });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -137,10 +139,19 @@ export const getPublicServices = async (req, res) => {
 export const createSubCategory = async (req, res) => {
   try {
     const { title } = req.body;
-    const slug = title.toLowerCase().replace(/\s+/g, '-');
-    const subCategory = await HomeServiceSubCategory.create({ ...req.body, slug });
+    const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    
+    // Ensure cityIds is an array and defaults to ['default']
+    const cityIds = req.body.cityIds?.length > 0 ? req.body.cityIds : ['default'];
+    
+    const subCategory = await HomeServiceSubCategory.create({
+      ...req.body,
+      slug,
+      cityIds
+    });
     res.status(201).json({ success: true, subCategory });
   } catch (error) {
+    console.error('Error creating sub-category:', error);
     res.status(400).json({ success: false, message: error.message });
   }
 };

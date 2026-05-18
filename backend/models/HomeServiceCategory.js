@@ -12,6 +12,7 @@ const homeServiceCategorySchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   isPopular: { type: Boolean, default: false },
   showOnHome: { type: Boolean, default: true },
+  isDirectService: { type: Boolean, default: false },
   cityIds: { type: [String], default: ['default'] }
 }, { timestamps: true });
 

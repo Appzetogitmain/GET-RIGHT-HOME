@@ -19,7 +19,7 @@ const categorySchema = z.object({
   showOnHome: z.boolean(),
 });
 
-const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
+const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = false }) => {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -36,7 +36,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [draggedItem, setDraggedItem] = useState(null);
 
-  const categories = (catalog.categories || []).sort((a, b) => (a.homeOrder || 0) - (b.homeOrder || 0));
+  const allCategories = (catalog.categories || []).sort((a, b) => (a.homeOrder || 0) - (b.homeOrder || 0));
+  const categories = allCategories.filter(c => isDirectFlow ? c.isDirectService : !c.isDirectService);
   const editing = useMemo(() => categories.find((c) => c.id === editingId) || null, [categories, editingId]);
 
   // Fetch categories from API on mount or city change
@@ -63,6 +64,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
             hasSaleBadge: cat.hasSaleBadge || false,
             showOnHome: cat.showOnHome !== false,
             homeOrder: cat.homeOrder || 0,
+            isDirectService: cat.isDirectService || false,
           }));
 
           // Update catalog with fetched categories
@@ -169,6 +171,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
         showOnHome,
         homeOrder,
         cityIds: selectedCity ? [selectedCity] : [],
+        isDirectService: isDirectFlow,
       };
 
       // For updates, we need to respect existing cityIds possibly, but for now we just set/add the current city
@@ -201,6 +204,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
             hasSaleBadge: response.category.hasSaleBadge || false,
             showOnHome: response.category.showOnHome !== false,
             homeOrder: response.category.homeOrder || 0,
+            isDirectService: response.category.isDirectService || false,
           };
         } else {
           throw new Error(response.message || 'Failed to create category');
@@ -218,6 +222,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
             hasSaleBadge: response.category.hasSaleBadge || false,
             showOnHome: response.category.showOnHome !== false,
             homeOrder: response.category.homeOrder || 0,
+            isDirectService: response.category.isDirectService || false,
           };
         } else {
           throw new Error(response.message || 'Failed to update category');
@@ -235,6 +240,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
               hasSaleBadge: response.category.hasSaleBadge || false,
               showOnHome: response.category.showOnHome !== false,
               homeOrder: response.category.homeOrder || 0,
+              isDirectService: response.category.isDirectService || false,
             };
         } else {
           throw new Error(response.message || 'Failed to create category');

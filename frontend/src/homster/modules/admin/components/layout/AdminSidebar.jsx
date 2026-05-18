@@ -72,6 +72,7 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/home-service/user-categories": {
       "Home": "/admin/home-service/user-categories/home",
       "Manage Categories": "/admin/home-service/user-categories/categories",
+      "Manage Sub Categories": "/admin/home-service/user-categories/sub-categories",
       "Manage Services": "/admin/home-service/user-categories/sections",
     },
     "/admin/home-service/payments": {
@@ -340,7 +341,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                   const isChildActive =
                     location.pathname === childRoute ||
                     (childRoute !== item.route &&
-                      location.pathname.startsWith(childRoute));
+                      location.pathname.startsWith(childRoute + '/'));
 
                   return (
                     <div

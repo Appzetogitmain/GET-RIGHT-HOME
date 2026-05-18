@@ -23,6 +23,7 @@ export const loadCatalog = () => {
       mode: "multi",
       home: { banners: [] },
       categories: [],
+      subCategories: [],
       services: [],
       updatedAt: new Date().toISOString(),
     };
@@ -33,6 +34,7 @@ export const loadCatalog = () => {
       mode: parsed?.mode === "single" ? "single" : "multi",
       home: parsed?.home && typeof parsed.home === "object" ? parsed.home : { banners: [] },
       categories: Array.isArray(parsed?.categories) ? parsed.categories : [],
+      subCategories: Array.isArray(parsed?.subCategories) ? parsed.subCategories : [],
       services: Array.isArray(parsed?.services) ? parsed.services : [],
       updatedAt: parsed?.updatedAt || new Date().toISOString(),
     };
@@ -41,6 +43,7 @@ export const loadCatalog = () => {
       mode: "multi",
       home: { banners: [] },
       categories: [],
+      subCategories: [],
       services: [],
       updatedAt: new Date().toISOString(),
     };
