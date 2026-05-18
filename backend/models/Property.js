@@ -16,9 +16,27 @@ const propertySchema = new mongoose.Schema({
   propertyName: { type: String, required: true },
   contactNumber: { type: String },
   propertyType: {
-    type: String,
-    enum: ["villa", "resort", "hotel", "hostel", "pg", "homestay", "tent", "rent", "buy", "plot"],
+    type: String, // Enum removed to allow dynamic property types (e.g., Flat/Apartment, Office Space)
     required: true
+  },
+  
+  transactionType: {
+    type: String,
+    enum: ["Sell", "Rent", "PG", "Rent / Lease", "Paying Guest"], // Supported transaction types
+    required: false // Optional for now to not break existing data
+  },
+  
+  propertyCategory: {
+    type: String,
+    enum: ["Residential", "Commercial"], // Core top-level categories
+    required: false
+  },
+
+  // Storage for ALL dynamic fields captured through the new form builder
+  dynamicData: {
+    type: Map,
+    of: mongoose.Schema.Types.Mixed,
+    default: {}
   },
 
   // Dynamic Category (Optional)
@@ -103,6 +121,7 @@ const propertySchema = new mongoose.Schema({
   },
 
   // MEDIA
+  logo: { type: String, default: '' },
   coverImage: { type: String, default: '' },
 
   propertyImages: [String],
@@ -212,7 +231,7 @@ const propertySchema = new mongoose.Schema({
   isLive: { type: Boolean, default: false },
 
   // RATINGS
-  avgRating: { type: Number, default: 3 },
+  avgRating: { type: Number, default: 0 },
   totalReviews: { type: Number, default: 0 }
 
 }, { timestamps: true });

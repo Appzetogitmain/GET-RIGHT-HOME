@@ -132,8 +132,10 @@ import hsCategoryRoutes from './routes/hsCategoryRoutes.js';
 import hsSubCategoryRoutes from './routes/hsSubCategoryRoutes.js';
 import hsServiceRoutes from './routes/hsServiceRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import propertyFormRoutes from './routes/propertyFormRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
+import { getActiveCities } from './controllers/cityController.js';
 
 
 
@@ -167,7 +169,9 @@ app.get('/api/public/home-content', getPublicHomeContent);
 app.get('/api/public/categories', getPublicCategories);
 app.get('/api/public/sub-categories', getPublicSubCategories);
 app.get('/api/public/services', getPublicServices);
+app.get('/api/public/cities', getActiveCities);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/property-forms', propertyFormRoutes);
 
 
 

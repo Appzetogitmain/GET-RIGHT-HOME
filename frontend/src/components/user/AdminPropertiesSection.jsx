@@ -15,10 +15,16 @@ const PROPERTY_TYPE_ICONS = {
 /* ─── Property Card ─── */
 const AdminPropertyCard = ({ property, index }) => {
     const typeIcon = PROPERTY_TYPE_ICONS[property.propertyType] || '🏠';
-    const price = property.rentDetails?.monthlyRent
+    const rawPrice = property.rentDetails?.monthlyRent
         || property.buyDetails?.expectedPrice
         || property.plotDetails?.expectedPrice
+        || property.dynamicData?.expectedPrice
+        || property.dynamicData?.monthlyRent
+        || property.dynamicData?.expectedRent
+        || property.dynamicData?.price
         || null;
+    const parsedPrice = rawPrice ? Number(rawPrice.toString().replace(/,/g, '')) : null;
+    const price = parsedPrice && !isNaN(parsedPrice) && parsedPrice > 0 ? parsedPrice : null;
 
     return (
         <motion.div
@@ -74,12 +80,18 @@ const AdminPropertyCard = ({ property, index }) => {
                             ) : (
                                 <span className="text-[11px] text-emerald-600 font-bold">Contact for Price</span>
                             )}
-                            <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
-                                <Star size={10} className="fill-amber-400 text-amber-400" />
-                                <span className="text-[10px] font-black text-amber-700">
-                                    {property.avgRating?.toFixed(1) || '4.5'}
-                                </span>
-                            </div>
+                            {property.totalReviews > 0 ? (
+                                <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
+                                    <Star size={10} className="fill-amber-400 text-amber-400" />
+                                    <span className="text-[10px] font-black text-amber-700">
+                                        {property.avgRating?.toFixed(1)}
+                                    </span>
+                                </div>
+                            ) : (
+                                <div className="text-[10px] font-black text-gray-500 bg-gray-50 px-2 py-1 rounded-full border border-gray-100">
+                                    New
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -287,13 +299,6 @@ const AdminPropertiesSection = ({ searchCity }) => {
 
             {/* City Chips — Horizontal Scroll */}
             <div className="relative mb-6 px-5 md:px-0">
-                {/* Left scroll button */}
-                <button
-                    onClick={() => scrollCities(-1)}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white border border-gray-100 rounded-full shadow-md flex items-center justify-center hover:bg-gray-50 transition-colors md:hidden"
-                >
-                    <ChevronLeft size={14} />
-                </button>
 
                 {citiesLoading ? (
                     <div className="flex gap-3 overflow-hidden">
@@ -330,13 +335,6 @@ const AdminPropertiesSection = ({ searchCity }) => {
                     </div>
                 )}
 
-                {/* Right scroll button */}
-                <button
-                    onClick={() => scrollCities(1)}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white border border-gray-100 rounded-full shadow-md flex items-center justify-center hover:bg-gray-50 transition-colors md:hidden"
-                >
-                    <ChevronRight size={14} />
-                </button>
             </div>
 
             {/* Properties Grid */}

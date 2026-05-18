@@ -93,6 +93,10 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
     item.pgDetails?.monthlyRent ??
     item.buyDetails?.expectedPrice ??
     item.plotDetails?.expectedPrice ??
+    item.dynamicData?.expectedPrice ??
+    item.dynamicData?.monthlyRent ??
+    item.dynamicData?.expectedRent ??
+    item.dynamicData?.price ??
     item.minPrice ??
     item.min_price ??
     item.price ??
@@ -100,8 +104,9 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
     item.amount ??
     null;
 
+  const parsedPrice = rawPrice ? Number(rawPrice.toString().replace(/,/g, '')) : null;
   const displayPrice =
-    typeof rawPrice === 'number' && rawPrice > 0 ? rawPrice : null;
+    parsedPrice && !isNaN(parsedPrice) && parsedPrice > 0 ? parsedPrice : null;
 
   const imageSrc =
     images?.cover ||
@@ -139,155 +144,118 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
   return (
     <div
       onClick={() => navigate(`/hotel/${_id}`)}
-      className={`group bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 hover:-translate-y-1 ${className}`}
+      className={`relative h-[340px] w-full bg-gray-100 rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 hover:-translate-y-1 group ${className}`}
     >
-      {/* Image Container - Reduced height for compact look */}
-      <div className="relative h-40 w-full bg-gray-100 overflow-hidden">
-        <img
-          src={imageSrc}
-          alt={displayName}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
-          }}
-        />
+      {/* Background Cover Image */}
+      <img
+        src={imageSrc}
+        alt={displayName}
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+        }}
+      />
 
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-70" />
+      {/* Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
 
-        {/* Floating Badges */}
-        <div className="absolute top-2.5 left-2.5 flex flex-col items-start gap-1.5">
-          <div className="flex items-center gap-1.5">
-            {typeLabel && (
-              <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-bold uppercase tracking-wide shadow-sm flex items-center gap-1 ${getTypeColor(badgeTypeKey)}`}>
-                {typeLabel}
-              </span>
-            )}
-            {item.hasVerifiedTag && (
-              <div className="bg-white/90 backdrop-blur-sm p-0.5 rounded-full shadow-sm">
-                <BadgeCheck size={14} className="fill-blue-500 text-white" />
-              </div>
-            )}
-          </div>
-
-          {/* Subscription/Premium Tag */}
-          {(item.rankingWeight > 0 || item.isFeatured) && (
-            <span className="bg-[#FFD700] text-black px-2 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-wider shadow-md border border-white/20 flex items-center gap-1 animate-pulse-slow">
-              <Star size={10} className="fill-black" />
-              PREMIUM Listing
+      {/* Floating Badges */}
+      <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-20">
+        <div className="flex items-center gap-1.5">
+          {typeLabel && (
+            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide shadow-md flex items-center gap-1 ${getTypeColor(badgeTypeKey)}`}>
+              {typeLabel}
             </span>
           )}
+          {item.hasVerifiedTag && (
+            <div className="bg-white/90 backdrop-blur-sm p-1 rounded-full shadow-sm">
+              <BadgeCheck size={16} className="fill-blue-500 text-white" />
+            </div>
+          )}
         </div>
-
-        {/* Top Right: Wishlist & Rating */}
-        <div className="absolute top-2.5 right-2.5 flex flex-col gap-2 items-end">
-          <button
-            onClick={handleToggleSave}
-            className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md z-20 hover:bg-white active:scale-95 transition-all"
-          >
-            <Heart
-              size={14}
-              className={`${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-400'}`}
-            />
-          </button>
-
-          <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-[4px] shadow-sm text-[10px] font-bold text-gray-800">
-            <span className="text-green-600 font-extrabold">{displayRating}</span>
-            <Star size={9} className="fill-green-600 text-green-600" />
-          </div>
-        </div>
+        
+        {/* Subscription/Premium Tag */}
+        {(item.rankingWeight > 0 || item.isFeatured) && (
+          <span className="bg-[#FFD700] text-black px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-md border border-white/20 flex items-center gap-1 animate-pulse-slow">
+            <Star size={10} className="fill-black" />
+            PREMIUM
+          </span>
+        )}
       </div>
 
-      {/* Content Section - Compact & Optimized */}
-      <div className="p-2.5 flex flex-col gap-1">
-        {/* Title & Info */}
-        <div>
-          <h3 className="font-bold text-sm text-gray-900 line-clamp-1 group-hover:text-emerald-700 transition-colors">
-            {displayName}
-          </h3>
+      {/* Top Right: Wishlist */}
+      <div className="absolute top-4 right-4 flex flex-col gap-2 items-end z-20">
+        <button
+          onClick={handleToggleSave}
+          className="p-2 bg-black/40 backdrop-blur-md border border-white/20 rounded-full shadow-md hover:bg-black/60 active:scale-95 transition-all"
+        >
+          <Heart
+            size={16}
+            className={`${isSaved ? 'fill-white text-white' : 'text-white/90'}`}
+          />
+        </button>
+      </div>
 
-          <div className="flex items-center gap-1 text-gray-500 text-[10px] mt-0.5">
-            <MapPin size={9} className="shrink-0 text-gray-400" />
-            <span className="line-clamp-1 truncate">
-              {address?.city || item.city || 'Indore'}, {address?.state || item.state || 'Madhya Pradesh'}
-            </span>
-          </div>
-
-          {/* Quick Specs - Compact Badges */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            {/* Rent/Sale Type */}
-            {(item.rentDetails?.type || item.rentDetails?.bhkType || item.bhkType || item.bhk || item.roomType) ? (
-              <span className="bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded text-[9px] font-bold border border-emerald-100">
-                {item.rentDetails?.type || item.rentDetails?.bhkType || item.bhkType || item.bhk || item.roomType}
-              </span>
-            ) : badgeTypeKey === 'Rent' ? (
-              <span className="bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded text-[9px] font-bold border border-emerald-100">
-                RENT PROPERTY
-              </span>
-            ) : null}
-
-            {/* Buy Type */}
-            {badgeTypeKey === 'Buy' && (item.buyDetails?.type || item.buyDetails?.area?.superBuiltUp) && (
-              <span className="bg-blue-50 text-blue-700 px-1 py-0.5 rounded text-[9px] font-bold border border-blue-100">
-                {item.buyDetails?.type || `${item.buyDetails?.area?.superBuiltUp} ${item.buyDetails?.area?.unit || 'sqft'}`}
-              </span>
-            )}
-
-            {/* PG/Gender */}
-            {(badgeTypeKey === 'PG' || badgeTypeKey === 'Hostel') && (item.pgDetails?.gender || item.pgType) && (
-              <span className="bg-rose-50 text-rose-700 px-1 py-0.5 rounded text-[9px] font-bold border border-rose-100 italic">
-                {item.pgDetails?.gender || item.pgType}
-              </span>
-            )}
-
-            {/* Furnishing */}
-            {(item.rentDetails?.furnishing || item.furnishing) && (
-              <span className="text-[9px] text-gray-500 font-medium">
-                • {item.rentDetails?.furnishing || item.furnishing}
-              </span>
-            )}
-          </div>
+      {/* The White Content Box */}
+      <div className="absolute bottom-3 left-3 right-3 bg-white rounded-2xl p-4 pt-8 shadow-xl z-10">
+        
+        {/* Logo Overlapping */}
+        <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full border-[3px] border-white overflow-hidden bg-white shadow-sm flex items-center justify-center">
+          <img 
+            src={item.logo || imageSrc} 
+            alt="Logo" 
+            className="w-full h-full object-cover" 
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = 'https://via.placeholder.com/150?text=Logo';
+            }}
+          />
         </div>
 
-        {/* Price & Actions Row - Integrated */}
-        <div className="mt-1.5 pt-2 border-t border-gray-50 flex items-center justify-between">
-          <div className="flex flex-col">
-            <div className="flex items-baseline gap-0.5">
-              <IndianRupee size={13} className="text-gray-900" strokeWidth={2.5} />
-              <span className="text-base font-bold text-gray-900 tracking-tight">
-                {formattedPrice}
-              </span>
+        {/* Text Details */}
+        <div className="text-center">
+          <h3 className="font-black text-sm text-gray-900 line-clamp-1 group-hover:text-emerald-700 transition-colors">
+            {displayName}
+          </h3>
+          <p className="text-[10px] text-gray-500 mt-0.5 font-medium line-clamp-1">
+            {item.rentDetails?.type || item.buyDetails?.type || item.bhk || ''} {item.rentDetails?.type || item.buyDetails?.type || item.bhk ? '•' : ''} {address?.area || address?.city || item.city || 'Indore'}, {address?.state || item.state || 'MP'}
+          </p>
+        </div>
+
+        {/* Price & Actions Row */}
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+          
+          {/* Price on the Left */}
+          <div className="flex flex-col items-start">
+            <span className="text-sm font-black text-gray-900 flex items-center gap-0.5">
+              ₹ {formattedPrice}
               {displayPrice && (
-                <span className="text-[9px] text-gray-500 font-medium ml-0.5">
+                <span className="text-[9px] text-gray-500 font-medium ml-0.5 mt-1">
                   {priceSuffix}
                 </span>
               )}
-            </div>
-            {['PG', 'Hostel', 'Rent'].includes(badgeTypeKey) && displayPrice && (
-              <span className="text-[8px] text-emerald-600 font-bold uppercase tracking-tighter -mt-0.5">Monthly Rent</span>
-            )}
-            {badgeTypeKey === 'Buy' && displayPrice && (
-              <span className="text-[8px] text-blue-600 font-bold uppercase tracking-tighter -mt-0.5">Total Price</span>
-            )}
+            </span>
           </div>
 
+          {/* Contact and View on the Right */}
           <div className="flex items-center gap-2">
             {(item.contactNumber || item.phoneNumber) && (
               <a
                 href={`tel:${item.contactNumber || item.phoneNumber}`}
-                className="p-1.5 bg-emerald-50 text-emerald-600 rounded-md hover:bg-emerald-100 transition-colors"
+                className="p-1.5 bg-gray-50 text-emerald-600 rounded-lg hover:bg-emerald-50 border border-gray-100 transition-colors shadow-sm"
                 onClick={(e) => e.stopPropagation()}
                 title="Call Now"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
               </a>
             )}
-            <button className="text-[10px] font-bold text-white bg-emerald-600 px-3 py-1.5 rounded-md hover:bg-emerald-700 transition-colors flex items-center gap-1 shadow-sm">
+            <button className="text-[10px] font-bold text-white bg-gray-900 px-3 py-1.5 rounded-lg hover:bg-black transition-colors flex items-center gap-1 shadow-sm">
               View
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
             </button>
           </div>
+
         </div>
       </div>
     </div>

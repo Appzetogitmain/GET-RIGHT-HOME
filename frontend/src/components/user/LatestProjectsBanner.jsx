@@ -124,7 +124,7 @@ const LatestProjectsBanner = ({ categoryId, categoryName, theme }) => {
                                 </div>
                                 <div className="flex items-center gap-1 text-white/90 text-xs md:text-sm font-bold bg-white/20 px-2 py-1 rounded-lg backdrop-blur-md">
                                     <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                                    {current.avgRating?.toFixed(1) || '4.0'}
+                                    {current.totalReviews > 0 ? current.avgRating?.toFixed(1) : 'New'}
                                 </div>
                             </div>
 

@@ -557,20 +557,38 @@ const PropertyDetailsPage = () => {
     };
   };
 
+  const pType = propertyType?.toLowerCase();
+  const txnType = (property.transactionType || '').toLowerCase();
+  const isPgGroup = ['pg', 'hostel'].includes(pType) || txnType.includes('pg') || txnType.includes('paying guest');
+  const isRentGroup = ['rent'].includes(pType) || txnType.includes('rent') || txnType.includes('lease');
+  const isBuyGroup = ['buy', 'plot', 'apartment', 'villa', 'residential', 'commercial'].includes(pType) || txnType.includes('sell') || txnType.includes('buy');
+
   let bookingBarPrice =
     stayPricing.nights > 0
       ? stayPricing.perNight
       : getRoomPrice(bookingRoom) || property.minPrice;
 
-  const pType = propertyType?.toLowerCase();
   if (!bookingBarPrice) {
-    if (pType === 'rent') bookingBarPrice = property.rentDetails?.monthlyRent;
-    else if (pType === 'buy') bookingBarPrice = property.buyDetails?.expectedPrice;
-    else if (pType === 'plot') bookingBarPrice = property.plotDetails?.expectedPrice;
-    else if (pType === 'pg') bookingBarPrice = property.pgDetails?.monthlyRent || property.minPrice;
+    bookingBarPrice =
+      property.dynamicData?.expectedPrice ||
+      property.dynamicData?.monthlyRent ||
+      property.dynamicData?.expectedRent ||
+      property.dynamicData?.price ||
+      property.rentDetails?.monthlyRent ||
+      property.buyDetails?.expectedPrice ||
+      property.plotDetails?.expectedPrice ||
+      property.pgDetails?.monthlyRent ||
+      property.minPrice;
   }
 
-  const priceLabel = (['rent', 'pg', 'hostel'].includes(pType)) ? 'Monthly Rent' : (['buy', 'plot'].includes(pType)) ? 'Asking Price' : 'Price per night';
+  if (bookingBarPrice) {
+    const parsed = Number(bookingBarPrice.toString().replace(/,/g, ''));
+    if (!isNaN(parsed) && parsed > 0) {
+      bookingBarPrice = parsed;
+    }
+  }
+
+  const priceLabel = isPgGroup ? 'Monthly Rent' : isBuyGroup ? 'Asking Price' : isRentGroup ? 'Monthly Rent' : 'Price per night';
 
   const priceBreakdown = getPriceBreakdown();
 
@@ -814,7 +832,7 @@ const PropertyDetailsPage = () => {
                     {rating !== undefined && rating !== null && (
                       <div className="flex items-center gap-1 bg-honey/10 text-honey-dark px-2 py-0.5 rounded text-[10px] font-bold">
                         <Star size={10} className="fill-honey text-honey" />
-                        {Number(rating) > 0 ? Number(rating).toFixed(1) : 'New'}
+                        {Number(rating) > 0 && reviews.length > 0 ? Number(rating).toFixed(1) : 'New'}
                       </div>
                     )}
                   </div>
@@ -1781,8 +1799,8 @@ const PropertyDetailsPage = () => {
                       <div className="flex items-baseline justify-between mb-1">
                         <p className="text-gray-500 text-sm font-medium">
                           {priceBreakdown ? 'Total Price' :
-                            (['rent', 'pg', 'hostel'].includes(propertyType?.toLowerCase()) ? 'Monthly Rent' :
-                              (['buy', 'plot'].includes(propertyType?.toLowerCase()) ? 'Asking Price' : 'Price per night'))}
+                            (isPgGroup ? 'Monthly Rent' :
+                              (isBuyGroup ? 'Asking Price' : isRentGroup ? 'Monthly Rent' : 'Price per night'))}
                         </p>
                         {rating && <div className="flex items-center gap-1 text-xs font-bold bg-green-50 text-green-700 px-2 py-1 rounded"><Star size={10} className="fill-green-700" /> {Number(rating).toFixed(1)}</div>}
                       </div>
@@ -1790,7 +1808,7 @@ const PropertyDetailsPage = () => {
                         <span className="text-3xl font-bold text-gray-900">₹{priceBreakdown?.grandTotal?.toLocaleString() || bookingBarPrice?.toLocaleString() || 'N/A'}</span>
                         {!priceBreakdown && (
                           <span className="text-sm text-gray-400 font-medium">
-                            / {(['rent', 'pg', 'hostel'].includes(propertyType?.toLowerCase()) ? 'month' : (['buy', 'plot'].includes(propertyType?.toLowerCase()) ? 'total' : 'night'))}
+                            / {isPgGroup ? 'month' : isRentGroup ? 'month' : isBuyGroup ? 'total' : 'night'}
                           </span>
                         )}
                       </div>

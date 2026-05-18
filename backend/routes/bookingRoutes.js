@@ -20,9 +20,9 @@ import {
 const router = express.Router();
 
 // Property Owner (user or partner) - view bookings on their listed properties
-router.get('/received', protect, authorizedRoles('user', 'partner', 'admin'), getReceivedBookings);
-router.post('/:id/confirm', protect, authorizedRoles('user', 'partner', 'admin'), confirmBookingByOwner);
-router.post('/:id/decline', protect, authorizedRoles('user', 'partner', 'admin'), declineBookingByOwner);
+router.get('/received', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), getReceivedBookings);
+router.post('/:id/confirm', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), confirmBookingByOwner);
+router.post('/:id/decline', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), declineBookingByOwner);
 
 // User (guest) - book & view own bookings
 router.post('/', protect, createBooking);

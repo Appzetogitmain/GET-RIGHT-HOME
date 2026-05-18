@@ -70,6 +70,10 @@ const UserPropertyDashboard = () => {
 
     const getPropertyEditPath = () => {
         if (!property) return '/my-properties';
+        if (property.dynamicCategory) {
+            const catId = typeof property.dynamicCategory === 'object' ? property.dynamicCategory._id : property.dynamicCategory;
+            return `/list-property/wizard/${catId}/${id}`;
+        }
         const type = (property.propertyType || '').toLowerCase();
         const map = {
             pg: `/list-property/join-pg/${id}`,
@@ -80,6 +84,20 @@ const UserPropertyDashboard = () => {
             homestay: `/list-property/join-homestay/${id}`,
         };
         return map[type] || `/list-property/wizard/${property.categoryId || 'general'}/${id}`;
+    };
+
+    const handleEdit = () => {
+        if (property.dynamicCategory) {
+            const state = {
+                existingProperty: property,
+                transactionType: property.transactionType,
+                category: property.propertyCategory || property.propertyType,
+                propertyType: property.propertyType
+            };
+            navigate('/list-property/dynamic-form', { state });
+        } else {
+            navigate(getPropertyEditPath());
+        }
     };
 
     if (loading) {
@@ -127,7 +145,7 @@ const UserPropertyDashboard = () => {
 
                 {/* Edit Button */}
                 <button
-                    onClick={() => navigate(getPropertyEditPath())}
+                    onClick={handleEdit}
                     className="absolute top-4 right-4 flex items-center gap-1.5 bg-white text-gray-900 text-xs font-bold px-3 py-2 rounded-xl shadow-md"
                 >
                     <Edit3 size={13} /> Edit
@@ -180,7 +198,7 @@ const UserPropertyDashboard = () => {
                     <StatCard
                         icon={Star}
                         label="Rating"
-                        value={stats?.avgRating ? `${stats.avgRating.toFixed(1)} ★` : '—'}
+                        value={stats?.totalReviews > 0 && stats?.avgRating ? `${stats.avgRating.toFixed(1)} ★` : '—'}
                         sub={stats?.totalReviews ? `${stats.totalReviews} reviews` : 'No reviews yet'}
                         color="text-amber-500"
                     />
@@ -199,7 +217,13 @@ const UserPropertyDashboard = () => {
                     ].map((action, i) => (
                         <button
                             key={i}
-                            onClick={() => navigate(action.path)}
+                            onClick={() => {
+                                if (action.label === 'Edit This Property') {
+                                    handleEdit();
+                                } else {
+                                    navigate(action.path);
+                                }
+                            }}
                             className="flex items-center gap-3 w-full px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0"
                         >
                             <div className={`w-8 h-8 rounded-lg ${action.bg} flex items-center justify-center flex-shrink-0`}>

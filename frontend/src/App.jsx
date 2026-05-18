@@ -55,6 +55,7 @@ const UserSubscriptionsPage = React.lazy(() => import('./pages/user/UserSubscrip
 const UserPropertyDashboard = React.lazy(() => import('./pages/user/UserPropertyDashboard'));
 const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPage'));
 const ListPropertyWizard = React.lazy(() => import('./pages/user/ListPropertyWizard'));
+const DynamicFormEngine = React.lazy(() => import('./pages/user/DynamicFormEngine'));
 
 // Lazy Imports - Admin Pages
 const AdminLogin = React.lazy(() => import('./app/admin/pages/AdminLogin'));
@@ -83,6 +84,7 @@ const AdminCategories = React.lazy(() => import('./app/admin/pages/AdminCategori
 const AdminSubscriptions = React.lazy(() => import('./app/admin/pages/AdminSubscriptions'));
 const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAnalysis'));
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
+const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/PropertyFormManager'));
 
 
 // Lazy Imports - Partner Pages
@@ -440,6 +442,7 @@ function App() {
 
             {/* User Property Listing (C2C) Routes */}
             <Route path="/list-property" element={<ListPropertyWizard />} />
+            <Route path="/list-property/dynamic-form" element={<UserProtectedRoute><DynamicFormEngine /></UserProtectedRoute>} />
             <Route path="/list-property/wizard/:categoryId/:id?" element={<UserProtectedRoute><AddDynamicWizard /></UserProtectedRoute>} />
             <Route path="/list-property/join-hotel/:id?" element={<UserProtectedRoute><AddHotelWizard /></UserProtectedRoute>} />
             <Route path="/list-property/join-resort/:id?" element={<UserProtectedRoute><AddResortWizard /></UserProtectedRoute>} />
@@ -532,6 +535,7 @@ function App() {
                 <Route path="subscriptions" element={<AdminSubscriptions />} />
                 <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                 <Route path="banners" element={<AdminBanners />} />
+                <Route path="property-forms" element={<AdminPropertyFormManager />} />
               </Route>
             </Route>
 

@@ -79,17 +79,17 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
           }
         ];
 
-        setAllTypes([...staticList, ALL_OPTION]);
+        setAllTypes([ALL_OPTION, ...staticList]);
 
       } catch (error) {
         console.error("Error loading categories:", error);
         // Fallback to static list without IDs if fetch fails
         setAllTypes([ALL_OPTION,
+          { id: 'homeservice', label: 'Home Service', icon: LucideIcons.Sparkles, isDynamic: false },
           { label: 'PG/Co-Living', icon: LucideIcons.BedDouble, id: null },
           { label: 'Rent', icon: LucideIcons.Home, id: null },
           { label: 'Buy', icon: LucideIcons.Landmark, id: null },
-          { label: 'Plot', icon: LucideIcons.TreePine, id: null },
-          { label: 'Home Service', icon: LucideIcons.Sparkles, id: 'homeservice' }
+          { label: 'Plot', icon: LucideIcons.TreePine, id: null }
         ]);
       }
     };

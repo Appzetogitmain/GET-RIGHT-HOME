@@ -24,7 +24,8 @@ const notifyAdminOfNewProperty = async (property) => {
 export const createProperty = async (req, res) => {
   try {
     const isPartner = req.user.role === 'partner';
-    const isUser = req.user.role === 'user';
+    const isUser = ['user', 'owner', 'broker'].includes(req.user.role);
+    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
 
     let partner = null;
     if (isPartner) {
@@ -55,30 +56,77 @@ export const createProperty = async (req, res) => {
       }
     }
 
-    const { propertyName, contactNumber, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating, dynamicCategory, pgDetails, rentDetails, plotDetails, buyDetails } = req.body;
-    if (!propertyName || !propertyType || !coverImage) return res.status(400).json({ message: 'Missing required fields' });
+    const { propertyName, contactNumber, propertyType, propertyCategory, dynamicData, description, shortDescription, logo, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating, dynamicCategory, pgDetails, rentDetails, plotDetails, buyDetails, status } = req.body;
+    
+    // Extract and fallback fields from dynamicData if root is empty
+    const finalPropertyName = propertyName || (dynamicData && dynamicData.propertyName) || `${propertyCategory || 'Residential'} ${propertyType} for ${req.body.transactionType || 'Sell'}`;
+    
+    // Basic validation
+    if (!finalPropertyName || !propertyType) return res.status(400).json({ message: 'Missing required fields: propertyName or propertyType' });
 
     const lowerType = propertyType.toLowerCase();
     const requiredDocs = PROPERTY_DOCUMENTS[lowerType] || [];
-    const nearbyPlacesArray = Array.isArray(nearbyPlaces) ? nearbyPlaces : [];
-    const propertyImagesArray = Array.isArray(propertyImages) ? propertyImages : [];
+    
+    const nearbyPlacesArray = Array.isArray(nearbyPlaces) && nearbyPlaces.length > 0 
+      ? nearbyPlaces 
+      : (dynamicData && Array.isArray(dynamicData.nearbyPlaces) ? dynamicData.nearbyPlaces : []);
+      
+    const finalAmenities = (amenities && amenities.length > 0) ? amenities : (dynamicData && Array.isArray(dynamicData.amenities) ? dynamicData.amenities : []);
+    
+    const propertyImagesArray = Array.isArray(propertyImages) && propertyImages.length > 0 
+      ? propertyImages 
+      : (dynamicData && Array.isArray(dynamicData.propertyImages) ? dynamicData.propertyImages : []);
+    
+    let finalLogo = logo || (dynamicData && dynamicData.logo) || '';
+    if (!finalLogo && propertyImagesArray.length > 0) {
+      finalLogo = propertyImagesArray[0];
+    }
+    
+    const coverImageValue = coverImage || (dynamicData && dynamicData.coverImage) || (propertyImagesArray.length > 0 ? propertyImagesArray[0] : '');
+    
+    const addressValue = address || {
+      city: (dynamicData && dynamicData.city) || '',
+      locality: (dynamicData && dynamicData.locality) || '',
+      state: (dynamicData && dynamicData.state) || '',
+      fullAddress: (dynamicData && (dynamicData.fullAddress || `${dynamicData.locality || ''}, ${dynamicData.city || ''}`)) || ''
+    };
+
+    const finalDescription = description || (dynamicData && (dynamicData.description || dynamicData.detailsOfProperty)) || '';
+    const finalShortDescription = shortDescription || (dynamicData && dynamicData.shortDescription) || '';
+
     const docsArray = Array.isArray(documents) ? documents : [];
     const dynamicCategoryId = dynamicCategory && mongoose.Types.ObjectId.isValid(dynamicCategory) ? new mongoose.Types.ObjectId(dynamicCategory) : undefined;
 
+    const finalContactNumber = contactNumber || (dynamicData && (dynamicData.contactNumber || dynamicData.mobileNumber || dynamicData.phone || dynamicData.mobile || dynamicData.phoneNumber)) || req.user?.phoneNumber || req.user?.mobile || '';
+
+    let locationValue = (location && location.coordinates && location.coordinates.length > 0) ? location : undefined;
+    if (!locationValue && dynamicData && dynamicData.location) {
+      locationValue = dynamicData.location;
+    }
+    if (!locationValue) {
+      locationValue = { type: 'Point', coordinates: [0, 0] };
+    }
+
     const doc = new Property({
-      propertyName,
-      contactNumber,
-      propertyType: lowerType,
-      description,
-      shortDescription,
+      propertyName: finalPropertyName,
+      contactNumber: finalContactNumber,
+      propertyType, // Save exactly as received (e.g. "Apartment")
+      transactionType: req.body.transactionType,
+      propertyCategory: propertyCategory || 'Residential',
+      dynamicData: dynamicData || {},
+      status: status || 'pending',
+      description: finalDescription,
+      shortDescription: finalShortDescription,
       partnerId: isPartner ? req.user._id : null,
-      userId: isUser ? req.user._id : null,
+      userId: (isUser || isAdmin) ? req.user._id : null,
       isAddedByUser: isUser,
-      address,
-      location,
+      isAddedByAdmin: isAdmin,
+      address: addressValue,
+      location: locationValue,
       nearbyPlaces: nearbyPlacesArray,
-      amenities,
-      coverImage,
+      amenities: finalAmenities,
+      logo: finalLogo,
+      coverImage: coverImageValue,
       propertyImages: propertyImagesArray,
       checkInTime,
       checkOutTime,
@@ -171,6 +219,7 @@ export const updateProperty = async (req, res) => {
       'location',
       'nearbyPlaces',
       'amenities',
+      'logo',
       'coverImage',
       'propertyImages',
       'checkInTime',
@@ -190,7 +239,8 @@ export const updateProperty = async (req, res) => {
       'hotelCategory',
       'starRating',
       'contactNumber',
-      'isLive'
+      'isLive',
+      'dynamicData'
     ];
 
     updatableFields.forEach(field => {
@@ -198,6 +248,49 @@ export const updateProperty = async (req, res) => {
         property[field] = payload[field];
       }
     });
+
+    // Sync root fields if dynamicData is updated
+    if (Object.prototype.hasOwnProperty.call(payload, 'dynamicData') && payload.dynamicData) {
+      const dd = payload.dynamicData;
+      if (dd.propertyName) {
+        property.propertyName = dd.propertyName;
+      }
+      if (dd.description || dd.detailsOfProperty) {
+        property.description = dd.description || dd.detailsOfProperty;
+      }
+      if (dd.shortDescription) {
+        property.shortDescription = dd.shortDescription;
+      }
+      if (dd.nearbyPlaces && Array.isArray(dd.nearbyPlaces)) {
+        property.nearbyPlaces = dd.nearbyPlaces;
+      }
+      if (dd.amenities && Array.isArray(dd.amenities)) {
+        property.amenities = dd.amenities;
+      }
+      if (dd.propertyImages && Array.isArray(dd.propertyImages) && dd.propertyImages.length > 0) {
+        property.propertyImages = dd.propertyImages;
+        if (!property.coverImage || dd.coverImage) {
+          property.coverImage = dd.coverImage || dd.propertyImages[0];
+        }
+        if (!property.logo || dd.logo) {
+          property.logo = dd.logo || property.propertyImages[0];
+        }
+      }
+      if (dd.city || dd.locality) {
+        property.address = {
+          city: dd.city || property.address?.city || '',
+          locality: dd.locality || property.address?.locality || '',
+          state: dd.state || property.address?.state || '',
+          fullAddress: dd.fullAddress || property.address?.fullAddress || `${dd.locality || ''}, ${dd.city || ''}`
+        };
+      }
+      if (dd.contactNumber || dd.mobileNumber || dd.phone || dd.mobile || dd.phoneNumber) {
+        property.contactNumber = dd.contactNumber || dd.mobileNumber || dd.phone || dd.mobile || dd.phoneNumber;
+      }
+      if (dd.location) {
+        property.location = dd.location;
+      }
+    }
 
     await property.save();
 
@@ -494,36 +587,49 @@ export const getPublicProperties = async (req, res) => {
       } else if (dynamicTypes.length > 0) {
         const categoryIds = dynamicTypes.map(id => new mongoose.Types.ObjectId(id));
         const categories = await PropertyCategory.find({ _id: { $in: categoryIds } }).select('displayName name').lean();
+        
         const fallbackPropertyTypes = new Set();
-        let hasPgCoLivingCategory = false;
+        const fallbackTransactionTypes = new Set();
+
         for (const cat of categories) {
           const dn = (cat.displayName || cat.name || '').toLowerCase();
-          if (dn === 'pg' || dn === 'hostel' || dn === 'pg/co-living' || dn === 'co-living' || dn === 'pg/co-livinig') {
-            fallbackPropertyTypes.add('pg').add('hostel');
-            hasPgCoLivingCategory = true;
+          if (dn === 'pg' || dn === 'hostel' || dn === 'pg/co-living' || dn === 'co-living' || dn === 'pg/co-livinig' || dn === 'paying guest') {
+            fallbackPropertyTypes.add('pg').add('hostel').add('paying guest');
+            fallbackTransactionTypes.add('PG').add('Paying Guest');
+          }
+          else if (dn === 'buy' || dn === 'sell') {
+            fallbackTransactionTypes.add('Sell');
+          }
+          else if (dn === 'rent' || dn === 'lease') {
+            fallbackTransactionTypes.add('Rent').add('Rent / Lease');
+          }
+          else if (dn === 'plot' || dn === 'plots' || dn === 'land') {
+            fallbackPropertyTypes.add('plot').add('plots').add('plot / land');
           }
           else if (dn === 'villa') fallbackPropertyTypes.add('villa');
           else if (dn === 'hotel') fallbackPropertyTypes.add('hotel');
           else if (dn === 'resort') fallbackPropertyTypes.add('resort');
           else if (dn === 'homestay') fallbackPropertyTypes.add('homestay');
-          else if (dn === 'tent' || dn === 'plot' || dn === 'plots') fallbackPropertyTypes.add('tent');
+          else if (dn === 'tent') fallbackPropertyTypes.add('tent');
         }
+
         const fallbackList = [...fallbackPropertyTypes];
-        // Always add fallback for PG/Co-living if we detected it, or if categories not found but IDs were sent
-        // This ensures properties with dynamicCategory null but propertyType pg/hostel still show
-        if (fallbackList.length > 0 || hasPgCoLivingCategory) {
-          // If we have PG/Co-living categories but fallbackList is empty (shouldn't happen), add pg/hostel anyway
-          if (hasPgCoLivingCategory && fallbackList.length === 0) {
-            fallbackList.push('pg', 'hostel');
-          }
-          matchConditions.$or = [
-            { dynamicCategory: { $in: categoryIds } },
-            { $and: [{ $or: [{ dynamicCategory: null }, { dynamicCategory: { $exists: false } }] }, { propertyType: { $in: fallbackList } }] }
-          ];
-        } else {
-          // If no categories found and we can't determine type, just match by dynamicCategory
-          matchConditions.dynamicCategory = { $in: categoryIds };
+        const fallbackTxnList = [...fallbackTransactionTypes];
+
+        const orConditions = [
+          { dynamicCategory: { $in: categoryIds } }
+        ];
+
+        if (fallbackList.length > 0) {
+          const regexes = fallbackList.map(type => new RegExp('^' + type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+          orConditions.push({ propertyType: { $in: regexes } });
         }
+
+        if (fallbackTxnList.length > 0) {
+          orConditions.push({ transactionType: { $in: fallbackTxnList } });
+        }
+
+        matchConditions.$or = orConditions;
       } else if (staticTypes.length > 0) {
         matchConditions.propertyType = { $in: staticTypes };
       }
