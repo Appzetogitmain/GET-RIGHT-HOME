@@ -114,9 +114,9 @@ const SubCategoryPage = () => {
             <div className="relative w-full">
                 {/* Full-Width Edge-to-Edge Premium Banner Container (handles overflow-hidden and rounded bottom corners) */}
                 <div className="relative w-full h-[64vw] sm:h-80 bg-gray-150 overflow-hidden shadow-sm rounded-b-[2.5rem] sm:rounded-b-[3rem]">
-                    {subCategory?.bannerUrl ? (
+                    {(subCategory?.bannerUrl || subCategory?.bannerImage || subCategory?.imageUrl) ? (
                         <img
-                            src={toAssetUrl(subCategory.bannerUrl)}
+                            src={toAssetUrl(subCategory.bannerUrl || subCategory.bannerImage || subCategory.imageUrl)}
                             alt={subCategory.title}
                             className="w-full h-full object-cover"
                         />
@@ -170,7 +170,7 @@ const SubCategoryPage = () => {
 
                 {/* Overlapping Floating Search Bar (Placed OUTSIDE the overflow-hidden parent to prevent clipping) */}
                 <div className="absolute bottom-0 left-6 right-6 translate-y-1/2 z-30 max-w-xl mx-auto">
-                    <div className="flex items-center bg-white border border-gray-150 rounded-2xl px-4 py-3.5 shadow-lg shadow-gray-200/80 gap-2.5">
+                    <div className="flex items-center bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-lg shadow-gray-200/80 gap-2.5">
                         <Search size={18} className="text-gray-400 flex-shrink-0 stroke-[3]" />
                         <input
                             type="text"

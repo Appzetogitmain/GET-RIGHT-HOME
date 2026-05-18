@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getPlans, createPlan, updatePlan, deletePlan } from '../../services/planService';
-import { categoryService, brandService, serviceService } from '../../../../services/catalogService';
+import { categoryService, subCategoryService, serviceService } from '../../../../services/catalogService';
 import { FiPlus, FiEdit2, FiTrash2, FiCheck, FiX, FiList, FiPackage, FiTool, FiChevronRight, FiBriefcase } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 
@@ -81,7 +81,7 @@ const Plans = () => {
       const [plansRes, catsRes, brandsRes, servsRes] = await Promise.all([
         getPlans(),
         categoryService.getAll(),
-        brandService.getAll(),
+        subCategoryService.getAll(),
         serviceService.getAll({ status: 'active' })
       ]);
 

@@ -92,6 +92,7 @@ const UserCategories = () => {
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={<HomePage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} />} />
           <Route path="categories" element={<CategoriesPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} />} />
+          <Route path="direct-categories" element={<CategoriesPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} isDirectFlow={true} />} />
           <Route path="sub-categories" element={<SubCategoriesPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} />} />
           <Route path="sections" element={<ServicesPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} />} />
           <Route path="vendor-services" element={<VendorServicesPage />} />

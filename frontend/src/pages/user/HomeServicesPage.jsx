@@ -29,6 +29,14 @@ import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCity } from '../../homster/context/CityContext';
 import CategoryModal from '../../homster/modules/user/pages/Home/components/CategoryModal';
 
+const toAssetUrl = (url) => {
+  if (!url) return '';
+  const clean = url.replace('/api/upload', '/upload');
+  if (clean.startsWith('http')) return clean;
+  const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/api$/, '');
+  return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
+};
+
 const HomeServicesPage = () => {
     const navigate = useNavigate();
     const { currentCity } = useCity();
@@ -80,6 +88,9 @@ const HomeServicesPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [homeData, setHomeData] = useState(null);
     const [categories, setCategories] = useState([]);
+    const [directCategories, setDirectCategories] = useState([]);
+    const [directServicesMap, setDirectServicesMap] = useState({});
+    const [directSubCategoriesMap, setDirectSubCategoriesMap] = useState({});
     
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -117,7 +128,29 @@ const HomeServicesPage = () => {
                     const cityId = currentCity?._id || currentCity?.id;
                     const catRes = await publicCatalogService.getCategories(cityId);
                     if (catRes?.success) {
-                        setCategories(catRes.categories || []);
+                        const allCats = catRes.categories || [];
+                        const stdCats = allCats.filter(c => !c.isDirectService);
+                        const dirCats = allCats.filter(c => c.isDirectService);
+                        
+                        setCategories(stdCats);
+                        setDirectCategories(dirCats);
+
+                        // Fetch sub-categories for each direct category
+                        const subCategoriesMap = {};
+                        await Promise.all(dirCats.map(async (cat) => {
+                            try {
+                                const res = await publicCatalogService.getSubCategories({ 
+                                    categoryId: cat._id || cat.id,
+                                    cityId 
+                                });
+                                if (res.success) {
+                                    subCategoriesMap[cat._id || cat.id] = res.subCategories || [];
+                                }
+                            } catch (err) {
+                                console.error("Error fetching sub-categories for direct category:", cat.title, err);
+                            }
+                        }));
+                        setDirectSubCategoriesMap(subCategoriesMap);
                     }
                 } catch (err) {
                     console.error("Error fetching categories:", err);
@@ -152,45 +185,14 @@ const HomeServicesPage = () => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-24 font-sans">
-            {/* Header Section */}
-            <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 backdrop-blur-xl shadow-md py-3' : 'bg-transparent py-6'}`}>
-                <div className="max-w-7xl mx-auto px-5 flex items-center justify-between gap-4">
-                    <button 
-                        onClick={() => navigate('/')}
-                        className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
-                    >
-                        <ArrowLeft size={24} className="text-gray-900" />
-                    </button>
-
-                    <div className="flex-1 flex items-center bg-white border border-gray-100 rounded-2xl px-5 py-3.5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] hover:shadow-md transition-all">
-                        <Search size={20} className="text-orange-400 mr-3" />
-                        <input 
-                            type="text" 
-                            placeholder="Search for R.O." 
-                            className="bg-transparent border-none outline-none w-full text-base font-medium text-gray-700 placeholder:text-gray-400"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="relative">
-                        <button className="w-11 h-11 flex items-center justify-center bg-[#FDF2F2] rounded-full border border-rose-100/50 shadow-sm transition-all active:scale-90">
-                            <Bell size={22} className="text-rose-500 fill-rose-50" />
-                            <div className="absolute top-0 -right-1 w-5 h-5 bg-rose-600 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
-                                <span className="text-[10px] font-black text-white leading-none">9+</span>
-                            </div>
-                        </button>
-                    </div>
-                </div>
-            </header>
-
-            {/* Banner Carousel */}
-            <section className="pt-32 px-5 max-w-7xl mx-auto">
-                <div className="relative">
+            {/* Full-Width Edge-to-Edge Banner Section */}
+            <div className="relative w-full">
+                {/* Full-Width Carousel Container (overflow-hidden with rounded bottom corners) */}
+                <div className="relative w-full h-[64vw] sm:h-80 bg-gray-150 overflow-hidden shadow-sm rounded-b-[2.5rem] sm:rounded-b-[3rem]">
                     <div 
                         ref={scrollContainerRef}
                         onScroll={handleBannerScroll}
-                        className="flex overflow-x-auto snap-x snap-mandatory gap-4 no-scrollbar pb-2"
+                        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-full"
                     >
                         {promos.map((promo) => (
                             <motion.div 
@@ -203,7 +205,7 @@ const HomeServicesPage = () => {
                                         navigate(`/service/${promo.slug}`);
                                     }
                                 }}
-                                className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200 cursor-pointer"
+                                className="min-w-full snap-center h-full relative cursor-pointer flex-shrink-0"
                             >
                                 <img 
                                     src={promo.imageUrl || promo.image} 
@@ -211,7 +213,7 @@ const HomeServicesPage = () => {
                                     className="absolute inset-0 w-full h-full object-cover"
                                 />
                                 {/* Bottom Overlay */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 md:p-8">
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 pb-12 md:p-8">
                                     <div className="space-y-1.5 md:space-y-2">
                                         {(promo.features || [promo.title, promo.subtitle].filter(Boolean)).map((feature, i) => (
                                             <div key={i} className="flex items-center gap-2">
@@ -227,20 +229,55 @@ const HomeServicesPage = () => {
                         ))}
                     </div>
 
-                    {/* Carousel Indicators */}
-                    <div className="flex justify-center gap-2 mt-4">
+                    {/* Floating Carousel Indicators */}
+                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex justify-center gap-2 z-20">
                         {promos.map((_, i) => (
                             <div 
                                 key={i} 
-                                className={`h-2 rounded-full transition-all duration-300 ${activeBanner === i ? 'w-8 bg-orange-500' : 'w-2 bg-gray-300'}`}
+                                className={`h-1.5 rounded-full transition-all duration-300 ${activeBanner === i ? 'w-6 bg-orange-500' : 'w-1.5 bg-white/50'}`}
                             />
                         ))}
                     </div>
+
+                    {/* Transparent Floating Header Action Buttons */}
+                    <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between">
+                        <button 
+                            onClick={() => navigate('/')}
+                            className="w-10 h-10 flex items-center justify-center bg-black/45 backdrop-blur-md rounded-full border border-white/20 text-white hover:bg-black/60 transition-all active:scale-95 shadow-md"
+                        >
+                            <ArrowLeft size={20} className="stroke-[3]" />
+                        </button>
+
+                        {/* Floating City Location Badge */}
+                        {currentCity?.name && (
+                            <div className="bg-black/45 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/20 text-white text-xs font-black tracking-widest uppercase flex items-center gap-1 shadow-md">
+                                <span>{currentCity.name}</span>
+                                <ChevronRight size={10} className="rotate-90 stroke-[3] text-emerald-400 animate-pulse" />
+                            </div>
+                        )}
+
+                        {/* Empty spacer to keep the city badge perfectly centered */}
+                        <div className="w-10 h-10" />
+                    </div>
                 </div>
-            </section>
+
+                {/* Overlapping Floating Search Bar (Placed OUTSIDE overflow parent to prevent clipping) */}
+                <div className="absolute bottom-0 left-6 right-6 translate-y-1/2 z-30 max-w-xl mx-auto">
+                    <div className="flex items-center bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-lg shadow-gray-200/80 gap-2.5">
+                        <Search size={18} className="text-gray-400 flex-shrink-0 stroke-[3]" />
+                        <input 
+                            type="text" 
+                            placeholder="Search for services or R.O..." 
+                            className="bg-transparent border-none outline-none w-full text-sm font-semibold text-gray-700 placeholder:text-gray-400"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
+            </div>
 
             {/* Service Categories */}
-            <section className="mt-8 px-5 max-w-7xl mx-auto">
+            <section className="mt-14 px-5 max-w-7xl mx-auto">
                 <div className="flex flex-col mb-8 group">
                     <div className="flex items-center gap-2 mb-1.5">
                         <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse" />
@@ -252,39 +289,47 @@ const HomeServicesPage = () => {
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Premium Home Solutions for Every Need</p>
                 </div>
 
-                <div className="grid grid-cols-4 gap-y-8 gap-x-4">
+                <div className="grid grid-cols-4 gap-y-4 gap-x-3.5">
                     {categories.map((cat) => (
                         <motion.button 
                             key={cat.id || cat._id}
-                            whileHover={{ y: -5 }}
-                            whileTap={{ scale: 0.95 }}
+                            whileHover={{ y: -6 }}
+                            whileTap={{ scale: 0.96 }}
                             onClick={() => openCategoryModal(cat)}
-                            className="flex flex-col items-center group relative"
+                            className="w-full h-36 sm:h-48 bg-white border border-gray-100 rounded-[1.5rem] shadow-md shadow-gray-100/50 overflow-hidden flex flex-col justify-between relative group cursor-pointer"
                         >
-                            <div className="w-16 h-16 md:w-20 md:h-20 bg-white border border-gray-100 rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-gray-200/50 overflow-hidden relative p-2">
-                                {/* Badge logic */}
+                            {/* Centered Title on Top */}
+                            <div className="p-2 sm:p-3 pt-3 sm:pt-4 text-center z-10 flex flex-col items-center justify-center flex-1 w-full">
+                                <span className="text-[9px] sm:text-xs font-black text-gray-800 uppercase tracking-tight leading-tight line-clamp-2">
+                                    {cat.title || cat.name}
+                                </span>
+                            </div>
+
+                            {/* High Quality Category Image at the bottom */}
+                            <div className="w-full h-[58%] relative overflow-hidden flex-shrink-0 bg-gray-50/50">
+                                <img 
+                                    src={cat.imageUrl || cat.image || cat.homeIconUrl} 
+                                    alt={cat.title || cat.name} 
+                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                                />
+                                {/* Overlay Gradient blending image into the top white background */}
+                                <div className="absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-white via-white/40 to-transparent" />
+
+                                {/* Premium Overlay Badge logic placed cleanly on the image itself to prevent title clipping */}
                                 {(cat.hasSaleBadge && cat.homeBadge) ? (
-                                    <div className="absolute top-1.5 -right-1 z-10">
-                                        <div className="bg-emerald-500 text-white text-[7px] font-black px-2 py-0.5 rounded-l-full shadow-sm uppercase tracking-tighter">
+                                    <div className="absolute top-2 right-2 z-20">
+                                        <span className="bg-emerald-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
                                             {cat.homeBadge}
-                                        </div>
+                                        </span>
                                     </div>
                                 ) : cat.isPopular ? (
-                                    <div className="absolute top-1.5 -right-1 z-10">
-                                        <div className="bg-[#D68F35] text-white text-[8px] font-black px-2 py-0.5 rounded-l-full shadow-sm">
+                                    <div className="absolute top-2 right-2 z-20">
+                                        <span className="bg-[#D68F35] text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
                                             POPULAR
-                                        </div>
+                                        </span>
                                     </div>
                                 ) : null}
-                                <img 
-                                    src={cat.homeIconUrl || cat.imageUrl || cat.image} 
-                                    alt={cat.title || cat.name} 
-                                    className={`w-full h-full object-contain transition-transform duration-500 group-hover:scale-110 ${cat.isBrand ? 'opacity-70' : ''}`} 
-                                />
                             </div>
-                            <span className="text-[10px] md:text-[11px] font-bold text-gray-900 mt-3 text-center leading-tight max-w-[80px]">
-                                {cat.title || cat.name}
-                            </span>
                         </motion.button>
                     ))}
                 </div>
@@ -407,6 +452,66 @@ const HomeServicesPage = () => {
                     </div>
                 </section>
             )}
+
+            {/* Direct Home Services Categories (Dynamically created Categories showing their sub-categories in circular layout) */}
+            {directCategories.length > 0 && directCategories.map((cat) => {
+                const subCats = directSubCategoriesMap[cat._id || cat.id] || [];
+                if (subCats.length === 0) return null;
+
+                return (
+                    <section key={cat._id || cat.id} className="mt-12 px-5 max-w-7xl mx-auto">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex flex-col">
+                                <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight leading-none uppercase">
+                                    {cat.title}
+                                </h2>
+                                <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1.5">Select a service to proceed</p>
+                            </div>
+                        </div>
+
+                        {/* Circular Scrolling List */}
+                        <div className="flex overflow-x-auto gap-6 no-scrollbar pb-4 -mx-5 px-5 snap-x snap-mandatory">
+                            {subCats.map((subCat) => (
+                                <motion.button
+                                    key={subCat._id || subCat.id}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => {
+                                        navigate('/home-services/sub-category', { 
+                                            state: { 
+                                                subCategory: {
+                                                    id: subCat._id || subCat.id,
+                                                    title: subCat.title,
+                                                    iconUrl: subCat.icon || subCat.imageUrl,
+                                                    bannerUrl: subCat.bannerUrl || subCat.imageUrl || subCat.icon
+                                                }, 
+                                                category: {
+                                                    id: cat._id || cat.id,
+                                                    title: cat.title
+                                                }
+                                            } 
+                                        });
+                                    }}
+                                    className="flex flex-col items-center flex-shrink-0 snap-start group cursor-pointer"
+                                    style={{ width: '84px' }}
+                                >
+                                    {/* Circular image container matching screenshot exactly */}
+                                    <div className="w-[84px] h-[84px] rounded-full border-2 border-emerald-500/20 group-hover:border-emerald-500 overflow-hidden relative shadow-md transition-all duration-300 bg-white flex items-center justify-center p-[3px]">
+                                        <img 
+                                            src={toAssetUrl(subCat.icon || subCat.imageUrl)} 
+                                            alt={subCat.title}
+                                            className="w-full h-full object-cover rounded-full transition-transform duration-500 group-hover:scale-110"
+                                        />
+                                    </div>
+                                    {/* Label text below */}
+                                    <span className="text-[10px] font-black text-gray-800 text-center leading-tight line-clamp-2 mt-2 px-1 uppercase tracking-tighter w-full">
+                                        {subCat.title}
+                                    </span>
+                                </motion.button>
+                            ))}
+                        </div>
+                    </section>
+                );
+            })}
 
             {/* Why Hoomzo Services */}
             <section className="mt-10 px-5 max-w-7xl mx-auto">

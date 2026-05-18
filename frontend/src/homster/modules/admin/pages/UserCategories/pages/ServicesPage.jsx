@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FiPlus, FiEdit2, FiTrash2, FiPackage, FiSearch, FiFilter, FiImage, FiLayers, FiChevronRight } from "react-icons/fi";
+import { FiPlus, FiEdit2, FiTrash2, FiPackage, FiSearch, FiFilter, FiImage, FiLayers, FiChevronRight, FiChevronDown } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
@@ -15,7 +15,7 @@ const serviceSchema = z.object({
   gstPercentage: z.number().min(0).max(100).default(18),
   discountPrice: z.number().optional(),
   categoryId: z.string().min(1, "Category is required"),
-  subCategoryId: z.string().min(1, "Sub-category is required"),
+  subCategoryId: z.string().optional(),
   imageUrl: z.string().optional(),
   description: z.string().optional()
 });
@@ -28,6 +28,14 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   const [loadingServices, setLoadingServices] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubCategoryFilter, setSelectedSubCategoryFilter] = useState("all");
+  const [expandedCategories, setExpandedCategories] = useState({});
+
+  const toggleCategory = (catTitle) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [catTitle]: prev[catTitle] === false ? true : false
+    }));
+  };
 
   // Fetch parent categories and subcategories
   const fetchCatalogData = async () => {
@@ -46,7 +54,8 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
         mappedCategories = categoriesRes.categories.map(cat => ({
           id: (cat.id || cat._id?.$oid || cat._id)?.toString() || "",
           title: cat.title,
-          slug: cat.slug
+          slug: cat.slug,
+          isDirectService: cat.isDirectService || false
         }));
         setCategories(mappedCategories);
       }
@@ -146,6 +155,12 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     return subCategories.filter(sc => String(sc.categoryId) === String(form.categoryId));
   }, [form.categoryId, subCategories]);
 
+  const selectedFormCategory = useMemo(() => {
+    return categories.find(c => String(c.id) === String(form.categoryId));
+  }, [form.categoryId, categories]);
+  
+  const isDirectService = (selectedFormCategory?.isDirectService && formFilteredSubCategories.length === 0) || false;
+
   const resetForm = () => {
     setEditingId(null);
     setForm({
@@ -205,6 +220,11 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   const handleSave = async (e) => {
     e.preventDefault();
     
+    if (!isDirectService && !form.subCategoryId) {
+      toast.error("Sub-category is required");
+      return;
+    }
+    
     const data = {
       title: form.title.trim(),
       subheading: form.subheading.trim(),
@@ -212,7 +232,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       gstPercentage: Number(form.gstPercentage),
       discountPrice: form.discountPrice ? Number(form.discountPrice) : undefined,
       categoryId: form.categoryId,
-      subCategoryId: form.subCategoryId,
+      subCategoryId: form.subCategoryId || undefined,
       imageUrl: form.imageUrl,
       description: form.description?.trim()
     };
@@ -319,27 +339,40 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                 All Sub-categories
               </button>
 
-              {Object.keys(groupedSubCategories).map(catTitle => (
-                <div key={catTitle} className="space-y-1">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-3 py-1 bg-gray-50 rounded-lg">
-                    {catTitle}
-                  </div>
-                  {groupedSubCategories[catTitle].map(sc => (
+              {Object.keys(groupedSubCategories).map(catTitle => {
+                const isExpanded = expandedCategories[catTitle] !== false;
+                return (
+                  <div key={catTitle} className="space-y-1">
                     <button
-                      key={sc.id}
-                      onClick={() => setSelectedSubCategoryFilter(sc.id)}
-                      className={`w-full text-left px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between border ${
-                        selectedSubCategoryFilter === sc.id 
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm" 
-                          : "text-gray-600 hover:bg-gray-50 border-transparent"
-                      }`}
+                      type="button"
+                      onClick={() => toggleCategory(catTitle)}
+                      className="w-full flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-500 px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
-                      <span className="truncate">{sc.title}</span>
-                      <FiChevronRight className={`w-3.5 h-3.5 transition-transform ${selectedSubCategoryFilter === sc.id ? "rotate-90 text-emerald-600" : "text-gray-300"}`} />
+                      <span>{catTitle}</span>
+                      <FiChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? "" : "-rotate-90 text-gray-400"}`} />
                     </button>
-                  ))}
-                </div>
-              ))}
+                    {isExpanded && (
+                      <div className="space-y-1 pl-1 mt-1">
+                        {groupedSubCategories[catTitle].map(sc => (
+                          <button
+                            key={sc.id}
+                            type="button"
+                            onClick={() => setSelectedSubCategoryFilter(sc.id)}
+                            className={`w-full text-left px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between border ${
+                              selectedSubCategoryFilter === sc.id 
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm" 
+                                : "text-gray-600 hover:bg-gray-50 border-transparent"
+                            }`}
+                          >
+                            <span className="truncate">{sc.title}</span>
+                            <FiChevronRight className={`w-3.5 h-3.5 transition-transform ${selectedSubCategoryFilter === sc.id ? "rotate-90 text-emerald-600" : "text-gray-300"}`} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </CardShell>
         </div>
@@ -377,9 +410,9 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
               {displayedServices.map(service => {
                 const subCat = subCategories.find(sc => String(sc.id) === String(service.subCategoryId?._id || service.subCategoryId));
                 return (
-                  <div key={service.id || service._id} className="bg-white p-5 rounded-2.5xl border border-gray-100 shadow-sm hover:shadow-md transition-all group relative flex gap-4">
+                  <div key={service.id || service._id} className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group relative flex gap-3.5">
                     {/* Service Preview Image */}
-                    <div className="h-24 w-24 bg-gray-50 border border-gray-100 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center">
+                    <div className="h-20 w-20 bg-gray-50 border border-gray-100 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center">
                       {(service.imageUrl || service.icon) ? (
                         <img 
                           src={toAssetUrl(service.imageUrl || service.icon)} 
@@ -387,7 +420,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                           className="w-full h-full object-cover" 
                         />
                       ) : (
-                        <FiImage className="text-gray-300 w-8 h-8" />
+                        <FiImage className="text-gray-300 w-6 h-6" />
                       )}
                     </div>
 
@@ -395,37 +428,34 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                       <div>
                         <div className="flex justify-between items-start">
-                          <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-widest mb-1 inline-block">
-                            {subCat?.title || "Unknown Sub-cat"}
+                          <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-widest inline-block">
+                            {subCat?.title || (categories.find(c => String(c.id) === String(service.categoryId?._id || service.categoryId))?.title || "Direct Service")}
                           </span>
-                          <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
-                            <button onClick={() => handleEdit(service)} className="p-1.5 bg-gray-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
-                              <FiEdit2 size={13} />
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                            <button onClick={() => handleEdit(service)} className="p-1 bg-gray-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors">
+                              <FiEdit2 size={12} />
                             </button>
-                            <button onClick={() => handleDelete(service.id || service._id)} className="p-1.5 bg-gray-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
-                              <FiTrash2 size={13} />
+                            <button onClick={() => handleDelete(service.id || service._id)} className="p-1 bg-gray-50 text-red-600 rounded-md hover:bg-red-100 transition-colors">
+                              <FiTrash2 size={12} />
                             </button>
                           </div>
                         </div>
-                        <h3 className="font-black text-gray-900 text-base leading-tight mt-0.5 truncate">{service.title}</h3>
-                        {service.subheading && (
-                          <p className="text-[11px] text-gray-400 font-bold uppercase mt-0.5 truncate">{service.subheading}</p>
-                        )}
-                        {service.description && (
-                          <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed font-medium">{service.description}</p>
-                        )}
-                      </div>
+                        <h3 className="font-black text-gray-900 text-sm leading-tight mt-1 truncate">{service.title}</h3>
+                        
+                        {/* Compact Price and Subheading Row */}
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-black text-emerald-600">₹{service.discountPrice || service.basePrice || service.price}</span>
+                          {(service.discountPrice && service.discountPrice < service.basePrice) && (
+                            <span className="text-[10px] text-gray-400 line-through font-bold">₹{service.basePrice}</span>
+                          )}
+                          {service.subheading && (
+                            <span className="text-[9px] text-gray-400 font-bold bg-gray-50 px-1.5 py-0.5 rounded uppercase tracking-tight truncate max-w-[120px]">{service.subheading}</span>
+                          )}
+                        </div>
 
-                      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-50">
-                        <div className="flex flex-col">
-                          <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Starts at</span>
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-lg font-black text-emerald-600">₹{service.discountPrice || service.basePrice || service.price}</span>
-                            {(service.discountPrice && service.discountPrice < service.basePrice) && (
-                              <span className="text-[10px] text-gray-400 line-through font-bold">₹{service.basePrice}</span>
-                            )}
-                          </div>
-                        </div>
+                        {service.description && (
+                          <p className="text-[11px] text-gray-500 mt-1 line-clamp-1 leading-tight font-medium">{service.description}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -467,13 +497,19 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                 value={form.subCategoryId}
                 onChange={e => setForm({ ...form, subCategoryId: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 bg-gray-50 text-sm font-bold disabled:opacity-60"
-                disabled={!form.categoryId}
-                required
+                disabled={!form.categoryId || isDirectService}
+                required={!isDirectService}
               >
-                <option value="">Select Sub-category</option>
-                {formFilteredSubCategories.map(sc => (
-                  <option key={sc.id} value={sc.id}>{sc.title}</option>
-                ))}
+                {isDirectService ? (
+                  <option value="">No sub-category required (Direct flow)</option>
+                ) : (
+                  <>
+                    <option value="">Select Sub-category</option>
+                    {formFilteredSubCategories.map(sc => (
+                      <option key={sc.id} value={sc.id}>{sc.title}</option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
           </div>

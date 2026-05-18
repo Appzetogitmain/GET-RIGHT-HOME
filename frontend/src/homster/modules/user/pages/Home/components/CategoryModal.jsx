@@ -43,9 +43,29 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
         setIsRedirecting(false);
       }, 300);
     } else if (category?.id || category?._id) {
-      fetchSubCategories(category.id || category._id);
+      if (category.isDirectService) {
+        fetchDirectServices(category.id || category._id);
+      } else {
+        fetchSubCategories(category.id || category._id);
+      }
     }
-  }, [isOpen, category?.id, category?._id, cityId]);
+  }, [isOpen, category?.id, category?._id, cityId, category?.isDirectService]);
+
+  const fetchDirectServices = async (catId) => {
+    try {
+      setLoading(true);
+      const response = await publicCatalogService.getServices({
+        categoryId: catId
+      });
+      if (response.success) {
+        setServices(response.services || []);
+      }
+    } catch (error) {
+      console.error("Failed to load direct services:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchSubCategories = async (catId) => {
     try {
@@ -103,12 +123,12 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
       const cartItemData = {
         serviceId: service.id || service._id,
         categoryId: category?.id || category?._id,
-        subCategoryId: selectedSubCategory?.id || selectedSubCategory?._id,
+        subCategoryId: selectedSubCategory?.id || selectedSubCategory?._id || undefined,
         title: service.title,
         description: service.description || '',
         icon: toAssetUrl(service.icon || service.imageUrl || selectedSubCategory?.iconUrl || ''),
         category: category?.title,
-        subCategory: selectedSubCategory?.title,
+        subCategory: selectedSubCategory?.title || category?.title || '',
         price: service.discountPrice || service.basePrice || service.price,
         unitPrice: service.discountPrice || service.basePrice || service.price,
         serviceCount: 1,
@@ -194,7 +214,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
                           {selectedSubCategory ? selectedSubCategory.title : category?.title || 'Services'}
                         </h1>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          {selectedSubCategory ? 'Select a service to proceed' : 'Select a sub-category'}
+                          {selectedSubCategory || category?.isDirectService ? 'Select a service to proceed' : 'Select a sub-category'}
                         </p>
                       </div>
                       {loading && <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin ml-auto"></div>}
@@ -203,13 +223,13 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
 
                   {/* Body */}
                   <div className="flex-1 overflow-y-auto px-6 pb-10 scrollbar-hide">
-                    {loading && (selectedSubCategory ? services.length === 0 : subCategories.length === 0) ? (
+                    {loading && (selectedSubCategory ? services.length === 0 : subCategories.length === 0 && !category?.isDirectService) ? (
                       <div className="grid grid-cols-3 gap-4 pt-4">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
                           <div key={i} className="aspect-square bg-gray-50 rounded-3xl animate-pulse border border-gray-100"></div>
                         ))}
                       </div>
-                    ) : !selectedSubCategory ? (
+                    ) : (!selectedSubCategory && !category?.isDirectService) ? (
                       /* Level 1: Sub-category Grid */
                       <div className="grid grid-cols-3 gap-4 pt-4">
                         {subCategories.map((sub) => (
