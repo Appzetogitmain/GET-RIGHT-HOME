@@ -49,6 +49,7 @@ const BookingCheckoutPage = React.lazy(() => import('./pages/user/BookingCheckou
 const ReelsPage = React.lazy(() => import('./pages/user/ReelsPage'));
 const MyProperties = React.lazy(() => import('./pages/user/MyProperties'));
 const HomeServicesPage = React.lazy(() => import('./pages/user/HomeServicesPage'));
+const SubCategoryPage = React.lazy(() => import('./pages/user/SubCategoryPage'));
 const HomsterAdminRoutes = React.lazy(() => import('./homster/modules/admin/routes/index.jsx'));
 const UserReceivedBookingsPage = React.lazy(() => import('./pages/user/UserReceivedBookingsPage'));
 const UserSubscriptionsPage = React.lazy(() => import('./pages/user/UserSubscriptionsPage'));
@@ -566,6 +567,7 @@ function App() {
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/home-services" element={<HomeServicesPage />} />
+              <Route path="/home-services/sub-category" element={<SubCategoryPage />} />
               <Route path="/home-service" element={<Navigate to="/home-services" replace />} />
               <Route path="/partner-landing" element={<PartnerLandingPage />} />
               <Route path="/about" element={<AboutPage />} />

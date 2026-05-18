@@ -48,6 +48,8 @@ const AdminHeader = ({ onMenuClick }) => {
       { path: '/admin/home-service/workers', title: 'Workers', description: 'Monitor and manage platform workers' },
       { path: '/admin/home-service/bookings', title: 'Bookings', description: 'Track and manage service bookings' },
       { path: '/admin/home-service/bookings/notifications', title: 'Order Notifications', description: 'Track booking alerts and updates' },
+      { path: '/admin/home-service/user-categories/categories', title: 'Manage Categories', description: 'Add, edit and reorder home service categories' },
+      { path: '/admin/home-service/user-categories/sub-categories', title: 'Manage Sub Categories', description: 'Add and manage sub-categories under each service category' },
       { path: '/admin/home-service/user-categories', title: 'User Catalog', description: 'Manage platform services and categories' },
       { path: '/admin/home-service/payments/users', title: 'User Transactions', description: 'Monitor customer financial transactions' },
       { path: '/admin/home-service/payments/vendors', title: 'Vendor Transactions', description: 'Monitor vendor earnings and payouts' },

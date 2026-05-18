@@ -1,71 +1,98 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FiPlus, FiEdit2, FiTrash2, FiPackage, FiSearch, FiFilter } from "react-icons/fi";
+import { FiPlus, FiEdit2, FiTrash2, FiPackage, FiSearch, FiFilter, FiImage, FiLayers, FiChevronRight } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
-import { ensureIds, saveCatalog } from "../utils";
-import { serviceService, categoryService } from "../../../../../services/catalogService";
+import { ensureIds, saveCatalog, toAssetUrl } from "../utils";
+import { serviceService, categoryService, subCategoryService } from "../../../../../services/catalogService";
 import { z } from "zod";
 
-// Schema for Service Entity
+// Zod schema matching the updated database model
 const serviceSchema = z.object({
-  title: z.string().min(2, "Title is required"),
+  title: z.string().min(2, "Service title is required"),
+  subheading: z.string().optional(),
   basePrice: z.number().min(0, "Price must be non-negative"),
   gstPercentage: z.number().min(0).max(100).default(18),
   discountPrice: z.number().optional(),
   categoryId: z.string().min(1, "Category is required"),
+  subCategoryId: z.string().min(1, "Sub-category is required"),
+  imageUrl: z.string().optional(),
   description: z.string().optional()
 });
 
 const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   const [fetching, setFetching] = useState(false);
-  const [categories, setCategories] = useState(catalog.categories || []);
+  const [categories, setCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
   const [services, setServices] = useState([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("all");
+  const [selectedSubCategoryFilter, setSelectedSubCategoryFilter] = useState("all");
 
-  // Fetch data on mount or city change
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setFetching(true);
-        const params = { status: 'active' };
-        if (selectedCity) params.cityId = selectedCity;
+  // Fetch parent categories and subcategories
+  const fetchCatalogData = async () => {
+    try {
+      setFetching(true);
+      const params = { status: 'active' };
+      if (selectedCity) params.cityId = selectedCity;
 
-        const [categoriesRes] = await Promise.all([
-          categoryService.getAll(params)
-        ]);
+      const [categoriesRes, subCategoriesRes] = await Promise.all([
+        categoryService.getAll(params),
+        subCategoryService.getAll(params)
+      ]);
 
-        if (categoriesRes.success) {
-          const mappedCategories = categoriesRes.categories.map(cat => ({
-            id: (cat.id || cat._id?.$oid || cat._id)?.toString() || "",
-            title: cat.title,
-            slug: cat.slug
-          }));
-          setCategories(mappedCategories);
-          setCatalog(prev => ({ ...prev, categories: mappedCategories }));
-        }
-
-      } catch (error) {
-        console.error('Failed to fetch catalog data:', error);
-        toast.error("Failed to load categories");
-      } finally {
-        setFetching(false);
+      let mappedCategories = [];
+      if (categoriesRes.success) {
+        mappedCategories = categoriesRes.categories.map(cat => ({
+          id: (cat.id || cat._id?.$oid || cat._id)?.toString() || "",
+          title: cat.title,
+          slug: cat.slug
+        }));
+        setCategories(mappedCategories);
       }
-    };
 
-    fetchData();
-  }, [selectedCity, setCatalog]);
+      let mappedSubCategories = [];
+      if (subCategoriesRes.success) {
+        mappedSubCategories = subCategoriesRes.subCategories.map(sc => ({
+          id: (sc.id || sc._id?.$oid || sc._id)?.toString() || "",
+          title: sc.title,
+          slug: sc.slug,
+          categoryId: (sc.categoryId?._id || sc.categoryId)?.toString() || "",
+          categoryTitle: sc.categoryId?.title || "Uncategorized"
+        }));
+        setSubCategories(mappedSubCategories);
+      }
 
-  // Fetch Services when Category Filter changes
+      setCatalog(prev => {
+        const next = { 
+          ...prev, 
+          categories: mappedCategories, 
+          subCategories: mappedSubCategories 
+        };
+        saveCatalog(next);
+        return next;
+      });
+
+    } catch (error) {
+      console.error('Failed to fetch catalog data:', error);
+      toast.error("Failed to load categories/sub-categories");
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCatalogData();
+  }, [selectedCity]);
+
+  // Fetch Services when Filter changes
   useEffect(() => {
     const fetchServices = async () => {
       try {
         setLoadingServices(true);
         const params = {};
-        if (selectedCategoryFilter !== "all") {
-          params.categoryId = selectedCategoryFilter;
+        if (selectedSubCategoryFilter !== "all") {
+          params.subCategoryId = selectedSubCategoryFilter;
         }
         
         const response = await serviceService.getAll(params);
@@ -83,57 +110,111 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     };
 
     fetchServices();
-  }, [selectedCategoryFilter]);
+  }, [selectedSubCategoryFilter]);
 
-  // Form State
+  // Form & Image Upload State
   const [editingId, setEditingId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [form, setForm] = useState({
     title: "",
+    subheading: "",
     basePrice: "",
     gstPercentage: 18,
     discountPrice: "",
     categoryId: "",
+    subCategoryId: "",
+    imageUrl: "",
     description: ""
   });
   const [saving, setSaving] = useState(false);
+
+  // Group sub-categories by category for the filter panel
+  const groupedSubCategories = useMemo(() => {
+    const groups = {};
+    subCategories.forEach(sc => {
+      const catTitle = sc.categoryTitle || "Uncategorized";
+      if (!groups[catTitle]) groups[catTitle] = [];
+      groups[catTitle].push(sc);
+    });
+    return groups;
+  }, [subCategories]);
+
+  // Sub-categories filtered by selected Parent Category in form
+  const formFilteredSubCategories = useMemo(() => {
+    if (!form.categoryId) return [];
+    return subCategories.filter(sc => String(sc.categoryId) === String(form.categoryId));
+  }, [form.categoryId, subCategories]);
 
   const resetForm = () => {
     setEditingId(null);
     setForm({
       title: "",
+      subheading: "",
       basePrice: "",
       gstPercentage: 18,
       discountPrice: "",
-      categoryId: selectedCategoryFilter !== "all" ? selectedCategoryFilter : "",
+      categoryId: "",
+      subCategoryId: selectedSubCategoryFilter !== "all" ? selectedSubCategoryFilter : "",
+      imageUrl: "",
       description: ""
     });
     setIsModalOpen(false);
   };
 
   const handleEdit = (service) => {
+    const parentCatId = service.categoryId?._id || service.categoryId || "";
+    const subCatId = service.subCategoryId?._id || service.subCategoryId || "";
+    
     setEditingId(service.id || service._id);
     setForm({
       title: service.title,
+      subheading: service.subheading || "",
       basePrice: service.basePrice || service.price || 0,
       gstPercentage: service.gstPercentage || 18,
       discountPrice: service.discountPrice || "",
-      categoryId: service.categoryId?._id || service.categoryId || "",
+      categoryId: parentCatId?.toString() || "",
+      subCategoryId: subCatId?.toString() || "",
+      imageUrl: service.imageUrl || service.icon || "",
       description: service.description || ""
     });
     setIsModalOpen(true);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploadingImage(true);
+      const res = await serviceService.uploadImage(file);
+      if (res.success) {
+        setForm(prev => ({ ...prev, imageUrl: res.imageUrl }));
+        toast.success("Service image uploaded successfully!");
+      } else {
+        toast.error(res.message || "Failed to upload image");
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error("Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     
     const data = {
-      title: form.title,
+      title: form.title.trim(),
+      subheading: form.subheading.trim(),
       basePrice: Number(form.basePrice),
       gstPercentage: Number(form.gstPercentage),
       discountPrice: form.discountPrice ? Number(form.discountPrice) : undefined,
       categoryId: form.categoryId,
-      description: form.description
+      subCategoryId: form.subCategoryId,
+      imageUrl: form.imageUrl,
+      description: form.description?.trim()
     };
 
     const result = serviceSchema.safeParse(data);
@@ -148,14 +229,17 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
         const response = await serviceService.update(editingId, result.data);
         if (response.success) {
           toast.success("Service updated");
-          setServices(prev => prev.map(s => (s.id === editingId || s._id === editingId ? { ...s, ...result.data } : s)));
+          // Refresh catalog services list
+          const updatedSvc = response.service || response.data;
+          setServices(prev => prev.map(s => (s.id === editingId || s._id === editingId ? { ...s, ...updatedSvc } : s)));
           resetForm();
         }
       } else {
         const response = await serviceService.create(result.data);
         if (response.success) {
-          toast.success("Service created");
-          setServices(prev => [response.service || response.data, ...prev]);
+          toast.success("Service created successfully");
+          const newSvc = response.service || response.data;
+          setServices(prev => [newSvc, ...prev]);
           resetForm();
         }
       }
@@ -171,7 +255,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     if (!window.confirm("Are you sure you want to delete this service?")) return;
     try {
       await serviceService.delete(id);
-      toast.success("Service deleted");
+      toast.success("Service deleted successfully");
       setServices(prev => prev.filter(s => (s.id !== id && s._id !== id)));
     } catch (error) {
       console.error("Delete service error:", error);
@@ -182,130 +266,165 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   const displayedServices = useMemo(() => {
     let filtered = services;
     
-    // Filter by category if not "all"
-    if (selectedCategoryFilter !== "all") {
+    // Filter by subcategory if not "all"
+    if (selectedSubCategoryFilter !== "all") {
       filtered = filtered.filter(s => {
-        const sCatId = (s.categoryId?._id || s.categoryId)?.toString();
-        return sCatId === selectedCategoryFilter;
+        const sSubCatId = (s.subCategoryId?._id || s.subCategoryId)?.toString();
+        return sSubCatId === selectedSubCategoryFilter;
       });
     }
 
     // Filter by search term
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
-      filtered = filtered.filter(s => s.title.toLowerCase().includes(lower));
+      filtered = filtered.filter(s => 
+        s.title.toLowerCase().includes(lower) || 
+        (s.subheading && s.subheading.toLowerCase().includes(lower))
+      );
     }
 
     return filtered;
-  }, [services, searchTerm, selectedCategoryFilter]);
+  }, [services, searchTerm, selectedSubCategoryFilter]);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      {/* Top Header Card */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Manage Services</h1>
-          <p className="text-sm text-gray-500 font-medium">Create and organize services by category</p>
+          <p className="text-sm text-gray-500 font-medium">Create and organize premium services under sub-categories</p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
+          className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg shadow-emerald-100 transition-all active:scale-95"
         >
-          <FiPlus className="w-5 h-5" />
+          <FiPlus className="w-5 h-5 stroke-[3]" />
           Add New Service
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Filters */}
+        {/* Sub-category Filter Left Panel */}
         <div className="lg:col-span-1 space-y-4">
-          <CardShell icon={FiFilter} title="Filter by Category">
-            <div className="space-y-1">
+          <CardShell icon={FiFilter} title="Filter by Sub-category">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <button
-                onClick={() => setSelectedCategoryFilter("all")}
-                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                  selectedCategoryFilter === "all" 
-                    ? "bg-blue-50 text-blue-700 border border-blue-100" 
-                    : "text-gray-600 hover:bg-gray-50"
+                onClick={() => setSelectedSubCategoryFilter("all")}
+                className={`w-full text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+                  selectedSubCategoryFilter === "all" 
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                    : "text-gray-600 hover:bg-gray-50 border-transparent"
                 }`}
               >
-                All Categories
+                All Sub-categories
               </button>
-              {categories.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategoryFilter(cat.id)}
-                  className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                    selectedCategoryFilter === cat.id 
-                      ? "bg-blue-50 text-blue-700 border border-blue-100" 
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  {cat.title}
-                </button>
+
+              {Object.keys(groupedSubCategories).map(catTitle => (
+                <div key={catTitle} className="space-y-1">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-3 py-1 bg-gray-50 rounded-lg">
+                    {catTitle}
+                  </div>
+                  {groupedSubCategories[catTitle].map(sc => (
+                    <button
+                      key={sc.id}
+                      onClick={() => setSelectedSubCategoryFilter(sc.id)}
+                      className={`w-full text-left px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between border ${
+                        selectedSubCategoryFilter === sc.id 
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm" 
+                          : "text-gray-600 hover:bg-gray-50 border-transparent"
+                      }`}
+                    >
+                      <span className="truncate">{sc.title}</span>
+                      <FiChevronRight className={`w-3.5 h-3.5 transition-transform ${selectedSubCategoryFilter === sc.id ? "rotate-90 text-emerald-600" : "text-gray-300"}`} />
+                    </button>
+                  ))}
+                </div>
               ))}
             </div>
           </CardShell>
         </div>
 
-        {/* Services Grid */}
+        {/* Services Listing Area */}
         <div className="lg:col-span-3 space-y-4">
           <div className="relative">
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 stroke-[3]" />
             <input
               type="text"
-              placeholder="Search services by title..."
+              placeholder="Search services by title or subheading..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
             />
           </div>
 
           {loadingServices ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-gray-100">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 mb-4"></div>
               <p className="text-gray-500 font-bold">Loading services...</p>
             </div>
           ) : displayedServices.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-200 text-center">
               <FiPackage className="w-16 h-16 text-gray-200 mb-4" />
               <h3 className="text-lg font-black text-gray-400">No Services Found</h3>
-              <p className="text-sm text-gray-400 max-w-xs mx-auto">
-                {selectedCategoryFilter === 'all' 
-                  ? "Start by adding a service to any category." 
-                  : `No services have been added to the ${categories.find(c => c.id === selectedCategoryFilter)?.title} category yet.`}
+              <p className="text-sm text-gray-400 max-w-xs mx-auto mt-1">
+                {selectedSubCategoryFilter === 'all' 
+                  ? "Start by adding a service to any sub-category." 
+                  : "No services have been added to this sub-category yet."}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {displayedServices.map(service => {
-                const cat = categories.find(c => String(c.id) === String(service.categoryId?._id || service.categoryId));
+                const subCat = subCategories.find(sc => String(sc.id) === String(service.subCategoryId?._id || service.subCategoryId));
                 return (
-                  <div key={service.id || service._id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group relative">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wider mb-1 inline-block">
-                          {cat?.title || "Uncategorized"}
-                        </span>
-                        <h3 className="font-black text-gray-900 text-lg leading-tight">{service.title}</h3>
-                      </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={() => handleEdit(service)} className="p-2 bg-gray-50 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
-                          <FiEdit2 size={16} />
-                        </button>
-                        <button onClick={() => handleDelete(service.id || service._id)} className="p-2 bg-gray-50 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
-                          <FiTrash2 size={16} />
-                        </button>
-                      </div>
+                  <div key={service.id || service._id} className="bg-white p-5 rounded-2.5xl border border-gray-100 shadow-sm hover:shadow-md transition-all group relative flex gap-4">
+                    {/* Service Preview Image */}
+                    <div className="h-24 w-24 bg-gray-50 border border-gray-100 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      {(service.imageUrl || service.icon) ? (
+                        <img 
+                          src={toAssetUrl(service.imageUrl || service.icon)} 
+                          alt={service.title} 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <FiImage className="text-gray-300 w-8 h-8" />
+                      )}
                     </div>
 
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-50">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Starting Price</span>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-xl font-black text-gray-900">₹{service.discountPrice || service.basePrice || service.price}</span>
-                          {(service.discountPrice && service.discountPrice < service.basePrice) && (
-                            <span className="text-xs text-gray-400 line-through font-bold">₹{service.basePrice}</span>
-                          )}
+                    {/* Service Info details */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-widest mb-1 inline-block">
+                            {subCat?.title || "Unknown Sub-cat"}
+                          </span>
+                          <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                            <button onClick={() => handleEdit(service)} className="p-1.5 bg-gray-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+                              <FiEdit2 size={13} />
+                            </button>
+                            <button onClick={() => handleDelete(service.id || service._id)} className="p-1.5 bg-gray-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
+                              <FiTrash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                        <h3 className="font-black text-gray-900 text-base leading-tight mt-0.5 truncate">{service.title}</h3>
+                        {service.subheading && (
+                          <p className="text-[11px] text-gray-400 font-bold uppercase mt-0.5 truncate">{service.subheading}</p>
+                        )}
+                        {service.description && (
+                          <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed font-medium">{service.description}</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-50">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Starts at</span>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-lg font-black text-emerald-600">₹{service.discountPrice || service.basePrice || service.price}</span>
+                            {(service.discountPrice && service.discountPrice < service.basePrice) && (
+                              <span className="text-[10px] text-gray-400 line-through font-bold">₹{service.basePrice}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -317,47 +436,81 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
         </div>
       </div>
 
+      {/* Add / Edit Modal Form */}
       <Modal
         isOpen={isModalOpen}
         onClose={resetForm}
-        title={editingId ? "Edit Service" : "Add Service"}
+        title={editingId ? "Edit Premium Service" : "Add Premium Service"}
       >
         <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Select Category</label>
-            <select
-              value={form.categoryId}
-              onChange={e => setForm({ ...form, categoryId: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-gray-50 text-sm font-bold"
-              required
-            >
-              <option value="">Select Category</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.title}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Parent Category */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Select Parent Category</label>
+              <select
+                value={form.categoryId}
+                onChange={e => setForm({ ...form, categoryId: e.target.value, subCategoryId: "" })}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 bg-gray-50 text-sm font-bold"
+                required
+              >
+                <option value="">Select Category</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.title}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sub-category selection */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Select Sub-category</label>
+              <select
+                value={form.subCategoryId}
+                onChange={e => setForm({ ...form, subCategoryId: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 bg-gray-50 text-sm font-bold disabled:opacity-60"
+                disabled={!form.categoryId}
+                required
+              >
+                <option value="">Select Sub-category</option>
+                {formFilteredSubCategories.map(sc => (
+                  <option key={sc.id} value={sc.id}>{sc.title}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
+          {/* Heading / Service Title */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Service Title</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1">Service Heading / Title</label>
             <input
               value={form.title}
               onChange={e => setForm({ ...form, title: e.target.value })}
-              placeholder="e.g. Full House Painting"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. Foam Blast AC Service"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
               required
             />
           </div>
 
+          {/* Subheading */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">Service Subheading (optional)</label>
+            <input
+              value={form.subheading}
+              onChange={e => setForm({ ...form, subheading: e.target.value })}
+              placeholder="e.g. FREE GAS CHECK or 2 options"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          {/* Pricing Row */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Base Price (₹)</label>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Base Price / Starts At (₹)</label>
               <input
                 type="number"
                 value={form.basePrice}
                 onChange={e => setForm({ ...form, basePrice: e.target.value })}
                 placeholder="0"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
                 required
                 min="0"
               />
@@ -369,12 +522,42 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                 value={form.discountPrice}
                 onChange={e => setForm({ ...form, discountPrice: e.target.value })}
                 placeholder="Leave empty"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
               />
             </div>
           </div>
 
-          <div className="pt-4 flex justify-end gap-3">
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
+            <textarea
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="Detailed description of premium service package contents..."
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 h-20 resize-none"
+            />
+          </div>
+
+          {/* Service Image URL Upload */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">Service Image</label>
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {form.imageUrl ? (
+                  <img src={toAssetUrl(form.imageUrl)} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <FiImage className="text-gray-400 w-6 h-6" />
+                )}
+              </div>
+              <label className="cursor-pointer px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-bold text-xs shadow-sm">
+                <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                {uploadingImage ? "Uploading..." : "Upload Service Image"}
+              </label>
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-4">
             <button
               type="button"
               onClick={resetForm}
@@ -384,8 +567,8 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
             </button>
             <button
               type="submit"
-              disabled={saving}
-              className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100 disabled:opacity-50"
+              disabled={saving || uploadingImage}
+              className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100 disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save Service"}
             </button>

@@ -82,8 +82,15 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
   };
 
   const handleSubCategoryClick = (subCat) => {
-    setSelectedSubCategory(subCat);
-    fetchServices(subCat.id || subCat._id);
+    // Navigate to dedicated sub-category page with full context
+    onClose();
+    navigate('/home-services/sub-category', {
+      state: {
+        subCategory: subCat,
+        category: category,
+        currentCity: { _id: cityId },
+      }
+    });
   };
 
   const goBack = () => {
