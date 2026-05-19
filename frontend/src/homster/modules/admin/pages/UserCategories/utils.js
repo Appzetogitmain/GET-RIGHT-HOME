@@ -21,7 +21,7 @@ export const loadCatalog = () => {
   if (!raw) {
     return {
       mode: "multi",
-      home: { banners: [] },
+      home: { banners: [], reviews: [], faqs: [] },
       categories: [],
       subCategories: [],
       services: [],
@@ -32,7 +32,7 @@ export const loadCatalog = () => {
     const parsed = JSON.parse(raw);
     return {
       mode: parsed?.mode === "single" ? "single" : "multi",
-      home: parsed?.home && typeof parsed.home === "object" ? parsed.home : { banners: [] },
+      home: parsed?.home && typeof parsed.home === "object" ? parsed.home : { banners: [], reviews: [], faqs: [] },
       categories: Array.isArray(parsed?.categories) ? parsed.categories : [],
       subCategories: Array.isArray(parsed?.subCategories) ? parsed.subCategories : [],
       services: Array.isArray(parsed?.services) ? parsed.services : [],
@@ -41,7 +41,7 @@ export const loadCatalog = () => {
   } catch {
     return {
       mode: "multi",
-      home: { banners: [] },
+      home: { banners: [], reviews: [], faqs: [] },
       categories: [],
       subCategories: [],
       services: [],
@@ -148,6 +148,23 @@ export const ensureIds = (catalog) => {
               targetServiceId: c.targetServiceId || null,
             }))
             : [],
+        }))
+        : [],
+      reviews: Array.isArray(catalog?.home?.reviews)
+        ? catalog.home.reviews.map((r) => ({
+          id: r.id || `hrev-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          name: r.name || "",
+          subText: r.subText || "",
+          description: r.description || "",
+          imageUrl: r.imageUrl || r.avatar || "",
+          rating: r.rating || "5.0",
+        }))
+        : [],
+      faqs: Array.isArray(catalog?.home?.faqs)
+        ? catalog.home.faqs.map((f) => ({
+          id: f.id || `hfaq-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          question: f.question || f.q || "",
+          answer: f.answer || f.a || "",
         }))
         : [],
     },

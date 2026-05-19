@@ -38,6 +38,38 @@ const toAssetUrl = (url) => {
   return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
 
+const FaqItem = ({ faq }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all duration-300">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+      >
+        <span className="text-sm lg:text-base">{faq.question}</span>
+        <svg
+          className={`w-5 h-5 text-gray-500 transition-transform duration-300 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div
+        className={`transition-all duration-300 ease-in-out overflow-hidden ${
+          isOpen ? 'max-h-[500px] border-t border-gray-50' : 'max-h-0'
+        }`}
+      >
+        <div className="px-5 py-4 text-sm text-gray-500 leading-relaxed bg-gray-50/50">
+          {faq.answer}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -672,6 +704,76 @@ const Home = () => {
                     />
                   </Suspense>
                 </motion.div>
+              )}
+
+              {/* Customer Reviews Section */}
+              {homeContent?.isReviewsVisible !== false && (homeContent?.reviews || []).length > 0 && (
+                <motion.section variants={itemVariants} className="px-5 max-w-lg lg:max-w-6xl mx-auto w-full">
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h2 className="text-xl lg:text-2xl font-bold text-gray-900">What Our Customers Say</h2>
+                      <p className="text-xs lg:text-sm text-gray-500 mt-1">Real reviews from verified bookings</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    {homeContent.reviews.map((r, idx) => (
+                      <div
+                        key={r.id || idx}
+                        className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 snap-start flex-shrink-0 w-[280px] lg:w-[320px] flex flex-col justify-between"
+                      >
+                        <div className="mb-4">
+                          <div className="flex items-center gap-1 text-yellow-500 mb-3">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <svg
+                                key={i}
+                                className={`w-4 h-4 ${i < Math.round(parseFloat(r.rating || 5)) ? 'fill-current' : 'text-gray-300'}`}
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            ))}
+                            <span className="text-xs font-bold text-gray-700 ml-1">{r.rating || "5.0"}</span>
+                          </div>
+                          <p className="text-sm text-gray-600 italic leading-relaxed">
+                            "{r.description}"
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 mt-auto border-t border-gray-50 pt-3">
+                          {r.imageUrl ? (
+                            <img
+                              src={toAssetUrl(r.imageUrl)}
+                              alt={r.name}
+                              className="w-10 h-10 rounded-full object-cover border border-gray-100"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                              {r.name ? r.name.charAt(0).toUpperCase() : '?'}
+                            </div>
+                          )}
+                          <div>
+                            <h4 className="text-sm font-bold text-gray-900">{r.name}</h4>
+                            <p className="text-[10px] text-gray-400 font-semibold tracking-wider uppercase">{r.subText || "Customer"}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.section>
+              )}
+
+              {/* Frequently Asked Questions Section */}
+              {homeContent?.isFaqsVisible !== false && (homeContent?.faqs || []).length > 0 && (
+                <motion.section variants={itemVariants} className="px-5 max-w-lg lg:max-w-3xl mx-auto w-full">
+                  <div className="text-center mb-6">
+                    <h2 className="text-xl lg:text-2xl font-bold text-gray-900">Frequently Asked Questions</h2>
+                    <p className="text-xs lg:text-sm text-gray-500 mt-1">Everything you need to know about our services</p>
+                  </div>
+                  <div className="space-y-3">
+                    {homeContent.faqs.map((faq, idx) => (
+                      <FaqItem key={faq.id || idx} faq={faq} />
+                    ))}
+                  </div>
+                </motion.section>
               )}
 
               {/* Refer & Earn Section */}

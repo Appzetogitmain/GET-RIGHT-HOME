@@ -177,6 +177,16 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
   });
   const [editingCardId, setEditingCardId] = useState(null);
 
+  // Reviews states
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ imageUrl: "", name: "", subText: "", description: "", rating: "5.0" });
+  const [editingReviewId, setEditingReviewId] = useState(null);
+
+  // FAQs states
+  const [isFaqModalOpen, setIsFaqModalOpen] = useState(false);
+  const [faqForm, setFaqForm] = useState({ question: "", answer: "" });
+  const [editingFaqId, setEditingFaqId] = useState(null);
+
   // Uploading state for all modals
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -233,13 +243,17 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
             newAndNoteworthy: addIds(hc.noteworthy || []), // API returns 'noteworthy', component expects 'newAndNoteworthy'
             mostBooked: addIds(hc.booked || []), // API returns 'booked', component expects 'mostBooked'
             categorySections: addIds(hc.categorySections || []),
+            reviews: addIds(hc.reviews || []),
+            faqs: addIds(hc.faqs || []),
             isBannersVisible: hc.isBannersVisible ?? true,
             isPromosVisible: hc.isPromosVisible ?? true,
             isCuratedVisible: hc.isCuratedVisible ?? true,
             isNoteworthyVisible: hc.isNoteworthyVisible ?? true,
             isBookedVisible: hc.isBookedVisible ?? true,
             isCategorySectionsVisible: hc.isCategorySectionsVisible ?? true,
-            isCategoriesVisible: hc.isCategoriesVisible ?? true
+            isCategoriesVisible: hc.isCategoriesVisible ?? true,
+            isReviewsVisible: hc.isReviewsVisible ?? true,
+            isFaqsVisible: hc.isFaqsVisible ?? true
           };
           setCatalog(next);
           saveCatalog(next);
@@ -316,13 +330,17 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
         noteworthy: homeData.newAndNoteworthy,
         booked: homeData.mostBooked,
         categorySections: homeData.categorySections,
+        reviews: homeData.reviews,
+        faqs: homeData.faqs,
         isBannersVisible: homeData.isBannersVisible,
         isPromosVisible: homeData.isPromosVisible,
         isCuratedVisible: homeData.isCuratedVisible,
         isNoteworthyVisible: homeData.isNoteworthyVisible,
         isBookedVisible: homeData.isBookedVisible,
         isCategorySectionsVisible: homeData.isCategorySectionsVisible,
-        isCategoriesVisible: homeData.isCategoriesVisible
+        isCategoriesVisible: homeData.isCategoriesVisible,
+        isReviewsVisible: homeData.isReviewsVisible,
+        isFaqsVisible: homeData.isFaqsVisible
       };
       await homeContentService.update(payload, { cityId: selectedCity });
       toast.success('Home page updated successfully!');
@@ -525,6 +543,54 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
       ...prev,
       cards: prev.cards.filter((c) => c.id !== cardId),
     }));
+  };
+
+  // Reviews handlers
+  const resetReviewForm = () => {
+    setEditingReviewId(null);
+    setReviewForm({ imageUrl: "", name: "", subText: "", description: "", rating: "5.0" });
+    setIsReviewModalOpen(false);
+  };
+
+  const saveReview = async () => {
+    try {
+      const name = reviewForm.name.trim();
+      if (!name) {
+        toast.error("Reviewer name is required");
+        return;
+      }
+      const reviews = home?.reviews || [];
+      if (editingReviewId) {
+        await patchHome({ reviews: reviews.map((r) => (r.id === editingReviewId ? { ...r, ...reviewForm } : r)) });
+      } else {
+        await patchHome({ reviews: [...reviews, { id: `hrev-${Date.now()}`, ...reviewForm }] });
+      }
+      resetReviewForm();
+    } catch (error) { }
+  };
+
+  // FAQs handlers
+  const resetFaqForm = () => {
+    setEditingFaqId(null);
+    setFaqForm({ question: "", answer: "" });
+    setIsFaqModalOpen(false);
+  };
+
+  const saveFaq = async () => {
+    try {
+      const question = faqForm.question.trim();
+      if (!question) {
+        toast.error("Question text is required");
+        return;
+      }
+      const faqs = home?.faqs || [];
+      if (editingFaqId) {
+        await patchHome({ faqs: faqs.map((f) => (f.id === editingFaqId ? { ...f, ...faqForm } : f)) });
+      } else {
+        await patchHome({ faqs: [...faqs, { id: `hfaq-${Date.now()}`, ...faqForm }] });
+      }
+      resetFaqForm();
+    } catch (error) { }
   };
 
   return (
@@ -1293,6 +1359,182 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
                           disabled={idx === categories.length - 1}
                         >
                           ↓
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardShell>
+
+      <CardShell icon={FiGrid} title="Customer Reviews">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-sm text-gray-600">{(home?.reviews || []).length} reviews</div>
+          <div className="flex items-center gap-4">
+            <ToggleSwitch
+              label="Show Reviews"
+              checked={home?.isReviewsVisible !== false}
+              onChange={() => patchHome({ isReviewsVisible: !home?.isReviewsVisible })}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                resetReviewForm();
+                setIsReviewModalOpen(true);
+              }}
+              className="px-4 py-2 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <FiPlus className="w-4 h-4" style={{ display: 'block', color: '#ffffff' }} />
+              <span>Add Review</span>
+            </button>
+          </div>
+        </div>
+        {(home?.reviews || []).length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No reviews yet</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-12">#</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-20">Image</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Name</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Sub Text</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Description</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-16">Rating</th>
+                  <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 w-32">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(home.reviews || []).map((r, idx) => (
+                  <tr key={r.id || idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-4 text-sm font-semibold text-gray-600">{idx + 1}</td>
+                    <td className="py-4 px-4">
+                      {r.imageUrl ? (
+                        <img src={r.imageUrl} alt={r.name} className="h-12 w-12 object-cover rounded-lg border border-gray-200" />
+                      ) : (
+                        <div className="h-12 w-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                          <span className="text-xs text-gray-400">No img</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 font-semibold text-gray-900">{r.name}</td>
+                    <td className="py-4 px-4 text-sm text-gray-600">{r.subText || "—"}</td>
+                    <td className="py-4 px-4 text-sm text-gray-500 max-w-xs truncate" title={r.description}>{r.description}</td>
+                    <td className="py-4 px-4 text-sm font-bold text-yellow-600">{r.rating || "5.0"}★</td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingReviewId(r.id);
+                            setReviewForm({ ...r });
+                            setIsReviewModalOpen(true);
+                          }}
+                          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                          title="Edit"
+                        >
+                          <FiEdit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => patchHome({ reviews: (home.reviews || []).filter((x) => x.id !== r.id) })}
+                          className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                          title="Delete"
+                        >
+                          <FiTrash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardShell>
+
+      <CardShell icon={FiGrid} title="Frequently Asked Questions">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-sm text-gray-600">{(home?.faqs || []).length} FAQs</div>
+          <div className="flex items-center gap-4">
+            <ToggleSwitch
+              label="Show FAQs"
+              checked={home?.isFaqsVisible !== false}
+              onChange={() => patchHome({ isFaqsVisible: !home?.isFaqsVisible })}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                resetFaqForm();
+                setIsFaqModalOpen(true);
+              }}
+              className="px-4 py-2 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <FiPlus className="w-4 h-4" style={{ display: 'block', color: '#ffffff' }} />
+              <span>Add FAQ</span>
+            </button>
+          </div>
+        </div>
+        {(home?.faqs || []).length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No FAQs yet</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-12">#</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Question</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Answer / Description</th>
+                  <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 w-32">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(home.faqs || []).map((f, idx) => (
+                  <tr key={f.id || idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-4 text-sm font-semibold text-gray-600">{idx + 1}</td>
+                    <td className="py-4 px-4 font-semibold text-gray-900">{f.question}</td>
+                    <td className="py-4 px-4 text-sm text-gray-600 max-w-sm truncate" title={f.answer}>{f.answer}</td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingFaqId(f.id);
+                            setFaqForm({ ...f });
+                            setIsFaqModalOpen(true);
+                          }}
+                          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                          title="Edit"
+                        >
+                          <FiEdit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => patchHome({ faqs: (home.faqs || []).filter((x) => x.id !== f.id) })}
+                          className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                          title="Delete"
+                        >
+                          <FiTrash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
@@ -2303,6 +2545,192 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
             </button>
             <button
               onClick={resetCardForm}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Review Modal */}
+      <Modal
+        isOpen={isReviewModalOpen}
+        onClose={resetReviewForm}
+        title={editingReviewId ? "Edit Review" : "Add Review"}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Reviewer Name *</label>
+            <input
+              value={reviewForm.name}
+              onChange={(e) => setReviewForm((p) => ({ ...p, name: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+              placeholder="e.g. Manoj Dua"
+            />
+          </div>
+
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Sub Text *</label>
+            <input
+              value={reviewForm.subText}
+              onChange={(e) => setReviewForm((p) => ({ ...p, subText: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+              placeholder="e.g. HOME CLEANING SERVICE"
+            />
+          </div>
+
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Description / Review Content *</label>
+            <textarea
+              value={reviewForm.description}
+              onChange={(e) => setReviewForm((p) => ({ ...p, description: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white h-24 resize-none"
+              placeholder="e.g. The service was excellent and professional..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Rating</label>
+            <input
+              value={reviewForm.rating}
+              onChange={(e) => setReviewForm((p) => ({ ...p, rating: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+              placeholder="e.g. 4.8"
+            />
+          </div>
+
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Reviewer Avatar / Image</label>
+            <div className="space-y-3">
+              <input
+                type="file"
+                accept="image/*"
+                disabled={uploading}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setUploading(true);
+                    setUploadProgress(0);
+                    try {
+                      const response = await serviceService.uploadImage(file, 'reviews', (progress) => {
+                        setUploadProgress(progress);
+                      });
+                      if (response.success) {
+                        setReviewForm((p) => ({ ...p, imageUrl: response.imageUrl }));
+                        toast.success("Image uploaded!");
+                      }
+                    } catch (error) {
+                      console.error('Review image upload error:', error);
+                      toast.error("Failed to upload image");
+                    } finally {
+                      setUploading(false);
+                      setUploadProgress(0);
+                    }
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              {uploading && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-blue-600 text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      Uploading...
+                    </div>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+              {reviewForm.imageUrl && !uploading && (
+                <div className="relative inline-block group">
+                  <img src={reviewForm.imageUrl} alt="Preview" className="h-24 w-auto object-cover rounded-lg border border-gray-200 shadow-sm" />
+                  <button
+                    onClick={() => setReviewForm(p => ({ ...p, imageUrl: "" }))}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Remove image"
+                  >
+                    <FiTrash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <input
+              type="text"
+              value={reviewForm.imageUrl}
+              onChange={(e) => setReviewForm((p) => ({ ...p, imageUrl: e.target.value }))}
+              className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Or paste image URL"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={saveReview}
+              disabled={uploading || isSyncing}
+              className={`flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${(uploading || isSyncing) ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
+              style={{ backgroundColor: (uploading || isSyncing) ? '#cbd5e1' : '#2874F0' }}
+            >
+              {uploading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : <FiSave className="w-5 h-5" />}
+              {uploading ? "Uploading..." : (editingReviewId ? "Update Review" : "Add Review")}
+            </button>
+            <button
+              onClick={resetReviewForm}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* FAQ Modal */}
+      <Modal
+        isOpen={isFaqModalOpen}
+        onClose={resetFaqForm}
+        title={editingFaqId ? "Edit FAQ" : "Add FAQ"}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Question Text *</label>
+            <input
+              value={faqForm.question}
+              onChange={(e) => setFaqForm((p) => ({ ...p, question: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+              placeholder="e.g. How do I book a service?"
+            />
+          </div>
+
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Answer / Description *</label>
+            <textarea
+              value={faqForm.answer}
+              onChange={(e) => setFaqForm((p) => ({ ...p, answer: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white h-32 resize-none"
+              placeholder="e.g. You can select your service, choose a preferred time slot..."
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={saveFaq}
+              disabled={isSyncing}
+              className="flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+              style={{ backgroundColor: '#2874F0' }}
+            >
+              <FiSave className="w-5 h-5" />
+              {editingFaqId ? "Update FAQ" : "Add FAQ"}
+            </button>
+            <button
+              onClick={resetFaqForm}
               className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
             >
               Cancel
