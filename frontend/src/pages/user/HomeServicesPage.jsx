@@ -43,6 +43,7 @@ const HomeServicesPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isScrolled, setIsScrolled] = useState(false);
     const [activeBanner, setActiveBanner] = useState(0);
+    const [activeFaqIndex, setActiveFaqIndex] = useState(null);
     const scrollContainerRef = useRef(null);
 
     useEffect(() => {
@@ -611,7 +612,7 @@ const HomeServicesPage = () => {
             </section>
 
             {/* Most Booked Services */}
-            <section className="mt-12 px-5 pb-32 max-w-7xl mx-auto">
+            <section className="mt-12 px-5 pb-4 max-w-7xl mx-auto">
                 <div className="flex flex-col mb-8">
                     <div className="flex items-center gap-2 mb-1.5">
                         <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
@@ -659,6 +660,122 @@ const HomeServicesPage = () => {
                     ))}
                 </div>
             </section>
+
+            {/* Customer Reviews Section */}
+            {homeData?.isReviewsVisible !== false && (homeData?.reviews || []).length > 0 && (
+                <section className="mt-12 px-5 pb-4 max-w-7xl mx-auto">
+                    <div className="flex flex-col mb-8">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
+                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Testimonials</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                            Customer <span className="text-emerald-600">Reviews</span>
+                        </h2>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">What our clients say about us</p>
+                    </div>
+                    
+                    <div className="flex overflow-x-auto gap-5 no-scrollbar pb-6 -mx-5 px-5">
+                        {homeData.reviews.map((review, idx) => (
+                            <div 
+                                key={review.id || idx}
+                                className="min-w-[280px] max-w-[280px] bg-white rounded-3xl border border-gray-100 shadow-md shadow-gray-200/20 p-5 flex flex-col justify-between"
+                            >
+                                <div>
+                                    <div className="flex items-center">
+                                        <div className="relative w-12 h-12 flex-shrink-0">
+                                            {review.imageUrl ? (
+                                                <img 
+                                                    src={toAssetUrl(review.imageUrl)} 
+                                                    alt={review.name} 
+                                                    className="w-full h-full object-cover rounded-full"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center font-bold text-sm">
+                                                    {review.name ? review.name.charAt(0).toUpperCase() : '?'}
+                                                </div>
+                                            )}
+                                            <div className="absolute bottom-[-4px] right-[-4px] bg-gray-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-md">
+                                                <span>{review.rating || '5.0'}</span>
+                                                <Star size={7} className="text-yellow-400 fill-yellow-400" />
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 min-w-0 ml-3 flex flex-col justify-center">
+                                            <h4 className="text-xs font-black text-gray-900 truncate leading-snug">{review.name}</h4>
+                                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-tight mt-0.5 truncate">{review.subText || 'Customer'}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <p className="text-[11px] text-gray-500 font-medium leading-relaxed mt-4 line-clamp-4">
+                                        {review.description}
+                                    </p>
+                                </div>
+                                
+                                <div className="mt-3">
+                                    <span className="text-teal-600 hover:text-teal-700 text-[10px] font-black cursor-pointer">see more</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* Frequently Asked Questions Section */}
+            {homeData?.isFaqsVisible !== false && (homeData?.faqs || []).length > 0 && (
+                <section className="mt-12 px-5 pb-32 max-w-3xl mx-auto">
+                    <div className="flex flex-col mb-8">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
+                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Support</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                            Frequently Asked <span className="text-emerald-600">Questions</span>
+                        </h2>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Find answers to common queries</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        {homeData.faqs.map((faq, idx) => {
+                            const isOpen = activeFaqIndex === idx;
+                            return (
+                                <div key={faq.id || idx} className="border-b border-gray-100 pb-4">
+                                    <button
+                                        onClick={() => setActiveFaqIndex(isOpen ? null : idx)}
+                                        className="w-full flex items-center justify-between py-3 text-left focus:outline-none transition-colors"
+                                    >
+                                        <span className={`text-[13px] font-black tracking-tight transition-colors duration-200 ${isOpen ? 'text-emerald-600' : 'text-gray-800'}`}>
+                                            {faq.question}
+                                        </span>
+                                        <div className="flex-shrink-0 ml-4 transition-transform duration-300">
+                                            {isOpen ? (
+                                                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            ) : (
+                                                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
+                                            )}
+                                        </div>
+                                    </button>
+                                    
+                                    <AnimatePresence initial={false}>
+                                        {isOpen && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: "auto", opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <p className="text-[12px] text-gray-500 font-medium leading-relaxed pt-1 pb-3 pr-6">
+                                                    {faq.answer}
+                                                </p>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
 
             {/* Custom Bottom Nav for Home Services */}
             <div className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-gray-100 py-2.5 px-6 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
