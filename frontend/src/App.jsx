@@ -86,6 +86,7 @@ const AdminSubscriptions = React.lazy(() => import('./app/admin/pages/AdminSubsc
 const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAnalysis'));
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
 const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/PropertyFormManager'));
+const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocationsPage'));
 
 
 // Lazy Imports - Partner Pages
@@ -537,6 +538,7 @@ function App() {
                 <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                 <Route path="banners" element={<AdminBanners />} />
                 <Route path="property-forms" element={<AdminPropertyFormManager />} />
+                <Route path="locations" element={<AdminLocationsPage />} />
               </Route>
             </Route>
 

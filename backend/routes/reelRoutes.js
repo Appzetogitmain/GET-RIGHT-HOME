@@ -13,6 +13,8 @@ import {
   recordView,
   getReelById,
   deleteReel,
+  updateReel,
+  toggleShortlist,
 } from '../controllers/reelController.js';
 import { uploadReelVideo } from '../utils/multer.js';
 
@@ -21,11 +23,19 @@ const router = express.Router();
 router.post(
   '/upload',
   protect,
-  authorizedRoles('user'),
   rateLimitReelUpload,
   uploadReelVideo.single('video'),
   uploadReel
 );
+
+router.put(
+  '/:id',
+  protect,
+  uploadReelVideo.single('video'),
+  updateReel
+);
+
+router.post('/shortlist/:id', protect, toggleShortlist);
 
 router.get('/feed', optionalProtect, getFeed);
 router.get('/most-viewed', optionalProtect, getMostViewed);

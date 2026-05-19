@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '../.env') });
 
-const MONGODB_URL = process.env.MONGODB_URL || "mongodb://localhost:27017/get-right-home";
+const MONGODB_URL = process.env.MONGODB_URL || "mongodb+srv://sagarchouhan7609_db_user:sagarchouhan7609_db_user@cluster0.od9npjt.mongodb.net/hoomzo";
 
 // Helper to create steps for standard residential properties (Apartments, Villas, etc)
 const createResidentialSteps = (isRent) => [
@@ -105,7 +105,8 @@ const createPlotSteps = (isRent, isCommercial) => [
     description: 'Where is the plot located?',
     fields: [
       { name: 'city', label: 'City', type: 'text', placeholder: 'e.g. Indore', required: true, order: 1 },
-      { name: 'locality', label: 'Locality', type: 'text', placeholder: 'e.g. Super Corridor', required: true, order: 2 }
+      { name: 'locality', label: 'Locality / Society', type: 'text', placeholder: 'e.g. Super Corridor', required: true, order: 2 },
+      { name: 'houseNumber', label: 'House/Flat Number (Optional)', type: 'text', placeholder: 'e.g. 101, A-Block', required: false, order: 3 }
     ]
   },
   {
@@ -177,9 +178,10 @@ const createRetailSteps = (isRent) => [
     description: 'Where is your property located?',
     fields: [
       { name: 'city', label: 'City', type: 'text', placeholder: 'e.g. Indore', required: true, order: 1 },
-      { name: 'locality', label: 'Locality / Area', type: 'text', placeholder: 'e.g. Chikitsak Nagar', required: true, order: 2 },
-      { name: 'subLocality', label: 'Sub Locality (Optional)', type: 'text', placeholder: 'e.g. Sector-B', required: false, order: 3 },
-      { name: 'mallName', label: 'Mall Name (Optional)', type: 'text', placeholder: 'e.g. Treasure Island Mall', required: false, order: 4 }
+      { name: 'locality', label: 'Locality / Society', type: 'text', placeholder: 'e.g. Chikitsak Nagar', required: true, order: 2 },
+      { name: 'houseNumber', label: 'House/Flat Number (Optional)', type: 'text', placeholder: 'e.g. 101, A-Block', required: false, order: 3 },
+      { name: 'subLocality', label: 'Sub Locality (Optional)', type: 'text', placeholder: 'e.g. Sector-B', required: false, order: 4 },
+      { name: 'mallName', label: 'Mall Name (Optional)', type: 'text', placeholder: 'e.g. Treasure Island Mall', required: false, order: 5 }
     ]
   },
   {
@@ -256,8 +258,9 @@ const createCommercialSteps = (isRent, commType) => [
     description: `Where is your ${commType} located?`,
     fields: [
       { name: 'city', label: 'City', type: 'text', placeholder: 'e.g. Mumbai', required: true, order: 1 },
-      { name: 'locality', label: 'Locality / Area', type: 'text', placeholder: 'e.g. Andheri East', required: true, order: 2 },
-      { name: 'buildingName', label: 'Building Name', type: 'text', placeholder: 'e.g. Raheja Plaza', required: false, order: 3 }
+      { name: 'locality', label: 'Locality / Society', type: 'text', placeholder: 'e.g. Andheri East', required: true, order: 2 },
+      { name: 'houseNumber', label: 'House/Flat Number (Optional)', type: 'text', placeholder: 'e.g. 101, A-Block', required: false, order: 3 },
+      { name: 'buildingName', label: 'Building Name', type: 'text', placeholder: 'e.g. Raheja Plaza', required: false, order: 4 }
     ]
   },
   {
@@ -355,8 +358,9 @@ const createPGSteps = () => [
     description: 'Where is the PG located?',
     fields: [
       { name: 'city', label: 'City', type: 'text', placeholder: 'e.g. Bangalore', required: true, order: 1 },
-      { name: 'locality', label: 'Locality', type: 'text', placeholder: 'e.g. Koramangala', required: true, order: 2 },
-      { name: 'pgName', label: 'PG Name', type: 'text', placeholder: 'e.g. Sunrise PG', required: true, order: 3 }
+      { name: 'locality', label: 'Locality / Society', type: 'text', placeholder: 'e.g. Koramangala', required: true, order: 2 },
+      { name: 'houseNumber', label: 'House/Flat Number (Optional)', type: 'text', placeholder: 'e.g. 101, A-Block', required: false, order: 3 },
+      { name: 'pgName', label: 'PG Name', type: 'text', placeholder: 'e.g. Sunrise PG', required: true, order: 4 }
     ]
   },
   {

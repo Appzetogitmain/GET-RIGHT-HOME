@@ -1,15 +1,44 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Loader2, ArrowLeft } from 'lucide-react';
+import { Plus, X, Loader2, ArrowLeft, Search, SlidersHorizontal, Video, Link, MapPin, Phone, User } from 'lucide-react';
 import ReelCard from '../../components/reels/ReelCard';
 import ReelCommentsSheet from '../../components/reels/ReelCommentsSheet';
 import { reelService } from '../../services/reelService';
-import { isFlutterApp, pickVideo } from '../../utils/flutterBridge';
 import toast from 'react-hot-toast';
 
-const MAX_DURATION_SEC = 30;
-const MAX_SIZE_MB = 20;
-const MAX_CAPTION_LENGTH = 500;
+const BENGALURU_AREAS = [
+  "Bengaluru North",
+  "Bengaluru South",
+  "Bengaluru East",
+  "Anekal",
+  "Yelahanka",
+  "Devanahalli",
+  "Doddaballapura",
+  "Hosakote",
+  "Nelamangala"
+];
+
+const BUDGET_RANGES = [
+  "Less than 1.5 Cr",
+  "1.5 Cr to 2.5 Cr",
+  "2.5 Cr to 3.5 Cr",
+  "More than 3.5 Cr"
+];
+
+const PROPERTY_TYPES = [
+  "PG",
+  "Hotel",
+  "Rent",
+  "Sell",
+  "Apartment",
+  "Independent House / Villa",
+  "Builder Floor",
+  "Plot / Land",
+  "Commercial Office",
+  "Retail Space"
+];
+
+const BHK_OPTIONS = ["1 BHK", "2 BHK", "3 BHK", "4 BHK", "5 BHK"];
 
 export default function ReelsPage() {
   const navigate = useNavigate();
@@ -19,27 +48,95 @@ export default function ReelsPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [commentReel, setCommentReel] = useState(null);
+
+  // Search & Filter State
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterCity, setFilterCity] = useState('All');
+  const [filterBudget, setFilterBudget] = useState('All');
+  const [filterType, setFilterType] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('All');
+
+  // Multi-step Upload Wizard State
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadStep, setUploadStep] = useState(1); // Steps 1 to 4
   const [uploading, setUploading] = useState(false);
-  const [uploadCaption, setUploadCaption] = useState('');
-  const [selectedFileName, setSelectedFileName] = useState('');
+
+  // Form Fields
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedBudget, setSelectedBudget] = useState('');
+  const [videoType, setVideoType] = useState('file'); // 'file' or 'url'
+  const [videoUrl, setVideoUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('General');
+  const [selectedFileName, setSelectedFileName] = useState('');
+  const [title, setTitle] = useState('');
+  const [address, setAddress] = useState('');
+  const [status, setStatus] = useState('Ready to move');
+  const [propertyType, setPropertyType] = useState('Apartment');
+  const [contactNumber, setContactNumber] = useState('');
+  const [caption, setCaption] = useState('');
+  const [bhkSelections, setBhkSelections] = useState({}); // { "2 BHK": "₹3.2 Cr", "3 BHK": "₹5.4 Cr" }
+
+  const [filterOnlyMine, setFilterOnlyMine] = useState(false);
+  const [editingReel, setEditingReel] = useState(null);
+
   const fileInputRef = useRef(null);
   const containerRef = useRef(null);
   const viewReportedRef = useRef(new Set());
   const loadingMoreRef = useRef(false);
 
-  const loadFeed = useCallback(async (cursor = null) => {
-    if (cursor) {
+  const handleEditClick = useCallback((reel) => {
+    setEditingReel(reel);
+    setSelectedCity(reel.city || '');
+    setSelectedBudget(reel.budgetRange || '');
+    setVideoType(reel.videoType || 'url');
+    setVideoUrl(reel.videoUrl || '');
+    setSelectedFile(null);
+    setSelectedFileName('');
+    setTitle(reel.title || '');
+    setAddress(reel.address || '');
+    setStatus(reel.status || 'Ready to move');
+    setPropertyType(reel.propertyType || 'Apartment');
+    setContactNumber(reel.contactNumber || '');
+    setCaption(reel.caption || '');
+    
+    const bhks = {};
+    if (reel.configurations && Array.isArray(reel.configurations)) {
+      reel.configurations.forEach(config => {
+        bhks[config.bhk] = config.price;
+      });
+    }
+    setBhkSelections(bhks);
+    setUploadStep(4);
+    setUploadOpen(true);
+  }, []);
+
+  // Load Feed with active filters & search query
+  const loadFeed = useCallback(async (cursor = null, isFresh = false) => {
+    if (cursor && !isFresh) {
       loadingMoreRef.current = true;
       setLoadingMore(true);
-    } else setLoading(true);
+    } else {
+      setLoading(true);
+    }
     try {
-      const res = await reelService.getFeed(cursor ? { cursor, category: 'All', limit: 20 } : { category: 'All', limit: 20 });
+      const params = {
+        limit: 10,
+        city: filterCity,
+        budgetRange: filterBudget,
+        propertyType: filterType,
+        status: filterStatus,
+        search: searchQuery,
+        creatorOnly: filterOnlyMine ? 'true' : 'false'
+      };
+      if (cursor && !isFresh) {
+        params.cursor = cursor;
+      }
+      const res = await reelService.getFeed(params);
       const list = res.reels || [];
-      console.log('REELS_PAGE_DEBUG:', list.length, list);
-      if (cursor) {
+
+      if (cursor && !isFresh) {
         setReels((prev) => [...prev, ...list]);
       } else {
         setReels(list);
@@ -53,11 +150,16 @@ export default function ReelsPage() {
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, []);
+  }, [filterCity, filterBudget, filterType, filterStatus, searchQuery, filterOnlyMine]);
 
   useEffect(() => {
-    loadFeed();
-  }, []);
+    loadFeed(null, true);
+  }, [filterCity, filterBudget, filterType, filterStatus, filterOnlyMine]);
+
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    loadFeed(null, true);
+  };
 
   const handleViewed = useCallback((reelId) => {
     if (viewReportedRef.current.has(reelId)) return;
@@ -109,6 +211,20 @@ export default function ReelsPage() {
     }
   }, []);
 
+  const handleShortlistToggle = useCallback(async (reelId) => {
+    try {
+      const res = await reelService.shortlist(reelId);
+      setReels((prev) =>
+        prev.map((r) =>
+          r._id === reelId ? { ...r, shortlistedByMe: res.shortlisted } : r
+        )
+      );
+      toast.success(res.shortlisted ? 'Project shortlisted!' : 'Removed from shortlist');
+    } catch (err) {
+      toast.error('Failed to update shortlist status');
+    }
+  }, []);
+
   const handleCommentClick = useCallback((reel) => setCommentReel(reel), []);
   const handleCloseComments = useCallback(() => setCommentReel(null), []);
 
@@ -120,116 +236,6 @@ export default function ReelsPage() {
     );
   }, []);
 
-  const validateVideoFile = (file) => {
-    const allowed = ['video/mp4', 'video/webm'];
-    if (!allowed.includes(file.type)) {
-      toast.error('Only MP4 or WebM video is allowed');
-      return false;
-    }
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      toast.error(`Video must be under ${MAX_SIZE_MB}MB`);
-      return false;
-    }
-    return true;
-  };
-
-  const getVideoDuration = (file) =>
-    new Promise((resolve, reject) => {
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.onloadedmetadata = () => {
-        URL.revokeObjectURL(video.src);
-        resolve(video.duration);
-      };
-      video.onerror = () => reject(new Error('Could not read video'));
-      video.src = URL.createObjectURL(file);
-    });
-
-  const handleUploadSubmit = async (e) => {
-    e.preventDefault();
-    const file = selectedFile || fileInputRef.current?.files?.[0];
-    if (!file) {
-      toast.error('Please select a video');
-      return;
-    }
-    if (!validateVideoFile(file)) return;
-    setUploading(true);
-    try {
-      const duration = await getVideoDuration(file);
-      if (duration > MAX_DURATION_SEC) {
-        toast.error(`Video must be ${MAX_DURATION_SEC} seconds or less`);
-        setUploading(false);
-        return;
-      }
-      const res = await reelService.uploadReel(file, uploadCaption.trim(), selectedCategory);
-      const newReel = { ...res.reel, likedByMe: false };
-      setReels((prev) => [newReel, ...prev]);
-      setUploadOpen(false);
-      setUploadCaption('');
-      setSelectedFileName('');
-      setSelectedFile(null);
-      setSelectedCategory('General');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      toast.success('Reel uploaded!');
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Upload failed';
-      toast.error(msg);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleUploadClick = () => {
-    if (isFlutterApp()) {
-      pickVideo(
-        (file) => {
-          setSelectedFile(file);
-          setSelectedFileName(file.name);
-          setUploadOpen(true);
-        },
-        (err) => {
-          console.error('[Flutter Video Pick Error]', err);
-          // Fallback to regular picker if bridge fails
-          fileInputRef.current?.click();
-        }
-      );
-    } else {
-      fileInputRef.current?.click();
-    }
-  };
-
-  const handleFileSelected = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!validateVideoFile(file)) return;
-      setSelectedFile(file);
-      setSelectedFileName(file.name);
-      setUploadOpen(true);
-    }
-  };
-
-  const handleShareClick = useCallback(async (reel) => {
-    const url = `${window.location.origin}/reels?reel=${reel._id}`;
-    try {
-      await reelService.share(reel._id);
-      if (navigator.share) {
-        await navigator.share({
-          title: 'Reel',
-          text: reel.caption || 'Check this reel',
-          url,
-        });
-      } else {
-        await navigator.clipboard.writeText(url);
-        toast.success('Link copied to clipboard');
-      }
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        await navigator.clipboard.writeText(url).catch(() => { });
-        toast.success('Link copied to clipboard');
-      }
-    }
-  }, []);
-
   const handleDeleteReel = useCallback(async (reelId) => {
     try {
       await reelService.deleteReel(reelId);
@@ -239,6 +245,189 @@ export default function ReelsPage() {
       toast.error('Failed to delete reel');
     }
   }, []);
+
+  const handleShareClick = useCallback((reel) => {
+    const shareUrl = `${window.location.origin}/reels?id=${reel._id}`;
+    if (navigator.share) {
+      navigator.share({
+        title: reel.title || 'Check out this property!',
+        text: reel.caption || 'Look at this property listing on Hoomzo!',
+        url: shareUrl,
+      })
+      .then(() => toast.success('Shared successfully'))
+      .catch(() => {});
+    } else {
+      navigator.clipboard.writeText(shareUrl)
+        .then(() => toast.success('Link copied to clipboard!'))
+        .catch(() => toast.error('Failed to copy link'));
+    }
+  }, []);
+
+  const handleUploadSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!editingReel && videoType === 'file' && !selectedFile) {
+      toast.error('Please select a video file');
+      return;
+    }
+    if (videoType === 'url' && !videoUrl) {
+      toast.error('Please provide a video URL link');
+      return;
+    }
+    if (!title) {
+      toast.error('Please enter property title');
+      return;
+    }
+    if (!address) {
+      toast.error('Please enter property address');
+      return;
+    }
+    if (!contactNumber) {
+      toast.error('Please enter contact details');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Assemble BHK configurations
+      const configurations = Object.entries(bhkSelections)
+        .filter(([_, value]) => value && value.trim())
+        .map(([bhk, price]) => ({ bhk, price }));
+
+      let res;
+      if (editingReel) {
+        if (videoType === 'file') {
+          const formData = new FormData();
+          if (selectedFile) {
+            formData.append('video', selectedFile);
+          }
+          formData.append('videoType', 'file');
+          formData.append('title', title);
+          formData.append('address', address);
+          formData.append('city', selectedCity);
+          formData.append('budgetRange', selectedBudget);
+          formData.append('status', status);
+          formData.append('propertyType', propertyType);
+          formData.append('contactNumber', contactNumber);
+          formData.append('caption', caption);
+          formData.append('configurations', JSON.stringify(configurations));
+          formData.append('category', 'General');
+
+          res = await reelService.updateReel(editingReel._id, formData, true);
+        } else {
+          const payload = {
+            videoType: 'url',
+            videoUrl,
+            title,
+            address,
+            city: selectedCity,
+            budgetRange: selectedBudget,
+            status,
+            propertyType,
+            contactNumber,
+            caption,
+            configurations,
+            category: 'General'
+          };
+          res = await reelService.updateReel(editingReel._id, payload, false);
+        }
+        toast.success('Reel updated successfully!');
+      } else {
+        if (videoType === 'file') {
+          const formData = new FormData();
+          formData.append('video', selectedFile);
+          formData.append('videoType', 'file');
+          formData.append('title', title);
+          formData.append('address', address);
+          formData.append('city', selectedCity);
+          formData.append('budgetRange', selectedBudget);
+          formData.append('status', status);
+          formData.append('propertyType', propertyType);
+          formData.append('contactNumber', contactNumber);
+          formData.append('caption', caption);
+          formData.append('configurations', JSON.stringify(configurations));
+          formData.append('category', 'General');
+
+          res = await reelService.uploadReel(formData, true);
+        } else {
+          const payload = {
+            videoType: 'url',
+            videoUrl,
+            title,
+            address,
+            city: selectedCity,
+            budgetRange: selectedBudget,
+            status,
+            propertyType,
+            contactNumber,
+            caption,
+            configurations,
+            category: 'General'
+          };
+          res = await reelService.uploadReel(payload, false);
+        }
+        toast.success('Reel created successfully!');
+      }
+
+      setUploadOpen(false);
+      resetWizard();
+      loadFeed(null, true);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to submit reel');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resetWizard = () => {
+    setUploadStep(1);
+    setEditingReel(null);
+    setSelectedCity('');
+    setSelectedBudget('');
+    setVideoType('file');
+    setVideoUrl('');
+    setSelectedFile(null);
+    setSelectedFileName('');
+    setTitle('');
+    setAddress('');
+    setStatus('Ready to move');
+    setPropertyType('Apartment');
+    setContactNumber('');
+    setCaption('');
+    setBhkSelections({});
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 30 * 1024 * 1024) {
+        toast.error('Video must be under 30MB');
+        return;
+      }
+      setSelectedFile(file);
+      setSelectedFileName(file.name);
+    }
+  };
+
+  const handleBhkCheck = (bhk) => {
+    setBhkSelections((prev) => {
+      const copy = { ...prev };
+      if (copy[bhk] !== undefined) {
+        delete copy[bhk];
+      } else {
+        copy[bhk] = '';
+      }
+      return copy;
+    });
+  };
+
+  const handleBhkPriceChange = (bhk, val) => {
+    setBhkSelections((prev) => ({
+      ...prev,
+      [bhk]: val
+    }));
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -274,194 +463,163 @@ export default function ReelsPage() {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
+  // Top Bar component with Search and Filter buttons
   const ReelsTopBar = () => (
-    <div className="fixed top-0 left-0 right-0 z-50 md:max-w-md md:left-1/2 md:-translate-x-1/2 flex items-center justify-between p-3 pt-safe safe-area-top bg-black/40 backdrop-blur-sm pointer-events-none">
-      <div className="flex items-center pointer-events-auto">
+    <div className="fixed top-0 left-0 right-0 z-50 md:max-w-md md:left-1/2 md:-translate-x-1/2 flex items-center justify-between p-3.5 pt-safe bg-gradient-to-b from-black/80 to-transparent">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white"
+          className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
           aria-label="Go back"
         >
-          <ArrowLeft size={24} />
+          <ArrowLeft size={18} />
         </button>
-        <span className="ml-3 text-white font-semibold">Reels</span>
+        <span className="text-white font-black text-sm tracking-widest uppercase">99shorts</span>
       </div>
-      <button
-        type="button"
-        onClick={handleUploadClick}
-        className="p-2.5 rounded-full bg-surface text-white hover:bg-surface/90 shadow-lg pointer-events-auto"
-        aria-label="Upload reel"
-      >
-        <Plus size={22} />
-      </button>
+
+      <div className="flex items-center gap-2">
+        {/* My Reels Toggle */}
+        <button
+          type="button"
+          onClick={() => setFilterOnlyMine(!filterOnlyMine)}
+          className={`p-2 rounded-full border transition-all ${
+            filterOnlyMine
+              ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+              : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
+          }`}
+          title={filterOnlyMine ? "Show All Reels" : "Show My Reels"}
+          aria-label="Filter my reels"
+        >
+          <User size={18} />
+        </button>
+
+        {/* Search Toggle */}
+        <button
+          type="button"
+          onClick={() => setSearchOpen(!searchOpen)}
+          className={`p-2 rounded-full border transition-all ${
+            searchOpen ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
+          }`}
+        >
+          <Search size={18} />
+        </button>
+
+        {/* Filter Toggle */}
+        <button
+          type="button"
+          onClick={() => setFilterOpen(true)}
+          className={`p-2 rounded-full border transition-all ${
+            filterCity !== 'All' || filterBudget !== 'All' || filterType !== 'All' || filterStatus !== 'All'
+              ? 'bg-blue-600 border-blue-500 text-white'
+              : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
+          }`}
+        >
+          <SlidersHorizontal size={18} />
+        </button>
+
+        {/* Add Reel (+) Icon */}
+        <button
+          type="button"
+          onClick={() => {
+            resetWizard();
+            setUploadOpen(true);
+          }}
+          className="p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white border border-blue-500/20 shadow-lg transition-transform active:scale-95"
+          aria-label="Upload reel"
+        >
+          <Plus size={18} />
+        </button>
+      </div>
     </div>
   );
 
-  if (loading && reels.length === 0) {
-    return (
-      <div className="min-h-dvh bg-black">
-        <ReelsTopBar />
-        <div className="flex items-center justify-center min-h-dvh pt-14">
-          <div className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-        </div>
-      </div>
-    );
-  }
+  return (
+    <div className="fixed inset-0 z-[100] bg-black md:max-w-md md:mx-auto overflow-hidden overscroll-none select-none">
+      <ReelsTopBar />
 
-  if (reels.length === 0) {
-    return (
-      <div className="min-h-dvh bg-black flex flex-col items-center justify-center text-white p-6">
-        <ReelsTopBar />
-        <div className="flex-1 flex flex-col items-center justify-center pt-14">
-          <p className="text-lg font-semibold">No reels yet</p>
-          <p className="text-sm text-white/70 mt-2">Be the first to share a 10-second reel.</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/mp4,video/webm"
-            className="hidden"
-            onChange={handleFileSelected}
-          />
+      {/* Floating search input underneath top bar */}
+      {searchOpen && (
+        <form 
+          onSubmit={handleSearchSubmit}
+          className="fixed top-14 left-3 right-3 z-50 md:max-w-[420px] md:mx-auto"
+        >
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by title, location or city..."
+              className="w-full bg-black/85 backdrop-blur-md text-white text-xs border border-white/15 rounded-xl py-2.5 pl-3.5 pr-10 focus:outline-none focus:border-blue-500 shadow-xl transition-all"
+            />
+            <button 
+              type="submit" 
+              className="absolute right-3 top-2.5 text-blue-500 hover:text-blue-400 font-bold text-xs"
+            >
+              Go
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Snap feed container */}
+      {loading && reels.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full text-white">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <span className="text-[11px] font-bold uppercase tracking-widest text-white/55 mt-3">Loading feed...</span>
+        </div>
+      ) : reels.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full text-center p-6 text-white bg-neutral-950">
+          <div className="p-4 rounded-full bg-white/5 border border-white/10 mb-4">
+            <SlidersHorizontal className="w-8 h-8 text-neutral-400" />
+          </div>
+          <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">No reels match your criteria</h3>
+          <p className="text-xs text-white/60 mt-1 max-w-[240px]">Try adjusting your search queries or location filters.</p>
           <button
             type="button"
-            onClick={handleUploadClick}
-            className="mt-6 px-6 py-3 rounded-xl bg-surface text-white font-bold"
+            onClick={() => {
+              setSearchQuery('');
+              setFilterCity('All');
+              setFilterBudget('All');
+              setFilterType('All');
+              setFilterStatus('All');
+              setSearchOpen(false);
+            }}
+            className="mt-5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 font-bold text-xs uppercase tracking-widest rounded-xl transition-all"
           >
-            Upload Reel
+            Clear Filters
           </button>
         </div>
-        {uploadOpen && (
-          <div className="fixed inset-0 bg-black/80 z-[60] flex items-end md:items-center md:justify-center">
-            <div className="bg-white w-full rounded-t-2xl md:rounded-2xl md:max-w-md p-6 pb-24 md:pb-10 safe-area-bottom">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg text-gray-900">Upload Reel</h3>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadOpen(false);
-                    setUploadCaption('');
-                    setSelectedFileName('');
-                    setSelectedFile(null);
-                    if (fileInputRef.current) fileInputRef.current.value = '';
-                  }}
-                  className="p-2 rounded-full hover:bg-gray-100"
-                >
-                  <X size={22} />
-                </button>
-              </div>
-              {selectedFileName && (
-                <p className="text-sm text-gray-600 mb-2 truncate" title={selectedFileName}>
-                  Video: <span className="font-medium">{selectedFileName}</span>
-                </p>
-              )}
-              <p className="text-sm text-gray-500 mb-3">
-                Max 10 seconds, max 20MB. MP4 or WebM only.
-              </p>
-              <form onSubmit={handleUploadSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                    Add caption (optional)
-                  </label>
-                  <textarea
-                    value={uploadCaption}
-                    onChange={(e) => setUploadCaption(e.target.value.slice(0, MAX_CAPTION_LENGTH))}
-                    placeholder="Describe your reel..."
-                    maxLength={MAX_CAPTION_LENGTH}
-                    rows={3}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-surface/30 resize-none bg-white"
-                  />
-                  <p className="text-right text-xs text-gray-400 mt-1">
-                    {uploadCaption.length}/{MAX_CAPTION_LENGTH}
-                  </p>
-                </div>
-
-                {/* Hashtag Selection */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Select Category
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {['PG', 'Rent', 'Buy', 'Plot', 'General'].map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setSelectedCategory(cat)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${selectedCategory === cat
-                          ? 'bg-surface text-white border-surface'
-                          : 'bg-white text-gray-500 border-gray-200 hover:border-surface/50'
-                          }`}
-                      >
-                        #{cat.toLowerCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUploadOpen(false);
-                      setUploadCaption('');
-                      setSelectedFileName('');
-                      setSelectedFile(null);
-                      if (fileInputRef.current) fileInputRef.current.value = '';
-                    }}
-                    className="flex-1 py-3 rounded-xl border border-gray-200 font-semibold text-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={uploading}
-                    className="flex-1 py-3 rounded-xl bg-surface text-white font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
-                  >
-                    {uploading ? (
-                      <>
-                        <Loader2 size={20} className="animate-spin" />
-                        Uploading…
-                      </>
-                    ) : (
-                      'Post'
-                    )}
-                  </button>
-                </div>
-              </form>
+      ) : (
+        <div
+          ref={containerRef}
+          className="h-full w-full overflow-y-auto snap-y snap-proximity scroll-smooth no-scrollbar"
+          style={{ scrollSnapType: 'y proximity', overscrollBehaviorY: 'contain' }}
+        >
+          {reels.map((reel, index) => (
+            <ReelCard
+              key={reel._id}
+              reel={reel}
+              index={index}
+              isActive={activeIndex === index}
+              onLikeToggle={handleLikeToggle}
+              onShortlistToggle={handleShortlistToggle}
+              onCommentClick={handleCommentClick}
+              onShareClick={handleShareClick}
+              onViewed={handleViewed}
+              onDelete={handleDeleteReel}
+              onEditClick={handleEditClick}
+            />
+          ))}
+          {loadingMore && (
+            <div className="h-20 flex items-center justify-center bg-black">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
             </div>
-          </div>
-        )}
-      </div>
-    );
-  }
+          )}
+        </div>
+      )}
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black md:max-w-md md:mx-auto overflow-hidden overscroll-none">
-      <ReelsTopBar />
-      <div
-        ref={containerRef}
-        className="h-full w-full overflow-y-auto snap-y snap-proximity scroll-smooth no-scrollbar"
-        style={{ scrollSnapType: 'y proximity', overscrollBehaviorY: 'contain' }}
-      >
-        {reels.map((reel, index) => (
-          <ReelCard
-            key={reel._id}
-            reel={reel}
-            index={index}
-            isActive={activeIndex === index}
-            onLikeToggle={handleLikeToggle}
-            onCommentClick={handleCommentClick}
-            onShareClick={handleShareClick}
-            onViewed={handleViewed}
-            onDelete={handleDeleteReel}
-          />
-        ))}
-        {loadingMore && (
-          <div className="h-20 flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          </div>
-        )}
-      </div>
-
+      {/* Floating Comments Overlay Sheet */}
       <ReelCommentsSheet
         isOpen={!!commentReel}
         onClose={handleCloseComments}
@@ -469,116 +627,434 @@ export default function ReelsPage() {
         onCommentAdded={handleCommentAdded}
       />
 
+      {/* Slide-up Filter Bottom Sheet */}
+      {filterOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/85 flex items-end justify-center animate-fade-in">
+          <div className="bg-neutral-900 border-t border-white/10 w-full rounded-t-3xl md:max-w-md p-6 pb-8 safe-area-bottom shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <span className="font-black text-xs uppercase tracking-widest text-white/50">Filter Shorts</span>
+              <button
+                type="button"
+                onClick={() => setFilterOpen(false)}
+                className="p-1 rounded-full bg-white/5 border border-white/10 text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* City Selection */}
+              <div>
+                <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">City Area</label>
+                <select
+                  value={filterCity}
+                  onChange={(e) => setFilterCity(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                >
+                  <option value="All" className="bg-neutral-950 text-white">All Bengaluru</option>
+                  {BENGALURU_AREAS.map((a) => (
+                    <option key={a} value={a} className="bg-neutral-950 text-white">{a}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Property Type */}
+              <div>
+                <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">Property Type</label>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                >
+                  <option value="All" className="bg-neutral-950 text-white">All Types</option>
+                  {PROPERTY_TYPES.map((t) => (
+                    <option key={t} value={t} className="bg-neutral-950 text-white">{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">Property Status</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                >
+                  <option value="All" className="bg-neutral-950 text-white">All Statuses</option>
+                  <option value="Ready to move" className="bg-neutral-950 text-white">Ready to move</option>
+                  <option value="Under construction" className="bg-neutral-950 text-white">Under construction</option>
+                </select>
+              </div>
+
+              {/* Budget Range */}
+              <div>
+                <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">Budget Target</label>
+                <select
+                  value={filterBudget}
+                  onChange={(e) => setFilterBudget(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                >
+                  <option value="All" className="bg-neutral-950 text-white">All Budgets</option>
+                  {BUDGET_RANGES.map((r) => (
+                    <option key={r} value={r} className="bg-neutral-950 text-white">{r}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterCity('All');
+                  setFilterBudget('All');
+                  setFilterType('All');
+                  setFilterStatus('All');
+                  setFilterOpen(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-wider"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterOpen(false)}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs uppercase tracking-wider shadow-lg"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Multi-page Multi-step Upload Modal Wizard */}
+      {uploadOpen && (
+        <div className="fixed inset-0 z-[110] bg-black/90 flex items-end justify-center overscroll-none animate-fade-in">
+          <div className="bg-neutral-950 border-t border-white/10 w-full rounded-t-3xl md:max-w-md p-6 pb-20 safe-area-bottom shadow-2xl overflow-y-auto max-h-[90%] no-scrollbar">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <span className="font-black text-[9px] uppercase tracking-widest text-blue-500">Step {uploadStep} of 4</span>
+                <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">
+                  {uploadStep === 1 && "Select Bangalore City Area"}
+                  {uploadStep === 2 && "Select Target Budget"}
+                  {uploadStep === 3 && "Add Video Reel Source"}
+                  {uploadStep === 4 && "Add Property Specifications"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUploadOpen(false)}
+                className="p-1 rounded-full bg-white/5 border border-white/10 text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* STEP 1: Bangalore City Selector */}
+            {uploadStep === 1 && (
+              <div className="space-y-3">
+                <span className="text-[10px] text-white/50 uppercase tracking-wide block mb-2">Select the area closest to the property:</span>
+                <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
+                  {BENGALURU_AREAS.map((area) => (
+                    <button
+                      key={area}
+                      type="button"
+                      onClick={() => setSelectedCity(area)}
+                      className={`py-3 px-3.5 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between ${
+                        selectedCity === area
+                          ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20'
+                          : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                      }`}
+                    >
+                      <span>{area}</span>
+                      <MapPin size={11} className={selectedCity === area ? 'text-white' : 'text-neutral-500'} />
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!selectedCity}
+                  onClick={() => setUploadStep(2)}
+                  className="w-full mt-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg"
+                >
+                  Continue to Budget
+                </button>
+              </div>
+            )}
+
+            {/* STEP 2: Budget Selector */}
+            {uploadStep === 2 && (
+              <div className="space-y-3">
+                <span className="text-[10px] text-white/50 uppercase tracking-wide block mb-2">Select the budget category:</span>
+                <div className="flex flex-col gap-2">
+                  {BUDGET_RANGES.map((budget) => (
+                    <button
+                      key={budget}
+                      type="button"
+                      onClick={() => setSelectedBudget(budget)}
+                      className={`py-3.5 px-4 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between ${
+                        selectedBudget === budget
+                          ? 'bg-blue-600 border-blue-500 text-white shadow-lg'
+                          : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                      }`}
+                    >
+                      <span>{budget}</span>
+                      <span className={`w-2.5 h-2.5 rounded-full ${selectedBudget === budget ? 'bg-white border border-white' : 'border border-neutral-600'}`} />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setUploadStep(1)}
+                    className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-widest"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!selectedBudget}
+                    onClick={() => setUploadStep(3)}
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg"
+                  >
+                    Next Step
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Video File Upload OR URL Paste */}
+            {uploadStep === 3 && (
+              <div className="space-y-4 text-white">
+                <div className="flex border border-white/10 rounded-xl overflow-hidden p-1 bg-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setVideoType('file')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                      videoType === 'file' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    <Video size={13} />
+                    <span>Upload Video File</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoType('url')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                      videoType === 'url' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    <Link size={13} />
+                    <span>Paste Link URL</span>
+                  </button>
+                </div>
+
+                {videoType === 'file' ? (
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border border-dashed border-white/15 rounded-2xl p-8 flex flex-col items-center justify-center bg-white/5 cursor-pointer hover:bg-white/10 transition-all"
+                  >
+                    <Video className="w-8 h-8 text-neutral-400 mb-2 animate-pulse" />
+                    <span className="text-xs font-bold text-white">
+                      {selectedFileName ? 'Change Selected Video' : 'Select MP4/WebM Video'}
+                    </span>
+                    <span className="text-[9px] text-white/55 mt-1">Maximum size 30MB, duration max 30s.</span>
+                    {selectedFileName && (
+                      <span className="mt-3 text-[10px] text-emerald-400 bg-emerald-950/40 border border-emerald-900/30 rounded-lg px-3 py-1 font-mono truncate max-w-[200px]">
+                        {selectedFileName}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-[9px] font-black text-white/60 uppercase tracking-wider mb-2">Video/Short URL (Instagram Reel or YouTube Short Link)</label>
+                    <input
+                      type="text"
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
+                      placeholder="e.g. https://www.instagram.com/reel/Code/"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 font-medium"
+                    />
+                    <span className="text-[9px] text-neutral-500 mt-1.5 block">Paste complete URL of YouTube Shorts or Instagram Reels.</span>
+                  </div>
+                )}
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setUploadStep(2)}
+                    className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-widest"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    disabled={videoType === 'file' ? !selectedFile : !videoUrl}
+                    onClick={() => setUploadStep(4)}
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg"
+                  >
+                    Details Step
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4: Property Details Form */}
+            {uploadStep === 4 && (
+              <form onSubmit={handleUploadSubmit} className="space-y-4 text-white">
+                {/* Property Title */}
+                <div>
+                  <label className="block text-[9px] font-black text-white/60 uppercase tracking-wider mb-1.5">Property Title</label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Ambience Creacions"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-blue-500 font-semibold"
+                    required
+                  />
+                </div>
+
+                {/* Address */}
+                <div>
+                  <label className="block text-[9px] font-black text-white/60 uppercase tracking-wider mb-1.5">Address / Locality</label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="e.g. Sector 22, Gurgaon"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-blue-500 font-semibold"
+                    required
+                  />
+                </div>
+
+                {/* Grid of Status & Property Type */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-black text-white/60 uppercase tracking-wider mb-1.5">Status</label>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="Ready to move" className="bg-neutral-950 text-white">Ready to move</option>
+                      <option value="Under construction" className="bg-neutral-950 text-white">Under construction</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black text-white/60 uppercase tracking-wider mb-1.5">Property Type</label>
+                    <select
+                      value={propertyType}
+                      onChange={(e) => setPropertyType(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      {PROPERTY_TYPES.map((t) => (
+                        <option key={t} value={t} className="bg-neutral-950 text-white">{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* BHK Configuration with dynamic inputs */}
+                <div>
+                  <label className="block text-[9px] font-black text-white/60 uppercase tracking-wider mb-2">BHK configuration & manual price (Onwards)</label>
+                  <div className="space-y-2 border border-white/5 bg-white/5 rounded-2xl p-3">
+                    {BHK_OPTIONS.map((bhk) => {
+                      const isChecked = bhkSelections[bhk] !== undefined;
+                      return (
+                        <div key={bhk} className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 text-xs font-bold min-w-[70px] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleBhkCheck(bhk)}
+                              className="rounded border-white/20 bg-neutral-900 text-blue-600 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5"
+                            />
+                            <span>{bhk}</span>
+                          </label>
+                          {isChecked && (
+                            <input
+                              type="text"
+                              value={bhkSelections[bhk]}
+                              onChange={(e) => handleBhkPriceChange(bhk, e.target.value)}
+                              placeholder="e.g. ₹5.4 Cr"
+                              className="flex-1 bg-black/45 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-semibold"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Contact details */}
+                <div>
+                  <label className="block text-[9px] font-black text-white/60 uppercase tracking-wider mb-1.5">Contact Number</label>
+                  <input
+                    type="tel"
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    placeholder="e.g. 9999999999"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-blue-500 font-semibold"
+                    required
+                  />
+                </div>
+
+                {/* Optional Caption */}
+                <div>
+                  <label className="block text-[9px] font-black text-white/60 uppercase tracking-wider mb-1.5">Description/Caption (Optional)</label>
+                  <textarea
+                    value={caption}
+                    onChange={(e) => setCaption(e.target.value)}
+                    placeholder="Write details about the property..."
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-blue-500 resize-none font-medium"
+                  />
+                </div>
+
+                {/* Submit / Back Actions */}
+                <div className="flex gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setUploadStep(3)}
+                    className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-widest"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg flex items-center justify-center gap-1.5"
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        <span>Publishing...</span>
+                      </>
+                    ) : (
+                      <span>Publish Reel</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Hidden native input */}
       <input
         ref={fileInputRef}
         type="file"
         accept="video/mp4,video/webm"
         className="hidden"
-        onChange={handleFileSelected}
+        onChange={handleFileChange}
       />
-
-      {/* Upload modal - z-[60] above bottom nav (z-50); pb-24 on mobile so Cancel/Post sit above nav */}
-      {uploadOpen && (
-        <div className="fixed inset-0 bg-black/80 z-[60] flex items-end md:items-center md:justify-center">
-          <div className="bg-white w-full rounded-t-2xl md:rounded-2xl md:max-w-md p-6 pb-24 md:pb-10 safe-area-bottom">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg text-gray-900">Upload Reel</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setUploadOpen(false);
-                  setUploadCaption('');
-                  setSelectedFileName('');
-                  setSelectedFile(null);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-                className="p-2 rounded-full hover:bg-gray-100"
-              >
-                <X size={22} />
-              </button>
-            </div>
-            {selectedFileName && (
-              <p className="text-sm text-gray-600 mb-2 truncate" title={selectedFileName}>
-                Video: <span className="font-medium">{selectedFileName}</span>
-              </p>
-            )}
-            <p className="text-sm text-gray-500 mb-3">
-              Max 10 seconds, max 20MB. MP4 or WebM only.
-            </p>
-            <form onSubmit={handleUploadSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Add caption (optional)
-                </label>
-                <textarea
-                  value={uploadCaption}
-                  onChange={(e) => setUploadCaption(e.target.value.slice(0, MAX_CAPTION_LENGTH))}
-                  placeholder="Describe your reel..."
-                  maxLength={MAX_CAPTION_LENGTH}
-                  rows={3}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-surface/30 resize-none bg-white"
-                />
-                <p className="text-right text-xs text-gray-400 mt-1">
-                  {uploadCaption.length}/{MAX_CAPTION_LENGTH}
-                </p>
-              </div>
-
-              {/* Hashtag Selection */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Select Category
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {['PG', 'Rent', 'Buy', 'Plot', 'General'].map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${selectedCategory === cat
-                        ? 'bg-surface text-white border-surface'
-                        : 'bg-white text-gray-500 border-gray-200 hover:border-surface/50'
-                        }`}
-                    >
-                      #{cat.toLowerCase()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadOpen(false);
-                    setUploadCaption('');
-                    setSelectedFileName('');
-                    setSelectedFile(null);
-                    setSelectedCategory('General');
-                    if (fileInputRef.current) fileInputRef.current.value = '';
-                  }}
-                  className="flex-1 py-3 rounded-xl border border-gray-200 font-semibold text-gray-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={uploading}
-                  className="flex-1 py-3 rounded-xl bg-surface text-white font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
-                >
-                  {uploading ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      Uploading…
-                    </>
-                  ) : (
-                    'Post'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

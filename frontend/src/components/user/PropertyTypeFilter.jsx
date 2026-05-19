@@ -11,11 +11,21 @@ const ALL_OPTION = {
   isDynamic: false
 };
 
+const PREMIUM_IMAGES = {
+  'All': 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=120&q=80',
+  'Home Service': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=120&q=80',
+  'PG/Co-Living': 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=120&q=80',
+  'Rent': 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=120&q=80',
+  'Buy': 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=120&q=80',
+  'Plot': 'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?auto=format&fit=crop&w=120&q=80'
+};
+
 const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
   const accentColor = theme?.accent || '#059669';
   const STATIC_TYPES = [];
 
   const [allTypes, setAllTypes] = useState([ALL_OPTION, ...STATIC_TYPES]);
+  const [imageError, setImageError] = useState({});
 
   useEffect(() => {
     const fetchDynamicCategories = async () => {
@@ -125,25 +135,42 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
               key={type.id || 'all'}
               onClick={() => onSelectType(type.id, type.label)}
               className={`
-                flex flex-col items-center justify-center gap-2 min-w-[85px] w-[85px] h-[105px] rounded-2xl border transition-all shrink-0
-                ${isSelected ? 'border-[#005B9F] shadow-sm bg-blue-50/20' : 'border-gray-200 bg-white shadow-sm'}
+                flex flex-col items-center justify-between p-1.5 pb-2.5 min-w-[85px] w-[85px] h-[115px] rounded-[1.25rem] border transition-all shrink-0 group
+                ${isSelected ? 'border-[#005B9F] shadow-md bg-blue-50/20 scale-[1.02]' : 'border-gray-100 bg-white hover:border-gray-200'}
               `}
             >
+              {/* Image Container */}
               <div
                 className={`
-                  w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
-                  ${isSelected ? 'bg-[#005B9F]' : 'bg-[#EAF2FA]'}
+                  w-full h-[62px] rounded-xl overflow-hidden relative transition-all duration-300 border
+                  ${isSelected ? 'border-[#005B9F]/30 shadow-sm' : 'border-transparent'}
                 `}
               >
-                <Icon
-                  className="w-6 h-6 transition-colors"
-                  style={{ color: isSelected ? '#FFFFFF' : '#005B9F' }}
-                  strokeWidth={2}
-                />
+                {imageError[type.label] || !PREMIUM_IMAGES[type.label] ? (
+                  <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-[#005B9F]' : 'bg-[#EAF2FA]'}`}>
+                    <Icon
+                      className="w-5 h-5 transition-colors"
+                      style={{ color: isSelected ? '#FFFFFF' : '#005B9F' }}
+                      strokeWidth={2.5}
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={PREMIUM_IMAGES[type.label]}
+                    alt={type.label}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={() => {
+                      setImageError(prev => ({ ...prev, [type.label]: true }));
+                    }}
+                  />
+                )}
               </div>
 
+              {/* Title Text */}
               <span
-                className="text-[11px] md:text-xs font-semibold tracking-wide whitespace-nowrap text-[#333]"
+                className={`text-[9px] md:text-[10px] font-black uppercase tracking-tight text-center leading-tight mt-1.5 px-0.5 transition-colors
+                  ${isSelected ? 'text-[#005B9F]' : 'text-gray-700 group-hover:text-gray-900'}
+                `}
               >
                 {type.label}
               </span>

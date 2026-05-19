@@ -842,6 +842,7 @@ const PropertyDetailsPage = () => {
                     <span className="line-clamp-3 md:line-clamp-1">
                       {address?.fullAddress}
                       {address?.city ? `, ${address.city}` : ''}
+                      {address?.district ? `, ${address.district}` : ''}
 
                       {address?.state ? `, ${address.state}` : ''}
                       {address?.pincode ? ` - ${address.pincode}` : ''}

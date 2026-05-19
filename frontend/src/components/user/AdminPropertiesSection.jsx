@@ -6,6 +6,7 @@ import {
     IndianRupee, ArrowRight, Loader2, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { propertyService } from '../../services/propertyService';
+import toast from 'react-hot-toast';
 
 const PROPERTY_TYPE_ICONS = {
     hotel: '🏨', villa: '🏡', pg: '🏠', hostel: '🛏️',
@@ -120,14 +121,38 @@ const AdminPropertiesSection = ({ searchCity }) => {
     const [loading, setLoading] = useState(false);
     const [citiesLoading, setCitiesLoading] = useState(true);
     const [detectingLocation, setDetectingLocation] = useState(false);
+    const [localQuery, setLocalQuery] = useState("");
     const scrollRef = useRef(null);
 
     // Sync with external searchCity prop (from HeroSection)
     useEffect(() => {
         if (searchCity) {
-            selectCity(searchCity);
+            const lowerSearch = searchCity.toLowerCase();
+            let matchedCity = null;
+            let queryText = searchCity;
+
+            const sortedCities = [...availableCities].sort((a, b) => b.city.length - a.city.length);
+            
+            for (const cityObj of sortedCities) {
+                if (lowerSearch.includes(cityObj.city.toLowerCase())) {
+                    matchedCity = cityObj.city;
+                    queryText = searchCity
+                        .replace(new RegExp(cityObj.city, 'gi'), '')
+                        .trim();
+                    break;
+                }
+            }
+
+            if (!matchedCity) {
+                matchedCity = selectedCity || (availableCities.length > 0 ? availableCities[0].city : 'Bengaluru');
+            }
+
+            setLocalQuery(queryText);
+            selectCity(matchedCity);
+        } else {
+            setLocalQuery("");
         }
-    }, [searchCity]);
+    }, [searchCity, availableCities]);
 
     // Step 1: Fetch all available cities on mount
     useEffect(() => {
@@ -138,9 +163,8 @@ const AdminPropertiesSection = ({ searchCity }) => {
                 const cities = res?.cities || [];
                 setAvailableCities(cities);
 
-                // If cities exist, try to auto-detect location to pick the best city
                 if (cities.length > 0) {
-                    autoDetectCity(cities);
+                    selectCity(cities[0].city);
                 }
             } catch (err) {
                 console.error('Cities fetch failed:', err);
@@ -176,6 +200,12 @@ const AdminPropertiesSection = ({ searchCity }) => {
 
             if (matched) {
                 selectCity(matched.city);
+                if (matched.city !== 'Bengaluru') {
+                    toast(`Currently, Get-Right-Home services are only live in Bengaluru. Launching in ${matched.city} soon! 🚀`, {
+                        duration: 5000,
+                        icon: 'ℹ️'
+                    });
+                }
             } else if (cities.length > 0) {
                 // Fallback to first available city
                 selectCity(cities[0].city);
@@ -226,9 +256,19 @@ const AdminPropertiesSection = ({ searchCity }) => {
 
             if (matched) {
                 selectCity(matched.city);
+                if (matched.city !== 'Bengaluru') {
+                    toast(`Currently, Get-Right-Home services are only live in Bengaluru. Launching in ${matched.city} soon! 🚀`, {
+                        duration: 5000,
+                        icon: 'ℹ️'
+                    });
+                }
             } else {
                 // City not in admin list — fetch anyway
                 setSelectedCity(detectedCity);
+                toast(`Currently, Get-Right-Home services are only live in Bengaluru. Launching in ${detectedCity} soon! 🚀`, {
+                    duration: 5000,
+                    icon: 'ℹ️'
+                });
                 setLoading(true);
                 try {
                     const res = await propertyService.getAdminPropertiesByLocation({ city: detectedCity });
@@ -252,6 +292,18 @@ const AdminPropertiesSection = ({ searchCity }) => {
             scrollRef.current.scrollBy({ left: dir * 200, behavior: 'smooth' });
         }
     };
+
+    const filteredProperties = properties.filter(property => {
+        if (!localQuery) return true;
+        const q = localQuery.toLowerCase();
+        return (
+            (property.propertyName || '').toLowerCase().includes(q) ||
+            (property.propertyType || '').toLowerCase().includes(q) ||
+            (property.address?.area || '').toLowerCase().includes(q) ||
+            (property.address?.city || '').toLowerCase().includes(q) ||
+            (property.description || '').toLowerCase().includes(q)
+        );
+    });
 
     // If no cities at all, don't render the section
     if (!citiesLoading && availableCities.length === 0) return null;
@@ -315,7 +367,15 @@ const AdminPropertiesSection = ({ searchCity }) => {
                         {availableCities.map((cityObj) => (
                             <motion.button
                                 key={cityObj.city}
-                                onClick={() => selectCity(cityObj.city)}
+                                onClick={() => {
+                                    selectCity(cityObj.city);
+                                    if (cityObj.city !== 'Bengaluru') {
+                                        toast(`Currently, Get-Right-Home services are only live in Bengaluru. Launching in ${cityObj.city} soon! 🚀`, {
+                                            duration: 5000,
+                                            icon: 'ℹ️'
+                                        });
+                                    }
+                                }}
                                 whileTap={{ scale: 0.95 }}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-full border text-[12px] font-bold shrink-0 transition-all duration-200 ${selectedCity === cityObj.city
                                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200'
@@ -350,19 +410,37 @@ const AdminPropertiesSection = ({ searchCity }) => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
                     </div>
-                ) : properties.length === 0 ? (
+                ) : (filteredProperties.length === 0 || (selectedCity !== 'Bengaluru' && !localQuery)) ? (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="flex flex-col items-center justify-center py-14 text-center bg-gray-50/60 rounded-2xl border border-dashed border-gray-200"
+                        className="flex flex-col items-center justify-center py-14 text-center bg-gray-50/60 rounded-2xl border border-dashed border-gray-200 px-5"
                     >
                         <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
                             <Building2 size={26} className="text-gray-300" />
                         </div>
-                        <h3 className="font-black text-gray-700 mb-1">No Properties in {selectedCity}</h3>
-                        <p className="text-sm text-gray-400 max-w-xs">
-                            Admin hasn't added any properties for this city yet. Try another city.
-                        </p>
+                        {selectedCity !== 'Bengaluru' && !localQuery ? (
+                            <>
+                                <h3 className="font-black text-gray-700 mb-1">Coming Soon to {selectedCity}! 🚀</h3>
+                                <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
+                                    Currently, Get-Right-Home services are only live in <strong>Bengaluru</strong>. We will be launching in {selectedCity} soon!
+                                </p>
+                            </>
+                        ) : localQuery ? (
+                            <>
+                                <h3 className="font-black text-gray-700 mb-1">No matching properties</h3>
+                                <p className="text-sm text-gray-400 max-w-xs">
+                                    We couldn't find any properties matching "{localQuery}" in {selectedCity}.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <h3 className="font-black text-gray-700 mb-1">No Properties in {selectedCity}</h3>
+                                <p className="text-sm text-gray-400 max-w-xs">
+                                    Admin hasn't added any properties for this city yet. Try another city.
+                                </p>
+                            </>
+                        )}
                     </motion.div>
                 ) : (
                     <AnimatePresence mode="wait">
@@ -374,7 +452,7 @@ const AdminPropertiesSection = ({ searchCity }) => {
                             transition={{ duration: 0.2 }}
                             className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
                         >
-                            {properties.slice(0, 8).map((property, index) => (
+                            {filteredProperties.slice(0, 8).map((property, index) => (
                                 <AdminPropertyCard key={property._id} property={property} index={index} />
                             ))}
                         </motion.div>
@@ -382,7 +460,7 @@ const AdminPropertiesSection = ({ searchCity }) => {
                 )}
 
                 {/* View All */}
-                {properties.length > 0 && (
+                {filteredProperties.length > 0 && (selectedCity === 'Bengaluru' || localQuery) && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -390,7 +468,7 @@ const AdminPropertiesSection = ({ searchCity }) => {
                         className="flex justify-center mt-8"
                     >
                         <Link
-                            to={`/search?search=${selectedCity}`}
+                            to={`/search?search=${encodeURIComponent(selectedCity + (localQuery ? ' ' + localQuery : ''))}`}
                             className="flex items-center gap-2 px-6 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-full font-bold text-sm transition-all border border-emerald-100 hover:border-emerald-200 group"
                         >
                             View All in {selectedCity}

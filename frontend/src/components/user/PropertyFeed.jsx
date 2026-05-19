@@ -85,12 +85,12 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
 
   if (viewMode === 'carousel') {
     return (
-      <div className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 -mx-5 px-5 md:mx-0 md:px-0 pb-1">
+      <div className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-1 w-full">
         {displayedProperties.map(property => (
           <PropertyCard
             key={property._id}
             data={property}
-            className="min-w-[75vw] md:min-w-[270px] snap-center shrink-0"
+            className="min-w-[70vw] md:min-w-[270px] snap-start shrink-0"
             isSaved={savedHotelIds.includes(property._id)}
           />
         ))}

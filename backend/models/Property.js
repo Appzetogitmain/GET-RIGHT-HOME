@@ -105,6 +105,7 @@ const propertySchema = new mongoose.Schema({
     country: String,
     state: String,
     city: String,
+    district: String,
     area: String,
     fullAddress: String,
     pincode: String

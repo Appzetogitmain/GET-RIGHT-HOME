@@ -32,33 +32,68 @@ function sanitizeCaption(input) {
 export const uploadReel = async (req, res) => {
   let filePath = null;
   try {
-    if (!req.file || !req.file.path) {
-      return res.status(400).json({ success: false, message: 'No video file provided' });
+    const videoType = req.body.videoType || 'file';
+    let videoUrl = '';
+    let videoPublicId = null;
+    let thumbnailUrl = null;
+
+    if (videoType === 'file') {
+      if (!req.file || !req.file.path) {
+        return res.status(400).json({ success: false, message: 'No video file provided' });
+      }
+      filePath = req.file.path;
+      const uploadResult = await uploadVideoToCloudinary(filePath, 'reels');
+      const duration = uploadResult.duration;
+
+      if (duration != null && duration > MAX_REEL_DURATION_SEC) {
+        await deleteVideoFromCloudinary(uploadResult.publicId);
+        return res.status(400).json({
+          success: false,
+          message: `Video must be ${MAX_REEL_DURATION_SEC} seconds or less. Your video is ${Math.ceil(duration)}s.`,
+        });
+      }
+
+      videoUrl = uploadResult.url;
+      videoPublicId = uploadResult.publicId;
+      thumbnailUrl = getVideoThumbnailUrl(uploadResult.publicId);
+    } else {
+      videoUrl = req.body.videoUrl;
+      if (!videoUrl) {
+        return res.status(400).json({ success: false, message: 'No video URL provided' });
+      }
     }
-    filePath = req.file.path;
+
     const rawCaption = req.body.caption != null ? String(req.body.caption) : '';
     const caption = sanitizeCaption(rawCaption);
 
-    const uploadResult = await uploadVideoToCloudinary(filePath, 'reels');
-    const duration = uploadResult.duration;
-
-    if (duration != null && duration > MAX_REEL_DURATION_SEC) {
-      await deleteVideoFromCloudinary(uploadResult.publicId);
-      return res.status(400).json({
-        success: false,
-        message: `Video must be ${MAX_REEL_DURATION_SEC} seconds or less. Your video is ${Math.ceil(duration)}s.`,
-      });
+    let configurations = [];
+    if (req.body.configurations) {
+      try {
+        configurations = typeof req.body.configurations === 'string'
+          ? JSON.parse(req.body.configurations)
+          : req.body.configurations;
+      } catch (e) {
+        console.error('Error parsing configurations:', e);
+      }
     }
-
-    const thumbnailUrl = getVideoThumbnailUrl(uploadResult.publicId);
 
     const reel = await Reel.create({
       user: req.user._id,
-      videoUrl: uploadResult.url,
+      videoType,
+      videoUrl,
+      videoPublicId,
       thumbnailUrl,
       caption,
+      title: req.body.title || '',
+      address: req.body.address || '',
+      city: req.body.city || '',
+      budgetRange: req.body.budgetRange || '',
+      status: req.body.status || 'Ready to move',
+      propertyType: req.body.propertyType || '',
+      configurations,
+      contactNumber: req.body.contactNumber || '',
+      brochureUrl: req.body.brochureUrl || '',
       category: req.body.category || 'General',
-      videoPublicId: uploadResult.publicId,
     });
 
     if (typeof req._reelUploadIncrement === 'function') {
@@ -86,10 +121,30 @@ export const getFeed = async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
     const cursor = req.query.cursor;
     const category = req.query.category;
+    const city = req.query.city;
+    const budgetRange = req.query.budgetRange;
+    const propertyType = req.query.propertyType;
+    const status = req.query.status;
+    const search = req.query.search;
+    const creatorOnly = req.query.creatorOnly;
 
     let query = {};
     if (cursor) query._id = { $lt: new mongoose.Types.ObjectId(cursor) };
     if (category && category !== 'All') query.category = category;
+    if (city && city !== 'All') query.city = new RegExp(city, 'i');
+    if (budgetRange && budgetRange !== 'All') query.budgetRange = budgetRange;
+    if (propertyType && propertyType !== 'All') query.propertyType = new RegExp(propertyType, 'i');
+    if (status && status !== 'All') query.status = status;
+    if (creatorOnly === 'true' && req.user) {
+      query.user = req.user._id;
+    }
+    if (search) {
+      query.$or = [
+        { title: new RegExp(search, 'i') },
+        { address: new RegExp(search, 'i') },
+        { city: new RegExp(search, 'i') },
+      ];
+    }
 
     console.log('FEED_QUERY_DEBUG:', JSON.stringify(query), 'Limit:', limit, 'Category:', category);
 
@@ -104,6 +159,7 @@ export const getFeed = async (req, res) => {
     const nextCursor = hasMore ? items[items.length - 1]._id.toString() : null;
 
     let likedSet = new Set();
+    let shortlistedSet = new Set();
     if (req.user && items.length > 0) {
       const reelIds = items.map((r) => r._id);
       const likes = await ReelLike.find({
@@ -111,11 +167,18 @@ export const getFeed = async (req, res) => {
         reel: { $in: reelIds },
       }).select('reel');
       likes.forEach((l) => likedSet.add(l.reel.toString()));
+
+      items.forEach((item) => {
+        if (item.shortlistedBy && item.shortlistedBy.some(id => id.toString() === req.user._id.toString())) {
+          shortlistedSet.add(item._id.toString());
+        }
+      });
     }
 
     const feed = items.map((r) => ({
       ...r,
       likedByMe: likedSet.has(r._id.toString()),
+      shortlistedByMe: shortlistedSet.has(r._id.toString()),
     }));
 
     res.json({
@@ -383,5 +446,80 @@ export const deleteReel = async (req, res) => {
   } catch (err) {
     console.error('Reel delete error:', err);
     res.status(500).json({ success: false, message: err.message || 'Failed to delete reel' });
+  }
+};
+
+export const updateReel = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reel = await Reel.findById(id);
+    if (!reel) return res.status(404).json({ success: false, message: 'Reel not found' });
+
+    const isOwner = reel.user.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Not allowed to modify this reel' });
+    }
+
+    let configurations = reel.configurations;
+    if (req.body.configurations) {
+      try {
+        configurations = typeof req.body.configurations === 'string'
+          ? JSON.parse(req.body.configurations)
+          : req.body.configurations;
+      } catch (e) {
+        console.error('Error parsing configurations:', e);
+      }
+    }
+
+    const updated = await Reel.findByIdAndUpdate(
+      id,
+      {
+        title: req.body.title !== undefined ? req.body.title : reel.title,
+        caption: req.body.caption !== undefined ? sanitizeCaption(req.body.caption) : reel.caption,
+        address: req.body.address !== undefined ? req.body.address : reel.address,
+        city: req.body.city !== undefined ? req.body.city : reel.city,
+        budgetRange: req.body.budgetRange !== undefined ? req.body.budgetRange : reel.budgetRange,
+        status: req.body.status !== undefined ? req.body.status : reel.status,
+        propertyType: req.body.propertyType !== undefined ? req.body.propertyType : reel.propertyType,
+        configurations,
+        contactNumber: req.body.contactNumber !== undefined ? req.body.contactNumber : reel.contactNumber,
+        brochureUrl: req.body.brochureUrl !== undefined ? req.body.brochureUrl : reel.brochureUrl,
+        category: req.body.category !== undefined ? req.body.category : reel.category,
+        videoUrl: req.body.videoUrl !== undefined ? req.body.videoUrl : reel.videoUrl,
+        videoType: req.body.videoType !== undefined ? req.body.videoType : reel.videoType,
+      },
+      { new: true }
+    ).populate('user', 'name profileImage');
+
+    res.json({ success: true, reel: updated });
+  } catch (err) {
+    console.error('Reel update error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to update reel' });
+  }
+};
+
+export const toggleShortlist = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reel = await Reel.findById(id);
+    if (!reel) return res.status(404).json({ success: false, message: 'Reel not found' });
+
+    const userId = req.user._id;
+    const index = reel.shortlistedBy.findIndex(id => id.toString() === userId.toString());
+
+    let shortlisted = false;
+    if (index > -1) {
+      reel.shortlistedBy.splice(index, 1);
+    } else {
+      reel.shortlistedBy.push(userId);
+      shortlisted = true;
+    }
+    await reel.save();
+
+    res.json({ success: true, shortlisted, shortlistedCount: reel.shortlistedBy.length });
+  } catch (err) {
+    console.error('Reel shortlist toggle error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to toggle shortlist' });
   }
 };

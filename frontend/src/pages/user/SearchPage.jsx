@@ -6,6 +6,7 @@ import { MapPin, Search, Filter, Star, IndianRupee, Navigation, X } from 'lucide
 import { toast } from 'react-hot-toast';
 import PropertyCard from '../../components/user/PropertyCard';
 import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
+import { locationData, bengaluruAreas } from '../../data/locationData';
 const SearchPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -24,6 +25,8 @@ const SearchPage = () => {
         const genderFromUrl = searchParams.get('gender')?.split(',') || [];
         const occupancyFromUrl = searchParams.get('occupancy')?.split(',') || [];
         const landTypeFromUrl = searchParams.get('landType')?.split(',') || [];
+        const subTypeFromUrl = searchParams.get('subType')?.split(',') || [];
+        const availabilityFromUrl = searchParams.get('availability')?.split(',') || [];
         const foodFromUrl = searchParams.get('foodIncluded') === 'true';
 
         if (foodFromUrl) amsFromUrl.push('Food');
@@ -55,7 +58,19 @@ const SearchPage = () => {
             else if (v === 'Triple') amsFromUrl.push('Triple Occupancy');
         });
 
-        landTypeFromUrl.forEach(v => amsFromUrl.push(v)); // Residential, Commercial etc match labels
+        landTypeFromUrl.forEach(v => amsFromUrl.push(v));
+
+        subTypeFromUrl.forEach(v => {
+            const matched = ['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'].find(
+                opt => opt.toLowerCase() === v.toLowerCase()
+            );
+            if (matched) amsFromUrl.push(matched);
+        });
+
+        availabilityFromUrl.forEach(v => {
+            if (v.toLowerCase() === 'ready to move') amsFromUrl.push('Ready to Move');
+            else if (v.toLowerCase() === 'under construction') amsFromUrl.push('Under Construction');
+        });
 
         return {
             search: searchParams.get('search') || '',
@@ -67,7 +82,8 @@ const SearchPage = () => {
             sort: searchParams.get('sort') || 'newest',
             amenities: [...new Set(amsFromUrl)],
             radius: parseInt(searchParams.get('radius')) || 50,
-            foodIncluded: searchParams.get('foodIncluded') === 'true'
+            foodIncluded: searchParams.get('foodIncluded') === 'true',
+            city: searchParams.get('city') || ''
         };
     };
 
@@ -81,6 +97,20 @@ const SearchPage = () => {
         { id: 'buy', label: 'Buy' },
         { id: 'plot', label: 'Plot' }
     ]);
+
+    useEffect(() => {
+        if (showFilters) {
+            if (window.lenis) window.lenis.stop();
+            document.body.style.overflow = 'hidden';
+        } else {
+            if (window.lenis) window.lenis.start();
+            document.body.style.overflow = '';
+        }
+        return () => {
+            if (window.lenis) window.lenis.start();
+            document.body.style.overflow = '';
+        };
+    }, [showFilters]);
 
     useEffect(() => {
         setFilters(getInitialFilters());
@@ -125,7 +155,15 @@ const SearchPage = () => {
         const currentType = Array.isArray(filters.type) ? filters.type[0] : filters.type;
         if (!currentType || currentType === 'all') return ['Wi-Fi', 'AC', 'Parking', 'Kitchen', 'Geyser', 'Power Backup'];
 
-        const typeObj = propertyTypes.find(t => t.id === currentType);
+        const typeObj = propertyTypes.find(t => {
+            if (t.id === currentType) return true;
+            if (t.id && currentType) {
+                const tIds = String(t.id).split(',').map(id => id.trim());
+                const cIds = String(currentType).split(',').map(id => id.trim());
+                return tIds.some(id => cIds.includes(id)) || cIds.some(id => tIds.includes(id));
+            }
+            return false;
+        });
         const label = typeObj ? typeObj.label.toLowerCase() : '';
 
         if (label.includes('pg') || label.includes('hostel')) {
@@ -227,6 +265,7 @@ const SearchPage = () => {
         if (filters.minPrice) params.minPrice = filters.minPrice;
         if (filters.maxPrice) params.maxPrice = filters.maxPrice;
         if (filters.sort) params.sort = filters.sort;
+        if (filters.city) params.city = filters.city;
 
         // Map Special Amenities to specific query params
         const finalAmenities = [];
@@ -235,10 +274,22 @@ const SearchPage = () => {
         const genders = [];
         const occupancies = [];
         const landTypes = [];
+        const subTypes = [];
+        const availabilities = [];
 
         filters.amenities.forEach(am => {
+            // SubTypes mapping
+            if (['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'].includes(am)) {
+                subTypes.push(am);
+            }
+            // Availability mapping
+            else if (am === 'Ready to Move') {
+                availabilities.push('Ready to move');
+            } else if (am === 'Under Construction') {
+                availabilities.push('Under construction');
+            }
             // Rent BHK mapping
-            if (am === '1 BHK') bhks.push('1BHK');
+            else if (am === '1 BHK') bhks.push('1BHK');
             else if (am === '2 BHK') bhks.push('2BHK');
             else if (am === '3 BHK') bhks.push('3BHK');
             else if (am === 'Villa') bhks.push('Villa');
@@ -276,6 +327,8 @@ const SearchPage = () => {
         if (genders.length > 0) params.gender = genders.join(',');
         if (occupancies.length > 0) params.occupancy = occupancies.join(',');
         if (landTypes.length > 0) params.landType = landTypes.join(',');
+        if (subTypes.length > 0) params.subType = subTypes.join(',');
+        if (availabilities.length > 0) params.availability = availabilities.join(',');
 
         setSearchParams(params);
         setShowFilters(false);
@@ -387,7 +440,11 @@ const SearchPage = () => {
                         <PropertyTypeFilter
                             selectedType={Array.isArray(filters.type) ? filters.type[0] : filters.type}
                             onSelectType={(type) => {
-                                const newType = type === 'All' ? 'all' : type;
+                                if (type === 'homeservice') {
+                                    navigate('/home-services');
+                                    return;
+                                }
+                                const newType = (!type || type === 'All') ? 'all' : type;
                                 setFilters(prev => ({ ...prev, type: newType, amenities: [] }));
 
                                 // Immediately apply and search
@@ -490,8 +547,9 @@ const SearchPage = () => {
                 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
             `} onClick={() => setShowFilters(false)}>
                 <div
+                    data-lenis-prevent
                     className={`
-                        absolute right-0 top-0 bottom-0 w-80 bg-white shadow-2xl p-4 overflow-y-auto transition-transform duration-300
+                        absolute right-0 top-0 bottom-0 w-80 bg-white shadow-2xl p-4 pb-32 overflow-y-auto transition-transform duration-300
                         ${showFilters ? 'translate-x-0' : 'translate-x-full'}
                     `}
                     onClick={e => e.stopPropagation()}
@@ -506,7 +564,8 @@ const SearchPage = () => {
                                         type: 'all',
                                         minPrice: '',
                                         maxPrice: '',
-                                        amenities: []
+                                        amenities: [],
+                                        city: ''
                                     };
                                     setFilters(newFilters);
 
@@ -608,6 +667,42 @@ const SearchPage = () => {
                                 ))}
                             </div>
                         </div>
+
+                        {/* City / District */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">City / District</label>
+                            <select
+                                value={filters.city || ''}
+                                onChange={(e) => {
+                                    updateFilter('city', e.target.value);
+                                    updateFilter('search', '');
+                                }}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50 font-bold"
+                            >
+                                <option value="">All Bengaluru</option>
+                                <option value="Bengaluru Urban">Bengaluru Urban</option>
+                                <option value="Bengaluru Rural">Bengaluru Rural</option>
+                            </select>
+                        </div>
+
+                        {/* Area / Taluk */}
+                        {filters.city && (
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Area / Taluk</label>
+                                <select
+                                    value={bengaluruAreas.includes(filters.search) ? filters.search : ''}
+                                    onChange={(e) => {
+                                        updateFilter('search', e.target.value);
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50 font-bold"
+                                >
+                                    <option value="">All Areas</option>
+                                    {(locationData.India.Karnataka[filters.city] || []).map(area => (
+                                        <option key={area} value={area}>{area}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         {/* Radius */}
                         {location && (

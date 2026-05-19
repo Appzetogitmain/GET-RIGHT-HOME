@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Loader2, Check } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Loader2, Check, MapPin } from 'lucide-react';
 import { api, hotelService } from '../../services/apiService';
 import toast from 'react-hot-toast';
+import LocationSelector from '../../components/ui/LocationSelector';
 
 const DynamicFormEngine = () => {
   const navigate = useNavigate();
@@ -26,6 +27,14 @@ const DynamicFormEngine = () => {
         description: existingProperty.description || existingProperty.dynamicData?.description,
         amenities: existingProperty.amenities || existingProperty.dynamicData?.amenities,
         nearbyPlaces: existingProperty.nearbyPlaces || existingProperty.dynamicData?.nearbyPlaces,
+        // Pre-populate address fields from root address object
+        country: existingProperty.address?.country || existingProperty.dynamicData?.country || 'India',
+        state: existingProperty.address?.state || existingProperty.dynamicData?.state || 'Karnataka',
+        district: existingProperty.address?.district || existingProperty.dynamicData?.district || '',
+        city: existingProperty.address?.city || existingProperty.dynamicData?.city || '',
+        locality: existingProperty.address?.area || existingProperty.address?.locality || existingProperty.dynamicData?.locality || '',
+        houseNumber: existingProperty.address?.fullAddress || existingProperty.dynamicData?.houseNumber || '',
+        pincode: existingProperty.address?.pincode || existingProperty.dynamicData?.pincode || ''
       };
     }
     const saved = localStorage.getItem(storageKey);
@@ -79,6 +88,26 @@ const DynamicFormEngine = () => {
     const currentStep = template.steps[currentStepIndex];
     let newErrors = {};
     let firstErrorField = null;
+
+    const isLocationStep = currentStep?.title?.toLowerCase().includes('location');
+    if (isLocationStep) {
+      if (!formData.country) {
+        newErrors['country'] = 'Country is required';
+        if (!firstErrorField) firstErrorField = 'country';
+      }
+      if (!formData.state) {
+        newErrors['state'] = 'State is required';
+        if (!firstErrorField) firstErrorField = 'state';
+      }
+      if (!formData.district) {
+        newErrors['district'] = 'District is required';
+        if (!firstErrorField) firstErrorField = 'district';
+      }
+      if (!formData.city) {
+        newErrors['city'] = 'City is required';
+        if (!firstErrorField) firstErrorField = 'city';
+      }
+    }
 
     currentStep.fields.forEach(field => {
       // Basic visibility check (dependency)
@@ -165,6 +194,15 @@ const DynamicFormEngine = () => {
         propertyType,
         dynamicCategory: template?._id,
         dynamicData: formData,
+        address: {
+          country: formData.country || 'India',
+          state: formData.state || 'Karnataka',
+          district: formData.district || '',
+          city: formData.city || '',
+          area: formData.locality || formData.area || '',
+          fullAddress: formData.houseNumber || formData.fullAddress || '',
+          pincode: formData.pincode || ''
+        },
         status: 'pending' // Draft / Pending review
       };
 
@@ -552,8 +590,35 @@ const DynamicFormEngine = () => {
               <h2 className="text-[17px] font-bold text-[#0B1A3A] mb-6">{currentStep.description}</h2>
             )}
 
+            {currentStep?.title?.toLowerCase().includes('location') && (
+              <div className="mb-6 p-4 bg-gray-50 border border-gray-100 rounded-2xl space-y-4">
+                <LocationSelector
+                  value={{
+                    country: formData.country || 'India',
+                    state: formData.state || '',
+                    district: formData.district || '',
+                    city: formData.city || ''
+                  }}
+                  onChange={({ country, state, district, city }) => {
+                    handleChange('country', country);
+                    handleChange('state', state);
+                    handleChange('district', district);
+                    handleChange('city', city);
+                  }}
+                  required
+                />
+                {errors.country && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.country}</p>}
+                {errors.state && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.state}</p>}
+                {errors.district && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.district}</p>}
+                {errors.city && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.city}</p>}
+              </div>
+            )}
+
             {/* Render Fields sorted by order */}
-            {currentStep.fields.sort((a,b) => a.order - b.order).map(renderField)}
+            {currentStep.fields
+              .sort((a,b) => a.order - b.order)
+              .filter(field => !currentStep?.title?.toLowerCase().includes('location') || !['city', 'state', 'district', 'country'].includes(field.name))
+              .map(renderField)}
 
           </motion.div>
         </AnimatePresence>

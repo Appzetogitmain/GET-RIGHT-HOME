@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import LocationSelector from '../../../components/ui/LocationSelector';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
 import { categoryService } from '../../../services/categoryService';
@@ -890,7 +891,7 @@ const AddDynamicWizard = () => {
     if (currentKey === 'basic') {
       setPropertyForm(prev => ({ ...prev, propertyName: '', description: '', shortDescription: '', coverImage: '' }));
     } else if (currentKey === 'location') {
-      updatePropertyForm('address', { state: '', city: '', fullAddress: '', pincode: '' });
+      updatePropertyForm('address', { state: '', city: '', district: '', fullAddress: '', pincode: '' });
       updatePropertyForm(['location', 'coordinates'], ['', '']);
     } else if (currentKey === 'amenities') {
       updatePropertyForm('amenities', []);
@@ -1233,14 +1234,71 @@ const AddDynamicWizard = () => {
 
           {currentStepInfo?.key === 'location' && (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 mb-2">
                 <MapPin size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Location</h2>
+                <h2 className="text-lg font-bold">Where is your property located?</h2>
               </div>
               {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
 
+              {/* ─── Primary: Cascading Location Dropdowns ─── */}
+              <LocationSelector
+                value={{
+                  country: propertyForm.address.country || '',
+                  state: propertyForm.address.state || '',
+                  district: propertyForm.address.district || '',
+                  city: propertyForm.address.city || ''
+                }}
+                onChange={({ country, state, district, city }) => {
+                  updatePropertyForm(['address', 'country'], country);
+                  updatePropertyForm(['address', 'state'], state);
+                  updatePropertyForm(['address', 'district'], district);
+                  updatePropertyForm(['address', 'city'], city);
+                }}
+                required
+              />
+
+              {/* ─── Area / Locality & Pincode ─── */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Locality / Society</label>
+                  <input
+                    className="input w-full"
+                    placeholder="e.g. Mahalaxmi Nagar"
+                    value={propertyForm.address.area || ''}
+                    onChange={e => updatePropertyForm(['address', 'area'], e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Pincode</label>
+                  <input
+                    className="input w-full"
+                    placeholder="e.g. 560001"
+                    value={propertyForm.address.pincode || ''}
+                    onChange={e => updatePropertyForm(['address', 'pincode'], e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* ─── Full Address / House No. ─── */}
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">House/Flat Number <span className="text-gray-400 font-normal">(Optional)</span></label>
+                <input
+                  className="input w-full"
+                  placeholder="e.g. 101, A-Block"
+                  value={propertyForm.address.fullAddress || ''}
+                  onChange={e => updatePropertyForm(['address', 'fullAddress'], e.target.value)}
+                />
+              </div>
+
+              {/* ─── Divider ─── */}
+              <div className="relative py-1">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-400 font-medium">Or pin exact location</span></div>
+              </div>
+
+              {/* ─── GPS Search ─── */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Search Address</label>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Search Address on Map</label>
                 <div className="flex gap-2">
                   <input
                     className="input w-full"
@@ -1273,21 +1331,7 @@ const AddDynamicWizard = () => {
                 )}
               </div>
 
-              <div className="relative py-2">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-400 font-medium">Or Enter Manually</span></div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <input className="input col-span-2" placeholder="Full Address" value={propertyForm.address.fullAddress} onChange={e => updatePropertyForm(['address', 'fullAddress'], e.target.value)} />
-                <input className="input" placeholder="City" value={propertyForm.address.city} onChange={e => updatePropertyForm(['address', 'city'], e.target.value)} />
-
-                <input className="input" placeholder="State" value={propertyForm.address.state} onChange={e => updatePropertyForm(['address', 'state'], e.target.value)} />
-
-                <input className="input" placeholder="Pincode" value={propertyForm.address.pincode} onChange={e => updatePropertyForm(['address', 'pincode'], e.target.value)} />
-
-              </div>
-
+              {/* ─── Use Current Location ─── */}
               <button
                 type="button"
                 onClick={useCurrentLocation}
@@ -1295,15 +1339,9 @@ const AddDynamicWizard = () => {
                 className="w-full py-4 rounded-xl border border-dashed border-[#004F4D] text-[#004F4D] bg-[#004F4D]/5 font-bold flex items-center justify-center gap-2 hover:bg-[#004F4D]/10 transition-colors disabled:opacity-50"
               >
                 {loadingLocation ? (
-                  <>
-                    <Loader2 className="animate-spin" size={18} />
-                    <span>Fetching Location...</span>
-                  </>
+                  <><Loader2 className="animate-spin" size={18} /><span>Fetching Location...</span></>
                 ) : (
-                  <>
-                    <MapPin size={18} />
-                    <span>Use Current Location</span>
-                  </>
+                  <><MapPin size={18} /><span>Use Current Location</span></>
                 )}
               </button>
             </div>
