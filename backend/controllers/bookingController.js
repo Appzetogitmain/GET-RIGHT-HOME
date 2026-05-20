@@ -78,7 +78,7 @@ export const createBooking = async (req, res) => {
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
     const pType = property.propertyType.toLowerCase();
-    const isInquiry = ['buy', 'plot', 'rent'].includes(pType);
+    const isInquiry = ['buy', 'plot', 'rent'].includes(pType) || req.body.isInquiry === true;
 
     // Basic Validation - different for inquiries
     if (!isInquiry) {

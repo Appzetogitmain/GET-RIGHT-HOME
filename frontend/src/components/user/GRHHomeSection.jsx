@@ -51,8 +51,18 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter }) => {
           <Loader2 className="animate-spin text-emerald-600" size={32} />
         </div>
       ) : properties.length === 0 ? (
-        <div className="py-8 px-5 border border-dashed border-gray-200 rounded-2xl w-full text-center text-sm text-gray-400 bg-gray-50/50">
-          No properties listed under this section yet.
+        <div className="py-10 px-5 border border-dashed border-gray-200 rounded-2xl w-full text-center bg-gray-50/30 flex flex-col items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-lg mb-3">
+            🏢
+          </div>
+          <h4 className="text-sm font-bold text-gray-800 mb-1">No Properties Found</h4>
+          <p className="text-xs text-gray-400 max-w-xs mb-3">There are currently no "{title.toLowerCase()}" listed on Get Right Home. Be the first to list yours!</p>
+          <button
+            onClick={() => navigate('/list-property')}
+            className="px-4 py-1.5 bg-[#0f172a] hover:bg-slate-800 active:scale-95 text-white text-xs font-bold rounded-lg transition-all shadow-sm animate-in fade-in"
+          >
+            + List Property
+          </button>
         </div>
       ) : (
         <div className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full">

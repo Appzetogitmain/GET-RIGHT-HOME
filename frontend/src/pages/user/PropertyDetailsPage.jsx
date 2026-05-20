@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { propertyService, legalService, reviewService, offerService, availabilityService, userService, bookingService } from '../../services/apiService';
+import GRHPropertyCard from '../../components/user/GRHPropertyCard';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
   Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare, Tag, X, Gift,
@@ -26,6 +27,16 @@ const PropertyDetailsPage = () => {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [revealedNumber, setRevealedNumber] = useState(null);
   const [revealLoading, setRevealLoading] = useState(false);
+
+  // Enquiry and Similar Properties state
+  const [enquiryTab, setEnquiryTab] = useState('contact');
+  const [enquiryMessage, setEnquiryMessage] = useState('');
+  const [visitDate, setVisitDate] = useState('');
+  const [visitSlot, setVisitSlot] = useState('Morning (10 AM - 12 PM)');
+  const [callbackTime, setCallbackTime] = useState('Immediate (within 15 mins)');
+  const [similarProperties, setSimilarProperties] = useState([]);
+  const [showVisitModal, setShowVisitModal] = useState(false);
+  const [showCallbackModal, setShowCallbackModal] = useState(false);
 
   // Check Availability Logic
   const checkAvailability = async (directCall = false) => {
@@ -180,6 +191,17 @@ const PropertyDetailsPage = () => {
           }
         };
         setProperty(adapted);
+        
+        // Fetch similar properties
+        try {
+          const filterType = p.propertyType || '';
+          const simRes = await propertyService.getPublic({ type: filterType });
+          const propertiesArray = Array.isArray(simRes) ? simRes : (simRes && Array.isArray(simRes.properties) ? simRes.properties : []);
+          const filtered = propertiesArray.filter(item => item._id !== p._id).slice(0, 4);
+          setSimilarProperties(filtered);
+        } catch (err) {
+          console.warn("Failed to load similar properties:", err);
+        }
         // Only set selected room on first load if not set
         // REMOVED: Do NOT auto select room, so Property Images show first by default.
         // if (!selectedRoom && adapted.inventory && adapted.inventory.length > 0) {
@@ -611,17 +633,40 @@ const PropertyDetailsPage = () => {
 
     setBookingLoading(true);
     try {
-      const pType = propertyType?.toLowerCase();
+      const pType = propertyType?.toLowerCase() || 'buy';
+      let messageBody = '';
+      let preferredDate = dates.checkIn ? new Date(dates.checkIn) : new Date();
+
+      if (enquiryTab === 'contact') {
+        messageBody = `[Contact Owner Request]\nMessage: ${enquiryMessage || 'Hi, I am interested in this property. Please share details.'}`;
+      } else if (enquiryTab === 'visit') {
+        if (!visitDate) {
+          toast.error("Please select a date for your visit");
+          setBookingLoading(false);
+          return;
+        }
+        preferredDate = new Date(visitDate);
+        messageBody = `[Schedule Visit Request]\nDate: ${visitDate}\nTime Slot: ${visitSlot}\nMessage: ${enquiryMessage || 'I would like to schedule a visit to this property.'}`;
+      } else if (enquiryTab === 'callback') {
+        messageBody = `[Request Callback]\nPreferred Time: ${callbackTime}\nMessage: ${enquiryMessage || 'Please call me back.'}`;
+      }
+
       const response = await bookingService.create({
         propertyId: id,
-        message: `I am interested in this ${propertyType}. Please contact me.`,
+        isInquiry: true,
+        message: messageBody,
         budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0,
         propertyType: pType,
-        checkInDate: dates.checkIn || new Date()
+        checkInDate: preferredDate
       });
 
       if (response.success) {
-        toast.success("Inquiry sent successfully! The partner will contact you soon.");
+        toast.success(
+          enquiryTab === 'visit' ? "Visit scheduled successfully! The partner will contact you soon." :
+          enquiryTab === 'callback' ? "Callback requested! You will get a call soon." :
+          "Inquiry sent to owner successfully!"
+        );
+        setEnquiryMessage('');
       }
     } catch (error) {
       toast.error(error.message || "Failed to send inquiry");
@@ -720,6 +765,152 @@ const PropertyDetailsPage = () => {
     } finally {
       setRevealLoading(false);
     }
+  };
+
+  const formatPriceLakhCrore = (price) => {
+    if (!price || isNaN(price)) return 'Price on Request';
+    const num = Number(price);
+    if (num >= 10000000) {
+      return `₹${(num / 10000000).toFixed(2).replace(/\.00$/, '')} Cr`;
+    }
+    if (num >= 100000) {
+      return `₹${(num / 100000).toFixed(2).replace(/\.00$/, '')} L`;
+    }
+    return `₹${num.toLocaleString('en-IN')}`;
+  };
+
+  const maskPhone = (phone) => {
+    if (!phone || phone === 'N/A') return 'N/A';
+    const str = String(phone).trim();
+    if (str.length < 5) return str;
+    
+    let cleanStr = str;
+    let countryPrefix = '';
+    
+    if (str.startsWith('+91')) {
+      cleanStr = str.substring(3).trim();
+      countryPrefix = '+91 ';
+    } else if (str.startsWith('+')) {
+      const parts = str.split(' ');
+      if (parts.length > 1) {
+        countryPrefix = parts[0] + ' ';
+        cleanStr = parts.slice(1).join('');
+      } else {
+        countryPrefix = str.substring(0, 3) + ' ';
+        cleanStr = str.substring(3);
+      }
+    }
+    
+    if (cleanStr.length < 5) return str;
+    return `${countryPrefix}${cleanStr.substring(0, 4)}XXXXXX${cleanStr.substring(cleanStr.length - 2)}`;
+  };
+
+  const renderEnquiryWidget = () => {
+    const ownerName = property?.partnerId?.name || property?.userId?.name || 'Owner';
+    const dbPhone = property?.contactNumber || property?.partnerId?.phone || property?.userId?.phone || 'N/A';
+    const displayPhone = revealedNumber ? revealedNumber : maskPhone(dbPhone);
+
+    return (
+      <div className="space-y-4">
+        {/* Price Card */}
+        <div className="bg-[#f0f7ff] rounded-2xl p-5 mb-4 border border-blue-50/50">
+          <p className="text-sm text-gray-500 font-semibold mb-1">Price</p>
+          <p className="text-3xl font-black text-[#0061df] tracking-tight">
+            {formatPriceLakhCrore(bookingBarPrice)}
+            {(isRentGroup || isPgGroup) && <span className="text-sm text-gray-400 font-medium ml-1">/ month</span>}
+          </p>
+        </div>
+
+        {/* 3 Call-to-actions */}
+        <div className="space-y-3">
+          <button
+            onClick={handleRevealContact}
+            disabled={revealLoading}
+            className="w-full py-3.5 bg-[#0061df] hover:bg-[#0052be] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm text-sm"
+          >
+            {revealLoading ? <Loader2 className="animate-spin text-white" size={16} /> : (
+              <>
+                <Phone size={16} className="fill-white text-white" />
+                <span>Contact Owner</span>
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={() => {
+              if (!localStorage.getItem('token')) {
+                toast.error("Please login to schedule a visit");
+                navigate('/login', { state: { from: `/hotel/${_id}` } });
+                return;
+              }
+              setShowVisitModal(true);
+            }}
+            className="w-full py-3.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm text-sm"
+          >
+            <Calendar size={16} className="text-slate-500" />
+            <span>Schedule Visit</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (!localStorage.getItem('token')) {
+                toast.error("Please login to request a callback");
+                navigate('/login', { state: { from: `/hotel/${_id}` } });
+                return;
+              }
+              setShowCallbackModal(true);
+            }}
+            className="w-full py-3.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm text-sm"
+          >
+            <Phone size={16} className="text-slate-500" />
+            <span>Request Callback</span>
+          </button>
+        </div>
+
+        <hr className="border-slate-100 my-4" />
+
+        {/* Owner Details */}
+        <div>
+          <h3 className="text-slate-900 text-base font-bold mb-3">Owner Details</h3>
+          <div className="grid grid-cols-3 gap-y-2 text-sm mb-4">
+            <span className="text-slate-500 font-medium col-span-1">Name:</span>
+            <span className="text-slate-800 font-bold col-span-2">{ownerName}</span>
+            
+            <span className="text-slate-500 font-medium col-span-1">Phone:</span>
+            <span className="text-slate-800 font-bold col-span-2">{displayPhone}</span>
+          </div>
+        </div>
+
+        {/* Support Alert Box */}
+        <div className="bg-[#eff6ff] border border-blue-100 rounded-xl p-3.5 text-xs text-blue-700 font-medium flex items-start gap-2 leading-relaxed">
+          <Info size={14} className="mt-0.5 shrink-0 text-blue-600" />
+          <span>Contact our support team for inquiries about this property</span>
+        </div>
+
+        {/* Support Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              const msg = encodeURIComponent(`Hi, I am interested in property "${name}" (${_id}) listed on Get Right Home.`);
+              window.open(`https://wa.me/919652961607?text=${msg}`, '_blank');
+            }}
+            className="flex-1 py-2.5 bg-[#25d366] hover:bg-[#20ba5a] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+          >
+            💬 WhatsApp Support
+          </button>
+          <a
+            href="tel:+919652961607"
+            className="flex-1 py-2.5 bg-[#1e293b] hover:bg-[#0f172a] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all text-center"
+          >
+            📞 Call Support
+          </a>
+        </div>
+
+        <p className="text-center text-[10px] text-slate-500 font-semibold tracking-wide mt-2">
+          Platform Support: +91 9652961607
+        </p>
+      </div>
+    );
   };
 
   return (
@@ -836,7 +1027,17 @@ const PropertyDetailsPage = () => {
                       </div>
                     )}
                   </div>
-                  <h1 className="text-xl md:text-3xl font-bold text-textDark mb-1 leading-tight">{name}</h1>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h1 className="text-xl md:text-3xl font-bold text-textDark leading-tight">{name}</h1>
+                    <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded border border-slate-200 uppercase tracking-wider shrink-0">
+                      Property ID: {property?.propertyId || id?.substring(id?.length - 8).toUpperCase() || 'N/A'}
+                    </span>
+                    {property?.dynamicData?.availability && (
+                      <span className="text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded border border-blue-100 uppercase tracking-wider shrink-0">
+                        {property.dynamicData.availability}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-start gap-1.5 text-gray-500 text-xs md:text-sm">
                     <MapPin size={14} className="mt-0.5 shrink-0" />
                     <span className="line-clamp-3 md:line-clamp-1">
@@ -862,7 +1063,34 @@ const PropertyDetailsPage = () => {
 
               <hr className="border-gray-100 mb-6" />
 
-              <div className="mb-8">
+              {/* Mobile Owner/Enquiry Section (Above Specs Tab Bar) */}
+              <div className="lg:hidden mb-8">
+                {renderEnquiryWidget()}
+              </div>
+
+              {/* Horizontal Specs Tab Bar */}
+              <div className="flex gap-2 border-b border-gray-100 pb-3 mb-6 overflow-x-auto hide-scrollbar sticky top-0 bg-white z-20 pt-2">
+                <button
+                  onClick={() => document.getElementById('overview')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-all shrink-0"
+                >
+                  🏠 Overview
+                </button>
+                <button
+                  onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-all shrink-0"
+                >
+                  ✨ Key Features
+                </button>
+                <button
+                  onClick={() => document.getElementById('amenities')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-all shrink-0"
+                >
+                  🏊 Amenities
+                </button>
+              </div>
+
+              <div className="mb-8" id="overview">
                 <h2 className="text-lg font-bold text-textDark mb-3">About this place</h2>
                 {property.shortDescription && (
                   <p className="text-gray-500 font-bold italic text-sm mb-3">
@@ -901,7 +1129,7 @@ const PropertyDetailsPage = () => {
                 if (validAmenities.length === 0) return null;
 
                 return (
-                  <div className="mb-4">
+                  <div className="mb-4" id="amenities">
                     <h2 className="text-lg font-bold text-textDark mb-2">{title}</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {validAmenities.map((item, idx) => (
@@ -951,7 +1179,8 @@ const PropertyDetailsPage = () => {
                 );
               })()}
               {/* Type Specific Info - Dynamic Rendering */}
-              {/* PG Details */}
+              <div id="features" className="space-y-6">
+                {/* PG Details */}
               {(propertyType === 'PG' || pgDetails) && (pgDetails || config) && (
                 <div className="mb-8 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
                   <h3 className="font-bold text-yellow-900 mb-3">PG / Co-Living Details</h3>
@@ -1247,6 +1476,7 @@ const PropertyDetailsPage = () => {
                   </div>
                 </div>
               )}
+              </div>
 
               {/* Inventory / Rooms - Conditional */}
               {!isWholeUnit && inventory && inventory.length > 0 && (
@@ -1317,237 +1547,6 @@ const PropertyDetailsPage = () => {
                 </div>
               )}
 
-              {['Rent', 'Buy', 'Plot'].includes(propertyType) ? (
-                <div className="mb-8 p-6 bg-emerald-50 rounded-2xl border border-emerald-100 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm lg:hidden">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-inner">
-                      <Phone size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-emerald-900">Interested in this property?</h3>
-                      <p className="text-sm text-emerald-700 font-medium">Contact the owner directly for more details and visits.</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2 w-full md:w-auto">
-                    <button
-                      onClick={handleRevealContact}
-                      disabled={revealLoading}
-                      className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-black text-center shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 flex items-center justify-center gap-2"
-                    >
-                      {revealLoading ? <Loader2 className="animate-spin" size={18} /> : (
-                        <>
-                          <Phone size={18} />
-                          {revealedNumber ? `Call: ${revealedNumber}` : 'Reveal Contact Number'}
-                        </>
-                      )}
-                    </button>
-                    {revealedNumber && (
-                      <a href={`tel:${revealedNumber}`} className="text-center text-xs text-emerald-600 font-bold underline mt-1">
-                        Click to dial {revealedNumber}
-                      </a>
-                    )}
-                    <p className="text-[10px] text-emerald-600 font-bold uppercase text-center mt-1 tracking-widest">
-                      Verified Inquiries Only
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* Booking Inputs (Date & Guest) */}
-                  <div className="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-100 lg:hidden">
-                    <h3 className="font-bold text-textDark mb-3">
-                      {(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? 'Stay Details' : 'Trip Details'}
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {propertyType?.toLowerCase() !== 'pg' && propertyType?.toLowerCase() !== 'hostel' && (
-                        <>
-                          <div className="col-span-1">
-                            <ModernDatePicker
-                              label="Check-in"
-                              date={dates.checkIn}
-                              onChange={(newDate) => setDates({ ...dates, checkIn: newDate })}
-                              minDate={new Date().toISOString().split('T')[0]}
-                              placeholder="Select Check-in"
-                            />
-                          </div>
-                          <div className="col-span-1">
-                            <ModernDatePicker
-                              label="Check-out"
-                              date={dates.checkOut}
-                              onChange={(newDate) => setDates({ ...dates, checkOut: newDate })}
-                              minDate={dates.checkIn ? new Date(new Date(dates.checkIn).getTime() + 86400000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
-                              placeholder="Select Check-out"
-                              align="right"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {/* Dynamic Guest/Room Inputs */}
-                      {!isWholeUnit && (
-                        <div className="col-span-1">
-                          <label className="text-xs text-gray-500 block mb-1">{getUnitLabel()}</label>
-                          <input
-                            type="number"
-                            min="1"
-                            className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
-                            value={guests.rooms}
-                            onChange={e => setGuests({ ...guests, rooms: e.target.value === '' ? '' : parseInt(e.target.value) })}
-                            onBlur={() => setGuests(prev => ({ ...prev, rooms: Math.max(1, Number(prev.rooms) || 1) }))}
-                          />
-                        </div>
-                      )}
-
-                      <div className="col-span-1">
-                        <label className="text-xs text-gray-500 block mb-1">
-                          {(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? 'Guests' : 'Adults'}
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
-                          value={guests.adults}
-                          onChange={e => setGuests({ ...guests, adults: e.target.value === '' ? '' : parseInt(e.target.value) })}
-                          onBlur={() => setGuests(prev => ({ ...prev, adults: Math.max(1, Number(prev.adults) || 1) }))}
-                          disabled={isBedBased}
-                        />
-                      </div>
-
-                      {!isBedBased && (
-                        <div className="col-span-1">
-                          <label className="text-xs text-gray-500 block mb-1">Children</label>
-                          <input
-                            type="number"
-                            min="0"
-                            className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
-                            value={guests.children}
-                            onChange={e => setGuests({ ...guests, children: e.target.value === '' ? '' : parseInt(e.target.value) })}
-                            onBlur={() => setGuests(prev => ({ ...prev, children: Math.max(0, Number(prev.children) || 0) }))}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-
-                    {/* --- OFFERS SECTION --- */}
-                    {offers.length > 0 && (
-                      <div className="mt-6">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-bold text-gray-800 text-sm flex items-center gap-2">
-                            <Gift size={16} className="text-surface" />
-                            Offers & Coupons
-                          </h4>
-                          <button
-                            onClick={() => setShowOffersModal(true)}
-                            className="text-xs font-bold text-surface hover:underline"
-                          >
-                            View All
-                          </button>
-                        </div>
-
-                        {/* Applied Offer State */}
-                        {appliedOffer ? (
-                          <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between relative overflow-hidden">
-                            <div className="flex items-center gap-3 relative z-10">
-                              <div className="p-1.5 bg-green-100 rounded-lg text-green-700">
-                                <Tag size={16} />
-                              </div>
-                              <div>
-                                <p className="font-bold text-green-800 text-sm">{appliedOffer.code}</p>
-                                <p className="text-xs text-green-600">
-                                  {appliedOffer.discountType === 'percentage'
-                                    ? `${appliedOffer.discountValue}% Off applied`
-                                    : `₹${appliedOffer.discountValue} Off applied`}
-                                </p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={handleRemoveOffer}
-                              className="p-1.5 hover:bg-white/50 rounded-full text-green-700 transition-colors z-10"
-                            >
-                              <X size={16} />
-                            </button>
-                            <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-green-100 rounded-full opacity-50" />
-                          </div>
-                        ) : (
-                          /* Carousel of Top 3 Offers */
-                          <div className="flex overflow-x-auto gap-3 pb-2 hide-scrollbar snap-x">
-                            {offers.slice(0, 3).map((offer) => (
-                              <div
-                                key={offer._id}
-                                onClick={() => handleApplyOffer(offer)}
-                                className="min-w-[200px] bg-white border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-surface transition-all snap-center relative overflow-hidden group"
-                              >
-                                <div className={`absolute top-0 right-0 px-2 py-0.5 text-[9px] font-bold text-white rounded-bl-lg ${offer.bg || 'bg-black'}`}>
-                                  {offer.code}
-                                </div>
-                                <p className="font-bold text-xs text-gray-800 mt-2">{offer.title}</p>
-                                <p className="text-[10px] text-gray-500 line-clamp-1">{offer.subtitle}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-
-                    {/* Price Breakdown Display */}
-                    {priceBreakdown && (
-                      <div className="mt-4 p-4 bg-white rounded-lg border border-dashed border-gray-300">
-                        <h4 className="font-bold text-gray-800 text-sm mb-3">Price Breakdown</h4>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">
-                              {(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? 'Monthly Rent' : `Base Price (${priceBreakdown.nights} nights x ${priceBreakdown.units} units)`}
-                            </span>
-                            <span className="font-medium">₹{priceBreakdown.totalBasePrice.toLocaleString()}</span>
-                          </div>
-
-                          {priceBreakdown.discountAmount > 0 && (
-                            <div className="flex justify-between text-green-600 font-medium">
-                              <span className="flex items-center gap-1"><Tag size={12} /> Coupon Discount ({appliedOffer?.code})</span>
-                              <span>- ₹{priceBreakdown.discountAmount.toLocaleString()}</span>
-                            </div>
-                          )}
-                          {priceBreakdown.totalExtraAdultCharge > 0 && (
-                            <div className="flex justify-between text-orange-700">
-                              <span>Extra Adults ({priceBreakdown.extraAdultsCount} x ₹{priceBreakdown.extraAdultPrice}/{(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? 'month' : 'night'})</span>
-                              <span>+ ₹{priceBreakdown.totalExtraAdultCharge.toLocaleString()}</span>
-                            </div>
-                          )}
-                          {priceBreakdown.totalExtraChildCharge > 0 && (
-                            <div className="flex justify-between text-orange-700">
-                              <span>Extra Children ({priceBreakdown.extraChildrenCount} x ₹{priceBreakdown.extraChildPrice}/{(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? 'month' : 'night'})</span>
-                              <span>+ ₹{priceBreakdown.totalExtraChildCharge.toLocaleString()}</span>
-                            </div>
-                          )}
-                          {priceBreakdown.taxAmount > 0 && (
-                            <div className="flex justify-between text-gray-600">
-                              <span>Taxes & Fees ({taxRate}%)</span>
-                              <span>+ ₹{priceBreakdown.taxAmount.toLocaleString()}</span>
-                            </div>
-                          )}
-                          <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between font-bold text-base text-surface">
-                            <span>Total Amount</span>
-                            <span>₹{priceBreakdown.grandTotal.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Note about limits */}
-                    <div className="mt-3 bg-blue-50 text-blue-800 text-xs p-3 rounded-lg flex items-start gap-2">
-                      <Info size={14} className="mt-0.5 shrink-0" />
-                      <p>
-                        Max allowed: <strong>{getMaxAdults()} {(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? 'Guests' : 'Adults'}</strong>
-                        {!(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') && (
-                          <> and <strong>{getMaxChildren()} Children</strong></>
-                        )} for current selection.
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
 
               {/* Policies */}
               {policies && !['buy', 'plot'].includes(propertyType?.toLowerCase()) && (
@@ -1775,143 +1774,9 @@ const PropertyDetailsPage = () => {
             <div className="sticky top-24 space-y-6">
               <div className="bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 p-6 overflow-hidden relative">
                 {/* Header Gradient */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-surface via-surface/80 to-surface/60" />
-
-                {(['rent', 'buy', 'plot'].includes(propertyType?.toLowerCase()) && false) ? (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-3 bg-emerald-50 rounded-full text-emerald-600">
-                        <Phone size={24} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-500">Direct Contact</p>
-                        <h3 className="text-xl font-bold text-gray-900">Owner</h3>
-                      </div>
-                    </div>
-                    <a href={`tel:${contactNumber}`} className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-200">
-                      <Phone size={20} /> Call {contactNumber}
-                    </a>
-                    <p className="text-center text-xs text-gray-400 font-medium">Verified Inquiries Only</p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Price Header */}
-                    <div className="mb-6">
-                      <div className="flex items-baseline justify-between mb-1">
-                        <p className="text-gray-500 text-sm font-medium">
-                          {priceBreakdown ? 'Total Price' :
-                            (isPgGroup ? 'Monthly Rent' :
-                              (isBuyGroup ? 'Asking Price' : isRentGroup ? 'Monthly Rent' : 'Price per night'))}
-                        </p>
-                        {rating && <div className="flex items-center gap-1 text-xs font-bold bg-green-50 text-green-700 px-2 py-1 rounded"><Star size={10} className="fill-green-700" /> {Number(rating).toFixed(1)}</div>}
-                      </div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-gray-900">₹{priceBreakdown?.grandTotal?.toLocaleString() || bookingBarPrice?.toLocaleString() || 'N/A'}</span>
-                        {!priceBreakdown && (
-                          <span className="text-sm text-gray-400 font-medium">
-                            / {isPgGroup ? 'month' : isRentGroup ? 'month' : isBuyGroup ? 'total' : 'night'}
-                          </span>
-                        )}
-                      </div>
-                      {priceBreakdown && <p className="text-xs text-green-600 font-bold mt-1">Includes taxes & fees</p>}
-                    </div>
-
-                    {/* Inputs */}
-                    <div className="space-y-4 mb-6">
-                      {/* Date Pickers */}
-                      {propertyType?.toLowerCase() !== 'pg' && propertyType?.toLowerCase() !== 'hostel' && propertyType?.toLowerCase() !== 'buy' && propertyType?.toLowerCase() !== 'plot' && propertyType?.toLowerCase() !== 'rent' && (
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <label className="block text-[10px] text-gray-500 font-bold uppercase mb-1">Check-in</label>
-                            <input type="date" value={dates.checkIn} onChange={(e) => setDates({ ...dates, checkIn: e.target.value })} min={new Date().toISOString().split('T')[0]} className="w-full bg-transparent text-sm font-bold outline-none" />
-                          </div>
-                          <div className="bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <label className="block text-[10px] text-gray-500 font-bold uppercase mb-1">Check-out</label>
-                            <input type="date" value={dates.checkOut} onChange={(e) => setDates({ ...dates, checkOut: e.target.value })} min={dates.checkIn || new Date().toISOString().split('T')[0]} className="w-full bg-transparent text-sm font-bold outline-none text-right" />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Inquiry Fields for Buy/Plot */}
-                      {(propertyType?.toLowerCase() === 'buy' || propertyType?.toLowerCase() === 'plot' || propertyType?.toLowerCase() === 'rent') && (
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-3">
-                          <p className="text-xs font-bold text-gray-700 uppercase">Inquiry Details</p>
-                          <textarea
-                            placeholder="I'm interested in this property. Please contact me with more details."
-                            className="w-full bg-white border border-gray-200 rounded-lg p-3 text-sm min-h-[100px] outline-none focus:ring-1 focus:ring-surface"
-                          ></textarea>
-                        </div>
-                      )}
-
-                      {/* Guests */}
-                      {!['buy', 'plot', 'rent'].includes(propertyType?.toLowerCase()) && (
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs font-bold text-gray-700 uppercase">Guests & Rooms</span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            {!isWholeUnit && (
-                              <div>
-                                <label className="text-[10px] text-gray-500 block">{getUnitLabel()}</label>
-                                <select value={guests.rooms} onChange={e => setGuests({ ...guests, rooms: Number(e.target.value) })} className="w-full bg-white border border-gray-300 rounded p-1 text-sm outline-none">
-                                  {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
-                                </select>
-                              </div>
-                            )}
-                            <div>
-                              <label className="text-[10px] text-gray-500 block">Adults</label>
-                              <select value={guests.adults} onChange={e => setGuests({ ...guests, adults: Number(e.target.value) })} disabled={isBedBased} className="w-full bg-white border border-gray-300 rounded p-1 text-sm outline-none">
-                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => <option key={n} value={n}>{n}</option>)}
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Availability Message */}
-                      {dates.checkIn && (
-                        <div className="text-xs">
-                          {checkingAvailability ? <span className="text-blue-600">Checking availability...</span> :
-                            availability?.available === false ? <span className="text-red-500 font-bold">{availability.message}</span> :
-                              availability?.available === true ? <span className="text-green-600 font-bold">Available! {availability.unitsLeft} units left.</span> : null}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action Button */}
-                    <div className="flex flex-col gap-3">
-                      <button
-                        onClick={handleBook}
-                        disabled={bookingLoading || checkingAvailability || availability?.available === false}
-                        className="w-full py-4 bg-gradient-to-r from-surface to-surface-dark text-white rounded-xl font-bold shadow-lg shadow-surface/30 hover:shadow-surface/50 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        {bookingLoading ? <Loader2 className="animate-spin" size={20} /> : (['buy', 'plot', 'rent'].includes(propertyType?.toLowerCase()) ? 'Inquire Now' : 'Reserve Now')}
-                      </button>
-
-                      {(['rent', 'buy', 'plot'].includes(propertyType?.toLowerCase())) && (
-                        <button
-                          onClick={handleRevealContact}
-                          disabled={revealLoading}
-                          className="w-full py-3 bg-white border border-emerald-600 text-emerald-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-50 transition-all"
-                        >
-                          {revealLoading ? <Loader2 className="animate-spin" size={18} /> : (
-                            <>
-                              <Phone size={18} />
-                              {revealedNumber ? `Call: ${revealedNumber}` : 'Reveal Contact'}
-                            </>
-                          )}
-                        </button>
-                      )}
-                      {revealedNumber && (['rent', 'buy', 'plot'].includes(propertyType?.toLowerCase())) && (
-                        <a href={`tel:${revealedNumber}`} className="text-center text-xs text-emerald-600 font-medium underline">
-                          Dial {revealedNumber}
-                        </a>
-                      )}
-                    </div>
-
-                    <p className="text-center text-[10px] text-gray-400 mt-3 font-medium">You won't be charged yet</p>
-                  </>
-                )}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700" />
+                
+                {renderEnquiryWidget()}
               </div>
             </div>
           </div>
@@ -1919,64 +1784,30 @@ const PropertyDetailsPage = () => {
       </div>
 
       {/* Sticky Bottom Booking Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50 lg:hidden">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3.5 shadow-lg z-50 lg:hidden">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs text-gray-500">{priceBreakdown ? 'Total Amount' : priceLabel}</p>
-            <p className="font-bold text-lg text-surface">
-              ₹{priceBreakdown?.grandTotal?.toLocaleString() || bookingBarPrice?.toLocaleString() || 'N/A'}
+            <p className="text-xs text-gray-400 font-medium">Starting from</p>
+            <p className="font-bold text-lg text-slate-900">
+              ₹{bookingBarPrice?.toLocaleString() || 'N/A'}
             </p>
-            {dates.checkIn && dates.checkOut && (
-              <div className="mt-1">
-                {checkingAvailability ? (
-                  <span className="text-[10px] text-blue-500 flex items-center gap-1">
-                    <Loader2 size={10} className="animate-spin" /> Checking...
-                  </span>
-                ) : availability?.available === false ? (
-                  <span className="text-[10px] text-red-500 font-bold flex items-center gap-1">
-                    <Info size={10} /> {availability.message || "Not Available"}
-                  </span>
-                ) : availability?.available === true ? (
-                  <span className="text-[10px] text-green-600 font-bold flex items-center gap-1">
-                    <CheckCircle size={10} /> {availability.unitsLeft !== undefined ? `${availability.unitsLeft} Left!` : 'Available'}
-                  </span>
-                ) : null}
-              </div>
-            )}
-            {extraPricingLabels.length > 0 && (
-              <p className="text-[11px] text-gray-500">
-                {extraPricingLabels.join(' • ')}
-              </p>
-            )}
           </div>
-          <div className="flex flex-1 md:flex-none gap-2">
-            {(['rent', 'buy', 'plot'].includes(propertyType?.toLowerCase())) ? (
-              <div className="flex flex-1 gap-2">
-                <a href={`tel:${contactNumber}`} className="bg-white text-surface border border-surface px-4 py-3 rounded-xl font-bold flex-1 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                  <Phone size={20} /> Call
-                </a>
-                <button
-                  onClick={handleBook}
-                  disabled={bookingLoading}
-                  className="bg-surface text-white px-4 py-3 rounded-xl font-bold flex-1 hover:bg-surface-dark transition-colors flex items-center justify-center gap-2"
-                >
-                  {bookingLoading ? <Loader2 size={20} className="animate-spin" /> : (['buy', 'plot', 'rent'].includes(propertyType?.toLowerCase()) ? 'Inquire Now' : 'Book Now')}
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleBook}
-                disabled={bookingLoading || checkingAvailability}
-                className="bg-surface text-white px-8 py-3 rounded-xl font-bold flex-1 md:w-64 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-surface-dark transition-colors flex items-center justify-center gap-2"
-              >
-                {(bookingLoading || checkingAvailability) ? (
-                  <>
-                    <Loader2 size={20} className="animate-spin" />
-                    <span>{checkingAvailability ? 'Checking...' : 'Processing...'}</span>
-                  </>
-                ) : 'Book Now'}
-              </button>
-            )}
+          <div className="flex gap-2 flex-1 justify-end max-w-[280px]">
+            <button
+              onClick={() => {
+                const msg = encodeURIComponent(`Hi, I am interested in your property "${name}" listed on Get Right Home.`);
+                window.open(`https://wa.me/${revealedNumber || '9652961607'}?text=${msg}`, '_blank');
+              }}
+              className="px-4 py-2.5 bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all flex-1"
+            >
+              💬 WhatsApp
+            </button>
+            <button
+              onClick={handleRevealContact}
+              className="px-4 py-2.5 bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all flex-1"
+            >
+              📞 {revealedNumber ? 'Call' : 'Call Owner'}
+            </button>
           </div>
         </div>
       </div>
@@ -2111,7 +1942,156 @@ const PropertyDetailsPage = () => {
           </div>
         </div>
       )}
+      {/* Similar / Recommended Properties Slider */}
+      {similarProperties && similarProperties.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-12 border-t border-gray-200 mt-12">
+          <div className="mb-8">
+            <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">Recommended Properties</h2>
+            <p className="text-gray-500 text-sm mt-1">Similar properties you might be interested in</p>
+          </div>
+          
+          <div className="flex flex-col gap-6 items-center md:items-start">
+            {similarProperties.map((prop) => (
+              <div key={prop._id} className="w-[280px]">
+                <GRHPropertyCard property={prop} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
+      {/* SCHEDULE VISIT DIALOG MODAL */}
+      {showVisitModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowVisitModal(false)}>
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+              <h3 className="font-bold text-lg text-gray-900">Schedule a Visit</h3>
+              <button onClick={() => setShowVisitModal(false)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setBookingLoading(true);
+              try {
+                const response = await bookingService.create({
+                  propertyId: id,
+                  isInquiry: true,
+                  message: `[Schedule Visit Request]\nDate: ${visitDate}\nTime Slot: ${visitSlot}\nNotes: ${enquiryMessage || 'I would like to schedule a visit to this property.'}`,
+                  budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0,
+                  propertyType: propertyType?.toLowerCase() || 'buy',
+                  checkInDate: new Date(visitDate)
+                });
+                if (response.success) {
+                  toast.success("Visit scheduled successfully! The partner will contact you soon.");
+                  setShowVisitModal(false);
+                  setEnquiryMessage('');
+                }
+              } catch (err) {
+                toast.error(err.message || "Failed to schedule visit");
+              } finally {
+                setBookingLoading(false);
+              }
+            }} className="space-y-4 mt-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Preferred Date</label>
+                <input
+                  type="date"
+                  value={visitDate}
+                  onChange={(e) => setVisitDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-semibold outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Preferred Time Slot</label>
+                <select
+                  value={visitSlot}
+                  onChange={(e) => setVisitSlot(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-semibold outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="Morning (10 AM - 12 PM)">Morning (10 AM - 12 PM)</option>
+                  <option value="Afternoon (12 PM - 3 PM)">Afternoon (12 PM - 3 PM)</option>
+                  <option value="Evening (3 PM - 6 PM)">Evening (3 PM - 6 PM)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Additional Notes</label>
+                <textarea
+                  value={enquiryMessage}
+                  onChange={(e) => setEnquiryMessage(e.target.value)}
+                  placeholder="e.g. I want to see the parking space and facing direction."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm min-h-[80px] outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={bookingLoading}
+                className="w-full py-3 bg-[#0d6efd] hover:bg-[#0b5ed7] text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all text-sm flex items-center justify-center gap-2"
+              >
+                {bookingLoading ? <Loader2 className="animate-spin" size={18} /> : 'Schedule Visit'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* REQUEST CALLBACK DIALOG MODAL */}
+      {showCallbackModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowCallbackModal(false)}>
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+              <h3 className="font-bold text-lg text-gray-900">Request Callback</h3>
+              <button onClick={() => setShowCallbackModal(false)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setBookingLoading(true);
+              try {
+                const response = await bookingService.create({
+                  propertyId: id,
+                  isInquiry: true,
+                  message: `[Request Callback]\nPreferred Time: ${callbackTime}\nMessage: Please call me back at my registered number.`,
+                  budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0,
+                  propertyType: propertyType?.toLowerCase() || 'buy',
+                  checkInDate: new Date()
+                });
+                if (response.success) {
+                  toast.success("Callback requested! You will get a call soon.");
+                  setShowCallbackModal(false);
+                }
+              } catch (err) {
+                toast.error(err.message || "Failed to request callback");
+              } finally {
+                setBookingLoading(false);
+              }
+            }} className="space-y-4 mt-4">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                The owner or their agent will call you back shortly on your registered phone number.
+              </p>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Preferred Callback Time</label>
+                <select
+                  value={callbackTime}
+                  onChange={(e) => setCallbackTime(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-semibold outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="Immediate (within 15 mins)">Immediate (within 15 mins)</option>
+                  <option value="Within 2 Hours">Within 2 Hours</option>
+                  <option value="Evening (after 5 PM)">Evening (after 5 PM)</option>
+                  <option value="Tomorrow Morning">Tomorrow Morning</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={bookingLoading}
+                className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all text-sm flex items-center justify-center gap-2"
+              >
+                {bookingLoading ? <Loader2 className="animate-spin" size={18} /> : 'Request Callback'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -950,7 +950,7 @@ export const getMyProperties = async (req, res) => {
 export const getPropertyDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await Property.findById(id);
+    const property = await Property.findById(id).populate('partnerId').populate('userId');
     if (!property) return res.status(404).json({ message: 'Property not found' });
     const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
     const documents = await PropertyDocument.findOne({ propertyId: id });
