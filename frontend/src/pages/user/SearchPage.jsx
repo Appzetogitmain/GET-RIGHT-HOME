@@ -70,6 +70,7 @@ const SearchPage = () => {
         availabilityFromUrl.forEach(v => {
             if (v.toLowerCase() === 'ready to move') amsFromUrl.push('Ready to Move');
             else if (v.toLowerCase() === 'under construction') amsFromUrl.push('Under Construction');
+            else if (v.toLowerCase() === 'pre launch') amsFromUrl.push('Pre Launch');
         });
 
         return {
@@ -287,6 +288,8 @@ const SearchPage = () => {
                 availabilities.push('Ready to move');
             } else if (am === 'Under Construction') {
                 availabilities.push('Under construction');
+            } else if (am === 'Pre Launch') {
+                availabilities.push('Pre Launch');
             }
             // Rent BHK mapping
             else if (am === '1 BHK') bhks.push('1BHK');

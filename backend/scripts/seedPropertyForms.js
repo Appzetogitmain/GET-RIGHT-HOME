@@ -42,7 +42,7 @@ const createResidentialSteps = (isRent) => [
       { name: 'furnishing', label: 'Furnishing Status', type: 'pill', options: ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'], required: true, order: 4 },
       { name: 'totalFloors', label: 'Total Floors in Building', type: 'number', placeholder: 'e.g. 10', required: true, order: 5 },
       { name: 'floorNumber', label: 'Property on Floor', type: 'number', placeholder: 'e.g. 4', required: true, order: 6 },
-      { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction'], required: true, order: 7 }
+      { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 7 }
     ]
   },
   {
@@ -211,7 +211,7 @@ const createRetailSteps = (isRent) => [
       { name: 'priceNegotiable', label: 'Price Negotiable?', type: 'pill', options: ['Yes', 'No'], required: true, order: 2 },
       { name: 'taxExcluded', label: 'Tax and Govt. charges excluded?', type: 'pill', options: ['Yes', 'No'], required: true, order: 3 },
       { name: 'maintenanceCharges', label: 'Monthly Maintenance (₹) (Optional)', type: 'number', placeholder: 'e.g. 5000', required: false, order: 4 },
-      { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction'], required: true, order: 5 },
+      { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 5 },
       { name: 'propertyAge', label: 'Age of Property', type: 'pill', options: ['0-1 Years', '1-5 Years', '5-10 Years', '10+ Years'], required: true, dependsOn: { field: 'availability', value: 'Ready to move' }, order: 6 },
       { name: 'expectedBy', label: 'Expected By', type: 'dropdown', options: ['Within 3 Months', 'Within 6 Months', 'By 2026', 'By 2027', 'By 2028', 'By 2029'], required: true, dependsOn: { field: 'availability', value: 'Under construction' }, order: 7 },
       { name: 'isPreLeased', label: 'Is it Pre-leased / Pre-Rented?', type: 'pill', options: ['Yes', 'No'], required: true, order: 8 },
@@ -281,7 +281,7 @@ const createCommercialSteps = (isRent, commType) => [
         { name: 'cabinsCount', label: 'Number of Cabins (Optional)', type: 'number', placeholder: 'e.g. 3', required: false, order: 10 },
         { name: 'meetingRoomsCount', label: 'Meeting Rooms / Conference Rooms (Optional)', type: 'number', placeholder: 'e.g. 1', required: false, order: 11 },
         { name: 'propertyAge', label: 'Age of Property', type: 'pill', options: ['0-1 Years', '1-5 Years', '5-10 Years', '10+ Years'], required: true, order: 12 },
-        { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction'], required: true, order: 13 },
+        { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 13 },
         { name: 'isPreLeased', label: 'Is Pre-Leased / Pre-Rented?', type: 'pill', options: ['Yes', 'No'], required: true, order: 14 },
         { name: 'suitableFor', label: 'Suitable For', type: 'checkbox_group', options: ['IT/ITES', 'Back Office', 'Call Center/BPO', 'Corporate Office', 'Co-Working Space', 'Clinic/Hospital', 'Consultancy Office', 'Any/General Office'], required: true, order: 15 },
         { name: 'operatingHours', label: 'Operating Hours (Optional)', type: 'pill', options: ['24x7 Allowed', 'Normal Business Hours'], required: false, order: 16 }

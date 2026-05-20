@@ -921,7 +921,7 @@ const AdminReelAnalysis = () => {
                                         title="Reel Preview"
                                         allow="autoplay; encrypted-media; picture-in-picture"
                                         allowFullScreen
-                                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                                        sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
                                     />
                                 );
                             } else {

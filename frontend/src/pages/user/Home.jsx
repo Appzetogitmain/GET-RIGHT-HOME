@@ -11,6 +11,7 @@ import LatestProjectsBanner from '../../components/user/LatestProjectsBanner';
 import RecommendedSellers from '../../components/user/RecommendedSellers';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import { categoryService } from '../../services/categoryService';
+import GRHHomeSection from '../../components/user/GRHHomeSection';
 
 
 // Category Theme Map - Professional palettes inspired by Housing.com
@@ -215,6 +216,22 @@ const Home = () => {
                                 typeId={sectionIds.plot}
                             />
                         )}
+
+                        <GRHHomeSection
+                            title="Under Construction Properties"
+                            subtitle="Best prices • Flexible payment • Future value appreciation"
+                            availabilityFilter="Under construction"
+                        />
+                        <GRHHomeSection
+                            title="Pre Launch Properties"
+                            subtitle="Best prices • Early bird offers • Premium units"
+                            availabilityFilter="Pre Launch"
+                        />
+                        <GRHHomeSection
+                            title="Ready to Move Properties"
+                            subtitle="Move in immediately • Possession ready • No waiting"
+                            availabilityFilter="Ready to move"
+                        />
                     </div>
                 ) : (
                     // Show Filtered Grid when a specific property category is selected
