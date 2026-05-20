@@ -503,27 +503,29 @@ export default function ReelsPage() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            if (window.history.length > 1) {
+              navigate(-1);
+            } else {
+              navigate('/');
+            }
+          }}
           className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
           aria-label="Go back"
         >
           <ArrowLeft size={18} />
         </button>
-        <span className="text-white font-black text-sm tracking-widest uppercase">99shorts</span>
+        <span className="text-white font-black text-sm tracking-widest uppercase">GRH-shorts</span>
       </div>
 
       <div className="flex items-center gap-2">
-        {/* My Reels Toggle */}
+        {/* My Reels Page */}
         <button
           type="button"
-          onClick={() => setFilterOnlyMine(!filterOnlyMine)}
-          className={`p-2 rounded-full border transition-all ${
-            filterOnlyMine
-              ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-              : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
-          }`}
-          title={filterOnlyMine ? "Show All Reels" : "Show My Reels"}
-          aria-label="Filter my reels"
+          onClick={() => navigate('/reels/my')}
+          className="p-2 rounded-full border transition-all bg-white/10 border-white/10 text-white hover:bg-white/20"
+          title="My Reels Dashboard"
+          aria-label="My reels dashboard"
         >
           <User size={18} />
         </button>
@@ -635,7 +637,7 @@ export default function ReelsPage() {
               key={reel._id}
               reel={reel}
               index={index}
-              isActive={activeIndex === index}
+              isActive={activeIndex === index && !uploadOpen && !editingReel}
               onLikeToggle={handleLikeToggle}
               onShortlistToggle={handleShortlistToggle}
               onCommentClick={handleCommentClick}

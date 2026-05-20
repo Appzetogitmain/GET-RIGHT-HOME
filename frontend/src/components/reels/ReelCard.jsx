@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback, memo, useState } from 'react';
 import { Heart, MessageCircle, Share2, Volume2, VolumeX, Trash2, Phone, Eye, Download, MapPin, Pencil, Play } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const SafeIframe = memo(function SafeIframe({ src, className, style, title, allow }) {
+const SafeIframe = memo(function SafeIframe({ src, className, style, title, allow, sandbox }) {
   const iframeRef = useRef(null);
   const isMounted = useRef(false);
 
@@ -28,6 +28,7 @@ const SafeIframe = memo(function SafeIframe({ src, className, style, title, allo
       style={style}
       title={title}
       allow={allow}
+      sandbox={sandbox}
     />
   );
 });
@@ -112,7 +113,7 @@ const ReelCard = memo(function ReelCard({
     }
 
     // Instagram Reel / Post
-    const instaMatch = url.match(/(?:instagram\.com\/(?:p|reel|tv)\/)([^/?#&\s]+)/i);
+    const instaMatch = url.match(/(?:instagram\.com\/(?:p|reel|reels|tv)\/)([^/?#&\s]+)/i);
     if (instaMatch) {
       return { type: 'instagram', id: instaMatch[1] };
     }
@@ -160,10 +161,12 @@ const ReelCard = memo(function ReelCard({
             (isActive && isPlaying) ? (
               <SafeIframe
                 src={`https://www.instagram.com/reel/${videoDetails.id}/embed/`}
-                className={`absolute inset-0 w-full h-full object-cover ${isPlaying ? '' : 'pointer-events-none'}`}
+                className={`absolute inset-0 w-full h-full bg-neutral-900 ${isPlaying ? '' : 'pointer-events-none'}`}
                 style={{ border: 0, height: '100%', width: '100%' }}
                 title={reel.title}
-                allow="autoplay"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
               />
             ) : (
               <img

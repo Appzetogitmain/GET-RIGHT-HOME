@@ -900,7 +900,7 @@ const AdminReelAnalysis = () => {
                         ) : (() => {
                             const url = previewReel.videoUrl || '';
                             const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i);
-                            const instaMatch = url.match(/(?:instagram\.com\/(?:p|reel|tv)\/)([^/?#&\s]+)/i);
+                            const instaMatch = url.match(/(?:instagram\.com\/(?:p|reel|reels|tv)\/)([^/?#&\s]+)/i);
 
                             if (ytMatch) {
                                 return (
@@ -919,6 +919,9 @@ const AdminReelAnalysis = () => {
                                         className="w-full h-full object-cover"
                                         style={{ border: 0 }}
                                         title="Reel Preview"
+                                        allow="autoplay; encrypted-media; picture-in-picture"
+                                        allowFullScreen
+                                        sandbox="allow-scripts allow-same-origin allow-presentation"
                                     />
                                 );
                             } else {

@@ -47,6 +47,7 @@ const OffersPage = React.lazy(() => import('./pages/user/OffersPage'));
 const ProfileEdit = React.lazy(() => import('./pages/user/ProfileEdit'));
 const BookingCheckoutPage = React.lazy(() => import('./pages/user/BookingCheckoutPage'));
 const ReelsPage = React.lazy(() => import('./pages/user/ReelsPage'));
+const MyReelsPage = React.lazy(() => import('./pages/user/MyReelsPage'));
 const MyProperties = React.lazy(() => import('./pages/user/MyProperties'));
 const HomeServicesPage = React.lazy(() => import('./pages/user/HomeServicesPage'));
 const SubCategoryPage = React.lazy(() => import('./pages/user/SubCategoryPage'));
@@ -195,7 +196,7 @@ const Layout = ({ children }) => {
   // Specific user pages where BottomNav is hidden (reels = full-screen experience)
   const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/legal', '/terms', '/privacy', '/reels', '/home-services'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
-  const isReelsPage = location.pathname === '/reels';
+  const isReelsPage = location.pathname.startsWith('/reels');
 
   // Partner Bottom Nav should show in Partner App (authenticated pages)
   const showPartnerBottomNav = isPartnerApp && location.pathname !== '/hotel';
@@ -546,6 +547,7 @@ function App() {
             <Route element={<UserProtectedRoute />}>
               <Route path="/" element={<Home />} />
               <Route path="/reels" element={<ReelsPage />} />
+              <Route path="/reels/my" element={<MyReelsPage />} />
             <Route path="/profile" element={<UserProtectedRoute><ProfileEdit /></UserProtectedRoute>} />
               
               {/* Unified Property Details (C2C & Hotel) */}
