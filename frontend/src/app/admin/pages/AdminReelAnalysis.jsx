@@ -897,14 +897,42 @@ const AdminReelAnalysis = () => {
                                 autoPlay 
                                 loop
                             />
-                        ) : (
-                            <iframe
-                                src={previewReel.videoUrl}
-                                className="w-full h-full object-cover"
-                                title="Reel Preview"
-                                allowFullScreen
-                            />
-                        )}
+                        ) : (() => {
+                            const url = previewReel.videoUrl || '';
+                            const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i);
+                            const instaMatch = url.match(/(?:instagram\.com\/(?:p|reel|tv)\/)([^/?#&\s]+)/i);
+
+                            if (ytMatch) {
+                                return (
+                                    <iframe
+                                        src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}`}
+                                        className="w-full h-full object-cover"
+                                        style={{ border: 0 }}
+                                        title="Reel Preview"
+                                        allow="autoplay; encrypted-media"
+                                    />
+                                );
+                            } else if (instaMatch) {
+                                return (
+                                    <iframe
+                                        src={`https://www.instagram.com/reel/${instaMatch[1]}/embed/`}
+                                        className="w-full h-full object-cover"
+                                        style={{ border: 0 }}
+                                        title="Reel Preview"
+                                    />
+                                );
+                            } else {
+                                return (
+                                    <video
+                                        src={previewReel.videoUrl}
+                                        className="w-full h-full object-cover"
+                                        controls
+                                        autoPlay
+                                        loop
+                                    />
+                                );
+                            }
+                        })()}
                     </div>
                 </div>
             )}

@@ -1,6 +1,36 @@
 import React, { useRef, useEffect, useCallback, memo, useState } from 'react';
-import { Heart, MessageCircle, Share2, Volume2, VolumeX, Trash2, Phone, Eye, Download, MapPin, Pencil } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Volume2, VolumeX, Trash2, Phone, Eye, Download, MapPin, Pencil, Play } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+const SafeIframe = memo(function SafeIframe({ src, className, style, title, allow }) {
+  const iframeRef = useRef(null);
+  const isMounted = useRef(false);
+
+  useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    try {
+      iframe.contentWindow.location.replace(src);
+    } catch (e) {
+      iframe.src = src;
+    }
+  }, [src]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src={src}
+      className={className}
+      style={style}
+      title={title}
+      allow={allow}
+    />
+  );
+});
 
 const ReelCard = memo(function ReelCard({
   reel,
@@ -13,10 +43,12 @@ const ReelCard = memo(function ReelCard({
   onViewed,
   onDelete,
   onEditClick,
+  isMuted,
+  onMuteToggle,
 }) {
   const videoRef = useRef(null);
   const viewReported = useRef(false);
-  const [muted, setMuted] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true);
 
   // Get current user from localStorage
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -24,21 +56,29 @@ const ReelCard = memo(function ReelCard({
   const isAdmin = currentUser.role === 'admin' || currentUser.role === 'superadmin';
   const isOwnerOrAdmin = isOwner || isAdmin;
 
+  // Sync isPlaying when active index changes
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = muted;
-  }, [muted]);
+    if (isActive) {
+      setIsPlaying(true);
+    } else {
+      setIsPlaying(false);
+    }
+  }, [isActive]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (isActive) {
-      video.play().catch(() => {});
+    video.muted = isMuted;
+    if (isActive && isPlaying) {
+      video.play().catch(() => {
+        // Fallback: autoplay muted if blocked by browser policy
+        video.muted = true;
+        video.play().catch(() => {});
+      });
     } else {
       video.pause();
     }
-  }, [isActive]);
+  }, [isActive, isPlaying, isMuted]);
 
   const handleTimeUpdate = useCallback(() => {
     if (!isActive || viewReported.current || !onViewed) return;
@@ -48,6 +88,15 @@ const ReelCard = memo(function ReelCard({
       onViewed(reel._id);
     }
   }, [isActive, reel._id, onViewed]);
+
+  const togglePlayPause = () => {
+    setIsPlaying((prev) => !prev);
+  };
+
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    onMuteToggle(!isMuted);
+  };
 
   const user = reel.user || {};
   const displayName = user.name || 'Hoomzo Agent';
@@ -73,6 +122,16 @@ const ReelCard = memo(function ReelCard({
 
   const videoDetails = getVideoDetails(reel.videoUrl);
 
+  // Get thumbnail URL
+  let thumbUrl = reel.thumbnailUrl;
+  if (!thumbUrl) {
+    if (videoDetails.type === 'youtube') {
+      thumbUrl = `https://img.youtube.com/vi/${videoDetails.id}/hqdefault.jpg`;
+    } else {
+      thumbUrl = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=600&q=80';
+    }
+  }
+
   return (
     <div
       data-reel-index={index}
@@ -82,61 +141,97 @@ const ReelCard = memo(function ReelCard({
       {reel.videoType === 'url' ? (
         <div className="absolute inset-0 w-full h-full z-0 flex items-center justify-center bg-black">
           {videoDetails.type === 'youtube' ? (
-            <iframe
-              src={`https://www.youtube.com/embed/${videoDetails.id}?autoplay=${isActive ? 1 : 0}&mute=${muted ? 1 : 0}&loop=1&playlist=${videoDetails.id}&controls=0&modestbranding=1&rel=0&playsinline=1`}
-              className="absolute inset-0 w-full h-full object-cover"
-              allow="autoplay; encrypted-media; picture-in-picture"
-              style={{ border: 0, pointerEvents: 'none', height: '100%', width: '100%' }}
-              title={reel.title}
-            />
+            (isActive && isPlaying) ? (
+              <SafeIframe
+                src={`https://www.youtube.com/embed/${videoDetails.id}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${videoDetails.id}&controls=0&modestbranding=1&rel=0&playsinline=1`}
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                style={{ border: 0, height: '100%', width: '100%' }}
+                title={reel.title}
+                allow="autoplay; encrypted-media; picture-in-picture"
+              />
+            ) : (
+              <img
+                src={thumbUrl}
+                alt={reel.title}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            )
           ) : videoDetails.type === 'instagram' ? (
-            <iframe
-              src={`https://www.instagram.com/reel/${videoDetails.id}/embed/`}
-              className="absolute inset-0 w-full h-full object-cover"
-              allowTransparency="true"
-              style={{ border: 0, pointerEvents: 'none', height: '100%', width: '100%' }}
-              title={reel.title}
-            />
+            (isActive && isPlaying) ? (
+              <SafeIframe
+                src={`https://www.instagram.com/reel/${videoDetails.id}/embed/`}
+                className={`absolute inset-0 w-full h-full object-cover ${isPlaying ? '' : 'pointer-events-none'}`}
+                style={{ border: 0, height: '100%', width: '100%' }}
+                title={reel.title}
+                allow="autoplay"
+              />
+            ) : (
+              <img
+                src={thumbUrl}
+                alt={reel.title}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            )
           ) : (
             <video
               ref={videoRef}
               src={reel.videoUrl}
               className="absolute inset-0 w-full h-full object-cover"
               loop
-              muted={muted}
+              muted={isMuted}
               playsInline
               preload="auto"
               onTimeUpdate={handleTimeUpdate}
             />
           )}
-          {/* Transparent Overlay to capture click gestures & double-tap on iframe */}
+          {/* Transparent Overlay to capture click gestures */}
           <div 
-            className="absolute inset-0 z-10 cursor-pointer"
-            onClick={() => setMuted((m) => !m)}
+            className={`absolute inset-0 z-10 cursor-pointer ${videoDetails.type === 'instagram' && isPlaying ? 'pointer-events-none' : ''}`}
+            onClick={togglePlayPause}
           />
         </div>
       ) : (
-        <video
-          ref={videoRef}
-          src={reel.videoUrl}
-          className="absolute inset-0 w-full h-full object-cover z-0 cursor-pointer"
-          loop
-          muted={muted}
-          playsInline
-          preload="auto"
-          onTimeUpdate={handleTimeUpdate}
-          onClick={() => setMuted((m) => !m)}
-        />
+        <div className="absolute inset-0 w-full h-full z-0 bg-black">
+          <video
+            ref={videoRef}
+            src={reel.videoUrl}
+            className="w-full h-full object-cover"
+            loop
+            muted={isMuted}
+            playsInline
+            preload="auto"
+            onTimeUpdate={handleTimeUpdate}
+          />
+          {/* Transparent Overlay to capture click gestures */}
+          <div 
+            className="absolute inset-0 z-10 cursor-pointer"
+            onClick={togglePlayPause}
+          />
+        </div>
+      )}
+
+      {/* Big Play Button Overlay when paused */}
+      {!isPlaying && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/25 pointer-events-none">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            className="p-5 rounded-full bg-black/50 backdrop-blur-md text-white border border-white/10 shadow-2xl"
+          >
+            <Play size={36} className="fill-white translate-x-0.5" />
+          </motion.div>
+        </div>
       )}
 
       {/* Mute toggle indicator - top right */}
       <div className="absolute top-4 right-16 z-20">
         <button
           type="button"
-          onClick={() => setMuted((m) => !m)}
+          onClick={toggleMute}
           className="p-2 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 shadow-lg transition-transform active:scale-95"
         >
-          {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </button>
       </div>
 

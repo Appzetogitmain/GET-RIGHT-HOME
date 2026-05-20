@@ -80,6 +80,7 @@ export default function ReelsPage() {
 
   const [filterOnlyMine, setFilterOnlyMine] = useState(false);
   const [editingReel, setEditingReel] = useState(null);
+  const [isMuted, setIsMuted] = useState(false);
 
   const fileInputRef = useRef(null);
   const containerRef = useRef(null);
@@ -122,7 +123,7 @@ export default function ReelsPage() {
     }
     try {
       const params = {
-        limit: 10,
+        limit: 20,
         city: filterCity,
         budgetRange: filterBudget,
         propertyType: filterType,
@@ -447,6 +448,39 @@ export default function ReelsPage() {
     return () => observer.disconnect();
   }, [reels.length]);
 
+  const hasScrolledToTargetRef = useRef(false);
+
+  // Reset scroll state on URL param changes
+  useEffect(() => {
+    hasScrolledToTargetRef.current = false;
+  }, [window.location.search]);
+
+  // Scroll to active target reel index on load
+  useEffect(() => {
+    if (reels.length === 0 || hasScrolledToTargetRef.current) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const targetReelId = params.get('reel') || params.get('id');
+    if (!targetReelId) return;
+
+    const targetIndex = reels.findIndex(r => r._id === targetReelId);
+    if (targetIndex !== -1) {
+      hasScrolledToTargetRef.current = true;
+      setActiveIndex(targetIndex);
+
+      setTimeout(() => {
+        const container = containerRef.current;
+        if (container) {
+          const element = container.querySelector(`[data-reel-index="${targetIndex}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'auto', block: 'start' });
+            container.scrollTop = element.offsetTop;
+          }
+        }
+      }, 100);
+    }
+  }, [reels]);
+
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container || !nextCursor || loadingMoreRef.current) return;
@@ -609,6 +643,8 @@ export default function ReelsPage() {
               onViewed={handleViewed}
               onDelete={handleDeleteReel}
               onEditClick={handleEditClick}
+              isMuted={isMuted}
+              onMuteToggle={setIsMuted}
             />
           ))}
           {loadingMore && (
