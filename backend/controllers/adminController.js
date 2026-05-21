@@ -16,6 +16,7 @@ import notificationService from '../services/notificationService.js';
 import Wallet from '../models/Wallet.js';
 import Transaction from '../models/Transaction.js';
 import Reel from '../models/Reel.js';
+import Enquiry from '../models/Enquiry.js';
 
 
 
@@ -46,8 +47,8 @@ export const getDashboardStats = async (req, res) => {
       Partner.countDocuments({}),
       Property.countDocuments({}),
       Property.countDocuments({ status: 'pending' }),
-      Booking.countDocuments({}),
-      Booking.countDocuments({ createdAt: { $lt: startOfThisMonth } }), // trend base
+      Enquiry.countDocuments({}),
+      Enquiry.countDocuments({ createdAt: { $lt: startOfThisMonth } }), // trend base
       Booking.aggregate([
         { $match: { bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, paymentStatus: 'paid' } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
@@ -73,8 +74,8 @@ export const getDashboardStats = async (req, res) => {
     const usersNewThisMonth = await User.countDocuments({ createdAt: { $gte: startOfThisMonth } });
     const usersNewLastMonth = await User.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } });
 
-    const bookingsThisMonth = await Booking.countDocuments({ createdAt: { $gte: startOfThisMonth } });
-    const bookingsLastMonthCount = await Booking.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } });
+    const bookingsThisMonth = await Enquiry.countDocuments({ createdAt: { $gte: startOfThisMonth } });
+    const bookingsLastMonthCount = await Enquiry.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } });
 
     // Revenue This Month vs Last Month
     const revThisMonthAgg = await Booking.aggregate([
@@ -168,9 +169,9 @@ export const getDashboardStats = async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Booking Status Distribution
-    const bookingStatusStats = await Booking.aggregate([
-      { $group: { _id: "$bookingStatus", count: { $sum: 1 } } }
+    // Enquiry Status Distribution
+    const bookingStatusStats = await Enquiry.aggregate([
+      { $group: { _id: "$status", count: { $sum: 1 } } }
     ]);
 
     // Format for frontend
@@ -184,12 +185,12 @@ export const getDashboardStats = async (req, res) => {
     });
 
     const statusChart = bookingStatusStats.map(item => ({
-      name: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      name: item._id ? (item._id.charAt(0).toUpperCase() + item._id.slice(1)) : 'General',
       value: item.count
     }));
 
     // 3. Lists
-    const recentBookings = await Booking.find()
+    const recentBookings = await Enquiry.find()
       .populate('userId', 'name email')
       .populate('propertyId', 'propertyName address')
       .sort({ createdAt: -1 })
@@ -706,7 +707,11 @@ export const getUserDetails = async (req, res) => {
 
     const transactions = [...walletTransactions, ...bookingTransactions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    res.status(200).json({ success: true, user, bookings, wallet, transactions });
+    const properties = await Property.find({ userId: id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.status(200).json({ success: true, user, bookings, wallet, transactions, properties });
   } catch (error) {
     console.error('Get User Details Error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching user details' });

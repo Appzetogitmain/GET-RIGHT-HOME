@@ -148,9 +148,12 @@ export const adminGetAllEnquiries = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
-        const { status, search } = req.query;
+        const { status, search, propertyId } = req.query;
 
         const query = {};
+        if (propertyId) {
+            query.propertyId = propertyId;
+        }
 
         if (status && status !== 'all') {
             query.status = status;

@@ -10,6 +10,10 @@ dotenv.config({ path: join(__dirname, '../.env') });
 
 const MONGODB_URL = process.env.MONGODB_URL || "mongodb+srv://sagarchouhan7609_db_user:sagarchouhan7609_db_user@cluster0.od9npjt.mongodb.net/hoomzo";
 
+const expandedAmenities = [
+  'Wi-Fi', 'AC', 'Laundry', 'Housekeeping', 'Food', 'RO Water', 'CCTV', 'Geyser', 'Gym', 'Lift', 'Power Backup', 'Security', 'Parking', 'Fridge', 'TV', 'Triple Occupancy'
+];
+
 // Helper to create steps for standard residential properties (Apartments, Villas, etc)
 const createResidentialSteps = (isRent) => [
   {
@@ -53,9 +57,14 @@ const createResidentialSteps = (isRent) => [
       { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 1200', required: true, order: 1 },
       { name: 'carpetAreaUnit', label: 'Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres', 'marla', 'cents', 'bigha', 'kottah', 'kanal', 'grounds', 'ares', 'biswa', 'guntha', 'aankadam', 'hectares', 'rood', 'chataks', 'perch'], required: true, order: 2 },
       { name: 'superArea', label: 'Super Built-up Area', type: 'number', placeholder: 'e.g. 1500', required: false, order: 3 },
+      { name: 'superAreaUnit', label: 'Super Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], required: false, order: 3.5 },
       { name: isRent ? 'monthlyRent' : 'expectedPrice', label: isRent ? 'Monthly Rent (₹)' : 'Expected Price (₹)', type: 'number', placeholder: isRent ? 'e.g. 20000' : 'e.g. 7500000', required: true, order: 4 },
       ...(isRent ? [{ name: 'securityDeposit', label: 'Security Deposit (₹)', type: 'number', placeholder: 'e.g. 40000', required: true, order: 5 }] : []),
-      { name: 'maintenanceCharges', label: 'Monthly Maintenance (₹)', type: 'number', placeholder: 'e.g. 2000', required: false, order: 6 }
+      { name: 'maintenanceCharges', label: 'Monthly Maintenance (₹)', type: 'number', placeholder: 'e.g. 2000', required: false, order: 6 },
+      ...(isRent ? [
+        { name: 'brokersOk', label: 'Are you ok with brokers contacting you?', type: 'pill', options: ['Yes', 'No'], required: true, order: 7 },
+        { name: 'preferredTenants', label: 'Willing to rent out to', type: 'checkbox_group', options: ['Family', 'Single men', 'Single women'], required: true, order: 8 }
+      ] : [])
     ]
   },
   {
@@ -63,7 +72,7 @@ const createResidentialSteps = (isRent) => [
     title: 'Amenities & Features',
     description: 'Select available amenities & features',
     fields: [
-      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: ['Lift', 'Swimming Pool', 'Room Service', 'Parking', 'Spa', 'Restaurant', 'Bar', 'Gym'], required: true, order: 1 },
+      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 1 },
       { name: 'gatedCommunity', label: 'Gated Community?', type: 'pill', options: ['Yes', 'No'], required: true, order: 2 },
       { name: 'powerBackup', label: 'Power Backup', type: 'pill', options: ['None', 'Partial', 'Full'], required: false, order: 3 },
       { name: 'waterSupply', label: 'Water Supply', type: 'pill', options: ['Corporation', 'Borewell', 'Both'], required: false, order: 4 }
@@ -128,7 +137,12 @@ const createPlotSteps = (isRent, isCommercial) => [
     description: 'Pricing and approval details',
     fields: [
       { name: isRent ? 'monthlyRent' : 'expectedPrice', label: isRent ? 'Monthly Rent (₹)' : 'Expected Price (₹)', type: 'number', placeholder: isRent ? 'e.g. 20000' : 'e.g. 7500000', required: true, order: 1 },
-      { name: 'approvalAuthority', label: 'Approval Authority', type: 'text', placeholder: 'e.g. IDA, TNCP', required: false, order: 2 }
+      ...(isRent ? [{ name: 'availableFrom', label: 'Available from', type: 'date', required: true, order: 1.5 }] : []),
+      { name: 'approvalAuthority', label: 'Approval Authority', type: 'text', placeholder: 'e.g. IDA, TNCP', required: false, order: 2 },
+      ...(isRent ? [
+        { name: 'brokersOk', label: 'Are you ok with brokers contacting you?', type: 'pill', options: ['Yes', 'No'], required: true, order: 3 },
+        { name: 'preferredTenants', label: 'Willing to rent out to', type: 'checkbox_group', options: ['Family', 'Single men', 'Single women'], required: true, order: 4 }
+      ] : [])
     ]
   },
   {
@@ -136,7 +150,7 @@ const createPlotSteps = (isRent, isCommercial) => [
     title: 'Amenities & Features',
     description: 'Select available amenities & features',
     fields: [
-      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: ['Lift', 'Swimming Pool', 'Room Service', 'Parking', 'Spa', 'Restaurant', 'Bar', 'Gym'], required: true, order: 1 }
+      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 1 }
     ]
   },
   {
@@ -192,14 +206,14 @@ const createRetailSteps = (isRent) => [
       { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 1700', required: true, order: 1 },
       { name: 'carpetAreaUnit', label: 'Carpet Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres', 'marla', 'cents', 'bigha', 'kottah', 'kanal', 'grounds', 'ares', 'biswa', 'guntha', 'aankadam', 'hectares', 'rood', 'chataks', 'perch'], required: true, order: 2 },
       { name: 'builtUpArea', label: 'Built-up Area (Optional)', type: 'number', placeholder: 'e.g. 2000', required: false, order: 3 },
-      { name: 'builtUpAreaUnit', label: 'Built-up Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres', 'marla', 'cents', 'bigha', 'kottah', 'kanal', 'grounds', 'ares', 'biswa', 'guntha', 'aankadam', 'hectares', 'rood', 'chataks', 'perch'], required: false, order: 4 },
+      { name: 'builtUpAreaUnit', label: 'Built-up Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], required: false, order: 4 },
       { name: 'entranceWidth', label: 'Entrance Width (Optional)', type: 'number', placeholder: 'e.g. 15', required: false, order: 5 },
       { name: 'entranceWidthUnit', label: 'Entrance Width Unit', type: 'dropdown', options: ['ft.', 'mt.'], required: false, order: 6 },
       { name: 'ceilingHeight', label: 'Ceiling Height (Optional)', type: 'number', placeholder: 'e.g. 12', required: false, order: 7 },
       { name: 'ceilingHeightUnit', label: 'Ceiling Height Unit', type: 'dropdown', options: ['ft.', 'mt.'], required: false, order: 8 },
-      { name: 'washrooms', label: 'Washroom details', type: 'pill', options: ['Private washrooms', 'Public washrooms', 'Not Available'], required: true, order: 9 },
+      { name: 'washrooms', label: 'Washroom details', type: 'multiselect_pill', options: ['Private washrooms', 'Public washrooms', 'Not Available'], required: true, order: 9 },
       { name: 'totalFloors', label: 'Floor Details - Total Floors (Optional)', type: 'number', placeholder: 'e.g. 5', required: false, order: 10 },
-      { name: 'parkingType', label: 'Parking Type', type: 'pill', options: ['Private Parking', 'Public Parking', 'Multilevel Parking', 'Not Available'], required: true, order: 11 }
+      { name: 'parkingType', label: 'Parking Type', type: 'multiselect_pill', options: ['Private Parking', 'Public Parking', 'Multilevel Parking', 'Not Available'], required: true, order: 11 }
     ]
   },
   {
@@ -212,6 +226,7 @@ const createRetailSteps = (isRent) => [
       { name: 'taxExcluded', label: 'Tax and Govt. charges excluded?', type: 'pill', options: ['Yes', 'No'], required: true, order: 3 },
       { name: 'maintenanceCharges', label: 'Monthly Maintenance (₹) (Optional)', type: 'number', placeholder: 'e.g. 5000', required: false, order: 4 },
       { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 5 },
+      ...(isRent ? [{ name: 'availableFrom', label: 'Available from', type: 'date', required: true, order: 5.5 }] : []),
       { name: 'propertyAge', label: 'Age of Property', type: 'pill', options: ['0-1 Years', '1-5 Years', '5-10 Years', '10+ Years'], required: true, dependsOn: { field: 'availability', value: 'Ready to move' }, order: 6 },
       { name: 'expectedBy', label: 'Expected By', type: 'dropdown', options: ['Within 3 Months', 'Within 6 Months', 'By 2026', 'By 2027', 'By 2028', 'By 2029'], required: true, dependsOn: { field: 'availability', value: 'Under construction' }, order: 7 },
       { name: 'isPreLeased', label: 'Is it Pre-leased / Pre-Rented?', type: 'pill', options: ['Yes', 'No'], required: true, order: 8 },
@@ -219,7 +234,11 @@ const createRetailSteps = (isRent) => [
       { name: 'leaseTenure', label: 'Lease Tenure in Years', type: 'number', placeholder: 'e.g. 5', required: true, dependsOn: { field: 'isPreLeased', value: 'Yes' }, order: 10 },
       { name: 'annualRentIncrease', label: 'Annual rent increase in % (Optional)', type: 'number', placeholder: 'e.g. 5', required: false, dependsOn: { field: 'isPreLeased', value: 'Yes' }, order: 11 },
       { name: 'leasedToBusiness', label: 'Leased to - Business Type (Optional)', type: 'text', placeholder: 'e.g. Retail Store / Bank', required: false, dependsOn: { field: 'isPreLeased', value: 'Yes' }, order: 12 },
-      { name: 'powerBackup', label: 'Power Backup', type: 'pill', options: ['Yes', 'No'], required: false, order: 13 }
+      { name: 'powerBackup', label: 'Power Backup', type: 'pill', options: ['Yes', 'No'], required: false, order: 13 },
+      ...(isRent ? [
+        { name: 'brokersOk', label: 'Are you ok with brokers contacting you?', type: 'pill', options: ['Yes', 'No'], required: true, order: 14 },
+        { name: 'preferredTenants', label: 'Willing to rent out to', type: 'checkbox_group', options: ['Family', 'Single men', 'Single women'], required: true, order: 15 }
+      ] : [])
     ]
   },
   {
@@ -271,9 +290,10 @@ const createCommercialSteps = (isRent, commType) => [
       { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 2000', required: true, order: 1 },
       { name: 'carpetAreaUnit', label: 'Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres', 'marla', 'cents', 'bigha', 'kottah', 'kanal', 'grounds', 'ares', 'biswa', 'guntha', 'aankadam', 'hectares', 'rood', 'chataks', 'perch'], required: true, order: 2 },
       { name: 'superArea', label: 'Super Built-up Area', type: 'number', placeholder: 'e.g. 2500', required: false, order: 3 },
+      { name: 'superAreaUnit', label: 'Super Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], required: false, order: 3.5 },
       { name: 'furnishing', label: 'Furnishing Status', type: 'pill', options: ['Bare Shell', 'Unfurnished', 'Semi-Furnished', 'Fully Furnished'], required: true, order: 4 },
+      { name: 'washrooms', label: 'Washrooms', type: 'multiselect_pill', options: ['Private washrooms', 'Public washrooms', 'Not Available'], required: true, order: 5 },
       ...(commType === 'Office' ? [
-        { name: 'washrooms', label: 'Washrooms', type: 'pill', options: ['Shared', 'Private', 'None'], required: true, order: 5 },
         { name: 'pantry', label: 'Pantry/Cafeteria', type: 'pill', options: ['Shared', 'Private', 'None'], required: false, order: 6 },
         { name: 'totalFloors', label: 'Total Floors in Building', type: 'number', placeholder: 'e.g. 15', required: true, order: 7 },
         { name: 'floorNumber', label: 'Property on Floor', type: 'number', placeholder: 'e.g. 4', required: true, order: 8 },
@@ -287,7 +307,6 @@ const createCommercialSteps = (isRent, commType) => [
         { name: 'operatingHours', label: 'Operating Hours (Optional)', type: 'pill', options: ['24x7 Allowed', 'Normal Business Hours'], required: false, order: 16 }
       ] : []),
       ...(commType === 'Industry' ? [
-        { name: 'washrooms', label: 'Washrooms', type: 'pill', options: ['Shared', 'Private', 'None'], required: true, order: 5 },
         { name: 'pantry', label: 'Pantry/Cafeteria', type: 'pill', options: ['Shared', 'Private', 'None'], required: false, order: 6 }
       ] : []),
       ...(commType === 'Retail' ? [
@@ -295,7 +314,6 @@ const createCommercialSteps = (isRent, commType) => [
         { name: 'locationType', label: 'Location Type', type: 'pill', options: ['Mall', 'High Street Retail', 'Standalone Building'], required: true, order: 6 }
       ] : []),
       ...(commType === 'Storage' ? [
-        { name: 'ceilingHeight', label: 'Ceiling Height (ft)', type: 'number', placeholder: 'e.g. 25', required: true, order: 5 },
         { name: 'dockDoors', label: 'No. of Dock Doors', type: 'number', placeholder: 'e.g. 4', required: false, order: 6 }
       ] : [])
     ]
@@ -306,12 +324,17 @@ const createCommercialSteps = (isRent, commType) => [
     description: 'Pricing and utility details',
     fields: [
       { name: isRent ? 'monthlyRent' : 'expectedPrice', label: isRent ? 'Monthly Rent (₹)' : 'Expected Price (₹)', type: 'number', placeholder: isRent ? 'e.g. 100000' : 'e.g. 50000000', required: true, order: 1 },
+      ...(isRent ? [{ name: 'availableFrom', label: 'Available from', type: 'date', required: true, order: 1.5 }] : []),
       ...(isRent ? [
         { name: 'securityDeposit', label: 'Security Deposit (₹)', type: 'number', placeholder: 'e.g. 500000', required: true, order: 2 },
         { name: 'lockInPeriod', label: 'Lock-in Period (Years)', type: 'number', placeholder: 'e.g. 3', required: false, order: 3 }
       ] : []),
       { name: 'powerBackup', label: 'Power Backup', type: 'pill', options: ['Yes', 'No'], required: false, order: 4 },
-      { name: 'parking', label: 'Parking', type: 'pill', options: ['None', '1-2 Cars', '3-5 Cars', '5+ Cars'], required: true, order: 5 }
+      { name: 'parkingType', label: 'Parking Type', type: 'multiselect_pill', options: ['Private Parking', 'Public Parking', 'Multilevel Parking', 'Not Available'], required: true, order: 5 },
+      ...(isRent ? [
+        { name: 'brokersOk', label: 'Are you ok with brokers contacting you?', type: 'pill', options: ['Yes', 'No'], required: true, order: 6 },
+        { name: 'preferredTenants', label: 'Willing to rent out to', type: 'checkbox_group', options: ['Family', 'Single men', 'Single women'], required: true, order: 7 }
+      ] : [])
     ]
   },
   {
@@ -319,7 +342,7 @@ const createCommercialSteps = (isRent, commType) => [
     title: 'Amenities & Features',
     description: 'Select available amenities & features',
     fields: [
-      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: ['Lift', 'Swimming Pool', 'Room Service', 'Parking', 'Spa', 'Restaurant', 'Bar', 'Gym'], required: true, order: 1 }
+      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 1 }
     ]
   },
   {
@@ -392,7 +415,7 @@ const createPGSteps = () => [
     title: 'Amenities & Features',
     description: 'Select available amenities & features',
     fields: [
-      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: ['Lift', 'Swimming Pool', 'Room Service', 'Parking', 'Spa', 'Restaurant', 'Bar', 'Gym'], required: true, order: 1 }
+      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 1 }
     ]
   },
   {

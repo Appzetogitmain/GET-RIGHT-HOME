@@ -586,7 +586,15 @@ export const getPublicProperties = async (req, res) => {
       gender,
       occupancy,
       // Plot specific
-      landType
+      landType,
+      // New filters
+      minArea,
+      maxArea,
+      bathrooms,
+      postedBy,
+      purchaseType,
+      propertyCategory,
+      areas
     } = req.query;
 
     const pipeline = [];
@@ -780,6 +788,11 @@ export const getPublicProperties = async (req, res) => {
       matchConditions['plotDetails.landType'] = { $in: landList };
     }
 
+    if (propertyCategory) {
+      const catRegex = new RegExp('^' + propertyCategory.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
+      matchConditions.propertyCategory = catRegex;
+    }
+
     if (req.query.foodIncluded === 'true') {
       matchConditions['pgDetails.foodIncluded'] = true;
     }
@@ -832,6 +845,142 @@ export const getPublicProperties = async (req, res) => {
         matchConditions.$and = [{ $or: existingOr }, cityMatch];
       } else {
         matchConditions.$or = cityMatch.$or;
+      }
+    }
+
+    if (areas) {
+      const areaList = areas.split(',').map(a => new RegExp('^' + a.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+      const areaMatch = {
+        $or: [
+          { 'address.area': { $in: areaList } },
+          { 'address.fullAddress': { $in: areaList } }
+        ]
+      };
+
+      if (matchConditions.$and) {
+        matchConditions.$and.push(areaMatch);
+      } else if (matchConditions.$or) {
+        const existingOr = matchConditions.$or;
+        delete matchConditions.$or;
+        matchConditions.$and = [{ $or: existingOr }, areaMatch];
+      } else {
+        matchConditions.$or = areaMatch.$or;
+      }
+    }
+
+    // Area filters
+    if (minArea || maxArea) {
+      const minA = parseInt(minArea);
+      const maxA = parseInt(maxArea);
+      const areaMatchList = [];
+      
+      const constructAreaQuery = (field) => {
+        const q = {};
+        if (!isNaN(minA)) q.$gte = minA;
+        if (!isNaN(maxA)) q.$lte = maxA;
+        return { [field]: q };
+      };
+
+      areaMatchList.push(constructAreaQuery('buyDetails.area.superBuiltUp'));
+      areaMatchList.push(constructAreaQuery('buyDetails.area.carpet'));
+      areaMatchList.push(constructAreaQuery('plotDetails.plotArea'));
+      areaMatchList.push(constructAreaQuery('dynamicData.carpetArea'));
+      areaMatchList.push(constructAreaQuery('dynamicData.plotArea'));
+      areaMatchList.push(constructAreaQuery('dynamicData.superArea'));
+
+      const areaCondition = { $or: areaMatchList };
+      if (matchConditions.$and) {
+        matchConditions.$and.push(areaCondition);
+      } else if (matchConditions.$or) {
+        const existingOr = matchConditions.$or;
+        delete matchConditions.$or;
+        matchConditions.$and = [{ $or: existingOr }, areaCondition];
+      } else {
+        matchConditions.$or = areaCondition.$or;
+      }
+    }
+
+    // Bathroom filter
+    if (bathrooms) {
+      const minBath = parseInt(bathrooms);
+      if (!isNaN(minBath) && minBath > 0) {
+        const bathCondition = {
+          $or: [
+            { 'dynamicData.bathrooms': minBath },
+            { 'dynamicData.bathrooms': String(minBath) },
+            { 'dynamicData.bathrooms': { $in: Array.from({ length: 5 }, (_, i) => String(minBath + i)) } },
+            { 'dynamicData.bathrooms': '4+' }
+          ]
+        };
+        if (matchConditions.$and) {
+          matchConditions.$and.push(bathCondition);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, bathCondition];
+        } else {
+          matchConditions.$or = bathCondition.$or;
+        }
+      }
+    }
+
+    // Posted by filter
+    if (postedBy) {
+      const postedByList = postedBy.split(',').map(p => p.trim().toLowerCase());
+      const postedMatch = [];
+      if (postedByList.includes('owner')) {
+        postedMatch.push({ isAddedByUser: true });
+      }
+      if (postedByList.includes('dealer') || postedByList.includes('builder')) {
+        postedMatch.push({ isAddedByUser: false });
+      }
+      if (postedMatch.length > 0) {
+        const postedCondition = { $or: postedMatch };
+        if (matchConditions.$and) {
+          matchConditions.$and.push(postedCondition);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, postedCondition];
+        } else {
+          matchConditions.$or = postedCondition.$or;
+        }
+      }
+    }
+
+    // Purchase type filter
+    if (purchaseType) {
+      const pTypes = purchaseType.split(',').map(p => p.trim().toLowerCase());
+      const pMatch = [];
+      if (pTypes.includes('resale')) {
+        pMatch.push({
+          $or: [
+            { 'buyDetails.ownership': { $exists: true } },
+            { 'dynamicData.purchaseType': 'Resale' },
+            { 'dynamicData.propertyAge': { $exists: true } }
+          ]
+        });
+      }
+      if (pTypes.includes('new bookings') || pTypes.includes('new') || pTypes.includes('new launch')) {
+        pMatch.push({
+          $or: [
+            { 'dynamicData.purchaseType': 'New Bookings' },
+            { 'dynamicData.availability': { $in: ['Under construction', 'Pre Launch'] } },
+            { 'dynamicData.availabilityStatus': { $in: ['Under construction', 'Pre Launch'] } }
+          ]
+        });
+      }
+      if (pMatch.length > 0) {
+        const purchaseMatch = { $or: pMatch };
+        if (matchConditions.$and) {
+          matchConditions.$and.push(purchaseMatch);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, purchaseMatch];
+        } else {
+          matchConditions.$or = purchaseMatch.$or;
+        }
       }
     }
 
@@ -914,10 +1063,43 @@ export const getPublicProperties = async (req, res) => {
           $cond: {
             if: { $gt: [{ $size: "$roomTypes" }, 0] },
             then: { $min: "$roomTypes.pricePerNight" },
-            else: null // Will filter out properties with no matching rooms later if strictly needed
+            else: {
+              $ifNull: [
+                "$rentDetails.monthlyRent",
+                {
+                  $ifNull: [
+                    "$buyDetails.expectedPrice",
+                    {
+                      $ifNull: [
+                        "$plotDetails.expectedPrice",
+                        null
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
           }
         },
-        hasMatchingRooms: { $gt: [{ $size: "$roomTypes" }, 0] }
+        hasMatchingRooms: {
+          $cond: {
+            if: { $gt: [{ $size: "$roomTypes" }, 0] },
+            then: true,
+            else: {
+              $cond: {
+                if: {
+                  $or: [
+                    { $gt: ["$rentDetails.monthlyRent", null] },
+                    { $gt: ["$buyDetails.expectedPrice", null] },
+                    { $gt: ["$plotDetails.expectedPrice", null] }
+                  ]
+                },
+                then: true,
+                else: false
+              }
+            }
+          }
+        }
       }
     });
 

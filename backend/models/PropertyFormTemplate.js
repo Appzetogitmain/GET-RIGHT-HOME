@@ -15,7 +15,7 @@ const fieldSchema = new mongoose.Schema({
   label: { type: String, required: true }, // e.g. "No. of Bedrooms"
   type: { 
     type: String, 
-    enum: ["text", "number", "email", "tel", "textarea", "dropdown", "pill", "radio", "checkbox", "checkbox_group", "multiselect", "file", "location", "nearby_places"],
+    enum: ["text", "number", "email", "tel", "textarea", "dropdown", "pill", "radio", "checkbox", "checkbox_group", "multiselect", "file", "location", "nearby_places", "date", "multiselect_pill"],
     required: true 
   },
   placeholder: { type: String },

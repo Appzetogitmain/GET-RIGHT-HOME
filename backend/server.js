@@ -71,6 +71,7 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/uploads', express.static(join(__dirname, 'uploads')));
 
 // Dynamic CORS to allow local network IPs (192.168.x.x) and localhost
 app.use(cors({

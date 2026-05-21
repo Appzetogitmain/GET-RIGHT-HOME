@@ -1,5 +1,18 @@
 import Offer from '../models/Offer.js';
 import Booking from '../models/Booking.js';
+import { uploadToCloudinary } from '../utils/cloudinary.js';
+
+const formatOfferImage = (offer, req) => {
+  if (!offer) return null;
+  const offerObj = offer.toObject ? offer.toObject() : offer;
+  if (offerObj.image && !offerObj.image.startsWith('http') && !offerObj.image.startsWith('data:')) {
+    const filename = offerObj.image.split(/[/\\]/).pop();
+    const protocol = req.protocol;
+    const host = req.get('host');
+    offerObj.image = `${protocol}://${host}/uploads/${filename}`;
+  }
+  return offerObj;
+};
 
 /**
  * @desc    Get active offers for users
@@ -58,7 +71,7 @@ export const getActiveOffers = async (req, res) => {
       }
 
       const freshOffers = await Offer.find({ isActive: true });
-      return res.json(freshOffers);
+      return res.json(freshOffers.map(o => formatOfferImage(o, req)));
     }
 
     // Filter by userLimit if user is logged in
@@ -72,13 +85,13 @@ export const getActiveOffers = async (req, res) => {
         });
 
         if (userUsageCount < (offer.userLimit || 1)) {
-          filteredOffers.push(offer);
+          filteredOffers.push(formatOfferImage(offer, req));
         }
       }
       return res.json(filteredOffers);
     }
 
-    res.json(offers);
+    res.json(offers.map(o => formatOfferImage(o, req)));
   } catch (error) {
     console.error('Get Offers Error:', error);
     res.status(500).json({ message: 'Server error fetching offers' });
@@ -166,12 +179,18 @@ export const createOffer = async (req, res) => {
 
     // If a file was uploaded via multer/cloudinary
     if (req.file) {
-      offerData.image = req.file.path;
+      try {
+        const result = await uploadToCloudinary(req.file.path, 'offers');
+        offerData.image = result.url;
+      } catch (err) {
+        console.warn('⚠️ Cloudinary upload failed for offer, saving locally:', err.message);
+        offerData.image = `/uploads/${req.file.filename}`;
+      }
     }
 
     const offer = new Offer(offerData);
     await offer.save();
-    res.status(201).json(offer);
+    res.status(201).json(formatOfferImage(offer, req));
   } catch (error) {
     console.error('Create Offer Error:', error);
     res.status(400).json({ message: error.message || 'Error creating offer' });
@@ -184,7 +203,7 @@ export const createOffer = async (req, res) => {
 export const getAllOffers = async (req, res) => {
   try {
     const offers = await Offer.find().sort({ createdAt: -1 });
-    res.json(offers);
+    res.json(offers.map(o => formatOfferImage(o, req)));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching offers' });
   }
@@ -197,13 +216,19 @@ export const updateOffer = async (req, res) => {
   try {
     const offerData = { ...req.body };
     if (req.file) {
-      offerData.image = req.file.path;
+      try {
+        const result = await uploadToCloudinary(req.file.path, 'offers');
+        offerData.image = result.url;
+      } catch (err) {
+        console.warn('⚠️ Cloudinary upload failed for offer, saving locally:', err.message);
+        offerData.image = `/uploads/${req.file.filename}`;
+      }
     }
 
     const offer = await Offer.findByIdAndUpdate(req.params.id, offerData, { new: true });
     if (!offer) return res.status(404).json({ message: "Offer not found" });
 
-    res.json(offer);
+    res.json(formatOfferImage(offer, req));
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error updating offer' });
   }

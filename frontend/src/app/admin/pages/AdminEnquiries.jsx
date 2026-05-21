@@ -193,7 +193,7 @@ const AdminEnquiries = () => {
             setModalConfig({
                 isOpen: true,
                 title: 'Delete Enquiry?',
-                message: `Are you sure you want to delete enquiry #${enquiry.bookingId || enquiry._id.slice(-8).toUpperCase()}? This action is permanent.`,
+                message: `Are you sure you want to delete enquiry #${enquiry.enquiryId || enquiry._id.slice(-8).toUpperCase()}? This action is permanent.`,
                 type: 'danger',
                 confirmText: 'Delete',
                 onConfirm: () => handleDelete(enquiry._id)
@@ -219,7 +219,7 @@ const AdminEnquiries = () => {
                 const price = pType === 'buy' ? prop.buyDetails?.expectedPrice : (pType === 'rent' ? prop.rentDetails?.monthlyRent : prop.plotDetails?.expectedPrice);
                 return [
                     e._id,
-                    e.bookingId || e._id.slice(-8).toUpperCase(),
+                    e.enquiryId || e._id.slice(-8).toUpperCase(),
                     `"${prop.propertyName || 'N/A'}"`,
                     `"${prop.propertyType || 'N/A'}"`,
                     price || 'N/A',
@@ -347,7 +347,7 @@ const AdminEnquiries = () => {
                                                 >
                                                     <td className="p-4">
                                                         <span className="font-mono text-xs font-bold text-gray-900 uppercase tracking-tight">
-                                                            #{enquiry.bookingId || enquiry._id.slice(-8).toUpperCase()}
+                                                            #{enquiry.enquiryId || enquiry._id.slice(-8).toUpperCase()}
                                                         </span>
                                                         <p className="text-[10px] text-gray-400 mt-0.5 font-bold">
                                                             {new Date(enquiry.createdAt).toLocaleDateString()}

@@ -84,7 +84,6 @@ const AdminLayout = () => {
                 { icon: LayoutGrid, label: 'Categories', path: '/admin/categories' },
                 { icon: MapPin, label: 'Location Manager', path: '/admin/locations' },
                 { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' },
-                { icon: Calendar, label: 'Bookings', path: '/admin/bookings' },
                 { icon: ImageIcon, label: 'Banner Management', path: '/admin/banners' },
                 { icon: Video, label: 'Reel Analysis', path: '/admin/reel-analysis' },
                 { icon: Star, label: 'Reviews', path: '/admin/reviews' },
