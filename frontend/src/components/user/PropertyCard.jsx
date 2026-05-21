@@ -3,11 +3,13 @@ import { MapPin, Star, IndianRupee, Heart, BadgeCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/apiService';
 import toast from 'react-hot-toast';
+import PropertyQuickViewModal from './PropertyQuickViewModal';
 
 const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved }) => {
   const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
   // Sync with initialIsSaved if it changes
   useEffect(() => {
@@ -143,7 +145,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
 
   return (
     <div
-      onClick={() => navigate(`/hotel/${_id}`)}
+      onClick={() => setIsQuickViewOpen(true)}
       className={`relative h-[270px] md:h-[340px] w-full bg-gray-100 rounded-[1.25rem] md:rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 hover:-translate-y-1 group ${className}`}
     >
       {/* Background Cover Image */}
@@ -263,6 +265,12 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
 
         </div>
       </div>
+      <PropertyQuickViewModal
+        isOpen={isQuickViewOpen}
+        onClose={() => setIsQuickViewOpen(false)}
+        property={item}
+        initialShowEnquiry={false}
+      />
     </div>
   );
 };

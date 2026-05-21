@@ -84,15 +84,18 @@ const GRHPropertyCard = ({ property, data }) => {
     return null;
   };
 
-  const locationText = 
-    address?.area || 
-    address?.locality || 
-    item.locality || 
-    item.dynamicData?.locality || 
-    address?.city || 
-    item.city || 
-    item.dynamicData?.city || 
-    'Anantapur';
+  const getDisplayLocation = (prop) => {
+    if (!prop) return 'Anantapur';
+    const addr = prop.address;
+    if (typeof addr === 'string' && addr.trim()) return addr;
+    
+    const locality = addr?.area || addr?.locality || prop.locality || prop.dynamicData?.locality || '';
+    const city = addr?.city || prop.city || prop.dynamicData?.city || '';
+    
+    if (locality && city) return `${locality}, ${city}`;
+    return locality || city || 'Anantapur';
+  };
+  const locationText = getDisplayLocation(item);
 
   const phoneNum = item.contactNumber || item.phoneNumber || '9123456789';
 
@@ -128,7 +131,7 @@ const GRHPropertyCard = ({ property, data }) => {
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
 
   const handleCardClick = () => {
-    setShowOverlay(true);
+    setIsQuickViewOpen(true);
   };
 
   const handleCloseOverlay = (e) => {
@@ -312,10 +315,13 @@ const GRHPropertyCard = ({ property, data }) => {
       </div>
 
       <PropertyQuickViewModal
-        isOpen={showEnquiryModal}
-        onClose={() => setShowEnquiryModal(false)}
+        isOpen={isQuickViewOpen || showEnquiryModal}
+        onClose={() => {
+          setIsQuickViewOpen(false);
+          setShowEnquiryModal(false);
+        }}
         property={item}
-        initialShowEnquiry={true}
+        initialShowEnquiry={showEnquiryModal}
       />
     </>
   );

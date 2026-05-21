@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
-import { propertyService, legalService, reviewService, offerService, availabilityService, userService, bookingService } from '../../services/apiService';
+import { propertyService, legalService, reviewService, offerService, availabilityService, userService, bookingService, enquiryService } from '../../services/apiService';
 import GRHPropertyCard from '../../components/user/GRHPropertyCard';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
@@ -358,8 +358,17 @@ const PropertyDetailsPage = () => {
   } = property;
 
   const hasInventory = inventory && inventory.length > 0;
-  // Treated as Whole Unit if it's a Villa OR (Homestay/Apartment with NO separate inventory units)
-  const isWholeUnit = propertyType === 'Villa' || (['Homestay', 'Apartment'].includes(propertyType) && !hasInventory);
+  // Treated as Whole Unit if it's a Villa, Independent House, or (Homestay/Apartment with NO separate inventory units)
+  const isWholeUnit = [
+    'villa',
+    'independent house',
+    'independenthouse',
+    'house',
+    'plot',
+    'buy',
+    'rent'
+  ].includes(propertyType?.toLowerCase() || '') ||
+  (['homestay', 'apartment'].includes(propertyType?.toLowerCase() || '') && !hasInventory);
 
   const getNightBreakup = (room) => {
     if (!room) {
@@ -651,13 +660,19 @@ const PropertyDetailsPage = () => {
         messageBody = `[Request Callback]\nPreferred Time: ${callbackTime}\nMessage: ${enquiryMessage || 'Please call me back.'}`;
       }
 
-      const response = await bookingService.create({
+      // Determine enquiry type
+      let enquiryType = 'general';
+      if (enquiryTab === 'contact') enquiryType = 'contact_owner';
+      else if (enquiryTab === 'visit') enquiryType = 'schedule_visit';
+      else if (enquiryTab === 'callback') enquiryType = 'request_callback';
+
+      const response = await enquiryService.create({
         propertyId: id,
-        isInquiry: true,
+        enquiryType,
         message: messageBody,
-        budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0,
-        propertyType: pType,
-        checkInDate: preferredDate
+        preferredDate: preferredDate,
+        timeSlot: enquiryTab === 'visit' ? (visitSlot || '') : (enquiryTab === 'callback' ? callbackTime : ''),
+        budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
       });
 
       if (response.success) {
@@ -1370,10 +1385,12 @@ const PropertyDetailsPage = () => {
               )}
 
               {/* Have to check these later */}
-              {propertyType === 'Villa' && (property.structure || config) && (
+              {['villa', 'independent house', 'independenthouse', 'house'].includes(propertyType?.toLowerCase() || '') && (property.structure || config) && (
                 <div className="mb-8 grid md:grid-cols-2 gap-4">
                   <div className="p-4 bg-green-50 rounded-xl">
-                    <h3 className="font-bold text-green-900 mb-2">Villa Structure</h3>
+                    <h3 className="font-bold text-green-900 mb-2">
+                      {propertyType?.toLowerCase() === 'villa' ? 'Villa Structure' : 'Property Structure'}
+                    </h3>
                     <ul className="text-sm text-green-800 space-y-1">
                       {property.structure ? (
                         <>
@@ -1972,13 +1989,13 @@ const PropertyDetailsPage = () => {
               e.preventDefault();
               setBookingLoading(true);
               try {
-                const response = await bookingService.create({
+                const response = await enquiryService.create({
                   propertyId: id,
-                  isInquiry: true,
-                  message: `[Schedule Visit Request]\nDate: ${visitDate}\nTime Slot: ${visitSlot}\nNotes: ${enquiryMessage || 'I would like to schedule a visit to this property.'}`,
-                  budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0,
-                  propertyType: propertyType?.toLowerCase() || 'buy',
-                  checkInDate: new Date(visitDate)
+                  enquiryType: 'schedule_visit',
+                  message: enquiryMessage || 'I would like to schedule a visit to this property.',
+                  preferredDate: new Date(visitDate),
+                  timeSlot: visitSlot || '',
+                  budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
                 });
                 if (response.success) {
                   toast.success("Visit scheduled successfully! The partner will contact you soon.");
@@ -2047,13 +2064,12 @@ const PropertyDetailsPage = () => {
               e.preventDefault();
               setBookingLoading(true);
               try {
-                const response = await bookingService.create({
+                const response = await enquiryService.create({
                   propertyId: id,
-                  isInquiry: true,
-                  message: `[Request Callback]\nPreferred Time: ${callbackTime}\nMessage: Please call me back at my registered number.`,
-                  budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0,
-                  propertyType: propertyType?.toLowerCase() || 'buy',
-                  checkInDate: new Date()
+                  enquiryType: 'request_callback',
+                  message: 'Please call me back at my registered number.',
+                  timeSlot: callbackTime || '',
+                  budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
                 });
                 if (response.success) {
                   toast.success("Callback requested! You will get a call soon.");

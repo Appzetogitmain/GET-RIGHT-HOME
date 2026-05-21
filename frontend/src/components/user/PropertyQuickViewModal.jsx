@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Phone, MessageCircle, Share2, Heart, Mail, Eye, Calendar, ArrowLeft, Loader2 } from 'lucide-react';
+import { X, Phone, MessageCircle, Share2, Heart, Mail, Eye, Calendar, ArrowLeft, Loader2, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { bookingService } from '../../services/apiService';
+import { enquiryService } from '../../services/apiService';
 
 const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry = false }) => {
   const navigate = useNavigate();
@@ -30,6 +30,23 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
       }));
     }
   }, [isOpen, initialShowEnquiry, property]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (window.lenis) window.lenis.stop();
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      if (window.lenis) window.lenis.start();
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+    return () => {
+      if (window.lenis) window.lenis.start();
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [isOpen]);
 
   if (!isOpen || !property) return null;
 
@@ -101,15 +118,19 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
     return null;
   };
 
-  const locationText = 
-    address?.area || 
-    address?.locality || 
-    property.locality || 
-    property.dynamicData?.locality || 
-    address?.city || 
-    property.city || 
-    property.dynamicData?.city || 
-    'Anantapur';
+  const getDisplayLocation = (prop) => {
+    if (!prop) return 'Anantapur';
+    const addr = prop.address;
+    if (typeof addr === 'string' && addr.trim()) return addr;
+    if (addr?.fullAddress) return addr.fullAddress;
+    
+    const locality = addr?.area || addr?.locality || prop.locality || prop.dynamicData?.locality || '';
+    const city = addr?.city || prop.city || prop.dynamicData?.city || '';
+    
+    if (locality && city) return `${locality}, ${city}`;
+    return locality || city || addr?.city || 'Anantapur';
+  };
+  const locationText = getDisplayLocation(property);
 
   const phoneNum = property.contactNumber || property.phoneNumber || '9123456789';
 
@@ -155,12 +176,12 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
     setEnquiryLoading(true);
     try {
       const pType = propertyType?.toLowerCase() || 'buy';
-      const response = await bookingService.create({
+      const response = await enquiryService.create({
         propertyId: _id,
+        enquiryType: 'contact_owner',
         message: formData.message,
-        budget: rawPrice || 0,
-        propertyType: pType,
-        checkInDate: formData.preferredDate || new Date()
+        preferredDate: formData.preferredDate ? new Date(formData.preferredDate) : new Date(),
+        budget: rawPrice || 0
       });
 
       if (response.success) {

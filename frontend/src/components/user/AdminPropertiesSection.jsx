@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { propertyService } from '../../services/propertyService';
 import toast from 'react-hot-toast';
+import PropertyQuickViewModal from './PropertyQuickViewModal';
 
 const PROPERTY_TYPE_ICONS = {
     hotel: '🏨', villa: '🏡', pg: '🏠', hostel: '🛏️',
@@ -15,6 +16,7 @@ const PROPERTY_TYPE_ICONS = {
 
 /* ─── Property Card ─── */
 const AdminPropertyCard = ({ property, index }) => {
+    const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
     const typeIcon = PROPERTY_TYPE_ICONS[property.propertyType] || '🏠';
     const rawPrice = property.rentDetails?.monthlyRent
         || property.buyDetails?.expectedPrice
@@ -33,7 +35,7 @@ const AdminPropertyCard = ({ property, index }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.35, ease: 'easeOut' }}
         >
-            <Link to={`/property/${property._id}`} className="block group">
+            <div onClick={() => setIsQuickViewOpen(true)} className="block group cursor-pointer">
                 <div className="relative rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-100/80 transition-all duration-300 hover:-translate-y-1">
                     {/* Image */}
                     <div className="relative h-44 overflow-hidden bg-gray-50">
@@ -96,7 +98,13 @@ const AdminPropertyCard = ({ property, index }) => {
                         </div>
                     </div>
                 </div>
-            </Link>
+            </div>
+            <PropertyQuickViewModal
+                isOpen={isQuickViewOpen}
+                onClose={() => setIsQuickViewOpen(false)}
+                property={property}
+                initialShowEnquiry={false}
+            />
         </motion.div>
     );
 };

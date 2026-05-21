@@ -14,7 +14,9 @@ import {
   updateInquiryStatus,
   getReceivedBookings,
   confirmBookingByOwner,
-  declineBookingByOwner
+  declineBookingByOwner,
+  getReceivedEnquiries,
+  updateReceivedEnquiryStatus
 } from '../controllers/bookingController.js';
 
 const router = express.Router();
@@ -23,6 +25,11 @@ const router = express.Router();
 router.get('/received', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), getReceivedBookings);
 router.post('/:id/confirm', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), confirmBookingByOwner);
 router.post('/:id/decline', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), declineBookingByOwner);
+
+// Enquiries received by property owner
+router.get('/received-enquiries', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), getReceivedEnquiries);
+router.put('/received-enquiries/:id/status', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), updateReceivedEnquiryStatus);
+
 
 // User (guest) - book & view own bookings
 router.post('/', protect, createBooking);

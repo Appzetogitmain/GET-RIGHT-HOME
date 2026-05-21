@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-    ArrowLeft, Calendar, Wallet, Star, Eye, Edit3,
-    TrendingUp, Users, BedDouble, MapPin, Loader2,
-    ChevronRight, CheckCircle, Clock, AlertCircle
+    ArrowLeft, MessageSquare, Wallet, Star, Eye, Edit3,
+    TrendingUp, Users, MapPin, Loader2,
+    ChevronRight, AlertCircle, Calendar, Clock
 } from 'lucide-react';
 import { api } from '../../services/apiService';
 import toast from 'react-hot-toast';
@@ -27,12 +27,29 @@ const StatCard = ({ icon: Icon, label, value, sub, color = 'text-gray-800', onCl
     </motion.div>
 );
 
+// Status badge for enquiry status
+const EnqBadge = ({ status }) => {
+    const st = (status || 'new').toLowerCase();
+    const map = {
+        new: 'bg-blue-50 text-blue-600',
+        contacted: 'bg-amber-50 text-amber-700',
+        scheduled: 'bg-purple-50 text-purple-700',
+        closed: 'bg-emerald-50 text-emerald-700',
+        dropped: 'bg-red-50 text-red-600',
+    };
+    return (
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${map[st] || 'bg-gray-50 text-gray-500'}`}>
+            {st}
+        </span>
+    );
+};
+
 const UserPropertyDashboard = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [property, setProperty] = useState(null);
     const [stats, setStats] = useState(null);
-    const [recentBookings, setRecentBookings] = useState([]);
+    const [recentEnquiries, setRecentEnquiries] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -42,10 +59,11 @@ const UserPropertyDashboard = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [propRes, statsRes, bookRes] = await Promise.allSettled([
+            const [propRes, statsRes, enqRes] = await Promise.allSettled([
                 api.get(`/properties/${id}`),
                 api.get(`/properties/${id}/stats`),
-                api.get(`/bookings/received`, { params: { propertyId: id, limit: 5, as: 'owner' } }),
+                // Fetch enquiries received for this property (owner view)
+                api.get(`/enquiries/received`, { params: { propertyId: id } }),
             ]);
 
             if (propRes.status === 'fulfilled' && propRes.value.data.success) {
@@ -54,8 +72,8 @@ const UserPropertyDashboard = () => {
             if (statsRes.status === 'fulfilled' && statsRes.value.data.success) {
                 setStats(statsRes.value.data.stats);
             }
-            if (bookRes.status === 'fulfilled' && bookRes.value.data.success) {
-                setRecentBookings(bookRes.value.data.bookings || []);
+            if (enqRes.status === 'fulfilled' && enqRes.value.data.success) {
+                setRecentEnquiries(enqRes.value.data.enquiries || []);
             }
         } catch (err) {
             console.error(err);
@@ -66,7 +84,6 @@ const UserPropertyDashboard = () => {
     };
 
     const fmt = (n) => new Intl.NumberFormat('en-IN').format(n || 0);
-    const fmtCurrency = (n) => `₹${fmt(n)}`;
 
     const getPropertyEditPath = () => {
         if (!property) return '/my-properties';
@@ -88,13 +105,14 @@ const UserPropertyDashboard = () => {
 
     const handleEdit = () => {
         if (property.dynamicCategory) {
-            const state = {
-                existingProperty: property,
-                transactionType: property.transactionType,
-                category: property.propertyCategory || property.propertyType,
-                propertyType: property.propertyType
-            };
-            navigate('/list-property/dynamic-form', { state });
+            navigate('/list-property/dynamic-form', {
+                state: {
+                    existingProperty: property,
+                    transactionType: property.transactionType,
+                    category: property.propertyCategory || property.propertyType,
+                    propertyType: property.propertyType
+                }
+            });
         } else {
             navigate(getPropertyEditPath());
         }
@@ -125,13 +143,17 @@ const UserPropertyDashboard = () => {
     const city = property.city || property.address?.city || '';
     const isActive = property.isActive ?? true;
 
+    // Count enquiries by status
+    const totalEnquiries = recentEnquiries.length;
+    const newEnquiries = recentEnquiries.filter(e => (e.inquiryMetadata?.status || 'new') === 'new').length;
+
     return (
         <div className="min-h-screen bg-gray-50 pb-28">
             {/* Hero */}
             <div className="relative h-52 overflow-hidden">
                 {coverImage
                     ? <img src={coverImage} alt={propertyName} className="w-full h-full object-cover" />
-                    : <div className="w-full h-full bg-gradient-to-br from-emerald-600 to-teal-800" />
+                    : <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-violet-800" />
                 }
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
 
@@ -170,23 +192,15 @@ const UserPropertyDashboard = () => {
             </div>
 
             <div className="px-4 pt-5 max-w-xl mx-auto">
-                {/* Stats Grid */}
+                {/* Stats Grid — Enquiry focused */}
                 <div className="grid grid-cols-2 gap-3 mb-5">
                     <StatCard
-                        icon={Calendar}
-                        label="Total Bookings"
-                        value={fmt(stats?.totalBookings)}
-                        sub={stats?.bookingsThisMonth > 0 ? `+${stats.bookingsThisMonth} this month` : 'No bookings yet'}
-                        color="text-blue-600"
-                        onClick={() => navigate('/my-received-bookings')}
-                    />
-                    <StatCard
-                        icon={Wallet}
-                        label="Total Earnings"
-                        value={fmtCurrency(stats?.totalRevenue)}
-                        sub="From bookings"
-                        color="text-emerald-600"
-                        onClick={() => navigate('/wallet')}
+                        icon={MessageSquare}
+                        label="Total Enquiries"
+                        value={fmt(totalEnquiries)}
+                        sub={newEnquiries > 0 ? `${newEnquiries} new enquiries` : 'No new enquiries'}
+                        color="text-indigo-600"
+                        onClick={() => navigate('/my-enquiries')}
                     />
                     <StatCard
                         icon={Eye}
@@ -202,6 +216,14 @@ const UserPropertyDashboard = () => {
                         sub={stats?.totalReviews ? `${stats.totalReviews} reviews` : 'No reviews yet'}
                         color="text-amber-500"
                     />
+                    <StatCard
+                        icon={TrendingUp}
+                        label="Subscription"
+                        value="Free"
+                        sub="Upgrade for more leads"
+                        color="text-emerald-600"
+                        onClick={() => navigate('/my-subscriptions')}
+                    />
                 </div>
 
                 {/* Quick Actions */}
@@ -210,7 +232,7 @@ const UserPropertyDashboard = () => {
                         <h2 className="text-sm font-black text-gray-900">Quick Actions</h2>
                     </div>
                     {[
-                        { icon: Calendar, label: 'View Received Bookings', path: '/my-received-bookings', color: 'text-blue-600', bg: 'bg-blue-50' },
+                        { icon: MessageSquare, label: 'View All Enquiries', path: '/my-enquiries', color: 'text-indigo-600', bg: 'bg-indigo-50' },
                         { icon: Wallet, label: 'My Wallet & Earnings', path: '/wallet', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                         { icon: Edit3, label: 'Edit This Property', path: getPropertyEditPath(), color: 'text-gray-700', bg: 'bg-gray-100' },
                         { icon: TrendingUp, label: 'Subscription Plans', path: '/my-subscriptions', color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -235,42 +257,59 @@ const UserPropertyDashboard = () => {
                     ))}
                 </div>
 
-                {/* Recent Bookings */}
-                {recentBookings.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
-                            <h2 className="text-sm font-black text-gray-900">Recent Bookings</h2>
-                            <button onClick={() => navigate('/my-received-bookings')} className="text-xs font-bold text-emerald-600">
-                                View All →
-                            </button>
+                {/* Recent Enquiries */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
+                        <h2 className="text-sm font-black text-gray-900">Recent Enquiries</h2>
+                        <button onClick={() => navigate('/my-enquiries')} className="text-xs font-bold text-indigo-600">
+                            View All →
+                        </button>
+                    </div>
+
+                    {recentEnquiries.length === 0 ? (
+                        <div className="px-4 py-8 text-center">
+                            <MessageSquare size={28} className="mx-auto text-gray-200 mb-2" />
+                            <p className="text-xs font-bold text-gray-400 uppercase">No enquiries yet</p>
+                            <p className="text-[11px] text-gray-400 mt-1">When buyers enquire, they'll appear here</p>
                         </div>
-                        {recentBookings.slice(0, 3).map(b => {
-                            const status = (b.bookingStatus || b.status || 'pending').toLowerCase();
-                            const statusColors = {
-                                confirmed: 'text-blue-600 bg-blue-50',
-                                completed: 'text-emerald-600 bg-emerald-50',
-                                cancelled: 'text-red-500 bg-red-50',
-                                pending: 'text-yellow-600 bg-yellow-50',
+                    ) : (
+                        recentEnquiries.slice(0, 4).map(enq => {
+                            const buyerName = enq.userId?.name || 'Inquirer';
+                            const initial = buyerName.charAt(0).toUpperCase();
+                            const createdAt = enq.createdAt;
+                            const status = enq.status || 'new';
+
+                            const formatEnquiryTime = (dateStr) => {
+                                if (!dateStr) return 'Just now';
+                                const d = new Date(dateStr);
+                                if (isNaN(d.getTime())) return 'Just now';
+                                return d.toLocaleString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: true
+                                });
                             };
+
                             return (
-                                <div key={b._id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-b-0">
-                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                        <Users size={14} className="text-gray-500" />
+                                <div key={enq._id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-b-0">
+                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center flex-shrink-0 uppercase">
+                                        {initial}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-bold text-gray-900 truncate">{b.userId?.name || 'Guest'}</p>
-                                        <p className="text-[11px] text-gray-400">
-                                            {b.checkInDate ? new Date(b.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
+                                        <p className="text-sm font-bold text-gray-900 truncate">{buyerName}</p>
+                                        <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                                            <Clock size={10} /> {formatEnquiryTime(createdAt)}
                                         </p>
                                     </div>
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${statusColors[status] || 'text-gray-500 bg-gray-50'}`}>
-                                        {status.replace('_', ' ')}
-                                    </span>
+                                    <EnqBadge status={status} />
                                 </div>
                             );
-                        })}
-                    </div>
-                )}
+                        })
+                    )}
+                </div>
             </div>
         </div>
     );

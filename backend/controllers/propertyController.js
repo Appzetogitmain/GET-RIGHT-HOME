@@ -97,7 +97,22 @@ export const createProperty = async (req, res) => {
     const docsArray = Array.isArray(documents) ? documents : [];
     const dynamicCategoryId = dynamicCategory && mongoose.Types.ObjectId.isValid(dynamicCategory) ? new mongoose.Types.ObjectId(dynamicCategory) : undefined;
 
-    const finalContactNumber = contactNumber || (dynamicData && (dynamicData.contactNumber || dynamicData.mobileNumber || dynamicData.phone || dynamicData.mobile || dynamicData.phoneNumber)) || req.user?.phoneNumber || req.user?.mobile || '';
+    let finalContactNumber = contactNumber || '';
+    if (typeof finalContactNumber === 'string') finalContactNumber = finalContactNumber.trim();
+    
+    if (!finalContactNumber && dynamicData) {
+      const keys = ['contactNumber', 'mobileNumber', 'phone', 'mobile', 'phoneNumber'];
+      for (const k of keys) {
+        if (dynamicData[k]) {
+          finalContactNumber = String(dynamicData[k]).trim();
+          break;
+        }
+      }
+    }
+
+    if (!finalContactNumber) {
+      finalContactNumber = req.user?.phone || req.user?.phoneNumber || req.user?.mobile || '';
+    }
 
     let locationValue = (location && location.coordinates && location.coordinates.length > 0) ? location : undefined;
     if (!locationValue && dynamicData && dynamicData.location) {
@@ -290,6 +305,25 @@ export const updateProperty = async (req, res) => {
       if (dd.location) {
         property.location = dd.location;
       }
+    }
+
+    if (typeof property.contactNumber === 'string') {
+      property.contactNumber = property.contactNumber.trim();
+    }
+    if (!property.contactNumber) {
+      if (property.dynamicData) {
+        const keys = ['contactNumber', 'mobileNumber', 'phone', 'mobile', 'phoneNumber'];
+        for (const k of keys) {
+          const val = typeof property.dynamicData.get === 'function' ? property.dynamicData.get(k) : property.dynamicData[k];
+          if (val) {
+            property.contactNumber = String(val).trim();
+            break;
+          }
+        }
+      }
+    }
+    if (!property.contactNumber) {
+      property.contactNumber = req.user?.phone || req.user?.phoneNumber || req.user?.mobile || '';
     }
 
     await property.save();
@@ -950,7 +984,11 @@ export const getMyProperties = async (req, res) => {
 export const getPropertyDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await Property.findById(id).populate('partnerId').populate('userId');
+    const property = await Property.findByIdAndUpdate(
+      id,
+      { $inc: { views: 1 } },
+      { new: true }
+    ).populate('partnerId').populate('userId');
     if (!property) return res.status(404).json({ message: 'Property not found' });
     const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
     const documents = await PropertyDocument.findOne({ propertyId: id });

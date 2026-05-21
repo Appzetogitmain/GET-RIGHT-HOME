@@ -1292,3 +1292,96 @@ export const getReelAnalysis = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error fetching reel analysis' });
   }
 };
+
+export const getAllEnquiries = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const { status, search } = req.query;
+
+    const query = { isInquiry: true };
+
+    if (status && status !== 'all') {
+      query['inquiryMetadata.status'] = status;
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+
+      const users = await User.find({
+        $or: [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }]
+      }).select('_id');
+      const userIds = users.map(u => u._id);
+
+      const properties = await Property.find({ propertyName: searchRegex }).select('_id');
+      const propertyIds = properties.map(p => p._id);
+
+      const searchConditions = [
+        { bookingId: searchRegex },
+        { userId: { $in: userIds } },
+        { propertyId: { $in: propertyIds } }
+      ];
+
+      query.$or = searchConditions;
+    }
+
+    const total = await Booking.countDocuments(query);
+    const enquiries = await Booking.find(query)
+      .populate('userId', 'name email phone avatar')
+      .populate({
+        path: 'propertyId',
+        select: 'propertyName coverImage address buyDetails rentDetails plotDetails propertyType partnerId userId'
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({ success: true, enquiries, total, page, limit });
+  } catch (error) {
+    console.error('Get All Enquiries Error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching enquiries' });
+  }
+};
+
+export const updateEnquiryDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, preferredDate, message } = req.body;
+
+    const enquiry = await Booking.findById(id);
+    if (!enquiry || !enquiry.isInquiry) {
+      return res.status(404).json({ success: false, message: 'Enquiry not found' });
+    }
+
+    if (status) enquiry.inquiryMetadata.status = status;
+    if (preferredDate) enquiry.inquiryMetadata.preferredDate = new Date(preferredDate);
+    if (message) enquiry.inquiryMetadata.message = message;
+
+    await enquiry.save();
+
+    const updated = await Booking.findById(id)
+      .populate('userId', 'name email phone avatar')
+      .populate('propertyId', 'propertyName coverImage address buyDetails rentDetails plotDetails propertyType');
+
+    res.status(200).json({ success: true, enquiry: updated });
+  } catch (error) {
+    console.error('Update Enquiry Error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating enquiry' });
+  }
+};
+
+export const deleteEnquiry = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Booking.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Enquiry not found' });
+    }
+    res.status(200).json({ success: true, message: 'Enquiry deleted successfully' });
+  } catch (error) {
+    console.error('Delete Enquiry Error:', error);
+    res.status(500).json({ success: false, message: 'Server error deleting enquiry' });
+  }
+};
+

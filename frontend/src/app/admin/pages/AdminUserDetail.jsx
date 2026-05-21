@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     User, Mail, Phone, Calendar, MapPin, Shield, CreditCard,
-    History, AlertTriangle, Ban, CheckCircle, Lock, Unlock, Loader2, ArrowDownLeft, ArrowUpRight
+    History, AlertTriangle, Ban, CheckCircle, Lock, Unlock, Loader2, ArrowDownLeft, ArrowUpRight,
+    MessageSquare, Clock, FileText
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -41,6 +42,82 @@ const UserBookingsTab = ({ bookings }) => (
                 ) : (
                     <tr>
                         <td colSpan="5" className="p-8 text-center text-gray-400 text-xs font-bold uppercase">No bookings found</td>
+                    </tr>
+                )}
+            </tbody>
+        </table>
+    </div>
+);
+
+// ─── Enquiry status badge ─────────────────────────────────────────────────────
+const EnqStatusBadge = ({ status }) => {
+    const st = (status || 'new').toLowerCase();
+    const cls = {
+        new: 'bg-blue-50 text-blue-700 border-blue-100',
+        contacted: 'bg-amber-50 text-amber-700 border-amber-100',
+        scheduled: 'bg-purple-50 text-purple-700 border-purple-100',
+        closed: 'bg-green-50 text-green-700 border-green-100',
+        dropped: 'bg-red-50 text-red-700 border-red-100',
+    };
+    return (
+        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${cls[st] || cls.new}`}>
+            {st}
+        </span>
+    );
+};
+
+// ─── User Enquiries Tab ───────────────────────────────────────────────────────
+const UserEnquiriesTab = ({ enquiries }) => (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
+                <tr>
+                    <th className="p-4">Enquiry ID</th>
+                    <th className="p-4">Property</th>
+                    <th className="p-4">Type</th>
+                    <th className="p-4">Scheduled Date</th>
+                    <th className="p-4">Status</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+                {enquiries && enquiries.length > 0 ? (
+                    enquiries.map((enq, i) => (
+                        <tr key={i} className="hover:bg-gray-50">
+                            <td className="p-4 font-mono text-[11px] text-gray-500">
+                                #{enq.bookingId || enq._id?.slice(-8).toUpperCase()}
+                                <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                                    {new Date(enq.createdAt).toLocaleDateString()}
+                                </p>
+                            </td>
+                            <td className="p-4">
+                                <p className="font-bold text-gray-900 text-[13px]">
+                                    {enq.propertyId?.propertyName || 'Deleted Property'}
+                                </p>
+                                <p className="text-[10px] text-gray-400 uppercase font-medium mt-0.5">
+                                    {enq.propertyId?.address?.city || ''}
+                                </p>
+                            </td>
+                            <td className="p-4">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 text-gray-600">
+                                    {enq.propertyId?.propertyType || enq.propertyType || 'N/A'}
+                                </span>
+                            </td>
+                            <td className="p-4 text-[11px] font-bold text-gray-600">
+                                {enq.inquiryMetadata?.preferredDate
+                                    ? new Date(enq.inquiryMetadata.preferredDate).toLocaleDateString()
+                                    : '—'}
+                            </td>
+                            <td className="p-4">
+                                <EnqStatusBadge status={enq.inquiryMetadata?.status} />
+                            </td>
+                        </tr>
+                    ))
+                ) : (
+                    <tr>
+                        <td colSpan="5" className="p-8 text-center">
+                            <MessageSquare size={28} className="mx-auto text-gray-200 mb-2" />
+                            <p className="text-[11px] font-bold uppercase text-gray-400">No enquiries found for this user</p>
+                        </td>
                     </tr>
                 )}
             </tbody>
@@ -122,6 +199,7 @@ const AdminUserDetail = () => {
     const [bookings, setBookings] = useState([]);
     const [wallet, setWallet] = useState(null);
     const [transactions, setTransactions] = useState([]);
+    const [enquiries, setEnquiries] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('bookings');
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
@@ -129,12 +207,22 @@ const AdminUserDetail = () => {
     const fetchUserDetails = async () => {
         try {
             setLoading(true);
-            const data = await adminService.getUserDetails(id);
-            if (data.success) {
-                setUser(data.user);
-                setBookings(data.bookings);
-                setWallet(data.wallet);
-                setTransactions(data.transactions);
+            const [userRes, enqRes] = await Promise.all([
+                adminService.getUserDetails(id),
+                adminService.getEnquiries({ limit: 100 })
+            ]);
+            if (userRes.success) {
+                setUser(userRes.user);
+                setBookings(userRes.bookings);
+                setWallet(userRes.wallet);
+                setTransactions(userRes.transactions);
+            }
+            if (enqRes.success) {
+                // Filter enquiries that belong to this user
+                const userEnquiries = (enqRes.enquiries || []).filter(
+                    enq => enq.userId?._id === id || enq.userId === id
+                );
+                setEnquiries(userEnquiries);
             }
         } catch (error) {
             console.error('Error fetching user details:', error);
@@ -194,6 +282,7 @@ const AdminUserDetail = () => {
 
     const tabs = [
         { id: 'bookings', label: 'Booking History', icon: Calendar },
+        { id: 'enquiries', label: `Enquiries (${enquiries.length})`, icon: MessageSquare },
         { id: 'transactions', label: 'Transactions', icon: CreditCard },
     ];
 
@@ -302,6 +391,7 @@ const AdminUserDetail = () => {
                         transition={{ duration: 0.15 }}
                     >
                         {activeTab === 'bookings' && <UserBookingsTab bookings={bookings} />}
+                        {activeTab === 'enquiries' && <UserEnquiriesTab enquiries={enquiries} />}
                         {activeTab === 'transactions' && <UserTransactionsTab wallet={wallet} transactions={transactions} />}
                     </motion.div>
                 </AnimatePresence>
