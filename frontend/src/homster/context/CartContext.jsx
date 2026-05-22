@@ -15,36 +15,23 @@ export const CartProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Fetch cart from server (only on initial load)
+  // Fetch cart from localStorage (only on initial load)
   const fetchCart = useCallback(async () => {
     try {
-      // Prevention: Do not fetch user cart if we are in vendor/admin/worker apps
-      const path = window.location.pathname;
-      if (path.startsWith('/vendor') || path.startsWith('/admin') || path.startsWith('/worker')) {
-        return;
-      }
-
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        setCartItems([]);
-        setCartCount(0);
-        setIsInitialized(true);
-        return;
-      }
-
       setIsLoading(true);
-      const response = await cartService.getCart();
-      if (response.success) {
-        const items = response.data || [];
+      const localCart = localStorage.getItem('cartItems');
+      if (localCart) {
+        const items = JSON.parse(localCart) || [];
         setCartItems(items);
         setCartCount(items.length);
-      }
-    } catch (error) {
-      // Silently handle auth errors
-      if (error.response?.status === 401 || error.response?.status === 403) {
+      } else {
         setCartItems([]);
         setCartCount(0);
       }
+    } catch (error) {
+      console.error('Failed to parse cart items:', error);
+      setCartItems([]);
+      setCartCount(0);
     } finally {
       setIsLoading(false);
       setIsInitialized(true);
@@ -56,122 +43,120 @@ export const CartProvider = ({ children }) => {
     fetchCart();
   }, [fetchCart]);
 
-  // Add item to cart - instant update + server sync
+  // Add item to cart - instant update + localStorage sync
   const addToCart = useCallback(async (itemData) => {
-    // Optimistic Update
-    const tempId = `temp-${Date.now()}`;
-    const tempItem = { ...itemData, _id: tempId, id: tempId };
-
-    setCartItems(prev => [...prev, tempItem]);
-    setCartCount(prev => prev + 1);
-
     try {
-      const response = await cartService.addToCart(itemData);
+      const itemId = itemData._id || itemData.id || `cart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newItem = { ...itemData, _id: itemId, id: itemId };
 
-      if (response.success && response.data) {
-        // Replace temp item with real item from server, but preserve local fields (like category) just in case
-        setCartItems(prev => prev.map(item =>
-          item._id === tempId ? { ...item, ...response.data } : item
-        ));
-      } else {
-        // Revert on failure (if success false but no throw)
-        setCartItems(prev => prev.filter(item => item._id !== tempId));
-        setCartCount(prev => Math.max(0, prev - 1));
-      }
-      return response;
+      setCartItems(prev => {
+        // Prevent duplicate addition of the same serviceId
+        const exists = prev.some(item => item.serviceId === itemData.serviceId);
+        let updated;
+        if (exists) {
+          updated = prev.map(item =>
+            item.serviceId === itemData.serviceId
+              ? { ...item, serviceCount: (item.serviceCount || 1) + 1 }
+              : item
+          );
+        } else {
+          updated = [...prev, newItem];
+        }
+        localStorage.setItem('cartItems', JSON.stringify(updated));
+        setCartCount(updated.length);
+        return updated;
+      });
+
+      return { success: true, data: newItem };
     } catch (error) {
-      // Revert on error
-      setCartItems(prev => prev.filter(item => item._id !== tempId));
-      setCartCount(prev => Math.max(0, prev - 1));
-      throw error;
+      console.error('Failed to add item to cart:', error);
+      return { success: false, message: 'Failed to add item to cart' };
     }
   }, []);
 
   // Update item quantity
   const updateItem = useCallback(async (itemId, serviceCount) => {
-    // Optimistic update
-    setCartItems(prev =>
-      prev.map(item => {
-        if (item._id === itemId || item.id === itemId) {
-          const unitPrice = item.unitPrice || (item.serviceCount ? item.price / item.serviceCount : item.price);
-          return {
-            ...item,
-            serviceCount,
-            price: unitPrice * serviceCount
-          };
-        }
-        return item;
-      })
-    );
-
     try {
-      const response = await cartService.updateItem(itemId, serviceCount);
-      if (response.success && response.data) {
-        // Replace with server data to ensure correctness
-        setCartItems(prev =>
-          prev.map(item => item._id === itemId ? response.data : item)
-        );
-      } else {
-        fetchCart();
-      }
-      return response;
+      setCartItems(prev => {
+        const updated = prev.map(item => {
+          if (item._id === itemId || item.id === itemId) {
+            const unitPrice = item.unitPrice || (item.serviceCount ? item.price / item.serviceCount : item.price);
+            return {
+              ...item,
+              serviceCount,
+              price: unitPrice * serviceCount
+            };
+          }
+          return item;
+        });
+        localStorage.setItem('cartItems', JSON.stringify(updated));
+        return updated;
+      });
+      return { success: true };
     } catch (error) {
-      fetchCart();
-      throw error;
+      console.error('Failed to update cart item:', error);
+      return { success: false, message: 'Failed to update item' };
     }
-  }, [fetchCart]);
+  }, []);
 
   // Remove item from cart - instant update
   const removeItem = useCallback(async (itemId) => {
-    // Optimistic update
-    setCartItems(prev => prev.filter(item => item._id !== itemId && item.id !== itemId));
-    setCartCount(prev => Math.max(0, prev - 1));
-
     try {
-      const response = await cartService.removeItem(itemId);
-      if (!response.success) {
-        // Re-fetch on failure to ensure correct state
-        fetchCart();
-      }
-      return response;
+      setCartItems(prev => {
+        const updated = prev.filter(item => item._id !== itemId && item.id !== itemId);
+        localStorage.setItem('cartItems', JSON.stringify(updated));
+        setCartCount(updated.length);
+        return updated;
+      });
+      return { success: true };
     } catch (error) {
-      fetchCart();
-      throw error;
+      console.error('Failed to remove cart item:', error);
+      return { success: false, message: 'Failed to remove item' };
     }
-  }, [fetchCart]);
+  }, []);
 
   // Remove all items from a category
   const removeCategoryItems = useCallback(async (category) => {
-    // Optimistic update
-    setCartItems(prev => {
-      const filtered = prev.filter(item => item.category !== category);
-      setCartCount(filtered.length);
-      return filtered;
-    });
-
     try {
-      const response = await cartService.removeCategoryItems(category);
-      if (!response.success) {
-        fetchCart();
-      }
-      return response;
+      setCartItems(prev => {
+        const updated = prev.filter(item => item.category !== category);
+        localStorage.setItem('cartItems', JSON.stringify(updated));
+        setCartCount(updated.length);
+        return updated;
+      });
+      return { success: true };
     } catch (error) {
-      fetchCart();
-      throw error;
+      console.error('Failed to remove category items:', error);
+      return { success: false, message: 'Failed to remove category items' };
     }
-  }, [fetchCart]);
+  }, []);
+
+  // Remove all items from a sub-category
+  const removeSubCategoryItems = useCallback(async (subCategory) => {
+    try {
+      setCartItems(prev => {
+        const updated = prev.filter(item => item.subCategory !== subCategory);
+        localStorage.setItem('cartItems', JSON.stringify(updated));
+        setCartCount(updated.length);
+        return updated;
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to remove subcategory items:', error);
+      return { success: false, message: 'Failed to remove subcategory items' };
+    }
+  }, []);
 
   // Clear entire cart
   const clearCart = useCallback(async () => {
     try {
-      const response = await cartService.clearCart();
-      if (response.success) {
-        setCartItems([]);
-        setCartCount(0);
-      }
-      return response;
+      setCartItems([]);
+      setCartCount(0);
+      localStorage.removeItem('cartItems');
+      return { success: true };
     } catch (error) {
-      throw error;
+      console.error('Failed to clear cart:', error);
+      return { success: false, message: 'Failed to clear cart' };
     }
   }, []);
 
@@ -179,6 +164,7 @@ export const CartProvider = ({ children }) => {
   const resetCart = useCallback(() => {
     setCartItems([]);
     setCartCount(0);
+    localStorage.removeItem('cartItems');
     setIsInitialized(false);
   }, []);
 
@@ -192,6 +178,7 @@ export const CartProvider = ({ children }) => {
     updateItem,
     removeItem,
     removeCategoryItems,
+    removeSubCategoryItems,
     clearCart,
     resetCart,
   };

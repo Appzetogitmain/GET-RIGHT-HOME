@@ -38,7 +38,7 @@ const getTokenKeys = (url) => {
   if (url?.includes('/workers/auth')) return { access: 'workerAccessToken', refresh: 'workerRefreshToken', role: 'worker' };
 
   // 3. Fallback to user token (most common case for user app)
-  return { access: 'accessToken', refresh: 'refreshToken', role: 'user' };
+  return { access: 'token', refresh: 'refreshToken', role: 'user' };
 };
 
 // Request interceptor - Add auth token
@@ -202,14 +202,16 @@ export const handleLogout = (role = null) => {
     }
   } else {
     // User
+    localStorage.removeItem('token');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userData');
+    sessionStorage.removeItem('token');
     sessionStorage.removeItem('accessToken');
     sessionStorage.removeItem('refreshToken');
     sessionStorage.removeItem('userData');
     if (!window.location.pathname.includes('/login')) {
-      window.location.href = '/user/login';
+      window.location.href = '/login';
     }
   }
 };

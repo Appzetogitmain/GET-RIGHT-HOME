@@ -22,12 +22,17 @@ import {
     Home,
     Calendar,
     ShoppingCart,
-    User
+    User,
+    Crown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCity } from '../../homster/context/CityContext';
 import CategoryModal from '../../homster/modules/user/pages/Home/components/CategoryModal';
+import BottomNav from '../../homster/modules/user/components/layout/BottomNav';
+import { userService } from '../../services/apiService';
+import { toast } from 'react-hot-toast';
+import { createVipOrder, verifyVipPayment } from '../../homster/modules/user/services/planService';
 
 const toAssetUrl = (url) => {
   if (!url) return '';
@@ -42,9 +47,17 @@ const HomeServicesPage = () => {
     const { currentCity } = useCity();
     const [searchQuery, setSearchQuery] = useState('');
     const [isScrolled, setIsScrolled] = useState(false);
+    const [vipLoading, setVipLoading] = useState(false);
     const [activeBanner, setActiveBanner] = useState(0);
     const [activeFaqIndex, setActiveFaqIndex] = useState(null);
+    const [copiedCode, setCopiedCode] = useState(false);
     const scrollContainerRef = useRef(null);
+
+    const handleCopyCode = () => {
+        navigator.clipboard.writeText(homeData?.firstBookingCode || "NEWCLEAN10");
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 2000);
+    };
 
     useEffect(() => {
         const handleScroll = () => {
@@ -107,6 +120,23 @@ const HomeServicesPage = () => {
     const [noteworthy, setNoteworthy] = useState([]);
     const [mostBooked, setMostBooked] = useState([]);
     const [playingVideoIdx, setPlayingVideoIdx] = useState(null);
+    const [user, setUser] = useState(null);
+
+    useEffect(() => {
+        const fetchUserProfile = async () => {
+            try {
+                if (localStorage.getItem('token')) {
+                    const res = await userService.getProfile();
+                    if (res?.success && res.user) {
+                        setUser(res.user);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load user profile", err);
+            }
+        };
+        fetchUserProfile();
+    }, []);
 
     useEffect(() => {
         const fetchHomeData = async () => {
@@ -454,6 +484,345 @@ const HomeServicesPage = () => {
                 </section>
             )}
 
+            {/* VIP Membership Section */}
+            {homeData?.isVipEnabled !== false && (
+                <section className="mt-12 px-5 max-w-7xl mx-auto">
+                    <div className="bg-[#111111] bg-gradient-to-br from-[#181818] to-[#0a0a0a] border border-neutral-800/80 rounded-[1.5rem] p-5 shadow-2xl relative overflow-hidden">
+                        {/* Shimmer text style injection */}
+                        <style>{`
+                            @keyframes vipFlashSweep {
+                                0% {
+                                    background-position: -200% center;
+                                }
+                                100% {
+                                    background-position: 200% center;
+                                }
+                            }
+                            .vip-text-flash {
+                                background: linear-gradient(90deg, #8b734a 38%, #e8c87f 46%, #ffffff 50%, #e8c87f 54%, #8b734a 62%);
+                                background-size: 200% auto;
+                                -webkit-background-clip: text;
+                                -webkit-text-fill-color: transparent;
+                                background-clip: text;
+                                text-fill-color: transparent;
+                                animation: vipFlashSweep 3s linear infinite;
+                                display: inline-flex;
+                                align-items: baseline;
+                            }
+                            @keyframes buttonShineSweep {
+                                0% {
+                                    left: -150%;
+                                }
+                                50% {
+                                    left: 150%;
+                                }
+                                100% {
+                                    left: 150%;
+                                }
+                            }
+                            .btn-shimmer {
+                                position: relative;
+                                overflow: hidden;
+                            }
+                            .btn-shimmer::after {
+                                content: '';
+                                position: absolute;
+                                top: 0;
+                                left: -150%;
+                                width: 50%;
+                                height: 100%;
+                                background: linear-gradient(
+                                    90deg,
+                                    rgba(255, 255, 255, 0) 0%,
+                                    rgba(255, 255, 255, 0.25) 50%,
+                                    rgba(255, 255, 255, 0) 100%
+                                );
+                                transform: skewX(-20deg);
+                                animation: buttonShineSweep 3.5s infinite linear;
+                            }
+                        `}</style>
+                        
+                        {/* Background subtle glow */}
+                        <div className="absolute top-[-50%] left-[20%] w-[120%] h-[120%] bg-white/[0.02] rotate-12 pointer-events-none" />
+                        
+                        {/* Header Row */}
+                        <div className="relative z-10 flex items-center justify-between gap-4 pb-5 border-b border-neutral-800/60">
+                            <div className="flex items-center gap-3">
+                                {/* Serif V Logo with Sparkles */}
+                                <div className="relative flex items-center justify-center">
+                                    <span className="text-4xl md:text-5xl font-serif font-black text-[#eab308] select-none tracking-tighter">
+                                        V
+                                    </span>
+                                    <Sparkles className="absolute -top-1 -right-3 w-4 h-4 text-[#eab308] animate-pulse fill-[#eab308]" />
+                                </div>
+                                
+                                <div className="ml-1">
+                                    <h3 className="text-xs md:text-sm font-semibold tracking-widest text-neutral-300 uppercase leading-tight mb-1">
+                                        VIP MEMBERSHIP
+                                    </h3>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-xl md:text-2xl font-bold text-white">₹{homeData?.vipPrice ?? 199}</span>
+                                        <span className="text-sm text-neutral-500 line-through decoration-neutral-500/50">₹{homeData?.vipOriginalPrice ?? 599}</span>
+                                        <span className="text-sm text-neutral-500 font-medium">for {homeData?.vipDurationText || "6 months"}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* BUY / ACTIVE Button */}
+                            {user?.isVip ? (
+                                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold text-xs px-4 py-2 rounded-lg uppercase tracking-wider flex items-center gap-1.5">
+                                    <CheckCircle2 size={14} className="fill-emerald-400/20" /> Active
+                                </span>
+                            ) : (
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    disabled={vipLoading}
+                                    onClick={async () => {
+                                        const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+                                        if (!token) {
+                                            toast.error('Please login to buy VIP membership');
+                                            navigate('/login');
+                                            return;
+                                        }
+
+                                        // Ensure Razorpay is loaded
+                                        const loadRazorpay = () => new Promise((resolve) => {
+                                            if (window.Razorpay) return resolve(true);
+                                            const script = document.createElement('script');
+                                            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                                            script.onload = () => resolve(true);
+                                            script.onerror = () => resolve(false);
+                                            document.body.appendChild(script);
+                                        });
+
+                                        try {
+                                            setVipLoading(true);
+                                            toast.loading('Initializing payment...', { id: 'vip-buy' });
+
+                                            const isLoaded = await loadRazorpay();
+                                            if (!isLoaded || !window.Razorpay) {
+                                                toast.error('Payment gateway failed to load', { id: 'vip-buy' });
+                                                setVipLoading(false);
+                                                return;
+                                            }
+
+                                            const cityId = currentCity?._id || currentCity?.id;
+                                            const orderRes = await createVipOrder(cityId);
+
+                                            if (!orderRes.success) {
+                                                toast.error(orderRes.message || 'Failed to create payment order', { id: 'vip-buy' });
+                                                setVipLoading(false);
+                                                return;
+                                            }
+
+                                            const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+                                            if (!razorpayKey) {
+                                                toast.error('Payment key not configured', { id: 'vip-buy' });
+                                                setVipLoading(false);
+                                                return;
+                                            }
+
+                                            const { vipDurationDays } = orderRes.order;
+                                            const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+
+                                            toast.dismiss('vip-buy');
+
+                                            const options = {
+                                                key: razorpayKey,
+                                                amount: orderRes.order.amount,
+                                                currency: orderRes.order.currency || 'INR',
+                                                order_id: orderRes.order.id,
+                                                name: 'Hoomzo',
+                                                description: `VIP Membership - ${vipDurationDays || 56} Days`,
+                                                handler: async (response) => {
+                                                    try {
+                                                        toast.loading('Activating VIP membership...', { id: 'vip-verify' });
+                                                        const verifyRes = await verifyVipPayment({
+                                                            razorpay_order_id: response.razorpay_order_id,
+                                                            razorpay_payment_id: response.razorpay_payment_id,
+                                                            razorpay_signature: response.razorpay_signature,
+                                                            vipDurationDays: vipDurationDays || 56
+                                                        });
+
+                                                        if (verifyRes.success) {
+                                                            // Update local user state
+                                                            setUser(prev => ({ ...prev, isVip: true, vipExpiry: verifyRes.vip?.vipExpiry }));
+                                                            const stored = JSON.parse(localStorage.getItem('userData') || '{}');
+                                                            stored.isVip = true;
+                                                            stored.vipExpiry = verifyRes.vip?.vipExpiry;
+                                                            localStorage.setItem('userData', JSON.stringify(stored));
+                                                            
+                                                            toast.success('🎉 VIP Membership Activated!', { id: 'vip-verify' });
+                                                        } else {
+                                                            toast.error(verifyRes.message || 'Activation failed.', { id: 'vip-verify' });
+                                                        }
+                                                    } catch (err) {
+                                                        toast.error('Payment verification failed.', { id: 'vip-verify' });
+                                                    } finally {
+                                                        setVipLoading(false);
+                                                    }
+                                                },
+                                                prefill: {
+                                                    name: userData.name || user?.name || '',
+                                                    contact: userData.phone || user?.phone || ''
+                                                },
+                                                theme: {
+                                                    color: '#C8960C'
+                                                },
+                                                modal: {
+                                                    ondismiss: () => setVipLoading(false)
+                                                }
+                                            };
+
+                                            const rzp = new window.Razorpay(options);
+                                            rzp.on('payment.failed', () => {
+                                                toast.error('Payment failed. Please try again.');
+                                                setVipLoading(false);
+                                            });
+                                            rzp.open();
+
+                                        } catch (err) {
+                                            console.error('VIP Buy error:', err);
+                                            toast.error('Something went wrong. Please try again.', { id: 'vip-buy' });
+                                            setVipLoading(false);
+                                        }
+                                    }}
+                                    className="btn-shimmer bg-white/5 hover:bg-white/10 border border-white/60 text-white font-semibold text-sm px-6 py-2 rounded-[8px] transition-all cursor-pointer disabled:opacity-50"
+                                >
+                                    {vipLoading ? '...' : 'BUY'}
+                                </motion.button>
+                            )}
+                        </div>
+
+                        {/* Benefit Cards horizontal list inside the same container */}
+                        {(homeData?.vipCards || []).length > 0 && (
+                            <div className="flex overflow-x-auto gap-4 no-scrollbar mt-5 pb-1 -mx-1 px-1 snap-x snap-mandatory">
+                                {homeData.vipCards.map((card, idx) => {
+                                    const matchedCat = [...categories, ...directCategories].find(c => (c.id || c._id) === card.targetCategoryId);
+                                    
+                                    // Render card
+                                    return (
+                                        <motion.div
+                                            key={card.id || card._id || idx}
+                                            whileHover={{ y: -2 }}
+                                            onClick={() => matchedCat && openCategoryModal(matchedCat)}
+                                            className="min-w-[210px] md:min-w-[230px] snap-center bg-white rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col justify-between h-[280px]"
+                                        >
+                                            <div className="text-left">
+                                                {/* EXTRA / FLAT badge */}
+                                                <div className="text-[#a68a56] font-bold text-xs tracking-widest uppercase mb-1">
+                                                    {card.discountType || "EXTRA"}
+                                                </div>
+                                                {/* Discount Header */}
+                                                <div className="vip-text-flash font-bold uppercase tracking-tight">
+                                                    <span className="text-4xl md:text-5xl font-black leading-none">{card.discount}%</span>
+                                                    <span className="text-lg md:text-xl font-bold leading-none ml-1">DISCOUNT</span>
+                                                </div>
+                                                {/* Caption */}
+                                                <p className="text-[17px] font-bold text-neutral-900 leading-snug mt-3">
+                                                    {card.caption || (matchedCat ? `On ${matchedCat.title}` : "Special Discount")}
+                                                </p>
+                                                
+                                                {/* Bullets layout if selected */}
+                                                {card.bgType === "bullets" || (card.bullets && card.bullets.length > 0) ? (
+                                                    <ul className="mt-4 space-y-2 text-xs font-medium text-neutral-500 pl-4 list-disc text-left">
+                                                        {(card.bullets || []).map((bullet, bIdx) => (
+                                                            <li key={bIdx}>{bullet}</li>
+                                                        ))}
+                                                    </ul>
+                                                ) : null}
+                                            </div>
+                                            
+                                            {/* Bottom decoration based on layout type */}
+                                            {card.bgType === "bullets" || (card.bullets && card.bullets.length > 0) ? (
+                                                <div className="flex justify-end pt-2 absolute bottom-4 right-4">
+                                                    {/* Red percentage circle sticker */}
+                                                    <div className="w-12 h-12 rounded-full bg-[#ff3b5c] flex items-center justify-center shadow-lg shadow-[#ff3b5c]/40">
+                                                        <span className="text-white font-bold text-2xl">%</span>
+                                                    </div>
+                                                </div>
+                                            ) : (() => {
+                                                const allVipCards = homeData?.vipCards || [];
+                                                
+                                                const getCardImageUrl = (offset = 0) => {
+                                                    let targetCard = card;
+                                                    
+                                                    // Resolve adjacent cards
+                                                    if (offset !== 0 && allVipCards.length > 1) {
+                                                        const targetIdx = (idx + offset + allVipCards.length) % allVipCards.length;
+                                                        targetCard = allVipCards[targetIdx];
+                                                    }
+                                                    
+                                                    if (targetCard) {
+                                                        if (targetCard.cardImage) return targetCard.cardImage;
+                                                        const cat = [...categories, ...directCategories].find(c => (c.id || c._id) === targetCard.targetCategoryId);
+                                                        if (cat) return cat.imageUrl || cat.homeIconUrl || cat.icon || '';
+                                                    }
+                                                    
+                                                    // Fallback to generic categories in catalog if not enough cards
+                                                    const allCats = [...categories, ...directCategories];
+                                                    if (allCats.length > 0) {
+                                                        const fallbackCat = allCats[(idx + offset + allCats.length) % allCats.length];
+                                                        return fallbackCat?.imageUrl || fallbackCat?.homeIconUrl || fallbackCat?.icon || '';
+                                                    }
+                                                    return '';
+                                                };
+
+                                                const leftImg = getCardImageUrl(-1);
+                                                const rightImg = getCardImageUrl(1);
+                                                const frontImg = getCardImageUrl(0);
+
+                                                return (
+                                                    <div className="relative h-24 mt-4 flex flex-col justify-end items-center">
+                                                        {/* Stacked overlapping images decoration */}
+                                                        <div className="relative h-20 w-full flex items-center justify-center overflow-visible">
+                                                            {/* Background image left */}
+                                                            {leftImg && (
+                                                                <div className="absolute left-7 w-16 h-20 rounded-xl bg-neutral-100 overflow-hidden shadow-sm opacity-50 scale-90 -rotate-12 origin-bottom transition-all blur-[1.5px]">
+                                                                    <img 
+                                                                        src={toAssetUrl(leftImg)} 
+                                                                        alt="" 
+                                                                        className="w-full h-full object-cover grayscale-[20%]"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                            {/* Background image right */}
+                                                            {rightImg && (
+                                                                <div className="absolute right-7 w-16 h-20 rounded-xl bg-neutral-100 overflow-hidden shadow-sm opacity-50 scale-90 rotate-12 origin-bottom transition-all blur-[1.5px]">
+                                                                    <img 
+                                                                        src={toAssetUrl(rightImg)} 
+                                                                        alt="" 
+                                                                        className="w-full h-full object-cover grayscale-[20%]"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                            {/* Main front image */}
+                                                            {frontImg && (
+                                                                <div className="absolute w-20 h-24 rounded-xl bg-neutral-100 overflow-hidden shadow-lg z-10 border border-white/50 origin-bottom scale-100 transition-all hover:scale-105">
+                                                                    <img 
+                                                                        src={toAssetUrl(frontImg)} 
+                                                                        alt={matchedCat?.title || "VIP Card Image"} 
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {/* Category title footer text */}
+                                                        <span className="text-xs font-black text-neutral-700 tracking-tight text-center mt-3.5 uppercase block line-clamp-1 max-w-[90%] z-20">
+                                                            {matchedCat?.title || ""}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </motion.div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
             {/* Direct Home Services Categories (Dynamically created Categories showing their sub-categories in circular layout) */}
             {directCategories.length > 0 && directCategories.map((cat) => {
                 const subCats = directSubCategoriesMap[cat._id || cat.id] || [];
@@ -572,6 +941,72 @@ const HomeServicesPage = () => {
                     </div>
                 </div>
             </section>
+
+            {/* First Booking Offer Card */}
+            {homeData?.isFirstBookingVisible !== false && (
+                <section className="mt-6 px-5 max-w-7xl mx-auto">
+                    <div className="bg-white border border-neutral-100 rounded-[2rem] p-6 md:p-8 flex items-center justify-between shadow-lg shadow-neutral-100/50 relative overflow-hidden">
+                        {/* Left text area */}
+                        <div className="flex-1 min-w-0 pr-4 z-10">
+                            <span className="text-[10px] md:text-xs font-black text-neutral-400 uppercase tracking-widest block mb-1">
+                                {homeData?.firstBookingTitle || "Home Cleaning Offer"}
+                            </span>
+                            
+                            <h4 className="text-xl md:text-2xl font-black text-neutral-800 tracking-tight leading-tight mb-5">
+                                <span className="text-[#6366f1] inline-block mr-1">
+                                    {homeData?.firstBookingDiscount || "10% off*"}
+                                </span>{" "}
+                                {homeData?.firstBookingCaption || "on first booking"}
+                            </h4>
+                            
+                            <div 
+                                onClick={handleCopyCode}
+                                className="inline-flex items-center gap-2.5 px-4 py-2 bg-emerald-50/40 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl cursor-pointer transition-all active:scale-95 group"
+                            >
+                                <span className="text-xs md:text-sm font-black text-emerald-600 tracking-wider">
+                                    {homeData?.firstBookingCode || "NEWCLEAN10"}
+                                </span>
+                                {copiedCode ? (
+                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded animate-pulse">
+                                        Copied!
+                                    </span>
+                                ) : (
+                                    <svg 
+                                        className="w-3.5 h-3.5 text-emerald-600 transition-transform group-hover:scale-110" 
+                                        fill="none" 
+                                        stroke="currentColor" 
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                                    </svg>
+                                )}
+                            </div>
+                        </div>
+                        
+                        {/* Right graphics area */}
+                        <div className="relative shrink-0 flex items-center justify-end w-36 h-28 md:w-56 md:h-36 overflow-visible">
+                            {/* Background light olive curve shape */}
+                            <div className="absolute right-[-15%] bottom-[-15%] w-[110%] h-[110%] bg-[#e3ecd5]/60 rounded-full pointer-events-none z-0" />
+                            
+                            {/* Elegant Bedroom image with white borders */}
+                            <div className="relative z-10 w-28 h-24 md:w-44 md:h-32 rounded-2xl overflow-hidden shadow-md border-4 border-white">
+                                <img 
+                                    src={homeData?.firstBookingImage ? toAssetUrl(homeData.firstBookingImage) : "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=400&q=80"} 
+                                    alt="Modern clean bedroom" 
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                            
+                            {/* Floating mini vacuum icon badge */}
+                            <div className="absolute bottom-1 right-2 z-20 bg-white p-2 rounded-xl shadow-lg border border-neutral-100 flex items-center justify-center animate-bounce">
+                                <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            )}
 
             {/* New and Noteworthy */}
             <section className="mt-12 px-5 max-w-7xl mx-auto">
@@ -778,40 +1213,7 @@ const HomeServicesPage = () => {
             )}
 
             {/* Custom Bottom Nav for Home Services */}
-            <div className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-gray-100 py-2.5 px-6 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <button onClick={() => navigate('/')} className="flex flex-col items-center gap-1 group">
-                        <div className="w-10 h-10 flex items-center justify-center text-gray-400 group-hover:text-emerald-600 transition-colors">
-                            <Home size={22} />
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-emerald-600 uppercase tracking-tighter">Home</span>
-                    </button>
-
-                    <button className="flex flex-col items-center gap-1 group">
-                        <div className="w-10 h-10 flex items-center justify-center text-gray-400 group-hover:text-emerald-600 transition-colors">
-                            <Calendar size={22} />
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-emerald-600 uppercase tracking-tighter">Bookings</span>
-                    </button>
-
-                    <button className="flex flex-col items-center gap-1 group relative">
-                        <div className="w-10 h-10 flex items-center justify-center text-gray-400 group-hover:text-emerald-600 transition-colors">
-                            <ShoppingCart size={22} />
-                        </div>
-                        <div className="absolute top-1 right-1 w-4.5 h-4.5 bg-rose-600 rounded-full border-2 border-white flex items-center justify-center">
-                            <span className="text-[9px] font-black text-white">2</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-emerald-600 uppercase tracking-tighter">Cart</span>
-                    </button>
-
-                    <button onClick={() => navigate('/profile')} className="flex flex-col items-center gap-1 group">
-                        <div className="w-10 h-10 flex items-center justify-center text-gray-400 group-hover:text-emerald-600 transition-colors">
-                            <User size={22} />
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-emerald-600 uppercase tracking-tighter">Profile</span>
-                    </button>
-                </div>
-            </div>
+            <BottomNav />
             <CategoryModal 
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}

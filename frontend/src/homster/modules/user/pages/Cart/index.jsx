@@ -15,7 +15,7 @@ import NotificationBell from '../../components/common/NotificationBell';
 
 const Cart = () => {
   const navigate = useNavigate();
-  const { cartItems, isLoading: loading, removeItem, removeCategoryItems, updateItem } = useCart();
+  const { cartItems, isLoading: loading, removeItem, updateItem } = useCart();
 
   // Category icon mapping
   const getCategoryIcon = (category) => {
@@ -35,15 +35,15 @@ const Cart = () => {
     return iconMap[category] || electricianIcon; // Default icon
   };
 
-  // Group items by category
+  // Group items by subcategory
   const groupedItems = useMemo(() => {
     const groups = {};
     cartItems.forEach(item => {
-      const category = item.category || 'Other';
-      if (!groups[category]) {
-        groups[category] = [];
+      const subCategoryName = item.subCategory || item.category || 'Other';
+      if (!groups[subCategoryName]) {
+        groups[subCategoryName] = [];
       }
-      groups[category].push(item);
+      groups[subCategoryName].push(item);
     });
     return groups;
   }, [cartItems]);
@@ -54,75 +54,52 @@ const Cart = () => {
     navigate(-1);
   };
 
-  const handleDeleteCategory = async (category) => {
+  const handleDeleteSubCategory = async (subCategoryName) => {
     try {
-      const response = await removeCategoryItems(category);
-      if (response.success) {
-        toast.success('Category items removed');
-      } else {
-        toast.error(response.message || 'Failed to remove category items');
+      const itemsInSub = groupedItems[subCategoryName] || [];
+      for (const item of itemsInSub) {
+        await removeItem(item._id || item.id);
       }
+      toast.success(`${subCategoryName} items removed`);
     } catch (error) {
-      toast.error('Failed to remove category items');
+      toast.error('Failed to remove items');
     }
   };
 
-  const handleDelete = async (itemId) => {
-    try {
-      const response = await removeItem(itemId);
-      if (response.success) {
-        toast.success('Item removed from cart');
-      } else {
-        toast.error(response.message || 'Failed to remove item');
-      }
-    } catch (error) {
-      toast.error('Failed to remove item');
+  const handleCustomise = (subCategoryName) => {
+    const itemsInSub = groupedItems[subCategoryName] || [];
+    const firstItem = itemsInSub[0];
+    if (firstItem) {
+      navigate('/home-services/sub-category', {
+        state: {
+          subCategory: {
+            id: firstItem.subCategoryId,
+            _id: firstItem.subCategoryId,
+            title: firstItem.subCategory
+          },
+          category: {
+            id: firstItem.categoryId,
+            _id: firstItem.categoryId,
+            title: firstItem.category
+          }
+        }
+      });
+    } else {
+      navigate('/home-services');
     }
   };
 
-  const handleQuantityChange = async (itemId, change) => {
-    try {
-      const item = cartItems.find(i => (i._id || i.id) === itemId);
-      if (!item) return;
-
-      const newCount = Math.max(1, (item.serviceCount || 1) + change);
-      const response = await updateItem(itemId, newCount);
-
-      if (!response.success) {
-        toast.error(response.message || 'Failed to update quantity');
-      }
-    } catch (error) {
-      toast.error('Failed to update quantity');
-    }
-  };
-
-  const handleAddServices = (category) => {
-    // Navigate back to home with instructions to open the category modal
-    const itemsInCategory = groupedItems[category];
-    const categoryId = itemsInCategory?.[0]?.categoryId;
-
-    navigate('/user', {
+  const handleSubCategoryCheckout = (subCategoryName) => {
+    const itemsInSub = groupedItems[subCategoryName] || [];
+    const firstItem = itemsInSub[0];
+    navigate('/user/checkout', {
       state: {
-        openCategoryId: categoryId,
-        openCategoryName: category
+        subCategory: subCategoryName,
+        subCategoryId: firstItem?.subCategoryId
       }
     });
   };
 
-  const handleCategoryCheckout = (category) => {
-    navigate('/user/checkout', { state: { category: category } });
-  };
-
-  const handleCartClick = () => {
-    // Already on cart page
-  };
-
-  // Calculate totals for all items
-  const totalPrice = cartItems.reduce((sum, item) => sum + (item.price || 0), 0);
-  const totalOriginalPrice = cartItems.reduce((sum, item) => {
-    const unitOriginalPrice = item.originalPrice || (item.unitPrice || (item.price / (item.serviceCount || 1)));
-    return sum + (unitOriginalPrice * (item.serviceCount || 1));
-  }, 0);
   return (
     <div className="min-h-screen pb-32 relative bg-white">
       {/* Refined Brand Mesh Gradient Background */}
@@ -171,13 +148,12 @@ const Cart = () => {
           <NotificationBell />
         </header>
 
-        {/* Cart Items - Grouped by Category */}
+        {/* Cart Items - Grouped by Sub-Category */}
         <main className="px-4 py-4" style={{ paddingBottom: cartItems.length > 0 ? '70px' : '100px' }}>
           {loading ? (
             <div className="space-y-6">
               {[1, 2].map(i => (
                 <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 animate-pulse">
-                  {/* Category Header Skeleton */}
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
                     <div className="space-y-2">
@@ -185,12 +161,10 @@ const Cart = () => {
                       <div className="h-3 w-24 bg-gray-200 rounded"></div>
                     </div>
                   </div>
-                  {/* Items Skeleton */}
                   <div className="space-y-3">
                     <div className="h-10 w-full bg-gray-100 rounded"></div>
                     <div className="h-10 w-full bg-gray-100 rounded"></div>
                   </div>
-                  {/* Buttons Skeleton */}
                   <div className="flex gap-2 mt-4">
                     <div className="flex-1 h-10 bg-gray-200 rounded-xl"></div>
                     <div className="flex-1 h-10 bg-gray-300 rounded-xl"></div>
@@ -206,35 +180,30 @@ const Cart = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {Object.entries(groupedItems).map(([category, items]) => {
-                const categoryTotal = items.reduce((sum, item) => sum + (item.price || 0), 0);
-                const categoryIcon = getCategoryIcon(category);
-                const serviceCount = items.reduce((sum, item) => sum + (item.serviceCount || 1), 0);
+              {Object.entries(groupedItems).map(([subCategory, items]) => {
+                const subCategoryTotal = items.reduce((sum, item) => sum + ((item.price || 0) * (item.serviceCount || 1)), 0);
+                const firstItem = items[0];
+                const cardImage = firstItem?.icon || firstItem?.imageUrl || getCategoryIcon(firstItem?.category);
+                const serviceCount = items.length;
 
                 return (
                   <div
-                    key={category}
+                    key={subCategory}
                     className="bg-white rounded-2xl shadow-md border border-gray-100"
                     style={{
                       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
                       padding: '16px'
                     }}
                   >
-                    {/* Category Header */}
-                    <div className="flex items-start justify-between mb-4">
+                    {/* Sub-Category Header */}
+                    <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-3 flex-1">
-                        {/* Category Icon */}
-                        <div
-                          className="w-16 h-16 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
-                          style={{
-                            backgroundColor: `${themeColors.brand.teal}15`,
-                            border: `2px solid ${themeColors.brand.teal}20`
-                          }}
-                        >
+                        {/* Sub-Category Icon */}
+                        <div className="w-16 h-16 rounded-xl flex items-center justify-center shrink-0 overflow-hidden bg-gray-50 border border-gray-100 shadow-sm">
                           <img
-                            src={categoryIcon}
-                            alt={category}
-                            className="w-12 h-12 object-contain"
+                            src={cardImage}
+                            alt={subCategory}
+                            className="w-full h-full object-cover"
                             onError={(e) => {
                               e.target.style.display = 'none';
                               if (e.target.nextSibling) {
@@ -243,73 +212,62 @@ const Cart = () => {
                             }}
                           />
                           <div
-                            className="hidden items-center justify-center"
-                            style={{
-                              width: '48px',
-                              height: '48px',
-                              display: 'none'
-                            }}
+                            className="hidden items-center justify-center w-full h-full"
+                            style={{ display: 'none' }}
                           >
-                            <FiShoppingCart className="w-8 h-8" style={{ color: themeColors.button }} />
+                            <FiShoppingCart className="w-6 h-6 text-gray-400" />
                           </div>
                         </div>
 
-                        {/* Category Info */}
+                        {/* Sub-Category Info */}
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-bold text-black mb-1">{category}</h3>
-                          <p className="text-sm text-gray-600">
-                            {serviceCount} {serviceCount === 1 ? 'service' : 'services'} • ₹{categoryTotal.toLocaleString('en-IN')}
+                          <h3 className="text-base font-bold text-black mb-0.5">{subCategory}</h3>
+                          <p className="text-xs font-semibold text-gray-400 mb-0.5">
+                            {serviceCount} {serviceCount === 1 ? 'service' : 'services'}
+                          </p>
+                          <p className="text-sm font-extrabold text-[#347989]">
+                            ₹{subCategoryTotal.toLocaleString('en-IN')}
                           </p>
                         </div>
                       </div>
 
-                      {/* Delete Category Button */}
+                      {/* Delete Sub-Category Button */}
                       <button
-                        onClick={() => handleDeleteCategory(category)}
+                        onClick={() => handleDeleteSubCategory(subCategory)}
                         className="p-2 hover:bg-red-50 rounded-full transition-colors shrink-0"
                       >
                         <FiTrash2 className="w-5 h-5 text-red-500" />
                       </button>
                     </div>
 
-                    {/* Services List */}
-                    <div className="mb-4 space-y-2">
-                      {items.map((item) => (
-                        <div key={item._id || item.id} className="flex items-start justify-between py-2 border-b border-gray-100 last:border-0">
-                          <div className="flex-1">
-                            <p className="text-sm text-gray-800 font-medium">
-                              {item.title} X {item.serviceCount || 1}
-                            </p>
-                            {item.description && (
-                              <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-sm font-semibold text-black">
-                              ₹{(item.price || 0).toLocaleString('en-IN')}
+                    {/* Services Bullet List */}
+                    <div className="my-3 border-t border-b border-gray-50 py-3">
+                      <ul className="space-y-1.5 pl-1">
+                        {items.map((item) => (
+                          <li key={item._id || item.id} className="flex items-start gap-2 text-xs font-semibold text-gray-500">
+                            <span className="text-gray-400 mt-0.5">•</span>
+                            <span className="flex-1">
+                              {item.title} {item.serviceCount > 1 ? `x${item.serviceCount}` : ''}
                             </span>
-                            <button
-                              onClick={() => handleDelete(item._id || item.id)}
-                              className="p-1 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <FiTrash2 className="w-4 h-4 text-red-500" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                            <span className="shrink-0 text-gray-600 font-medium">
+                              ₹{((item.price || 0) * (item.serviceCount || 1)).toLocaleString('en-IN')}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
 
                     {/* Action Buttons */}
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleAddServices(category)}
-                        className="flex-1 px-4 py-2.5 bg-white border-2 border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all active:scale-95"
+                        onClick={() => handleCustomise(subCategory)}
+                        className="flex-1 px-4 py-2.5 bg-[#EDF7F9] hover:bg-[#D9EFF2] rounded-xl text-sm font-bold text-[#347989] transition-all active:scale-95 text-center"
                       >
-                        Add Services
+                        Customise
                       </button>
                       <button
-                        onClick={() => handleCategoryCheckout(category)}
-                        className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 shadow-md"
+                        onClick={() => handleSubCategoryCheckout(subCategory)}
+                        className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all active:scale-95 shadow-md text-center"
                         style={{
                           background: themeColors.brand.gradient,
                           boxShadow: `0 2px 6px rgba(0,0,0,0.1)`
@@ -321,7 +279,7 @@ const Cart = () => {
                           e.target.style.opacity = '1';
                         }}
                       >
-                        Book
+                        Checkout
                       </button>
                     </div>
                   </div>
@@ -331,10 +289,10 @@ const Cart = () => {
           )}
         </main>
 
+        <BottomNav />
       </div>
     </div>
   );
 };
 
 export default Cart;
-

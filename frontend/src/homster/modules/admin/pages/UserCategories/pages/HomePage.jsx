@@ -6,7 +6,7 @@ import Modal from "../components/Modal";
 import ToggleSwitch from "../components/ToggleSwitch"; // Import ToggleSwitch
 import { ensureIds, saveCatalog, slugify, toAssetUrl } from "../utils";
 
-import { homeContentService, serviceService } from "../../../../../services/catalogService";
+import { homeContentService, serviceService, categoryService } from "../../../../../services/catalogService";
 
 const RedirectionSelector = ({
   targetCategoryId,
@@ -187,6 +187,33 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
   const [faqForm, setFaqForm] = useState({ question: "", answer: "" });
   const [editingFaqId, setEditingFaqId] = useState(null);
 
+  // VIP states
+  const [isVipModalOpen, setIsVipModalOpen] = useState(false);
+  const [vipCardForm, setVipCardForm] = useState({ targetCategoryId: "", discount: "15", caption: "" });
+  const [editingVipCardId, setEditingVipCardId] = useState(null);
+
+  const resetVipCardForm = () => {
+    setEditingVipCardId(null);
+    setVipCardForm({ targetCategoryId: "", discount: "15", caption: "" });
+    setIsVipModalOpen(false);
+  };
+
+  const saveVipCard = async () => {
+    try {
+      if (!vipCardForm.targetCategoryId) {
+        toast.error("Category is required");
+        return;
+      }
+      const vipCards = home?.vipCards || [];
+      if (editingVipCardId) {
+        await patchHome({ vipCards: vipCards.map((v) => (v.id === editingVipCardId ? { ...v, ...vipCardForm } : v)) });
+      } else {
+        await patchHome({ vipCards: [...vipCards, { id: `hvip-${Date.now()}`, ...vipCardForm }] });
+      }
+      resetVipCardForm();
+    } catch (error) { }
+  };
+
   // Uploading state for all modals
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -245,6 +272,12 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
             categorySections: addIds(hc.categorySections || []),
             reviews: addIds(hc.reviews || []),
             faqs: addIds(hc.faqs || []),
+            vipCards: addIds(hc.vipCards || []),
+            isVipEnabled: hc.isVipEnabled ?? true,
+            vipPrice: hc.vipPrice ?? 199,
+            vipOriginalPrice: hc.vipOriginalPrice ?? 599,
+            vipDurationText: hc.vipDurationText || "6 months",
+            vipDurationDays: hc.vipDurationDays ?? 56,
             isBannersVisible: hc.isBannersVisible ?? true,
             isPromosVisible: hc.isPromosVisible ?? true,
             isCuratedVisible: hc.isCuratedVisible ?? true,
@@ -265,6 +298,41 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
     };
     fetchHomeContent();
   }, [selectedCity]); // Re-fetch on city change
+
+  // Fetch categories from API on mount or city change
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const params = { status: 'active' };
+        if (selectedCity) {
+          params.cityId = selectedCity;
+        }
+        const response = await categoryService.getAll(params);
+        if (response.success && response.categories) {
+          const mappedCategories = response.categories.map(cat => ({
+            id: cat._id || cat.id,
+            title: cat.title,
+            slug: cat.slug,
+            homeIconUrl: cat.homeIconUrl || "",
+            homeBadge: cat.homeBadge || "",
+            hasSaleBadge: cat.hasSaleBadge || false,
+            showOnHome: cat.showOnHome !== false,
+            homeOrder: cat.homeOrder || 0,
+            isDirectService: cat.isDirectService || false,
+          }));
+          
+          setCatalog(prev => {
+            const next = ensureIds(prev);
+            next.categories = mappedCategories;
+            return next;
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      }
+    };
+    fetchCategories();
+  }, [selectedCity]);
 
   const getCategoryTitle = (id) => {
     const found = categories.find((c) => c.id === id);
@@ -332,6 +400,12 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
         categorySections: homeData.categorySections,
         reviews: homeData.reviews,
         faqs: homeData.faqs,
+        vipCards: homeData.vipCards,
+        isVipEnabled: homeData.isVipEnabled,
+        vipPrice: homeData.vipPrice,
+        vipOriginalPrice: homeData.vipOriginalPrice,
+        vipDurationText: homeData.vipDurationText,
+        vipDurationDays: homeData.vipDurationDays,
         isBannersVisible: homeData.isBannersVisible,
         isPromosVisible: homeData.isPromosVisible,
         isCuratedVisible: homeData.isCuratedVisible,
@@ -925,6 +999,147 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
             </table>
           </div>
         )}
+
+        {/* VIP Membership Option */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-3 pb-3 mb-4 border-b border-gray-200">
+            <div>
+              <div className="text-xl font-bold text-gray-900">VIP Membership Option</div>
+              <p className="text-sm text-gray-500 mt-1">Configure VIP pricing, duration, and category benefit cards.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-6 mb-6">
+            <ToggleSwitch
+              label="Enable VIP Membership"
+              checked={home?.isVipEnabled !== false}
+              onChange={() => patchHome({ isVipEnabled: !home?.isVipEnabled })}
+            />
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700">VIP Price (₹):</label>
+              <input
+                type="number"
+                value={home?.vipPrice ?? 199}
+                onChange={(e) => patchHome({ vipPrice: Number(e.target.value) })}
+                className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700">Original Price (₹):</label>
+              <input
+                type="number"
+                value={home?.vipOriginalPrice ?? 599}
+                onChange={(e) => patchHome({ vipOriginalPrice: Number(e.target.value) })}
+                className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700">Duration (Days):</label>
+              <input
+                type="number"
+                value={home?.vipDurationDays ?? 56}
+                onChange={(e) => {
+                  const days = Number(e.target.value);
+                  patchHome({ 
+                    vipDurationDays: days,
+                    vipDurationText: `${days} Days`
+                  });
+                }}
+                className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+                placeholder="e.g. 56"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                resetVipCardForm();
+                setIsVipModalOpen(true);
+              }}
+              className="px-5 py-3 rounded-xl text-white transition-all flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg ml-auto"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'linear-gradient(to right, #2874F0, #1e5fd4)',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <FiPlus className="w-4 h-4" style={{ display: 'block', color: '#ffffff' }} />
+              <span>Add Benefit Card</span>
+            </button>
+          </div>
+
+          {(home.vipCards || []).length === 0 ? (
+            <div className="text-base text-gray-500">No VIP benefit cards added. Benefit cards link categories to discounts.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-12">#</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 w-24">Image</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Category Name</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Discount</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Caption</th>
+                    <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 w-32">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(home.vipCards || []).map((s, idx) => {
+                    const matchedCat = categories.find(c => c.id === s.targetCategoryId);
+                    return (
+                      <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td className="py-4 px-4 text-sm font-semibold text-gray-600">{idx + 1}</td>
+                        <td className="py-4 px-4">
+                          {matchedCat?.imageUrl ? (
+                            <img src={matchedCat.imageUrl} alt="Category" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                          ) : (
+                            <div className="h-16 w-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                              <span className="text-xs text-gray-400">No img</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="text-sm font-semibold text-gray-900">{matchedCat?.title || "Unknown Category"}</div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="text-sm font-bold text-green-600">{s.discount}% DISCOUNT</div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="text-sm text-gray-600">{s.caption || "—"}</div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingVipCardId(s.id);
+                                setVipCardForm({ ...s });
+                                setIsVipModalOpen(true);
+                              }}
+                              className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                              title="Edit"
+                            >
+                              <FiEdit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => patchHome({ vipCards: (home.vipCards || []).filter((x) => x.id !== s.id) })}
+                              className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                              title="Delete"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* New & Noteworthy */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
@@ -2731,6 +2946,71 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
             </button>
             <button
               onClick={resetFaqForm}
+              className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* VIP Modal */}
+      <Modal
+        isOpen={isVipModalOpen}
+        onClose={resetVipCardForm}
+        title={editingVipCardId ? "Edit VIP Benefit Card" : "Add VIP Benefit Card"}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Category *</label>
+            <select
+              value={vipCardForm.targetCategoryId}
+              onChange={(e) => setVipCardForm((p) => ({ ...p, targetCategoryId: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+            >
+              <option value="">-- Choose Category --</option>
+              {(categories || []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title || "Untitled Category"}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Discount Percentage (%) *</label>
+            <input
+              type="number"
+              value={vipCardForm.discount}
+              onChange={(e) => setVipCardForm((p) => ({ ...p, discount: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+              placeholder="e.g. 15"
+            />
+          </div>
+
+          <div>
+            <label className="block text-base font-bold text-gray-900 mb-2">Caption *</label>
+            <input
+              type="text"
+              value={vipCardForm.caption}
+              onChange={(e) => setVipCardForm((p) => ({ ...p, caption: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+              placeholder="e.g. On NoBroker home services"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={saveVipCard}
+              disabled={isSyncing}
+              className="flex-1 py-3.5 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+              style={{ backgroundColor: '#2874F0' }}
+            >
+              <FiSave className="w-5 h-5" />
+              {editingVipCardId ? "Update Card" : "Add Card"}
+            </button>
+            <button
+              onClick={resetVipCardForm}
               className="px-6 py-3.5 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-all border border-gray-200"
             >
               Cancel

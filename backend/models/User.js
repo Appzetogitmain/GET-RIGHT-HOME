@@ -74,6 +74,8 @@ const userSchema = new mongoose.Schema({
   panNumber: { type: String, trim: true },
   panCardImage: { type: String }, // URL
   termsAccepted: { type: Boolean, default: false },
+  isVip: { type: Boolean, default: false },
+  vipExpiry: { type: Date },
 
   // Status tracking
   registrationStep: {

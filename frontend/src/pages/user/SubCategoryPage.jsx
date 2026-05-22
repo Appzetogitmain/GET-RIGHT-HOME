@@ -29,7 +29,7 @@ const toAssetUrl = (url) => {
 const SubCategoryPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { addToCart } = useCart();
+    const { cartItems, cartCount, addToCart, removeItem } = useCart();
     const { currentCity } = useCity();
 
     // Data passed via navigation state
@@ -38,7 +38,6 @@ const SubCategoryPage = () => {
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [addedServices, setAddedServices] = useState({});
     const [redirecting, setRedirecting] = useState(false);
 
     useEffect(() => {
@@ -74,35 +73,47 @@ const SubCategoryPage = () => {
         svc.description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const handleAddToCart = async (service) => {
-        try {
-            const cartItemData = {
-                serviceId: service.id || service._id,
-                categoryId: category?.id || category?._id,
-                subCategoryId: subCategory?.id || subCategory?._id,
-                title: service.title,
-                description: service.description || '',
-                icon: toAssetUrl(service.icon || service.imageUrl || subCategory?.iconUrl || ''),
-                category: category?.title,
-                subCategory: subCategory?.title,
-                price: service.discountPrice || service.basePrice || service.price,
-                unitPrice: service.discountPrice || service.basePrice || service.price,
-                serviceCount: 1,
-            };
+    const handleCartToggle = async (service) => {
+        const serviceId = service.id || service._id;
+        const existingItem = cartItems.find(item => item.serviceId === serviceId);
 
-            const response = await addToCart(cartItemData);
-            if (response.success) {
-                setAddedServices(prev => ({ ...prev, [service.id || service._id]: true }));
-                toast.success('Added to cart!');
-                setTimeout(() => {
-                    setRedirecting(true);
-                    setTimeout(() => navigate('/user/cart'), 800);
-                }, 300);
-            } else {
-                toast.error(response.message || 'Failed to add to cart');
+        if (existingItem) {
+            try {
+                const response = await removeItem(existingItem._id || existingItem.id);
+                if (response.success) {
+                    toast.success('Removed from cart');
+                } else {
+                    toast.error('Failed to remove from cart');
+                }
+            } catch (error) {
+                console.error('Failed to remove item:', error);
+                toast.error('Failed to remove from cart');
             }
-        } catch (error) {
-            toast.error('Failed to add to cart');
+        } else {
+            try {
+                const cartItemData = {
+                    serviceId: serviceId,
+                    categoryId: category?.id || category?._id,
+                    subCategoryId: subCategory?.id || subCategory?._id,
+                    title: service.title,
+                    description: service.description || '',
+                    icon: toAssetUrl(service.icon || service.imageUrl || subCategory?.iconUrl || ''),
+                    category: category?.title,
+                    subCategory: subCategory?.title,
+                    price: service.discountPrice || service.basePrice || service.price,
+                    unitPrice: service.discountPrice || service.basePrice || service.price,
+                    serviceCount: 1,
+                };
+
+                const response = await addToCart(cartItemData);
+                if (response.success) {
+                    toast.success('Added to cart!');
+                } else {
+                    toast.error(response.message || 'Failed to add to cart');
+                }
+            } catch (error) {
+                toast.error('Failed to add to cart');
+            }
         }
     };
 
@@ -149,9 +160,14 @@ const SubCategoryPage = () => {
                         
                         <button
                             onClick={() => navigate('/user/cart')}
-                            className="w-10 h-10 flex items-center justify-center bg-black/45 backdrop-blur-md rounded-full border border-white/20 text-white hover:bg-black/60 transition-all active:scale-95 shadow-md"
+                            className="relative w-10 h-10 flex items-center justify-center bg-black/45 backdrop-blur-md rounded-full border border-white/20 text-white hover:bg-black/60 transition-all active:scale-95 shadow-md"
                         >
                             <ShoppingCart size={18} className="stroke-[3]" />
+                            {cartCount > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 bg-gradient-to-br from-red-500 to-red-600 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-[#1E293B] shadow-lg animate-scaleIn">
+                                    {cartCount}
+                                </span>
+                            )}
                         </button>
                     </div>
 
@@ -223,7 +239,7 @@ const SubCategoryPage = () => {
                                 const originalPrice = (svc.discountPrice && svc.basePrice && svc.discountPrice < svc.basePrice)
                                     ? svc.basePrice
                                     : null;
-                                const isAdded = addedServices[svc.id || svc._id];
+                                const isAdded = cartItems.some(item => item.serviceId === (svc.id || svc._id));
 
                                 return (
                                     <motion.div
@@ -291,8 +307,7 @@ const SubCategoryPage = () => {
                                                 <div className="absolute -bottom-2 z-10 shadow-lg shadow-emerald-100/50 rounded-xl overflow-hidden border border-emerald-100">
                                                     <motion.button
                                                         whileTap={{ scale: 0.92 }}
-                                                        onClick={() => handleAddToCart(svc)}
-                                                        disabled={isAdded}
+                                                        onClick={() => handleCartToggle(svc)}
                                                         className={`flex items-center justify-center gap-1 px-5 py-1.5 min-w-[80px] text-[10px] font-black uppercase tracking-widest transition-all
                                                             ${isAdded
                                                                 ? 'bg-emerald-50 text-emerald-700 font-bold'

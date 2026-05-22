@@ -564,7 +564,7 @@ const JobDetails = () => {
               )}
             </div>
 
-            {(job.tax > 0 || job.paymentMethod === 'plan_benefit') && (
+            {job.tax > 0 && (
               <div className="flex justify-between items-center text-gray-600">
                 <span>Tax</span>
                 {job.paymentMethod === 'plan_benefit' ? (
@@ -578,7 +578,7 @@ const JobDetails = () => {
               </div>
             )}
 
-            {(job.visitingCharges > 0 || job.paymentMethod === 'plan_benefit') && (
+            {job.visitingCharges > 0 && (
               <div className="flex justify-between items-center text-gray-600">
                 <span>Convenience Fee</span>
                 {job.paymentMethod === 'plan_benefit' ? (

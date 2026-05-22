@@ -42,19 +42,17 @@ const BottomNav = React.memo(() => {
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
   const navItems = useMemo(() => [
-    { id: 'home', label: 'Home', icon: FiHome, filledIcon: HiHome, path: '/user' },
-    { id: 'bookings', label: 'Bookings', icon: FiCalendar, filledIcon: HiCalendar, path: '/user/my-bookings' },
-
+    { id: 'home', label: 'Home', icon: FiHome, filledIcon: HiHome, path: '/home-services' },
+    { id: 'bookings', label: 'Bookings', icon: FiCalendar, filledIcon: HiCalendar, path: '/bookings' },
     { id: 'cart', label: 'Cart', icon: FiShoppingCart, filledIcon: HiShoppingCart, path: '/user/cart', isCart: true },
-    { id: 'account', label: 'Account', icon: FiUser, filledIcon: HiUser, path: '/user/account' },
+    { id: 'account', label: 'Profile', icon: FiUser, filledIcon: HiUser, path: '/profile' },
   ], []);
 
   const getActiveTab = () => {
-    if (location.pathname === '/user' || location.pathname === '/user/') return 'home';
-    if (location.pathname === '/user/my-bookings') return 'bookings';
-
-    if (location.pathname === '/user/cart') return 'cart';
-    if (location.pathname === '/user/account') return 'account';
+    if (location.pathname === '/' || location.pathname.includes('/home-services')) return 'home';
+    if (location.pathname.includes('/bookings')) return 'bookings';
+    if (location.pathname.includes('/user/cart')) return 'cart';
+    if (location.pathname.includes('/profile') || location.pathname.includes('/account')) return 'account';
     return 'home';
   };
 
@@ -169,7 +167,7 @@ const BottomNav = React.memo(() => {
                       <motion.span
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute -top-1.5 -right-2.5 bg-gradient-to-br from-red-500 to-red-600 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white shadow-lg"
+                        className="absolute -top-2 -right-2 bg-gradient-to-br from-red-500 to-red-600 text-white text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center border-2 border-white shadow-md z-20"
                       >
                         {cartCount > 9 ? '9+' : cartCount}
                       </motion.span>

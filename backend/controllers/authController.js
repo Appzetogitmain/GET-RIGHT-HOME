@@ -341,7 +341,9 @@ export const verifyOtp = async (req, res) => {
         role: user.role,
         isPartner: user.isPartner || (role === 'partner'),
         partnerApprovalStatus: user.partnerApprovalStatus,
-        profileImage: user.profileImage
+        profileImage: user.profileImage,
+        isVip: user.isVip || false,
+        vipExpiry: user.vipExpiry || null
       }
     });
 
@@ -525,7 +527,9 @@ export const getMe = async (req, res) => {
         address: user.address,
         profileImage: user.profileImage,
         partnerSince: user.partnerSince,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        isVip: user.isVip || false,
+        vipExpiry: user.vipExpiry || null
       }
     });
   } catch (error) {
@@ -595,6 +599,9 @@ export const updateProfile = async (req, res) => {
     if (profileImage !== undefined) user.profileImage = profileImage;
     if (profileImagePublicId !== undefined) user.profileImagePublicId = profileImagePublicId;
 
+    if (req.body.isVip !== undefined) user.isVip = req.body.isVip;
+    if (req.body.vipExpiry !== undefined) user.vipExpiry = req.body.vipExpiry;
+
     await user.save();
 
     res.status(200).json({
@@ -610,7 +617,9 @@ export const updateProfile = async (req, res) => {
         address: user.address,
         profileImage: user.profileImage,
         partnerSince: user.partnerSince,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        isVip: user.isVip || false,
+        vipExpiry: user.vipExpiry || null
       }
     });
 

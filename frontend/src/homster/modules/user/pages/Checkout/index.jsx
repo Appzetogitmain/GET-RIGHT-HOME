@@ -29,8 +29,17 @@ const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const category = location.state?.category || null;
+  const subCategoryName = location.state?.subCategory || null;
   const plan = location.state?.plan || null;
-  const { fetchCart: fetchCartGlobal, clearCart: clearCartGlobal, removeCategoryItems: removeCategoryGlobal } = useCart();
+  const { 
+    cartItems: globalCartItems,
+    fetchCart: fetchCartGlobal, 
+    clearCart: clearCartGlobal, 
+    removeCategoryItems: removeCategoryGlobal,
+    removeSubCategoryItems: removeSubCategoryGlobal,
+    updateItem: updateItemGlobal,
+    removeItem: removeItemGlobal
+  } = useCart();
 
   const [cartItems, setCartItems] = useState([]);
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -40,7 +49,7 @@ const Checkout = () => {
   const [addressDetails, setAddressDetails] = useState(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const [userPhone, setUserPhone] = useState('');
-  const [bookingModel, setBookingModel] = useState('vendor');
+  const [bookingModel, setBookingModel] = useState('worker');
 
   // Custom Contact State (for this booking only)
   const [contactDetails, setContactDetails] = useState({ name: '', phone: '' });
@@ -120,62 +129,120 @@ const Checkout = () => {
             serviceCount: 1
           }]);
 
-          // Still need config and address for plan checkout
-          const response = await userAuthService.getCheckoutData();
-          if (response.success) {
-            setVisitedFee(0); // Plans usually have 0 visitor fee
-            setGstPercentage(response.settings?.serviceGstPercentage || 18);
+          try {
+            const response = await userAuthService.getCheckoutData();
+            if (response.success) {
+              setVisitedFee(0); // Plans usually have 0 visitor fee
+              setGstPercentage(response.settings?.serviceGstPercentage || 18);
 
-            if (response.user?.addresses?.length > 0) {
-              const defaultAddr = response.user.addresses.find(a => a.isDefault) || response.user.addresses[0];
-              setAddress(defaultAddr.addressLine1);
-              setHouseNumber(defaultAddr.addressLine2 || '');
-              setAddressDetails({
-                address: defaultAddr.addressLine1,
-                lat: defaultAddr.lat,
-                lng: defaultAddr.lng,
-                type: defaultAddr.type,
-                city: defaultAddr.city,
-                state: defaultAddr.state,
-                pincode: defaultAddr.pincode
-              });
+              if (response.user?.addresses?.length > 0) {
+                const defaultAddr = response.user.addresses.find(a => a.isDefault) || response.user.addresses[0];
+                setAddress(defaultAddr.addressLine1);
+                setHouseNumber(defaultAddr.addressLine2 || '');
+                setAddressDetails({
+                  address: defaultAddr.addressLine1,
+                  lat: defaultAddr.lat,
+                  lng: defaultAddr.lng,
+                  type: defaultAddr.type,
+                  city: defaultAddr.city,
+                  state: defaultAddr.state,
+                  pincode: defaultAddr.pincode
+                });
+              }
+            }
+          } catch (e) {
+            try {
+              const profileRes = await userAuthService.getProfile();
+              if (profileRes.success) {
+                setVisitedFee(0);
+                if (profileRes.user?.addresses?.length > 0) {
+                  const defaultAddr = profileRes.user.addresses.find(a => a.isDefault) || profileRes.user.addresses[0];
+                  setAddress(defaultAddr.addressLine1);
+                  setHouseNumber(defaultAddr.addressLine2 || '');
+                  setAddressDetails({
+                    address: defaultAddr.addressLine1,
+                    lat: defaultAddr.lat,
+                    lng: defaultAddr.lng,
+                    type: defaultAddr.type,
+                    city: defaultAddr.city,
+                    state: defaultAddr.state,
+                    pincode: defaultAddr.pincode
+                  });
+                }
+              }
+            } catch (profileErr) {
+              console.error('Failed to load user profile fallback for plan', profileErr);
             }
           }
         } else {
-          const response = await userAuthService.getCheckoutData();
-          if (response.success) {
-            // Set Config
-            setVisitedFee(response.settings?.visitedCharges || 29);
-            setGstPercentage(response.settings?.serviceGstPercentage || 18);
-            setBookingModel(response.bookingModel || 'vendor');
+          try {
+            const response = await userAuthService.getCheckoutData();
+            if (response.success) {
+              // Set Config
+              setVisitedFee(response.settings?.visitedCharges || 29);
+              setGstPercentage(response.settings?.serviceGstPercentage || 18);
+              setBookingModel(response.bookingModel || 'worker');
 
-            // Set Addresses
-            if (response.user?.addresses?.length > 0) {
-              const defaultAddr = response.user.addresses.find(a => a.isDefault) || response.user.addresses[0];
-              setAddress(defaultAddr.addressLine1);
-              setHouseNumber(defaultAddr.addressLine2 || '');
-              setAddressDetails({
-                address: defaultAddr.addressLine1,
-                lat: defaultAddr.lat,
-                lng: defaultAddr.lng,
-                type: defaultAddr.type,
-                city: defaultAddr.city,
-                state: defaultAddr.state,
-                pincode: defaultAddr.pincode
-              });
+              // Set Addresses
+              if (response.user?.addresses?.length > 0) {
+                const defaultAddr = response.user.addresses.find(a => a.isDefault) || response.user.addresses[0];
+                setAddress(defaultAddr.addressLine1);
+                setHouseNumber(defaultAddr.addressLine2 || '');
+                setAddressDetails({
+                  address: defaultAddr.addressLine1,
+                  lat: defaultAddr.lat,
+                  lng: defaultAddr.lng,
+                  type: defaultAddr.type,
+                  city: defaultAddr.city,
+                  state: defaultAddr.state,
+                  pincode: defaultAddr.pincode
+                });
+              }
             }
+          } catch (e) {
+            try {
+              const response = await userAuthService.getProfile();
+              if (response.success) {
+                setVisitedFee(29);
+                setGstPercentage(18);
+                setBookingModel('worker');
 
-            // Set Cart Items
-            let items = response.cartItems || [];
-            if (category) {
-              const normalizedCategory = category.toLowerCase().trim();
-              items = items.filter(item => {
-                const itemCat = (item.category || 'Other').toLowerCase().trim();
-                return itemCat === normalizedCategory;
-              });
+                if (response.user?.addresses?.length > 0) {
+                  const defaultAddr = response.user.addresses.find(a => a.isDefault) || response.user.addresses[0];
+                  setAddress(defaultAddr.addressLine1);
+                  setHouseNumber(defaultAddr.addressLine2 || '');
+                  setAddressDetails({
+                    address: defaultAddr.addressLine1,
+                    lat: defaultAddr.lat,
+                    lng: defaultAddr.lng,
+                    type: defaultAddr.type,
+                    city: defaultAddr.city,
+                    state: defaultAddr.state,
+                    pincode: defaultAddr.pincode
+                  });
+                }
+              }
+            } catch (profileErr) {
+              console.error('Failed to load user profile fallback', profileErr);
             }
-            setCartItems(items);
           }
+
+          // Set Cart Items
+          let items = globalCartItems || [];
+          if (subCategoryName) {
+            const normalizedSub = subCategoryName.toLowerCase().trim();
+            items = items.filter(item => {
+              const itemSub = (item.subCategory || 'Other').toLowerCase().trim();
+              return itemSub === normalizedSub;
+            });
+          } else if (category) {
+            const normalizedCategory = category.toLowerCase().trim();
+            items = items.filter(item => {
+              const itemCat = (item.category || 'Other').toLowerCase().trim();
+              return itemCat === normalizedCategory;
+            });
+          }
+          setCartItems(items);
         }
       } catch (error) {
         console.error('Failed to load checkout data', error);
@@ -185,30 +252,24 @@ const Checkout = () => {
     };
 
     fetchData();
-  }, [category, plan]);
+  }, [category, subCategoryName, plan, globalCartItems]);
 
   const loadCart = async () => {
-    try {
-      setLoading(true);
-      const response = await cartService.getCart();
-      if (response.success) {
-        let items = response.data || [];
-        if (category) {
-          const normalizedCategory = category.toLowerCase().trim();
-          items = items.filter(item => {
-            const itemCat = (item.category || 'Other').toLowerCase().trim();
-            return itemCat === normalizedCategory;
-          });
-        }
-        setCartItems(items);
-      } else {
-        setCartItems([]);
-      }
-    } catch (error) {
-      setCartItems([]);
-    } finally {
-      setLoading(false);
+    let items = globalCartItems || [];
+    if (subCategoryName) {
+      const normalizedSub = subCategoryName.toLowerCase().trim();
+      items = items.filter(item => {
+        const itemSub = (item.subCategory || 'Other').toLowerCase().trim();
+        return itemSub === normalizedSub;
+      });
+    } else if (category) {
+      const normalizedCategory = category.toLowerCase().trim();
+      items = items.filter(item => {
+        const itemCat = (item.category || 'Other').toLowerCase().trim();
+        return itemCat === normalizedCategory;
+      });
     }
+    setCartItems(items);
   };
 
   const cartCount = cartItems.length;
@@ -223,25 +284,10 @@ const Checkout = () => {
       if (!item) return;
 
       const newCount = Math.max(1, (item.serviceCount || 1) + change);
-      const response = await cartService.updateItem(itemId, newCount);
+      const response = await updateItemGlobal(itemId, newCount);
 
       if (response.success) {
-        // Refresh global cart badge
         fetchCartGlobal();
-
-        // Reload cart and filter by category
-        const cartResponse = await cartService.getCart();
-        if (cartResponse.success) {
-          let items = cartResponse.data || [];
-          if (category) {
-            const normalizedCategory = category.toLowerCase().trim();
-            items = items.filter(item => {
-              const itemCat = (item.category || 'Other').toLowerCase().trim();
-              return itemCat === normalizedCategory;
-            });
-          }
-          setCartItems(items);
-        }
       } else {
         toast.error(response.message || 'Failed to update quantity');
       }
@@ -252,12 +298,10 @@ const Checkout = () => {
 
   const handleRemoveItem = async (itemId) => {
     try {
-      const response = await cartService.removeItem(itemId);
+      const response = await removeItemGlobal(itemId);
       if (response.success) {
         toast.success('Item removed');
-        // Refresh global cart badge
         fetchCartGlobal();
-        loadCart();
       } else {
         toast.error(response.message || 'Failed to remove item');
       }
@@ -825,6 +869,17 @@ const Checkout = () => {
 
             if (verifyResponse.success) {
               toast.success('Payment Successful!');
+              // Clear cart (or just subcategory/category items)
+              try {
+                if (subCategoryName) {
+                  await removeSubCategoryGlobal(subCategoryName);
+                } else if (category) {
+                  await removeCategoryGlobal(category);
+                } else {
+                  await clearCartGlobal();
+                }
+                setCartItems([]);
+              } catch (error) { }
               // Now move to waiting state to find partners
               setCurrentStep('waiting');
               toast.success(`Finding nearby ${bookingModel}s... Alerts sent!`);
@@ -873,9 +928,11 @@ const Checkout = () => {
 
       if (response.success) {
         toast.success('Booking confirmed!');
-        // Clear cart (or just category items)
+        // Clear cart (or just subcategory/category items)
         try {
-          if (category) {
+          if (subCategoryName) {
+            await removeSubCategoryGlobal(subCategoryName);
+          } else if (category) {
             await removeCategoryGlobal(category);
           } else {
             await clearCartGlobal();
@@ -902,7 +959,13 @@ const Checkout = () => {
       toast.success('Booking confirmed!');
       // Clear cart
       try {
-        await clearCartGlobal();
+        if (subCategoryName) {
+          await removeSubCategoryGlobal(subCategoryName);
+        } else if (category) {
+          await removeCategoryGlobal(category);
+        } else {
+          await clearCartGlobal();
+        }
         setCartItems([]);
       } catch (error) { }
 
@@ -955,6 +1018,22 @@ const Checkout = () => {
 
     if (bookingType === 'scheduled') {
       setShowTimeSlotModal(true);
+    }
+  };
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    if (date && selectedTime) {
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      if (isToday) {
+        const currentHour = now.getHours();
+        const minHour = currentHour + 1;
+        const slotHour = parseInt(selectedTime.split(':')[0], 10);
+        if (slotHour < minHour) {
+          setSelectedTime(null);
+        }
+      }
     }
   };
 
@@ -1038,19 +1117,23 @@ const Checkout = () => {
     }
   };
 
+  const [planBenefits, setPlanBenefits] = useState({ name: '', freeCategories: [], freeBrands: [], freeServices: [] });
+  const [vipCards, setVipCards] = useState([]);       // VIP benefit cards from homeContent
+  const [userIsVip, setUserIsVip] = useState(false);  // Is the current user an active VIP member
+  const [userVipCategoryIds, setUserVipCategoryIds] = useState([]); // category IDs user booked from
+
   // Fetch plan and user profile to determine discounts
   useEffect(() => {
     const fetchBenefits = async () => {
       try {
         const [plansRes, userRes] = await Promise.all([
           getPlans(),
-          userAuthService.getProfile(), // Ensure we have latest status
+          userAuthService.getProfile(),
         ]);
 
         if (plansRes.success && userRes.success && userRes.user?.plans?.isActive) {
           const userPlanName = userRes.user.plans.name;
           const activePlan = plansRes.data.find(p => p.name === userPlanName);
-
           if (activePlan) {
             setPlanBenefits({
               name: activePlan.name,
@@ -1058,11 +1141,31 @@ const Checkout = () => {
               freeBrands: activePlan.freeBrands || [],
               freeServices: activePlan.freeServices || []
             });
-
           }
         }
       } catch (e) {
         console.error('Failed to load plan benefits', e);
+      }
+
+      // Fetch VIP cards from homeContent + user VIP status
+      try {
+        const { homeContentService } = await import('../../../../services/catalogService');
+        const [contentRes, userRes2] = await Promise.all([
+          homeContentService.get({}),
+          userAuthService.getProfile()
+        ]);
+
+        if (contentRes.success && contentRes.homeContent?.vipCards) {
+          setVipCards(contentRes.homeContent.vipCards);
+        }
+
+        if (userRes2.success) {
+          const u = userRes2.user;
+          const isVipActive = u.isVip === true && u.vipExpiry && new Date(u.vipExpiry) > new Date();
+          setUserIsVip(isVipActive);
+        }
+      } catch (e) {
+        console.warn('Failed to load VIP data', e);
       }
     };
 
@@ -1071,8 +1174,6 @@ const Checkout = () => {
       fetchBenefits();
     }
   }, [plan]);
-
-  const [planBenefits, setPlanBenefits] = useState({ name: '', freeCategories: [], freeBrands: [], freeServices: [] });
 
   // Helper to normalize MongoDB IDs (handles strings, objects with _id, and $oid)
   const normalizeId = (id) => {
@@ -1083,7 +1184,7 @@ const Checkout = () => {
     return String(id);
   };
 
-  // Calculate totals with Plan Benefits
+  // Calculate totals with Plan Benefits + VIP Discount
   const calculateItemPrice = (item) => {
     if (plan) return item.price || 0; // Plan purchase
 
@@ -1091,51 +1192,59 @@ const Checkout = () => {
     const itemBrandId = normalizeId(item.brandId || item.sectionId);
     const itemServiceId = normalizeId(item.serviceId);
 
-    // Check if free
-    const isFreeCategory = itemCatId && planBenefits.freeCategories.some(cat => {
-      return normalizeId(cat) === itemCatId;
-    });
+    // Check if free via subscription plan
+    const isFreeCategory = itemCatId && planBenefits.freeCategories.some(cat => normalizeId(cat) === itemCatId);
+    const isFreeBrand = itemBrandId && planBenefits.freeBrands.some(brand => normalizeId(brand) === itemBrandId);
+    const isFreeService = itemServiceId && planBenefits.freeServices.some(svc => normalizeId(svc) === itemServiceId);
 
-    const isFreeBrand = itemBrandId && planBenefits.freeBrands.some(brand => {
-      return normalizeId(brand) === itemBrandId;
-    });
+    if (isFreeCategory || isFreeBrand || isFreeService) return 0;
 
-    const isFreeService = itemServiceId && planBenefits.freeServices.some(svc => {
-      return normalizeId(svc) === itemServiceId;
-    });
+    const basePrice = item.price || 0;
 
-    if (isFreeCategory || isFreeBrand || isFreeService) {
-      return 0;
+    // Apply VIP discount if user is VIP member
+    if (userIsVip && itemCatId && vipCards.length > 0) {
+      const matchedCard = vipCards.find(card => {
+        const cardCatId = normalizeId(card.targetCategoryId);
+        return cardCatId && cardCatId === itemCatId;
+      });
+      if (matchedCard && matchedCard.discount > 0) {
+        const discountPct = matchedCard.discount / 100;
+        return Math.round(basePrice * (1 - discountPct));
+      }
     }
-    return item.price || 0;
+
+    return basePrice;
   };
 
+  // Calculate VIP discount amount for display
+  const vipDiscountAmount = userIsVip && !plan
+    ? cartItems.reduce((sum, item) => {
+        const itemCatId = normalizeId(item.categoryId);
+        if (!itemCatId) return sum;
+        const matchedCard = vipCards.find(c => normalizeId(c.targetCategoryId) === itemCatId);
+        if (!matchedCard || matchedCard.discount <= 0) return sum;
+        return sum + Math.round((item.price || 0) * matchedCard.discount / 100);
+      }, 0)
+    : 0;
+
   const itemTotal = cartItems.reduce((sum, item) => sum + calculateItemPrice(item), 0);
-  // Calculate savings including Plan Savings
+  // Calculate savings including Plan Savings + VIP Discount
   const totalOriginalPrice = cartItems.reduce((sum, item) => {
     const original = (item.originalPrice || item.unitPrice || (item.price / (item.serviceCount || 1))) * (item.serviceCount || 1);
-    // If priced 0, original is huge saving
     return sum + original;
   }, 0);
 
   const savings = totalOriginalPrice - itemTotal;
-  const taxesAndFee = Math.round((itemTotal * gstPercentage) / 100);
-  // Visited fee logic: if Total is 0 (All free), user might still pay visited fee?
-  // User says "no payemtn". So maybe visited fee also waived? Or user pays visited fee?
-  // "ask direct servicebooking" -> implies fully free.
-  // I'll set visitedFee to 0 if itemTotal is 0?
-  // Configurable?
-  // Assuming "Free under plan" means NO Payment.
-  const finalVisitedFee = itemTotal === 0 ? 0 : visitedFee;
+  const taxesAndFee = 0;
+  const finalVisitedFee = 0;
 
-  const totalAmount = itemTotal + taxesAndFee + finalVisitedFee;
+  const totalAmount = itemTotal;
   const amountToPay = totalAmount;
 
   // Helper for Free Plan Full Breakdown Display
-  // If the booking is free, we still want to show what the Tax/Fee WOULD have been
-  const displayTax = totalAmount === 0 ? Math.round((totalOriginalPrice * gstPercentage) / 100) : taxesAndFee;
-  const displayFee = totalAmount === 0 ? visitedFee : finalVisitedFee;
-  const displaySavings = totalAmount === 0 ? (totalOriginalPrice + displayTax + displayFee) : savings;
+  const displayTax = 0;
+  const displayFee = 0;
+  const displaySavings = savings;
 
   // Date and time slot helper functions
   const getDates = () => {
@@ -1538,7 +1647,13 @@ const Checkout = () => {
               <span className="text-yellow-500">⚡</span> Book
             </button>
             <button
-              onClick={() => setBookingType('scheduled')}
+              onClick={() => {
+                setBookingType('scheduled');
+                setShowTimeSlotModal(true);
+                if (!selectedDate) {
+                  setSelectedDate(getDates()[0]);
+                }
+              }}
               className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${bookingType === 'scheduled' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
             >
               <span>📅</span> Slot
@@ -1552,56 +1667,25 @@ const Checkout = () => {
         </div>
 
         {/* Address and Slot Display */}
-        <div className="px-4 pt-2 pb-2 border-b border-gray-100">
+        <div className="px-4 pt-2 pb-2 border-b border-gray-100 space-y-3">
+          {/* Address Section */}
           {(houseNumber || addressDetails) ? (
-            <div className="space-y-2.5">
-              {/* Address */}
-              <div className="flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
-                  <FiHome className="w-4 h-4" style={{ color: themeColors.button }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-600 mb-0.5">Address</p>
-                  <p className="text-sm font-medium text-black truncate">
-                    {houseNumber ? `${houseNumber}, ` : ''}{address || 'Select Address'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAddressModal(true)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors shrink-0 mt-0.5"
-                >
-                  <FiEdit2 className="w-4 h-4 text-gray-600" />
-                </button>
+            <div className="flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
+                <FiHome className="w-4 h-4" style={{ color: themeColors.button }} />
               </div>
-
-              {/* Time Slot (Only for Scheduled) */}
-              {bookingType === 'scheduled' && (
-                <div className="flex items-start gap-2.5">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
-                    <FiClock className="w-4 h-4" style={{ color: themeColors.button }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-600 mb-0.5">Time Slot</p>
-                    <p className="text-sm font-medium text-black">
-                      {selectedDate ? (() => {
-                        const { day, date: dateNum } = formatDate(selectedDate);
-                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        const month = monthNames[selectedDate.getMonth()];
-                        const timeStr = selectedTime && getTimeSlots().find(slot => slot.value === selectedTime)?.display ? ` • ${getTimeSlots().find(slot => slot.value === selectedTime).display}` : '';
-                        return `${day}, ${dateNum} ${month}${timeStr}`;
-                      })() : (
-                        <span className="text-gray-400">Select Date & Time</span>
-                      )}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowTimeSlotModal(true)}
-                    className="p-1.5 hover:bg-gray-100 rounded-full transition-colors shrink-0 mt-0.5"
-                  >
-                    <FiEdit2 className="w-4 h-4 text-gray-600" />
-                  </button>
-                </div>
-              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-600 mb-0.5">Address</p>
+                <p className="text-sm font-medium text-black truncate">
+                  {houseNumber ? `${houseNumber}, ` : ''}{address || 'Select Address'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddressModal(true)}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors shrink-0 mt-0.5"
+              >
+                <FiEdit2 className="w-4 h-4 text-gray-600" />
+              </button>
             </div>
           ) : (
             <div
@@ -1620,13 +1704,49 @@ const Checkout = () => {
               <FiEdit2 className="w-4 h-4 text-red-400" />
             </div>
           )}
+
+          {/* Time Slot Section (Only for Scheduled) */}
+          {bookingType === 'scheduled' && (
+            <div className="flex items-start gap-2.5 pt-2.5 border-t border-gray-100">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
+                <FiClock className="w-4 h-4" style={{ color: themeColors.button }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-600 mb-0.5">Time Slot</p>
+                <p className="text-sm font-medium text-black">
+                  {selectedDate ? (() => {
+                    const { day, date: dateNum } = formatDate(selectedDate);
+                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const month = monthNames[selectedDate.getMonth()];
+                    const timeStr = selectedTime && getTimeSlots().find(slot => slot.value === selectedTime)?.display ? ` • ${getTimeSlots().find(slot => slot.value === selectedTime).display}` : '';
+                    return `${day}, ${dateNum} ${month}${timeStr}`;
+                  })() : (
+                    <span className="text-gray-400">Select Date & Time</span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTimeSlotModal(true);
+                  if (!selectedDate) setSelectedDate(getDates()[0]);
+                }}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors shrink-0 mt-0.5"
+              >
+                <FiEdit2 className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="p-4">
           <button
             onClick={plan ? handlePlanPayment :
               (houseNumber || addressDetails) ?
-                (currentStep === 'payment' ? handlePayment : handleSearchVendors) :
+                (currentStep === 'payment' ? handlePayment : 
+                  (bookingType === 'scheduled' && (!selectedDate || !selectedTime)) ? () => {
+                    setShowTimeSlotModal(true);
+                    if (!selectedDate) setSelectedDate(getDates()[0]);
+                  } : handleSearchVendors) :
                 handleProceed}
             disabled={searchingVendors}
             className="w-full text-white py-3 rounded-lg text-base font-semibold transition-colors disabled:opacity-50 shadow-lg shadow-teal-500/30"
@@ -1636,7 +1756,7 @@ const Checkout = () => {
               currentStep === 'payment' ? (totalAmount === 0 ? 'Confirm Booking (Free)' : (paymentMethod === 'online' ? 'Proceed to Pay' : 'Confirm Booking')) :
                 plan ? 'Proceed to Payment' :
                   bookingType === 'instant' ? `Find nearby ${bookingModel}s now` :
-                    (selectedDate && selectedTime && houseNumber ?
+                    (selectedDate && selectedTime && (houseNumber || addressDetails) ?
                       `Find nearby ${bookingModel}s` :
                       (houseNumber || addressDetails) ? 'Select Time Slot' : 'Add address to proceed')}
           </button>
@@ -1747,7 +1867,7 @@ const Checkout = () => {
         onClose={() => setShowTimeSlotModal(false)}
         selectedDate={selectedDate}
         selectedTime={selectedTime}
-        onDateSelect={setSelectedDate}
+        onDateSelect={handleDateSelect}
         onTimeSelect={setSelectedTime}
         onSave={handleTimeSlotSave}
         getDates={getDates}

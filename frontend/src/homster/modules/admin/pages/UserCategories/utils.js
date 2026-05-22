@@ -21,7 +21,7 @@ export const loadCatalog = () => {
   if (!raw) {
     return {
       mode: "multi",
-      home: { banners: [], reviews: [], faqs: [] },
+      home: { banners: [], reviews: [], faqs: [], vipCards: [], isVipEnabled: true, vipPrice: 199, vipOriginalPrice: 599, vipDurationText: "6 months", vipDurationDays: 56 },
       categories: [],
       subCategories: [],
       services: [],
@@ -32,7 +32,17 @@ export const loadCatalog = () => {
     const parsed = JSON.parse(raw);
     return {
       mode: parsed?.mode === "single" ? "single" : "multi",
-      home: parsed?.home && typeof parsed.home === "object" ? parsed.home : { banners: [], reviews: [], faqs: [] },
+      home: parsed?.home && typeof parsed.home === "object" ? {
+        banners: parsed.home.banners || [],
+        reviews: parsed.home.reviews || [],
+        faqs: parsed.home.faqs || [],
+        vipCards: parsed.home.vipCards || [],
+        isVipEnabled: parsed.home.isVipEnabled !== false,
+        vipPrice: parsed.home.vipPrice ?? 199,
+        vipOriginalPrice: parsed.home.vipOriginalPrice ?? 599,
+        vipDurationText: parsed.home.vipDurationText || "6 months",
+        vipDurationDays: parsed.home.vipDurationDays ?? 56,
+      } : { banners: [], reviews: [], faqs: [], vipCards: [], isVipEnabled: true, vipPrice: 199, vipOriginalPrice: 599, vipDurationText: "6 months", vipDurationDays: 56 },
       categories: Array.isArray(parsed?.categories) ? parsed.categories : [],
       subCategories: Array.isArray(parsed?.subCategories) ? parsed.subCategories : [],
       services: Array.isArray(parsed?.services) ? parsed.services : [],
@@ -41,7 +51,7 @@ export const loadCatalog = () => {
   } catch {
     return {
       mode: "multi",
-      home: { banners: [], reviews: [], faqs: [] },
+      home: { banners: [], reviews: [], faqs: [], vipCards: [], isVipEnabled: true, vipPrice: 199, vipOriginalPrice: 599, vipDurationText: "6 months", vipDurationDays: 56 },
       categories: [],
       subCategories: [],
       services: [],
@@ -167,6 +177,19 @@ export const ensureIds = (catalog) => {
           answer: f.answer || f.a || "",
         }))
         : [],
+      vipCards: Array.isArray(catalog?.home?.vipCards)
+        ? catalog.home.vipCards.map((v) => ({
+          id: v.id || `hvip-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          targetCategoryId: v.targetCategoryId || getTargetCategoryIdFromRoute(v.routePath),
+          discount: v.discount || "15",
+          caption: v.caption || "",
+        }))
+        : [],
+      isVipEnabled: catalog?.home?.isVipEnabled !== false,
+      vipPrice: Number.isFinite(catalog?.home?.vipPrice) ? catalog.home.vipPrice : 199,
+      vipOriginalPrice: Number.isFinite(catalog?.home?.vipOriginalPrice) ? catalog.home.vipOriginalPrice : 599,
+      vipDurationText: catalog?.home?.vipDurationText || "6 months",
+      vipDurationDays: Number.isFinite(catalog?.home?.vipDurationDays) ? catalog.home.vipDurationDays : 56,
     },
     categories: (catalog.categories || []).map((c) => ({
       id: c.id || `ucat-${Date.now()}-${Math.random().toString(16).slice(2)}`,
