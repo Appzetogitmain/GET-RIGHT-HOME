@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Briefcase, Search, User, Video } from 'lucide-react';
+import { Home, Briefcase, Search, User, Video, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -11,14 +11,15 @@ const BottomNavbar = () => {
         { name: 'Home', icon: Home, route: '/' },
         { name: 'Search', icon: Search, route: '/search' },
         { name: 'Reels', icon: Video, route: '/reels' },
-        { name: 'Bookings', icon: Briefcase, route: '/bookings' },
+        { name: 'Enquiries', icon: MessageSquare, route: '/my-enquiries' },
         { name: 'Profile', icon: User, route: '/profile' },
     ];
 
     const getActiveTab = (path) => {
         if (path.includes('listings') || path.includes('search')) return 'Search';
         if (path.includes('reels')) return 'Reels';
-        if (path.includes('bookings') || path.includes('checkout')) return 'Bookings';
+        if (path.includes('my-enquiries') || path.includes('enquiries')) return 'Enquiries';
+        if (path.includes('bookings') || path.includes('checkout')) return 'Enquiries';
         if (path.includes('profile') || path.includes('account')) return 'Profile';
         return 'Home';
     };

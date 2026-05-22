@@ -47,11 +47,13 @@ const OffersPage = React.lazy(() => import('./pages/user/OffersPage'));
 const ProfileEdit = React.lazy(() => import('./pages/user/ProfileEdit'));
 const BookingCheckoutPage = React.lazy(() => import('./pages/user/BookingCheckoutPage'));
 const ReelsPage = React.lazy(() => import('./pages/user/ReelsPage'));
+const MyReelsPage = React.lazy(() => import('./pages/user/MyReelsPage'));
 const MyProperties = React.lazy(() => import('./pages/user/MyProperties'));
 const HomeServicesPage = React.lazy(() => import('./pages/user/HomeServicesPage'));
 const SubCategoryPage = React.lazy(() => import('./pages/user/SubCategoryPage'));
 const HomsterAdminRoutes = React.lazy(() => import('./homster/modules/admin/routes/index.jsx'));
 const UserReceivedBookingsPage = React.lazy(() => import('./pages/user/UserReceivedBookingsPage'));
+const UserReceivedEnquiriesPage = React.lazy(() => import('./pages/user/UserReceivedEnquiriesPage'));
 const UserSubscriptionsPage = React.lazy(() => import('./pages/user/UserSubscriptionsPage'));
 const UserPropertyDashboard = React.lazy(() => import('./pages/user/UserPropertyDashboard'));
 const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPage'));
@@ -69,6 +71,7 @@ const AdminUsers = React.lazy(() => import('./app/admin/pages/AdminUsers'));
 const AdminUserDetail = React.lazy(() => import('./app/admin/pages/AdminUserDetail'));
 const AdminBookings = React.lazy(() => import('./app/admin/pages/AdminBookings'));
 const AdminBookingDetail = React.lazy(() => import('./app/admin/pages/AdminBookingDetail'));
+const AdminEnquiries = React.lazy(() => import('./app/admin/pages/AdminEnquiries'));
 const AdminPartners = React.lazy(() => import('./app/admin/pages/AdminPartners'));
 const AdminPartnerDetail = React.lazy(() => import('./app/admin/pages/AdminPartnerDetail'));
 const AdminReviews = React.lazy(() => import('./app/admin/pages/AdminReviews'));
@@ -88,6 +91,7 @@ const AdminSubscriptions = React.lazy(() => import('./app/admin/pages/AdminSubsc
 const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAnalysis'));
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
 const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/PropertyFormManager'));
+const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocationsPage'));
 
 
 // Lazy Imports - Partner Pages
@@ -196,7 +200,7 @@ const Layout = ({ children }) => {
   // Specific user pages where BottomNav is hidden (reels = full-screen experience)
   const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/checkout'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
-  const isReelsPage = location.pathname === '/reels';
+  const isReelsPage = location.pathname.startsWith('/reels');
 
   // Partner Bottom Nav should show in Partner App (authenticated pages)
   const showPartnerBottomNav = isPartnerApp && location.pathname !== '/hotel';
@@ -461,6 +465,7 @@ function App() {
             <Route path="/list-property/join-homestay/:id?" element={<UserProtectedRoute><AddHomestayWizard /></UserProtectedRoute>} />
             <Route path="/my-properties" element={<UserProtectedRoute><MyProperties /></UserProtectedRoute>} />
             <Route path="/my-received-bookings" element={<UserProtectedRoute><UserReceivedBookingsPage /></UserProtectedRoute>} />
+            <Route path="/my-enquiries" element={<UserProtectedRoute><UserReceivedEnquiriesPage /></UserProtectedRoute>} />
             <Route path="/my-subscriptions" element={<UserProtectedRoute><UserSubscriptionsPage /></UserProtectedRoute>} />
             <Route path="/my-property-dashboard/:id" element={<UserProtectedRoute><UserPropertyDashboard /></UserProtectedRoute>} />
             <Route path="/properties/:id" element={<UserProtectedRoute><PartnerPropertyDetails /></UserProtectedRoute>} />
@@ -526,6 +531,7 @@ function App() {
                 <Route path="users/:id" element={<AdminUserDetail />} />
                 <Route path="bookings" element={<AdminBookings />} />
                 <Route path="bookings/:id" element={<AdminBookingDetail />} />
+                <Route path="enquiries" element={<AdminEnquiries />} />
                 <Route path="partners" element={<AdminPartners />} />
                 <Route path="partners/:id" element={<AdminPartnerDetail />} />
                 <Route path="reviews" element={<AdminReviews />} />
@@ -545,6 +551,7 @@ function App() {
                 <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                 <Route path="banners" element={<AdminBanners />} />
                 <Route path="property-forms" element={<AdminPropertyFormManager />} />
+                <Route path="locations" element={<AdminLocationsPage />} />
               </Route>
             </Route>
 
@@ -552,6 +559,7 @@ function App() {
             <Route element={<UserProtectedRoute />}>
               <Route path="/" element={<Home />} />
               <Route path="/reels" element={<ReelsPage />} />
+              <Route path="/reels/my" element={<MyReelsPage />} />
             <Route path="/profile" element={<UserProtectedRoute><ProfileEdit /></UserProtectedRoute>} />
               
               {/* Unified Property Details (C2C & Hotel) */}

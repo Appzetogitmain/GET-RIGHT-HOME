@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import LocationSelector from '../../../components/ui/LocationSelector';
 import { useNavigate } from 'react-router-dom';
 
 import { 
@@ -30,6 +31,7 @@ const AdminAddProperty = () => {
             country: 'India',
             state: '',
             city: '',
+            district: '',
             area: '',
             fullAddress: '',
             pincode: ''
@@ -234,33 +236,29 @@ const AdminAddProperty = () => {
                         <h3 className="text-sm font-black text-gray-900 uppercase flex items-center gap-2 border-b border-gray-50 pb-3">
                             <MapPin size={16} className="text-emerald-600" /> Location Details
                         </h3>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">City *</label>
-                                <input 
-                                    type="text"
-                                    name="address.city"
-                                    value={formData.address.city}
-                                    onChange={handleChange}
-                                    placeholder="City name"
-                                    className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-black outline-none transition-all"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">State *</label>
-                                <input 
-                                    type="text"
-                                    name="address.state"
-                                    value={formData.address.state}
-                                    onChange={handleChange}
-                                    placeholder="State name"
-                                    className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-black outline-none transition-all"
-                                    required
-                                />
-                            </div>
-                        </div>
+
+                        {/* Cascading Country → State → District → City */}
+                        <LocationSelector
+                            value={{
+                                country: formData.address.country || 'India',
+                                state: formData.address.state || '',
+                                district: formData.address.district || '',
+                                city: formData.address.city || ''
+                            }}
+                            onChange={({ country, state, district, city }) => {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    address: {
+                                        ...prev.address,
+                                        country,
+                                        state,
+                                        district,
+                                        city
+                                    }
+                                }));
+                            }}
+                            required
+                        />
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>

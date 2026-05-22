@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
-    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon
+    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin
 } from 'lucide-react';
 
 
@@ -82,7 +82,8 @@ const AdminLayout = () => {
                 { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
                 { icon: Home, label: 'Property Management', path: '/admin/properties' },
                 { icon: LayoutGrid, label: 'Categories', path: '/admin/categories' },
-                { icon: Calendar, label: 'Bookings', path: '/admin/bookings' },
+                { icon: MapPin, label: 'Location Manager', path: '/admin/locations' },
+                { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' },
                 { icon: ImageIcon, label: 'Banner Management', path: '/admin/banners' },
                 { icon: Video, label: 'Reel Analysis', path: '/admin/reel-analysis' },
                 { icon: Star, label: 'Reviews', path: '/admin/reviews' },

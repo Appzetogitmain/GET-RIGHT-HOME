@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2, MapPin, CheckCircle, XCircle, FileText,
     ChevronLeft, Star, Bed, Calendar, ShieldCheck, AlertCircle,
-    MoreVertical, Download, Search, Ban, Wifi, Phone, Mail, Tv, Coffee, Wind, Loader2, Clock, Image as ImageIcon, Users
+    MoreVertical, Download, Search, Ban, Wifi, Phone, Mail, Tv, Coffee, Wind, Loader2, Clock, Image as ImageIcon, Users, MessageSquare
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -12,99 +12,144 @@ import toast from 'react-hot-toast';
 
 // --- Tab Components ---
 
-const OverviewTab = ({ hotel }) => (
-    <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
-                <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
-                    <Building2 size={14} /> Property Information
-                </h3>
-                <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Property Name</span>
-                        <span className="font-bold text-gray-900">{hotel.propertyName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Property Type</span>
-                        <span className="font-bold text-gray-900 capitalize">{hotel.propertyType}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Contact Number</span>
-                        <span className="font-bold text-gray-900">{hotel.contactNumber || 'Not Provided'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Status</span>
-                        <span className="font-bold text-gray-900 capitalize">{hotel.status}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Joined Date</span>
-                        <span className="font-bold text-gray-900">{hotel.createdAt ? new Date(hotel.createdAt).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                    {hotel.propertyType === 'plot' ? (
-                        <>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500 font-bold uppercase text-[10px]">Plot Area</span>
-                                <span className="font-bold text-gray-900">{hotel.plotDetails?.plotArea || 'N/A'} {hotel.plotDetails?.unit || 'sqyrd'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500 font-bold uppercase text-[10px]">Expected Price</span>
-                                <span className="font-bold text-gray-900">₹{hotel.plotDetails?.expectedPrice?.toLocaleString() || 'N/A'}</span>
-                            </div>
-                        </>
-                    ) : hotel.propertyType === 'buy' ? (
-                        <>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500 font-bold uppercase text-[10px]">Property Type</span>
-                                <span className="font-bold text-gray-900">{hotel.buyDetails?.type || 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500 font-bold uppercase text-[10px]">Expected Price</span>
-                                <span className="font-bold text-gray-900">₹{hotel.buyDetails?.expectedPrice?.toLocaleString() || 'N/A'}</span>
-                            </div>
-                        </>
-                    ) : (
+const OverviewTab = ({ hotel }) => {
+    const creator = hotel.userId || hotel.partnerId;
+    const creatorType = hotel.userId ? (hotel.userId.role || 'Owner') : 'Partner';
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                    <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
+                        <Building2 size={14} /> Property Information
+                    </h3>
+                    <div className="space-y-3 text-sm">
                         <div className="flex justify-between">
-                            <span className="text-gray-500 font-bold uppercase text-[10px]">{hotel.propertyType === 'tent' ? 'Total Tent Types' : 'Total Room Types'}</span>
-                            <span className="font-bold text-gray-900">{hotel.rooms?.length || 0}</span>
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Property Name</span>
+                            <span className="font-bold text-gray-900">{hotel.propertyName}</span>
                         </div>
-                    )}
-                    <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Live On Platform</span>
-                        <span className="font-bold text-gray-900 flex items-center gap-1">
-                            {hotel.isLive ? <CheckCircle size={12} className="text-green-600" /> : <XCircle size={12} className="text-red-500" />}
-                            {hotel.isLive ? 'Yes' : 'No'}
-                        </span>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Property Type</span>
+                            <span className="font-bold text-gray-900 capitalize">{hotel.propertyType}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Contact Number</span>
+                            <span className="font-bold text-gray-900">{hotel.contactNumber || 'Not Provided'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Status</span>
+                            <span className="font-bold text-gray-900 capitalize">{hotel.status}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Joined Date</span>
+                            <span className="font-bold text-gray-900">{hotel.createdAt ? new Date(hotel.createdAt).toLocaleDateString() : 'N/A'}</span>
+                        </div>
+                        {hotel.propertyType === 'plot' ? (
+                            <>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500 font-bold uppercase text-[10px]">Plot Area</span>
+                                    <span className="font-bold text-gray-900">{hotel.plotDetails?.plotArea || 'N/A'} {hotel.plotDetails?.unit || 'sqyrd'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500 font-bold uppercase text-[10px]">Expected Price</span>
+                                    <span className="font-bold text-gray-900">₹{hotel.plotDetails?.expectedPrice?.toLocaleString() || 'N/A'}</span>
+                                </div>
+                            </>
+                        ) : hotel.propertyType === 'buy' ? (
+                            <>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500 font-bold uppercase text-[10px]">Property Type</span>
+                                    <span className="font-bold text-gray-900">{hotel.buyDetails?.type || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500 font-bold uppercase text-[10px]">Expected Price</span>
+                                    <span className="font-bold text-gray-900">₹{hotel.buyDetails?.expectedPrice?.toLocaleString() || 'N/A'}</span>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex justify-between">
+                                <span className="text-gray-500 font-bold uppercase text-[10px]">{hotel.propertyType === 'tent' ? 'Total Tent Types' : 'Total Room Types'}</span>
+                                <span className="font-bold text-gray-900">{hotel.rooms?.length || 0}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Live On Platform</span>
+                            <span className="font-bold text-gray-900 flex items-center gap-1">
+                                {hotel.isLive ? <CheckCircle size={12} className="text-green-600" /> : <XCircle size={12} className="text-red-500" />}
+                                {hotel.isLive ? 'Yes' : 'No'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                    <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
+                        <MapPin size={14} /> Creator & Location Details
+                    </h3>
+                    <div className="space-y-3 text-sm">
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Created By</span>
+                            <span className="font-bold text-gray-900 capitalize">{creator?.name || 'N/A'} ({creatorType})</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Creator Email</span>
+                            <span className="font-bold text-gray-900">{creator?.email || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Creator Phone</span>
+                            <span className="font-bold text-gray-900">{creator?.phone || 'N/A'}</span>
+                        </div>
+                        <div className="pt-2">
+                            <span className="text-gray-500 font-bold uppercase text-[10px] block mb-1">Full Address</span>
+                            <span className="font-bold block text-gray-800 leading-relaxed">
+                                {hotel.address?.fullAddress || hotel.address?.area || 'N/A'}
+                                <br />
+                                {hotel.address?.city}, {hotel.address?.district ? `${hotel.address.district}, ` : ''}{hotel.address?.state} {hotel.address?.pincode && `- ${hotel.address.pincode}`}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+
+        {hotel.dynamicData && Object.keys(hotel.dynamicData).length > 0 && (
+            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mt-6">
                 <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
-                    <MapPin size={14} /> Partner & Location
+                    <FileText size={14} /> Additional Form Details
                 </h3>
-                <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Partner Name</span>
-                        <span className="font-bold text-gray-900">{hotel.partnerId?.name || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Partner Email</span>
-                        <span className="font-bold text-gray-900">{hotel.partnerId?.email || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Partner Phone</span>
-                        <span className="font-bold text-gray-900">{hotel.partnerId?.phone || 'N/A'}</span>
-                    </div>
-                    <div className="pt-2">
-                        <span className="text-gray-500 font-bold uppercase text-[10px] block mb-1">Full Address</span>
-                        <span className="font-bold block text-gray-800 leading-relaxed">
-                            {hotel.address?.fullAddress || hotel.address?.area || 'N/A'}
-                            <br />
-                            {hotel.address?.city}, {hotel.address?.district ? `${hotel.address.district}, ` : ''}{hotel.address?.state} {hotel.address?.pincode && `- ${hotel.address.pincode}`}
-                        </span>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 text-sm">
+                    {Object.entries(hotel.dynamicData).map(([key, val]) => {
+                        if (val === undefined || val === null || val === '') return null;
+                        
+                        // Skip system fields we already show
+                        if (['propertyName', 'description', 'country', 'state', 'district', 'city', 'locality', 'houseNumber', 'pincode'].includes(key)) {
+                            return null;
+                        }
+
+                        // Format key to start case
+                        const formattedKey = key
+                            .replace(/([A-Z])/g, ' $1')
+                            .replace(/^./, (str) => str.toUpperCase());
+                            
+                        // Format value
+                        let displayVal = val;
+                        if (Array.isArray(val)) {
+                            displayVal = val.join(', ');
+                        } else if (typeof val === 'boolean') {
+                            displayVal = val ? 'Yes' : 'No';
+                        } else if (typeof val === 'object') {
+                            return null; // Skip nested objects for simplicity
+                        }
+
+                        return (
+                            <div key={key} className="flex justify-between border-b border-gray-100 pb-2">
+                                <span className="text-gray-500 font-bold uppercase text-[10px] pr-4">{formattedKey}</span>
+                                <span className="font-bold text-gray-900 text-right">{displayVal.toString()}</span>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
-        </div>
+        )}
+
 
         <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-3">About Property</h3>
@@ -311,7 +356,8 @@ const OverviewTab = ({ hotel }) => (
             </div>
         )}
     </div>
-);
+    );
+};
 
 const GalleryTab = ({ hotel }) => (
     <div className="space-y-10">
@@ -641,67 +687,97 @@ const RoomsTab = ({ rooms }) => {
     );
 };
 
-const BookingsTab = ({ bookings, propertyType }) => (
-    <div className="space-y-4">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="relative w-full md:w-80">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                    type="text"
-                    placeholder="Search Guest Name..."
-                    className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase outline-none focus:ring-1 focus:ring-black"
-                />
-            </div>
-            <div className="flex items-center gap-4">
-                <div className="text-[10px] font-bold uppercase text-gray-500">
-                    Total: <span className="font-bold text-gray-900">{bookings?.length || 0} {propertyType === 'rent' ? 'Rent Records' : 'Bookings'}</span>
+const EnquiriesTab = ({ enquiries }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filtered = enquiries.filter(e => 
+        e.enquiryId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        e.userId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        e.enquiryType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        e.message?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="relative w-full md:w-80">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Search Enquiries..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase outline-none focus:ring-1 focus:ring-black"
+                    />
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="text-[10px] font-bold uppercase text-gray-500">
+                        Total Enquiries: <span className="font-bold text-gray-900">{filtered.length}</span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
-                    <tr>
-                        <th className="p-4 font-bold text-gray-600">{propertyType === 'rent' ? 'Record ID' : 'Booking ID'}</th>
-                        <th className="p-4 font-bold text-gray-600">Status</th>
-                        <th className="p-4 font-bold text-gray-600 text-right">Amount</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                    {bookings && bookings.length > 0 ? (
-                        bookings.map((b, i) => (
-                            <tr key={i} className="hover:bg-gray-50">
-                                <td className="p-4 font-mono text-xs text-gray-500">#{b.bookingId || b._id.slice(-6)}</td>
-                                <td className="p-4">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                        b.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                                            b.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-amber-100 text-amber-700'
-                                        }`}>
-                                        {b.status}
-                                    </span>
-                                </td>
-                                <td className="p-4 text-right font-bold">₹{b.totalAmount?.toLocaleString()}</td>
-                            </tr>
-                        ))
-                    ) : (
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
                         <tr>
-                            <td colSpan="5" className="p-8 text-center text-gray-400 font-bold uppercase text-xs">No bookings found</td>
+                            <th className="p-4 font-bold text-gray-600">Enquiry ID</th>
+                            <th className="p-4 font-bold text-gray-600">User / Buyer</th>
+                            <th className="p-4 font-bold text-gray-600">Contact Details</th>
+                            <th className="p-4 font-bold text-gray-600">Type</th>
+                            <th className="p-4 font-bold text-gray-600">Status</th>
+                            <th className="p-4 font-bold text-gray-600">Date Received</th>
                         </tr>
-                    )}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-xs font-bold uppercase">
+                        {filtered.length > 0 ? (
+                            filtered.map((enq, i) => (
+                                <tr key={i} className="hover:bg-gray-50">
+                                    <td className="p-4 font-mono font-bold text-gray-800">#{enq.enquiryId}</td>
+                                    <td className="p-4">
+                                        <div className="font-bold text-gray-900">{enq.userId?.name || 'N/A'}</div>
+                                    </td>
+                                    <td className="p-4 text-gray-600 normal-case font-medium">
+                                        <div>{enq.userId?.phone || 'N/A'}</div>
+                                        <div className="text-[10px] text-gray-400">{enq.userId?.email || ''}</div>
+                                    </td>
+                                    <td className="p-4 capitalize font-semibold text-gray-600">
+                                        {enq.enquiryType?.replace('_', ' ')}
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                                            enq.status === 'new' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                            enq.status === 'contacted' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                            enq.status === 'scheduled' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                            enq.status === 'closed' ? 'bg-green-50 text-green-700 border-green-200' :
+                                            'bg-gray-50 text-gray-600 border-gray-200'
+                                        }`}>
+                                            {enq.status}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-gray-500 font-medium normal-case">
+                                        {new Date(enq.createdAt).toLocaleDateString()} {new Date(enq.createdAt).toLocaleTimeString()}
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="6" className="p-8 text-center text-gray-400 font-bold uppercase text-xs">No enquiries found</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 // --- Main Page Component ---
 
 const AdminHotelDetail = () => {
     const { id } = useParams();
     const [hotel, setHotel] = useState(null);
-    const [bookings, setBookings] = useState([]);
+    const [enquiries, setEnquiries] = useState([]);
     const [documents, setDocuments] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
@@ -714,8 +790,13 @@ const AdminHotelDetail = () => {
             const data = await adminService.getHotelDetails(id);
             if (data.success) {
                 setHotel(data.hotel);
-                setBookings(data.bookings || []);
                 setDocuments(data.documents || null);
+                
+                // Fetch enquiries for this property
+                const enqData = await adminService.getEnquiries({ propertyId: id });
+                if (enqData.success) {
+                    setEnquiries(enqData.enquiries || []);
+                }
             }
         } catch (error) {
             console.error('Error fetching hotel details:', error);
@@ -765,21 +846,21 @@ const AdminHotelDetail = () => {
         const newStatus = isSuspended ? 'approved' : 'suspended';
         setModalConfig({
             isOpen: true,
-            title: isSuspended ? 'Activate Hotel?' : 'Suspend Hotel?',
+            title: isSuspended ? 'Activate Property?' : 'Suspend Property?',
             message: isSuspended
-                ? `Hotel "${hotel.propertyName}" will be able to receive bookings again.`
-                : `Suspending "${hotel.propertyName}" will prevent it from receiving new bookings.`,
+                ? `Property "${hotel.propertyName}" will be visible on the platform again.`
+                : `Suspending "${hotel.propertyName}" will hide it from the platform.`,
             type: isSuspended ? 'success' : 'danger',
             confirmText: isSuspended ? 'Activate' : 'Suspend',
             onConfirm: async () => {
                 try {
                     const res = await adminService.updateHotelStatus(hotel._id, newStatus);
                     if (res.success) {
-                        toast.success(`Hotel ${isSuspended ? 'activated' : 'suspended'} successfully`);
+                        toast.success(`Property ${isSuspended ? 'activated' : 'suspended'} successfully`);
                         fetchHotelDetails();
                     }
                 } catch {
-                    toast.error('Failed to update hotel status');
+                    toast.error('Failed to update property status');
                 }
             }
         });
@@ -800,14 +881,14 @@ const AdminHotelDetail = () => {
         </div>
     );
 
+    const creator = hotel?.userId || hotel?.partnerId;
+    const creatorType = hotel?.userId ? (hotel.userId.role || 'owner') : 'partner';
+
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Building2 },
         { id: 'gallery', label: 'Full Gallery', icon: ImageIcon },
         { id: 'documents', label: 'KYC Documents', icon: ShieldCheck },
-        ...(hotel?.propertyType !== 'plot' && hotel?.propertyType !== 'buy' ? [
-            ...(hotel?.propertyType !== 'rent' ? [{ id: 'rooms', label: hotel?.propertyType === 'tent' ? 'Tents & Pricing' : 'Rooms & Pricing', icon: Bed }] : []),
-            { id: 'bookings', label: hotel?.propertyType === 'rent' ? 'Rent History' : 'Booking History', icon: Calendar },
-        ] : [])
+        { id: 'enquiries', label: 'Enquiries', icon: MessageSquare }
     ];
 
     return (
@@ -841,7 +922,7 @@ const AdminHotelDetail = () => {
                                     <Ban size={10} className="mr-1" /> SUSPENDED
                                 </span>
                             ) : (
-                                <span className={`px-2.5 py-0.5 border text-[10px] font-bold rounded-full flex items-center uppercase ${hotel.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                                <span className={`px-2.5 py-0.5 border text-[10px] font-bold rounded-full flex items-center uppercase ${hotel.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                                     {hotel.status === 'approved' ? <CheckCircle size={10} className="mr-1" /> : <Clock size={10} className="mr-1" />}
                                     {hotel.status}
                                 </span>
@@ -850,7 +931,7 @@ const AdminHotelDetail = () => {
                         <p className="text-gray-500 text-[10px] font-bold uppercase mt-1 flex items-center">
                             <MapPin size={12} className="mr-1 text-gray-400" /> {hotel.address?.city}, {hotel.address?.state}
                             <span className="mx-2 text-gray-300">|</span>
-                            Owner: {hotel.partnerId?.name || 'N/A'}
+                            Owner/Broker: {creator?.name || 'N/A'} ({creatorType})
                         </p>
                     </div>
                 </div>
@@ -907,8 +988,7 @@ const AdminHotelDetail = () => {
                             verifying={verifying}
                         />
                     )}
-                    {activeTab === 'rooms' && <RoomsTab rooms={hotel.rooms} />}
-                    {activeTab === 'bookings' && <BookingsTab bookings={bookings} propertyType={hotel?.propertyType} />}
+                    {activeTab === 'enquiries' && <EnquiriesTab enquiries={enquiries} />}
                 </motion.div>
             </AnimatePresence>
         </div>

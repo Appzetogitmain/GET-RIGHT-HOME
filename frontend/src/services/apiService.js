@@ -10,7 +10,7 @@ export const api = axios.create({
 
 // Interceptor to add Token and Log
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -232,8 +232,67 @@ export const bookingService = {
       throw error.response?.data || error.message;
     }
   },
+  // ── Enquiry helpers (now proxied to /enquiries) ───────────────────────────
+  getReceivedEnquiries: async (params = {}) => {
+    try {
+      const q = new URLSearchParams(params).toString();
+      const url = q ? `/enquiries/received?${q}` : '/enquiries/received';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  updateReceivedEnquiryStatus: async (id, status) => {
+    try {
+      const response = await api.put(`/enquiries/${id}/status`, { status });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
 
-
+// ── Dedicated Enquiry Service ─────────────────────────────────────────────────
+export const enquiryService = {
+  // Submit an enquiry from the property details page
+  create: async (data) => {
+    try {
+      const response = await api.post('/enquiries', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  // Get enquiries I submitted (buyer)
+  getMy: async () => {
+    try {
+      const response = await api.get('/enquiries/my');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  // Get enquiries received on my properties (owner)
+  getReceived: async (params = {}) => {
+    try {
+      const q = new URLSearchParams(params).toString();
+      const url = q ? `/enquiries/received?${q}` : '/enquiries/received';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  // Update status of an enquiry on my property
+  updateStatus: async (id, status) => {
+    try {
+      const response = await api.put(`/enquiries/${id}/status`, { status });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
 };
 
 // Property Services (New)

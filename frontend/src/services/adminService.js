@@ -251,6 +251,18 @@ const adminService = {
   createProperty: async (data) => {
     const response = await axiosInstance.post('/admin/properties', data);
     return response.data;
+  },
+  getEnquiries: async (params) => {
+    const response = await axiosInstance.get('/admin/enquiries', { params });
+    return response.data;
+  },
+  updateEnquiry: async (id, data) => {
+    const response = await axiosInstance.put(`/admin/enquiries/${id}`, data);
+    return response.data;
+  },
+  deleteEnquiry: async (id) => {
+    const response = await axiosInstance.delete(`/admin/enquiries/${id}`);
+    return response.data;
   }
 };
 

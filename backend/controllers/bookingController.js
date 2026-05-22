@@ -78,7 +78,7 @@ export const createBooking = async (req, res) => {
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
     const pType = property.propertyType.toLowerCase();
-    const isInquiry = ['buy', 'plot', 'rent'].includes(pType);
+    const isInquiry = ['buy', 'plot', 'rent'].includes(pType) || req.body.isInquiry === true;
 
     // Basic Validation - different for inquiries
     if (!isInquiry) {
@@ -1201,3 +1201,61 @@ export const declineBookingByOwner = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getReceivedEnquiries = async (req, res) => {
+  try {
+    const { propertyId, status } = req.query;
+
+    const ownerQuery = {
+      $or: [
+        { partnerId: req.user._id },
+        { userId: req.user._id }
+      ]
+    };
+    if (propertyId) ownerQuery._id = propertyId;
+
+    const properties = await Property.find(ownerQuery).select('_id');
+    const propertyIds = properties.map(p => p._id);
+
+    const query = { propertyId: { $in: propertyIds }, isInquiry: true };
+    if (status && status !== 'all') {
+      query['inquiryMetadata.status'] = status;
+    }
+
+    const enquiries = await Booking.find(query)
+      .populate('userId', 'name phone email avatar')
+      .populate('propertyId', 'propertyName coverImage address propertyType buyDetails rentDetails plotDetails')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, enquiries });
+  } catch (error) {
+    console.error('Get Received Enquiries Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateReceivedEnquiryStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const enquiry = await Booking.findById(id).populate('propertyId');
+    if (!enquiry || !enquiry.isInquiry) {
+      return res.status(404).json({ success: false, message: 'Enquiry not found' });
+    }
+
+    const prop = enquiry.propertyId;
+    if (String(prop.partnerId) !== String(req.user._id) && String(prop.userId) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    enquiry.inquiryMetadata.status = status;
+    await enquiry.save();
+
+    res.json({ success: true, message: 'Status updated' });
+  } catch (error) {
+    console.error('Update Received Enquiry Status Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

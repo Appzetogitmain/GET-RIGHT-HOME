@@ -38,11 +38,22 @@ import {
   createAdminProperty
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
+import {
+    adminGetAllEnquiries,
+    adminUpdateEnquiry,
+    adminDeleteEnquiry
+} from '../controllers/enquiryController.js';
 
 const router = express.Router();
 
 router.use(protect);
 router.use(authorizedRoles('admin', 'superadmin'));
+
+// Enquiries (dedicated Enquiry collection — not Booking)
+router.get('/enquiries', adminGetAllEnquiries);
+router.put('/enquiries/:id', adminUpdateEnquiry);
+router.delete('/enquiries/:id', adminDeleteEnquiry);
+
 
 // Notifications
 router.get('/notifications', getAdminNotifications);

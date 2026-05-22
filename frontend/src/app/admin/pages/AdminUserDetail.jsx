@@ -2,45 +2,128 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     User, Mail, Phone, Calendar, MapPin, Shield, CreditCard,
-    History, AlertTriangle, Ban, CheckCircle, Lock, Unlock, Loader2, ArrowDownLeft, ArrowUpRight
+    History, AlertTriangle, Ban, CheckCircle, Lock, Unlock, Loader2, ArrowDownLeft, ArrowUpRight,
+    MessageSquare, Clock, FileText, Home
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
 
-const UserBookingsTab = ({ bookings }) => (
+const UserPropertiesTab = ({ properties }) => (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
                 <tr>
-                    <th className="p-4 font-bold text-gray-600">Booking ID</th>
-                    <th className="p-4 font-bold text-gray-600">Hotel</th>
-                    <th className="p-4 font-bold text-gray-600">Date</th>
+                    <th className="p-4 font-bold text-gray-600">Property Name</th>
+                    <th className="p-4 font-bold text-gray-600">Type</th>
+                    <th className="p-4 font-bold text-gray-600">City</th>
                     <th className="p-4 font-bold text-gray-600">Status</th>
-                    <th className="p-4 font-bold text-gray-600 text-right">Amount</th>
+                    <th className="p-4 font-bold text-gray-600 text-right">View</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-                {bookings && bookings.length > 0 ? (
-                    bookings.map((booking, i) => (
-                        <tr key={i} className="hover:bg-gray-50">
-                            <td className="p-4 font-mono text-xs text-gray-500">#{booking.bookingId || booking._id.slice(-6)}</td>
-                            <td className="p-4 font-bold text-gray-900">{booking.propertyId?.propertyName || booking.propertyId?.name || 'Deleted Hotel'}</td>
-                            <td className="p-4 text-[10px] items-center font-bold text-gray-400 uppercase">{new Date(booking.createdAt).toLocaleDateString()}</td>
+                {properties && properties.length > 0 ? (
+                    properties.map((prop, i) => (
+                        <tr key={i} className="hover:bg-gray-50 font-bold">
+                            <td className="p-4 font-bold text-gray-900">{prop.propertyName || 'Untitled'}</td>
+                            <td className="p-4 uppercase text-xs font-bold text-gray-600">{prop.propertyType || 'N/A'}</td>
+                            <td className="p-4 font-semibold text-gray-500">{prop.address?.city || 'N/A'}</td>
                             <td className="p-4">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                    booking.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                                    }`}>
-                                    {booking.status}
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                    prop.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                    prop.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-gray-100 text-gray-700'
+                                }`}>
+                                    {prop.status}
                                 </span>
                             </td>
-                            <td className="p-4 text-right font-bold">₹{booking.totalAmount?.toLocaleString()}</td>
+                            <td className="p-4 text-right">
+                                <Link to={`/admin/properties/${prop._id}`} className="text-black font-bold uppercase text-[10px] border-b border-black pb-0.5 hover:text-gray-600 hover:border-gray-600 transition-colors">
+                                    Details
+                                </Link>
+                            </td>
                         </tr>
                     ))
                 ) : (
                     <tr>
-                        <td colSpan="5" className="p-8 text-center text-gray-400 text-xs font-bold uppercase">No bookings found</td>
+                        <td colSpan="5" className="p-8 text-center text-gray-400 text-xs font-bold uppercase">No properties found</td>
+                    </tr>
+                )}
+            </tbody>
+        </table>
+    </div>
+);
+
+// ─── Enquiry status badge ─────────────────────────────────────────────────────
+const EnqStatusBadge = ({ status }) => {
+    const st = (status || 'new').toLowerCase();
+    const cls = {
+        new: 'bg-blue-50 text-blue-700 border-blue-100',
+        contacted: 'bg-amber-50 text-amber-700 border-amber-100',
+        scheduled: 'bg-purple-50 text-purple-700 border-purple-100',
+        closed: 'bg-green-50 text-green-700 border-green-100',
+        dropped: 'bg-red-50 text-red-700 border-red-100',
+    };
+    return (
+        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${cls[st] || cls.new}`}>
+            {st}
+        </span>
+    );
+};
+
+// ─── User Enquiries Tab ───────────────────────────────────────────────────────
+const UserEnquiriesTab = ({ enquiries }) => (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
+                <tr>
+                    <th className="p-4">Enquiry ID</th>
+                    <th className="p-4">Property</th>
+                    <th className="p-4">Type</th>
+                    <th className="p-4">Scheduled Date</th>
+                    <th className="p-4">Status</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+                {enquiries && enquiries.length > 0 ? (
+                    enquiries.map((enq, i) => (
+                        <tr key={i} className="hover:bg-gray-50">
+                            <td className="p-4 font-mono text-[11px] text-gray-500">
+                                #{enq.bookingId || enq._id?.slice(-8).toUpperCase()}
+                                <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                                    {new Date(enq.createdAt).toLocaleDateString()}
+                                </p>
+                            </td>
+                            <td className="p-4">
+                                <p className="font-bold text-gray-900 text-[13px]">
+                                    {enq.propertyId?.propertyName || 'Deleted Property'}
+                                </p>
+                                <p className="text-[10px] text-gray-400 uppercase font-medium mt-0.5">
+                                    {enq.propertyId?.address?.city || ''}
+                                </p>
+                            </td>
+                            <td className="p-4">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 text-gray-600">
+                                    {enq.propertyId?.propertyType || enq.propertyType || 'N/A'}
+                                </span>
+                            </td>
+                            <td className="p-4 text-[11px] font-bold text-gray-600">
+                                {enq.inquiryMetadata?.preferredDate
+                                    ? new Date(enq.inquiryMetadata.preferredDate).toLocaleDateString()
+                                    : '—'}
+                            </td>
+                            <td className="p-4">
+                                <EnqStatusBadge status={enq.inquiryMetadata?.status} />
+                            </td>
+                        </tr>
+                    ))
+                ) : (
+                    <tr>
+                        <td colSpan="5" className="p-8 text-center">
+                            <MessageSquare size={28} className="mx-auto text-gray-200 mb-2" />
+                            <p className="text-[11px] font-bold uppercase text-gray-400">No enquiries found for this user</p>
+                        </td>
                     </tr>
                 )}
             </tbody>
@@ -120,21 +203,34 @@ const AdminUserDetail = () => {
     const { id } = useParams();
     const [user, setUser] = useState(null);
     const [bookings, setBookings] = useState([]);
+    const [properties, setProperties] = useState([]);
     const [wallet, setWallet] = useState(null);
     const [transactions, setTransactions] = useState([]);
+    const [enquiries, setEnquiries] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('bookings');
+    const [activeTab, setActiveTab] = useState('enquiries');
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
 
     const fetchUserDetails = async () => {
         try {
             setLoading(true);
-            const data = await adminService.getUserDetails(id);
-            if (data.success) {
-                setUser(data.user);
-                setBookings(data.bookings);
-                setWallet(data.wallet);
-                setTransactions(data.transactions);
+            const [userRes, enqRes] = await Promise.all([
+                adminService.getUserDetails(id),
+                adminService.getEnquiries({ limit: 100 })
+            ]);
+            if (userRes.success) {
+                setUser(userRes.user);
+                setBookings(userRes.bookings);
+                setProperties(userRes.properties || []);
+                setWallet(userRes.wallet);
+                setTransactions(userRes.transactions);
+            }
+            if (enqRes.success) {
+                // Filter enquiries that belong to this user
+                const userEnquiries = (enqRes.enquiries || []).filter(
+                    enq => enq.userId?._id === id || enq.userId === id
+                );
+                setEnquiries(userEnquiries);
             }
         } catch (error) {
             console.error('Error fetching user details:', error);
@@ -193,7 +289,8 @@ const AdminUserDetail = () => {
     }
 
     const tabs = [
-        { id: 'bookings', label: 'Booking History', icon: Calendar },
+        { id: 'enquiries', label: `Enquiries (${enquiries.length})`, icon: MessageSquare },
+        { id: 'properties', label: `Properties (${properties.length})`, icon: Home },
         { id: 'transactions', label: 'Transactions', icon: CreditCard },
     ];
 
@@ -251,8 +348,8 @@ const AdminUserDetail = () => {
 
                     <div className="flex flex-col gap-2">
                         <div className="p-3 bg-white/50 rounded-lg border border-gray-200/50 flex justify-between items-center">
-                            <span className="text-[10px] text-gray-500 uppercase font-bold">Total Spend</span>
-                            <span className="text-lg font-bold text-gray-900">₹{bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0).toLocaleString()}</span>
+                            <span className="text-[10px] text-gray-500 uppercase font-bold">Total Properties</span>
+                            <span className="text-lg font-bold text-gray-900">{properties.length}</span>
                         </div>
                     </div>
                 </div>
@@ -301,7 +398,8 @@ const AdminUserDetail = () => {
                         exit={{ opacity: 0, y: -5 }}
                         transition={{ duration: 0.15 }}
                     >
-                        {activeTab === 'bookings' && <UserBookingsTab bookings={bookings} />}
+                        {activeTab === 'enquiries' && <UserEnquiriesTab enquiries={enquiries} />}
+                        {activeTab === 'properties' && <UserPropertiesTab properties={properties} />}
                         {activeTab === 'transactions' && <UserTransactionsTab wallet={wallet} transactions={transactions} />}
                     </motion.div>
                 </AnimatePresence>

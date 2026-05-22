@@ -163,17 +163,22 @@ const AdminProperties = () => {
             return;
         }
 
-        const headers = ['ID', 'Property Name', 'Type', 'Owner', 'Status', 'City'];
+        const headers = ['ID', 'Property Name', 'Type', 'Owner/Creator', 'Role', 'Status', 'City'];
         const csvContent = [
             headers.join(','),
-            ...properties.map(h => [
-                h._id,
-                `"${h.propertyName}"`,
-                `"${h.propertyType}"`,
-                `"${h.partnerId?.name || ''}"`,
-                h.status,
-                `"${h.address?.city || ''}"`
-            ].join(','))
+            ...properties.map(h => {
+                const creator = h.userId || h.partnerId;
+                const role = h.userId ? (h.userId.role || 'owner') : 'partner';
+                return [
+                    h._id,
+                    `"${h.propertyName}"`,
+                    `"${h.propertyType}"`,
+                    `"${creator?.name || ''}"`,
+                    `"${role}"`,
+                    h.status,
+                    `"${h.address?.city || ''}"`
+                ].join(',');
+            })
         ].join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -319,8 +324,17 @@ const AdminProperties = () => {
                                                     </p>
                                                 </td>
                                                 <td className="p-4">
-                                                    <p className="text-[10px] text-gray-700 font-bold uppercase mb-0.5">{property.partnerId?.name || 'Unknown Partner'}</p>
-                                                    <p className="text-[10px] text-gray-500 font-medium normal-case tracking-tight">{property.partnerId?.email || 'No Email'}</p>
+                                                    {(() => {
+                                                        const creator = property.userId || property.partnerId;
+                                                        const creatorType = property.userId ? (property.userId.role || 'owner') : 'partner';
+                                                        return (
+                                                            <>
+                                                                <p className="text-[10px] text-gray-700 font-bold uppercase mb-0.5">{creator?.name || 'Unknown Creator'}</p>
+                                                                <p className="text-[10px] text-gray-500 font-medium normal-case tracking-tight">{creator?.email || 'No Email'}</p>
+                                                                <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">Role: {creatorType}</p>
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className="p-4">
                                                     <PropertyStatusBadge status={property.status} />

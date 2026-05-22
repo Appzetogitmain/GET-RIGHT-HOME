@@ -6,20 +6,35 @@ export const reelService = {
 
     getReelById: (id) => api.get(`/reels/${id}`).then((r) => r.data),
 
-    uploadReel: (file, caption = '', category = 'General') => {
-        const formData = new FormData();
-        formData.append('video', file);
-        formData.append('caption', caption != null ? String(caption).trim().slice(0, 500) : '');
-        formData.append('category', category);
-        return api
-            .post('/reels/upload', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-                timeout: 120000,
-            })
-            .then((r) => r.data);
+    uploadReel: (payload, isForm = false) => {
+        if (isForm) {
+            return api
+                .post('/reels/upload', payload, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                    timeout: 120000,
+                })
+                .then((r) => r.data);
+        } else {
+            return api.post('/reels/upload', payload).then((r) => r.data);
+        }
+    },
+
+    updateReel: (id, payload, isForm = false) => {
+        if (isForm) {
+            return api
+                .put(`/reels/${id}`, payload, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                    timeout: 120000,
+                })
+                .then((r) => r.data);
+        } else {
+            return api.put(`/reels/${id}`, payload).then((r) => r.data);
+        }
     },
 
     like: (id) => api.post(`/reels/like/${id}`).then((r) => r.data),
+
+    shortlist: (id) => api.post(`/reels/shortlist/${id}`).then((r) => r.data),
 
     comment: (id, text) => api.post(`/reels/comment/${id}`, { text }).then((r) => r.data),
 

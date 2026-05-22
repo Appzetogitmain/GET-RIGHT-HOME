@@ -71,6 +71,7 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/uploads', express.static(join(__dirname, 'uploads')));
 
 // Dynamic CORS to allow local network IPs (192.168.x.x) and localhost
 app.use(cors({
@@ -133,6 +134,8 @@ import hsSubCategoryRoutes from './routes/hsSubCategoryRoutes.js';
 import hsServiceRoutes from './routes/hsServiceRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import propertyFormRoutes from './routes/propertyFormRoutes.js';
+import locationRoutes from './routes/locationRoutes.js';
+import enquiryRoutes from './routes/enquiryRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
@@ -172,6 +175,8 @@ app.get('/api/public/services', getPublicServices);
 app.get('/api/public/cities', getActiveCities);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/property-forms', propertyFormRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/enquiries', enquiryRoutes);
 
 
 

@@ -97,7 +97,22 @@ export const createProperty = async (req, res) => {
     const docsArray = Array.isArray(documents) ? documents : [];
     const dynamicCategoryId = dynamicCategory && mongoose.Types.ObjectId.isValid(dynamicCategory) ? new mongoose.Types.ObjectId(dynamicCategory) : undefined;
 
-    const finalContactNumber = contactNumber || (dynamicData && (dynamicData.contactNumber || dynamicData.mobileNumber || dynamicData.phone || dynamicData.mobile || dynamicData.phoneNumber)) || req.user?.phoneNumber || req.user?.mobile || '';
+    let finalContactNumber = contactNumber || '';
+    if (typeof finalContactNumber === 'string') finalContactNumber = finalContactNumber.trim();
+    
+    if (!finalContactNumber && dynamicData) {
+      const keys = ['contactNumber', 'mobileNumber', 'phone', 'mobile', 'phoneNumber'];
+      for (const k of keys) {
+        if (dynamicData[k]) {
+          finalContactNumber = String(dynamicData[k]).trim();
+          break;
+        }
+      }
+    }
+
+    if (!finalContactNumber) {
+      finalContactNumber = req.user?.phone || req.user?.phoneNumber || req.user?.mobile || '';
+    }
 
     let locationValue = (location && location.coordinates && location.coordinates.length > 0) ? location : undefined;
     if (!locationValue && dynamicData && dynamicData.location) {
@@ -290,6 +305,25 @@ export const updateProperty = async (req, res) => {
       if (dd.location) {
         property.location = dd.location;
       }
+    }
+
+    if (typeof property.contactNumber === 'string') {
+      property.contactNumber = property.contactNumber.trim();
+    }
+    if (!property.contactNumber) {
+      if (property.dynamicData) {
+        const keys = ['contactNumber', 'mobileNumber', 'phone', 'mobile', 'phoneNumber'];
+        for (const k of keys) {
+          const val = typeof property.dynamicData.get === 'function' ? property.dynamicData.get(k) : property.dynamicData[k];
+          if (val) {
+            property.contactNumber = String(val).trim();
+            break;
+          }
+        }
+      }
+    }
+    if (!property.contactNumber) {
+      property.contactNumber = req.user?.phone || req.user?.phoneNumber || req.user?.mobile || '';
     }
 
     await property.save();
@@ -542,6 +576,9 @@ export const getPublicProperties = async (req, res) => {
       radius = 50, // default 50km
       guests,
       sort,
+      subType,
+      availability,
+      city,
       // Rent specific
       bhkType,
       furnishing,
@@ -549,7 +586,15 @@ export const getPublicProperties = async (req, res) => {
       gender,
       occupancy,
       // Plot specific
-      landType
+      landType,
+      // New filters
+      minArea,
+      maxArea,
+      bathrooms,
+      postedBy,
+      purchaseType,
+      propertyCategory,
+      areas
     } = req.query;
 
     const pipeline = [];
@@ -593,17 +638,17 @@ export const getPublicProperties = async (req, res) => {
 
         for (const cat of categories) {
           const dn = (cat.displayName || cat.name || '').toLowerCase();
-          if (dn === 'pg' || dn === 'hostel' || dn === 'pg/co-living' || dn === 'co-living' || dn === 'pg/co-livinig' || dn === 'paying guest') {
+          if (dn.includes('pg') || dn.includes('hostel') || dn.includes('co-living') || dn.includes('paying guest')) {
             fallbackPropertyTypes.add('pg').add('hostel').add('paying guest');
             fallbackTransactionTypes.add('PG').add('Paying Guest');
           }
-          else if (dn === 'buy' || dn === 'sell') {
+          else if (dn.includes('buy') || dn.includes('sell')) {
             fallbackTransactionTypes.add('Sell');
           }
-          else if (dn === 'rent' || dn === 'lease') {
+          else if (dn.includes('rent') || dn.includes('lease')) {
             fallbackTransactionTypes.add('Rent').add('Rent / Lease');
           }
-          else if (dn === 'plot' || dn === 'plots' || dn === 'land') {
+          else if (dn.includes('plot') || dn.includes('land')) {
             fallbackPropertyTypes.add('plot').add('plots').add('plot / land');
           }
           else if (dn === 'villa') fallbackPropertyTypes.add('villa');
@@ -631,7 +676,48 @@ export const getPublicProperties = async (req, res) => {
 
         matchConditions.$or = orConditions;
       } else if (staticTypes.length > 0) {
-        matchConditions.propertyType = { $in: staticTypes };
+        const fallbackPropertyTypes = new Set();
+        const fallbackTransactionTypes = new Set();
+        const fallbackStaticTypes = [];
+
+        for (const t of staticTypes) {
+          if (t === 'pg' || t === 'hostel' || t === 'co-living' || t === 'paying guest') {
+            fallbackPropertyTypes.add('pg').add('hostel').add('paying guest');
+            fallbackTransactionTypes.add('PG').add('Paying Guest');
+          }
+          else if (t === 'buy' || t === 'sell') {
+            fallbackTransactionTypes.add('Sell');
+          }
+          else if (t === 'rent' || t === 'lease') {
+            fallbackTransactionTypes.add('Rent').add('Rent / Lease');
+          }
+          else if (t === 'plot' || t === 'plots' || t === 'land') {
+            fallbackPropertyTypes.add('plot').add('plots').add('plot / land');
+          }
+          else {
+            fallbackStaticTypes.push(t);
+          }
+        }
+
+        const orConditions = [];
+
+        if (fallbackPropertyTypes.size > 0) {
+          const regexes = [...fallbackPropertyTypes].map(type => new RegExp('^' + type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+          orConditions.push({ propertyType: { $in: regexes } });
+        }
+
+        if (fallbackTransactionTypes.size > 0) {
+          orConditions.push({ transactionType: { $in: [...fallbackTransactionTypes] } });
+        }
+
+        if (fallbackStaticTypes.length > 0) {
+          const regexes = fallbackStaticTypes.map(t => new RegExp('^' + t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+          orConditions.push({ propertyType: { $in: regexes } });
+        }
+
+        if (orConditions.length > 0) {
+          matchConditions.$or = orConditions;
+        }
       }
     }
 
@@ -702,8 +788,200 @@ export const getPublicProperties = async (req, res) => {
       matchConditions['plotDetails.landType'] = { $in: landList };
     }
 
+    if (propertyCategory) {
+      const catRegex = new RegExp('^' + propertyCategory.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
+      matchConditions.propertyCategory = catRegex;
+    }
+
     if (req.query.foodIncluded === 'true') {
       matchConditions['pgDetails.foodIncluded'] = true;
+    }
+
+    if (subType) {
+      const subTypeList = subType.split(',').map(s => s.trim()).filter(Boolean);
+      if (subTypeList.length > 0) {
+        const subTypeRegexes = subTypeList.map(s => new RegExp('^' + s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+        matchConditions.propertyType = { $in: subTypeRegexes };
+      }
+    }
+
+    if (availability) {
+      const availList = availability.split(',').map(a => a.trim()).filter(Boolean);
+      if (availList.length > 0) {
+        const availRegexes = availList.map(a => new RegExp('^' + a.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+        const availabilityMatch = {
+          $or: [
+            { 'dynamicData.availability': { $in: availRegexes } },
+            { 'dynamicData.availabilityStatus': { $in: availRegexes } }
+          ]
+        };
+
+        if (matchConditions.$and) {
+          matchConditions.$and.push(availabilityMatch);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, availabilityMatch];
+        } else {
+          matchConditions.$or = availabilityMatch.$or;
+        }
+      }
+    }
+
+    if (city) {
+      const cityRegex = new RegExp('^' + city.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
+      const cityMatch = {
+        $or: [
+          { 'address.city': cityRegex },
+          { 'address.district': cityRegex }
+        ]
+      };
+
+      if (matchConditions.$and) {
+        matchConditions.$and.push(cityMatch);
+      } else if (matchConditions.$or) {
+        const existingOr = matchConditions.$or;
+        delete matchConditions.$or;
+        matchConditions.$and = [{ $or: existingOr }, cityMatch];
+      } else {
+        matchConditions.$or = cityMatch.$or;
+      }
+    }
+
+    if (areas) {
+      const areaList = areas.split(',').map(a => new RegExp('^' + a.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+      const areaMatch = {
+        $or: [
+          { 'address.area': { $in: areaList } },
+          { 'address.fullAddress': { $in: areaList } }
+        ]
+      };
+
+      if (matchConditions.$and) {
+        matchConditions.$and.push(areaMatch);
+      } else if (matchConditions.$or) {
+        const existingOr = matchConditions.$or;
+        delete matchConditions.$or;
+        matchConditions.$and = [{ $or: existingOr }, areaMatch];
+      } else {
+        matchConditions.$or = areaMatch.$or;
+      }
+    }
+
+    // Area filters
+    if (minArea || maxArea) {
+      const minA = parseInt(minArea);
+      const maxA = parseInt(maxArea);
+      const areaMatchList = [];
+      
+      const constructAreaQuery = (field) => {
+        const q = {};
+        if (!isNaN(minA)) q.$gte = minA;
+        if (!isNaN(maxA)) q.$lte = maxA;
+        return { [field]: q };
+      };
+
+      areaMatchList.push(constructAreaQuery('buyDetails.area.superBuiltUp'));
+      areaMatchList.push(constructAreaQuery('buyDetails.area.carpet'));
+      areaMatchList.push(constructAreaQuery('plotDetails.plotArea'));
+      areaMatchList.push(constructAreaQuery('dynamicData.carpetArea'));
+      areaMatchList.push(constructAreaQuery('dynamicData.plotArea'));
+      areaMatchList.push(constructAreaQuery('dynamicData.superArea'));
+
+      const areaCondition = { $or: areaMatchList };
+      if (matchConditions.$and) {
+        matchConditions.$and.push(areaCondition);
+      } else if (matchConditions.$or) {
+        const existingOr = matchConditions.$or;
+        delete matchConditions.$or;
+        matchConditions.$and = [{ $or: existingOr }, areaCondition];
+      } else {
+        matchConditions.$or = areaCondition.$or;
+      }
+    }
+
+    // Bathroom filter
+    if (bathrooms) {
+      const minBath = parseInt(bathrooms);
+      if (!isNaN(minBath) && minBath > 0) {
+        const bathCondition = {
+          $or: [
+            { 'dynamicData.bathrooms': minBath },
+            { 'dynamicData.bathrooms': String(minBath) },
+            { 'dynamicData.bathrooms': { $in: Array.from({ length: 5 }, (_, i) => String(minBath + i)) } },
+            { 'dynamicData.bathrooms': '4+' }
+          ]
+        };
+        if (matchConditions.$and) {
+          matchConditions.$and.push(bathCondition);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, bathCondition];
+        } else {
+          matchConditions.$or = bathCondition.$or;
+        }
+      }
+    }
+
+    // Posted by filter
+    if (postedBy) {
+      const postedByList = postedBy.split(',').map(p => p.trim().toLowerCase());
+      const postedMatch = [];
+      if (postedByList.includes('owner')) {
+        postedMatch.push({ isAddedByUser: true });
+      }
+      if (postedByList.includes('dealer') || postedByList.includes('builder')) {
+        postedMatch.push({ isAddedByUser: false });
+      }
+      if (postedMatch.length > 0) {
+        const postedCondition = { $or: postedMatch };
+        if (matchConditions.$and) {
+          matchConditions.$and.push(postedCondition);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, postedCondition];
+        } else {
+          matchConditions.$or = postedCondition.$or;
+        }
+      }
+    }
+
+    // Purchase type filter
+    if (purchaseType) {
+      const pTypes = purchaseType.split(',').map(p => p.trim().toLowerCase());
+      const pMatch = [];
+      if (pTypes.includes('resale')) {
+        pMatch.push({
+          $or: [
+            { 'buyDetails.ownership': { $exists: true } },
+            { 'dynamicData.purchaseType': 'Resale' },
+            { 'dynamicData.propertyAge': { $exists: true } }
+          ]
+        });
+      }
+      if (pTypes.includes('new bookings') || pTypes.includes('new') || pTypes.includes('new launch')) {
+        pMatch.push({
+          $or: [
+            { 'dynamicData.purchaseType': 'New Bookings' },
+            { 'dynamicData.availability': { $in: ['Under construction', 'Pre Launch'] } },
+            { 'dynamicData.availabilityStatus': { $in: ['Under construction', 'Pre Launch'] } }
+          ]
+        });
+      }
+      if (pMatch.length > 0) {
+        const purchaseMatch = { $or: pMatch };
+        if (matchConditions.$and) {
+          matchConditions.$and.push(purchaseMatch);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, purchaseMatch];
+        } else {
+          matchConditions.$or = purchaseMatch.$or;
+        }
+      }
     }
 
     if (Object.keys(matchConditions).length > 0) {
@@ -785,10 +1063,43 @@ export const getPublicProperties = async (req, res) => {
           $cond: {
             if: { $gt: [{ $size: "$roomTypes" }, 0] },
             then: { $min: "$roomTypes.pricePerNight" },
-            else: null // Will filter out properties with no matching rooms later if strictly needed
+            else: {
+              $ifNull: [
+                "$rentDetails.monthlyRent",
+                {
+                  $ifNull: [
+                    "$buyDetails.expectedPrice",
+                    {
+                      $ifNull: [
+                        "$plotDetails.expectedPrice",
+                        null
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
           }
         },
-        hasMatchingRooms: { $gt: [{ $size: "$roomTypes" }, 0] }
+        hasMatchingRooms: {
+          $cond: {
+            if: { $gt: [{ $size: "$roomTypes" }, 0] },
+            then: true,
+            else: {
+              $cond: {
+                if: {
+                  $or: [
+                    { $gt: ["$rentDetails.monthlyRent", null] },
+                    { $gt: ["$buyDetails.expectedPrice", null] },
+                    { $gt: ["$plotDetails.expectedPrice", null] }
+                  ]
+                },
+                then: true,
+                else: false
+              }
+            }
+          }
+        }
       }
     });
 
@@ -855,7 +1166,11 @@ export const getMyProperties = async (req, res) => {
 export const getPropertyDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await Property.findById(id);
+    const property = await Property.findByIdAndUpdate(
+      id,
+      { $inc: { views: 1 } },
+      { new: true }
+    ).populate('partnerId').populate('userId');
     if (!property) return res.status(404).json({ message: 'Property not found' });
     const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
     const documents = await PropertyDocument.findOne({ propertyId: id });
@@ -1044,32 +1359,53 @@ export const getAdminPropertiesByLocation = async (req, res) => {
   }
 };
 
-// Returns all distinct cities where admin has added live properties
+// Returns all distinct cities (with districts) where admin has added live properties
 export const getAdminPropertyCities = async (req, res) => {
   try {
+    // Step 1: Aggregate all properties to get cities with count
     const result = await Property.aggregate([
       {
         $match: {
-          isAddedByAdmin: true,
           status: 'approved',
           isLive: true,
-          'address.city': { $exists: true, $ne: '', $ne: null }
+          'address.city': { $exists: true, $ne: '' }
         }
       },
       {
         $group: {
-          _id: '$address.city',
+          _id: {
+            city: '$address.city',
+            district: { $ifNull: ['$address.district', null] }
+          },
           state: { $first: '$address.state' },
           count: { $sum: 1 }
         }
       },
-      { $sort: { count: -1 } },
+      { $sort: { '_id.city': 1, 'count': -1 } },
+      {
+        $group: {
+          _id: '$_id.city',
+          state: { $first: '$state' },
+          totalCount: { $sum: '$count' },
+          districts: {
+            $push: {
+              $cond: [
+                { $ne: ['$_id.district', null] },
+                { name: '$_id.district', count: '$count' },
+                '$$REMOVE'
+              ]
+            }
+          }
+        }
+      },
+      { $sort: { totalCount: -1 } },
       {
         $project: {
           _id: 0,
           city: '$_id',
           state: 1,
-          count: 1
+          count: '$totalCount',
+          districts: 1
         }
       }
     ]);

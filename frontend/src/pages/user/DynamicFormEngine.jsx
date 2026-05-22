@@ -1,9 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Loader2, Check } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Loader2, Check, MapPin } from 'lucide-react';
 import { api, hotelService } from '../../services/apiService';
 import toast from 'react-hot-toast';
+import LocationSelector from '../../components/ui/LocationSelector';
+
+const unitFieldMapping = {
+  carpetArea: 'carpetAreaUnit',
+  builtUpArea: 'builtUpAreaUnit',
+  superArea: 'superAreaUnit',
+  plotArea: 'areaUnit',
+  entranceWidth: 'entranceWidthUnit',
+  ceilingHeight: 'ceilingHeightUnit'
+};
+
+const pricingFieldsToFilter = [
+  'priceNegotiable',
+  'taxExcluded',
+  'electricityWaterExcluded',
+  'maintenanceCharges',
+  'maintenanceFrequency',
+  'bookingAmount'
+];
 
 const DynamicFormEngine = () => {
   const navigate = useNavigate();
@@ -16,6 +35,12 @@ const DynamicFormEngine = () => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [errors, setErrors] = useState({});
   
+  // Modal states for pricing details
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [modalMaintenance, setModalMaintenance] = useState('');
+  const [modalFrequency, setModalFrequency] = useState('Monthly');
+  const [modalBooking, setModalBooking] = useState('');
+
   // Data state
   const storageKey = `draft_property_${transactionType}_${category}_${propertyType}`;
   const [formData, setFormData] = useState(() => {
@@ -26,6 +51,14 @@ const DynamicFormEngine = () => {
         description: existingProperty.description || existingProperty.dynamicData?.description,
         amenities: existingProperty.amenities || existingProperty.dynamicData?.amenities,
         nearbyPlaces: existingProperty.nearbyPlaces || existingProperty.dynamicData?.nearbyPlaces,
+        // Pre-populate address fields from root address object
+        country: existingProperty.address?.country || existingProperty.dynamicData?.country || 'India',
+        state: existingProperty.address?.state || existingProperty.dynamicData?.state || 'Karnataka',
+        district: existingProperty.address?.district || existingProperty.dynamicData?.district || '',
+        city: existingProperty.address?.city || existingProperty.dynamicData?.city || '',
+        locality: existingProperty.address?.area || existingProperty.address?.locality || existingProperty.dynamicData?.locality || '',
+        houseNumber: existingProperty.address?.fullAddress || existingProperty.dynamicData?.houseNumber || '',
+        pincode: existingProperty.address?.pincode || existingProperty.dynamicData?.pincode || ''
       };
     }
     const saved = localStorage.getItem(storageKey);
@@ -64,8 +97,30 @@ const DynamicFormEngine = () => {
     localStorage.setItem(storageKey, JSON.stringify(formData));
   }, [formData, storageKey]);
 
+  // Sync pricing modal fields when loaded/edited
+  useEffect(() => {
+    if (showPricingModal) {
+      setModalMaintenance(formData.maintenanceCharges || '');
+      setModalFrequency(formData.maintenanceFrequency || 'Monthly');
+      setModalBooking(formData.bookingAmount || '');
+    }
+  }, [showPricingModal, formData.maintenanceCharges, formData.maintenanceFrequency, formData.bookingAmount]);
+
   const handleChange = (name, value) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      
+      // Automatically default unit if not selected yet
+      const unitFieldKey = unitFieldMapping[name];
+      if (unitFieldKey && !next[unitFieldKey]) {
+        const matchingUnitField = currentStep?.fields?.find(f => f.name === unitFieldKey);
+        if (matchingUnitField?.options?.[0]) {
+          next[unitFieldKey] = matchingUnitField.options[0];
+        }
+      }
+      return next;
+    });
+
     if (errors[name]) {
       setErrors(prev => {
         const updated = { ...prev };
@@ -80,7 +135,34 @@ const DynamicFormEngine = () => {
     let newErrors = {};
     let firstErrorField = null;
 
+    const isLocationStep = currentStep?.title?.toLowerCase().includes('location');
+    if (isLocationStep) {
+      if (!formData.country) {
+        newErrors['country'] = 'Country is required';
+        if (!firstErrorField) firstErrorField = 'country';
+      }
+      if (!formData.state) {
+        newErrors['state'] = 'State is required';
+        if (!firstErrorField) firstErrorField = 'state';
+      }
+      if (!formData.district) {
+        newErrors['district'] = 'District is required';
+        if (!firstErrorField) firstErrorField = 'district';
+      }
+      if (!formData.city) {
+        newErrors['city'] = 'City is required';
+        if (!firstErrorField) firstErrorField = 'city';
+      }
+    }
+
     currentStep.fields.forEach(field => {
+      // Skip validation for unit fields and custom pricing fields since they are validated/handled separately
+      const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
+      const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
+      if (isUnitField || isCustomPricingField) {
+        return;
+      }
+
       // Basic visibility check (dependency)
       let isVisible = true;
       if (field.dependsOn?.field) {
@@ -133,6 +215,8 @@ const DynamicFormEngine = () => {
       }
     }
 
+    console.log('Validation results:', newErrors);
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       // Find the first error field and scroll to it
@@ -165,6 +249,15 @@ const DynamicFormEngine = () => {
         propertyType,
         dynamicCategory: template?._id,
         dynamicData: formData,
+        address: {
+          country: formData.country || 'India',
+          state: formData.state || 'Karnataka',
+          district: formData.district || '',
+          city: formData.city || '',
+          area: formData.locality || formData.area || '',
+          fullAddress: formData.houseNumber || formData.fullAddress || '',
+          pincode: formData.pincode || ''
+        },
         status: 'pending' // Draft / Pending review
       };
 
@@ -218,9 +311,55 @@ const DynamicFormEngine = () => {
       }
     }
 
+    // Horizontal combined layout check for areas and custom facade dimensions
+    const unitFieldName = unitFieldMapping[field.name];
+    const unitField = unitFieldName ? currentStep.fields.find(f => f.name === unitFieldName) : null;
+
+    if (unitField) {
+      return (
+        <div key={field.name} id={`field-${field.name}`} className="mb-6">
+          <label className="block text-[14px] font-semibold text-slate-800 mb-2">
+            {field.label} {field.required && <span className="text-red-500">*</span>}
+          </label>
+          
+          <div className={`flex items-center bg-white border rounded-xl overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all ${
+            errors[field.name] ? 'border-red-400' : 'border-slate-200'
+          }`}>
+            <input
+              type="number"
+              value={formData[field.name] || ''}
+              onChange={(e) => handleChange(field.name, e.target.value)}
+              placeholder={field.placeholder || ''}
+              className="flex-1 bg-transparent px-4 py-3.5 text-[15px] outline-none border-none"
+            />
+            <div className="shrink-0 relative border-l border-slate-100 bg-slate-50/50">
+              <select
+                value={formData[unitFieldName] || unitField.options?.[0] || ''}
+                onChange={(e) => handleChange(unitFieldName, e.target.value)}
+                className="h-full bg-transparent px-3 py-3.5 text-[13px] font-bold text-slate-500 outline-none appearance-none pr-8 cursor-pointer"
+              >
+                {unitField.options?.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-slate-400">
+                <svg className="fill-current h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          {errors[field.name] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[field.name]}</p>}
+        </div>
+      );
+    }
+
     switch (field.type) {
       case 'text':
       case 'number':
+        const isRentTxn = transactionType?.toLowerCase().includes('rent') || transactionType?.toLowerCase().includes('lease') || transactionType?.toLowerCase().includes('pg');
+        const isPriceField = field.name === 'monthlyRent' || field.name === 'expectedPrice';
+
         return (
           <div key={field.name} id={`field-${field.name}`} className="mb-6">
             <label className="block text-[14px] font-semibold text-slate-800 mb-2">
@@ -231,13 +370,66 @@ const DynamicFormEngine = () => {
               value={formData[field.name] || ''}
               onChange={(e) => handleChange(field.name, e.target.value)}
               placeholder={field.placeholder || ''}
-              className={`w-full bg-white border rounded-xl px-4 py-3 text-[15px] outline-none transition-all ${
+              className={`w-full bg-white border rounded-xl px-4 py-3.5 text-[15px] outline-none transition-all ${
                 errors[field.name] 
                   ? 'border-red-400 focus:ring-1 focus:ring-red-400' 
                   : 'border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
               }`}
             />
             {errors[field.name] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[field.name]}</p>}
+
+            {/* Custom pricing features for Negotiable, Water/Electricity exclusions, and Maintenance Popup */}
+            {isPriceField && (
+              <div className="flex flex-col gap-3 mt-4 pl-1">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={formData.priceNegotiable === 'Yes' || formData.priceNegotiable === true}
+                    onChange={(e) => handleChange('priceNegotiable', e.target.checked ? 'Yes' : 'No')}
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-[14px] font-medium text-slate-700">Price Negotiable</span>
+                </label>
+                
+                {isRentTxn && (
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={formData.electricityWaterExcluded === 'Yes' || formData.electricityWaterExcluded === true}
+                      onChange={(e) => handleChange('electricityWaterExcluded', e.target.checked ? 'Yes' : 'No')}
+                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-[14px] font-medium text-slate-700">Electricity & Water charges excluded</span>
+                  </label>
+                )}
+                
+                <button
+                  type="button"
+                  onClick={() => setShowPricingModal(true)}
+                  className="text-blue-600 hover:text-blue-700 font-bold text-[14px] flex items-center gap-1.5 self-start mt-2"
+                >
+                  <span className="text-lg font-bold leading-none">+</span> Add Maintenance and Booking Amount
+                </button>
+                
+                {/* Summary of maintenance and booking amount if added */}
+                {(formData.maintenanceCharges || formData.bookingAmount) && (
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 mt-2 flex flex-col gap-2 text-[13px] text-slate-600 font-semibold max-w-sm shadow-sm">
+                    {formData.maintenanceCharges && (
+                      <div className="flex justify-between">
+                        <span>Maintenance:</span>
+                        <span className="font-bold text-slate-800">₹{formData.maintenanceCharges} ({formData.maintenanceFrequency || 'Monthly'})</span>
+                      </div>
+                    )}
+                    {formData.bookingAmount && (
+                      <div className="flex justify-between">
+                        <span>Booking Amount:</span>
+                        <span className="font-bold text-slate-800">₹{formData.bookingAmount}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       
@@ -255,7 +447,7 @@ const DynamicFormEngine = () => {
                   onClick={() => handleChange(field.name, opt)}
                   className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all border whitespace-nowrap flex-shrink-0 ${
                     formData[field.name] === opt
-                      ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm'
+                      ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm font-semibold'
                       : errors[field.name]
                         ? 'bg-white text-slate-500 border-red-200'
                         : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
@@ -266,6 +458,76 @@ const DynamicFormEngine = () => {
               ))}
             </div>
             {errors[field.name] && <p className="text-red-500 text-[10px] mt-2 ml-1">{errors[field.name]}</p>}
+          </div>
+        );
+
+      case 'multiselect_pill':
+        const selectedPills = Array.isArray(formData[field.name]) ? formData[field.name] : [];
+        return (
+          <div key={field.name} id={`field-${field.name}`} className="mb-6">
+            <label className="block text-[14px] font-semibold text-slate-800 mb-2">
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {field.options?.map(opt => {
+                const isSelected = selectedPills.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => {
+                      let next;
+                      const isNoneOpt = ['not available', 'none', 'no washroom', 'no parking'].includes(opt.toLowerCase());
+                      
+                      if (isNoneOpt) {
+                        // Selecting "Not Available" clears all other selections
+                        next = isSelected ? [] : [opt];
+                      } else {
+                        // Selecting anything else filters out any "Not Available" option
+                        const filtered = selectedPills.filter(o => 
+                          !['not available', 'none', 'no washroom', 'no parking'].includes(o.toLowerCase())
+                        );
+                        next = isSelected 
+                          ? filtered.filter(o => o !== opt) 
+                          : [...filtered, opt];
+                      }
+                      handleChange(field.name, next);
+                    }}
+                    className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all border whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm font-bold'
+                        : errors[field.name]
+                          ? 'bg-white text-slate-500 border-red-200'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-sm font-bold leading-none">{isSelected ? '✓' : '+'}</span>
+                    <span>{opt}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {errors[field.name] && <p className="text-red-500 text-[10px] mt-2 ml-1">{errors[field.name]}</p>}
+          </div>
+        );
+
+      case 'date':
+        return (
+          <div key={field.name} id={`field-${field.name}`} className="mb-6">
+            <label className="block text-[14px] font-semibold text-slate-800 mb-2">
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </label>
+            <input
+              type="date"
+              value={formData[field.name] || ''}
+              onChange={(e) => handleChange(field.name, e.target.value)}
+              className={`w-full bg-white border rounded-xl px-4 py-3 text-[15px] outline-none transition-all ${
+                errors[field.name] 
+                  ? 'border-red-400 focus:ring-1 focus:ring-red-400' 
+                  : 'border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+              }`}
+            />
+            {errors[field.name] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[field.name]}</p>}
           </div>
         );
 
@@ -552,8 +814,41 @@ const DynamicFormEngine = () => {
               <h2 className="text-[17px] font-bold text-[#0B1A3A] mb-6">{currentStep.description}</h2>
             )}
 
+            {currentStep?.title?.toLowerCase().includes('location') && (
+              <div className="mb-6 p-4 bg-gray-50 border border-gray-100 rounded-2xl space-y-4">
+                <LocationSelector
+                  value={{
+                    country: formData.country || 'India',
+                    state: formData.state || '',
+                    district: formData.district || '',
+                    city: formData.city || ''
+                  }}
+                  onChange={({ country, state, district, city }) => {
+                    handleChange('country', country);
+                    handleChange('state', state);
+                    handleChange('district', district);
+                    handleChange('city', city);
+                  }}
+                  required
+                />
+                {errors.country && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.country}</p>}
+                {errors.state && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.state}</p>}
+                {errors.district && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.district}</p>}
+                {errors.city && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.city}</p>}
+              </div>
+            )}
+
             {/* Render Fields sorted by order */}
-            {currentStep.fields.sort((a,b) => a.order - b.order).map(renderField)}
+            {currentStep.fields
+              .sort((a,b) => a.order - b.order)
+              .filter(field => {
+                const isLocationField = currentStep?.title?.toLowerCase().includes('location') && ['city', 'state', 'district', 'country'].includes(field.name);
+                const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
+                const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
+                
+                return !isLocationField && !isUnitField && !isCustomPricingField;
+              })
+              .map(renderField)}
 
           </motion.div>
         </AnimatePresence>
@@ -568,6 +863,114 @@ const DynamicFormEngine = () => {
           </button>
         </div>
       </div>
+
+      {/* More Pricing Details Popup Modal */}
+      {showPricingModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4 transition-all">
+          <div 
+            className="absolute inset-0 bg-transparent"
+            onClick={() => setShowPricingModal(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative z-10 border border-slate-100"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <div>
+                <h3 className="font-bold text-lg text-slate-800">More Pricing Details</h3>
+                <p className="text-xs text-slate-400 mt-0.5">It is recommended to give more details.</p>
+              </div>
+              <button
+                onClick={() => setShowPricingModal(false)}
+                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Maintenance (Optional)</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="number"
+                    placeholder="e.g. 5000"
+                    value={modalMaintenance}
+                    onChange={(e) => setModalMaintenance(e.target.value)}
+                    className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-[14px] outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                  />
+                  <div className="relative w-full sm:w-36 shrink-0">
+                    <select
+                      value={modalFrequency}
+                      onChange={(e) => setModalFrequency(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-[14px] outline-none focus:border-blue-500 transition-all font-semibold text-slate-700 cursor-pointer appearance-none pr-8"
+                    >
+                      <option value="Monthly">Monthly</option>
+                      <option value="Quarterly">Quarterly</option>
+                      <option value="Half-Yearly">Half-Yearly</option>
+                      <option value="Annually">Annually</option>
+                      <option value="One-time">One-time</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Booking Amount (Optional)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 50000"
+                  value={modalBooking}
+                  onChange={(e) => setModalBooking(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-[14px] outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                />
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalMaintenance('');
+                  setModalFrequency('Monthly');
+                  setModalBooking('');
+                  handleChange('maintenanceCharges', '');
+                  handleChange('maintenanceFrequency', 'Monthly');
+                  handleChange('bookingAmount', '');
+                  setShowPricingModal(false);
+                }}
+                className="flex-1 py-3 text-[14px] font-bold text-slate-500 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-all active:scale-[0.98]"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleChange('maintenanceCharges', modalMaintenance);
+                  handleChange('maintenanceFrequency', modalFrequency);
+                  handleChange('bookingAmount', modalBooking);
+                  setShowPricingModal(false);
+                }}
+                className="flex-1 py-3 text-[14px] font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all active:scale-[0.98] shadow-md shadow-blue-500/20"
+              >
+                Submit
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

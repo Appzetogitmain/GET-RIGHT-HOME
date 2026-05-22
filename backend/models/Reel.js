@@ -12,6 +12,11 @@ const reelSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    videoType: {
+      type: String,
+      enum: ['file', 'url'],
+      default: 'file',
+    },
     videoPublicId: {
       type: String,
       default: null,
@@ -26,6 +31,51 @@ const reelSchema = new mongoose.Schema(
       trim: true,
       maxlength: 500,
     },
+    title: {
+      type: String,
+      trim: true,
+    },
+    address: {
+      type: String,
+      trim: true,
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
+    budgetRange: {
+      type: String,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: ['Ready to move', 'Under construction'],
+      default: 'Ready to move',
+    },
+    propertyType: {
+      type: String,
+      trim: true,
+    },
+    configurations: [
+      {
+        bhk: { type: String, trim: true },
+        price: { type: String, trim: true }
+      }
+    ],
+    contactNumber: {
+      type: String,
+      trim: true,
+    },
+    brochureUrl: {
+      type: String,
+      default: null,
+    },
+    shortlistedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      }
+    ],
     likesCount: {
       type: Number,
       default: 0,

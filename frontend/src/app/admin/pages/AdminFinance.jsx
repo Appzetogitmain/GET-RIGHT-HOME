@@ -72,7 +72,7 @@ const AdminFinance = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900">Revenue Overview</h2>
-                    <p className="text-gray-500 text-sm">Track subscription income and booking commissions.</p>
+                    <p className="text-gray-500 text-sm">Track subscription income and property enquiries.</p>
                 </div>
                 <button className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors shadow-lg">
                     <Download size={16} /> Export Report
@@ -103,9 +103,9 @@ const AdminFinance = () => {
                     icon={TrendingUp}
                 />
                 <FinanceStatCard
-                    title="Commissions (20%)"
-                    value={currency(Math.round((stats?.totalRevenue || 0) * commissionRate))}
-                    subtext={`From ${stats?.confirmedBookings || 0} bookings`}
+                    title="Total Enquiries"
+                    value={stats?.totalBookings || 0}
+                    subtext="Enquiries for listed properties"
                     color="text-purple-600"
                     icon={Wallet}
                 />
@@ -163,26 +163,26 @@ const AdminFinance = () => {
                     </div>
                 </div>
 
-                {/* Booking Commission Revenue */}
+                {/* Enquiry Engagement */}
                 <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-100 bg-purple-50">
                         <div>
                             <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
                                 <Wallet size={16} className="text-purple-600" />
-                                Commissions
+                                Enquiries
                             </h3>
-                            <p className="text-[10px] text-gray-500 mt-0.5">20% on confirmed bookings</p>
+                            <p className="text-[10px] text-gray-500 mt-0.5">Customer property inquiries</p>
                         </div>
                     </div>
                     <div className="p-4">
                         <div className="space-y-3">
                             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                                <p className="text-xs font-bold text-gray-900">Bookings</p>
+                                <p className="text-xs font-bold text-gray-900">Total Enquiries</p>
                                 <p className="text-xs font-bold text-purple-600">{stats?.totalBookings || 0}</p>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                                <p className="text-xs font-bold text-gray-900">Earnings</p>
-                                <p className="text-xs font-bold text-purple-600">{currency(Math.round((stats?.totalRevenue || 0) * commissionRate))}</p>
+                                <p className="text-xs font-bold text-gray-900">Active Listings</p>
+                                <p className="text-xs font-bold text-purple-600">{stats?.totalHotels || 0}</p>
                             </div>
                         </div>
                     </div>
@@ -259,12 +259,11 @@ const AdminFinance = () => {
                 </h4>
                 <div className="text-sm text-blue-800 space-y-3">
                     <div className="p-3 bg-white/50 rounded-lg border border-blue-100">
-                        <p><strong>1. Platform Access Plans:</strong> Core entry fee for hotels to list and take bookings. (Basic/Premium)</p>
+                        <p><strong>1. Platform Access Plans:</strong> Core entry fee for owners/brokers to list properties. (Basic/Premium)</p>
                     </div>
                     <div className="p-3 bg-orange-50/50 rounded-lg border border-orange-100">
-                        <p className="text-orange-900"><strong>2. Market Intelligence Plans:</strong> <span className="font-black">REQUIRED TO VIEW MARKET PRICES.</span> Hotels can subscribe separately to see competitor rates.</p>
+                        <p className="text-orange-900"><strong>2. Market Intelligence Plans:</strong> <span className="font-black">REQUIRED TO VIEW MARKET PRICES.</span> Owners can subscribe separately to see market intelligence reports.</p>
                     </div>
-                    <p><strong>Booking Commission:</strong> Platform earns 20% commission on every confirmed room booking.</p>
                 </div>
             </div>
         </div>

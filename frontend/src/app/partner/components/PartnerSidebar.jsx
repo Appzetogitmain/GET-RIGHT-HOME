@@ -6,7 +6,7 @@ import {
     CreditCard, History, Shield,
     FileText, HelpCircle, LogOut,
     LayoutDashboard,
-    ChevronRight, Wallet, Bell, Settings, Edit3, Info, Phone, Calendar
+    ChevronRight, Wallet, Bell, Settings, Edit3, Info, Phone, Calendar, MessageSquare
 } from 'lucide-react';
 import usePartnerStore from '../store/partnerStore';
 import logo from '../../../assets/rokologin-removebg-preview.png';
@@ -94,6 +94,7 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
             title: 'Management',
             items: [
                 { icon: Building, label: 'My Properties', path: '/hotel/properties' },
+                { icon: MessageSquare, label: 'Received Enquiries', path: '/my-enquiries' },
                 { icon: Calendar, label: 'Manage Inventory', path: '/hotel/inventory-properties' },
                 { icon: List, label: 'Reviews & Ratings', path: '/hotel/reviews' },
                 { icon: Bell, label: 'Notifications', path: '/hotel/notifications' },

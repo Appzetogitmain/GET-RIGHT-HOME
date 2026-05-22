@@ -6,6 +6,7 @@ import { MapPin, Search, Filter, Star, IndianRupee, Navigation, X } from 'lucide
 import { toast } from 'react-hot-toast';
 import PropertyCard from '../../components/user/PropertyCard';
 import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
+import { locationData, bengaluruAreas } from '../../data/locationData';
 const SearchPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -24,6 +25,8 @@ const SearchPage = () => {
         const genderFromUrl = searchParams.get('gender')?.split(',') || [];
         const occupancyFromUrl = searchParams.get('occupancy')?.split(',') || [];
         const landTypeFromUrl = searchParams.get('landType')?.split(',') || [];
+        const subTypeFromUrl = searchParams.get('subType')?.split(',') || [];
+        const availabilityFromUrl = searchParams.get('availability')?.split(',') || [];
         const foodFromUrl = searchParams.get('foodIncluded') === 'true';
 
         if (foodFromUrl) amsFromUrl.push('Food');
@@ -55,19 +58,53 @@ const SearchPage = () => {
             else if (v === 'Triple') amsFromUrl.push('Triple Occupancy');
         });
 
-        landTypeFromUrl.forEach(v => amsFromUrl.push(v)); // Residential, Commercial etc match labels
+        landTypeFromUrl.forEach(v => amsFromUrl.push(v));
+
+        subTypeFromUrl.forEach(v => {
+            const matched = ['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'].find(
+                opt => opt.toLowerCase() === v.toLowerCase()
+            );
+            if (matched) amsFromUrl.push(matched);
+        });
+
+        availabilityFromUrl.forEach(v => {
+            if (v.toLowerCase() === 'ready to move') amsFromUrl.push('Ready to Move');
+            else if (v.toLowerCase() === 'under construction') amsFromUrl.push('Under Construction');
+            else if (v.toLowerCase() === 'pre launch') amsFromUrl.push('Pre Launch');
+        });
+
+        const typeVal = searchParams.get('type') || 'all';
+        const pCategory = searchParams.get('propertyCategory') || 'Residential';
+
+        let categoryTab = 'Buy';
+        if (pCategory.toLowerCase() === 'commercial') {
+            categoryTab = 'Commercial';
+        } else if (typeVal.includes('rent') || typeVal.includes('pg') || typeVal.includes('hostel')) {
+            categoryTab = 'Rent/PG';
+        } else {
+            categoryTab = 'Buy';
+        }
+
+        const areasFromUrl = searchParams.get('areas')?.split(',').filter(Boolean) || [];
 
         return {
             search: searchParams.get('search') || '',
-            type: searchParams.get('type')
-                ? (searchParams.get('type') === 'all' ? 'all' : searchParams.get('type').split(','))
-                : 'all',
+            type: typeVal,
+            propertyCategory: pCategory,
+            categoryTab,
             minPrice: searchParams.get('minPrice') || '',
             maxPrice: searchParams.get('maxPrice') || '',
             sort: searchParams.get('sort') || 'newest',
             amenities: [...new Set(amsFromUrl)],
             radius: parseInt(searchParams.get('radius')) || 50,
-            foodIncluded: searchParams.get('foodIncluded') === 'true'
+            foodIncluded: searchParams.get('foodIncluded') === 'true',
+            city: searchParams.get('city') || '',
+            minArea: searchParams.get('minArea') || '',
+            maxArea: searchParams.get('maxArea') || '',
+            bathrooms: parseInt(searchParams.get('bathrooms')) || 0,
+            postedBy: searchParams.get('postedBy') || '',
+            purchaseType: searchParams.get('purchaseType') || '',
+            areas: areasFromUrl
         };
     };
 
@@ -81,6 +118,20 @@ const SearchPage = () => {
         { id: 'buy', label: 'Buy' },
         { id: 'plot', label: 'Plot' }
     ]);
+
+    useEffect(() => {
+        if (showFilters) {
+            if (window.lenis) window.lenis.stop();
+            document.body.style.overflow = 'hidden';
+        } else {
+            if (window.lenis) window.lenis.start();
+            document.body.style.overflow = '';
+        }
+        return () => {
+            if (window.lenis) window.lenis.start();
+            document.body.style.overflow = '';
+        };
+    }, [showFilters]);
 
     useEffect(() => {
         setFilters(getInitialFilters());
@@ -125,7 +176,15 @@ const SearchPage = () => {
         const currentType = Array.isArray(filters.type) ? filters.type[0] : filters.type;
         if (!currentType || currentType === 'all') return ['Wi-Fi', 'AC', 'Parking', 'Kitchen', 'Geyser', 'Power Backup'];
 
-        const typeObj = propertyTypes.find(t => t.id === currentType);
+        const typeObj = propertyTypes.find(t => {
+            if (t.id === currentType) return true;
+            if (t.id && currentType) {
+                const tIds = String(t.id).split(',').map(id => id.trim());
+                const cIds = String(currentType).split(',').map(id => id.trim());
+                return tIds.some(id => cIds.includes(id)) || cIds.some(id => tIds.includes(id));
+            }
+            return false;
+        });
         const label = typeObj ? typeObj.label.toLowerCase() : '';
 
         if (label.includes('pg') || label.includes('hostel')) {
@@ -217,16 +276,18 @@ const SearchPage = () => {
     const applyFilters = () => {
         const params = {};
         if (filters.search) params.search = filters.search;
-        if (filters.type) {
-            if (Array.isArray(filters.type)) {
-                if (filters.type.length > 0) params.type = filters.type.join(',');
-            } else if (filters.type !== 'all') {
-                params.type = filters.type;
-            }
-        }
+        if (filters.type && filters.type !== 'all') params.type = filters.type;
+        if (filters.propertyCategory && filters.propertyCategory !== 'Residential') params.propertyCategory = filters.propertyCategory;
         if (filters.minPrice) params.minPrice = filters.minPrice;
         if (filters.maxPrice) params.maxPrice = filters.maxPrice;
         if (filters.sort) params.sort = filters.sort;
+        if (filters.city) params.city = filters.city;
+        if (filters.minArea) params.minArea = filters.minArea;
+        if (filters.maxArea) params.maxArea = filters.maxArea;
+        if (filters.bathrooms) params.bathrooms = filters.bathrooms;
+        if (filters.postedBy) params.postedBy = filters.postedBy;
+        if (filters.purchaseType) params.purchaseType = filters.purchaseType;
+        if (filters.areas && filters.areas.length > 0) params.areas = filters.areas.join(',');
 
         // Map Special Amenities to specific query params
         const finalAmenities = [];
@@ -235,10 +296,24 @@ const SearchPage = () => {
         const genders = [];
         const occupancies = [];
         const landTypes = [];
+        const subTypes = [];
+        const availabilities = [];
 
         filters.amenities.forEach(am => {
+            // SubTypes mapping
+            if (['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'].includes(am)) {
+                subTypes.push(am);
+            }
+            // Availability mapping
+            else if (am === 'Ready to Move') {
+                availabilities.push('Ready to move');
+            } else if (am === 'Under Construction') {
+                availabilities.push('Under construction');
+            } else if (am === 'Pre Launch') {
+                availabilities.push('Pre Launch');
+            }
             // Rent BHK mapping
-            if (am === '1 BHK') bhks.push('1BHK');
+            else if (am === '1 BHK') bhks.push('1BHK');
             else if (am === '2 BHK') bhks.push('2BHK');
             else if (am === '3 BHK') bhks.push('3BHK');
             else if (am === 'Villa') bhks.push('Villa');
@@ -276,6 +351,8 @@ const SearchPage = () => {
         if (genders.length > 0) params.gender = genders.join(',');
         if (occupancies.length > 0) params.occupancy = occupancies.join(',');
         if (landTypes.length > 0) params.landType = landTypes.join(',');
+        if (subTypes.length > 0) params.subType = subTypes.join(',');
+        if (availabilities.length > 0) params.availability = availabilities.join(',');
 
         setSearchParams(params);
         setShowFilters(false);
@@ -387,7 +464,11 @@ const SearchPage = () => {
                         <PropertyTypeFilter
                             selectedType={Array.isArray(filters.type) ? filters.type[0] : filters.type}
                             onSelectType={(type) => {
-                                const newType = type === 'All' ? 'all' : type;
+                                if (type === 'homeservice') {
+                                    navigate('/home-services');
+                                    return;
+                                }
+                                const newType = (!type || type === 'All') ? 'all' : type;
                                 setFilters(prev => ({ ...prev, type: newType, amenities: [] }));
 
                                 // Immediately apply and search
@@ -486,80 +567,183 @@ const SearchPage = () => {
 
             {/* Filters Sidebar/Modal */}
             <div className={`
-                fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity duration-300
+                fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300 flex justify-end
                 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
             `} onClick={() => setShowFilters(false)}>
                 <div
+                    data-lenis-prevent
                     className={`
-                        absolute right-0 top-0 bottom-0 w-80 bg-white shadow-2xl p-4 overflow-y-auto transition-transform duration-300
+                        w-full max-w-md md:max-w-lg bg-white shadow-2xl h-full flex flex-col transition-transform duration-300 transform
                         ${showFilters ? 'translate-x-0' : 'translate-x-full'}
                     `}
                     onClick={e => e.stopPropagation()}
                 >
-                    <div className="flex justify-between items-center mb-5">
-                        <h2 className="text-lg font-bold text-gray-800">Filters</h2>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => {
-                                    const newFilters = {
-                                        ...filters,
-                                        type: 'all',
-                                        minPrice: '',
-                                        maxPrice: '',
-                                        amenities: []
-                                    };
-                                    setFilters(newFilters);
-
-                                    // Apply core params immediately on clear
-                                    const params = {};
-                                    if (filters.search) params.search = filters.search;
-                                    if (filters.sort) params.sort = filters.sort;
-                                    setSearchParams(params);
-                                }}
-                                className="text-xs font-bold text-red-500 hover:text-red-600"
-                            >
-                                Clear
-                            </button>
-                            <button onClick={() => setShowFilters(false)} className="p-1.5 rounded-full hover:bg-gray-100">
-                                <X size={18} />
-                            </button>
-                        </div>
+                    {/* Header */}
+                    <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-white">
+                        <h2 className="text-base font-bold text-gray-900">Filters</h2>
+                        <button onClick={() => setShowFilters(false)} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
+                            <X size={20} className="text-gray-500" />
+                        </button>
                     </div>
 
-                    <div className="space-y-6">
-                        {/* Type */}
+                    {/* Scrollable Content */}
+                    <div className="flex-1 overflow-y-auto p-5 space-y-6 scrollbar-thin">
+                        {/* 1. Category Tabs */}
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Property Type</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {propertyTypes.map(type => {
-                                    const typeValue = type.id;
-                                    const isSelected = typeValue === 'all'
-                                        ? filters.type === 'all'
-                                        : (Array.isArray(filters.type) ? filters.type.includes(typeValue) : filters.type === typeValue);
-
-                                    return (
-                                        <button
-                                            key={type.id}
-                                            onClick={() => {
-                                                const newType = typeValue === 'all' ? 'all' : typeValue;
-                                                // Clear amenities when switching types as they are context-specific
-                                                setFilters(prev => ({ ...prev, type: newType, amenities: [] }));
-                                            }}
-                                            className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all truncate
-                                            ${isSelected
-                                                    ? 'bg-surface text-white border-surface shadow-sm'
-                                                    : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'}`}
-                                        >
-                                            {type.label}
-                                        </button>
-                                    );
-                                })}
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Category</label>
+                            <div className="flex bg-gray-100 rounded-xl p-1">
+                                {['Buy', 'Rent/PG', 'Commercial'].map(tab => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => {
+                                            setFilters(prev => {
+                                                let nextType = 'buy';
+                                                let nextPC = 'Residential';
+                                                if (tab === 'Rent/PG') {
+                                                    nextType = 'rent';
+                                                } else if (tab === 'Commercial') {
+                                                    nextPC = 'Commercial';
+                                                    nextType = 'buy';
+                                                }
+                                                return {
+                                                    ...prev,
+                                                    categoryTab: tab,
+                                                    type: nextType,
+                                                    propertyCategory: nextPC,
+                                                    amenities: []
+                                                };
+                                            });
+                                        }}
+                                        className={`flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all
+                                            ${filters.categoryTab === tab
+                                                ? 'bg-surface text-white shadow-sm'
+                                                : 'text-gray-500 hover:text-gray-800'
+                                            }`}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
-                        {/* Price */}
+                        {/* 2. Looking to sub-toggle */}
+                        {filters.categoryTab === 'Rent/PG' && (
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Looking to</label>
+                                <div className="flex gap-2">
+                                    {[
+                                        { id: 'rent', label: 'Rent' },
+                                        { id: 'pg', label: 'PG / Co-living' }
+                                    ].map(opt => {
+                                        const isSelected = filters.type === opt.id || (opt.id === 'pg' && ['pg', 'hostel'].includes(filters.type));
+                                        return (
+                                            <button
+                                                key={opt.id}
+                                                onClick={() => updateFilter('type', opt.id)}
+                                                className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all
+                                                    ${isSelected
+                                                        ? 'bg-surface/10 text-surface border-surface'
+                                                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                                                    }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {filters.categoryTab === 'Commercial' && (
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Looking to</label>
+                                <div className="flex gap-2">
+                                    {[
+                                        { id: 'buy', label: 'Commercial Buy' },
+                                        { id: 'rent', label: 'Commercial Lease' }
+                                    ].map(opt => {
+                                        const isSelected = filters.type === opt.id;
+                                        return (
+                                            <button
+                                                key={opt.id}
+                                                onClick={() => updateFilter('type', opt.id)}
+                                                className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all
+                                                    ${isSelected
+                                                        ? 'bg-surface/10 text-surface border-surface'
+                                                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                                                    }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. Localities / Areas Multi-select */}
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Price Range</label>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Localities / Areas (Bengaluru)</label>
+                            
+                            {/* Selected Chips */}
+                            {filters.areas && filters.areas.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                    {filters.areas.map(area => (
+                                        <div key={area} className="flex items-center gap-1 bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
+                                            <span>{area}</span>
+                                            <button
+                                                onClick={() => {
+                                                    updateFilter('areas', filters.areas.filter(a => a !== area));
+                                                }}
+                                                className="hover:text-red-500 transition-colors"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Dropdown to add */}
+                            <select
+                                value=""
+                                onChange={(e) => {
+                                    const area = e.target.value;
+                                    if (area && !filters.areas.includes(area)) {
+                                        updateFilter('areas', [...filters.areas, area]);
+                                    }
+                                }}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50 font-bold text-gray-700"
+                            >
+                                <option value="" disabled>+ Add Locality</option>
+                                {bengaluruAreas.map(area => (
+                                    <option key={area} value={area} disabled={filters.areas.includes(area)}>
+                                        {area}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* City / District dropdown */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">City / District</label>
+                            <select
+                                value={filters.city || ''}
+                                onChange={(e) => {
+                                    updateFilter('city', e.target.value);
+                                    updateFilter('search', '');
+                                }}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50 font-bold"
+                            >
+                                <option value="">All Bengaluru</option>
+                                <option value="Bengaluru Urban">Bengaluru Urban</option>
+                                <option value="Bengaluru Rural">Bengaluru Rural</option>
+                            </select>
+                        </div>
+
+                        {/* 4. Budget Range */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Budget Range</label>
                             <div className="flex items-center gap-2">
                                 <div className="relative flex-1">
                                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">₹</span>
@@ -585,7 +769,226 @@ const SearchPage = () => {
                             </div>
                         </div>
 
-                        {/* Amenities */}
+                        {/* 5. Area Range */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Area Range (sq.ft.)</label>
+                            <div className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                    <input
+                                        type="number"
+                                        placeholder="Min Area"
+                                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50"
+                                        value={filters.minArea}
+                                        onChange={(e) => updateFilter('minArea', e.target.value)}
+                                    />
+                                </div>
+                                <span className="text-gray-300 font-bold text-xs">-</span>
+                                <div className="relative flex-1">
+                                    <input
+                                        type="number"
+                                        placeholder="Max Area"
+                                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50"
+                                        value={filters.maxArea}
+                                        onChange={(e) => updateFilter('maxArea', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 6. Property Types (Flat/Apartment, Independent House/Villa, Builder Floor, etc.) */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Property Type</label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {[
+                                    'Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse',
+                                    'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'
+                                ].map((subType) => {
+                                    const isSelected = filters.amenities.includes(subType);
+                                    return (
+                                        <button
+                                            key={subType}
+                                            onClick={() => {
+                                                const newAmenities = isSelected
+                                                    ? filters.amenities.filter(a => a !== subType)
+                                                    : [...filters.amenities, subType];
+                                                updateFilter('amenities', newAmenities);
+                                            }}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all
+                                            ${isSelected
+                                                ? 'bg-surface text-white border-surface shadow-sm'
+                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                                        >
+                                            {subType}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* 7. BHK Selector (Residential Rent/Buy) */}
+                        {filters.propertyCategory === 'Residential' && (
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">BHK Type</label>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {['1 BHK', '2 BHK', '3 BHK', 'Villa', 'Studio'].map((bhk) => {
+                                        const isSelected = filters.amenities.includes(bhk);
+                                        return (
+                                            <button
+                                                key={bhk}
+                                                onClick={() => {
+                                                    const newAmenities = isSelected
+                                                        ? filters.amenities.filter(a => a !== bhk)
+                                                        : [...filters.amenities, bhk];
+                                                    updateFilter('amenities', newAmenities);
+                                                }}
+                                                className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
+                                                ${isSelected
+                                                    ? 'bg-surface text-white border-surface shadow-sm'
+                                                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                                            >
+                                                {bhk}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 8. Minimum Bathrooms Counter */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Minimum Bathrooms</label>
+                            <div className="flex items-center justify-between border border-gray-200 rounded-lg p-1.5 max-w-[130px] bg-gray-50">
+                                <button
+                                    type="button"
+                                    disabled={!filters.bathrooms || filters.bathrooms <= 0}
+                                    onClick={() => updateFilter('bathrooms', Math.max(0, filters.bathrooms - 1))}
+                                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 hover:bg-gray-50 font-bold text-gray-600 disabled:opacity-30"
+                                >
+                                    -
+                                </button>
+                                <span className="font-bold text-xs text-gray-800">{filters.bathrooms || '0'}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => updateFilter('bathrooms', (filters.bathrooms || 0) + 1)}
+                                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 hover:bg-gray-50 font-bold text-gray-600"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 9. Furnishing Status */}
+                        {filters.propertyCategory === 'Residential' && (
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Furnishing Status</label>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {['Fully Furnished', 'Semi Furnished', 'Unfurnished'].map((furnish) => {
+                                        const isSelected = filters.amenities.includes(furnish);
+                                        return (
+                                            <button
+                                                key={furnish}
+                                                onClick={() => {
+                                                    const newAmenities = isSelected
+                                                        ? filters.amenities.filter(a => a !== furnish)
+                                                        : [...filters.amenities, furnish];
+                                                    updateFilter('amenities', newAmenities);
+                                                }}
+                                                className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
+                                                ${isSelected
+                                                    ? 'bg-surface text-white border-surface shadow-sm'
+                                                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                                            >
+                                                {furnish}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 10. Construction Status */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Construction Status</label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {['Ready to Move', 'Under Construction', 'Pre Launch'].map((status) => {
+                                    const isSelected = filters.amenities.includes(status);
+                                    return (
+                                        <button
+                                            key={status}
+                                            onClick={() => {
+                                                const newAmenities = isSelected
+                                                    ? filters.amenities.filter(a => a !== status)
+                                                    : [...filters.amenities, status];
+                                                updateFilter('amenities', newAmenities);
+                                            }}
+                                            className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
+                                            ${isSelected
+                                                ? 'bg-surface text-white border-surface shadow-sm'
+                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                                        >
+                                            {status}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* 11. Purchase Type (only for Sell/Buy) */}
+                        {filters.type === 'buy' && (
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Purchase Type</label>
+                                <div className="flex gap-2">
+                                    {['Resale', 'New Bookings'].map(pType => {
+                                        const isSelected = filters.purchaseType.toLowerCase() === pType.toLowerCase();
+                                        return (
+                                            <button
+                                                key={pType}
+                                                onClick={() => {
+                                                    updateFilter('purchaseType', isSelected ? '' : pType);
+                                                }}
+                                                className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all
+                                                    ${isSelected
+                                                        ? 'bg-surface text-white border-surface shadow-sm'
+                                                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                                                    }`}
+                                            >
+                                                {pType}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 12. Posted By */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Posted By</label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {['Owner', 'Dealer', 'Builder'].map((role) => {
+                                    const isSelected = filters.postedBy.toLowerCase().includes(role.toLowerCase());
+                                    return (
+                                        <button
+                                            key={role}
+                                            onClick={() => {
+                                                const roles = filters.postedBy ? filters.postedBy.split(',').filter(Boolean) : [];
+                                                const newRoles = roles.map(r => r.toLowerCase()).includes(role.toLowerCase())
+                                                    ? roles.filter(r => r.toLowerCase() !== role.toLowerCase())
+                                                    : [...roles, role];
+                                                updateFilter('postedBy', newRoles.join(','));
+                                            }}
+                                            className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
+                                            ${isSelected
+                                                ? 'bg-surface text-white border-surface shadow-sm'
+                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                                        >
+                                            {role}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* 13. Amenities */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Amenities & Features</label>
                             <div className="flex flex-wrap gap-1.5">
@@ -609,7 +1012,7 @@ const SearchPage = () => {
                             </div>
                         </div>
 
-                        {/* Radius */}
+                        {/* 14. Radius */}
                         {location && (
                             <div>
                                 <div className="flex justify-between mb-1">
@@ -620,20 +1023,49 @@ const SearchPage = () => {
                                     type="range"
                                     min="1" max="50"
                                     value={filters.radius}
-                                    onChange={(e) => updateFilter('radius', e.target.value)}
+                                    onChange={(e) => updateFilter('radius', Number(e.target.value))}
                                     className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-surface"
                                 />
                             </div>
                         )}
+                    </div>
 
-                        <div className="pt-2 pb-6">
-                            <button
-                                onClick={applyFilters}
-                                className="w-full bg-surface text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-surface/20 active:scale-95 transition-transform"
-                            >
-                                Apply Filters
-                            </button>
-                        </div>
+                    {/* Bottom Footer Action Bar */}
+                    <div className="border-t border-gray-100 p-4 bg-white flex items-center justify-between gap-3 shadow-lg">
+                        <button
+                            onClick={() => {
+                                const newFilters = {
+                                    search: '',
+                                    type: 'all',
+                                    propertyCategory: 'Residential',
+                                    categoryTab: 'Buy',
+                                    minPrice: '',
+                                    maxPrice: '',
+                                    sort: 'newest',
+                                    amenities: [],
+                                    radius: 50,
+                                    foodIncluded: false,
+                                    city: '',
+                                    minArea: '',
+                                    maxArea: '',
+                                    bathrooms: 0,
+                                    postedBy: '',
+                                    purchaseType: '',
+                                    areas: []
+                                };
+                                setFilters(newFilters);
+                                setSearchParams({});
+                            }}
+                            className="px-4 py-2.5 text-xs font-bold text-gray-600 hover:text-gray-900 border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-95 transition-all"
+                        >
+                            Clear All
+                        </button>
+                        <button
+                            onClick={applyFilters}
+                            className="flex-1 bg-surface hover:bg-surface-dark text-white py-2.5 rounded-xl font-bold text-xs shadow-md shadow-surface/20 active:scale-95 transition-all text-center"
+                        >
+                            See all {properties.length ? `${properties.length} ` : ''}Properties
+                        </button>
                     </div>
                 </div>
             </div>

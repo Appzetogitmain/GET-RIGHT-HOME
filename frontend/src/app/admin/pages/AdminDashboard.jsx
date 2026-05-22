@@ -139,13 +139,13 @@ const AdminDashboard = () => {
                     onClick={() => navigate('/admin/subscriptions')}
                 />
                 <DashboardCard
-                    title="Total Bookings"
+                    title="Total Enquiries"
                     value={stats.totalBookings}
                     trend={stats.trends?.bookings}
                     icon={ShoppingBag}
                     color="text-blue-500"
                     loading={loading}
-                    onClick={() => navigate('/admin/bookings')}
+                    onClick={() => navigate('/admin/enquiries')}
                 />
                 <DashboardCard
                     title="Active Users"
@@ -222,10 +222,10 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
-                {/* Booking Status (Donut Chart) */}
+                {/* Enquiry Status (Donut Chart) */}
                 <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm flex flex-col">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Booking Status</h3>
-                    <p className="text-sm text-gray-500 mb-6">Distribution of booking outcomes</p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Enquiry Status</h3>
+                    <p className="text-sm text-gray-500 mb-6">Distribution of enquiry status</p>
 
                     <div className="flex-1 min-h-[250px] relative">
                         {loading ? (
@@ -256,7 +256,7 @@ const AdminDashboard = () => {
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8">
                                 <div className="text-center">
                                     <span className="block text-3xl font-bold text-gray-900">{stats.totalBookings}</span>
-                                    <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
+                                    <span className="text-xs text-gray-500 uppercase tracking-wider">Enquiries</span>
                                 </div>
                             </div>
                         )}
@@ -361,14 +361,14 @@ const AdminDashboard = () => {
 
             {/* Row 3: Operations (Recent Activity & Pending Actions) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Recent Bookings */}
+                {/* Recent Enquiries */}
                 <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm flex flex-col min-h-[400px]">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                             <Clock size={20} className="text-gray-400" />
-                            Recent Bookings
+                            Recent Enquiries
                         </h3>
-                        <button onClick={() => navigate('/admin/bookings')} className="text-sm font-semibold text-blue-600 hover:text-blue-700">View All</button>
+                        <button onClick={() => navigate('/admin/enquiries')} className="text-sm font-semibold text-blue-600 hover:text-blue-700">View All</button>
                     </div>
 
                     <div className="flex-1 space-y-4">
@@ -376,23 +376,26 @@ const AdminDashboard = () => {
                             [1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 animate-pulse rounded-xl"></div>)
                         ) : recentBookings.length > 0 ? (
                             recentBookings.map((booking, i) => (
-                                <div key={i} onClick={() => navigate(`/admin/bookings/${booking._id}`)} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors cursor-pointer group">
+                                <div key={i} onClick={() => navigate(`/admin/enquiries`)} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors cursor-pointer group">
                                     <div className="flex gap-4 items-center">
                                         <div className="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-sm shadow-md group-hover:scale-105 transition-transform">
                                             {booking.userId?.name?.charAt(0) || 'U'}
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-gray-900">{booking.userId?.name || 'Guest User'}</p>
-                                            <p className="text-xs text-gray-500">{booking.propertyId?.propertyName || 'Unknown Hotel'}</p>
+                                            <p className="text-xs text-gray-500">{booking.propertyId?.propertyName || 'Unknown Property'}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-bold text-gray-900">{formatCurrency(booking.totalAmount)}</p>
-                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${booking.bookingStatus === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                            booking.bookingStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                booking.bookingStatus === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                                            }`}>
-                                            {booking.bookingStatus}
+                                        <p className="text-xs font-bold text-gray-700 capitalize">{booking.enquiryType?.replace('_', ' ')}</p>
+                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
+                                            booking.status === 'new' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                            booking.status === 'contacted' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                            booking.status === 'scheduled' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                            booking.status === 'closed' ? 'bg-green-50 text-green-700 border-green-100' :
+                                            'bg-gray-50 text-gray-600 border-gray-100'
+                                        }`}>
+                                            {booking.status}
                                         </span>
                                     </div>
                                 </div>
@@ -400,7 +403,7 @@ const AdminDashboard = () => {
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-gray-400">
                                 <ShoppingBag size={48} className="mb-2 opacity-20" />
-                                <p>No recent bookings found</p>
+                                <p>No recent enquiries found</p>
                             </div>
                         )}
                     </div>
@@ -430,7 +433,7 @@ const AdminDashboard = () => {
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-gray-900">{hotel.propertyName}</p>
-                                            <p className="text-xs text-gray-500">by {hotel.partnerId?.name || 'Partner'}</p>
+                                            <p className="text-xs text-gray-500">by {hotel.userId?.name || hotel.partnerId?.name || 'Partner'}</p>
                                         </div>
                                     </div>
                                     <button onClick={() => navigate(`/admin/properties/${hotel._id}`)} className="text-xs font-bold text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">

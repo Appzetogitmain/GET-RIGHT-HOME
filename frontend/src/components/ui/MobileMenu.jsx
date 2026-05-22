@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, User, Wallet, Heart, HelpCircle, FileText, Shield, ChevronRight,
     LogOut, Settings, BookOpen, Building, Briefcase, Bell, Edit3, Video,
-    Home, Star, CalendarCheck, PlusCircle, CreditCard
+    Home, Star, CalendarCheck, PlusCircle, CreditCard, MessageSquare
 } from 'lucide-react';
 import { userService } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
@@ -187,6 +187,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                     <div className="flex flex-col gap-1">
                                         <MenuItem icon={PlusCircle} label="List a Property" path="/list-property" />
                                         <MenuItem icon={Building} label="My Listings" path="/my-properties" />
+                                        <MenuItem icon={MessageSquare} label="Received Enquiries" path="/my-enquiries" />
                                         <MenuItem icon={CalendarCheck} label="Received Bookings" path="/my-received-bookings" />
                                         <MenuItem icon={Star} label="My Reviews" path="/my-reviews" />
                                     </div>

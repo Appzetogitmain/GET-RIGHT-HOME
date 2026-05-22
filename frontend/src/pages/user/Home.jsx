@@ -11,6 +11,7 @@ import LatestProjectsBanner from '../../components/user/LatestProjectsBanner';
 import RecommendedSellers from '../../components/user/RecommendedSellers';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import { categoryService } from '../../services/categoryService';
+import GRHHomeSection from '../../components/user/GRHHomeSection';
 
 
 // Category Theme Map - Professional palettes inspired by Housing.com
@@ -138,15 +139,15 @@ const Home = () => {
     return (
         <main className="min-h-screen pb-24 transition-colors duration-700" style={{ backgroundColor: pageBg }}>
             {/* Hero: dark background only (no images), changes per category */}
-            {/* Hero: Fixed white shade background as per request */}
-            <div className="relative overflow-hidden min-h-[280px] md:min-h-[340px] bg-gray-50/50">
+            {/* Hero section — no overflow-hidden so floating search box is not clipped */}
+            <div className="relative min-h-[280px] md:min-h-[340px] bg-gray-50/50">
                 <div className="absolute inset-0 w-full h-full bg-white" />
 
-                {/* Bottom fade to theme page background (web + mobile) */}
+                {/* Bottom fade */}
                 <div className="absolute bottom-0 left-0 right-0 h-24 z-[1]" style={{ background: `linear-gradient(to top, ${pageBg}, transparent)` }} />
 
                 {/* Content on top */}
-                <div className="relative z-[2] flex flex-col min-h-[280px] md:min-h-[340px]">
+                <div className="relative z-40 flex flex-col min-h-[280px] md:min-h-[340px]">
                     <HeroSection 
                         theme={activeTheme} 
                         selectedType={selectedType} 
@@ -215,6 +216,22 @@ const Home = () => {
                                 typeId={sectionIds.plot}
                             />
                         )}
+
+                        <GRHHomeSection
+                            title="Under Construction Properties"
+                            subtitle="Best prices • Flexible payment • Future value appreciation"
+                            availabilityFilter="Under construction"
+                        />
+                        <GRHHomeSection
+                            title="Pre Launch Properties"
+                            subtitle="Best prices • Early bird offers • Premium units"
+                            availabilityFilter="Pre Launch"
+                        />
+                        <GRHHomeSection
+                            title="Ready to Move Properties"
+                            subtitle="Move in immediately • Possession ready • No waiting"
+                            availabilityFilter="Ready to move"
+                        />
                     </div>
                 ) : (
                     // Show Filtered Grid when a specific property category is selected
