@@ -100,8 +100,8 @@ const BookingDetails = () => {
         const data = { ...response.data };
         // Calculate notional display values for plan_benefit
         if (data.paymentMethod === 'plan_benefit') {
-          if (!data.tax) data.tax = (data.basePrice || 0) * 0.18;
-          if (!data.visitingCharges && !data.visitationFee) data.visitingCharges = 49;
+          if (!data.tax) data.tax = 0;
+          if (!data.visitingCharges && !data.visitationFee) data.visitingCharges = 0;
         }
         setBooking(data);
       } else {
@@ -184,8 +184,8 @@ const BookingDetails = () => {
 
             // Calculate notional display values for plan_benefit
             if (newData.paymentMethod === 'plan_benefit') {
-              if (!newData.tax) newData.tax = (newData.basePrice || 0) * 0.18;
-              if (!newData.visitingCharges && !newData.visitationFee) newData.visitingCharges = 49;
+              if (!newData.tax) newData.tax = 0;
+              if (!newData.visitingCharges && !newData.visitationFee) newData.visitingCharges = 0;
             }
             return newData;
           });
@@ -883,7 +883,7 @@ const BookingDetails = () => {
                         {booking.status?.toLowerCase() === 'work_done' ? 'Finalizing Bill' : 'Plan Benefit Active'}
                       </h3>
                       <p className="text-xs font-medium text-emerald-100">
-                        {booking.status?.toLowerCase() === 'work_done' ? 'Vendor preparing final bill' : 'Base service covered by your plan'}
+                        {booking.status?.toLowerCase() === 'work_done' ? 'Worker preparing final bill' : 'Base service covered by your plan'}
                       </p>
                     </div>
                   </div>
@@ -894,14 +894,14 @@ const BookingDetails = () => {
                       <span className="font-bold text-white">Base Service Covered</span>
                     </div>
                     <p className="text-sm text-emerald-100 leading-relaxed">
-                      Your base service fee is covered by your membership plan. {booking.status?.toLowerCase() === 'work_done' ? 'The vendor is preparing the final bill for any additional charges.' : 'You may only need to pay for extra parts or services.'}
+                      Your base service fee is covered by your membership plan. {booking.status?.toLowerCase() === 'work_done' ? 'The worker is preparing the final bill for any additional charges.' : 'You may only need to pay for extra parts or services.'}
                     </p>
                   </div>
 
                   {booking.status?.toLowerCase() === 'work_done' && (
                     <div className="mt-4 flex items-center justify-center gap-2 text-white/80">
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                      <span className="text-xs font-medium">Waiting for vendor to finalize...</span>
+                      <span className="text-xs font-medium">Waiting for worker to finalize...</span>
                     </div>
                   )}
                 </div>

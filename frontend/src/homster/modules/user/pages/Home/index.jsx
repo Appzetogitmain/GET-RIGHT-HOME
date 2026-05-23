@@ -11,6 +11,7 @@ import { useCity } from '../../../../context/CityContext';
 import { toast } from 'react-hot-toast';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import { motion } from 'framer-motion';
+import { createVipOrder, verifyVipPayment } from '../services/planService';
 
 // Lazy load heavy components for better initial load performance
 import PromoCarousel from './components/PromoCarousel';
@@ -266,6 +267,13 @@ const Home = () => {
   const [categories, setCategories] = useState([]);
   const [homeContent, setHomeContent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [vipLoading, setVipLoading] = useState(false);
+  const [userIsVip, setUserIsVip] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('userData') || '{}');
+      return u.isVip === true && u.vipExpiry && new Date(u.vipExpiry) > new Date();
+    } catch { return false; }
+  });
 
   // Handle scroll separately (only when needed)
   useEffect(() => {
@@ -340,6 +348,125 @@ const Home = () => {
     setSelectedCategory(category);
     setIsCategoryModalOpen(true);
   };
+
+  // VIP Membership BUY handler
+  const handleBuyVip = async () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      toast.error('Please login to buy VIP membership');
+      navigate('/auth/login');
+      return;
+    }
+
+    if (userIsVip) {
+      toast.success('You already have an active VIP membership!');
+      return;
+    }
+
+    // Ensure Razorpay is loaded
+    const loadRazorpay = () => new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+
+    try {
+      setVipLoading(true);
+      toast.loading('Initializing payment...');
+
+      const isLoaded = await loadRazorpay();
+      if (!isLoaded || !window.Razorpay) {
+        toast.dismiss();
+        toast.error('Payment gateway failed to load. Check internet connection.');
+        setVipLoading(false);
+        return;
+      }
+
+      const cityId = currentCity?._id || currentCity?.id;
+      const orderRes = await createVipOrder(cityId);
+      toast.dismiss();
+
+      if (!orderRes.success) {
+        toast.error(orderRes.message || 'Failed to create payment order');
+        setVipLoading(false);
+        return;
+      }
+
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!razorpayKey) {
+        toast.error('Payment key not configured.');
+        setVipLoading(false);
+        return;
+      }
+
+      const { vipDurationDays } = orderRes.order;
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+
+      const options = {
+        key: razorpayKey,
+        amount: orderRes.order.amount,
+        currency: orderRes.order.currency || 'INR',
+        order_id: orderRes.order.id,
+        name: 'Hoomzo',
+        description: `VIP Membership - ${vipDurationDays || 56} Days`,
+        handler: async (response) => {
+          try {
+            toast.loading('Activating VIP membership...');
+            const verifyRes = await verifyVipPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              vipDurationDays: vipDurationDays || 56
+            });
+            toast.dismiss();
+
+            if (verifyRes.success) {
+              setUserIsVip(true);
+              const stored = JSON.parse(localStorage.getItem('userData') || '{}');
+              stored.isVip = true;
+              stored.vipExpiry = verifyRes.vip?.vipExpiry;
+              localStorage.setItem('userData', JSON.stringify(stored));
+              toast.success('🎉 VIP Membership Activated! Enjoy your discounts.');
+            } else {
+              toast.error(verifyRes.message || 'Activation failed. Contact support.');
+            }
+          } catch (err) {
+            toast.dismiss();
+            toast.error('Payment verification failed. Contact support.');
+          } finally {
+            setVipLoading(false);
+          }
+        },
+        prefill: {
+          name: userData.name || '',
+          contact: userData.phone || ''
+        },
+        theme: {
+          color: '#C8960C'
+        },
+        modal: {
+          ondismiss: () => setVipLoading(false)
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', () => {
+        toast.error('Payment failed. Please try again.');
+        setVipLoading(false);
+      });
+      rzp.open();
+
+    } catch (err) {
+      toast.dismiss();
+      console.error('VIP Buy error:', err);
+      toast.error('Something went wrong. Please try again.');
+      setVipLoading(false);
+    }
+  };
+
 
   const handlePromoClick = (promo) => {
     if (promo.targetCategoryId) {
@@ -569,6 +696,76 @@ const Home = () => {
               <motion.section variants={itemVariants}>
                 <ScrapPromotionCard onClick={() => navigate('/user/scrap')} />
               </motion.section>
+
+              {/* VIP Membership Section */}
+              {homeContent?.isVipEnabled !== false && (
+                <motion.section variants={itemVariants} className="px-4">
+                  <div
+                    className="relative overflow-hidden rounded-3xl"
+                    style={{
+                      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)'
+                    }}
+                  >
+                    {/* Gold shimmer top border */}
+                    <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: 'linear-gradient(90deg, transparent, #C8960C, #f5c518, #C8960C, transparent)' }} />
+
+                    <div className="px-5 py-4">
+                      {/* Header row */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          {/* V icon */}
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-base" style={{ background: 'linear-gradient(135deg, #C8960C, #f5c518)', color: '#1a1a2e' }}>
+                            V+
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: '#C8960C' }}>VIP MEMBERSHIP</p>
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-white text-xl font-black">₹{homeContent?.vipPrice || 199}</span>
+                              <span className="text-gray-400 text-xs line-through">₹{homeContent?.vipOriginalPrice || 599}</span>
+                              <span className="text-gray-400 text-xs">for {homeContent?.vipDurationText || '6 months'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* BUY Button */}
+                        {userIsVip ? (
+                          <div className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider" style={{ background: 'rgba(200,150,12,0.15)', color: '#f5c518', border: '1px solid rgba(200,150,12,0.4)' }}>
+                            ACTIVE ✓
+                          </div>
+                        ) : (
+                          <button
+                            id="vip-buy-btn"
+                            onClick={handleBuyVip}
+                            disabled={vipLoading}
+                            className="px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50"
+                            style={{ background: 'white', color: '#1a1a2e' }}
+                          >
+                            {vipLoading ? '...' : 'BUY'}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Benefit cards horizontal scroll */}
+                      {(homeContent?.vipCards || []).length > 0 && (
+                        <div className="flex gap-3 mt-4 overflow-x-auto pb-1 scrollbar-hide">
+                          {homeContent.vipCards.map((card, idx) => (
+                            <div
+                              key={card.id || idx}
+                              className="flex-shrink-0 rounded-2xl p-4 min-w-[150px]"
+                              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                            >
+                              <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: '#C8960C' }}>{card.discountType || 'EXTRA'}</p>
+                              <p className="text-2xl font-black text-white leading-none">{card.discount}%</p>
+                              <p className="text-[10px] font-black text-white/60 mb-2">DISCOUNT</p>
+                              <p className="text-[11px] font-semibold text-white/70 leading-snug">{card.caption}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.section>
+              )}
 
 
               {/* Curated Services */}

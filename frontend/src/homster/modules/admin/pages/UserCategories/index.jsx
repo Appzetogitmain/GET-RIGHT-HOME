@@ -8,6 +8,7 @@ import ServicesPage from "./pages/ServicesPage";
 import SubCategoriesPage from "./pages/SubCategoriesPage";
 import VendorServicesPage from "./pages/VendorServicesPage";
 import VendorPartsPage from "./pages/VendorPartsPage";
+import MembershipPage from "./pages/MembershipPage";
 
 import { cityService } from "../../services/cityService";
 
@@ -95,6 +96,7 @@ const UserCategories = () => {
           <Route path="direct-categories" element={<CategoriesPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} isDirectFlow={true} />} />
           <Route path="sub-categories" element={<SubCategoriesPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} />} />
           <Route path="sections" element={<ServicesPage catalog={catalog} setCatalog={setCatalog} selectedCity={selectedCity} />} />
+          <Route path="membership" element={<MembershipPage selectedCity={selectedCity} />} />
           <Route path="vendor-services" element={<VendorServicesPage />} />
           <Route path="vendor-parts" element={<VendorPartsPage />} />
           <Route path="*" element={<Navigate to="home" replace />} />

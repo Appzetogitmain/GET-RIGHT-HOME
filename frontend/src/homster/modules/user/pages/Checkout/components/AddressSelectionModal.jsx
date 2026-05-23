@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { FiArrowLeft, FiX, FiSearch, FiMapPin, FiHome } from 'react-icons/fi';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { FiArrowLeft, FiX, FiSearch, FiMapPin, FiHome, FiNavigation } from 'react-icons/fi';
 import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import { themeColors } from '../../../../../theme';
 import LocationPicker from './LocationPicker';
+import flutterBridge from '../../../../../utils/flutterBridge';
+import { toast } from 'react-hot-toast';
 
 const libraries = ['places', 'geometry'];
 
@@ -12,6 +14,8 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
   const [mapAddress, setMapAddress] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [autocomplete, setAutocomplete] = useState(null);
+  const [fetchingLocation, setFetchingLocation] = useState(false);
+  const locationPickerRef = useRef(null);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -50,6 +54,100 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
     setMapAddress(location.address);
     setSearchQuery(location.address);
   };
+
+  // Build clean address from Nominatim structured data
+  const formatNominatimAddress = (addr) => {
+    const parts = [];
+    if (addr.road) parts.push(addr.road);
+    else if (addr.neighbourhood) parts.push(addr.neighbourhood);
+    if (addr.suburb) parts.push(addr.suburb);
+    else if (addr.village) parts.push(addr.village);
+    const city = addr.city || addr.town || addr.city_district;
+    if (city) parts.push(city);
+    if (addr.state) parts.push(addr.state);
+    if (addr.postcode) parts.push(addr.postcode);
+    return parts.length > 0 ? parts.join(', ') : null;
+  };
+
+  // Fetch current location and reverse geocode via Nominatim fallback
+  const handleUseCurrentLocation = useCallback(async () => {
+    setFetchingLocation(true);
+    try {
+      const pos = await flutterBridge.getCurrentLocation();
+      const newLocation = { lat: pos.latitude, lng: pos.longitude };
+
+      // Try Google reverse geocode first
+      let resolved = false;
+      if (window.google && window.google.maps) {
+        const geocoder = new window.google.maps.Geocoder();
+        try {
+          const result = await new Promise((resolve, reject) => {
+            geocoder.geocode({ location: newLocation }, (results, status) => {
+              if (status === 'OK' && results[0]) resolve(results[0]);
+              else reject(new Error('Google geocode failed'));
+            });
+          });
+          handleLocationSelect({
+            lat: newLocation.lat,
+            lng: newLocation.lng,
+            address: result.formatted_address,
+            components: result.address_components
+          });
+          resolved = true;
+        } catch (e) {
+          // Google failed, will try Nominatim
+        }
+      }
+
+      // Nominatim fallback
+      if (!resolved) {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${newLocation.lat}&lon=${newLocation.lng}&format=json&addressdetails=1`,
+            { headers: { 'Accept-Language': 'en' } }
+          );
+          const data = await res.json();
+          if (data && data.display_name) {
+            const addr = data.address || {};
+            const cleanAddress = formatNominatimAddress(addr) || data.display_name;
+            const components = [
+              addr.suburb && { types: ['sublocality'], long_name: addr.suburb },
+              addr.city && { types: ['locality'], long_name: addr.city },
+              addr.town && !addr.city && { types: ['locality'], long_name: addr.town },
+              addr.state && { types: ['administrative_area_level_1'], long_name: addr.state },
+              addr.postcode && { types: ['postal_code'], long_name: addr.postcode },
+              addr.country && { types: ['country'], long_name: addr.country },
+            ].filter(Boolean);
+
+            handleLocationSelect({
+              lat: newLocation.lat,
+              lng: newLocation.lng,
+              address: cleanAddress,
+              components
+            });
+            resolved = true;
+          }
+        } catch (err) {
+          console.warn('Nominatim fallback failed:', err);
+        }
+      }
+
+      if (!resolved) {
+        toast.error('Could not resolve address. Please select on map.');
+      } else {
+        toast.success('Location fetched successfully!', { icon: '📍' });
+      }
+    } catch (error) {
+      console.error('Current location error:', error);
+      let msg = 'Unable to get location.';
+      if (error.code === 1) msg = 'Location permission denied. Please allow GPS.';
+      else if (error.code === 2) msg = 'GPS is turned off. Please enable it.';
+      else if (error.code === 3) msg = 'Location request timed out.';
+      toast.error(msg);
+    } finally {
+      setFetchingLocation(false);
+    }
+  }, []);
 
   const onPlaceChanged = () => {
     if (autocomplete !== null) {
@@ -125,6 +223,7 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
           <div className="px-4 pb-2 shrink-0">
             <div className="rounded-xl overflow-hidden shadow-sm border border-gray-100">
               <LocationPicker
+                ref={locationPickerRef}
                 onLocationSelect={handleLocationSelect}
                 initialPosition={selectedLocation}
               />
@@ -140,6 +239,29 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
             }}
           >
             {/* Address Search */}
+            {/* Use Current Location Button */}
+            <button
+              onClick={handleUseCurrentLocation}
+              disabled={fetchingLocation}
+              className="w-full flex items-center gap-3 p-3 mb-3 rounded-xl border transition-all active:scale-[0.98]"
+              style={{
+                backgroundColor: fetchingLocation ? '#f3f4f6' : `${themeColors.brand.teal}0D`,
+                borderColor: `${themeColors.brand.teal}30`,
+              }}
+            >
+              {fetchingLocation ? (
+                <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0" style={{ borderColor: `${themeColors.button}40`, borderTopColor: 'transparent' }} />
+              ) : (
+                <FiNavigation className="w-5 h-5 flex-shrink-0" style={{ color: themeColors.button }} />
+              )}
+              <div className="text-left">
+                <p className="text-sm font-bold" style={{ color: themeColors.button }}>
+                  {fetchingLocation ? 'Fetching location...' : 'Use Current Location'}
+                </p>
+                <p className="text-[10px] text-gray-400">Auto-detect your GPS location</p>
+              </div>
+            </button>
+
             <div className="mb-4">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
                 Pinpoint your Address

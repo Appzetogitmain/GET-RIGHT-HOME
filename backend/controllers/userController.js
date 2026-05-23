@@ -19,7 +19,9 @@ export const getUserProfile = async (req, res) => {
         isPartner: user.isPartner,
         profileImage: user.profileImage,
         createdAt: user.createdAt,
-        partnerSince: user.partnerSince
+        partnerSince: user.partnerSince,
+        isVip: user.isVip || false,
+        vipExpiry: user.vipExpiry || null
       });
     } else {
       // Check if it's a partner
@@ -73,6 +75,8 @@ export const updateUserProfile = async (req, res) => {
 
       if (req.body.profileImage !== undefined) user.profileImage = req.body.profileImage;
       if (req.body.profileImagePublicId !== undefined) user.profileImagePublicId = req.body.profileImagePublicId;
+      if (req.body.isVip !== undefined) user.isVip = req.body.isVip;
+      if (req.body.vipExpiry !== undefined) user.vipExpiry = req.body.vipExpiry;
 
       const updatedUser = await user.save();
 
@@ -86,6 +90,8 @@ export const updateUserProfile = async (req, res) => {
         profileImage: updatedUser.profileImage,
         createdAt: updatedUser.createdAt,
         partnerSince: updatedUser.partnerSince,
+        isVip: updatedUser.isVip || false,
+        vipExpiry: updatedUser.vipExpiry || null,
         token: req.headers.authorization.split(' ')[1] // Keep existing token
       });
     } else {

@@ -108,8 +108,8 @@ const BookingConfirmation = () => {
           const data = { ...response.data };
           // Calculate notional display values for plan_benefit
           if (data.paymentMethod === 'plan_benefit') {
-            if (!data.tax) data.tax = (data.basePrice || 0) * 0.18;
-            if (!data.visitingCharges && !data.visitationFee) data.visitingCharges = 49;
+            if (!data.tax) data.tax = 0;
+            if (!data.visitingCharges && !data.visitationFee) data.visitingCharges = 0;
           }
           setBooking(data);
 
@@ -147,8 +147,8 @@ const BookingConfirmation = () => {
 
           // Calculate notional display values for plan_benefit
           if (updatedBooking.paymentMethod === 'plan_benefit') {
-            if (!updatedBooking.tax) updatedBooking.tax = (updatedBooking.basePrice || 0) * 0.18;
-            if (!updatedBooking.visitingCharges && !updatedBooking.visitationFee) updatedBooking.visitingCharges = 49;
+            if (!updatedBooking.tax) updatedBooking.tax = 0;
+            if (!updatedBooking.visitingCharges && !updatedBooking.visitationFee) updatedBooking.visitingCharges = 0;
           }
 
           setBooking(updatedBooking);
@@ -341,7 +341,7 @@ const BookingConfirmation = () => {
                 : 'bg-green-50 text-green-700 border border-green-200'
                 }`}>
                 <span className="text-sm font-semibold">
-                  {isSearching ? 'Finding Vendor...' : (booking?.status?.toLowerCase() === 'requested' ? 'Request Sent' : 'Confirmed')}
+                  {isSearching ? 'Finding Worker...' : (booking?.status?.toLowerCase() === 'requested' ? 'Request Sent' : 'Confirmed')}
                 </span>
               </div>
             </div>
@@ -479,7 +479,7 @@ const BookingConfirmation = () => {
               )}
 
               {/* Tax */}
-              {(booking.tax > 0 || booking.paymentMethod === 'plan_benefit') && (
+              {booking.tax > 0 && (
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-500">GST (18%)</span>
                   {booking.paymentMethod === 'plan_benefit' ? (
@@ -494,7 +494,7 @@ const BookingConfirmation = () => {
               )}
 
               {/* Convenience Fee */}
-              {(booking.visitingCharges > 0 || booking.visitationFee > 0 || booking.paymentMethod === 'plan_benefit') && (
+              {(booking.visitingCharges > 0 || booking.visitationFee > 0) && (
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-500">Convenience Fee</span>
                   {booking.paymentMethod === 'plan_benefit' ? (

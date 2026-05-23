@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Autocomplete } from '@react-google-maps/api';
 import { FiCrosshair } from 'react-icons/fi';
 import flutterBridge from '../../../../../utils/flutterBridge';
@@ -16,7 +16,7 @@ const defaultCenter = {
   lng: 77.2090
 };
 
-const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
+const LocationPicker = forwardRef(({ onLocationSelect, initialPosition = null }, ref) => {
   const [map, setMap] = useState(null);
   const [marker, setMarker] = useState(initialPosition || defaultCenter);
   const [autocomplete, setAutocomplete] = useState(null);
@@ -47,26 +47,94 @@ const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
     }
   }, [isLoaded]);
 
-  // Reverse geocode to get address from coordinates
-  const reverseGeocode = async (position) => {
-    if (!window.google) return;
+  // Build clean address from Nominatim structured data
+  const formatNominatimAddress = (addr) => {
+    const parts = [];
+    // Area/Road
+    if (addr.road) parts.push(addr.road);
+    else if (addr.neighbourhood) parts.push(addr.neighbourhood);
+    // Suburb/Locality
+    if (addr.suburb) parts.push(addr.suburb);
+    else if (addr.village) parts.push(addr.village);
+    // City
+    const city = addr.city || addr.town || addr.city_district;
+    if (city) parts.push(city);
+    // State
+    if (addr.state) parts.push(addr.state);
+    // Pincode
+    if (addr.postcode) parts.push(addr.postcode);
 
-    setLoading(true);
-    const geocoder = new window.google.maps.Geocoder();
+    return parts.length > 0 ? parts.join(', ') : null;
+  };
 
-    geocoder.geocode({ location: position }, (results, status) => {
-      setLoading(false);
-      if (status === 'OK' && results[0]) {
+  // Reverse geocode via Nominatim (OpenStreetMap) - fallback when Google fails
+  const reverseGeocodeNominatim = async (position) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${position.lat}&lon=${position.lng}&format=json&addressdetails=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      if (data && data.display_name) {
+        const addr = data.address || {};
+        // Build clean address instead of using raw display_name
+        const cleanAddress = formatNominatimAddress(addr) || data.display_name;
+
+        // Build address_components-like array for compatibility
+        const components = [
+          addr.suburb && { types: ['sublocality'], long_name: addr.suburb },
+          addr.city && { types: ['locality'], long_name: addr.city },
+          addr.town && !addr.city && { types: ['locality'], long_name: addr.town },
+          addr.state && { types: ['administrative_area_level_1'], long_name: addr.state },
+          addr.postcode && { types: ['postal_code'], long_name: addr.postcode },
+          addr.country && { types: ['country'], long_name: addr.country },
+        ].filter(Boolean);
+
         if (onLocationSelect) {
           onLocationSelect({
             lat: position.lat,
             lng: position.lng,
-            address: results[0].formatted_address,
-            components: results[0].address_components
+            address: cleanAddress,
+            components
           });
         }
+        return true;
       }
-    });
+    } catch (err) {
+      console.warn('[LocationPicker] Nominatim fallback failed:', err);
+    }
+    return false;
+  };
+
+  // Reverse geocode to get address from coordinates
+  const reverseGeocode = async (position) => {
+    setLoading(true);
+
+    // Try Google Maps first if available
+    if (window.google && window.google.maps) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ location: position }, async (results, status) => {
+        if (status === 'OK' && results[0]) {
+          setLoading(false);
+          if (onLocationSelect) {
+            onLocationSelect({
+              lat: position.lat,
+              lng: position.lng,
+              address: results[0].formatted_address,
+              components: results[0].address_components
+            });
+          }
+        } else {
+          // Google geocoding failed — try Nominatim
+          await reverseGeocodeNominatim(position);
+          setLoading(false);
+        }
+      });
+    } else {
+      // No Google Maps at all — use Nominatim directly
+      await reverseGeocodeNominatim(position);
+      setLoading(false);
+    }
   };
 
   // Handle map click
@@ -152,6 +220,11 @@ const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
     }
   };
 
+  // Expose handleCurrentLocation to parent via ref
+  useImperativeHandle(ref, () => ({
+    fetchCurrentLocation: handleCurrentLocation
+  }));
+
   if (loadError) {
     return <div className="h-64 bg-gray-200 flex items-center justify-center">
       <p className="text-red-600">Error loading Google Maps</p>
@@ -202,7 +275,9 @@ const LocationPicker = ({ onLocationSelect, initialPosition = null }) => {
       </div>
     </div>
   );
-};
+});
+
+LocationPicker.displayName = 'LocationPicker';
 
 export default LocationPicker;
 

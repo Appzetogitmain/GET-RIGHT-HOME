@@ -59,6 +59,8 @@ const UserPropertyDashboard = React.lazy(() => import('./pages/user/UserProperty
 const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPage'));
 const ListPropertyWizard = React.lazy(() => import('./pages/user/ListPropertyWizard'));
 const DynamicFormEngine = React.lazy(() => import('./pages/user/DynamicFormEngine'));
+const CartPage = React.lazy(() => import('./homster/modules/user/pages/Cart'));
+const HomeServiceCheckoutPage = React.lazy(() => import('./homster/modules/user/pages/Checkout'));
 
 // Lazy Imports - Admin Pages
 const AdminLogin = React.lazy(() => import('./app/admin/pages/AdminLogin'));
@@ -196,7 +198,7 @@ const Layout = ({ children }) => {
   const showUserNavs = !isPartnerApp;
 
   // Specific user pages where BottomNav is hidden (reels = full-screen experience)
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/legal', '/terms', '/privacy', '/reels', '/home-services'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/checkout'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
   const isReelsPage = location.pathname.startsWith('/reels');
 
@@ -441,9 +443,15 @@ function App() {
             {/* User Auth Routes (Public Only) */}
             <Route path="/login" element={<PublicRoute><UserLogin /></PublicRoute>} />
             <Route path="/signup" element={<PublicRoute><UserSignup /></PublicRoute>} />
+            <Route path="/user/login" element={<Navigate to="/login" replace />} />
             <Route path="/legal" element={<LegalPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+
+            {/* Home Services Public Routes */}
+            <Route path="/home-services" element={<HomeServicesPage />} />
+            <Route path="/home-services/sub-category" element={<SubCategoryPage />} />
+            <Route path="/home-service" element={<Navigate to="/home-services" replace />} />
 
             {/* User Property Listing (C2C) Routes */}
             <Route path="/list-property" element={<ListPropertyWizard />} />
@@ -578,12 +586,11 @@ function App() {
               <Route path="/saved-places" element={<SavedPlacesPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/home-services" element={<HomeServicesPage />} />
-              <Route path="/home-services/sub-category" element={<SubCategoryPage />} />
-              <Route path="/home-service" element={<Navigate to="/home-services" replace />} />
               <Route path="/partner-landing" element={<PartnerLandingPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/contact" element={<ContactPage />} />
+              <Route path="/user/cart" element={<CartPage />} />
+              <Route path="/user/checkout" element={<HomeServiceCheckoutPage />} />
               <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />
             </Route>
           </Routes>
