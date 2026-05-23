@@ -172,6 +172,8 @@ const UserReceivedEnquiriesPage = () => {
         // 2. Resolve Area
         let area = null;
         const possibleAreaValues = [
+            prop.buyDetails?.area?.superBuiltUp,
+            prop.buyDetails?.area?.carpet,
             prop.carpetArea,
             prop.superArea,
             prop.dynamicData?.carpetArea,
@@ -186,17 +188,17 @@ const UserReceivedEnquiriesPage = () => {
         for (const val of possibleAreaValues) {
             if (val !== undefined && val !== null) {
                 if (typeof val === 'object') {
-                    const possibleAreaKeys = ['value', 'amount', 'size', 'carpet', 'super'];
+                    const possibleAreaKeys = ['superBuiltUp', 'carpet', 'value', 'amount', 'size', 'super'];
                     let found = false;
                     for (const key of possibleAreaKeys) {
-                        if (val[key] !== undefined && val[key] !== null) {
+                        if (val[key] !== undefined && val[key] !== null && val[key] !== '') {
                             area = val[key];
                             found = true;
                             break;
                         }
                     }
                     if (found) break;
-                } else {
+                } else if (val !== '') {
                     area = val;
                     break;
                 }
@@ -207,12 +209,12 @@ const UserReceivedEnquiriesPage = () => {
         // 3. Resolve Unit
         let unit = '';
         const possibleUnitValues = [
+            prop.buyDetails?.area?.unit,
             prop.carpetAreaUnit,
             prop.areaUnit,
             prop.dynamicData?.carpetAreaUnit,
             prop.dynamicData?.areaUnit,
             prop.dynamicData?.superAreaUnit,
-            prop.buyDetails?.area?.unit,
             prop.plotDetails?.unit,
             prop.rentDetails?.unit
         ];
@@ -241,7 +243,7 @@ const UserReceivedEnquiriesPage = () => {
 
         const isRent = ['rent', 'lease', 'pg', 'hostel'].includes(pType) || (prop.transactionType || '').toLowerCase().includes('rent');
         const priceStr = price > 0 ? (formatPriceLakhCrore(price) + (isRent ? '/mo' : '')) : 'Price on Request';
-        const areaStr = `${area} ${unit}`;
+        const areaStr = area !== '–' ? `${area} ${unit}` : '–';
         
         const loc = prop.address?.city || prop.city || prop.address?.fullAddress || '';
         return `${areaStr} • ${priceStr}${loc ? ` • ${loc}` : ''}`;

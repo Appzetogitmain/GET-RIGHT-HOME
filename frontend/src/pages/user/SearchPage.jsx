@@ -15,6 +15,8 @@ const SearchPage = () => {
     const [savedHotelIds, setSavedHotelIds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showFilters, setShowFilters] = useState(false); // Mobile toggle
+    const [previewCount, setPreviewCount] = useState(0);
+    const [previewLoading, setPreviewLoading] = useState(false);
 
     // Filters State
     // Initialize filters from URL
@@ -273,21 +275,21 @@ const SearchPage = () => {
         setFilters(prev => ({ ...prev, [key]: value }));
     };
 
-    const applyFilters = () => {
+    const getParamsFromFilters = (targetFilters) => {
         const params = {};
-        if (filters.search) params.search = filters.search;
-        if (filters.type && filters.type !== 'all') params.type = filters.type;
-        if (filters.propertyCategory && filters.propertyCategory !== 'Residential') params.propertyCategory = filters.propertyCategory;
-        if (filters.minPrice) params.minPrice = filters.minPrice;
-        if (filters.maxPrice) params.maxPrice = filters.maxPrice;
-        if (filters.sort) params.sort = filters.sort;
-        if (filters.city) params.city = filters.city;
-        if (filters.minArea) params.minArea = filters.minArea;
-        if (filters.maxArea) params.maxArea = filters.maxArea;
-        if (filters.bathrooms) params.bathrooms = filters.bathrooms;
-        if (filters.postedBy) params.postedBy = filters.postedBy;
-        if (filters.purchaseType) params.purchaseType = filters.purchaseType;
-        if (filters.areas && filters.areas.length > 0) params.areas = filters.areas.join(',');
+        if (targetFilters.search) params.search = targetFilters.search;
+        if (targetFilters.type && targetFilters.type !== 'all') params.type = targetFilters.type;
+        if (targetFilters.propertyCategory && targetFilters.propertyCategory !== 'Residential') params.propertyCategory = targetFilters.propertyCategory;
+        if (targetFilters.minPrice) params.minPrice = targetFilters.minPrice;
+        if (targetFilters.maxPrice) params.maxPrice = targetFilters.maxPrice;
+        if (targetFilters.sort) params.sort = targetFilters.sort;
+        if (targetFilters.city) params.city = targetFilters.city;
+        if (targetFilters.minArea) params.minArea = targetFilters.minArea;
+        if (targetFilters.maxArea) params.maxArea = targetFilters.maxArea;
+        if (targetFilters.bathrooms) params.bathrooms = targetFilters.bathrooms;
+        if (targetFilters.postedBy) params.postedBy = targetFilters.postedBy;
+        if (targetFilters.purchaseType) params.purchaseType = targetFilters.purchaseType;
+        if (targetFilters.areas && targetFilters.areas.length > 0) params.areas = targetFilters.areas.join(',');
 
         // Map Special Amenities to specific query params
         const finalAmenities = [];
@@ -299,7 +301,7 @@ const SearchPage = () => {
         const subTypes = [];
         const availabilities = [];
 
-        filters.amenities.forEach(am => {
+        targetFilters.amenities.forEach(am => {
             // SubTypes mapping
             if (['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'].includes(am)) {
                 subTypes.push(am);
@@ -335,7 +337,7 @@ const SearchPage = () => {
             else if (am === 'Triple Occupancy') occupancies.push('Triple');
 
             // Plot Land Type mapping
-            else if (am === 'Residential' && filters.type !== 'all' && (String(filters.type).toLowerCase().includes('plot') || String(filters.type).toLowerCase().includes('sell'))) landTypes.push('Residential');
+            else if (am === 'Residential' && targetFilters.type !== 'all' && (String(targetFilters.type).toLowerCase().includes('plot') || String(targetFilters.type).toLowerCase().includes('sell'))) landTypes.push('Residential');
             else if (am === 'Commercial') landTypes.push('Commercial');
             else if (am === 'Agricultural') landTypes.push('Agricultural');
             else if (am === 'Industrial') landTypes.push('Industrial');
@@ -354,9 +356,54 @@ const SearchPage = () => {
         if (subTypes.length > 0) params.subType = subTypes.join(',');
         if (availabilities.length > 0) params.availability = availabilities.join(',');
 
+        return params;
+    };
+
+    const applyFilters = () => {
+        const params = getParamsFromFilters(filters);
         setSearchParams(params);
         setShowFilters(false);
     };
+
+    useEffect(() => {
+        if (!showFilters) return;
+
+        let active = true;
+        const fetchPreviewCount = async () => {
+            setPreviewLoading(true);
+            try {
+                const params = getParamsFromFilters(filters);
+                if (location) {
+                    params.lat = location.lat;
+                    params.lng = location.lng;
+                    params.radius = filters.radius;
+                }
+                const res = await propertyService.getPublicProperties(params);
+                if (active) {
+                    if (Array.isArray(res)) {
+                        setPreviewCount(res.length);
+                    } else if (res.success && Array.isArray(res.properties)) {
+                        setPreviewCount(res.properties.length);
+                    } else {
+                        setPreviewCount(0);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching preview count:", err);
+            } finally {
+                if (active) setPreviewLoading(false);
+            }
+        };
+
+        const handler = setTimeout(() => {
+            fetchPreviewCount();
+        }, 300);
+
+        return () => {
+            active = false;
+            clearTimeout(handler);
+        };
+    }, [filters, location, showFilters]);
 
     const handleNearMe = async () => {
         try {
@@ -567,7 +614,7 @@ const SearchPage = () => {
 
             {/* Filters Sidebar/Modal */}
             <div className={`
-                fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300 flex justify-end
+                fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm transition-opacity duration-300 flex justify-end
                 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
             `} onClick={() => setShowFilters(false)}>
                 <div
@@ -1062,9 +1109,13 @@ const SearchPage = () => {
                         </button>
                         <button
                             onClick={applyFilters}
-                            className="flex-1 bg-surface hover:bg-surface-dark text-white py-2.5 rounded-xl font-bold text-xs shadow-md shadow-surface/20 active:scale-95 transition-all text-center"
+                            disabled={previewLoading}
+                            className="flex-1 bg-surface hover:bg-surface-dark disabled:bg-gray-300 text-white py-2.5 rounded-xl font-bold text-xs shadow-md shadow-surface/20 active:scale-95 transition-all text-center flex items-center justify-center gap-2"
                         >
-                            See all {properties.length ? `${properties.length} ` : ''}Properties
+                            {previewLoading ? (
+                                <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                            ) : null}
+                            Apply Filters ({previewCount} Properties)
                         </button>
                     </div>
                 </div>

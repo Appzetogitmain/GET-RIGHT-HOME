@@ -758,7 +758,14 @@ export const getPublicProperties = async (req, res) => {
       matchConditions['rentDetails.furnishing'] = { $in: furnishList };
     }
     if (gender) {
-      const genderList = gender.split(',').map(g => new RegExp(`^${g.trim()}$`, 'i'));
+      const genders = gender.split(',').map(g => g.trim());
+      const expandedGenders = [];
+      genders.forEach(g => {
+        expandedGenders.push(g);
+        if (g.toLowerCase() === 'co-ed') expandedGenders.push('unisex');
+        if (g.toLowerCase() === 'unisex') expandedGenders.push('co-ed');
+      });
+      const genderList = expandedGenders.map(g => new RegExp(`^${g}$`, 'i'));
       // Check both pgType (old) and pgDetails.gender (new)
       const genderMatch = {
         $or: [

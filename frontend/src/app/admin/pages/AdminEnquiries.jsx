@@ -39,6 +39,114 @@ const EnquiryStatusBadge = ({ status }) => {
     );
 };
 
+const getPropertySpecs = (prop) => {
+    if (!prop) return { price: 0, priceStr: 'Price on Request', area: '–', areaStr: '–', unit: '' };
+
+    const pType = (prop.propertyType || '').toLowerCase();
+    const transaction = (prop.transactionType || '').toLowerCase();
+
+    // 1. Resolve Price
+    let priceVal =
+        prop.startingPrice ??
+        prop.rentDetails?.monthlyRent ??
+        prop.pgDetails?.monthlyRent ??
+        prop.buyDetails?.expectedPrice ??
+        prop.plotDetails?.expectedPrice ??
+        prop.dynamicData?.expectedPrice ??
+        prop.dynamicData?.monthlyRent ??
+        prop.dynamicData?.expectedRent ??
+        prop.dynamicData?.price ??
+        prop.price;
+
+    if (priceVal && typeof priceVal === 'object') {
+        const possiblePriceKeys = ['value', 'amount', 'price', 'expectedPrice', 'monthlyRent'];
+        for (const key of possiblePriceKeys) {
+            if (priceVal[key] !== undefined && priceVal[key] !== null) {
+                priceVal = priceVal[key];
+                break;
+            }
+        }
+    }
+    const price = Number(priceVal) || 0;
+
+    // 2. Resolve Area
+    let area = null;
+    const possibleAreaValues = [
+        prop.buyDetails?.area?.superBuiltUp,
+        prop.buyDetails?.area?.carpet,
+        prop.carpetArea,
+        prop.superArea,
+        prop.dynamicData?.carpetArea,
+        prop.dynamicData?.superArea,
+        prop.dynamicData?.plotArea,
+        prop.plotDetails?.plotArea,
+        prop.rentDetails?.area,
+        prop.buyDetails?.area,
+        prop.area
+    ];
+
+    for (const val of possibleAreaValues) {
+        if (val !== undefined && val !== null) {
+            if (typeof val === 'object') {
+                const possibleAreaKeys = ['superBuiltUp', 'carpet', 'value', 'amount', 'size', 'super'];
+                let found = false;
+                for (const key of possibleAreaKeys) {
+                    if (val[key] !== undefined && val[key] !== null && val[key] !== '') {
+                        area = val[key];
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            } else if (val !== '') {
+                area = val;
+                break;
+            }
+        }
+    }
+
+    // 3. Resolve Unit
+    let unit = '';
+    const possibleUnitValues = [
+        prop.buyDetails?.area?.unit,
+        prop.carpetAreaUnit,
+        prop.areaUnit,
+        prop.dynamicData?.carpetAreaUnit,
+        prop.dynamicData?.areaUnit,
+        prop.dynamicData?.superAreaUnit,
+        prop.plotDetails?.unit,
+        prop.rentDetails?.unit
+    ];
+
+    for (const val of possibleUnitValues) {
+        if (val && typeof val === 'string') {
+            unit = val;
+            break;
+        }
+    }
+    if (!unit) {
+        unit = (pType === 'plot' || prop.plotDetails) ? 'sq.yrd' : 'sq.ft';
+    }
+
+    // 4. Format Price
+    const formatPriceLakhCrore = (num) => {
+        if (!num || isNaN(num)) return 'Price on Request';
+        if (num >= 10000000) {
+            return `₹${(num / 10000000).toFixed(2).replace(/\.00$/, '')} Cr`;
+        }
+        if (num >= 100000) {
+            return `₹${(num / 100000).toFixed(2).replace(/\.00$/, '')} L`;
+        }
+        return `₹${num.toLocaleString('en-IN')}`;
+    };
+
+    const isRent = ['rent', 'lease', 'pg', 'hostel'].includes(pType) || transaction.includes('rent');
+    const priceStr = price > 0 ? (formatPriceLakhCrore(price) + (isRent ? '/mo' : '')) : 'Price on Request';
+    const areaStr = area && area !== '–' ? `${area} ${unit}` : '–';
+
+    return { price, priceStr, area, areaStr, unit };
+};
+
 const MetricCard = ({ label, value, subLabel, loading }) => (
     <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex-1">
         <p className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-1">{label}</p>
@@ -210,19 +318,19 @@ const AdminEnquiries = () => {
             return;
         }
 
-        const headers = ['ID', 'Enquiry ID', 'Property Name', 'Property Type', 'Price', 'User Name', 'Phone', 'Email', 'Preferred Date', 'Status', 'Message'];
+        const headers = ['ID', 'Enquiry ID', 'Property Name', 'Property Type', 'Area', 'Price', 'User Name', 'Phone', 'Email', 'Preferred Date', 'Status', 'Message'];
         const csvContent = [
             headers.join(','),
             ...enquiries.map(e => {
                 const prop = e.propertyId || {};
-                const pType = prop.propertyType || '';
-                const price = pType === 'buy' ? prop.buyDetails?.expectedPrice : (pType === 'rent' ? prop.rentDetails?.monthlyRent : prop.plotDetails?.expectedPrice);
+                const specs = getPropertySpecs(prop);
                 return [
                     e._id,
                     e.enquiryId || e._id.slice(-8).toUpperCase(),
                     `"${prop.propertyName || 'N/A'}"`,
                     `"${prop.propertyType || 'N/A'}"`,
-                    price || 'N/A',
+                    `"${specs.areaStr}"`,
+                    `"${specs.priceStr}"`,
                     `"${e.userId?.name || 'N/A'}"`,
                     e.userId?.phone || 'N/A',
                     e.userId?.email || 'N/A',
@@ -333,8 +441,7 @@ const AdminEnquiries = () => {
                                     {enquiries.length > 0 ? (
                                         enquiries.map((enquiry, index) => {
                                             const prop = enquiry.propertyId || {};
-                                            const pType = prop.propertyType || '';
-                                            const price = pType === 'buy' ? prop.buyDetails?.expectedPrice : (pType === 'rent' ? prop.rentDetails?.monthlyRent : prop.plotDetails?.expectedPrice);
+                                            const specs = getPropertySpecs(prop);
 
                                             return (
                                                 <motion.tr
@@ -344,7 +451,7 @@ const AdminEnquiries = () => {
                                                     exit={{ opacity: 0, scale: 0.9 }}
                                                     transition={{ delay: index * 0.05 }}
                                                     className="hover:bg-gray-50/50 transition-colors group relative font-bold"
-                                                >
+                                                 >
                                                     <td className="p-4">
                                                         <span className="font-mono text-xs font-bold text-gray-900 uppercase tracking-tight">
                                                             #{enquiry.enquiryId || enquiry._id.slice(-8).toUpperCase()}
@@ -359,7 +466,7 @@ const AdminEnquiries = () => {
                                                                 {prop.propertyName || 'Deleted Property'}
                                                             </span>
                                                             <span className="text-[10px] text-gray-400 font-semibold uppercase">
-                                                                {prop.propertyType} • ₹{price ? price.toLocaleString() : 'N/A'}
+                                                                {prop.propertyType || 'N/A'} • {specs.areaStr} • {specs.priceStr}
                                                             </span>
                                                         </div>
                                                     </td>
@@ -491,7 +598,7 @@ const AdminEnquiries = () => {
                                         {selectedEnquiry.propertyId?.propertyName || 'N/A'}
                                     </h4>
                                     <p className="text-xs text-gray-500 uppercase mt-0.5">
-                                        Type: {selectedEnquiry.propertyId?.propertyType} • {selectedEnquiry.propertyId?.address?.city || 'N/A'}
+                                        Type: {selectedEnquiry.propertyId?.propertyType || 'N/A'} • {getPropertySpecs(selectedEnquiry.propertyId).areaStr} • {getPropertySpecs(selectedEnquiry.propertyId).priceStr} • {selectedEnquiry.propertyId?.address?.city || 'N/A'}
                                     </p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
