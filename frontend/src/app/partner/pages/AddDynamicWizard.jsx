@@ -41,8 +41,8 @@ const AddDynamicWizard = () => {
   const isEditMode = !!(existingProperty || id);
   const initialStep = location.state?.initialStep || 1;
   const [step, setStep] = useState(initialStep);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [createdProperty, setCreatedProperty] = useState(null);
   const [nearbySearchQuery, setNearbySearchQuery] = useState('');
   const [nearbyResults, setNearbyResults] = useState([]);
@@ -919,15 +919,23 @@ const AddDynamicWizard = () => {
       setStep(step + 1);
     } else if (currentKey === 'details') {
       // Validate specific details
+      if (Object.keys(fieldErrors).length > 0) {
+        setError('Please fix all validation errors before proceeding');
+        return;
+      }
       if (isRent) {
         if (!propertyForm.rentDetails.monthlyRent) { setError('Monthly Rent is required'); return; }
+        if (Number(propertyForm.rentDetails.monthlyRent) < 0) { setError('Monthly Rent cannot be negative'); return; }
         if (!propertyForm.rentDetails.type) { setError('Property Type is required'); return; }
       } else if (isBuy) {
         if (!propertyForm.buyDetails.expectedPrice) { setError('Expected Price is required'); return; }
+        if (Number(propertyForm.buyDetails.expectedPrice) < 0) { setError('Expected Price cannot be negative'); return; }
         if (!propertyForm.buyDetails.type) { setError('Property Type is required'); return; }
       } else if (isPlot) {
         if (!propertyForm.plotDetails.expectedPrice) { setError('Expected Price is required'); return; }
+        if (Number(propertyForm.plotDetails.expectedPrice) < 0) { setError('Expected Price cannot be negative'); return; }
         if (!propertyForm.plotDetails.plotArea) { setError('Plot Area is required'); return; }
+        if (Number(propertyForm.plotDetails.plotArea) < 0) { setError('Plot Area cannot be negative'); return; }
       }
       setStep(step + 1);
     } else if (currentKey === 'location') {
@@ -1064,11 +1072,41 @@ const AddDynamicWizard = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">Monthly Rent (₹)</label>
-                      <input type="number" className="input w-full" value={propertyForm.rentDetails?.monthlyRent || ''} onChange={e => updatePropertyForm(['rentDetails', 'monthlyRent'], e.target.value)} />
+                      <input 
+                        type="number" 
+                        className="input w-full" 
+                        value={propertyForm.rentDetails?.monthlyRent || ''} 
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updatePropertyForm(['rentDetails', 'monthlyRent'], val);
+                          if (Number(val) < 0) {
+                            setFieldErrors(prev => ({ ...prev, monthlyRent: 'Rent cannot be negative' }));
+                          } else {
+                            setFieldErrors(prev => { const clone = {...prev}; delete clone.monthlyRent; return clone; });
+                          }
+                        }} 
+                      />
+                      {fieldErrors.monthlyRent && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.monthlyRent}</p>}
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">Maintenance (₹)</label>
-                      <input type="number" className="input w-full" value={propertyForm.rentDetails?.maintenanceCharges || ''} onChange={e => updatePropertyForm(['rentDetails', 'maintenanceCharges'], e.target.value)} />
+                      <input 
+                        type="number" 
+                        className="input w-full" 
+                        value={propertyForm.rentDetails?.maintenanceCharges || ''} 
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updatePropertyForm(['rentDetails', 'maintenanceCharges'], val);
+                          if (Number(val) < 0) {
+                            setFieldErrors(prev => ({ ...prev, maintenanceCharges: 'Charges cannot be negative' }));
+                          } else {
+                            setFieldErrors(prev => { const clone = {...prev}; delete clone.maintenanceCharges; return clone; });
+                          }
+                        }} 
+                      />
+                      {fieldErrors.maintenanceCharges && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.maintenanceCharges}</p>}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -1108,14 +1146,44 @@ const AddDynamicWizard = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">Expected Price (₹)</label>
-                      <input type="number" className="input w-full" value={propertyForm.buyDetails?.expectedPrice || ''} onChange={e => updatePropertyForm(['buyDetails', 'expectedPrice'], e.target.value)} />
+                      <input 
+                        type="number" 
+                        className="input w-full" 
+                        value={propertyForm.buyDetails?.expectedPrice || ''} 
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updatePropertyForm(['buyDetails', 'expectedPrice'], val);
+                          if (Number(val) < 0) {
+                            setFieldErrors(prev => ({ ...prev, expectedPrice: 'Price cannot be negative' }));
+                          } else {
+                            setFieldErrors(prev => { const clone = {...prev}; delete clone.expectedPrice; return clone; });
+                          }
+                        }} 
+                      />
+                      {fieldErrors.expectedPrice && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.expectedPrice}</p>}
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">Super Built-up Area</label>
                       <div className="flex gap-2">
-                        <input type="number" className="input w-full" value={propertyForm.buyDetails?.area?.superBuiltUp || ''} onChange={e => updatePropertyForm(['buyDetails', 'area', 'superBuiltUp'], e.target.value)} />
+                        <input 
+                          type="number" 
+                          className="input w-full" 
+                          value={propertyForm.buyDetails?.area?.superBuiltUp || ''} 
+                          onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            updatePropertyForm(['buyDetails', 'area', 'superBuiltUp'], val);
+                            if (Number(val) < 0) {
+                              setFieldErrors(prev => ({ ...prev, superBuiltUp: 'Area cannot be negative' }));
+                            } else {
+                              setFieldErrors(prev => { const clone = {...prev}; delete clone.superBuiltUp; return clone; });
+                            }
+                          }} 
+                        />
                         <span className="flex items-center text-sm font-bold text-gray-500">sqft</span>
                       </div>
+                      {fieldErrors.superBuiltUp && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.superBuiltUp}</p>}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -1145,21 +1213,86 @@ const AddDynamicWizard = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">Expected Price (₹)</label>
-                      <input type="number" className="input w-full" value={propertyForm.plotDetails?.expectedPrice || ''} onChange={e => updatePropertyForm(['plotDetails', 'expectedPrice'], e.target.value)} />
+                      <input 
+                        type="number" 
+                        className="input w-full" 
+                        value={propertyForm.plotDetails?.expectedPrice || ''} 
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updatePropertyForm(['plotDetails', 'expectedPrice'], val);
+                          if (Number(val) < 0) {
+                            setFieldErrors(prev => ({ ...prev, plotExpectedPrice: 'Price cannot be negative' }));
+                          } else {
+                            setFieldErrors(prev => { const clone = {...prev}; delete clone.plotExpectedPrice; return clone; });
+                          }
+                        }} 
+                      />
+                      {fieldErrors.plotExpectedPrice && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.plotExpectedPrice}</p>}
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">Plot Area (sqyrd)</label>
-                      <input type="number" className="input w-full" value={propertyForm.plotDetails?.plotArea || ''} onChange={e => updatePropertyForm(['plotDetails', 'plotArea'], e.target.value)} />
+                      <input 
+                        type="number" 
+                        className="input w-full" 
+                        value={propertyForm.plotDetails?.plotArea || ''} 
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updatePropertyForm(['plotDetails', 'plotArea'], val);
+                          if (Number(val) < 0) {
+                            setFieldErrors(prev => ({ ...prev, plotArea: 'Area cannot be negative' }));
+                          } else {
+                            setFieldErrors(prev => { const clone = {...prev}; delete clone.plotArea; return clone; });
+                          }
+                        }} 
+                      />
+                      {fieldErrors.plotArea && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.plotArea}</p>}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">Dimensions (ft)</label>
                       <div className="flex gap-2 items-center">
-                        <input type="number" placeholder="Length" className="input w-full" value={propertyForm.plotDetails?.dimensions?.length || ''} onChange={e => updatePropertyForm(['plotDetails', 'dimensions', 'length'], e.target.value)} />
+                        <input 
+                          type="number" 
+                          placeholder="Length" 
+                          className="input w-full" 
+                          value={propertyForm.plotDetails?.dimensions?.length || ''} 
+                          onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            updatePropertyForm(['plotDetails', 'dimensions', 'length'], val);
+                            if (Number(val) < 0) {
+                              setFieldErrors(prev => ({ ...prev, plotLength: 'Length cannot be negative' }));
+                            } else {
+                              setFieldErrors(prev => { const clone = {...prev}; delete clone.plotLength; return clone; });
+                            }
+                          }} 
+                        />
                         <span>x</span>
-                        <input type="number" placeholder="Breadth" className="input w-full" value={propertyForm.plotDetails?.dimensions?.breadth || ''} onChange={e => updatePropertyForm(['plotDetails', 'dimensions', 'breadth'], e.target.value)} />
+                        <input 
+                          type="number" 
+                          placeholder="Breadth" 
+                          className="input w-full" 
+                          value={propertyForm.plotDetails?.dimensions?.breadth || ''} 
+                          onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            updatePropertyForm(['plotDetails', 'dimensions', 'breadth'], val);
+                            if (Number(val) < 0) {
+                              setFieldErrors(prev => ({ ...prev, plotBreadth: 'Breadth cannot be negative' }));
+                            } else {
+                              setFieldErrors(prev => { const clone = {...prev}; delete clone.plotBreadth; return clone; });
+                            }
+                          }} 
+                        />
                       </div>
+                      {(fieldErrors.plotLength || fieldErrors.plotBreadth) && (
+                        <p className="text-red-500 text-xs mt-1 font-semibold">
+                          {fieldErrors.plotLength || fieldErrors.plotBreadth}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">Facing</label>
@@ -1188,7 +1321,23 @@ const AddDynamicWizard = () => {
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">Road Width (ft)</label>
-                      <input type="number" className="input w-full" placeholder="e.g. 30" value={propertyForm.plotDetails?.roadWidth || ''} onChange={e => updatePropertyForm(['plotDetails', 'roadWidth'], e.target.value)} />
+                      <input 
+                        type="number" 
+                        className="input w-full" 
+                        placeholder="e.g. 30" 
+                        value={propertyForm.plotDetails?.roadWidth || ''} 
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updatePropertyForm(['plotDetails', 'roadWidth'], val);
+                          if (Number(val) < 0) {
+                            setFieldErrors(prev => ({ ...prev, roadWidth: 'Width cannot be negative' }));
+                          } else {
+                            setFieldErrors(prev => { const clone = {...prev}; delete clone.roadWidth; return clone; });
+                          }
+                        }} 
+                      />
+                      {fieldErrors.roadWidth && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.roadWidth}</p>}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -1504,7 +1653,22 @@ const AddDynamicWizard = () => {
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-semibold text-gray-500">Distance (km)</label>
-                          <input className="input w-full" type="number" value={tempNearbyPlace.distanceKm} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, distanceKm: e.target.value })} />
+                          <input 
+                            className="input w-full" 
+                            type="number" 
+                            value={tempNearbyPlace.distanceKm} 
+                            onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setTempNearbyPlace({ ...tempNearbyPlace, distanceKm: val });
+                              if (Number(val) < 0) {
+                                setFieldErrors(prev => ({ ...prev, distanceKm: 'Distance cannot be negative' }));
+                              } else {
+                                setFieldErrors(prev => { const clone = {...prev}; delete clone.distanceKm; return clone; });
+                              }
+                            }} 
+                          />
+                          {fieldErrors.distanceKm && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.distanceKm}</p>}
                         </div>
                       </div>
                     </div>
@@ -1740,33 +1904,123 @@ const AddDynamicWizard = () => {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-gray-500">{(isPg || isHostel) ? 'Monthly Rent (₹)' : 'Price / Night (₹)'}</label>
-                        <input className="input w-full" type="number" value={editingRoomType.pricePerNight} onChange={e => setEditingRoomType(prev => ({ ...prev, pricePerNight: e.target.value }))} />
+                        <input 
+                          className="input w-full" 
+                          type="number" 
+                          value={editingRoomType.pricePerNight} 
+                          onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingRoomType(prev => ({ ...prev, pricePerNight: val }));
+                            if (Number(val) < 0) {
+                              setFieldErrors(prev => ({ ...prev, pricePerNight: 'Price cannot be negative' }));
+                            } else {
+                              setFieldErrors(prev => { const clone = {...prev}; delete clone.pricePerNight; return clone; });
+                            }
+                          }}
+                        />
+                        {fieldErrors.pricePerNight && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.pricePerNight}</p>}
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-gray-500">{isTent ? 'Total Units' : 'Total Rooms'}</label>
-                        <input className="input w-full" type="number" value={editingRoomType.totalInventory} onChange={e => setEditingRoomType(prev => ({ ...prev, totalInventory: e.target.value }))} />
+                        <input 
+                          className="input w-full" 
+                          type="number" 
+                          value={editingRoomType.totalInventory} 
+                          onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingRoomType(prev => ({ ...prev, totalInventory: val }));
+                            if (Number(val) < 0) {
+                              setFieldErrors(prev => ({ ...prev, totalInventory: 'Inventory cannot be negative' }));
+                            } else {
+                              setFieldErrors(prev => { const clone = {...prev}; delete clone.totalInventory; return clone; });
+                            }
+                          }}
+                        />
+                        {fieldErrors.totalInventory && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.totalInventory}</p>}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-gray-500">Max Adults</label>
-                        <input className="input w-full" type="number" value={editingRoomType.maxAdults} onChange={e => setEditingRoomType(prev => ({ ...prev, maxAdults: e.target.value }))} />
+                        <input 
+                          className="input w-full" 
+                          type="number" 
+                          value={editingRoomType.maxAdults} 
+                          onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingRoomType(prev => ({ ...prev, maxAdults: val }));
+                            if (Number(val) < 0) {
+                              setFieldErrors(prev => ({ ...prev, maxAdults: 'Cannot be negative' }));
+                            } else {
+                              setFieldErrors(prev => { const clone = {...prev}; delete clone.maxAdults; return clone; });
+                            }
+                          }}
+                        />
+                        {fieldErrors.maxAdults && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.maxAdults}</p>}
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-gray-500">Max Children</label>
-                        <input className="input w-full" type="number" value={editingRoomType.maxChildren} onChange={e => setEditingRoomType(prev => ({ ...prev, maxChildren: e.target.value }))} />
+                        <input 
+                          className="input w-full" 
+                          type="number" 
+                          value={editingRoomType.maxChildren} 
+                          onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingRoomType(prev => ({ ...prev, maxChildren: val }));
+                            if (Number(val) < 0) {
+                              setFieldErrors(prev => ({ ...prev, maxChildren: 'Cannot be negative' }));
+                            } else {
+                              setFieldErrors(prev => { const clone = {...prev}; delete clone.maxChildren; return clone; });
+                            }
+                          }}
+                        />
+                        {fieldErrors.maxChildren && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.maxChildren}</p>}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-gray-500">Extra Adult Price (₹)</label>
-                        <input className="input w-full" type="number" value={editingRoomType.extraAdultPrice} onChange={e => setEditingRoomType(prev => ({ ...prev, extraAdultPrice: e.target.value }))} />
+                        <input 
+                          className="input w-full" 
+                          type="number" 
+                          value={editingRoomType.extraAdultPrice} 
+                          onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingRoomType(prev => ({ ...prev, extraAdultPrice: val }));
+                            if (Number(val) < 0) {
+                              setFieldErrors(prev => ({ ...prev, extraAdultPrice: 'Price cannot be negative' }));
+                            } else {
+                              setFieldErrors(prev => { const clone = {...prev}; delete clone.extraAdultPrice; return clone; });
+                            }
+                          }}
+                        />
+                        {fieldErrors.extraAdultPrice && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.extraAdultPrice}</p>}
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-gray-500">Extra Child Price (₹)</label>
-                        <input className="input w-full" type="number" value={editingRoomType.extraChildPrice} onChange={e => setEditingRoomType(prev => ({ ...prev, extraChildPrice: e.target.value }))} />
+                        <input 
+                          className="input w-full" 
+                          type="number" 
+                          value={editingRoomType.extraChildPrice} 
+                          onKeyDown={(e) => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingRoomType(prev => ({ ...prev, extraChildPrice: val }));
+                            if (Number(val) < 0) {
+                              setFieldErrors(prev => ({ ...prev, extraChildPrice: 'Price cannot be negative' }));
+                            } else {
+                              setFieldErrors(prev => { const clone = {...prev}; delete clone.extraChildPrice; return clone; });
+                            }
+                          }}
+                        />
+                        {fieldErrors.extraChildPrice && <p className="text-red-500 text-xs mt-1 font-semibold">{fieldErrors.extraChildPrice}</p>}
                       </div>
                     </div>
 

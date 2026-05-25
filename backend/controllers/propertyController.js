@@ -624,9 +624,50 @@ export const getPublicProperties = async (req, res) => {
       const dynamicTypes = typesList.filter(t => mongoose.Types.ObjectId.isValid(t));
       const staticTypes = typesList.filter(t => !mongoose.Types.ObjectId.isValid(t)).map(t => t.toLowerCase());
 
+      const parentToSubtypesMap = {
+        'office': [
+          'Ready to move office space',
+          'Bare shell office space',
+          'Co-working office space'
+        ],
+        'retail': [
+          'Commercial Shops',
+          'Commercial Showrooms'
+        ],
+        'plot / land': [
+          'Commercial Land/Inst. Land',
+          'Agricultural/Farm Land',
+          'Industrial Lands/Plots'
+        ],
+        'storage': [
+          'Ware House',
+          'Cold Storage'
+        ],
+        'industry': [
+          'Factory',
+          'Manufacturing'
+        ],
+        'hospitality': [
+          'Hotel/Resorts',
+          'Guest-House/Banquet-Halls'
+        ]
+      };
+
+      const expandSubtypes = (list) => {
+        const expanded = [...list];
+        list.forEach(item => {
+          const lower = item.toLowerCase();
+          if (parentToSubtypesMap[lower]) {
+            expanded.push(...parentToSubtypesMap[lower]);
+          }
+        });
+        return expanded;
+      };
+
       if (dynamicTypes.length > 0 && staticTypes.length > 0) {
+        const expandedStaticTypes = expandSubtypes(staticTypes);
         matchConditions.$or = [
-          { propertyType: { $in: staticTypes } },
+          { propertyType: { $in: expandedStaticTypes.map(t => new RegExp('^' + t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i')) } },
           { dynamicCategory: { $in: dynamicTypes.map(id => new mongoose.Types.ObjectId(id)) } }
         ];
       } else if (dynamicTypes.length > 0) {
@@ -666,7 +707,8 @@ export const getPublicProperties = async (req, res) => {
         ];
 
         if (fallbackList.length > 0) {
-          const regexes = fallbackList.map(type => new RegExp('^' + type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+          const expandedFallbackList = expandSubtypes(fallbackList);
+          const regexes = expandedFallbackList.map(type => new RegExp('^' + type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
           orConditions.push({ propertyType: { $in: regexes } });
         }
 
@@ -702,7 +744,8 @@ export const getPublicProperties = async (req, res) => {
         const orConditions = [];
 
         if (fallbackPropertyTypes.size > 0) {
-          const regexes = [...fallbackPropertyTypes].map(type => new RegExp('^' + type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+          const expandedFallbackPropertyTypes = expandSubtypes([...fallbackPropertyTypes]);
+          const regexes = expandedFallbackPropertyTypes.map(type => new RegExp('^' + type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
           orConditions.push({ propertyType: { $in: regexes } });
         }
 
@@ -711,7 +754,8 @@ export const getPublicProperties = async (req, res) => {
         }
 
         if (fallbackStaticTypes.length > 0) {
-          const regexes = fallbackStaticTypes.map(t => new RegExp('^' + t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+          const expandedFallbackStaticTypes = expandSubtypes(fallbackStaticTypes);
+          const regexes = expandedFallbackStaticTypes.map(t => new RegExp('^' + t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
           orConditions.push({ propertyType: { $in: regexes } });
         }
 

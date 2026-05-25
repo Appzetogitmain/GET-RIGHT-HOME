@@ -27,8 +27,9 @@ const pricingFieldsToFilter = [
 const DynamicFormEngine = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { transactionType, category, propertyType, existingProperty } = location.state || {};
+  const { transactionType, category, propertyType, propertySubType, existingProperty } = location.state || {};
   const isEditMode = !!existingProperty;
+  const displayPropertyType = propertySubType || propertyType;
 
   const [loading, setLoading] = useState(true);
   const [template, setTemplate] = useState(null);
@@ -42,7 +43,7 @@ const DynamicFormEngine = () => {
   const [modalBooking, setModalBooking] = useState('');
 
   // Data state
-  const storageKey = `draft_property_${transactionType}_${category}_${propertyType}`;
+  const storageKey = `draft_property_${transactionType}_${category}_${displayPropertyType}`;
   const [formData, setFormData] = useState(() => {
     if (isEditMode) {
       return {
@@ -67,7 +68,7 @@ const DynamicFormEngine = () => {
 
   // Fetch Template
   useEffect(() => {
-    if (!transactionType || !category || !propertyType) {
+    if (!transactionType || !category || !displayPropertyType) {
       navigate('/list-property');
       return;
     }
@@ -75,7 +76,7 @@ const DynamicFormEngine = () => {
     const fetchTemplate = async () => {
       try {
         const res = await api.get(`/property-forms/template`, {
-          params: { transactionType, category, propertyType }
+          params: { transactionType, category, propertyType: displayPropertyType }
         });
         if (res.data.success) {
           // Sort steps
@@ -90,7 +91,7 @@ const DynamicFormEngine = () => {
       }
     };
     fetchTemplate();
-  }, [transactionType, category, propertyType, navigate]);
+  }, [transactionType, category, displayPropertyType, navigate]);
 
   // Persist to local storage
   useEffect(() => {
@@ -169,11 +170,42 @@ const DynamicFormEngine = () => {
         isVisible = formData[field.dependsOn.field] === field.dependsOn.value;
       }
 
-      if (isVisible && field.required) {
+      if (isVisible) {
         const value = formData[field.name];
-        if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
+        const isValEmpty = value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
+
+        if (field.required && isValEmpty) {
           newErrors[field.name] = `${field.label} is required`;
           if (!firstErrorField) firstErrorField = field.name;
+        } else if (!isValEmpty) {
+          // Negative value check for number fields
+          if (field.type === 'number' && Number(value) < 0) {
+            newErrors[field.name] = `${field.label} cannot be negative`;
+            if (!firstErrorField) firstErrorField = field.name;
+          } else if (field.validation) {
+            const { min, max, minLength, maxLength, customErrorMessage } = field.validation;
+            
+            if (field.type === 'number') {
+              const numVal = Number(value);
+              if (min !== undefined && min !== null && numVal < min) {
+                newErrors[field.name] = customErrorMessage || `${field.label} must be at least ${min}`;
+                if (!firstErrorField) firstErrorField = field.name;
+              }
+              if (max !== undefined && max !== null && numVal > max) {
+                newErrors[field.name] = customErrorMessage || `${field.label} must be at most ${max}`;
+                if (!firstErrorField) firstErrorField = field.name;
+              }
+            } else if (typeof value === 'string') {
+              if (minLength !== undefined && minLength !== null && value.length < minLength) {
+                newErrors[field.name] = customErrorMessage || `${field.label} must be at least ${minLength} characters`;
+                if (!firstErrorField) firstErrorField = field.name;
+              }
+              if (maxLength !== undefined && maxLength !== null && value.length > maxLength) {
+                newErrors[field.name] = customErrorMessage || `${field.label} must be at most ${maxLength} characters`;
+                if (!firstErrorField) firstErrorField = field.name;
+              }
+            }
+          }
         }
       }
     });
@@ -243,10 +275,10 @@ const DynamicFormEngine = () => {
     try {
       setLoading(true);
       const payload = {
-        propertyName: formData.propertyName || `${category} ${propertyType} for ${transactionType}`,
+        propertyName: formData.propertyName || `${category} ${displayPropertyType} for ${transactionType}`,
         transactionType,
         propertyCategory: category,
-        propertyType,
+        propertyType: displayPropertyType,
         dynamicCategory: template?._id,
         dynamicData: formData,
         address: {
@@ -294,7 +326,7 @@ const DynamicFormEngine = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4">
         <h2 className="text-xl font-bold mb-4">No Form Configured</h2>
-        <p className="text-gray-500 mb-6 text-center">Admin has not configured the steps for {transactionType} - {category} - {propertyType} yet.</p>
+        <p className="text-gray-500 mb-6 text-center">Admin has not configured the steps for {transactionType} - {category} - {displayPropertyType} yet.</p>
         <button onClick={() => navigate(-1)} className="bg-blue-600 text-white px-6 py-2 rounded-xl">Go Back</button>
       </div>
     );
@@ -328,6 +360,9 @@ const DynamicFormEngine = () => {
             <input
               type="number"
               value={formData[field.name] || ''}
+              onKeyDown={(e) => {
+                if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault();
+              }}
               onChange={(e) => handleChange(field.name, e.target.value)}
               placeholder={field.placeholder || ''}
               className="flex-1 bg-transparent px-4 py-3.5 text-[15px] outline-none border-none"
@@ -368,6 +403,11 @@ const DynamicFormEngine = () => {
             <input
               type={field.type}
               value={formData[field.name] || ''}
+              onKeyDown={(e) => {
+                if (field.type === 'number' && (e.key === '-' || e.key === '+' || e.key === 'e')) {
+                  e.preventDefault();
+                }
+              }}
               onChange={(e) => handleChange(field.name, e.target.value)}
               placeholder={field.placeholder || ''}
               className={`w-full bg-white border rounded-xl px-4 py-3.5 text-[15px] outline-none transition-all ${

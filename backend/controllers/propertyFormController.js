@@ -489,11 +489,38 @@ export const seedTemplatesController = async (req, res) => {
 // Get a specific template based on transaction, category, and property type
 export const getTemplate = async (req, res) => {
     try {
-        const { transactionType, category, propertyType } = req.query;
+        let { transactionType, category, propertyType } = req.query;
 
         // If not specific enough, return list of available combinations or error
         if (!transactionType || !category || !propertyType) {
             return res.status(400).json({ success: false, message: "Missing required query parameters: transactionType, category, propertyType" });
+        }
+
+        const commercialSubtypeMap = {
+          // Office
+          'Ready to move office space': 'Office',
+          'Bare shell office space': 'Office',
+          'Co-working office space': 'Office',
+          // Retail
+          'Commercial Shops': 'Retail',
+          'Commercial Showrooms': 'Retail',
+          // Plot / Land
+          'Commercial Land/Inst. Land': 'Plot / Land',
+          'Agricultural/Farm Land': 'Plot / Land',
+          'Industrial Lands/Plots': 'Plot / Land',
+          // Storage
+          'Ware House': 'Storage',
+          'Cold Storage': 'Storage',
+          // Industry
+          'Factory': 'Industry',
+          'Manufacturing': 'Industry',
+          // Hospitality
+          'Hotel/Resorts': 'Hospitality',
+          'Guest-House/Banquet-Halls': 'Hospitality'
+        };
+
+        if (commercialSubtypeMap[propertyType]) {
+          propertyType = commercialSubtypeMap[propertyType];
         }
 
         const template = await PropertyFormTemplate.findOne({ 
@@ -572,5 +599,127 @@ export const getAvailableConfigurations = async (req, res) => {
         res.status(200).json({ success: true, configs });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Admin: Create blank configuration combination
+export const createTemplateCombination = async (req, res) => {
+    try {
+        const { transactionType, category, propertyType } = req.body;
+        if (!transactionType || !category || !propertyType) {
+            return res.status(400).json({ success: false, message: "Missing required fields: transactionType, category, propertyType" });
+        }
+        const exists = await PropertyFormTemplate.findOne({ transactionType, category, propertyType });
+        if (exists) {
+            return res.status(400).json({ success: false, message: "This combination already exists" });
+        }
+        const newTemplate = new PropertyFormTemplate({
+            transactionType,
+            category,
+            propertyType,
+            steps: [
+                { stepNumber: 1, title: 'Basic Info', fields: [] },
+                { stepNumber: 2, title: 'Property Details', fields: [] },
+                { stepNumber: 3, title: 'Location Details', fields: [] },
+                { stepNumber: 4, title: 'Amenities & Features', fields: [] }
+            ]
+        });
+        await newTemplate.save();
+        res.status(201).json({ success: true, template: newTemplate, message: "Configuration created successfully." });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Admin: Rename Level 1 Category (Transaction Type)
+export const renameTransactionType = async (req, res) => {
+    try {
+        const { oldName, newName } = req.body;
+        if (!oldName || !newName) {
+            return res.status(400).json({ success: false, message: "Missing oldName or newName" });
+        }
+        await PropertyFormTemplate.updateMany(
+            { transactionType: oldName },
+            { $set: { transactionType: newName } }
+        );
+        res.status(200).json({ success: true, message: "Category renamed successfully." });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Admin: Delete Level 1 Category
+export const deleteTransactionType = async (req, res) => {
+    try {
+        const { transactionType } = req.body;
+        if (!transactionType) {
+            return res.status(400).json({ success: false, message: "Missing transactionType" });
+        }
+        await PropertyFormTemplate.deleteMany({ transactionType });
+        res.status(200).json({ success: true, message: "Category and all its child forms deleted." });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Admin: Rename Level 2 Sub-category (Category)
+export const renameCategory = async (req, res) => {
+    try {
+        const { transactionType, oldCategory, newCategory } = req.body;
+        if (!transactionType || !oldCategory || !newCategory) {
+            return res.status(400).json({ success: false, message: "Missing transactionType, oldCategory or newCategory" });
+        }
+        await PropertyFormTemplate.updateMany(
+            { transactionType, category: oldCategory },
+            { $set: { category: newCategory } }
+        );
+        res.status(200).json({ success: true, message: "Sub-category renamed successfully." });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Admin: Delete Level 2 Sub-category
+export const deleteCategory = async (req, res) => {
+    try {
+        const { transactionType, category } = req.body;
+        if (!transactionType || !category) {
+            return res.status(400).json({ success: false, message: "Missing transactionType or category" });
+        }
+        await PropertyFormTemplate.deleteMany({ transactionType, category });
+        res.status(200).json({ success: true, message: "Sub-category and all its child forms deleted." });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Admin: Rename Level 3 Property Type
+export const renamePropertyType = async (req, res) => {
+    try {
+        const { transactionType, category, oldPropertyType, newPropertyType } = req.body;
+        if (!transactionType || !category || !oldPropertyType || !newPropertyType) {
+            return res.status(400).json({ success: false, message: "Missing transactionType, category, oldPropertyType or newPropertyType" });
+        }
+        await PropertyFormTemplate.updateMany(
+            { transactionType, category, propertyType: oldPropertyType },
+            { $set: { propertyType: newPropertyType } }
+        );
+        res.status(200).json({ success: true, message: "Property type renamed successfully." });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Admin: Delete Level 3 Property Type
+export const deletePropertyType = async (req, res) => {
+    try {
+        const { transactionType, category, propertyType } = req.body;
+        if (!transactionType || !category || !propertyType) {
+            return res.status(400).json({ success: false, message: "Missing transactionType, category or propertyType" });
+        }
+        await PropertyFormTemplate.deleteMany({ transactionType, category, propertyType });
+        res.status(200).json({ success: true, message: "Property type template deleted." });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };

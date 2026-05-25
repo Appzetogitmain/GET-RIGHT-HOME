@@ -82,6 +82,7 @@ const AdminLayout = () => {
                 { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
                 { icon: Home, label: 'Property Management', path: '/admin/properties' },
                 { icon: LayoutGrid, label: 'Categories', path: '/admin/categories' },
+                { icon: FileText, label: 'Property Form CMS', path: '/admin/property-forms' },
                 { icon: MapPin, label: 'Location Manager', path: '/admin/locations' },
                 { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' },
                 { icon: ImageIcon, label: 'Banner Management', path: '/admin/banners' },

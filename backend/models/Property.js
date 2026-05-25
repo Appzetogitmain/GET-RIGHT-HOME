@@ -22,13 +22,11 @@ const propertySchema = new mongoose.Schema({
   
   transactionType: {
     type: String,
-    enum: ["Sell", "Rent", "PG", "Rent / Lease", "Paying Guest"], // Supported transaction types
     required: false // Optional for now to not break existing data
   },
   
   propertyCategory: {
     type: String,
-    enum: ["Residential", "Commercial"], // Core top-level categories
     required: false
   },
 

@@ -1249,6 +1249,45 @@ const PropertyDetailsPage = () => {
                 </div>
               )}
 
+              {/* Dynamic Property Details (from dynamicData) */}
+              {property.dynamicData && Object.keys(property.dynamicData).some(key => 
+                !['propertyName', 'description', 'images', 'coverImage', 'propertyImages', 'address', 'availability', 'dynamicCategory', 'transactionType', 'propertyCategory', 'propertyType', 'status', 'nearbyPlaces', 'amenities', 'country', 'state', 'district', 'city', 'locality', 'houseNumber', 'pincode', 'expectedPrice', 'monthlyRent', 'expectedRent', 'price', 'detailsOfProperty'].includes(key)
+              ) && (
+                <div className="mb-8 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    📋 Property Specifications
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-5 text-sm">
+                    {Object.entries(property.dynamicData)
+                      .filter(([key]) => !['propertyName', 'description', 'images', 'coverImage', 'propertyImages', 'address', 'availability', 'dynamicCategory', 'transactionType', 'propertyCategory', 'propertyType', 'status', 'nearbyPlaces', 'amenities', 'country', 'state', 'district', 'city', 'locality', 'houseNumber', 'pincode', 'expectedPrice', 'monthlyRent', 'expectedRent', 'price', 'detailsOfProperty'].includes(key))
+                      .map(([key, val]) => {
+                        if (val === undefined || val === null || val === '') return null;
+                        
+                        // Format key to start-case
+                        const formattedKey = key
+                          .replace(/([A-Z])/g, ' $1')
+                          .replace(/^./, str => str.toUpperCase())
+                          .trim();
+
+                        // Format value
+                        let formattedVal = val;
+                        if (typeof val === 'boolean') {
+                          formattedVal = val ? 'Yes' : 'No';
+                        } else if (Array.isArray(val)) {
+                          formattedVal = val.join(', ');
+                        }
+
+                        return (
+                          <div key={key} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex flex-col">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">{formattedKey}</span>
+                            <span className="font-semibold text-slate-800 text-sm line-clamp-2">{String(formattedVal)}</span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
               {/* Buy Details */}
               {propertyType === 'Buy' && buyDetails && (
                 <div className="mb-8 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
