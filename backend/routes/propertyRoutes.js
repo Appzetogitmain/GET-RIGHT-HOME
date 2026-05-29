@@ -15,13 +15,15 @@ import {
   getRecommendedSellers,
   getAdminPropertiesByLocation,
   getAdminPropertyCities,
-  getPropertyStats
+  getPropertyStats,
+  debugProperties
 } from '../controllers/propertyController.js';
 
 
 const router = express.Router();
 
 router.get('/', getPublicProperties);
+router.get('/debug-data', debugProperties); // TEMP - remove after debugging
 router.get('/recommended-sellers', getRecommendedSellers);
 router.get('/admin-added', getAdminPropertiesByLocation);
 router.get('/admin-cities', getAdminPropertyCities);

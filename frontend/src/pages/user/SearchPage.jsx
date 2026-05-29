@@ -7,6 +7,65 @@ import { toast } from 'react-hot-toast';
 import PropertyCard from '../../components/user/PropertyCard';
 import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
 import { locationData, bengaluruAreas } from '../../data/locationData';
+const getAvailablePropertyTypes = (category, subCategory) => {
+    if (category === 'Paying Guest') {
+        return [
+            'Apartment',
+            'Independent House / Villa',
+            'Builder Floor',
+            '1 RK / Studio Apartment',
+            'Serviced Apartment',
+            'Hostel'
+        ];
+    }
+    if (category === 'Rent / Lease') {
+        if (subCategory === 'Commercial') {
+            return [
+                'Office',
+                'Retail',
+                'Industry',
+                'Storage',
+                'Hospitality',
+                'Plot / Land',
+                'Other'
+            ];
+        }
+        // Residential Rent
+        return [
+            'Apartment',
+            'Independent House / Villa',
+            'Builder Floor',
+            '1 RK / Studio Apartment',
+            'Serviced Apartment',
+            'Farmhouse',
+            'Other'
+        ];
+    }
+    // Sell (Buy) category
+    if (subCategory === 'Commercial') {
+        return [
+            'Office',
+            'Retail',
+            'Industry',
+            'Storage',
+            'Hospitality',
+            'Plot / Land',
+            'Other'
+        ];
+    }
+    // Sell Residential (default)
+    return [
+        'Apartment',
+        'Independent House / Villa',
+        'Builder Floor',
+        '1 RK / Studio Apartment',
+        'Serviced Apartment',
+        'Farmhouse',
+        'Plot / Land',
+        'Other'
+    ];
+};
+
 const SearchPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -62,11 +121,18 @@ const SearchPage = () => {
 
         landTypeFromUrl.forEach(v => amsFromUrl.push(v));
 
+        const initialPropertyTypes = [];
         subTypeFromUrl.forEach(v => {
-            const matched = ['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'].find(
-                opt => opt.toLowerCase() === v.toLowerCase()
-            );
-            if (matched) amsFromUrl.push(matched);
+            const matched = [
+                'Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 
+                'Serviced Apartment', 'Farmhouse', 'Plot / Land', 'Office', 'Retail', 
+                'Industry', 'Storage', 'Hospitality', 'Other'
+            ].find(opt => opt.toLowerCase() === v.toLowerCase());
+            if (matched) {
+                initialPropertyTypes.push(matched);
+            } else {
+                initialPropertyTypes.push(v);
+            }
         });
 
         availabilityFromUrl.forEach(v => {
@@ -76,15 +142,19 @@ const SearchPage = () => {
         });
 
         const typeVal = searchParams.get('type') || 'all';
-        const pCategory = searchParams.get('propertyCategory') || 'Residential';
+        // Only read propertyCategory from URL if explicitly set (don't default to Residential)
+        const pCategory = searchParams.get('propertyCategory') || '';
+        const transactionTypeVal = searchParams.get('transactionType') || '';
 
-        let categoryTab = 'Buy';
-        if (pCategory.toLowerCase() === 'commercial') {
-            categoryTab = 'Commercial';
-        } else if (typeVal.includes('rent') || typeVal.includes('pg') || typeVal.includes('hostel')) {
-            categoryTab = 'Rent/PG';
+        let categoryTab = 'Sell';
+        if (transactionTypeVal) {
+            categoryTab = transactionTypeVal;
+        } else if (typeVal.toLowerCase().includes('pg') || typeVal.toLowerCase().includes('hostel')) {
+            categoryTab = 'Paying Guest';
+        } else if (typeVal.toLowerCase().includes('rent')) {
+            categoryTab = 'Rent / Lease';
         } else {
-            categoryTab = 'Buy';
+            categoryTab = 'Sell';
         }
 
         const areasFromUrl = searchParams.get('areas')?.split(',').filter(Boolean) || [];
@@ -92,12 +162,13 @@ const SearchPage = () => {
         return {
             search: searchParams.get('search') || '',
             type: typeVal,
-            propertyCategory: pCategory,
+            propertyCategory: pCategory || 'Residential',
             categoryTab,
             minPrice: searchParams.get('minPrice') || '',
             maxPrice: searchParams.get('maxPrice') || '',
             sort: searchParams.get('sort') || 'newest',
             amenities: [...new Set(amsFromUrl)],
+            propertyTypes: initialPropertyTypes,
             radius: parseInt(searchParams.get('radius')) || 50,
             foodIncluded: searchParams.get('foodIncluded') === 'true',
             city: searchParams.get('city') || '',
@@ -146,50 +217,61 @@ const SearchPage = () => {
                 if (res.data) {
                     const categories = res.data;
 
-                    const findId = (names) => {
+                    const findIds = (names) => {
                         const searchNames = Array.isArray(names) ? names : [names];
-                        const found = categories.find(c =>
-                            searchNames.some(n =>
-                                (c.displayName || '').toLowerCase() === n.toLowerCase() ||
-                                (c.name || '').toLowerCase() === n.toLowerCase()
-                            )
-                        );
-                        return found ? found._id : null;
+                        const found = categories.filter(c => {
+                            const displayName = (c.displayName || '').toLowerCase();
+                            const name = (c.name || '').toLowerCase();
+                            return searchNames.some(n => {
+                                const target = n.toLowerCase();
+                                return displayName === target || name === target ||
+                                       displayName.includes(target) || name.includes(target);
+                            });
+                        });
+                        return found.map(c => c._id).join(',');
                     };
+
+                    const pgId = findIds(['pg', 'hostel', 'pg/co-living', 'co-living', 'paying guest', 'co-livinig']) || 'pg';
+                    const rentId = findIds('rent') || 'rent';
+                    const buyId = findIds('buy') || 'buy';
+                    const plotId = findIds(['plot', 'plots']) || 'plot';
 
                     const updatedTypes = [
                         { id: 'all', label: 'All' },
-                        { id: findId(['pg', 'hostel', 'pg/co-living', 'co-living', 'paying guest']) || 'pg', label: 'PG' },
-                        { id: findId('rent') || 'rent', label: 'Rent' },
-                        { id: findId('buy') || 'buy', label: 'Buy' },
-                        { id: findId(['plot', 'plots']) || 'plot', label: 'Plot' }
+                        { id: pgId, label: 'PG' },
+                        { id: rentId, label: 'Rent' },
+                        { id: buyId, label: 'Buy' },
+                        { id: plotId, label: 'Plot' }
                     ];
 
                     setPropertyTypes(updatedTypes);
+
+                    // Check typeVal in URL and resolve categoryTab
+                    const typeVal = searchParams.get('type') || 'all';
+                    const transactionTypeVal = searchParams.get('transactionType') || '';
+                    if (typeVal !== 'all' && !transactionTypeVal) {
+                        let resolvedTab = 'Sell';
+                        if (typeVal === pgId || typeVal.toLowerCase().includes('pg') || typeVal.toLowerCase().includes('hostel')) {
+                            resolvedTab = 'Paying Guest';
+                        } else if (typeVal === rentId || typeVal.toLowerCase().includes('rent')) {
+                            resolvedTab = 'Rent / Lease';
+                        } else if (typeVal === buyId || typeVal === plotId) {
+                            resolvedTab = 'Sell';
+                        }
+                        setFilters(prev => ({ ...prev, categoryTab: resolvedTab }));
+                    }
                 }
             } catch (err) {
                 console.warn("Failed to fetch dynamic categories:", err);
             }
         };
         fetchCategories();
-    }, []);
+    }, [searchParams]);
 
     const getAmenitiesOptions = () => {
-        const currentType = Array.isArray(filters.type) ? filters.type[0] : filters.type;
-        if (!currentType || currentType === 'all') return ['Wi-Fi', 'AC', 'Parking', 'Kitchen', 'Geyser', 'Power Backup'];
-
-        const typeObj = propertyTypes.find(t => {
-            if (t.id === currentType) return true;
-            if (t.id && currentType) {
-                const tIds = String(t.id).split(',').map(id => id.trim());
-                const cIds = String(currentType).split(',').map(id => id.trim());
-                return tIds.some(id => cIds.includes(id)) || cIds.some(id => tIds.includes(id));
-            }
-            return false;
-        });
-        const label = typeObj ? typeObj.label.toLowerCase() : '';
-
-        if (label.includes('pg') || label.includes('hostel')) {
+        const cat = filters.categoryTab;
+        
+        if (cat === 'Paying Guest') {
             return [
                 'Boys Only', 'Girls Only', 'Coliving',
                 'Single Occupancy', 'Double Occupancy', 'Triple Occupancy',
@@ -197,7 +279,7 @@ const SearchPage = () => {
                 'RO Water', 'Gym', 'Lift', 'Power Backup', 'Geyser', 'Fridge', 'Parking', 'TV', 'Kitchen'
             ];
         }
-        if (label.includes('rent')) {
+        if (cat === 'Rent / Lease') {
             return [
                 '1 BHK', '2 BHK', '3 BHK', 'Villa', 'Studio',
                 'Fully Furnished', 'Semi Furnished', 'Unfurnished',
@@ -205,25 +287,18 @@ const SearchPage = () => {
                 'Gym', 'Garden', 'Balcony', 'Modular Kitchen', 'Air Conditioning'
             ];
         }
-        if (label.includes('buy')) {
+        if (cat === 'Sell') {
             return [
-                'Apartment', 'Villa', 'Independent House',
-                'Ready to Move', 'Under Construction',
+                'Ready to Move', 'Under Construction', 'Pre Launch',
                 'East Facing', 'West Facing', 'North Facing', 'South Facing',
                 'Lift', 'Parking', 'Power Backup', 'Water Supply', 'Security Guard', 'CCTV',
                 'Gym', 'Garden', 'Balcony', 'Modular Kitchen', 'Air Conditioning', 'Club House'
             ];
         }
-        if (label.includes('plot')) {
-            return [
-                'Residential', 'Commercial', 'Agricultural', 'Industrial',
-                'East Facing', 'West Facing', 'North Facing', 'South Facing',
-                'Boundary Wall', 'Gated Community', 'Red Soil', 'Black Soil', 'Electricity Available', 'Water Source'
-            ];
-        }
 
         return ['Wi-Fi', 'AC', 'Parking', 'Kitchen', 'Geyser', 'Power Backup'];
     };
+
 
     useEffect(() => {
         fetchProperties();
@@ -278,8 +353,37 @@ const SearchPage = () => {
     const getParamsFromFilters = (targetFilters) => {
         const params = {};
         if (targetFilters.search) params.search = targetFilters.search;
-        if (targetFilters.type && targetFilters.type !== 'all') params.type = targetFilters.type;
-        if (targetFilters.propertyCategory && targetFilters.propertyCategory !== 'Residential') params.propertyCategory = targetFilters.propertyCategory;
+        
+        // Map categoryTab to transactionType & dynamic type ID
+        if (targetFilters.categoryTab) {
+            params.transactionType = targetFilters.categoryTab;
+            if (targetFilters.categoryTab === 'Paying Guest') {
+                const pgIdObj = propertyTypes.find(t => t.label === 'PG');
+                params.type = pgIdObj && pgIdObj.id !== 'pg' ? pgIdObj.id : 'pg';
+            } else if (targetFilters.categoryTab === 'Rent / Lease') {
+                const rentIdObj = propertyTypes.find(t => t.label === 'Rent');
+                params.type = rentIdObj && rentIdObj.id !== 'rent' ? rentIdObj.id : 'rent';
+            } else {
+                const isPlot = targetFilters.propertyTypes && (
+                    targetFilters.propertyTypes.includes('Plot / Land') ||
+                    targetFilters.propertyTypes.includes('Plot')
+                );
+                if (isPlot) {
+                    const plotIdObj = propertyTypes.find(t => t.label === 'Plot');
+                    params.type = plotIdObj && plotIdObj.id !== 'plot' ? plotIdObj.id : 'plot';
+                } else {
+                    const buyIdObj = propertyTypes.find(t => t.label === 'Buy');
+                    params.type = buyIdObj && buyIdObj.id !== 'buy' ? buyIdObj.id : 'buy';
+                }
+            }
+        }
+
+        // Only send propertyCategory to backend when user explicitly chose 'Commercial'
+        // Many properties may not have propertyCategory field set, so never filter by 'Residential' (the default)
+        if (targetFilters.propertyCategory && targetFilters.propertyCategory === 'Commercial') {
+            params.propertyCategory = targetFilters.propertyCategory;
+        }
+
         if (targetFilters.minPrice) params.minPrice = targetFilters.minPrice;
         if (targetFilters.maxPrice) params.maxPrice = targetFilters.maxPrice;
         if (targetFilters.sort) params.sort = targetFilters.sort;
@@ -298,16 +402,12 @@ const SearchPage = () => {
         const genders = [];
         const occupancies = [];
         const landTypes = [];
-        const subTypes = [];
+        const subTypes = [...(targetFilters.propertyTypes || [])];
         const availabilities = [];
 
         targetFilters.amenities.forEach(am => {
-            // SubTypes mapping
-            if (['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'].includes(am)) {
-                subTypes.push(am);
-            }
             // Availability mapping
-            else if (am === 'Ready to Move') {
+            if (am === 'Ready to Move') {
                 availabilities.push('Ready to move');
             } else if (am === 'Under Construction') {
                 availabilities.push('Under construction');
@@ -510,23 +610,70 @@ const SearchPage = () => {
                     <div className="mt-1 md:mt-0 -mx-4 border-t border-gray-50/50">
                         <PropertyTypeFilter
                             selectedType={Array.isArray(filters.type) ? filters.type[0] : filters.type}
-                            onSelectType={(type) => {
+                            onSelectType={(type, label) => {
                                 if (type === 'homeservice') {
                                     navigate('/home-services');
                                     return;
                                 }
-                                const newType = (!type || type === 'All') ? 'all' : type;
-                                setFilters(prev => ({ ...prev, type: newType, amenities: [] }));
+                                const newType = (!type || label === 'All') ? 'all' : type;
 
-                                // Immediately apply and search
-                                const params = { ...Object.fromEntries([...searchParams]) };
-                                if (newType === 'all') {
-                                    delete params.type;
+                                // Build new URL params starting from search/location/sort, clearing conflicts
+                                const params = {};
+                                const currentParams = Object.fromEntries([...searchParams]);
+                                if (currentParams.search) params.search = currentParams.search;
+                                if (currentParams.sort) params.sort = currentParams.sort;
+                                if (currentParams.city) params.city = currentParams.city;
+                                if (currentParams.areas) params.areas = currentParams.areas;
+
+                                let categoryTab = 'Sell';
+                                let propertyCategory = 'Residential';
+                                let propertyTypes = [];
+
+                                if (label === 'PG' || label === 'PG/Co-Living') {
+                                    categoryTab = 'Paying Guest';
+                                    propertyCategory = 'Residential';
+                                    // Don't send propertyCategory to URL - it will filter out properties with null category
+                                    params.transactionType = 'Paying Guest';
+                                    if (type && type !== 'pg') params.type = type; // Only send if it's a real ObjectId
+                                } else if (label === 'Rent') {
+                                    categoryTab = 'Rent / Lease';
+                                    propertyCategory = 'Residential';
+                                    params.transactionType = 'Rent / Lease';
+                                    if (type && type !== 'rent') params.type = type;
+                                } else if (label === 'Buy') {
+                                    categoryTab = 'Sell';
+                                    propertyCategory = 'Residential';
+                                    params.transactionType = 'Sell';
+                                    if (type && type !== 'buy') params.type = type;
+                                } else if (label === 'Plot') {
+                                    categoryTab = 'Sell';
+                                    propertyCategory = 'Residential';
+                                    propertyTypes = ['Plot / Land'];
+                                    // Send multiple plot-related subType variants to be more inclusive
+                                    params.subType = 'Plot / Land,Plot,Plots,plot,plot / land';
+                                    if (type && type !== 'plot') params.type = type;
                                 } else {
-                                    params.type = newType;
+                                    // All - clear everything
+                                    categoryTab = 'Sell';
+                                    propertyCategory = 'Residential';
                                 }
-                                // Clear amenities from URL when switching type
-                                delete params.amenities;
+
+                                setFilters(prev => ({
+                                    ...prev,
+                                    categoryTab,
+                                    propertyCategory,
+                                    propertyTypes,
+                                    type: newType,
+                                    amenities: [],
+                                    minPrice: '',
+                                    maxPrice: '',
+                                    minArea: '',
+                                    maxArea: '',
+                                    bathrooms: 0,
+                                    postedBy: '',
+                                    purchaseType: ''
+                                }));
+
                                 setSearchParams(params);
                             }}
                         />
@@ -639,25 +786,31 @@ const SearchPage = () => {
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Category</label>
                             <div className="flex bg-gray-100 rounded-xl p-1">
-                                {['Buy', 'Rent/PG', 'Commercial'].map(tab => (
+                                {['Sell', 'Rent / Lease', 'Paying Guest'].map(tab => (
                                     <button
                                         key={tab}
                                         onClick={() => {
                                             setFilters(prev => {
-                                                let nextType = 'buy';
-                                                let nextPC = 'Residential';
-                                                if (tab === 'Rent/PG') {
-                                                    nextType = 'rent';
-                                                } else if (tab === 'Commercial') {
-                                                    nextPC = 'Commercial';
-                                                    nextType = 'buy';
+                                                const nextPC = tab === 'Paying Guest' ? 'Residential' : prev.propertyCategory;
+                                                // Use dynamic category IDs from propertyTypes state
+                                                let nextType = 'all';
+                                                if (tab === 'Paying Guest') {
+                                                    const pgObj = propertyTypes.find(t => t.label === 'PG');
+                                                    nextType = pgObj ? pgObj.id : 'pg';
+                                                } else if (tab === 'Rent / Lease') {
+                                                    const rentObj = propertyTypes.find(t => t.label === 'Rent');
+                                                    nextType = rentObj ? rentObj.id : 'rent';
+                                                } else {
+                                                    // Sell - use Buy dynamic ID
+                                                    const buyObj = propertyTypes.find(t => t.label === 'Buy');
+                                                    nextType = buyObj ? buyObj.id : 'buy';
                                                 }
                                                 return {
                                                     ...prev,
                                                     categoryTab: tab,
                                                     type: nextType,
                                                     propertyCategory: nextPC,
-                                                    amenities: []
+                                                    propertyTypes: []
                                                 };
                                             });
                                         }}
@@ -673,60 +826,37 @@ const SearchPage = () => {
                             </div>
                         </div>
 
-                        {/* 2. Looking to sub-toggle */}
-                        {filters.categoryTab === 'Rent/PG' && (
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Looking to</label>
-                                <div className="flex gap-2">
-                                    {[
-                                        { id: 'rent', label: 'Rent' },
-                                        { id: 'pg', label: 'PG / Co-living' }
-                                    ].map(opt => {
-                                        const isSelected = filters.type === opt.id || (opt.id === 'pg' && ['pg', 'hostel'].includes(filters.type));
-                                        return (
-                                            <button
-                                                key={opt.id}
-                                                onClick={() => updateFilter('type', opt.id)}
-                                                className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all
-                                                    ${isSelected
-                                                        ? 'bg-surface/10 text-surface border-surface'
-                                                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                                                    }`}
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                        {/* 2. Sub-category (Residential / Commercial) */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Sub-category</label>
+                            <div className="flex bg-gray-100 rounded-xl p-1">
+                                {['Residential', 'Commercial'].map(subCat => {
+                                    const isPG = filters.categoryTab === 'Paying Guest';
+                                    const disabled = isPG && subCat === 'Commercial';
+                                    return (
+                                        <button
+                                            key={subCat}
+                                            disabled={disabled}
+                                            onClick={() => {
+                                                setFilters(prev => ({
+                                                    ...prev,
+                                                    propertyCategory: subCat,
+                                                    propertyTypes: []
+                                                }));
+                                            }}
+                                            className={`flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all
+                                                ${disabled ? 'opacity-40 cursor-not-allowed text-gray-400' : ''}
+                                                ${!disabled && filters.propertyCategory === subCat
+                                                    ? 'bg-surface text-white shadow-sm'
+                                                    : 'text-gray-500 hover:text-gray-800'
+                                                }`}
+                                        >
+                                            {subCat}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                        )}
-
-                        {filters.categoryTab === 'Commercial' && (
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Looking to</label>
-                                <div className="flex gap-2">
-                                    {[
-                                        { id: 'buy', label: 'Commercial Buy' },
-                                        { id: 'rent', label: 'Commercial Lease' }
-                                    ].map(opt => {
-                                        const isSelected = filters.type === opt.id;
-                                        return (
-                                            <button
-                                                key={opt.id}
-                                                onClick={() => updateFilter('type', opt.id)}
-                                                className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all
-                                                    ${isSelected
-                                                        ? 'bg-surface/10 text-surface border-surface'
-                                                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                                                    }`}
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
+                        </div>
 
                         {/* 3. Localities / Areas Multi-select */}
                         <div>
@@ -846,19 +976,17 @@ const SearchPage = () => {
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Property Type</label>
                             <div className="flex flex-wrap gap-1.5">
-                                {[
-                                    'Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse',
-                                    'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'
-                                ].map((subType) => {
-                                    const isSelected = filters.amenities.includes(subType);
+                                {getAvailablePropertyTypes(filters.categoryTab, filters.propertyCategory).map((subType) => {
+                                    const isSelected = (filters.propertyTypes || []).includes(subType);
                                     return (
                                         <button
                                             key={subType}
                                             onClick={() => {
-                                                const newAmenities = isSelected
-                                                    ? filters.amenities.filter(a => a !== subType)
-                                                    : [...filters.amenities, subType];
-                                                updateFilter('amenities', newAmenities);
+                                                const currentTypes = filters.propertyTypes || [];
+                                                const newTypes = isSelected
+                                                    ? currentTypes.filter(t => t !== subType)
+                                                    : [...currentTypes, subType];
+                                                updateFilter('propertyTypes', newTypes);
                                             }}
                                             className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all
                                             ${isSelected

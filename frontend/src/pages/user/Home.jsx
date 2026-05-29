@@ -77,7 +77,7 @@ const Home = () => {
                 };
 
                 setSectionIds({
-                    pg: findCategoryIds(['hostel', 'pg', 'pg/co-living', 'co-living', 'pg/co-livinig']),
+                    pg: findCategoryIds(['hostel', 'pg', 'pg/co-living', 'co-living', 'pg/co-livinig', 'paying guest']),
                     rent: findCategoryIds('Rent'),
                     buy: findCategoryIds('Buy'),
                     plot: findCategoryIds(['Plot', 'Plots'])
@@ -219,17 +219,17 @@ const Home = () => {
 
                         <GRHHomeSection
                             title="Under Construction Properties"
-                            subtitle="Best prices • Flexible payment • Future value appreciation"
+                            subtitle="Competitive Pricing • Adaptive Payment Schedules • High Value Growth"
                             availabilityFilter="Under construction"
                         />
                         <GRHHomeSection
                             title="Pre Launch Properties"
-                            subtitle="Best prices • Early bird offers • Premium units"
+                            subtitle="Early-Stage Rates • Exclusive Launch Offers • Select Premium Units"
                             availabilityFilter="Pre Launch"
                         />
                         <GRHHomeSection
                             title="Ready to Move Properties"
-                            subtitle="Move in immediately • Possession ready • No waiting"
+                            subtitle="Immediate Occupancy • Verified Clear Titles • Ready-to-Move Residences"
                             availabilityFilter="Ready to move"
                         />
                     </div>

@@ -563,7 +563,37 @@ export const upsertDocuments = async (req, res) => {
   }
 };
 
+// TEMP DEBUG - Remove after debugging
+export const debugProperties = async (req, res) => {
+  try {
+    const cats = await PropertyCategory.find({}).lean();
+    const props = await Property.find({}).select('propertyName propertyType transactionType propertyCategory dynamicCategory status isLive').lean();
+    const statusBreakdown = {};
+    props.forEach(p => {
+      const key = `status:${p.status}|isLive:${p.isLive}`;
+      statusBreakdown[key] = (statusBreakdown[key] || 0) + 1;
+    });
+    res.json({
+      categories: cats.map(c => ({ id: c._id, name: c.name, displayName: c.displayName, isActive: c.isActive })),
+      totalProperties: props.length,
+      statusBreakdown,
+      approvedLive: props.filter(p => p.status === 'approved' && p.isLive).map(p => ({
+        name: p.propertyName, propertyType: p.propertyType, transactionType: p.transactionType,
+        propertyCategory: p.propertyCategory, dynamicCategory: p.dynamicCategory
+      })),
+      allProperties: props.map(p => ({
+        name: p.propertyName, status: p.status, isLive: p.isLive,
+        propertyType: p.propertyType, transactionType: p.transactionType,
+        propertyCategory: p.propertyCategory, dynamicCategory: p.dynamicCategory
+      }))
+    });
+  } catch(e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
 export const getPublicProperties = async (req, res) => {
+
   try {
     const {
       search,
@@ -594,6 +624,7 @@ export const getPublicProperties = async (req, res) => {
       postedBy,
       purchaseType,
       propertyCategory,
+      transactionType,
       areas
     } = req.query;
 
@@ -771,7 +802,10 @@ export const getPublicProperties = async (req, res) => {
         { propertyName: regex },
         { "address.city": regex },
         { "address.area": regex },
-        { "address.fullAddress": regex }
+        { "address.fullAddress": regex },
+        { propertyType: regex },
+        { transactionType: regex },
+        { propertyCategory: regex }
       ];
 
       if (matchConditions.$or) {
@@ -839,9 +873,38 @@ export const getPublicProperties = async (req, res) => {
       matchConditions['plotDetails.landType'] = { $in: landList };
     }
 
-    if (propertyCategory) {
-      const catRegex = new RegExp('^' + propertyCategory.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
-      matchConditions.propertyCategory = catRegex;
+    if (propertyCategory && propertyCategory !== 'all') {
+      if (propertyCategory.toLowerCase() === 'commercial') {
+        // Strict filter for Commercial
+        matchConditions.propertyCategory = /^Commercial$/i;
+      } else if (propertyCategory.toLowerCase() === 'residential') {
+        // For Residential, include properties with null/missing propertyCategory (likely residential)
+        const residentialCondition = {
+          $or: [
+            { propertyCategory: /^Residential$/i },
+            { propertyCategory: { $exists: false } },
+            { propertyCategory: null },
+            { propertyCategory: '' }
+          ]
+        };
+        if (matchConditions.$and) {
+          matchConditions.$and.push(residentialCondition);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, residentialCondition];
+        } else {
+          matchConditions.$or = residentialCondition.$or;
+        }
+      }
+    }
+
+    // Only apply transactionType direct filter when type is NOT a dynamic ObjectId
+    // (dynamic ObjectId resolution already includes transactionType in the $or conditions)
+    const typeHasDynamicId = type && type !== 'all' && type.split(',').some(t => mongoose.Types.ObjectId.isValid(t.trim()));
+    if (transactionType && transactionType !== 'all' && !typeHasDynamicId) {
+      const txnRegex = new RegExp('^' + transactionType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
+      matchConditions.transactionType = txnRegex;
     }
 
     if (req.query.foodIncluded === 'true') {
@@ -851,7 +914,12 @@ export const getPublicProperties = async (req, res) => {
     if (subType) {
       const subTypeList = subType.split(',').map(s => s.trim()).filter(Boolean);
       if (subTypeList.length > 0) {
-        const subTypeRegexes = subTypeList.map(s => new RegExp('^' + s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+        const subTypeRegexes = subTypeList.map(s => {
+          const escaped = s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          // Replace escaped slash with flexible spacing regex
+          const flexSlash = escaped.replace(/\\\/|\\s\*\\\/\\s\*/g, '\\s*\\/\\s*');
+          return new RegExp('^' + flexSlash + '$', 'i');
+        });
         matchConditions.propertyType = { $in: subTypeRegexes };
       }
     }
