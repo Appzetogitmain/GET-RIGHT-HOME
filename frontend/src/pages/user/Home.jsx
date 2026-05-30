@@ -9,6 +9,7 @@ import CollectionSection from '../../components/user/CollectionSection';
 import ReelSection from '../../components/user/ReelSection';
 import LatestProjectsBanner from '../../components/user/LatestProjectsBanner';
 import RecommendedSellers from '../../components/user/RecommendedSellers';
+import PopularBuilders from '../../components/user/PopularBuilders';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import { categoryService } from '../../services/categoryService';
 import GRHHomeSection from '../../components/user/GRHHomeSection';
@@ -191,6 +192,9 @@ const Home = () => {
 
                         {/* Recommendation for All view */}
                         <RecommendedSellers />
+
+                        {/* Popular Builders Carousel */}
+                        <PopularBuilders />
 
                         {/* YouTube style Reels Section */}
                         <ReelSection category={selectedType.label} />
