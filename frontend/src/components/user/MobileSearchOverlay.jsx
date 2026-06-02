@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, MapPin, History, Crosshair, ChevronDown, Building, Home, Building2, Map, LayoutGrid, CheckCircle2, Construction, Clock, Briefcase } from 'lucide-react';
+import { Search, X, MapPin, History, Crosshair, ChevronDown, Building, Home, Building2, Map, LayoutGrid, CheckCircle2, Construction, Clock, Briefcase, Factory, Warehouse, Hotel } from 'lucide-react';
 import { bengaluruAreas } from '../../data/locationData';
 
 const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }) => {
@@ -11,7 +11,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
     // Common Filters
     const [minBudget, setMinBudget] = useState('No Min');
     const [maxBudget, setMaxBudget] = useState('No Max');
-    const [propertyTypes, setPropertyTypes] = useState([]);
+    const [propertyTypes, setPropertyTypes] = useState([]); // Array of main types
     const [bedrooms, setBedrooms] = useState([]);
     const [constructionStatus, setConstructionStatus] = useState([]);
     const [radius, setRadius] = useState('3 km');
@@ -38,8 +38,31 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
 
     // Commercial specific
     const [lookingTo, setLookingTo] = useState('Commercial Buy'); // 'Commercial Buy' or 'Commercial Lease'
-    const [officeSpaceType, setOfficeSpaceType] = useState([]);
+    const [commercialSubTypes, setCommercialSubTypes] = useState([]); // Array to store sub-types like 'Ready to move office space'
     const [ageOfProperty, setAgeOfProperty] = useState([]);
+    const [investmentOptions, setInvestmentOptions] = useState([]);
+    const [commercialAvailability, setCommercialAvailability] = useState([]);
+    const [floorPreference, setFloorPreference] = useState([]);
+    
+    // Specific detailed commercial fields
+    const [officeFacilities, setOfficeFacilities] = useState([]); // Centralized AC, etc.
+    const [shopLocatedInside, setShopLocatedInside] = useState([]); // Mall, etc.
+    
+    // Co-working specific (outside advanced)
+    const [cwSeats, setCwSeats] = useState([]);
+    const [cwSeatType, setCwSeatType] = useState([]);
+    const [cwPlansPricing, setCwPlansPricing] = useState([]);
+    
+    // Co-working specific (inside advanced)
+    const [cwOtherFilters, setCwOtherFilters] = useState([]);
+    const [cwServices, setCwServices] = useState([]);
+    const [cwOfficeSupplies, setCwOfficeSupplies] = useState([]);
+    const [cwSpaceAccess, setCwSpaceAccess] = useState([]);
+    const [cwInternetElectricity, setCwInternetElectricity] = useState([]);
+    const [cwFoodDrinks, setCwFoodDrinks] = useState([]);
+    const [cwActivities, setCwActivities] = useState([]);
+    const [cwAdditionalAmenities, setCwAdditionalAmenities] = useState([]);
+    const [cwCovidReadiness, setCwCovidReadiness] = useState([]);
 
     const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -116,16 +139,37 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             ...ageOfProperty,
             ...sharing,
             ...pgServices,
-            ...totalCapacity
+            ...totalCapacity,
+            ...investmentOptions,
+            ...commercialAvailability,
+            ...floorPreference,
+            ...officeFacilities,
+            ...shopLocatedInside,
+            ...cwSeats,
+            ...cwSeatType,
+            ...cwPlansPricing,
+            ...cwOtherFilters,
+            ...cwServices,
+            ...cwOfficeSupplies,
+            ...cwSpaceAccess,
+            ...cwInternetElectricity,
+            ...cwFoodDrinks,
+            ...cwActivities,
+            ...cwAdditionalAmenities,
+            ...cwCovidReadiness
         ];
         
-        if (officeSpaceType.length > 0) allAmenities = [...allAmenities, ...officeSpaceType];
         if (attachWashroom) allAmenities.push('Attached Washroom');
 
         let categoryTabVal = 'Sell';
         if (txnType === 'Rent/PG') {
             categoryTabVal = lookingFor === 'PG/Co-living' ? 'Paying Guest' : 'Rent / Lease';
         }
+
+        // Merge main types and sub types for commercial
+        const finalPropertyTypes = txnType === 'Commercial' 
+            ? [...propertyTypes, ...commercialSubTypes].join(',')
+            : propertyTypes.join(',');
 
         const finalFilters = {
             categoryTab: categoryTabVal,
@@ -136,7 +180,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             maxPrice: maxBudget === 'No Max' ? '' : maxBudget,
             minArea: minArea === 'No Min' ? '' : minArea,
             maxArea: maxArea === 'No Max' ? '' : maxArea,
-            propertyTypes: propertyTypes,
+            propertyTypes: finalPropertyTypes,
             bhkType: bedrooms.join(','), 
             amenities: allAmenities.join(','),
             postedBy: postedBy.join(','),
@@ -170,11 +214,28 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                 { label: 'Farm House', icon: <Home size={16} /> }
             ];
         } else {
+            // Base Types for Commercial based on Listing Wizard
             return [
-                { label: 'Office Spaces', icon: <Briefcase size={16} /> },
-                { label: 'Retail Shops/ Showroom', icon: <Building size={16} /> },
-                { label: 'Other commercial spaces', icon: <Building2 size={16} /> }
+                { label: 'Office', icon: <Briefcase size={16} /> },
+                { label: 'Retail', icon: <Building size={16} /> },
+                { label: 'Plot / Land', icon: <Map size={16} /> },
+                { label: 'Storage', icon: <Warehouse size={16} /> },
+                { label: 'Industry', icon: <Factory size={16} /> },
+                { label: 'Hospitality', icon: <Hotel size={16} /> }
             ];
+        }
+    };
+
+    // Sub-types based on Listing Wizard data
+    const getCommercialSubTypesData = (type) => {
+        switch(type) {
+            case 'Office': return ['Ready to move office space', 'Bare shell office space', 'Co-working office space'];
+            case 'Retail': return ['Commercial Shops', 'Commercial Showrooms'];
+            case 'Plot / Land': return ['Commercial Land/Inst. Land', 'Agricultural/Farm Land', 'Industrial Lands/Plots'];
+            case 'Storage': return ['Ware House', 'Cold Storage'];
+            case 'Industry': return ['Factory', 'Manufacturing'];
+            case 'Hospitality': return ['Hotel/Resorts', 'Guest-House/Banquet-Halls'];
+            default: return [];
         }
     };
 
@@ -378,7 +439,6 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                     key={lf}
                                     onClick={() => {
                                         setLookingFor(lf);
-                                        // Reset specific arrays when switching
                                         setAvailableFor([]);
                                         setFurnishingStatus([]);
                                     }}
@@ -398,7 +458,12 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                             {['Commercial Buy', 'Commercial Lease'].map(lt => (
                                 <button 
                                     key={lt}
-                                    onClick={() => setLookingTo(lt)}
+                                    onClick={() => {
+                                        setLookingTo(lt);
+                                        if (lt === 'Commercial Lease') {
+                                            setInvestmentOptions([]);
+                                        }
+                                    }}
                                     className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${lookingTo === lt ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
                                 >
                                     {lt}
@@ -477,7 +542,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                     </div>
                 )}
 
-                {/* Property Types */}
+                {/* Property Types (Primary Categories) */}
                 <div>
                     <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">
                         {txnType === 'Commercial' ? 'Commercial property types' : 'Property types'}
@@ -486,7 +551,21 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         {getPropertyTypesList().map(pt => (
                             <div 
                                 key={pt.label}
-                                onClick={() => toggleArray(propertyTypes, setPropertyTypes, pt.label)}
+                                onClick={() => {
+                                    if (txnType === 'Commercial') {
+                                        // Single Select for Commercial
+                                        if (propertyTypes.includes(pt.label)) {
+                                            setPropertyTypes([]);
+                                            setCommercialSubTypes([]);
+                                        } else {
+                                            setPropertyTypes([pt.label]);
+                                            setCommercialSubTypes([]); // reset sub-types when category changes
+                                        }
+                                    } else {
+                                        // Multi select for Buy/Rent
+                                        toggleArray(propertyTypes, setPropertyTypes, pt.label);
+                                    }
+                                }}
                                 className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center cursor-pointer transition-colors ${propertyTypes.includes(pt.label) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-600 hover:border-surface/30'}`}
                             >
                                 <div className="mb-2 opacity-80">{pt.icon}</div>
@@ -495,6 +574,110 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         ))}
                     </div>
                 </div>
+
+                {/* DYNAMIC SUB-TYPES for Commercial */}
+                {txnType === 'Commercial' && propertyTypes.map(selectedCategory => {
+                    const subTypes = getCommercialSubTypesData(selectedCategory);
+                    if (subTypes.length === 0) return null;
+                    return (
+                        <div key={selectedCategory} className="bg-surface/5 p-4 rounded-xl border border-surface/20 space-y-4 animate-in slide-in-from-top-2">
+                            <h3 className="text-[12px] font-bold text-surface">Type of {selectedCategory}</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {subTypes.map(subType => (
+                                    <button 
+                                        key={subType}
+                                        onClick={() => toggleArray(commercialSubTypes, setCommercialSubTypes, subType)}
+                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${commercialSubTypes.includes(subType) ? 'border-surface bg-surface text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+                                    >
+                                        {subType}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Extra Section for Retail - Shop Located Inside */}
+                            {selectedCategory === 'Retail' && (
+                                <div className="mt-4 pt-4 border-t border-surface/20">
+                                    <h4 className="text-[11px] font-bold text-gray-800 mb-3">Shop located inside</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {['Mall', 'Commercial Project', 'Residential Project', 'Retail Complex/Building', 'Market / High Street'].map(s => (
+                                            <button 
+                                                key={s} onClick={() => toggleArray(shopLocatedInside, setShopLocatedInside, s)}
+                                                className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${shopLocatedInside.includes(s) ? 'border-surface bg-surface text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+                                            >
+                                                {s}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Extra Nested Settings if 'Co-working office space' is selected (Outside Advanced Filters portion) */}
+                            {selectedCategory === 'Office' && commercialSubTypes.includes('Co-working office space') && (
+                                <div className="mt-4 pt-4 border-t border-surface/20 space-y-5">
+                                    <div>
+                                        <h4 className="text-[11px] font-bold text-gray-800 mb-3">Number of Seats (Team Size)</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {['6-10', '11-20', '21-50', '51-100', '101-500', '500+'].map(s => (
+                                                <button 
+                                                    key={s} onClick={() => toggleArray(cwSeats, setCwSeats, s)}
+                                                    className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwSeats.includes(s) ? 'border-surface bg-surface text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+                                                >
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-[11px] font-bold text-gray-800 mb-3">Seat type</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {['Hot Desk', 'Dedicated Desk', 'Private Office', 'Meeting Room', 'Private Cabin', 'Multi-utility space'].map(st => (
+                                                <button 
+                                                    key={st} onClick={() => toggleArray(cwSeatType, setCwSeatType, st)}
+                                                    className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwSeatType.includes(st) ? 'border-surface bg-surface text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+                                                >
+                                                    {st}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-[11px] font-bold text-gray-800 mb-3">Plans and pricing</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {['Hourly', 'Daily', 'Weekly', 'Monthly'].map(pp => (
+                                                <button 
+                                                    key={pp} onClick={() => toggleArray(cwPlansPricing, setCwPlansPricing, pp)}
+                                                    className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwPlansPricing.includes(pp) ? 'border-surface bg-surface text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+                                                >
+                                                    {pp}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+
+                {/* Investment Options (Commercial Buy Only) */}
+                {txnType === 'Commercial' && lookingTo === 'Commercial Buy' && (
+                    <div>
+                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Investment Options</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {['Pre-leased Spaces', 'Restaurants', 'SCO Plots', 'Business Centre', 'Food Court', 'Multiplex'].map(io => (
+                                <button 
+                                    key={io}
+                                    onClick={() => toggleArray(investmentOptions, setInvestmentOptions, io)}
+                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${investmentOptions.includes(io) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                >
+                                    {io}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Available For (PG Only outside) */}
                 {txnType === 'Rent/PG' && lookingFor === 'PG/Co-living' && (
@@ -532,25 +715,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                     </div>
                 )}
 
-                {/* Type of office spaces (Commercial Only) */}
-                {txnType === 'Commercial' && propertyTypes.includes('Office Spaces') && (
-                    <div>
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Type of office spaces</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {['Ready to move office space', 'Bare shell office space', 'Co-working office space'].map(os => (
-                                <button 
-                                    key={os}
-                                    onClick={() => toggleArray(officeSpaceType, setOfficeSpaceType, os)}
-                                    className={`px-3 py-2 border rounded-md text-[11px] font-semibold transition-colors ${officeSpaceType.includes(os) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                >
-                                    {os}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Area (Commercial puts area before advanced filters, others put it inside) */}
+                {/* Area */}
                 {txnType === 'Commercial' && (
                     <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                         <h3 className="text-[11px] font-bold text-gray-800 mb-3">Area <span className="text-surface font-normal">sq.ft. <ChevronDown size={10} className="inline"/></span></h3>
@@ -562,6 +727,8 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                     <option value="500">500</option>
                                     <option value="1000">1000</option>
                                     <option value="2000">2000</option>
+                                    <option value="5000">5000</option>
+                                    <option value="10000">10000</option>
                                 </select>
                                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                             </div>
@@ -573,9 +740,29 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                     <option value="1000">1000</option>
                                     <option value="2000">2000</option>
                                     <option value="5000">5000</option>
+                                    <option value="10000">10000</option>
+                                    <option value="50000">50000</option>
                                 </select>
                                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Availability (Commercial Only outside) */}
+                {txnType === 'Commercial' && (
+                    <div>
+                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Availability</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {['Immediately', 'Within 3 Months', 'After 3 Months'].map(ca => (
+                                <button 
+                                    key={ca}
+                                    onClick={() => toggleArray(commercialAvailability, setCommercialAvailability, ca)}
+                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${commercialAvailability.includes(ca) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                >
+                                    {ca}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 )}
@@ -607,7 +794,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                 {!showAdvanced ? (
                     <div 
                         onClick={() => setShowAdvanced(true)}
-                        className="bg-white rounded-xl p-4 border border-gray-100 flex items-center justify-between cursor-pointer shadow-sm"
+                        className="bg-white rounded-xl p-4 border border-gray-100 flex items-center justify-between cursor-pointer shadow-sm mt-6 hover:bg-gray-50 transition-colors"
                     >
                         <div>
                             <h3 className="text-[11px] font-bold text-gray-800 mb-1">Advanced Filters</h3>
@@ -615,19 +802,190 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                 {txnType === 'Buy' ? 'Posted by, Purchase Type, Area, Amenities & more' : ''}
                                 {txnType === 'Rent/PG' && lookingFor === 'Rent' ? 'Posted by, Available for, Amenities, Area & more' : ''}
                                 {txnType === 'Rent/PG' && lookingFor === 'PG/Co-living' ? 'PG Services, Amenities, Capacity & more' : ''}
-                                {txnType === 'Commercial' ? 'Posted by, Amenities, Age of Property' : ''}
+                                {txnType === 'Commercial' ? 'Facilities, Floor preference, Amenities, Posted by, Age of Property' : ''}
                             </p>
                         </div>
                         <ChevronDown size={14} className="text-gray-400" />
                     </div>
                 ) : (
-                    <div className="space-y-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div className="space-y-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 mt-6">
                         <div className="flex items-center justify-between border-b border-gray-100 pb-3 cursor-pointer" onClick={() => setShowAdvanced(false)}>
                             <h3 className="text-[11px] font-bold text-gray-800">Advanced Filters</h3>
                             <ChevronDown size={14} className="text-gray-400 transform rotate-180" />
                         </div>
 
-                        {/* Posted By (Common across all, at top usually) */}
+                        {/* ---------- COMMERCIAL SPECIFIC DEEP ADVANCED FILTERS ---------- */}
+                        {txnType === 'Commercial' && (
+                            <>
+                                {/* Facilities for Office -> Ready to Move / Bare Shell */}
+                                {propertyTypes.includes('Office') && (commercialSubTypes.includes('Ready to move office space') || commercialSubTypes.includes('Bare shell office space')) && (
+                                    <div>
+                                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Facilities</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {['Centralized AC', 'Oxygen Duct', 'UPS', 'Fire Safety'].map(fac => (
+                                                <button 
+                                                    key={fac}
+                                                    onClick={() => toggleArray(officeFacilities, setOfficeFacilities, fac)}
+                                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${officeFacilities.includes(fac) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                                >
+                                                    {fac}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Deep Co-working fields inside Advanced Filters */}
+                                {propertyTypes.includes('Office') && commercialSubTypes.includes('Co-working office space') && (
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Other Filters</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Covid Ready', '24/7 operational'].map(cw => (
+                                                    <button 
+                                                        key={cw} onClick={() => toggleArray(cwOtherFilters, setCwOtherFilters, cw)}
+                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwOtherFilters.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                                    >
+                                                        {cw}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Services</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['IT support', 'Housekeeping', 'Runner services', 'Catering', 'Reception', 'Courier services'].map(cw => (
+                                                    <button 
+                                                        key={cw} onClick={() => toggleArray(cwServices, setCwServices, cw)}
+                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwServices.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                                    >
+                                                        {cw}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Office Supplies</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Printer', 'Photocopier', 'Office stationery', 'Scanner', 'Projector', 'Lockable drawers'].map(cw => (
+                                                    <button 
+                                                        key={cw} onClick={() => toggleArray(cwOfficeSupplies, setCwOfficeSupplies, cw)}
+                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwOfficeSupplies.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                                    >
+                                                        {cw}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Space Access</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Conference room access', 'Calling booth', 'Car parking', 'Meeting room access', 'Relax zones', 'Bike parking'].map(cw => (
+                                                    <button 
+                                                        key={cw} onClick={() => toggleArray(cwSpaceAccess, setCwSpaceAccess, cw)}
+                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwSpaceAccess.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                                    >
+                                                        {cw}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Internet and Electricity</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['High-speed WiFi', 'Power backup', 'High-speed Broadband', 'Air conditioning'].map(cw => (
+                                                    <button 
+                                                        key={cw} onClick={() => toggleArray(cwInternetElectricity, setCwInternetElectricity, cw)}
+                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwInternetElectricity.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                                    >
+                                                        {cw}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Food and Drinks</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Coffee machine', 'Cafeteria'].map(cw => (
+                                                    <button 
+                                                        key={cw} onClick={() => toggleArray(cwFoodDrinks, setCwFoodDrinks, cw)}
+                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwFoodDrinks.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                                    >
+                                                        {cw}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Activities</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Recreational activities', 'Community programs', 'Relax zones'].map(cw => (
+                                                    <button 
+                                                        key={cw} onClick={() => toggleArray(cwActivities, setCwActivities, cw)}
+                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwActivities.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                                    >
+                                                        {cw}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Additional Amenities</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Restaurants/malls nearby', 'Pick up and drop', 'Creche (managed)', 'Washrooms', 'Visitor management', 'Event spaces', 'AV Rooms / Projectors'].map(cw => (
+                                                    <button 
+                                                        key={cw} onClick={() => toggleArray(cwAdditionalAmenities, setCwAdditionalAmenities, cw)}
+                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwAdditionalAmenities.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                                    >
+                                                        {cw}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Covid Readiness</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Frequently sanitized', 'Masks provided', 'PPE kits available', 'Distanced seating arrangement', 'Reduced touchable items', 'Temperature screening'].map(cw => (
+                                                    <button 
+                                                        key={cw} onClick={() => toggleArray(cwCovidReadiness, setCwCovidReadiness, cw)}
+                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwCovidReadiness.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                                    >
+                                                        {cw}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Floor Preference */}
+                                <div>
+                                    <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Floor preference</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {['Basement', 'Ground floor', 'Terrace / Roof top', '1st and above'].map(fp => (
+                                            <button 
+                                                key={fp}
+                                                onClick={() => toggleArray(floorPreference, setFloorPreference, fp)}
+                                                className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${floorPreference.includes(fp) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                            >
+                                                {fp}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        {/* ----------------------------------------------------------------- */}
+
+                        {/* Posted By */}
                         <div>
                             <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Posted by</h3>
                             <div className="flex flex-wrap gap-2">
@@ -701,15 +1059,26 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         <div>
                             <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Amenities</h3>
                             <div className="flex flex-wrap gap-2">
-                                {['Parking', 'Power Backup', 'Park', 'Swimming Pool', 'Security Personnel', 'Lift', 'Gas Pipeline', 'Gymnasium', 'Club House', 'Wheelchair Friendly', 'Pet Friendly'].map(amenity => (
-                                    <button 
-                                        key={amenity}
-                                        onClick={() => toggleArray(amenities, setAmenities, amenity)}
-                                        className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${amenities.includes(amenity) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                    >
-                                        {amenity}
-                                    </button>
-                                ))}
+                                {txnType === 'Commercial' 
+                                    ? ['Power Backup', 'DG Availability', 'Waste disposal', 'Near IT Park', 'Parking', 'Wheelchair Accessibility', 'ATM'].map(amenity => (
+                                        <button 
+                                            key={amenity}
+                                            onClick={() => toggleArray(amenities, setAmenities, amenity)}
+                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${amenities.includes(amenity) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                        >
+                                            {amenity}
+                                        </button>
+                                      ))
+                                    : ['Parking', 'Power Backup', 'Park', 'Swimming Pool', 'Security Personnel', 'Lift', 'Gas Pipeline', 'Gymnasium', 'Club House', 'Wheelchair Friendly', 'Pet Friendly'].map(amenity => (
+                                        <button 
+                                            key={amenity}
+                                            onClick={() => toggleArray(amenities, setAmenities, amenity)}
+                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${amenities.includes(amenity) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
+                                        >
+                                            {amenity}
+                                        </button>
+                                      ))
+                                }
                             </div>
                         </div>
 
@@ -873,6 +1242,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         setMinBudget('No Min');
                         setMaxBudget('No Max');
                         setPropertyTypes([]);
+                        setCommercialSubTypes([]);
                         setBedrooms([]);
                         setConstructionStatus([]);
                         setPostedBy([]);
@@ -890,7 +1260,24 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         setPgServices([]);
                         setTotalCapacity([]);
                         setAttachWashroom(false);
-                        // don't reset lookingFor or lookingTo so user keeps their current tab.
+                        setInvestmentOptions([]);
+                        setCommercialAvailability([]);
+                        setFloorPreference([]);
+                        
+                        setOfficeFacilities([]);
+                        setShopLocatedInside([]);
+                        setCwSeats([]);
+                        setCwSeatType([]);
+                        setCwPlansPricing([]);
+                        setCwOtherFilters([]);
+                        setCwServices([]);
+                        setCwOfficeSupplies([]);
+                        setCwSpaceAccess([]);
+                        setCwInternetElectricity([]);
+                        setCwFoodDrinks([]);
+                        setCwActivities([]);
+                        setCwAdditionalAmenities([]);
+                        setCwCovidReadiness([]);
                     }}
                     className="text-[12px] font-bold text-surface px-4"
                 >
