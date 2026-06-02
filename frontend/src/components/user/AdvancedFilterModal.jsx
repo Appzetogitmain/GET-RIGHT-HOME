@@ -1,0 +1,354 @@
+import React, { useState, useMemo } from 'react';
+import { X } from 'lucide-react';
+
+const AdvancedFilterModal = ({
+    isOpen,
+    onClose,
+    filters,
+    setFilters,
+    updateFilter,
+    applyFilters,
+    previewCount,
+    previewLoading,
+    clearAllFilters,
+    activeTab,
+    setActiveTab
+}) => {
+
+    const tabs = [
+        'Quick Filters', 'Budget', 'Property Type', 'BHK', 'Property Size', 'Possession Status',
+        'New Booking / Resale', 'Amenities & Facilities', 'Localities', 'Builders', 'Projects',
+        'Floor Preference', 'Facing Direction', 'Property Features', 'Project Area',
+        'Project Density', 'Posted By', 'Bathrooms', 'Photos & Videos', 'Furnishing Status'
+    ];
+
+    const budgetList = useMemo(() => {
+        const list = [];
+        for (let i = 5; i < 100; i += 5) list.push({ label: `${i} L`, value: i * 100000 });
+        for (let i = 1; i <= 100; i++) list.push({ label: `${i} Cr`, value: i * 10000000 });
+        return list;
+    }, []);
+
+    const sizeList = useMemo(() => {
+        const list = [];
+        for (let i = 100; i <= 1000; i += 100) list.push(i);
+        for (let i = 1500; i <= 5000; i += 500) list.push(i);
+        for (let i = 6000; i <= 10000; i += 1000) list.push(i);
+        return list;
+    }, []);
+
+    const propertyTypes = ['Residential Apartment', 'Residential Land', 'Independent House/Villa', 'Builder Floor', 'Farm House', '1 RK/ Studio Apartment', 'Serviced Apartments', 'Commercial Office Space', 'Commercial Shop'];
+    const bhkTypes = ['1 RK/1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'];
+    const possessionStatuses = ['Ready to Move', 'Under Construction', 'Pre Launch'];
+    const newBookingResale = ['New Bookings', 'Resale'];
+    const amenitiesList = ['Parking', 'Wifi', 'Pool', 'Gym', 'AC', 'Kitchen', 'Security', 'Lift', 'Power Backup', 'Club House'];
+
+    const toggleArrayFilter = (key, value) => {
+        const current = Array.isArray(filters[key]) ? filters[key] : [];
+        if (current.includes(value)) {
+            updateFilter(key, current.filter(v => v !== value));
+        } else {
+            updateFilter(key, [...current, value]);
+        }
+    };
+
+    const handleSelectClearAll = (key, allValues) => {
+        const current = Array.isArray(filters[key]) ? filters[key] : [];
+        // If anything is selected, clear all. If nothing is selected, select all.
+        if (current.length > 0) {
+            updateFilter(key, []);
+        } else {
+            updateFilter(key, allValues);
+        }
+    };
+
+    const renderMultiSelect = (key, title, options) => {
+        const current = Array.isArray(filters[key]) ? filters[key] : [];
+        return (
+            <div className="flex flex-col h-full">
+                <div className="p-4 pb-2 flex items-center justify-between bg-white sticky top-0 border-b border-gray-100">
+                    <span className="text-sm font-bold text-gray-900">{title}</span>
+                    <button 
+                        onClick={() => handleSelectClearAll(key, options)}
+                        className="text-sm font-semibold text-surface"
+                    >
+                        {current.length > 0 ? 'Clear all' : 'Select all'}
+                    </button>
+                </div>
+                <div className="p-4 space-y-4 overflow-y-auto">
+                    {options.map(opt => (
+                        <label key={opt} className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={current.includes(opt)}
+                                onChange={() => toggleArrayFilter(key, opt)}
+                                className="w-4 h-4 rounded border-gray-300 text-surface focus:ring-surface"
+                            />
+                            <span className="text-sm text-gray-700">{opt}</span>
+                        </label>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    const renderRightContent = () => {
+        switch (activeTab) {
+            case 'Quick Filters':
+                return renderMultiSelect('amenities', 'Quick Filters', ['Verified Properties', 'With Photos', 'With Videos', 'Gated Society', 'Corner Property']);
+            case 'Property Type':
+                return renderMultiSelect('propertyTypes', 'Property Type', propertyTypes);
+            case 'BHK':
+                return renderMultiSelect('amenities', 'BHK', bhkTypes); // Using amenities as placeholder for BHK
+            case 'Possession Status':
+                return renderMultiSelect('amenities', 'Possession Status', possessionStatuses);
+            case 'New Booking / Resale':
+                return renderMultiSelect('purchaseType', 'New Booking / Resale', newBookingResale);
+            case 'Amenities & Facilities':
+                return renderMultiSelect('amenities', 'Amenities & Facilities', amenitiesList);
+            case 'Localities':
+                return renderMultiSelect('areas', 'Localities', ['Indiranagar', 'Koramangala', 'Whitefield', 'HSR Layout', 'Electronic City', 'Marathahalli', 'Jayanagar', 'JP Nagar', 'Bellandur']);
+            case 'Builders':
+                return renderMultiSelect('amenities', 'Builders', ['Prestige Group', 'Sobha Limited', 'Brigade Group', 'Puravankara', 'Godrej Properties', 'Lodha Group']);
+            case 'Projects':
+                return renderMultiSelect('amenities', 'Projects', ['Prestige Shantiniketan', 'Sobha City', 'Brigade Gateway', 'Godrej Woodsman Estate']);
+            case 'Floor Preference':
+                return renderMultiSelect('amenities', 'Floor Preference', ['Ground Floor', '1st to 4th Floor', '5th to 8th Floor', '9th to 12th Floor', 'Top Floor']);
+            case 'Facing Direction':
+                return renderMultiSelect('amenities', 'Facing Direction', ['East Facing', 'West Facing', 'North Facing', 'South Facing', 'North-East Facing']);
+            case 'Property Features':
+                return renderMultiSelect('amenities', 'Property Features', ['Park Facing', 'Main Road Facing', 'Corner Property', 'Gated Society', 'Pet Friendly']);
+            case 'Project Area':
+                return renderMultiSelect('amenities', 'Project Area', ['Less than 1 Acre', '1 to 5 Acres', '5 to 10 Acres', 'More than 10 Acres']);
+            case 'Project Density':
+                return renderMultiSelect('amenities', 'Project Density', ['Low Density (Less than 50 units/acre)', 'Medium Density', 'High Density']);
+            case 'Posted By':
+                return renderMultiSelect('postedBy', 'Posted By', ['Owner', 'Dealer', 'Builder']);
+            case 'Bathrooms':
+                return renderMultiSelect('amenities', 'Bathrooms', ['1 Bathroom', '2 Bathrooms', '3 Bathrooms', '4+ Bathrooms']);
+            case 'Photos & Videos':
+                return renderMultiSelect('amenities', 'Photos & Videos', ['With Photos', 'With Videos']);
+            case 'Furnishing Status':
+                return renderMultiSelect('amenities', 'Furnishing Status', ['Fully Furnished', 'Semi Furnished', 'Unfurnished']);
+            case 'Budget':
+                return (
+                    <div className="flex flex-col h-full bg-white relative">
+                        <div className="p-4 pb-2 sticky top-0 bg-white z-10 border-b border-gray-100">
+                            <h3 className="text-sm font-bold text-gray-900 mb-4">Budget in ₹</h3>
+                            <div className="flex items-center gap-2">
+                                <button className="flex-1 border rounded-full px-4 py-2 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all">
+                                    {filters.minPrice ? budgetList.find(b => b.value === Number(filters.minPrice))?.label || filters.minPrice : 'No min'}
+                                </button>
+                                <span className="text-gray-400 text-xs">to</span>
+                                <button className="flex-1 border rounded-full px-4 py-2 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all">
+                                    {filters.maxPrice ? budgetList.find(b => b.value === Number(filters.maxPrice))?.label || filters.maxPrice : 'No max'}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex flex-1 overflow-hidden">
+                            <div className="flex-1 overflow-y-auto no-scrollbar border-r border-gray-100">
+                                {budgetList.map(val => (
+                                    <div 
+                                        key={`min-${val.value}`}
+                                        className={`text-center py-3 text-sm cursor-pointer transition-colors ${Number(filters.minPrice) === val.value ? 'font-bold text-surface bg-surface/5' : 'text-gray-600 hover:bg-gray-50'}`}
+                                        onClick={() => updateFilter('minPrice', val.value)}
+                                    >
+                                        {val.label}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex-1 overflow-y-auto no-scrollbar">
+                                {budgetList.map(val => (
+                                    <div 
+                                        key={`max-${val.value}`}
+                                        className={`text-center py-3 text-sm cursor-pointer transition-colors ${Number(filters.maxPrice) === val.value ? 'font-bold text-surface bg-surface/5' : 'text-gray-600 hover:bg-gray-50'}`}
+                                        onClick={() => updateFilter('maxPrice', val.value)}
+                                    >
+                                        {val.label}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'Property Size':
+                return (
+                    <div className="flex flex-col h-full bg-white relative">
+                        <div className="p-4 pb-2 sticky top-0 bg-white z-10 border-b border-gray-100">
+                            <h3 className="text-sm font-bold text-gray-900 mb-4">Size in sq.ft.</h3>
+                            <div className="flex items-center gap-2">
+                                <button className="flex-1 border rounded-full px-4 py-2 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all">
+                                    {filters.minArea || 'No min'}
+                                </button>
+                                <span className="text-gray-400 text-xs">to</span>
+                                <button className="flex-1 border rounded-full px-4 py-2 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all">
+                                    {filters.maxArea || 'No max'}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex flex-1 overflow-hidden">
+                            <div className="flex-1 overflow-y-auto no-scrollbar border-r border-gray-100">
+                                {sizeList.map(val => (
+                                    <div 
+                                        key={`min-${val}`}
+                                        className={`text-center py-3 text-sm cursor-pointer transition-colors ${Number(filters.minArea) === val ? 'font-bold text-surface bg-surface/5' : 'text-gray-600 hover:bg-gray-50'}`}
+                                        onClick={() => updateFilter('minArea', val)}
+                                    >
+                                        {val}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex-1 overflow-y-auto no-scrollbar">
+                                {sizeList.map(val => (
+                                    <div 
+                                        key={`max-${val}`}
+                                        className={`text-center py-3 text-sm cursor-pointer transition-colors ${Number(filters.maxArea) === val ? 'font-bold text-surface bg-surface/5' : 'text-gray-600 hover:bg-gray-50'}`}
+                                        onClick={() => updateFilter('maxArea', val)}
+                                    >
+                                        {val}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            default:
+                return (
+                    <div className="p-4 flex flex-col items-center justify-center h-full text-gray-400">
+                        <p>More options coming soon...</p>
+                    </div>
+                );
+        }
+    };
+
+    // Calculate total active filters count
+    const activeFiltersCount = (() => {
+        let count = 0;
+        if (filters.minPrice || filters.maxPrice) count++;
+        if (filters.propertyTypes && filters.propertyTypes.length > 0) count += filters.propertyTypes.length;
+        if (filters.amenities && filters.amenities.length > 0) count += filters.amenities.length;
+        if (filters.minArea || filters.maxArea) count++;
+        if (filters.bathrooms > 0) count++;
+        if (filters.postedBy) count++;
+        if (filters.purchaseType) count++;
+        if (filters.areas && filters.areas.length > 0) count += filters.areas.length;
+        return count;
+    })();
+
+    // Format selected chips
+    const activeChips = [];
+    if (filters.minPrice || filters.maxPrice) {
+        const minL = filters.minPrice ? budgetList.find(b => b.value === Number(filters.minPrice))?.label : '';
+        const maxL = filters.maxPrice ? budgetList.find(b => b.value === Number(filters.maxPrice))?.label : '';
+        activeChips.push({ key: 'price', label: `₹ ${minL || '0'} to ${maxL || 'Max'}` });
+    }
+    if (filters.minArea || filters.maxArea) {
+        activeChips.push({ key: 'area', label: `${filters.minArea || '0'} sq.ft. to ${filters.maxArea || 'Max'}` });
+    }
+    if (Array.isArray(filters.propertyTypes)) {
+        filters.propertyTypes.forEach(t => activeChips.push({ key: `pt-${t}`, label: t }));
+    }
+    if (Array.isArray(filters.amenities)) {
+        filters.amenities.forEach(a => activeChips.push({ key: `am-${a}`, label: a }));
+    }
+
+    const removeChip = (chipKey) => {
+        if (chipKey === 'price') {
+            updateFilter('minPrice', '');
+            updateFilter('maxPrice', '');
+        } else if (chipKey === 'area') {
+            updateFilter('minArea', '');
+            updateFilter('maxArea', '');
+        } else if (chipKey.startsWith('pt-')) {
+            toggleArrayFilter('propertyTypes', chipKey.replace('pt-', ''));
+        } else if (chipKey.startsWith('am-')) {
+            toggleArrayFilter('amenities', chipKey.replace('am-', ''));
+        }
+    };
+
+    return (
+        <div className={`
+            fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm transition-opacity duration-300 flex items-end justify-center
+            ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+        `} onClick={onClose}>
+            <div
+                data-lenis-prevent
+                className={`
+                    w-full md:max-w-4xl bg-white shadow-2xl h-[90vh] md:h-[85vh] rounded-t-2xl md:rounded-3xl flex flex-col transition-transform duration-300 transform md:mb-4
+                    ${isOpen ? 'translate-y-0' : 'translate-y-full md:translate-y-10 md:scale-95'}
+                `}
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex flex-col bg-white rounded-t-2xl md:rounded-t-3xl border-b border-gray-100">
+                    <div className="flex items-center justify-between p-4">
+                        <h2 className="text-lg font-bold text-gray-900">Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}</h2>
+                        <button onClick={onClose} className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
+                            <X size={16} className="text-gray-600" />
+                        </button>
+                    </div>
+
+                    {/* Active Chips Horizontal Scroll */}
+                    {activeChips.length > 0 && (
+                        <div className="flex items-center gap-2 px-4 pb-4 overflow-x-auto no-scrollbar whitespace-nowrap">
+                            {activeChips.map(chip => (
+                                <div key={chip.key} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-800 rounded-full bg-white">
+                                    <span className="text-xs font-semibold text-gray-800">{chip.label}</span>
+                                    <button onClick={() => removeChip(chip.key)}>
+                                        <X size={12} className="text-gray-600 hover:text-red-500" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Content Split */}
+                <div className="flex flex-1 overflow-hidden bg-white">
+                    {/* Left Sidebar */}
+                    <div className="w-[35%] md:w-[25%] bg-gray-50 overflow-y-auto border-r border-gray-100 no-scrollbar pb-20">
+                        {tabs.map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`w-full text-left px-4 py-4 text-xs font-semibold transition-colors border-l-4
+                                    ${activeTab === tab 
+                                        ? 'bg-white border-surface text-gray-900 font-bold shadow-sm' 
+                                        : 'border-transparent text-gray-500 hover:bg-gray-100'}`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Right Content */}
+                    <div className="flex-1 overflow-hidden bg-white pb-[72px]">
+                        {renderRightContent()}
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-gray-100 p-4 bg-white flex items-center justify-between gap-4 absolute bottom-0 left-0 right-0">
+                    <button
+                        onClick={clearAllFilters}
+                        className="text-sm font-bold text-surface hover:text-surface-dark transition-colors px-2"
+                    >
+                        Clear all
+                    </button>
+                    <button
+                        onClick={() => { applyFilters(); onClose(); }}
+                        disabled={previewLoading}
+                        className="flex-1 bg-surface hover:bg-surface-dark text-white py-3.5 rounded-xl font-bold text-sm shadow-md transition-all text-center flex items-center justify-center gap-2"
+                    >
+                        {previewLoading ? (
+                            <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        ) : null}
+                        See All {previewCount || 0} Properties
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default AdvancedFilterModal;

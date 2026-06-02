@@ -772,16 +772,16 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
                 {(item.contactNumber || item.phoneNumber) && (
                   <a
                     href={`tel:${item.contactNumber || item.phoneNumber}`}
-                    className="w-9 h-9 md:w-10 md:h-10 bg-violet-50 text-violet-600 rounded-full hover:bg-violet-600 hover:text-white border border-violet-100 hover:border-violet-600 transition-all duration-300 shadow-sm flex items-center justify-center active:scale-95 shrink-0"
+                    className="w-8 h-8 md:w-9 md:h-9 bg-violet-50 text-violet-600 rounded-full hover:bg-violet-600 hover:text-white border border-violet-100 hover:border-violet-600 transition-all duration-300 shadow-sm flex items-center justify-center active:scale-95 shrink-0"
                     onClick={(e) => e.stopPropagation()}
                     title="Call Now"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[14px] h-[14px] md:w-[17px] md:h-[17px]"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
                   </a>
                 )}
-                <button className="text-[9px] md:text-[11px] font-black text-white bg-violet-600 hover:bg-violet-700 px-4 md:px-6 py-2.5 md:py-3 rounded-full transition-all duration-300 flex items-center gap-1.5 shadow-md shadow-violet-600/20 hover:shadow-violet-600/30 active:scale-95">
+                <button className="text-[9px] md:text-[10px] font-black text-white bg-violet-600 hover:bg-violet-700 px-3 md:px-4 py-2 md:py-2.5 rounded-full transition-all duration-300 flex items-center gap-1 shadow-md shadow-violet-600/10 hover:shadow-violet-600/20 active:scale-95">
                   View
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[10px] h-[10px] md:w-[12px] md:h-[12px]"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[9px] h-[9px] md:w-[11px] md:h-[11px]"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
                 </button>
               </>
             ) : (

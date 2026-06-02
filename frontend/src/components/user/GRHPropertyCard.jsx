@@ -826,9 +826,9 @@ const GRHPropertyCard = ({ property, data }) => {
                 {/* Call Button */}
                 <button
                   onClick={handleCall}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3 px-4 border border-violet-200 bg-violet-50 rounded-full text-xs font-black text-violet-600 hover:bg-violet-100 active:scale-95 transition-all shadow-sm"
+                  className="flex-1 flex items-center justify-center gap-1 py-2 px-3 border border-violet-200 bg-violet-50 rounded-full text-[10px] font-black text-violet-600 hover:bg-violet-100 active:scale-95 transition-all shadow-sm"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-violet-600 shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-violet-600 shrink-0">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                   </svg>
                   <span>Call</span>
@@ -838,9 +838,9 @@ const GRHPropertyCard = ({ property, data }) => {
                 <button
                   onClick={handleWhatsApp}
                   title="WhatsApp"
-                  className="w-11 h-11 flex items-center justify-center border border-emerald-200 bg-emerald-50 text-emerald-600 rounded-full hover:bg-emerald-100 active:scale-95 transition-all shrink-0 shadow-sm"
+                  className="w-8 h-8 flex items-center justify-center border border-emerald-200 bg-emerald-50 text-emerald-600 rounded-full hover:bg-emerald-100 active:scale-95 transition-all shrink-0 shadow-sm"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" className="text-emerald-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" className="text-emerald-600">
                     <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.949h.004c4.368 0 7.927-3.558 7.93-7.93a7.9 7.9 0 0 0-2.327-5.592M7.997 14.518a6.5 6.5 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.69-4.98c-.202-.101-1.194-.588-1.378-.653-.185-.069-.32-.101-.454.101-.133.2-.517.653-.634.786-.118.133-.235.148-.437.047a5.1 5.1 0 0 1-1.625-1.002 5.6 5.6 0 0 1-1.12-1.394c-.118-.2-.013-.309.088-.41a5.6 5.6 0 0 0 .248-.344.41.41 0 0 0-.02-.412c-.067-.133-.517-1.244-.708-1.705-.186-.447-.372-.387-.512-.394-.13-.005-.28-.006-.43-.006a.85.85 0 0 0-.616.287C3.55 5.61 3 6.14 3 7.22s.792 2.115.9 2.26c.11.149 1.558 2.379 3.774 3.337.527.228.939.363 1.261.465a3.6 3.6 0 0 0 1.637.1c.366-.053 1.194-.487 1.362-1.057.17-.57.17-1.057.12-1.158-.05-.1-.186-.15-.387-.252"/>
                   </svg>
                 </button>
@@ -851,10 +851,10 @@ const GRHPropertyCard = ({ property, data }) => {
                     e.stopPropagation();
                     navigate(`/hotel/${_id}`);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3 px-4 bg-violet-600 hover:bg-violet-700 text-white rounded-full text-xs font-black active:scale-95 transition-all shadow-md shadow-violet-600/20 hover:shadow-violet-600/30"
+                  className="flex-1 flex items-center justify-center gap-1 py-2 px-3 bg-violet-600 hover:bg-violet-700 text-white rounded-full text-[10px] font-black active:scale-95 transition-all shadow-md shadow-violet-600/10 hover:shadow-violet-600/20"
                 >
                   <span>View Details</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white shrink-0"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white shrink-0"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
                 </button>
               </>
             ) : (

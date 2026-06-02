@@ -994,10 +994,14 @@ export const getPublicProperties = async (req, res) => {
       const areaMatchList = [];
       
       const constructAreaQuery = (field) => {
-        const q = {};
-        if (!isNaN(minA)) q.$gte = minA;
-        if (!isNaN(maxA)) q.$lte = maxA;
-        return { [field]: q };
+        const conditions = [];
+        if (!isNaN(minA)) {
+            conditions.push({ $gte: [ { $convert: { input: `$${field}`, to: "double", onError: null, onNull: null } }, minA ] });
+        }
+        if (!isNaN(maxA)) {
+            conditions.push({ $lte: [ { $convert: { input: `$${field}`, to: "double", onError: null, onNull: null } }, maxA ] });
+        }
+        return { $expr: { $and: conditions } };
       };
 
       areaMatchList.push(constructAreaQuery('buyDetails.area.superBuiltUp'));
@@ -1179,25 +1183,90 @@ export const getPublicProperties = async (req, res) => {
     pipeline.push({
       $addFields: {
         startingPrice: {
-          $cond: {
-            if: { $gt: [{ $size: "$roomTypes" }, 0] },
-            then: { $min: "$roomTypes.pricePerNight" },
-            else: {
-              $ifNull: [
-                "$rentDetails.monthlyRent",
-                {
+          $convert: {
+            input: {
+              $cond: {
+                if: { $gt: [{ $size: "$roomTypes" }, 0] },
+                then: { $min: "$roomTypes.pricePerNight" },
+                else: {
                   $ifNull: [
-                    "$buyDetails.expectedPrice",
+                    "$rentDetails.monthlyRent",
                     {
                       $ifNull: [
-                        "$plotDetails.expectedPrice",
-                        null
+                        "$buyDetails.expectedPrice",
+                        {
+                          $ifNull: [
+                            "$plotDetails.expectedPrice",
+                            {
+                              $ifNull: [
+                                "$dynamicData.price",
+                                {
+                                  $ifNull: [
+                                    "$dynamicData.expectedPrice",
+                                    {
+                                      $ifNull: [
+                                        "$dynamicData.rent",
+                                        {
+                                          $ifNull: [
+                                            "$dynamicData.monthlyRent",
+                                            null
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            to: "double",
+            onError: null,
+            onNull: null
+          }
+        },
+        startingArea: {
+          $convert: {
+            input: {
+              $ifNull: [
+                "$buyDetails.area.superBuiltUp",
+                {
+                  $ifNull: [
+                    "$buyDetails.area.carpet",
+                    {
+                      $ifNull: [
+                        "$plotDetails.plotArea",
+                        {
+                          $ifNull: [
+                            "$dynamicData.carpetArea",
+                            {
+                              $ifNull: [
+                                "$dynamicData.plotArea",
+                                {
+                                  $ifNull: [
+                                    "$dynamicData.superArea",
+                                    null
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
                       ]
                     }
                   ]
                 }
               ]
-            }
+            },
+            to: "double",
+            onError: null,
+            onNull: null
           }
         },
         hasMatchingRooms: {
@@ -1210,13 +1279,30 @@ export const getPublicProperties = async (req, res) => {
                   $or: [
                     { $gt: ["$rentDetails.monthlyRent", null] },
                     { $gt: ["$buyDetails.expectedPrice", null] },
-                    { $gt: ["$plotDetails.expectedPrice", null] }
+                    { $gt: ["$plotDetails.expectedPrice", null] },
+                    { $gt: ["$dynamicData.price", null] },
+                    { $gt: ["$dynamicData.expectedPrice", null] },
+                    { $gt: ["$dynamicData.rent", null] },
+                    { $gt: ["$dynamicData.monthlyRent", null] }
                   ]
                 },
                 then: true,
                 else: false
               }
             }
+          }
+        }
+      }
+    });
+
+    // Calculate Price Per Sq.Ft.
+    pipeline.push({
+      $addFields: {
+        pricePerSqft: {
+          $cond: {
+            if: { $and: [{ $gt: ["$startingArea", 0] }, { $gt: ["$startingPrice", 0] }] },
+            then: { $divide: ["$startingPrice", "$startingArea"] },
+            else: null
           }
         }
       }
@@ -1244,11 +1330,16 @@ export const getPublicProperties = async (req, res) => {
     // 7. Sorting
     let sortStage = { rankingWeight: -1, createdAt: -1 }; // Priority: Weight then Newest
     if (sort) {
-      if (sort === 'newest') sortStage = { rankingWeight: -1, createdAt: -1 };
-      if (sort === 'price_low') sortStage = { startingPrice: 1, rankingWeight: -1 };
-      if (sort === 'price_high') sortStage = { startingPrice: -1, rankingWeight: -1 };
+      if (sort === 'relevance') sortStage = { rankingWeight: -1, createdAt: -1 };
+      if (sort === 'newest') sortStage = { createdAt: -1, rankingWeight: -1 };
+      if (sort === 'price_low' || sort === 'priceAsc') sortStage = { startingPrice: 1, rankingWeight: -1 };
+      if (sort === 'price_high' || sort === 'priceDesc') sortStage = { startingPrice: -1, rankingWeight: -1 };
       if (sort === 'rating') sortStage = { avgRating: -1, rankingWeight: -1 };
       if (sort === 'distance' && lat && lng) sortStage = { distance: 1, rankingWeight: -1 };
+      
+      // Sort by calculated price per sqft
+      if (sort === 'pricePerSqftAsc') sortStage = { pricePerSqft: 1, rankingWeight: -1 };
+      if (sort === 'pricePerSqftDesc') sortStage = { pricePerSqft: -1, rankingWeight: -1 };
     }
 
     pipeline.push({ $sort: sortStage });
