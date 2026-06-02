@@ -11,7 +11,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
     // Common Filters
     const [minBudget, setMinBudget] = useState('No Min');
     const [maxBudget, setMaxBudget] = useState('No Max');
-    const [propertyTypes, setPropertyTypes] = useState([]); // Array of main types
+    const [propertyTypes, setPropertyTypes] = useState([]); 
     const [bedrooms, setBedrooms] = useState([]);
     const [constructionStatus, setConstructionStatus] = useState([]);
     const [radius, setRadius] = useState('3 km');
@@ -26,8 +26,8 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
     const [reraApproved, setReraApproved] = useState(false);
     
     // Rent/PG specific
-    const [lookingFor, setLookingFor] = useState('Rent'); // 'Rent' or 'PG/Co-living'
-    const [availableFor, setAvailableFor] = useState([]); // Family, etc. or Girls, Boys
+    const [lookingFor, setLookingFor] = useState('Rent'); 
+    const [availableFor, setAvailableFor] = useState([]); 
     const [availableFrom, setAvailableFrom] = useState([]);
     
     // PG Specific
@@ -37,16 +37,16 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
     const [attachWashroom, setAttachWashroom] = useState(false);
 
     // Commercial specific
-    const [lookingTo, setLookingTo] = useState('Commercial Buy'); // 'Commercial Buy' or 'Commercial Lease'
-    const [commercialSubTypes, setCommercialSubTypes] = useState([]); // Array to store sub-types like 'Ready to move office space'
+    const [lookingTo, setLookingTo] = useState('Commercial Buy'); 
+    const [commercialSubTypes, setCommercialSubTypes] = useState([]); 
     const [ageOfProperty, setAgeOfProperty] = useState([]);
     const [investmentOptions, setInvestmentOptions] = useState([]);
     const [commercialAvailability, setCommercialAvailability] = useState([]);
     const [floorPreference, setFloorPreference] = useState([]);
     
     // Specific detailed commercial fields
-    const [officeFacilities, setOfficeFacilities] = useState([]); // Centralized AC, etc.
-    const [shopLocatedInside, setShopLocatedInside] = useState([]); // Mall, etc.
+    const [officeFacilities, setOfficeFacilities] = useState([]); 
+    const [shopLocatedInside, setShopLocatedInside] = useState([]); 
     
     // Co-working specific (outside advanced)
     const [cwSeats, setCwSeats] = useState([]);
@@ -166,7 +166,6 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             categoryTabVal = lookingFor === 'PG/Co-living' ? 'Paying Guest' : 'Rent / Lease';
         }
 
-        // Merge main types and sub types for commercial
         const finalPropertyTypes = txnType === 'Commercial' 
             ? [...propertyTypes, ...commercialSubTypes].join(',')
             : propertyTypes.join(',');
@@ -214,7 +213,6 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                 { label: 'Farm House', icon: <Home size={16} /> }
             ];
         } else {
-            // Base Types for Commercial based on Listing Wizard
             return [
                 { label: 'Office', icon: <Briefcase size={16} /> },
                 { label: 'Retail', icon: <Building size={16} /> },
@@ -226,7 +224,6 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
         }
     };
 
-    // Sub-types based on Listing Wizard data
     const getCommercialSubTypesData = (type) => {
         switch(type) {
             case 'Office': return ['Ready to move office space', 'Bare shell office space', 'Co-working office space'];
@@ -238,6 +235,31 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             default: return [];
         }
     };
+
+    // Reusable slider component for arrays of buttons
+    const FilterSlider = ({ items, selectedArray, onChange, toggleArrayFunc }) => (
+        <div className="flex overflow-x-auto gap-2 pb-1 -mx-2 px-2 [&::-webkit-scrollbar]:hidden">
+            {items.map(item => (
+                <button 
+                    key={item}
+                    onClick={() => {
+                        if(toggleArrayFunc) {
+                            toggleArrayFunc(selectedArray, onChange, item);
+                        } else {
+                            onChange(item);
+                        }
+                    }}
+                    className={`shrink-0 px-3.5 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                        (toggleArrayFunc ? selectedArray.includes(item) : selectedArray === item) 
+                            ? 'bg-surface/10 text-surface border border-surface/20 shadow-sm' 
+                            : 'bg-white text-slate-600 border border-slate-200'
+                    }`}
+                >
+                    {item}
+                </button>
+            ))}
+        </div>
+    );
 
     const renderStep1 = () => (
         <div className="flex-1 flex flex-col min-h-0 bg-white animate-in slide-in-from-bottom-4 duration-300">
@@ -287,19 +309,19 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto bg-gray-50 pb-20">
+            <div className="flex-1 overflow-y-auto bg-slate-50 pb-20">
                 {searchInput ? (
                     <div className="bg-white">
                         {suggestedLocations.map(loc => (
                             <div 
                                 key={loc} 
-                                className="flex items-center gap-3 p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50"
+                                className="flex items-center gap-3 p-4 border-b border-slate-100 cursor-pointer hover:bg-slate-50"
                                 onClick={() => handleSelectLocation(loc)}
                             >
-                                <MapPin size={16} className="text-gray-400" />
+                                <MapPin size={16} className="text-slate-400" />
                                 <div>
-                                    <div className="text-[12px] font-semibold text-gray-800">{loc}</div>
-                                    <div className="text-[10px] text-gray-500">Locality</div>
+                                    <div className="text-[12px] font-semibold text-slate-800">{loc}</div>
+                                    <div className="text-[10px] text-slate-500">Locality</div>
                                 </div>
                             </div>
                         ))}
@@ -309,19 +331,19 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         {/* History */}
                         {recentSearches.length > 0 && (
                             <div>
-                                <h3 className="text-[11px] font-bold text-gray-800 mb-3">Last searched..</h3>
-                                <div className="bg-white rounded-lg border border-gray-200">
+                                <h3 className="text-[11px] font-bold text-slate-800 mb-3">Last searched..</h3>
+                                <div className="bg-white rounded-lg border border-slate-200">
                                     {recentSearches.map((s, idx) => (
-                                        <div key={s.id || idx} className="flex items-center justify-between p-3 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50" onClick={() => {
+                                        <div key={s.id || idx} className="flex items-center justify-between p-3 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50" onClick={() => {
                                             setSelectedLocations(s.locations);
                                             setTxnType(s.txnType);
                                             setStep(2);
                                         }}>
-                                            <div className="flex items-center gap-2 text-[12px] text-gray-600">
+                                            <div className="flex items-center gap-2 text-[12px] text-slate-600">
                                                 <History size={14} />
                                                 {s.txnType} in {s.locations.join(', ')}
                                             </div>
-                                            <span className="text-gray-400 text-[14px] leading-none">↗</span>
+                                            <span className="text-slate-400 text-[14px] leading-none">↗</span>
                                         </div>
                                     ))}
                                 </div>
@@ -330,15 +352,15 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
 
                         {/* Popular */}
                         <div>
-                            <h3 className="text-[11px] font-bold text-gray-800 mb-3">Popular localities in Bengaluru</h3>
+                            <h3 className="text-[11px] font-bold text-slate-800 mb-3">Popular localities in Bengaluru</h3>
                             <div className="flex flex-wrap gap-2">
                                 {popularLocalities.map(loc => (
                                     <button 
                                         key={loc}
                                         onClick={() => handleSelectLocation(loc)}
-                                        className="px-3 py-1.5 border border-gray-200 bg-white rounded-md text-[11px] font-medium text-gray-700 flex items-center gap-1"
+                                        className="px-3 py-1.5 border border-slate-200 bg-white rounded-lg text-[11px] font-medium text-slate-700 flex items-center gap-1"
                                     >
-                                        <span className="text-gray-400">+</span> {loc}
+                                        <span className="text-slate-400">+</span> {loc}
                                     </button>
                                 ))}
                             </div>
@@ -348,7 +370,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             </div>
 
             {/* Bottom Bar */}
-            <div className="shrink-0 p-3 bg-white border-t border-gray-200 flex items-center justify-between z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <div className="shrink-0 p-3 bg-white border-t border-slate-200 flex items-center justify-between z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                 <button 
                     onClick={() => { setSelectedLocations([]); setSearchInput(''); }}
                     className="text-[12px] font-bold text-surface px-4"
@@ -369,10 +391,10 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
     );
 
     const renderStep2 = () => (
-        <div className="flex-1 flex flex-col min-h-0 bg-gray-50 animate-in slide-in-from-right duration-300">
+        <div className="flex-1 flex flex-col min-h-0 bg-white animate-in slide-in-from-right duration-300">
             {/* Top Bar */}
-            <div className="bg-surface pt-4 px-4 pb-4 shrink-0">
-                <div className="flex items-center justify-between mb-4">
+            <div className="bg-surface pt-3 px-3 pb-3 shrink-0">
+                <div className="flex items-center justify-between mb-3">
                     <div className="flex bg-white/20 p-1 rounded-full text-white text-[11px]">
                         {['Buy', 'Rent/PG', 'Commercial'].map(t => (
                             <button 
@@ -394,12 +416,12 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                 
                 {/* Search Input Box */}
                 <div className="relative bg-white rounded-lg p-1.5 flex items-center shadow-md">
-                    <button onClick={() => setStep(1)} className="flex items-center gap-1 text-surface text-[11px] font-bold px-2 border-r border-gray-200 mr-2 hover:bg-surface/10 rounded-md py-1 transition-colors">
+                    <button onClick={() => setStep(1)} className="flex items-center gap-1 text-surface text-[11px] font-bold px-2 border-r border-slate-200 mr-2 hover:bg-surface/10 rounded-md py-1 transition-colors">
                         <Search size={12} /> Add
                     </button>
-                    <div className="flex-1 flex flex-wrap gap-1 px-1 items-center">
+                    <div className="flex-1 flex overflow-x-auto gap-1 px-1 items-center [&::-webkit-scrollbar]:hidden">
                         {selectedLocations.map(loc => (
-                            <div key={loc} className="flex items-center gap-1 bg-surface/10 text-surface px-2 py-1 rounded-md text-[11px] font-semibold">
+                            <div key={loc} className="shrink-0 flex items-center gap-1 bg-surface/10 text-surface px-2 py-1 rounded-md text-[11px] font-semibold">
                                 {loc}
                                 <X size={10} className="cursor-pointer hover:text-red-500" onClick={() => handleRemoveLocation(loc)} />
                             </div>
@@ -409,78 +431,56 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
                 
                 {/* Radius for Current Location */}
                 {selectedLocations.includes('Current Location') && (
-                    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3">Show Properties within</h3>
-                        <div className="flex items-center gap-2">
-                            {['1 km', '3 km', '5 km', '10 km'].map(rad => (
-                                <button
-                                    key={rad}
-                                    onClick={() => setRadius(rad)}
-                                    className={`flex-1 py-2 rounded-lg border text-[11px] font-semibold transition-colors ${radius === rad ? 'border-surface bg-surface/10 text-surface' : 'border-gray-200 bg-white text-gray-700'}`}
-                                >
-                                    {rad}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="mb-2">
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Show Properties within</h3>
+                        <FilterSlider items={['1 km', '3 km', '5 km', '10 km']} selectedArray={radius} onChange={setRadius} toggleArrayFunc={false} />
                     </div>
                 )}
 
                 {/* Pre-Budget dynamic sections */}
                 {txnType === 'Rent/PG' && (
-                    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3">Looking to</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {['Rent', 'PG/Co-living'].map(lf => (
-                                <button 
-                                    key={lf}
-                                    onClick={() => {
-                                        setLookingFor(lf);
-                                        setAvailableFor([]);
-                                        setFurnishingStatus([]);
-                                    }}
-                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${lookingFor === lf ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                >
-                                    {lf}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="mb-2">
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Looking to</h3>
+                        <FilterSlider 
+                            items={['Rent', 'PG/Co-living']} 
+                            selectedArray={lookingFor} 
+                            onChange={(val) => {
+                                setLookingFor(val);
+                                setAvailableFor([]);
+                                setFurnishingStatus([]);
+                            }} 
+                            toggleArrayFunc={false} 
+                        />
                     </div>
                 )}
 
                 {txnType === 'Commercial' && (
-                    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3">Looking to</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {['Commercial Buy', 'Commercial Lease'].map(lt => (
-                                <button 
-                                    key={lt}
-                                    onClick={() => {
-                                        setLookingTo(lt);
-                                        if (lt === 'Commercial Lease') {
-                                            setInvestmentOptions([]);
-                                        }
-                                    }}
-                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${lookingTo === lt ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                >
-                                    {lt}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="mb-2">
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Looking to</h3>
+                        <FilterSlider 
+                            items={['Commercial Buy', 'Commercial Lease']} 
+                            selectedArray={lookingTo} 
+                            onChange={(val) => {
+                                setLookingTo(val);
+                                if (val === 'Commercial Lease') setInvestmentOptions([]);
+                            }} 
+                            toggleArrayFunc={false} 
+                        />
                     </div>
                 )}
 
-                {/* Budget */}
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <h3 className="text-[11px] font-bold text-gray-800 mb-3">Budget in ₹</h3>
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1 relative">
-                            <select className="w-full appearance-none border border-gray-200 rounded-lg py-2 pl-3 pr-8 text-[12px] text-gray-700 outline-none"
+                {/* Compact Budget Section (No Box styling, cleaner design) */}
+                <div>
+                    <h3 className="text-[12px] font-bold text-slate-800 mb-2">Budget in ₹</h3>
+                    <div className="flex items-center gap-3">
+                        <div className="flex-1 relative border-b-2 border-slate-200 focus-within:border-surface transition-colors pb-1">
+                            <select className="w-full appearance-none bg-transparent text-[13px] font-medium text-slate-800 outline-none"
                                 value={minBudget} onChange={e => setMinBudget(e.target.value)}>
-                                <option value="No Min">No Min</option>
+                                <option value="No Min">Min</option>
                                 <option value="10000">10 K</option>
                                 <option value="50000">50 K</option>
                                 <option value="100000">1 Lac</option>
@@ -488,20 +488,20 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                 <option value="2500000">25 Lac</option>
                                 <option value="5000000">50 Lac</option>
                             </select>
-                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                         </div>
-                        <span className="text-gray-400 text-[12px]">to</span>
-                        <div className="flex-1 relative">
-                            <select className="w-full appearance-none border border-gray-200 rounded-lg py-2 pl-3 pr-8 text-[12px] text-gray-700 outline-none"
+                        <span className="text-slate-400 text-[12px] font-medium px-2">to</span>
+                        <div className="flex-1 relative border-b-2 border-slate-200 focus-within:border-surface transition-colors pb-1">
+                            <select className="w-full appearance-none bg-transparent text-[13px] font-medium text-slate-800 outline-none"
                                 value={maxBudget} onChange={e => setMaxBudget(e.target.value)}>
-                                <option value="No Max">No Max</option>
+                                <option value="No Max">Max</option>
                                 <option value="50000">50 K</option>
                                 <option value="100000">1 Lac</option>
                                 <option value="5000000">50 Lac</option>
                                 <option value="10000000">1 Cr</option>
                                 <option value="50000000">5 Cr</option>
                             </select>
-                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                         </div>
                     </div>
                 </div>
@@ -509,67 +509,45 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                 {/* Sharing (PG Only) */}
                 {txnType === 'Rent/PG' && lookingFor === 'PG/Co-living' && (
                     <div>
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Sharing</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {['Private Rooms', '2 Per Room', 'More than 2 per room'].map(sh => (
-                                <button 
-                                    key={sh}
-                                    onClick={() => toggleArray(sharing, setSharing, sh)}
-                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${sharing.includes(sh) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                >
-                                    {sh}
-                                </button>
-                            ))}
-                        </div>
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Sharing</h3>
+                        <FilterSlider items={['Private Rooms', '2 Per Room', 'More than 2 per room']} selectedArray={sharing} onChange={setSharing} toggleArrayFunc={toggleArray} />
                     </div>
                 )}
 
-                {/* No. of Bedrooms (Buy and Rent Only, Not PG) */}
+                {/* No. of Bedrooms */}
                 {(txnType === 'Buy' || (txnType === 'Rent/PG' && lookingFor === 'Rent')) && (
                     <div>
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">No. of Bedrooms</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {['1 RK/1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'].map(bhk => (
-                                <button 
-                                    key={bhk}
-                                    onClick={() => toggleArray(bedrooms, setBedrooms, bhk)}
-                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${bedrooms.includes(bhk) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                >
-                                    {bhk}
-                                </button>
-                            ))}
-                        </div>
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">No. of Bedrooms</h3>
+                        <FilterSlider items={['1 RK/1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK']} selectedArray={bedrooms} onChange={setBedrooms} toggleArrayFunc={toggleArray} />
                     </div>
                 )}
 
-                {/* Property Types (Primary Categories) */}
+                {/* Property Types - Premium Slider */}
                 <div>
-                    <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">
+                    <h3 className="text-[12px] font-bold text-slate-800 mb-2">
                         {txnType === 'Commercial' ? 'Commercial property types' : 'Property types'}
                     </h3>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="flex overflow-x-auto gap-3 pb-2 -mx-2 px-2 [&::-webkit-scrollbar]:hidden">
                         {getPropertyTypesList().map(pt => (
                             <div 
                                 key={pt.label}
                                 onClick={() => {
                                     if (txnType === 'Commercial') {
-                                        // Single Select for Commercial
                                         if (propertyTypes.includes(pt.label)) {
                                             setPropertyTypes([]);
                                             setCommercialSubTypes([]);
                                         } else {
                                             setPropertyTypes([pt.label]);
-                                            setCommercialSubTypes([]); // reset sub-types when category changes
+                                            setCommercialSubTypes([]); 
                                         }
                                     } else {
-                                        // Multi select for Buy/Rent
                                         toggleArray(propertyTypes, setPropertyTypes, pt.label);
                                     }
                                 }}
-                                className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center cursor-pointer transition-colors ${propertyTypes.includes(pt.label) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-600 hover:border-surface/30'}`}
+                                className={`shrink-0 flex flex-col items-center justify-center p-3 rounded-xl border min-w-[90px] text-center cursor-pointer transition-all ${propertyTypes.includes(pt.label) ? 'border-surface bg-surface/5 text-surface shadow-sm' : 'border-slate-200 bg-white text-slate-600'}`}
                             >
-                                <div className="mb-2 opacity-80">{pt.icon}</div>
-                                <span className="text-[9px] font-semibold leading-tight">{pt.label}</span>
+                                <div className="mb-2">{pt.icon}</div>
+                                <span className="text-[10px] font-medium leading-tight">{pt.label}</span>
                             </div>
                         ))}
                     </div>
@@ -580,80 +558,36 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                     const subTypes = getCommercialSubTypesData(selectedCategory);
                     if (subTypes.length === 0) return null;
                     return (
-                        <div key={selectedCategory} className="bg-surface/5 p-4 rounded-xl border border-surface/20 space-y-4 animate-in slide-in-from-top-2">
-                            <h3 className="text-[12px] font-bold text-surface">Type of {selectedCategory}</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {subTypes.map(subType => (
-                                    <button 
-                                        key={subType}
-                                        onClick={() => toggleArray(commercialSubTypes, setCommercialSubTypes, subType)}
-                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${commercialSubTypes.includes(subType) ? 'border-surface bg-surface text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
-                                    >
-                                        {subType}
-                                    </button>
-                                ))}
+                        <div key={selectedCategory} className="bg-slate-50/50 -mx-4 px-4 py-4 border-y border-slate-100 space-y-5">
+                            <div>
+                                <h3 className="text-[11px] font-bold text-slate-600 mb-2 uppercase tracking-wide">Type of {selectedCategory}</h3>
+                                <FilterSlider items={subTypes} selectedArray={commercialSubTypes} onChange={setCommercialSubTypes} toggleArrayFunc={toggleArray} />
                             </div>
 
                             {/* Extra Section for Retail - Shop Located Inside */}
                             {selectedCategory === 'Retail' && (
-                                <div className="mt-4 pt-4 border-t border-surface/20">
-                                    <h4 className="text-[11px] font-bold text-gray-800 mb-3">Shop located inside</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {['Mall', 'Commercial Project', 'Residential Project', 'Retail Complex/Building', 'Market / High Street'].map(s => (
-                                            <button 
-                                                key={s} onClick={() => toggleArray(shopLocatedInside, setShopLocatedInside, s)}
-                                                className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${shopLocatedInside.includes(s) ? 'border-surface bg-surface text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
-                                            >
-                                                {s}
-                                            </button>
-                                        ))}
-                                    </div>
+                                <div>
+                                    <h4 className="text-[11px] font-bold text-slate-600 mb-2 uppercase tracking-wide">Shop located inside</h4>
+                                    <FilterSlider items={['Mall', 'Commercial Project', 'Residential Project', 'Retail Complex/Building', 'Market / High Street']} selectedArray={shopLocatedInside} onChange={setShopLocatedInside} toggleArrayFunc={toggleArray} />
                                 </div>
                             )}
 
                             {/* Extra Nested Settings if 'Co-working office space' is selected (Outside Advanced Filters portion) */}
                             {selectedCategory === 'Office' && commercialSubTypes.includes('Co-working office space') && (
-                                <div className="mt-4 pt-4 border-t border-surface/20 space-y-5">
+                                <div className="space-y-5">
                                     <div>
-                                        <h4 className="text-[11px] font-bold text-gray-800 mb-3">Number of Seats (Team Size)</h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {['6-10', '11-20', '21-50', '51-100', '101-500', '500+'].map(s => (
-                                                <button 
-                                                    key={s} onClick={() => toggleArray(cwSeats, setCwSeats, s)}
-                                                    className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwSeats.includes(s) ? 'border-surface bg-surface text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
-                                                >
-                                                    {s}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        <h4 className="text-[11px] font-bold text-slate-600 mb-2 uppercase tracking-wide">Number of Seats (Team Size)</h4>
+                                        <FilterSlider items={['6-10', '11-20', '21-50', '51-100', '101-500', '500+']} selectedArray={cwSeats} onChange={setCwSeats} toggleArrayFunc={toggleArray} />
                                     </div>
 
                                     <div>
-                                        <h4 className="text-[11px] font-bold text-gray-800 mb-3">Seat type</h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {['Hot Desk', 'Dedicated Desk', 'Private Office', 'Meeting Room', 'Private Cabin', 'Multi-utility space'].map(st => (
-                                                <button 
-                                                    key={st} onClick={() => toggleArray(cwSeatType, setCwSeatType, st)}
-                                                    className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwSeatType.includes(st) ? 'border-surface bg-surface text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
-                                                >
-                                                    {st}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        <h4 className="text-[11px] font-bold text-slate-600 mb-2 uppercase tracking-wide">Seat type</h4>
+                                        <FilterSlider items={['Hot Desk', 'Dedicated Desk', 'Private Office', 'Meeting Room', 'Private Cabin', 'Multi-utility space']} selectedArray={cwSeatType} onChange={setCwSeatType} toggleArrayFunc={toggleArray} />
                                     </div>
 
                                     <div>
-                                        <h4 className="text-[11px] font-bold text-gray-800 mb-3">Plans and pricing</h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {['Hourly', 'Daily', 'Weekly', 'Monthly'].map(pp => (
-                                                <button 
-                                                    key={pp} onClick={() => toggleArray(cwPlansPricing, setCwPlansPricing, pp)}
-                                                    className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwPlansPricing.includes(pp) ? 'border-surface bg-surface text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
-                                                >
-                                                    {pp}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        <h4 className="text-[11px] font-bold text-slate-600 mb-2 uppercase tracking-wide">Plans and pricing</h4>
+                                        <FilterSlider items={['Hourly', 'Daily', 'Weekly', 'Monthly']} selectedArray={cwPlansPricing} onChange={setCwPlansPricing} toggleArrayFunc={toggleArray} />
                                     </div>
                                 </div>
                             )}
@@ -664,86 +598,56 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                 {/* Investment Options (Commercial Buy Only) */}
                 {txnType === 'Commercial' && lookingTo === 'Commercial Buy' && (
                     <div>
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Investment Options</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {['Pre-leased Spaces', 'Restaurants', 'SCO Plots', 'Business Centre', 'Food Court', 'Multiplex'].map(io => (
-                                <button 
-                                    key={io}
-                                    onClick={() => toggleArray(investmentOptions, setInvestmentOptions, io)}
-                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${investmentOptions.includes(io) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                >
-                                    {io}
-                                </button>
-                            ))}
-                        </div>
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Investment Options</h3>
+                        <FilterSlider items={['Pre-leased Spaces', 'Restaurants', 'SCO Plots', 'Business Centre', 'Food Court', 'Multiplex']} selectedArray={investmentOptions} onChange={setInvestmentOptions} toggleArrayFunc={toggleArray} />
                     </div>
                 )}
 
                 {/* Available For (PG Only outside) */}
                 {txnType === 'Rent/PG' && lookingFor === 'PG/Co-living' && (
                     <div>
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Available For</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {['Girls', 'Boys'].map(af => (
-                                <button 
-                                    key={af}
-                                    onClick={() => toggleArray(availableFor, setAvailableFor, af)}
-                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${availableFor.includes(af) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                >
-                                    {af}
-                                </button>
-                            ))}
-                        </div>
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Available For</h3>
+                        <FilterSlider items={['Girls', 'Boys']} selectedArray={availableFor} onChange={setAvailableFor} toggleArrayFunc={toggleArray} />
                     </div>
                 )}
 
                 {/* Furnishing Status (Rent outside advanced) */}
                 {txnType === 'Rent/PG' && lookingFor === 'Rent' && (
-                    <div className="mt-2">
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Furnishing status</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {['Furnished', 'Semi-furnished', 'Unfurnished'].map(fs => (
-                                <button 
-                                    key={fs}
-                                    onClick={() => toggleArray(furnishingStatus, setFurnishingStatus, fs)}
-                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${furnishingStatus.includes(fs) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                >
-                                    {fs}
-                                </button>
-                            ))}
-                        </div>
+                    <div>
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Furnishing status</h3>
+                        <FilterSlider items={['Furnished', 'Semi-furnished', 'Unfurnished']} selectedArray={furnishingStatus} onChange={setFurnishingStatus} toggleArrayFunc={toggleArray} />
                     </div>
                 )}
 
                 {/* Area */}
                 {txnType === 'Commercial' && (
-                    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3">Area <span className="text-surface font-normal">sq.ft. <ChevronDown size={10} className="inline"/></span></h3>
-                        <div className="flex items-center gap-2">
-                            <div className="flex-1 relative">
-                                <select className="w-full appearance-none border border-gray-200 rounded-lg py-2 pl-3 pr-8 text-[12px] text-gray-700 outline-none hover:border-surface/30 focus:border-surface"
+                    <div>
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Area <span className="text-surface font-normal text-[10px]">sq.ft.</span></h3>
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 relative border-b-2 border-slate-200 focus-within:border-surface transition-colors pb-1">
+                                <select className="w-full appearance-none bg-transparent text-[13px] font-medium text-slate-800 outline-none"
                                     value={minArea} onChange={e => setMinArea(e.target.value)}>
-                                    <option value="No Min">No Min</option>
+                                    <option value="No Min">Min</option>
                                     <option value="500">500</option>
                                     <option value="1000">1000</option>
                                     <option value="2000">2000</option>
                                     <option value="5000">5000</option>
                                     <option value="10000">10000</option>
                                 </select>
-                                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                             </div>
-                            <span className="text-gray-400 text-[12px]">to</span>
-                            <div className="flex-1 relative">
-                                <select className="w-full appearance-none border border-gray-200 rounded-lg py-2 pl-3 pr-8 text-[12px] text-gray-700 outline-none hover:border-surface/30 focus:border-surface"
+                            <span className="text-slate-400 text-[12px] font-medium px-2">to</span>
+                            <div className="flex-1 relative border-b-2 border-slate-200 focus-within:border-surface transition-colors pb-1">
+                                <select className="w-full appearance-none bg-transparent text-[13px] font-medium text-slate-800 outline-none"
                                     value={maxArea} onChange={e => setMaxArea(e.target.value)}>
-                                    <option value="No Max">No Max</option>
+                                    <option value="No Max">Max</option>
                                     <option value="1000">1000</option>
                                     <option value="2000">2000</option>
                                     <option value="5000">5000</option>
                                     <option value="10000">10000</option>
                                     <option value="50000">50000</option>
                                 </select>
-                                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                             </div>
                         </div>
                     </div>
@@ -752,26 +656,16 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                 {/* Availability (Commercial Only outside) */}
                 {txnType === 'Commercial' && (
                     <div>
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Availability</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {['Immediately', 'Within 3 Months', 'After 3 Months'].map(ca => (
-                                <button 
-                                    key={ca}
-                                    onClick={() => toggleArray(commercialAvailability, setCommercialAvailability, ca)}
-                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${commercialAvailability.includes(ca) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                >
-                                    {ca}
-                                </button>
-                            ))}
-                        </div>
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Availability</h3>
+                        <FilterSlider items={['Immediately', 'Within 3 Months', 'After 3 Months']} selectedArray={commercialAvailability} onChange={setCommercialAvailability} toggleArrayFunc={toggleArray} />
                     </div>
                 )}
 
                 {/* Construction Status (Buy Only) */}
                 {txnType === 'Buy' && (
                     <div>
-                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Construction status</h3>
-                        <div className="grid grid-cols-3 gap-2">
+                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Construction status</h3>
+                        <div className="flex overflow-x-auto gap-3 pb-2 -mx-2 px-2 [&::-webkit-scrollbar]:hidden">
                             {[
                                 { label: 'Ready to move', icon: <CheckCircle2 size={16} /> },
                                 { label: 'New Launch', icon: <Clock size={16} /> },
@@ -780,38 +674,38 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                 <div 
                                     key={cs.label}
                                     onClick={() => toggleArray(constructionStatus, setConstructionStatus, cs.label)}
-                                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center cursor-pointer transition-colors ${constructionStatus.includes(cs.label) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-600 hover:border-surface/30'}`}
+                                    className={`shrink-0 flex flex-col items-center justify-center p-3 rounded-xl border min-w-[95px] text-center cursor-pointer transition-colors ${constructionStatus.includes(cs.label) ? 'border-surface bg-surface/5 text-surface shadow-sm' : 'border-slate-200 bg-white text-slate-600'}`}
                                 >
                                     <div className="mb-1 opacity-80">{cs.icon}</div>
-                                    <span className="text-[9px] font-semibold">{cs.label}</span>
+                                    <span className="text-[10px] font-medium">{cs.label}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
 
-                {/* Advanced Filters */}
+                {/* Advanced Filters Toggle */}
                 {!showAdvanced ? (
                     <div 
                         onClick={() => setShowAdvanced(true)}
-                        className="bg-white rounded-xl p-4 border border-gray-100 flex items-center justify-between cursor-pointer shadow-sm mt-6 hover:bg-gray-50 transition-colors"
+                        className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 flex items-center justify-between cursor-pointer mt-6"
                     >
                         <div>
-                            <h3 className="text-[11px] font-bold text-gray-800 mb-1">Advanced Filters</h3>
-                            <p className="text-[10px] text-gray-500">
+                            <h3 className="text-[12px] font-bold text-slate-800 mb-1">Advanced Filters</h3>
+                            <p className="text-[10px] text-slate-500">
                                 {txnType === 'Buy' ? 'Posted by, Purchase Type, Area, Amenities & more' : ''}
                                 {txnType === 'Rent/PG' && lookingFor === 'Rent' ? 'Posted by, Available for, Amenities, Area & more' : ''}
                                 {txnType === 'Rent/PG' && lookingFor === 'PG/Co-living' ? 'PG Services, Amenities, Capacity & more' : ''}
                                 {txnType === 'Commercial' ? 'Facilities, Floor preference, Amenities, Posted by, Age of Property' : ''}
                             </p>
                         </div>
-                        <ChevronDown size={14} className="text-gray-400" />
+                        <ChevronDown size={16} className="text-slate-400" />
                     </div>
                 ) : (
-                    <div className="space-y-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 mt-6">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-3 cursor-pointer" onClick={() => setShowAdvanced(false)}>
-                            <h3 className="text-[11px] font-bold text-gray-800">Advanced Filters</h3>
-                            <ChevronDown size={14} className="text-gray-400 transform rotate-180" />
+                    <div className="space-y-6 pt-4 border-t border-slate-200 mt-6 animate-in slide-in-from-bottom-2 duration-300">
+                        <div className="flex items-center justify-between pb-2 cursor-pointer" onClick={() => setShowAdvanced(false)}>
+                            <h3 className="text-[13px] font-bold text-surface">Advanced Filters</h3>
+                            <ChevronDown size={16} className="text-surface transform rotate-180" />
                         </div>
 
                         {/* ---------- COMMERCIAL SPECIFIC DEEP ADVANCED FILTERS ---------- */}
@@ -820,18 +714,8 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                 {/* Facilities for Office -> Ready to Move / Bare Shell */}
                                 {propertyTypes.includes('Office') && (commercialSubTypes.includes('Ready to move office space') || commercialSubTypes.includes('Bare shell office space')) && (
                                     <div>
-                                        <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Facilities</h3>
-                                        <div className="flex flex-wrap gap-2">
-                                            {['Centralized AC', 'Oxygen Duct', 'UPS', 'Fire Safety'].map(fac => (
-                                                <button 
-                                                    key={fac}
-                                                    onClick={() => toggleArray(officeFacilities, setOfficeFacilities, fac)}
-                                                    className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${officeFacilities.includes(fac) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                                >
-                                                    {fac}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        <h3 className="text-[12px] font-bold text-slate-800 mb-2">Facilities</h3>
+                                        <FilterSlider items={['Centralized AC', 'Oxygen Duct', 'UPS', 'Fire Safety']} selectedArray={officeFacilities} onChange={setOfficeFacilities} toggleArrayFunc={toggleArray} />
                                     </div>
                                 )}
 
@@ -839,147 +723,56 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                 {propertyTypes.includes('Office') && commercialSubTypes.includes('Co-working office space') && (
                                     <div className="space-y-6">
                                         <div>
-                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Other Filters</h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['Covid Ready', '24/7 operational'].map(cw => (
-                                                    <button 
-                                                        key={cw} onClick={() => toggleArray(cwOtherFilters, setCwOtherFilters, cw)}
-                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwOtherFilters.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                                    >
-                                                        {cw}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Other Filters</h3>
+                                            <FilterSlider items={['Covid Ready', '24/7 operational']} selectedArray={cwOtherFilters} onChange={setCwOtherFilters} toggleArrayFunc={toggleArray} />
                                         </div>
 
                                         <div>
-                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Services</h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['IT support', 'Housekeeping', 'Runner services', 'Catering', 'Reception', 'Courier services'].map(cw => (
-                                                    <button 
-                                                        key={cw} onClick={() => toggleArray(cwServices, setCwServices, cw)}
-                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwServices.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                                    >
-                                                        {cw}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Services</h3>
+                                            <FilterSlider items={['IT support', 'Housekeeping', 'Runner services', 'Catering', 'Reception', 'Courier services']} selectedArray={cwServices} onChange={setCwServices} toggleArrayFunc={toggleArray} />
                                         </div>
 
                                         <div>
-                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Office Supplies</h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['Printer', 'Photocopier', 'Office stationery', 'Scanner', 'Projector', 'Lockable drawers'].map(cw => (
-                                                    <button 
-                                                        key={cw} onClick={() => toggleArray(cwOfficeSupplies, setCwOfficeSupplies, cw)}
-                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwOfficeSupplies.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                                    >
-                                                        {cw}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Office Supplies</h3>
+                                            <FilterSlider items={['Printer', 'Photocopier', 'Office stationery', 'Scanner', 'Projector', 'Lockable drawers']} selectedArray={cwOfficeSupplies} onChange={setCwOfficeSupplies} toggleArrayFunc={toggleArray} />
                                         </div>
 
                                         <div>
-                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Space Access</h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['Conference room access', 'Calling booth', 'Car parking', 'Meeting room access', 'Relax zones', 'Bike parking'].map(cw => (
-                                                    <button 
-                                                        key={cw} onClick={() => toggleArray(cwSpaceAccess, setCwSpaceAccess, cw)}
-                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwSpaceAccess.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                                    >
-                                                        {cw}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Space Access</h3>
+                                            <FilterSlider items={['Conference room access', 'Calling booth', 'Car parking', 'Meeting room access', 'Relax zones', 'Bike parking']} selectedArray={cwSpaceAccess} onChange={setCwSpaceAccess} toggleArrayFunc={toggleArray} />
                                         </div>
 
                                         <div>
-                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Internet and Electricity</h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['High-speed WiFi', 'Power backup', 'High-speed Broadband', 'Air conditioning'].map(cw => (
-                                                    <button 
-                                                        key={cw} onClick={() => toggleArray(cwInternetElectricity, setCwInternetElectricity, cw)}
-                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwInternetElectricity.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                                    >
-                                                        {cw}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Internet and Electricity</h3>
+                                            <FilterSlider items={['High-speed WiFi', 'Power backup', 'High-speed Broadband', 'Air conditioning']} selectedArray={cwInternetElectricity} onChange={setCwInternetElectricity} toggleArrayFunc={toggleArray} />
                                         </div>
 
                                         <div>
-                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Food and Drinks</h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['Coffee machine', 'Cafeteria'].map(cw => (
-                                                    <button 
-                                                        key={cw} onClick={() => toggleArray(cwFoodDrinks, setCwFoodDrinks, cw)}
-                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwFoodDrinks.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                                    >
-                                                        {cw}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Food and Drinks</h3>
+                                            <FilterSlider items={['Coffee machine', 'Cafeteria']} selectedArray={cwFoodDrinks} onChange={setCwFoodDrinks} toggleArrayFunc={toggleArray} />
                                         </div>
 
                                         <div>
-                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Activities</h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['Recreational activities', 'Community programs', 'Relax zones'].map(cw => (
-                                                    <button 
-                                                        key={cw} onClick={() => toggleArray(cwActivities, setCwActivities, cw)}
-                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwActivities.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                                    >
-                                                        {cw}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Activities</h3>
+                                            <FilterSlider items={['Recreational activities', 'Community programs', 'Relax zones']} selectedArray={cwActivities} onChange={setCwActivities} toggleArrayFunc={toggleArray} />
                                         </div>
 
                                         <div>
-                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Additional Amenities</h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['Restaurants/malls nearby', 'Pick up and drop', 'Creche (managed)', 'Washrooms', 'Visitor management', 'Event spaces', 'AV Rooms / Projectors'].map(cw => (
-                                                    <button 
-                                                        key={cw} onClick={() => toggleArray(cwAdditionalAmenities, setCwAdditionalAmenities, cw)}
-                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwAdditionalAmenities.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                                    >
-                                                        {cw}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Additional Amenities</h3>
+                                            <FilterSlider items={['Restaurants/malls nearby', 'Pick up and drop', 'Creche (managed)', 'Washrooms', 'Visitor management', 'Event spaces', 'AV Rooms / Projectors']} selectedArray={cwAdditionalAmenities} onChange={setCwAdditionalAmenities} toggleArrayFunc={toggleArray} />
                                         </div>
 
                                         <div>
-                                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Covid Readiness</h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['Frequently sanitized', 'Masks provided', 'PPE kits available', 'Distanced seating arrangement', 'Reduced touchable items', 'Temperature screening'].map(cw => (
-                                                    <button 
-                                                        key={cw} onClick={() => toggleArray(cwCovidReadiness, setCwCovidReadiness, cw)}
-                                                        className={`px-3 py-1.5 border rounded-md text-[11px] font-semibold transition-colors ${cwCovidReadiness.includes(cw) ? 'border-surface bg-surface text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                                    >
-                                                        {cw}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Covid Readiness</h3>
+                                            <FilterSlider items={['Frequently sanitized', 'Masks provided', 'PPE kits available', 'Distanced seating arrangement', 'Reduced touchable items', 'Temperature screening']} selectedArray={cwCovidReadiness} onChange={setCwCovidReadiness} toggleArrayFunc={toggleArray} />
                                         </div>
                                     </div>
                                 )}
                                 
                                 {/* Floor Preference */}
                                 <div>
-                                    <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Floor preference</h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {['Basement', 'Ground floor', 'Terrace / Roof top', '1st and above'].map(fp => (
-                                            <button 
-                                                key={fp}
-                                                onClick={() => toggleArray(floorPreference, setFloorPreference, fp)}
-                                                className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${floorPreference.includes(fp) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                            >
-                                                {fp}
-                                            </button>
-                                        ))}
-                                    </div>
+                                    <h3 className="text-[12px] font-bold text-slate-800 mb-2">Floor preference</h3>
+                                    <FilterSlider items={['Basement', 'Ground floor', 'Terrace / Roof top', '1st and above']} selectedArray={floorPreference} onChange={setFloorPreference} toggleArrayFunc={toggleArray} />
                                 </div>
                             </>
                         )}
@@ -987,126 +780,73 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
 
                         {/* Posted By */}
                         <div>
-                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Posted by</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {['Owner', 'Dealer', 'Builder'].map(pb => (
-                                    <button 
-                                        key={pb}
-                                        onClick={() => toggleArray(postedBy, setPostedBy, pb)}
-                                        className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${postedBy.includes(pb) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                    >
-                                        {pb}
-                                    </button>
-                                ))}
-                            </div>
+                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Posted by</h3>
+                            <FilterSlider items={['Owner', 'Dealer', 'Builder']} selectedArray={postedBy} onChange={setPostedBy} toggleArrayFunc={toggleArray} />
                         </div>
 
                         {/* PG Services (PG Only) */}
                         {txnType === 'Rent/PG' && lookingFor === 'PG/Co-living' && (
                             <div>
-                                <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">PG Services</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {['Food Service', 'Wifi', 'Wheelchair Friendly', 'AC Rooms', 'Laundry Available', 'Pet Friendly'].map(pgs => (
-                                        <button 
-                                            key={pgs}
-                                            onClick={() => toggleArray(pgServices, setPgServices, pgs)}
-                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${pgServices.includes(pgs) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                        >
-                                            {pgs}
-                                        </button>
-                                    ))}
-                                </div>
+                                <h3 className="text-[12px] font-bold text-slate-800 mb-2">PG Services</h3>
+                                <FilterSlider items={['Food Service', 'Wifi', 'Wheelchair Friendly', 'AC Rooms', 'Laundry Available', 'Pet Friendly']} selectedArray={pgServices} onChange={setPgServices} toggleArrayFunc={toggleArray} />
                             </div>
                         )}
 
                         {/* Available For (Rent Only inside Advanced) */}
                         {txnType === 'Rent/PG' && lookingFor === 'Rent' && (
                             <div>
-                                <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Available for</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {['Family', 'Single Women', 'Single Men'].map(af => (
-                                        <button 
-                                            key={af}
-                                            onClick={() => toggleArray(availableFor, setAvailableFor, af)}
-                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${availableFor.includes(af) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                        >
-                                            {af}
-                                        </button>
-                                    ))}
-                                </div>
+                                <h3 className="text-[12px] font-bold text-slate-800 mb-2">Available for</h3>
+                                <FilterSlider items={['Family', 'Single Women', 'Single Men']} selectedArray={availableFor} onChange={setAvailableFor} toggleArrayFunc={toggleArray} />
                             </div>
                         )}
 
                         {/* Purchase Type (Buy Only) */}
                         {txnType === 'Buy' && (
                             <div>
-                                <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Purchase Type</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {['Resale', 'New Bookings'].map(pt => (
-                                        <button 
-                                            key={pt}
-                                            onClick={() => toggleArray(purchaseType, setPurchaseType, pt)}
-                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${purchaseType.includes(pt) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                        >
-                                            {pt}
-                                        </button>
-                                    ))}
-                                </div>
+                                <h3 className="text-[12px] font-bold text-slate-800 mb-2">Purchase Type</h3>
+                                <FilterSlider items={['Resale', 'New Bookings']} selectedArray={purchaseType} onChange={setPurchaseType} toggleArrayFunc={toggleArray} />
                             </div>
                         )}
 
                         {/* Amenities (All) */}
                         <div>
-                            <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Amenities</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {txnType === 'Commercial' 
-                                    ? ['Power Backup', 'DG Availability', 'Waste disposal', 'Near IT Park', 'Parking', 'Wheelchair Accessibility', 'ATM'].map(amenity => (
-                                        <button 
-                                            key={amenity}
-                                            onClick={() => toggleArray(amenities, setAmenities, amenity)}
-                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${amenities.includes(amenity) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                        >
-                                            {amenity}
-                                        </button>
-                                      ))
-                                    : ['Parking', 'Power Backup', 'Park', 'Swimming Pool', 'Security Personnel', 'Lift', 'Gas Pipeline', 'Gymnasium', 'Club House', 'Wheelchair Friendly', 'Pet Friendly'].map(amenity => (
-                                        <button 
-                                            key={amenity}
-                                            onClick={() => toggleArray(amenities, setAmenities, amenity)}
-                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${amenities.includes(amenity) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                        >
-                                            {amenity}
-                                        </button>
-                                      ))
-                                }
-                            </div>
+                            <h3 className="text-[12px] font-bold text-slate-800 mb-2">Amenities</h3>
+                            <FilterSlider 
+                                items={txnType === 'Commercial' 
+                                    ? ['Power Backup', 'DG Availability', 'Waste disposal', 'Near IT Park', 'Parking', 'Wheelchair Accessibility', 'ATM']
+                                    : ['Parking', 'Power Backup', 'Park', 'Swimming Pool', 'Security Personnel', 'Lift', 'Gas Pipeline', 'Gymnasium', 'Club House', 'Wheelchair Friendly', 'Pet Friendly']
+                                } 
+                                selectedArray={amenities} 
+                                onChange={setAmenities} 
+                                toggleArrayFunc={toggleArray} 
+                            />
                         </div>
 
                         {/* Area (Buy/Rent/PG inside advanced) */}
                         {txnType !== 'Commercial' && (
                             <div>
-                                <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Area <span className="text-surface font-normal">sq.ft. <ChevronDown size={10} className="inline"/></span></h3>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1 relative">
-                                        <select className="w-full appearance-none border border-gray-200 rounded-lg py-2 pl-3 pr-8 text-[12px] text-gray-700 outline-none hover:border-surface/30 focus:border-surface"
+                                <h3 className="text-[12px] font-bold text-slate-800 mb-2">Area <span className="text-surface font-normal text-[10px]">sq.ft.</span></h3>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 relative border-b-2 border-slate-200 focus-within:border-surface transition-colors pb-1">
+                                        <select className="w-full appearance-none bg-transparent text-[13px] font-medium text-slate-800 outline-none"
                                             value={minArea} onChange={e => setMinArea(e.target.value)}>
-                                            <option value="No Min">No Min</option>
+                                            <option value="No Min">Min</option>
                                             <option value="500">500</option>
                                             <option value="1000">1000</option>
                                             <option value="2000">2000</option>
                                         </select>
-                                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                        <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                     </div>
-                                    <span className="text-gray-400 text-[12px]">to</span>
-                                    <div className="flex-1 relative">
-                                        <select className="w-full appearance-none border border-gray-200 rounded-lg py-2 pl-3 pr-8 text-[12px] text-gray-700 outline-none hover:border-surface/30 focus:border-surface"
+                                    <span className="text-slate-400 text-[12px] font-medium px-2">to</span>
+                                    <div className="flex-1 relative border-b-2 border-slate-200 focus-within:border-surface transition-colors pb-1">
+                                        <select className="w-full appearance-none bg-transparent text-[13px] font-medium text-slate-800 outline-none"
                                             value={maxArea} onChange={e => setMaxArea(e.target.value)}>
-                                            <option value="No Max">No Max</option>
+                                            <option value="No Max">Max</option>
                                             <option value="1000">1000</option>
                                             <option value="2000">2000</option>
                                             <option value="5000">5000</option>
                                         </select>
-                                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                        <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                     </div>
                                 </div>
                             </div>
@@ -1114,37 +854,27 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
 
                         {/* Total Capacity (PG Only) */}
                         {txnType === 'Rent/PG' && lookingFor === 'PG/Co-living' && (
-                            <div className="mt-6">
-                                <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Total Capacity</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {['1-2 Guests', '2-4 Guests', '4-10 Guests', '10+ Guests'].map(cap => (
-                                        <button 
-                                            key={cap}
-                                            onClick={() => toggleArray(totalCapacity, setTotalCapacity, cap)}
-                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${totalCapacity.includes(cap) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                        >
-                                            {cap}
-                                        </button>
-                                    ))}
-                                </div>
+                            <div>
+                                <h3 className="text-[12px] font-bold text-slate-800 mb-2">Total Capacity</h3>
+                                <FilterSlider items={['1-2 Guests', '2-4 Guests', '4-10 Guests', '10+ Guests']} selectedArray={totalCapacity} onChange={setTotalCapacity} toggleArrayFunc={toggleArray} />
                             </div>
                         )}
 
                         {/* Minimum No. of Bathrooms (Buy/Rent Only - Not PG) */}
                         {txnType !== 'Commercial' && lookingFor !== 'PG/Co-living' && (
-                            <div className="flex items-center justify-between mt-6">
-                                <h3 className="text-[11px] font-bold text-gray-800 ml-1">Minimum No. of Bathrooms</h3>
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-[12px] font-bold text-slate-800">Minimum No. of Bathrooms</h3>
                                 <div className="flex items-center gap-4">
                                     <button 
                                         onClick={() => setMinBathrooms(prev => Math.max(0, prev - 1))}
-                                        className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+                                        className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors"
                                     >
                                         -
                                     </button>
-                                    <span className="text-[12px] font-bold w-4 text-center">{minBathrooms}</span>
+                                    <span className="text-[13px] font-bold w-4 text-center">{minBathrooms}</span>
                                     <button 
                                         onClick={() => setMinBathrooms(prev => prev + 1)}
-                                        className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+                                        className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors"
                                     >
                                         +
                                     </button>
@@ -1154,65 +884,35 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
 
                         {/* Available From (Rent Only) */}
                         {txnType === 'Rent/PG' && lookingFor === 'Rent' && (
-                            <div className="mt-6">
-                                <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Available From</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {['Any Time', 'Immediately', 'Within 15 Days', 'Within 1 Month', 'Within 2 Months', 'After 2 Months'].map(af => (
-                                        <button 
-                                            key={af}
-                                            onClick={() => toggleArray(availableFrom, setAvailableFrom, af)}
-                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${availableFrom.includes(af) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                        >
-                                            {af}
-                                        </button>
-                                    ))}
-                                </div>
+                            <div>
+                                <h3 className="text-[12px] font-bold text-slate-800 mb-2">Available From</h3>
+                                <FilterSlider items={['Any Time', 'Immediately', 'Within 15 Days', 'Within 1 Month', 'Within 2 Months', 'After 2 Months']} selectedArray={availableFrom} onChange={setAvailableFrom} toggleArrayFunc={toggleArray} />
                             </div>
                         )}
 
                         {/* Furnishing Status (Buy or PG inside Advanced) */}
                         {(txnType === 'Buy' || (txnType === 'Rent/PG' && lookingFor === 'PG/Co-living')) && (
-                            <div className="mt-6">
-                                <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Furnishing status</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {['Furnished', 'Semi-furnished', 'Unfurnished'].map(fs => (
-                                        <button 
-                                            key={fs}
-                                            onClick={() => toggleArray(furnishingStatus, setFurnishingStatus, fs)}
-                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${furnishingStatus.includes(fs) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                        >
-                                            {fs}
-                                        </button>
-                                    ))}
-                                </div>
+                            <div>
+                                <h3 className="text-[12px] font-bold text-slate-800 mb-2">Furnishing status</h3>
+                                <FilterSlider items={['Furnished', 'Semi-furnished', 'Unfurnished']} selectedArray={furnishingStatus} onChange={setFurnishingStatus} toggleArrayFunc={toggleArray} />
                             </div>
                         )}
 
                         {/* Age of Property (Commercial Only) */}
                         {txnType === 'Commercial' && (
-                            <div className="mt-6">
-                                <h3 className="text-[11px] font-bold text-gray-800 mb-3 ml-1">Age of Property</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {['0-1 years old', '1-5 years old', '5-10 years old', '10+ years old'].map(ap => (
-                                        <button 
-                                            key={ap}
-                                            onClick={() => toggleArray(ageOfProperty, setAgeOfProperty, ap)}
-                                            className={`px-4 py-2 border rounded-md text-[11px] font-semibold transition-colors ${ageOfProperty.includes(ap) ? 'border-surface bg-surface/10 text-surface shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-surface/30'}`}
-                                        >
-                                            {ap}
-                                        </button>
-                                    ))}
-                                </div>
+                            <div>
+                                <h3 className="text-[12px] font-bold text-slate-800 mb-2">Age of Property</h3>
+                                <FilterSlider items={['0-1 years old', '1-5 years old', '5-10 years old', '10+ years old']} selectedArray={ageOfProperty} onChange={setAgeOfProperty} toggleArrayFunc={toggleArray} />
                             </div>
                         )}
 
                         {/* RERA Approved properties (Buy/Rent Only - Not PG) */}
                         {txnType !== 'Commercial' && lookingFor !== 'PG/Co-living' && (
-                            <div className="mt-6 bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
-                                <h3 className="text-[11px] font-bold text-gray-800">Show Only RERA Approved Properties</h3>
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-[12px] font-bold text-slate-800">Show Only RERA Approved Properties</h3>
                                 <button 
                                     onClick={() => setReraApproved(!reraApproved)}
-                                    className={`w-11 h-6 rounded-full flex items-center px-1 transition-colors ${reraApproved ? 'bg-surface' : 'bg-gray-300'}`}
+                                    className={`w-10 h-5 rounded-full flex items-center px-0.5 transition-colors ${reraApproved ? 'bg-surface' : 'bg-slate-300'}`}
                                 >
                                     <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform ${reraApproved ? 'translate-x-5' : 'translate-x-0'}`}></div>
                                 </button>
@@ -1221,11 +921,11 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
 
                         {/* Attach Washroom properties (PG Only) */}
                         {txnType === 'Rent/PG' && lookingFor === 'PG/Co-living' && (
-                            <div className="mt-6 bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
-                                <h3 className="text-[11px] font-bold text-gray-800">Show Only Properties with Attach Washroom</h3>
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-[12px] font-bold text-slate-800">Properties with Attach Washroom</h3>
                                 <button 
                                     onClick={() => setAttachWashroom(!attachWashroom)}
-                                    className={`w-11 h-6 rounded-full flex items-center px-1 transition-colors ${attachWashroom ? 'bg-surface' : 'bg-gray-300'}`}
+                                    className={`w-10 h-5 rounded-full flex items-center px-0.5 transition-colors ${attachWashroom ? 'bg-surface' : 'bg-slate-300'}`}
                                 >
                                     <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform ${attachWashroom ? 'translate-x-5' : 'translate-x-0'}`}></div>
                                 </button>
@@ -1236,7 +936,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             </div>
 
             {/* Bottom Bar */}
-            <div className="shrink-0 p-3 bg-white border-t border-gray-200 flex items-center justify-between z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <div className="shrink-0 p-3 bg-white border-t border-slate-200 flex items-center justify-between z-10 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.1)]">
                 <button 
                     onClick={() => {
                         setMinBudget('No Min');
@@ -1279,7 +979,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         setCwAdditionalAmenities([]);
                         setCwCovidReadiness([]);
                     }}
-                    className="text-[12px] font-bold text-surface px-4"
+                    className="text-[13px] font-bold text-slate-500 px-4 py-2 hover:text-slate-800 transition-colors"
                 >
                     Clear
                 </button>
@@ -1291,9 +991,9 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         }
                         handleApply();
                     }}
-                    className="bg-surface text-white px-10 py-2.5 rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 hover:bg-surface/90 transition-colors"
+                    className="bg-surface text-white px-10 py-3 rounded-lg text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-surface/90 transition-all active:scale-[0.98] shadow-md shadow-surface/20"
                 >
-                    Search
+                    Search Properties
                 </button>
             </div>
         </div>
