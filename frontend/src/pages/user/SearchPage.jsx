@@ -6,6 +6,7 @@ import { MapPin, Search, Filter, Star, IndianRupee, Navigation, X, ChevronLeft, 
 import { toast } from 'react-hot-toast';
 import PropertyCard from '../../components/user/PropertyCard';
 import AdvancedFilterModal from '../../components/user/AdvancedFilterModal';
+import MobileSearchOverlay from '../../components/user/MobileSearchOverlay';
 import { locationData, bengaluruAreas } from '../../data/locationData';
 const getAvailablePropertyTypes = (category, subCategory) => {
     if (category === 'Paying Guest') {
@@ -183,6 +184,7 @@ const SearchPage = () => {
     };
 
     const [filters, setFilters] = useState(getInitialFilters());
+    const [showSearchOverlay, setShowSearchOverlay] = useState(false);
 
     const [location, setLocation] = useState(null); // { lat, lng }
     const [propertyTypes, setPropertyTypes] = useState([
@@ -576,16 +578,14 @@ const SearchPage = () => {
                         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
                             <ChevronLeft size={20} className="text-gray-600" />
                         </button>
-                        <div className="relative flex-grow">
+                        <div 
+                            className="relative flex-grow"
+                            onClick={() => setShowSearchOverlay(true)}
+                        >
                             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Search City/Locality/Project"
-                                className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full outline-none text-sm font-medium text-gray-700 bg-gray-50 focus:border-surface focus:bg-white transition-colors"
-                                value={filters.search}
-                                onChange={(e) => updateFilter('search', e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-                            />
+                            <div className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-400 bg-gray-50 flex items-center h-9">
+                                {filters.areas && filters.areas.length > 0 ? filters.areas.join(', ') : (filters.search || "Search City/Locality/Project")}
+                            </div>
                         </div>
                         <button className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
                             <Heart size={18} className="text-gray-600" />
@@ -784,6 +784,17 @@ const SearchPage = () => {
                 }}
                 activeTab={activeModalTab}
                 setActiveTab={setActiveModalTab}
+            />
+
+            <MobileSearchOverlay 
+                isOpen={showSearchOverlay}
+                onClose={() => setShowSearchOverlay(false)}
+                initialFilters={filters}
+                onApplyFilters={(newFilters) => {
+                    const finalParams = getParamsFromFilters({...filters, ...newFilters});
+                    setSearchParams(finalParams);
+                    setFilters(prev => ({...prev, ...newFilters}));
+                }}
             />
 
         </div>
