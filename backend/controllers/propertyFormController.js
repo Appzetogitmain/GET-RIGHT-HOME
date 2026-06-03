@@ -51,7 +51,12 @@ const createResidentialSteps = (isRent) => [
       { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 6 },
       { name: 'gatedCommunity', label: 'Gated Community?', type: 'pill', options: ['Yes', 'No'], required: true, order: 7 },
       { name: 'powerBackup', label: 'Power Backup', type: 'pill', options: ['None', 'Partial', 'Full'], required: false, order: 8 },
-      { name: 'waterSupply', label: 'Water Supply', type: 'pill', options: ['Corporation', 'Borewell', 'Both'], required: false, order: 9 }
+      { name: 'waterSupply', label: 'Water Supply', type: 'pill', options: ['Corporation', 'Borewell', 'Both'], required: false, order: 9 },
+      { name: 'highlights', label: 'Key Highlights', type: 'checkbox_group', options: [
+        'Prime Location', 'Gated Society', 'Corner Property', 'Vastu Compliant', 'Recently Renovated',
+        'High Floor View', 'Natural Light & Ventilation', 'Modular Kitchen', 'Spacious Rooms',
+        'Low Maintenance', 'Pet Friendly', 'Ready to Move In', 'Investment Opportunity', 'Metro Connectivity'
+      ], required: false, order: 10 }
     ]
   },
   {
@@ -105,7 +110,11 @@ const createPlotSteps = (isRent, isCommercial) => [
         { name: 'brokersOk', label: 'Are you ok with brokers contacting you?', type: 'pill', options: ['Yes', 'No'], required: true, order: 4 },
         { name: 'preferredTenants', label: 'Willing to rent out to', type: 'checkbox_group', options: ['Family', 'Single men', 'Single women'], required: true, order: 5 }
       ] : []),
-      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 6 }
+      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 6 },
+      { name: 'highlights', label: 'Key Highlights', type: 'checkbox_group', options: [
+        'Corner Plot', 'Prime Location', 'Road Facing', 'Vastu Compliant', 'Freehold Land',
+        'RERA Approved', 'Wide Road Frontage', 'Commercial Zone', 'Electricity Available', 'Water Connection Available'
+      ], required: false, order: 7 }
     ]
   },
   {
@@ -178,7 +187,12 @@ const createRetailSteps = (isRent, subType) => [
       ...(isRent ? [
         { name: 'brokersOk', label: 'Are you ok with brokers contacting you?', type: 'pill', options: ['Yes', 'No'], required: true, order: 16 },
         { name: 'preferredTenants', label: 'Willing to rent out to', type: 'checkbox_group', options: ['Family', 'Single men', 'Single women'], required: true, order: 17 }
-      ] : [])
+      ] : []),
+      { name: 'highlights', label: 'Key Highlights', type: 'checkbox_group', options: [
+        'High Street Location', 'Corner Property', 'Prime Visibility', 'High Footfall Area',
+        'Pre-leased Investment', 'Ample Parking', 'Ready to Move In', 'Near Metro/Transport Hub',
+        'Power Backup Available', 'CCTV Surveillance'
+      ], required: false, order: 18 }
     ]
   },
   {
@@ -273,7 +287,12 @@ const createCommercialSteps = (isRent, commType, subType) => {
           { name: 'brokersOk', label: 'Are you ok with brokers contacting you?', type: 'pill', options: ['Yes', 'No'], required: true, order: 7 },
           { name: 'preferredTenants', label: 'Willing to rent out to', type: 'checkbox_group', options: ['Family', 'Single men', 'Single women'], required: true, order: 8 }
         ] : []),
-        { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 9 }
+        { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 9 },
+        { name: 'highlights', label: 'Key Highlights', type: 'checkbox_group', options: [
+          'Prime Business Location', 'Modern Infrastructure', 'High-Speed Internet Ready', 'Centrally Air Conditioned',
+          'Dedicated Parking', 'Power Backup', '24x7 Security', 'CCTV Surveillance',
+          'Ample Natural Light', 'Prestigious Address', 'Near Metro/Airport', 'Dedicated Reception'
+        ], required: false, order: 10 }
       ]
     },
     {
@@ -329,7 +348,12 @@ const createPGSteps = () => [
       { name: 'wifi', label: 'WiFi', type: 'pill', options: ['Included', 'Extra', 'Not Available'], required: true, order: 3 },
       { name: 'laundry', label: 'Laundry', type: 'pill', options: ['Included', 'Extra', 'Not Available'], required: false, order: 4 },
       { name: 'cleaning', label: 'Room Cleaning', type: 'pill', options: ['Daily', 'Weekly', 'Not Available'], required: false, order: 5 },
-      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 6 }
+      { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: true, order: 6 },
+      { name: 'highlights', label: 'Key Highlights', type: 'checkbox_group', options: [
+        'Girls Only PG', 'Boys Only PG', 'Food Included', 'AC Rooms', 'Attached Washroom',
+        'High-Speed WiFi', 'CCTV Surveillance', 'Gated Community', 'Near College/Office',
+        'Housekeeping Included', 'Power Backup', 'Flexible Notice Period'
+      ], required: false, order: 7 }
     ]
   },
   {

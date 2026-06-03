@@ -103,6 +103,14 @@ const partnerSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  totalListingsCount: {
+    type: Number,
+    default: 0
+  },
+  memberSinceDate: {
+    type: Date,
+    default: Date.now
   }
 }, { timestamps: true });
 

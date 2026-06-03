@@ -898,4 +898,31 @@ export const faqService = {
   }
 };
 
+export const localityReviewService = {
+  createReview: async (reviewData) => {
+    try {
+      const response = await api.post('/locality-reviews', reviewData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getStats: async (localityName) => {
+    try {
+      const response = await api.get('/locality-reviews/stats', { params: { localityName } });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getReviews: async (localityName, page = 1, limit = 10) => {
+    try {
+      const response = await api.get('/locality-reviews', { params: { localityName, page, limit } });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
 export default api;

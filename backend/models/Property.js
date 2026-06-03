@@ -127,6 +127,9 @@ const propertySchema = new mongoose.Schema({
 
   // AMENITIES (PROPERTY LEVEL)
   amenities: [String],
+  highlights: [String],
+  topAmenities: [String],
+  otherAmenities: [String],
 
   // POLICIES
   checkInTime: String,

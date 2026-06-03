@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
-import { propertyService, legalService, reviewService, offerService, availabilityService, userService, bookingService, enquiryService } from '../../services/apiService';
+import { propertyService, legalService, reviewService, offerService, availabilityService, userService, bookingService, enquiryService, localityReviewService } from '../../services/apiService';
 import GRHPropertyCard from '../../components/user/GRHPropertyCard';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
@@ -61,6 +61,11 @@ const PropertyDetailsPage = () => {
   const [leadPhone, setLeadPhone] = useState('');
   const [isAgent, setIsAgent] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(true);
+
+  const [localityStats, setLocalityStats] = useState(null);
+  const [localityReviews, setLocalityReviews] = useState([]);
+  const [loadingLocalityStats, setLoadingLocalityStats] = useState(false);
+  const isManualScrollRef = useRef(false);
 
   // Horizontal Tab Scroll Link state
   const [activeTab, setActiveTab] = useState('overview');
@@ -124,6 +129,26 @@ const PropertyDetailsPage = () => {
       .catch(err => console.error("Failed to fetch tax rate", err));
   }, []);
 
+  const fetchLocalityData = async (localityName) => {
+    if (!localityName) return;
+    setLoadingLocalityStats(true);
+    try {
+      const statsRes = await localityReviewService.getStats(localityName);
+      if (statsRes && statsRes.success) {
+        setLocalityStats(statsRes.stats);
+      }
+      
+      const revRes = await localityReviewService.getReviews(localityName, 1, 3);
+      if (revRes && revRes.success) {
+        setLocalityReviews(revRes.reviews || []);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch locality stats:", err);
+    } finally {
+      setLoadingLocalityStats(false);
+    }
+  };
+
   const loadPropertyDetails = async () => {
     try {
       const response = await propertyService.getDetails(id);
@@ -140,6 +165,9 @@ const PropertyDetailsPage = () => {
           images: { cover: p.coverImage, gallery: p.propertyImages || [] },
           propertyType: p.propertyType ? p.propertyType.charAt(0).toUpperCase() + p.propertyType.slice(1) : '',
           amenities: p.amenities || [],
+          highlights: p.highlights || [],
+          topAmenities: p.topAmenities || [],
+          otherAmenities: p.otherAmenities || [],
           inventory: rts.map(rt => ({
             _id: rt._id,
             type: rt.name,
@@ -170,6 +198,12 @@ const PropertyDetailsPage = () => {
           }
         };
         setProperty(adapted);
+
+        // Fetch locality details
+        const localityString = p.address?.locality || p.address?.area || p.address?.city || '';
+        if (localityString) {
+          fetchLocalityData(localityString);
+        }
         
         // Fetch similar properties
         try {
@@ -205,6 +239,7 @@ const PropertyDetailsPage = () => {
   // Tab scrolling link effect
   useEffect(() => {
     const handleScroll = () => {
+      if (isManualScrollRef.current) return;
       const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 130;
       if (isAtBottom) {
         setActiveTab('explore-locality');
@@ -243,11 +278,240 @@ const PropertyDetailsPage = () => {
   const scrollToSection = (sectionId) => {
     const el = document.getElementById(sectionId);
     if (el) {
+      isManualScrollRef.current = true;
+      setActiveTab(sectionId);
       const yOffset = -130; // matches scroll threshold offset
       const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: 'smooth' });
-      setActiveTab(sectionId);
+      
+      setTimeout(() => {
+        isManualScrollRef.current = false;
+      }, 800);
     }
+  };
+
+  const formatMemberSince = (dateStr) => {
+    if (!dateStr) return 'Jan 2023';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    } catch (e) {
+      return 'Jan 2023';
+    }
+  };
+
+  const getSpecs = () => {
+    const specs = [];
+    if (!property) return specs;
+
+    specs.push({ label: 'Property Type', value: property.propertyType || 'Residential' });
+    specs.push({ label: 'Transaction Type', value: property.transactionType || 'Sell' });
+
+    if (property.buyDetails) {
+      const bd = property.buyDetails;
+      if (bd.type) specs.push({ label: 'Configuration', value: bd.type });
+      if (bd.expectedPrice) specs.push({ label: 'Expected Price', value: `₹${bd.expectedPrice.toLocaleString('en-IN')}` });
+      if (bd.area?.carpet) specs.push({ label: 'Carpet Area', value: `${bd.area.carpet} ${bd.area.unit || 'sqft'}` });
+      if (bd.ownership) specs.push({ label: 'Ownership', value: bd.ownership });
+      if (bd.propertyAge) specs.push({ label: 'Property Age', value: bd.propertyAge });
+      if (bd.facing) specs.push({ label: 'Facing', value: bd.facing });
+      if (bd.builderName) specs.push({ label: 'Builder', value: bd.builderName });
+    } else if (property.rentDetails) {
+      const rd = property.rentDetails;
+      if (rd.type) specs.push({ label: 'Configuration', value: rd.type });
+      if (rd.monthlyRent) specs.push({ label: 'Monthly Rent', value: `₹${rd.monthlyRent.toLocaleString('en-IN')}/month` });
+      if (rd.furnishing) specs.push({ label: 'Furnishing', value: rd.furnishing });
+      if (rd.tenantPreference) specs.push({ label: 'Tenant Preference', value: rd.tenantPreference });
+      if (rd.societyName) specs.push({ label: 'Society', value: rd.societyName });
+      if (rd.waterSupply) specs.push({ label: 'Water Supply', value: rd.waterSupply });
+    } else if (property.plotDetails) {
+      const pd = property.plotDetails;
+      if (pd.expectedPrice) specs.push({ label: 'Expected Price', value: `₹${pd.expectedPrice.toLocaleString('en-IN')}` });
+      if (pd.plotArea) specs.push({ label: 'Plot Area', value: `${pd.plotArea} ${pd.unit || 'sqyrd'}` });
+      if (pd.landType) specs.push({ label: 'Land Type', value: pd.landType });
+      if (pd.facing) specs.push({ label: 'Facing', value: pd.facing });
+      if (pd.roadWidth) specs.push({ label: 'Road Width', value: pd.roadWidth });
+      if (pd.approvalAuthority) specs.push({ label: 'Approval Authority', value: pd.approvalAuthority });
+    } else if (property.pgDetails) {
+      const pgd = property.pgDetails;
+      if (pgd.gender) specs.push({ label: 'Gender Allowed', value: pgd.gender });
+      if (pgd.occupancy) specs.push({ label: 'Occupancy', value: pgd.occupancy });
+      if (pgd.securityDeposit) specs.push({ label: 'Security Deposit', value: `₹${pgd.securityDeposit.toLocaleString('en-IN')}` });
+      if (pgd.minStay) specs.push({ label: 'Min Stay', value: pgd.minStay });
+      if (pgd.noticePeriod) specs.push({ label: 'Notice Period', value: pgd.noticePeriod });
+      if (pgd.foodIncluded !== undefined) specs.push({ label: 'Food Included', value: pgd.foodIncluded ? 'Yes' : 'No' });
+    }
+
+    if (specs.length <= 2) {
+      const dd = property.dynamicData || {};
+      const getDdVal = (key) => {
+        if (typeof dd.get === 'function') return dd.get(key);
+        return dd[key];
+      };
+      // Pull from dynamicData (new form submissions)
+      if (getDdVal('bedrooms')) specs.push({ label: 'Bedrooms', value: getDdVal('bedrooms') });
+      if (getDdVal('bathrooms')) specs.push({ label: 'Bathrooms', value: getDdVal('bathrooms') });
+      if (getDdVal('balconies')) specs.push({ label: 'Balconies', value: getDdVal('balconies') });
+      if (getDdVal('furnishing')) specs.push({ label: 'Furnishing', value: getDdVal('furnishing') });
+      if (getDdVal('carpetArea')) specs.push({ label: 'Carpet Area', value: `${getDdVal('carpetArea')} ${getDdVal('carpetAreaUnit') || 'sq.ft.'}` });
+      if (getDdVal('superArea')) specs.push({ label: 'Super Built-up Area', value: `${getDdVal('superArea')} ${getDdVal('superAreaUnit') || 'sq.ft.'}` });
+      if (getDdVal('totalFloors')) specs.push({ label: 'Total Floors', value: getDdVal('totalFloors') });
+      if (getDdVal('floorNumber')) specs.push({ label: 'Floor Number', value: getDdVal('floorNumber') });
+      if (getDdVal('facing')) specs.push({ label: 'Facing', value: getDdVal('facing') });
+      if (getDdVal('availability')) specs.push({ label: 'Availability', value: getDdVal('availability') });
+      if (getDdVal('gatedCommunity')) specs.push({ label: 'Gated Community', value: getDdVal('gatedCommunity') });
+      if (getDdVal('waterSupply')) specs.push({ label: 'Water Supply', value: getDdVal('waterSupply') });
+      if (getDdVal('expectedPrice')) specs.push({ label: 'Expected Price', value: `₹${Number(getDdVal('expectedPrice')).toLocaleString('en-IN')}` });
+      if (getDdVal('monthlyRent')) specs.push({ label: 'Monthly Rent', value: `₹${Number(getDdVal('monthlyRent')).toLocaleString('en-IN')}/mo` });
+      if (getDdVal('securityDeposit')) specs.push({ label: 'Security Deposit', value: `₹${Number(getDdVal('securityDeposit')).toLocaleString('en-IN')}` });
+      if (getDdVal('plotArea')) specs.push({ label: 'Plot Area', value: `${getDdVal('plotArea')} ${getDdVal('areaUnit') || 'sq.ft.'}` });
+      if (getDdVal('approvalAuthority')) specs.push({ label: 'Approval Authority', value: getDdVal('approvalAuthority') });
+      if (getDdVal('boundaryWall')) specs.push({ label: 'Boundary Wall', value: getDdVal('boundaryWall') });
+      
+      // Only use truly static fallback if we still have nothing
+      if (specs.length <= 2) {
+        specs.push(
+          { label: 'Layout', value: '1 RK, 1 Baths' },
+          { label: 'Ownership', value: 'Freehold' },
+          { label: 'Carpet Area', value: '244 sq.ft.' },
+          { label: 'Floor Number', value: '1' },
+          { label: 'Furnishing', value: 'Unfurnished' },
+          { label: 'Facing', value: 'East' }
+        );
+      }
+    }
+    return specs;
+  };
+
+  const getCircularWidgets = () => {
+    const widgets = [];
+    if (!property) return widgets;
+
+    if (property.buyDetails?.type || property.rentDetails?.type) {
+      widgets.push({
+        icon: LayoutTemplate,
+        label: property.buyDetails?.type || property.rentDetails?.type,
+        color: 'text-slate-600'
+      });
+    } else if (property.pgDetails?.gender) {
+      widgets.push({
+        icon: Users,
+        label: `${property.pgDetails.gender} PG`,
+        color: 'text-slate-600'
+      });
+    } else {
+      widgets.push({
+        icon: LayoutTemplate,
+        label: property.propertyType || 'Residential',
+        color: 'text-slate-600'
+      });
+    }
+
+    if (property.buyDetails?.area?.carpet) {
+      widgets.push({
+        icon: Maximize2,
+        label: `${property.buyDetails.area.carpet} ${property.buyDetails.area.unit || 'sqft'} carpet`,
+        color: 'text-slate-600'
+      });
+    } else if (property.plotDetails?.plotArea) {
+      widgets.push({
+        icon: Maximize2,
+        label: `${property.plotDetails.plotArea} ${property.plotDetails.unit || 'sqyrd'} area`,
+        color: 'text-slate-600'
+      });
+    } else if (property.dynamicData) {
+      const dd = property.dynamicData;
+      const getDd = (k) => typeof dd.get === 'function' ? dd.get(k) : dd[k];
+      const area = getDd('carpetArea') || getDd('plotArea') || getDd('superArea');
+      const unit = getDd('carpetAreaUnit') || getDd('areaUnit') || getDd('superAreaUnit') || 'sq.ft.';
+      if (area) {
+        widgets.push({ icon: Maximize2, label: `${area} ${unit} carpet`, color: 'text-slate-600' });
+      } else {
+        widgets.push({ icon: Maximize2, label: 'Area N/A', color: 'text-slate-400' });
+      }
+    }
+
+    if (property.buyDetails?.expectedPrice) {
+      const carpetVal = property.buyDetails.area?.carpet || 1;
+      const perSqft = Math.round(property.buyDetails.expectedPrice / carpetVal);
+      widgets.push({
+        icon: null,
+        symbol: '₹',
+        label: `₹${perSqft.toLocaleString('en-IN')}/sqft`,
+        color: 'text-[#0061df]'
+      });
+    } else if (property.rentDetails?.monthlyRent) {
+      widgets.push({
+        icon: null,
+        symbol: '₹',
+        label: `₹${property.rentDetails.monthlyRent.toLocaleString('en-IN')}/mo`,
+        color: 'text-[#0061df]'
+      });
+    } else if (property.pgDetails?.securityDeposit) {
+      widgets.push({
+        icon: null,
+        symbol: '₹',
+        label: `₹${property.pgDetails.securityDeposit.toLocaleString('en-IN')} Dep`,
+        color: 'text-[#0061df]'
+      });
+    } else if (property.dynamicData) {
+      const dd = property.dynamicData;
+      const getDd = (k) => typeof dd.get === 'function' ? dd.get(k) : dd[k];
+      const price = getDd('expectedPrice') || getDd('monthlyRent') || getDd('expectedRent');
+      if (price) {
+        widgets.push({ icon: null, symbol: '₹', label: formatPriceLakhCrore(price), color: 'text-[#0061df]' });
+      } else {
+        widgets.push({ icon: null, symbol: '₹', label: 'Price on Request', color: 'text-[#0061df]' });
+      }
+    }
+
+    if (property.buyDetails?.facing || property.plotDetails?.facing) {
+      widgets.push({
+        icon: Compass,
+        label: `${property.buyDetails?.facing || property.plotDetails?.facing} Facing`,
+        color: 'text-slate-600'
+      });
+    } else if (property.buyDetails?.propertyAge) {
+      widgets.push({
+        icon: Calendar,
+        label: `${property.buyDetails.propertyAge} Old`,
+        color: 'text-slate-600'
+      });
+    } else if (property.dynamicData) {
+      const dd = property.dynamicData;
+      const getDd = (k) => typeof dd.get === 'function' ? dd.get(k) : dd[k];
+      const facing = getDd('facing');
+      if (facing) {
+        widgets.push({ icon: Compass, label: `${facing} Facing`, color: 'text-slate-600' });
+      } else {
+        widgets.push({ icon: Compass, label: 'Facing N/A', color: 'text-slate-400' });
+      }
+    }
+
+    if (property.rentDetails?.furnishing) {
+      widgets.push({
+        icon: Grid,
+        label: property.rentDetails.furnishing,
+        color: 'text-slate-600'
+      });
+    } else if (property.pgDetails?.occupancy) {
+      widgets.push({
+        icon: Users,
+        label: property.pgDetails.occupancy,
+        color: 'text-slate-600'
+      });
+    } else if (property.dynamicData) {
+      const dd = property.dynamicData;
+      const getDd = (k) => typeof dd.get === 'function' ? dd.get(k) : dd[k];
+      const furnishing = getDd('furnishing');
+      if (furnishing) {
+        widgets.push({ icon: Grid, label: furnishing, color: 'text-slate-600' });
+      } else {
+        widgets.push({ icon: Grid, label: 'Details N/A', color: 'text-slate-400' });
+      }
+    }
+
+    return widgets.slice(0, 5);
   };
 
   const propertyType = property?.propertyType;
@@ -718,6 +982,36 @@ const PropertyDetailsPage = () => {
   const dbPhone = property?.contactNumber || property?.partnerId?.phone || property?.userId?.phone || 'N/A';
   const displayPhone = revealedNumber ? revealedNumber : maskPhone(dbPhone);
   const sellerName = property?.partnerId?.name || property?.userId?.name || 'Umesh Diwakar';
+  const memberSinceDate = property?.partnerId?.createdAt || property?.userId?.createdAt || '';
+  const memberSinceText = memberSinceDate ? `Member Since ${formatMemberSince(memberSinceDate)}` : 'Member Since Jan 2023';
+  const listedCount = property?.partnerId?.listedPropertiesCount || property?.userId?.listedPropertiesCount || 46;
+  const verifiedCount = property?.partnerId?.verifiedPropertiesCount || property?.userId?.verifiedPropertiesCount || 12;
+
+  const localityName = property?.address?.locality || property?.address?.area || property?.address?.city || 'Goregaon East, Mumbai';
+  const totalLocalityReviews = localityStats?.totalReviews || 205;
+  const avgLocalityRating = localityStats?.averageRating || 4.3;
+  const getStarPercentage = (starVal) => {
+    if (!localityStats?.ratingDistribution) {
+      return starVal === 5 ? 65 : (starVal === 4 ? 25 : (starVal === 3 ? 8 : 2));
+    }
+    const dist = localityStats.ratingDistribution;
+    const count = dist[starVal] || 0;
+    if (totalLocalityReviews <= 0) return 0;
+    return Math.round((count / totalLocalityReviews) * 100);
+  };
+  const featureRatings = [
+    { title: 'Connectivity', val: `${localityStats?.ratingsByFeature?.connectivity?.toFixed(1) || '4.3'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.connectivity || 4.3) * 20) },
+    { title: 'Lifestyle', val: `${localityStats?.ratingsByFeature?.lifestyle?.toFixed(1) || '4.3'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.lifestyle || 4.3) * 20) },
+    { title: 'Safety', val: `${localityStats?.ratingsByFeature?.safety?.toFixed(1) || '4.2'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.safety || 4.2) * 20) },
+    { title: 'Green Area', val: `${localityStats?.ratingsByFeature?.greenArea?.toFixed(1) || '4.2'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.greenArea || 4.2) * 20) }
+  ];
+  const localityPositives = localityStats?.positives && localityStats.positives.length > 0
+    ? localityStats.positives
+    : ['Good Public Transport', 'Easy Cab/Auto Availability', 'Good Schools are nearby', 'Markets at a walkable distance', 'Well-maintained Roads', 'Good Hospitals are nearby'];
+
+  const localityNegatives = localityStats?.negatives && localityStats.negatives.length > 0
+    ? localityStats.negatives
+    : ['Frequent Traffic Jams', 'Frequent Parking Issues'];
 
   return (
     <div className="bg-[#f8fafe] min-h-screen pb-32 text-gray-800 font-sans selection:bg-blue-100 antialiased">
@@ -731,8 +1025,8 @@ const PropertyDetailsPage = () => {
             </button>
             <div className="flex flex-col">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider line-clamp-1">
-                {propertyType} for Resale
-              </span>
+              {property?.propertyType} {property?.transactionType ? `· ${property.transactionType}` : ''}
+            </span>
               <span className="text-sm font-bold text-gray-900 line-clamp-1">
                 {name || 'Property Details'}
               </span>
@@ -813,7 +1107,11 @@ const PropertyDetailsPage = () => {
                 {formatPriceLakhCrore(bookingBarPrice)}
                 {(isRentGroup || isPgGroup) && <span className="text-xs font-medium opacity-85">/mo</span>}
               </h2>
-              <p className="text-[10px] opacity-90 font-medium">Negotiable, 2% brokerage,...</p>
+              <p className="text-[10px] opacity-90 font-medium">
+                {property?.dynamicData?.priceNegotiable === 'Yes' || property?.isNegotiable ? 'Negotiable' : 'Non-negotiable'}
+                {property?.dynamicData?.brokersOk === 'Yes' ? ', Brokers OK' : ''}
+                {property?.dynamicData?.maintenanceCharges ? `, ₹${Number(property.dynamicData.maintenanceCharges).toLocaleString('en-IN')} maintenance` : ''}
+              </p>
               <button 
                 onClick={() => setShowOffersModal(true)} 
                 className="mt-1 bg-white/20 backdrop-blur-md border border-white/25 px-2.5 py-1 rounded text-[10px] font-bold flex items-center gap-1 active:scale-95 transition-all text-white"
@@ -844,20 +1142,25 @@ const PropertyDetailsPage = () => {
             )}
           </div>
 
-          {/* Quick Checklist beneath cover image */}
+          {/* Quick Checklist beneath cover image — shows first 4 highlights or graceful static fallback */}
           <div className="p-4 bg-[#f8fbff] grid grid-cols-2 gap-y-2 gap-x-4 border-t border-gray-50 text-[11px] font-bold text-slate-700">
-            <div className="flex items-center gap-1.5">
-              <span className="text-emerald-500">✓</span> East Facing
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-emerald-500">✓</span> Recently Renovated
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-emerald-500">✓</span> Gated Society
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-emerald-500">✓</span> Corner Property
-            </div>
+            {property.highlights && property.highlights.length > 0
+              ? property.highlights.slice(0, 4).map((hl, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="text-emerald-500">✓</span> {hl}
+                  </div>
+                ))
+              : [
+                  property.buyDetails?.facing ? `${property.buyDetails.facing} Facing` : null,
+                  property.rentDetails?.furnishing || null,
+                  property.dynamicData?.gatedCommunity === 'Yes' ? 'Gated Society' : null,
+                  property.transactionType?.includes('Sell') ? 'Ready to Move In' : null
+                ].filter(Boolean).concat(['East Facing', 'Gated Society', 'Corner Property', 'Vastu Compliant']).slice(0, 4).map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="text-emerald-500">✓</span> {item}
+                  </div>
+                ))
+            }
           </div>
         </div>
 
@@ -871,12 +1174,25 @@ const PropertyDetailsPage = () => {
               ID: {property?.propertyId || id?.substring(id?.length - 6).toUpperCase()}
             </span>
             <span className="text-[10px] text-gray-400 font-medium ml-auto">
-              Posted 1m ago by dealer
+              {property?.createdAt
+                ? (() => {
+                    const diff = Date.now() - new Date(property.createdAt).getTime();
+                    const days = Math.floor(diff / 86400000);
+                    const hours = Math.floor(diff / 3600000);
+                    const mins = Math.floor(diff / 60000);
+                    return days > 0 ? `${days}d ago` : hours > 0 ? `${hours}h ago` : `${mins}m ago`;
+                  })()
+                : 'Recently posted'
+              } by {property?.partnerId ? 'Partner' : property?.userId ? 'Owner' : 'Dealer'}
             </span>
           </div>
 
           <h1 className="text-base font-bold text-gray-900 leading-snug">
-            {name} in Piccadilly 1 CHS, Goregaon East, Mumbai
+            {name}{
+              (address?.locality || address?.area || address?.city)
+                ? ` in ${[address?.locality || address?.area, address?.city].filter(Boolean).join(', ')}`
+                : ''
+            }
           </h1>
 
           <div className="flex items-start gap-1.5 text-gray-500 text-xs">
@@ -886,58 +1202,37 @@ const PropertyDetailsPage = () => {
             </span>
           </div>
 
-          {/* Nearby Pills Grid */}
-          <div className="pt-2 border-t border-gray-50">
-            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">50 Places Nearby</div>
-            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
-              {['Royal Palms', 'Gaodevi Temple', 'Sparsh Poly Clinic', 'Nirala Nursing Home'].map((place, idx) => (
-                <span key={idx} className="bg-gray-50 hover:bg-gray-100 text-slate-700 text-xs font-semibold px-3 py-1 rounded-full border border-gray-150 whitespace-nowrap cursor-pointer transition-colors">
-                  {place}
-                </span>
-              ))}
+          {/* Nearby Places Pills — from DB or count badge */}
+          {nearbyPlaces && nearbyPlaces.length > 0 && (
+            <div className="pt-2 border-t border-gray-50">
+              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">
+                {nearbyPlaces.length} Places Nearby
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
+                {nearbyPlaces.slice(0, 6).map((place, idx) => (
+                  <span key={idx} className="bg-gray-50 hover:bg-gray-100 text-slate-700 text-xs font-semibold px-3 py-1 rounded-full border border-gray-150 whitespace-nowrap cursor-pointer transition-colors">
+                    {place.name} {place.distanceKm ? `· ${place.distanceKm}km` : ''}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 3. SECTION: HIGHLIGHT CIRCULAR WIDGET MATRIX */}
         <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
           <div className="grid grid-cols-5 gap-1.5 text-center">
-            
-            <div className="flex flex-col items-center justify-center space-y-1">
-              <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600">
-                <LayoutTemplate size={18} />
-              </div>
-              <span className="text-[10px] font-bold text-gray-800">1 RK & 1 baths</span>
-            </div>
-
-            <div className="flex flex-col items-center justify-center space-y-1">
-              <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600">
-                <Grid size={18} />
-              </div>
-              <span className="text-[10px] font-bold text-gray-800">1 of 7 floors</span>
-            </div>
-
-            <div className="flex flex-col items-center justify-center space-y-1">
-              <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600">
-                <Maximize2 size={18} />
-              </div>
-              <span className="text-[10px] font-bold text-gray-800">244 sqft carpet</span>
-            </div>
-
-            <div className="flex flex-col items-center justify-center space-y-1">
-              <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[#0061df]">
-                <span className="text-xs font-black">₹</span>
-              </div>
-              <span className="text-[10px] font-bold text-gray-800">₹14,344/sqft</span>
-            </div>
-
-            <div className="flex flex-col items-center justify-center space-y-1">
-              <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600">
-                <Calendar size={18} />
-              </div>
-              <span className="text-[10px] font-bold text-gray-800">10+ Yr Old</span>
-            </div>
-
+            {getCircularWidgets().map((widget, i) => {
+              const Icon = widget.icon;
+              return (
+                <div key={i} className="flex flex-col items-center justify-center space-y-1">
+                  <div className={`w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center ${widget.color}`}>
+                    {Icon ? <Icon size={18} /> : <span className="text-xs font-black">{widget.symbol}</span>}
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-800 line-clamp-2 leading-tight">{widget.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -954,26 +1249,51 @@ const PropertyDetailsPage = () => {
           </div>
 
           <div className="bg-white rounded-xl p-3 border border-slate-100 space-y-2 text-xs font-semibold text-slate-700">
-            <div className="flex items-center gap-2">
-              <Zap size={13} className="text-blue-500 fill-blue-50" />
-              <span>Full Power Backup</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Car size={13} className="text-[#0061df]" />
-              <span>Visitor Parking Available</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Wind size={13} className="text-emerald-500" />
-              <span>
-                Centrally Air Conditioned{' '}
-                <button
-                  onClick={() => setShowHighlightsModal(true)}
-                  className="text-[#0061df] font-bold ml-1 hover:underline focus:outline-none"
-                >
-                  ...more
-                </button>
-              </span>
-            </div>
+            {property.highlights && property.highlights.length > 0 ? (
+              property.highlights.slice(0, 3).map((hl, idx) => {
+                const isLast = idx === Math.min(property.highlights.length, 3) - 1;
+                const hasMore = property.highlights.length > 3;
+                return (
+                  <div key={idx} className="flex items-center gap-2">
+                    <CheckCircle size={13} className="text-emerald-500 shrink-0" />
+                    <span>
+                      {hl}
+                      {isLast && hasMore && (
+                        <button
+                          onClick={() => setShowHighlightsModal(true)}
+                          className="text-[#0061df] font-bold ml-1 hover:underline focus:outline-none"
+                        >
+                          ...more
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                );
+              })
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Zap size={13} className="text-blue-500 fill-blue-50 shrink-0" />
+                  <span>Full Power Backup</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Car size={13} className="text-[#0061df] shrink-0" />
+                  <span>Visitor Parking Available</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Wind size={13} className="text-emerald-500 shrink-0" />
+                  <span>
+                    Centrally Air Conditioned{' '}
+                    <button
+                      onClick={() => setShowHighlightsModal(true)}
+                      className="text-[#0061df] font-bold ml-1 hover:underline focus:outline-none"
+                    >
+                      ...more
+                    </button>
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* 24-Hour View Banner */}
@@ -988,18 +1308,7 @@ const PropertyDetailsPage = () => {
           <h3 className="text-sm font-bold text-slate-900 border-b border-gray-50 pb-2">Property Details</h3>
           
           <div className="space-y-2">
-            {[
-              { label: 'Layout', value: '1 RK, 1 Baths' },
-              { label: 'Ownership', value: 'Freehold' },
-              { label: 'Carpet Area', value: '244 sq.ft.' },
-              { label: 'Overlooking', value: 'Others, Park/Garden, Main Road' },
-              { label: 'Width of facing road', value: '90 ft' },
-              { label: 'Floor Number', value: '1' },
-              { label: 'Flooring', value: 'Vitrified' },
-              { label: 'Furnishing', value: 'Unfurnished' },
-              { label: 'Facing', value: 'East' },
-              { label: 'Power backup', value: 'Full' }
-            ].map((spec, i) => (
+            {getSpecs().map((spec, i) => (
               <div key={i} className="flex justify-between items-center text-xs py-1 border-b border-slate-50 last:border-b-0">
                 <span className="text-slate-500 font-medium">{spec.label}</span>
                 <span className="text-slate-900 font-bold">{spec.value}</span>
@@ -1058,38 +1367,49 @@ const PropertyDetailsPage = () => {
             </div>
             
             <div className="grid grid-cols-2 gap-3 text-xs font-semibold text-slate-700">
-              <div className="flex items-center gap-2">
-                <Zap size={14} className="text-amber-500 fill-amber-50" />
-                <span>Power Back-up</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Compass size={14} className="text-teal-500" />
-                <span>Corner Property</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Car size={14} className="text-[#0061df]" />
-                <span>Reserved Parking</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <ArrowUpCircle size={14} className="text-slate-600" />
-                <span>Lift(s)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Shield size={14} className="text-blue-500 fill-blue-50" />
-                <span>Security Guard</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Droplets size={14} className="text-sky-500" />
-                <span>Water Storage</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Car size={14} className="text-[#0061df]" />
-                <span>1 Covered Parking</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Grid size={14} className="text-indigo-500" />
-                <span>In a Gated Society</span>
-              </div>
+              {property.topAmenities && property.topAmenities.length > 0 ? (
+                property.topAmenities.map((am, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+                    <span className="line-clamp-1">{am}</span>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Zap size={14} className="text-amber-500 fill-amber-50" />
+                    <span>Power Back-up</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Compass size={14} className="text-teal-500" />
+                    <span>Corner Property</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Car size={14} className="text-[#0061df]" />
+                    <span>Reserved Parking</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ArrowUpCircle size={14} className="text-slate-600" />
+                    <span>Lift(s)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Shield size={14} className="text-blue-500 fill-blue-50" />
+                    <span>Security Guard</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Droplets size={14} className="text-sky-500" />
+                    <span>Water Storage</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Car size={14} className="text-[#0061df]" />
+                    <span>1 Covered Parking</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Grid size={14} className="text-indigo-500" />
+                    <span>In a Gated Society</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -1101,26 +1421,37 @@ const PropertyDetailsPage = () => {
                 onClick={() => setShowAllAmenitiesModal(true)}
                 className="text-xs font-bold text-[#0061df] hover:underline"
               >
-                View all (14)
+                View all ({(property.topAmenities?.length || 0) + (property.otherAmenities?.length || 0) || 14})
               </button>
             </div>
 
             <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
-              {[
-                { title: 'Security / Fire Alarm', icon: Shield, bg: 'bg-[#fff5f5] text-red-500' },
-                { title: 'Centrally Air Conditioned', icon: Wind, bg: 'bg-[#effbfb] text-teal-600' },
-                { title: 'Vaastu Compliant', icon: Compass, bg: 'bg-[#fffbf0] text-amber-600' }
-              ].map((other, idx) => {
-                const Icon = other.icon;
-                return (
+              {property.otherAmenities && property.otherAmenities.length > 0 ? (
+                property.otherAmenities.slice(0, 5).map((am, idx) => (
                   <div key={idx} className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-100 bg-slate-50/50 text-center min-w-[120px] shrink-0">
-                    <div className={`w-8 h-8 rounded-full ${other.bg} flex items-center justify-center mb-1.5 shadow-sm`}>
-                      <Icon size={14} />
+                    <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-1.5 shadow-sm">
+                      <Grid size={14} />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-800 leading-tight line-clamp-1">{other.title}</span>
+                    <span className="text-[10px] font-bold text-gray-800 leading-tight line-clamp-1">{am}</span>
                   </div>
-                );
-              })}
+                ))
+              ) : (
+                [
+                  { title: 'Security / Fire Alarm', icon: Shield, bg: 'bg-[#fff5f5] text-red-500' },
+                  { title: 'Centrally Air Conditioned', icon: Wind, bg: 'bg-[#effbfb] text-teal-600' },
+                  { title: 'Vaastu Compliant', icon: Compass, bg: 'bg-[#fffbf0] text-amber-600' }
+                ].map((other, idx) => {
+                  const Icon = other.icon;
+                  return (
+                    <div key={idx} className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-100 bg-slate-50/50 text-center min-w-[120px] shrink-0">
+                      <div className={`w-8 h-8 rounded-full ${other.bg} flex items-center justify-center mb-1.5 shadow-sm`}>
+                        <Icon size={14} />
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-800 leading-tight line-clamp-1">{other.title}</span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -1193,9 +1524,9 @@ const PropertyDetailsPage = () => {
               <p className="text-[10px] text-slate-500 font-semibold">Shree Ganesh Realty | {displayPhone}</p>
               
               <div className="flex items-center gap-4 mt-1.5 text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                <span className="flex items-center gap-0.5"><Shield size={10} className="text-emerald-500" /> 12 Verified</span>
-                <span>46 Listed</span>
-                <span>Member Since Jan 2023</span>
+                <span className="flex items-center gap-0.5"><Shield size={10} className="text-emerald-500" /> {verifiedCount} Verified</span>
+                <span>{listedCount} Listed</span>
+                <span>{memberSinceText}</span>
               </div>
             </div>
           </div>
@@ -1368,26 +1699,53 @@ const PropertyDetailsPage = () => {
             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Compare with Similar Homes</h4>
             
             <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {[
-                { title: '1 RK Studio Apart...', price: '₹35 Lac', details: 'Ready to Move (10+ Year Old)' },
-                { title: '1 RK Studio Apart...', price: '₹39.5 Lac', details: 'Ready to Move (10+ Year Old)' },
-                { title: '1 RK Studio Apart...', price: '₹38 Lac', details: 'Ready to Move (10+ Year Old)' }
-              ].map((simItem, i) => (
-                <div key={i} className="bg-white rounded-xl border border-slate-150 p-3 w-[150px] shrink-0 shadow-sm hover:border-[#0061df] transition-colors cursor-pointer">
-                  <img src={galleryImages[0]} className="w-full h-16 object-cover rounded-lg mb-1.5" />
-                  <h5 className="text-[10px] font-bold text-gray-800 line-clamp-1">{simItem.title}</h5>
-                  <p className="text-[10px] text-slate-500 font-bold">Piccadilly 1 CHS</p>
-                  
-                  <div className="flex items-center gap-1 my-1 text-[9px] text-[#d97706] font-bold">
-                    <Star size={9} className="fill-[#d97706]" /> 4.3 <span className="text-slate-400 font-normal">(205 Reviews)</span>
+              {similarProperties && similarProperties.length > 0 ? (
+                similarProperties.map((simItem, i) => {
+                  const simPrice = simItem.buyDetails?.expectedPrice 
+                    ? `₹${(simItem.buyDetails.expectedPrice / 100000).toFixed(1)} Lac` 
+                    : (simItem.rentDetails?.monthlyRent ? `₹${simItem.rentDetails.monthlyRent.toLocaleString('en-IN')}/mo` : 'Contact for Price');
+                  const simName = simItem.propertyName || simItem.name || 'Property';
+                  const simLocality = simItem.address?.locality || simItem.address?.area || 'Mumbai';
+                  const simCover = simItem.coverImage || (simItem.propertyImages && simItem.propertyImages[0]) || galleryImages[0];
+                  const ratingVal = simItem.avgRating || 4.3;
+
+                  return (
+                    <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-150 p-3 w-[150px] shrink-0 shadow-sm hover:border-[#0061df] transition-colors cursor-pointer">
+                      <img src={simCover} className="w-full h-16 object-cover rounded-lg mb-1.5" />
+                      <h5 className="text-[10px] font-bold text-gray-800 line-clamp-1">{simName}</h5>
+                      <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{simLocality}</p>
+                      
+                      <div className="flex items-center gap-1 my-1 text-[9px] text-[#d97706] font-bold">
+                        <Star size={9} className="fill-[#d97706]" /> {ratingVal.toFixed(1)}
+                      </div>
+
+                      <p className="text-xs font-extrabold text-gray-900">{simPrice}</p>
+                      <p className="text-[8px] text-slate-400 font-semibold">{simItem.propertyType ? (simItem.propertyType.charAt(0).toUpperCase() + simItem.propertyType.slice(1)) : 'Residential'}</p>
+                    </div>
+                  );
+                })
+              ) : (
+                [
+                  { title: '1 RK Studio Apart...', price: '₹35 Lac', details: 'Ready to Move (10+ Year Old)' },
+                  { title: '1 RK Studio Apart...', price: '₹39.5 Lac', details: 'Ready to Move (10+ Year Old)' },
+                  { title: '1 RK Studio Apart...', price: '₹38 Lac', details: 'Ready to Move (10+ Year Old)' }
+                ].map((simItem, i) => (
+                  <div key={i} className="bg-white rounded-xl border border-slate-150 p-3 w-[150px] shrink-0 shadow-sm hover:border-[#0061df] transition-colors cursor-pointer">
+                    <img src={galleryImages[0]} className="w-full h-16 object-cover rounded-lg mb-1.5" />
+                    <h5 className="text-[10px] font-bold text-gray-800 line-clamp-1">{simItem.title}</h5>
+                    <p className="text-[10px] text-slate-500 font-bold">Piccadilly 1 CHS</p>
+                    
+                    <div className="flex items-center gap-1 my-1 text-[9px] text-[#d97706] font-bold">
+                      <Star size={9} className="fill-[#d97706]" /> 4.3 <span className="text-slate-400 font-normal">(205 Reviews)</span>
+                    </div>
+
+                    <p className="text-xs font-extrabold text-gray-900">{simItem.price}</p>
+                    <p className="text-[8px] text-slate-400 font-semibold">{simItem.details}</p>
                   </div>
-
-                  <p className="text-xs font-extrabold text-gray-900">{simItem.price}</p>
-                  <p className="text-[8px] text-slate-400 font-semibold">{simItem.details}</p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
-
+            
             <button className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 active:scale-98 transition-all text-center block">
               View detailed comparison
             </button>
@@ -1399,7 +1757,7 @@ const PropertyDetailsPage = () => {
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-sm font-bold text-slate-900">Locality Reviews</h3>
-              <p className="text-[10px] text-gray-500">For Goregaon East, Mumbai</p>
+              <p className="text-[10px] text-gray-500">For {localityName}</p>
             </div>
             <button className="text-xs font-bold text-[#0061df] hover:underline">View all</button>
           </div>
@@ -1407,22 +1765,23 @@ const PropertyDetailsPage = () => {
           {/* Average Rating Block */}
           <div className="flex items-center gap-6 p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
             <div className="text-center">
-              <h4 className="text-2xl font-black text-slate-900 leading-none">4.3<span className="text-sm text-slate-400 font-normal"> / 5</span></h4>
+              <h4 className="text-2xl font-black text-slate-900 leading-none">{avgLocalityRating.toFixed(1)}<span className="text-sm text-slate-400 font-normal"> / 5</span></h4>
               <div className="flex items-center gap-0.5 justify-center mt-1 text-[#d97706]">
-                <Star size={11} className="fill-[#d97706]" />
-                <Star size={11} className="fill-[#d97706]" />
-                <Star size={11} className="fill-[#d97706]" />
-                <Star size={11} className="fill-[#d97706]" />
-                <Star size={11} className="text-slate-300" />
+                {[1, 2, 3, 4, 5].map((starIdx) => {
+                  const isFull = starIdx <= Math.floor(avgLocalityRating);
+                  return (
+                    <Star key={starIdx} size={11} className={isFull ? "fill-[#d97706] text-[#d97706]" : "text-slate-300"} />
+                  );
+                })}
               </div>
               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Average Rating</p>
-              <p className="text-[8px] text-slate-400">(205 Total Reviews)</p>
+              <p className="text-[8px] text-slate-400">({totalLocalityReviews} Total Reviews)</p>
             </div>
 
             {/* Bars */}
             <div className="flex-1 space-y-1">
               {[5, 4, 3, 2, 1].map((starVal) => {
-                const percentage = starVal === 5 ? 65 : (starVal === 4 ? 25 : (starVal === 3 ? 8 : 2));
+                const percentage = getStarPercentage(starVal);
                 return (
                   <div key={starVal} className="flex items-center gap-2 text-[9px] font-bold text-slate-600">
                     <span className="w-1">{starVal}</span>
@@ -1446,12 +1805,7 @@ const PropertyDetailsPage = () => {
             <h4 className="text-xs font-bold text-slate-900">Ratings by features</h4>
             
             <div className="grid grid-cols-4 gap-2 text-center">
-              {[
-                { title: 'Connectivity', val: '4.3/5', percent: 86 },
-                { title: 'Lifestyle', val: '4.3/5', percent: 86 },
-                { title: 'Safety', val: '4.2/5', percent: 84 },
-                { title: 'Green Area', val: '4.2/5', percent: 84 }
-              ].map((feat, idx) => (
+              {featureRatings.map((feat, idx) => (
                 <div key={idx} className="flex flex-col items-center justify-center">
                   <div className="relative w-12 h-12 flex items-center justify-center mb-1">
                     <svg className="absolute w-full h-full transform -rotate-90">
@@ -1474,11 +1828,7 @@ const PropertyDetailsPage = () => {
             <div className="space-y-1.5">
               <h5 className="text-xs font-bold text-slate-900">What are the positives</h5>
               <div className="flex flex-wrap gap-1.5">
-                {[
-                  'Good Public Transport', 'Easy Cab/Auto Availability', 
-                  'Good Schools are nearby', 'Markets at a walkable distance',
-                  'Well-maintained Roads', 'Good Hospitals are nearby'
-                ].map((pos, i) => (
+                {localityPositives.map((pos, i) => (
                   <span key={i} className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded border border-emerald-100">
                     {pos}
                   </span>
@@ -1490,9 +1840,7 @@ const PropertyDetailsPage = () => {
             <div className="space-y-1.5">
               <h5 className="text-xs font-bold text-slate-900">What are the negatives</h5>
               <div className="flex flex-wrap gap-1.5">
-                {[
-                  'Frequent Traffic Jams', 'Frequent Parking Issues'
-                ].map((neg, i) => (
+                {localityNegatives.map((neg, i) => (
                   <span key={i} className="bg-red-50 text-red-800 text-[10px] font-bold px-2.5 py-1 rounded border border-red-100">
                     {neg}
                   </span>
@@ -1510,40 +1858,68 @@ const PropertyDetailsPage = () => {
             </div>
 
             <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar pb-2">
-              
-              {/* Review Card 1 */}
-              <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-3 min-w-[220px] shrink-0 text-xs font-medium text-slate-700 relative">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="bg-emerald-600 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">4.7 ★</span>
-                  <span className="text-[10px] text-gray-500 font-bold ml-auto">1 person found helpful</span>
-                </div>
-                <h6 className="text-[11px] font-bold text-slate-900 mb-1">Aarey Milk Colony</h6>
-                <p className="line-clamp-2 leading-relaxed opacity-95">Aarey Milk Colony is located in a prime location in the western suburbs of Mumbai, making it easily accessible...</p>
-                <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-slate-100">
-                  <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-[10px]">N</div>
-                  <div>
-                    <p className="text-[9px] font-bold text-slate-900 leading-none">Niranjan</p>
-                    <p className="text-[8px] text-slate-400">Tenant (living since 2Y) | 10mo ago</p>
+              {localityReviews && localityReviews.length > 0 ? (
+                localityReviews.map((rev, idx) => {
+                  const ratingVal = rev.rating || 4.0;
+                  const reviewerName = rev.reviewerName || rev.userId?.name || rev.name || 'Anonymous';
+                  const role = rev.reviewerType || rev.role || 'Resident';
+                  const duration = rev.stayDuration ? ` | living since ${rev.stayDuration}` : '';
+                  const timeAgo = rev.createdAt ? `${new Date(rev.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : '1mo ago';
+                  return (
+                    <div key={idx} className="bg-slate-50/50 rounded-xl border border-slate-100 p-3 min-w-[220px] max-w-[260px] shrink-0 text-xs font-medium text-slate-700 relative">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <span className="bg-emerald-600 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">{ratingVal.toFixed(1)} ★</span>
+                      </div>
+                      <h6 className="text-[11px] font-bold text-slate-900 mb-1 line-clamp-1">{rev.title || 'Locality Rating'}</h6>
+                      <p className="line-clamp-2 leading-relaxed opacity-95">{rev.reviewText || rev.review || 'No comment provided.'}</p>
+                      <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-slate-100">
+                        <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-[10px]">
+                          {reviewerName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-slate-900 leading-none">{reviewerName}</p>
+                          <p className="text-[8px] text-slate-400">{role}{duration} | {timeAgo}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <>
+                  {/* Review Card 1 */}
+                  <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-3 min-w-[220px] shrink-0 text-xs font-medium text-slate-700 relative">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="bg-emerald-600 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">4.7 ★</span>
+                      <span className="text-[10px] text-gray-500 font-bold ml-auto">1 person found helpful</span>
+                    </div>
+                    <h6 className="text-[11px] font-bold text-slate-900 mb-1">Aarey Milk Colony</h6>
+                    <p className="line-clamp-2 leading-relaxed opacity-95">Aarey Milk Colony is located in a prime location in the western suburbs of Mumbai, making it easily accessible...</p>
+                    <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-slate-100">
+                      <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-[10px]">N</div>
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-900 leading-none">Niranjan</p>
+                        <p className="text-[8px] text-slate-400">Tenant (living since 2Y) | 10mo ago</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Review Card 2 */}
-              <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-3 min-w-[220px] shrink-0 text-xs font-medium text-slate-700 relative">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="bg-yellow-500 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">3.6 ★</span>
-                </div>
-                <h6 className="text-[11px] font-bold text-slate-900 mb-1">Royal Palms Area</h6>
-                <p className="line-clamp-2 leading-relaxed opacity-95">Public Transport is good but safety at late night could be better. High connectivity to vegetable markets...</p>
-                <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-slate-100">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[10px]">AM</div>
-                  <div>
-                    <p className="text-[9px] font-bold text-slate-900 leading-none">Ankit Mishra</p>
-                    <p className="text-[8px] text-slate-400">Owner | 4Y ago</p>
+                  {/* Review Card 2 */}
+                  <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-3 min-w-[220px] shrink-0 text-xs font-medium text-slate-700 relative">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="bg-yellow-500 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">3.6 ★</span>
+                    </div>
+                    <h6 className="text-[11px] font-bold text-slate-900 mb-1">Royal Palms Area</h6>
+                    <p className="line-clamp-2 leading-relaxed opacity-95">Public Transport is good but safety at late night could be better. High connectivity to vegetable markets...</p>
+                    <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-slate-100">
+                      <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[10px]">AM</div>
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-900 leading-none">Ankit Mishra</p>
+                        <p className="text-[8px] text-slate-400">Owner | 4Y ago</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-
+                </>
+              )}
             </div>
 
             <button className="w-full py-3 bg-[#0061df] hover:bg-blue-700 text-white rounded-xl text-xs font-bold hover:shadow-lg active:scale-98 transition-all text-center block">
@@ -1674,28 +2050,39 @@ const PropertyDetailsPage = () => {
               </div>
 
               <div className="p-5 overflow-y-auto space-y-4">
-                {[
-                  { label: 'Full Power Backup', icon: Zap },
-                  { label: 'Visitor Parking Available', icon: Car },
-                  { label: 'Centrally Air Conditioned', icon: Wind },
-                  { label: 'On-Call Maintenance Staff', icon: Sparkles },
-                  { label: 'Overlooking Park', icon: Grid },
-                  { label: 'Overlooking Main Road', icon: Move },
-                  { label: 'Vaastu Compliant', icon: Compass },
-                  { label: 'Natural Light', icon: Droplets },
-                  { label: 'Air Rooms', icon: Wind },
-                  { label: 'Spacious Interiors', icon: LayoutTemplate }
-                ].map((item, i) => {
-                  const Icon = item.icon;
-                  return (
+                {property.highlights && property.highlights.length > 0 ? (
+                  property.highlights.map((hl, i) => (
                     <div key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-700 border-b border-slate-50 pb-2.5 last:border-0 last:pb-0">
                       <div className="w-6 h-6 rounded-full bg-blue-50 text-[#0061df] flex items-center justify-center">
-                        <Icon size={12} />
+                        <CheckCircle size={12} />
                       </div>
-                      <span>{item.label}</span>
+                      <span>{hl}</span>
                     </div>
-                  );
-                })}
+                  ))
+                ) : (
+                  [
+                    { label: 'Full Power Backup', icon: Zap },
+                    { label: 'Visitor Parking Available', icon: Car },
+                    { label: 'Centrally Air Conditioned', icon: Wind },
+                    { label: 'On-Call Maintenance Staff', icon: Sparkles },
+                    { label: 'Overlooking Park', icon: Grid },
+                    { label: 'Overlooking Main Road', icon: Move },
+                    { label: 'Vaastu Compliant', icon: Compass },
+                    { label: 'Natural Light', icon: Droplets },
+                    { label: 'Air Rooms', icon: Wind },
+                    { label: 'Spacious Interiors', icon: LayoutTemplate }
+                  ].map((item, i) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-700 border-b border-slate-50 pb-2.5 last:border-0 last:pb-0">
+                        <div className="w-6 h-6 rounded-full bg-blue-50 text-[#0061df] flex items-center justify-center">
+                          <Icon size={12} />
+                        </div>
+                        <span>{item.label}</span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </motion.div>
           </div>
@@ -1730,25 +2117,34 @@ const PropertyDetailsPage = () => {
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Top amenities</h4>
                   <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { title: 'Security / Fire Alarm', icon: Shield, bg: 'bg-[#fff5f5] text-red-500 border border-red-50' },
-                      { title: 'Centrally Air Conditioned', icon: Wind, bg: 'bg-[#effbfb] text-teal-600 border border-teal-50' },
-                      { title: 'Vaastu Compliant', icon: Compass, bg: 'bg-[#fffbf0] text-amber-600 border border-amber-50' },
-                      { title: 'Visitor Parking', icon: Car, bg: 'bg-[#f0f7ff] text-blue-600 border border-blue-50' },
-                      { title: 'Intercom Facility', icon: Phone, bg: 'bg-[#fffbf0] text-amber-600 border border-amber-50' },
-                      { title: 'Park', icon: Grid, bg: 'bg-[#f0fff4] text-green-600 border border-green-50' },
-                      { title: 'Fitness Centre / GYM', icon: Dumbbell, bg: 'bg-[#fff5f5] text-red-500 border border-red-50' },
-                      { title: 'Maintenance Staff', icon: Sparkles, bg: 'bg-[#f0f7ff] text-blue-600 border border-blue-50' },
-                      { title: 'Rain Water Harvesting', icon: Droplets, bg: 'bg-[#effbfb] text-teal-600 border border-teal-50' }
-                    ].map((topA, i) => {
-                      const Icon = topA.icon;
-                      return (
-                        <div key={i} className={`p-3 rounded-2xl flex flex-col items-center justify-center text-center ${topA.bg}`}>
-                          <Icon size={18} className="mb-1" />
-                          <span className="text-[9px] font-bold leading-tight">{topA.title}</span>
+                    {property.topAmenities && property.topAmenities.length > 0 ? (
+                      property.topAmenities.map((am, i) => (
+                        <div key={i} className="p-3 rounded-2xl flex flex-col items-center justify-center text-center bg-[#f0f7ff] text-blue-600 border border-blue-50">
+                          <CheckCircle size={18} className="mb-1" />
+                          <span className="text-[9px] font-bold leading-tight">{am}</span>
                         </div>
-                      );
-                    })}
+                      ))
+                    ) : (
+                      [
+                        { title: 'Security / Fire Alarm', icon: Shield, bg: 'bg-[#fff5f5] text-red-500 border border-red-50' },
+                        { title: 'Centrally Air Conditioned', icon: Wind, bg: 'bg-[#effbfb] text-teal-600 border border-teal-50' },
+                        { title: 'Vaastu Compliant', icon: Compass, bg: 'bg-[#fffbf0] text-amber-600 border border-amber-50' },
+                        { title: 'Visitor Parking', icon: Car, bg: 'bg-[#f0f7ff] text-blue-600 border border-blue-50' },
+                        { title: 'Intercom Facility', icon: Phone, bg: 'bg-[#fffbf0] text-amber-600 border border-amber-50' },
+                        { title: 'Park', icon: Grid, bg: 'bg-[#f0fff4] text-green-600 border border-green-50' },
+                        { title: 'Fitness Centre / GYM', icon: Dumbbell, bg: 'bg-[#fff5f5] text-red-500 border border-red-50' },
+                        { title: 'Maintenance Staff', icon: Sparkles, bg: 'bg-[#f0f7ff] text-blue-600 border border-blue-50' },
+                        { title: 'Rain Water Harvesting', icon: Droplets, bg: 'bg-[#effbfb] text-teal-600 border border-teal-50' }
+                      ].map((topA, i) => {
+                        const Icon = topA.icon;
+                        return (
+                          <div key={i} className={`p-3 rounded-2xl flex flex-col items-center justify-center text-center ${topA.bg}`}>
+                            <Icon size={18} className="mb-1" />
+                            <span className="text-[9px] font-bold leading-tight">{topA.title}</span>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -1757,21 +2153,30 @@ const PropertyDetailsPage = () => {
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Other amenities</h4>
                   
                   <div className="space-y-2">
-                    {[
-                      { title: 'Piped-gas', icon: Flame },
-                      { title: 'Bank Attached Property', icon: Landmark },
-                      { title: 'Recently Renovated', icon: CheckCircle },
-                      { title: 'High Ceiling Height', icon: Move },
-                      { title: 'False Ceiling Lighting', icon: Sparkles }
-                    ].map((otherA, i) => {
-                      const Icon = otherA.icon;
-                      return (
+                    {property.otherAmenities && property.otherAmenities.length > 0 ? (
+                      property.otherAmenities.map((am, i) => (
                         <div key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-700 py-1.5 border-b border-slate-50 last:border-0 last:pb-0">
-                          <Icon size={14} className="text-slate-400" />
-                          <span>{otherA.title}</span>
+                          <CheckCircle size={14} className="text-emerald-500" />
+                          <span>{am}</span>
                         </div>
-                      );
-                    })}
+                      ))
+                    ) : (
+                      [
+                        { title: 'Piped-gas', icon: Flame },
+                        { title: 'Bank Attached Property', icon: Landmark },
+                        { title: 'Recently Renovated', icon: CheckCircle },
+                        { title: 'High Ceiling Height', icon: Move },
+                        { title: 'False Ceiling Lighting', icon: Sparkles }
+                      ].map((otherA, i) => {
+                        const Icon = otherA.icon;
+                        return (
+                          <div key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-700 py-1.5 border-b border-slate-50 last:border-0 last:pb-0">
+                            <Icon size={14} className="text-slate-400" />
+                            <span>{otherA.title}</span>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 

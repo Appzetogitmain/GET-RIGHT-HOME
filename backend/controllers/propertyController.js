@@ -56,7 +56,7 @@ export const createProperty = async (req, res) => {
       }
     }
 
-    const { propertyName, contactNumber, propertyType, propertyCategory, dynamicData, description, shortDescription, logo, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating, dynamicCategory, pgDetails, rentDetails, plotDetails, buyDetails, status } = req.body;
+    const { propertyName, contactNumber, propertyType, propertyCategory, dynamicData, description, shortDescription, logo, coverImage, propertyImages, amenities, highlights, topAmenities, otherAmenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating, dynamicCategory, pgDetails, rentDetails, plotDetails, buyDetails, status } = req.body;
     
     // Extract and fallback fields from dynamicData if root is empty
     const finalPropertyName = propertyName || (dynamicData && dynamicData.propertyName) || `${propertyCategory || 'Residential'} ${propertyType} for ${req.body.transactionType || 'Sell'}`;
@@ -72,6 +72,15 @@ export const createProperty = async (req, res) => {
       : (dynamicData && Array.isArray(dynamicData.nearbyPlaces) ? dynamicData.nearbyPlaces : []);
       
     const finalAmenities = (amenities && amenities.length > 0) ? amenities : (dynamicData && Array.isArray(dynamicData.amenities) ? dynamicData.amenities : []);
+    const finalHighlights = (highlights && highlights.length > 0) ? highlights : (dynamicData && Array.isArray(dynamicData.highlights) ? dynamicData.highlights : []);
+    
+    // Auto-split amenities into topAmenities (first 6) and otherAmenities (rest) if not explicitly provided
+    let finalTopAmenities = (topAmenities && topAmenities.length > 0) ? topAmenities : (dynamicData && Array.isArray(dynamicData.topAmenities) ? dynamicData.topAmenities : []);
+    let finalOtherAmenities = (otherAmenities && otherAmenities.length > 0) ? otherAmenities : (dynamicData && Array.isArray(dynamicData.otherAmenities) ? dynamicData.otherAmenities : []);
+    if (finalTopAmenities.length === 0 && finalAmenities.length > 0) {
+      finalTopAmenities = finalAmenities.slice(0, 6);
+      finalOtherAmenities = finalAmenities.slice(6);
+    }
     
     const propertyImagesArray = Array.isArray(propertyImages) && propertyImages.length > 0 
       ? propertyImages 
@@ -140,6 +149,9 @@ export const createProperty = async (req, res) => {
       location: locationValue,
       nearbyPlaces: nearbyPlacesArray,
       amenities: finalAmenities,
+      highlights: finalHighlights,
+      topAmenities: finalTopAmenities,
+      otherAmenities: finalOtherAmenities,
       logo: finalLogo,
       coverImage: coverImageValue,
       propertyImages: propertyImagesArray,
@@ -204,9 +216,16 @@ export const createProperty = async (req, res) => {
       notifyAdminOfNewProperty(doc).catch(e => console.error(e));
     }
 
-    if (partner) {
+    if (isPartner && partner) {
       partner.subscription.propertiesAdded = (partner.subscription.propertiesAdded || 0) + 1;
+      partner.totalListingsCount = (partner.totalListingsCount || 0) + 1;
       await partner.save();
+    } else if (req.user && req.user._id) {
+      const uDoc = await User.findById(req.user._id);
+      if (uDoc) {
+        uDoc.totalListingsCount = (uDoc.totalListingsCount || 0) + 1;
+        await uDoc.save();
+      }
     }
 
     res.status(201).json({ success: true, property: doc });
@@ -234,6 +253,9 @@ export const updateProperty = async (req, res) => {
       'location',
       'nearbyPlaces',
       'amenities',
+      'highlights',
+      'topAmenities',
+      'otherAmenities',
       'logo',
       'coverImage',
       'propertyImages',
@@ -281,6 +303,20 @@ export const updateProperty = async (req, res) => {
       }
       if (dd.amenities && Array.isArray(dd.amenities)) {
         property.amenities = dd.amenities;
+        // Auto-split into topAmenities / otherAmenities if not explicitly provided
+        if (!dd.topAmenities || !dd.topAmenities.length) {
+          property.topAmenities = dd.amenities.slice(0, 6);
+          property.otherAmenities = dd.amenities.slice(6);
+        }
+      }
+      if (dd.highlights && Array.isArray(dd.highlights)) {
+        property.highlights = dd.highlights;
+      }
+      if (dd.topAmenities && Array.isArray(dd.topAmenities)) {
+        property.topAmenities = dd.topAmenities;
+      }
+      if (dd.otherAmenities && Array.isArray(dd.otherAmenities)) {
+        property.otherAmenities = dd.otherAmenities;
       }
       if (dd.propertyImages && Array.isArray(dd.propertyImages) && dd.propertyImages.length > 0) {
         property.propertyImages = dd.propertyImages;
