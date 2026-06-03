@@ -837,7 +837,7 @@ const DynamicFormEngine = () => {
         </button>
         <span className="ml-2 font-bold text-[17px] tracking-tight">{currentStep.title}</span>
         <span className="ml-auto text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          STEP {currentStepIndex + 2} OF {template.steps.length + 1}
+          STEP {currentStepIndex + 1} OF 4
         </span>
       </div>
 

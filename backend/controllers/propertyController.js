@@ -805,7 +805,9 @@ export const getPublicProperties = async (req, res) => {
         { "address.fullAddress": regex },
         { propertyType: regex },
         { transactionType: regex },
-        { propertyCategory: regex }
+        { propertyCategory: regex },
+        { description: regex },
+        { shortDescription: regex }
       ];
 
       if (matchConditions.$or) {
@@ -821,8 +823,23 @@ export const getPublicProperties = async (req, res) => {
 
     if (amenities) {
       const amList = Array.isArray(amenities) ? amenities : amenities.split(',');
-      if (amList.length > 0) {
-        matchConditions.amenities = { $all: amList };
+      const actualAmenities = [];
+
+      amList.forEach(am => {
+        const lowerAm = am.trim().toLowerCase();
+        if (lowerAm === 'with photos') {
+          matchConditions.propertyImages = { $exists: true, $not: { $size: 0 } };
+        } else if (lowerAm === 'with videos') {
+          matchConditions.videoUrl = { $exists: true, $ne: '' };
+        } else if (lowerAm === 'verified properties' || lowerAm === 'verified') {
+          matchConditions.isVerified = true;
+        } else {
+          actualAmenities.push(am.trim());
+        }
+      });
+
+      if (actualAmenities.length > 0) {
+        matchConditions.amenities = { $all: actualAmenities };
       }
     }
 
@@ -968,13 +985,20 @@ export const getPublicProperties = async (req, res) => {
     }
 
     if (areas) {
-      const areaList = areas.split(',').map(a => new RegExp('^' + a.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
-      const areaMatch = {
-        $or: [
-          { 'address.area': { $in: areaList } },
-          { 'address.fullAddress': { $in: areaList } }
-        ]
-      };
+      const areaQueries = areas.split(',').map(a => {
+        const escaped = a.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regex = new RegExp(escaped, 'i');
+        return {
+          $or: [
+            { 'address.area': regex },
+            { 'address.city': regex },
+            { 'address.district': regex },
+            { 'address.state': regex },
+            { 'address.fullAddress': regex }
+          ]
+        };
+      });
+      const areaMatch = { $or: areaQueries };
 
       if (matchConditions.$and) {
         matchConditions.$and.push(areaMatch);

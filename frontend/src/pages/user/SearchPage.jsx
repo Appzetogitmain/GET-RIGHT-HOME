@@ -426,7 +426,10 @@ const SearchPage = () => {
         if (targetFilters.bathrooms) params.bathrooms = targetFilters.bathrooms;
         if (targetFilters.postedBy) params.postedBy = targetFilters.postedBy;
         if (targetFilters.purchaseType) params.purchaseType = targetFilters.purchaseType;
-        if (targetFilters.areas && targetFilters.areas.length > 0) params.areas = targetFilters.areas.join(',');
+        const targetAreas = Array.isArray(targetFilters.areas)
+            ? targetFilters.areas
+            : (typeof targetFilters.areas === 'string' ? targetFilters.areas.split(',').filter(Boolean) : []);
+        if (targetAreas.length > 0) params.areas = targetAreas.join(',');
 
         // Map Special Amenities to specific query params
         const finalAmenities = [];
@@ -435,10 +438,16 @@ const SearchPage = () => {
         const genders = [];
         const occupancies = [];
         const landTypes = [];
-        const subTypes = [...(targetFilters.propertyTypes || [])];
+        const subTypes = Array.isArray(targetFilters.propertyTypes)
+            ? targetFilters.propertyTypes
+            : (typeof targetFilters.propertyTypes === 'string' ? targetFilters.propertyTypes.split(',').filter(Boolean) : []);
         const availabilities = [];
 
-        targetFilters.amenities.forEach(am => {
+        const targetAmenities = Array.isArray(targetFilters.amenities)
+            ? targetFilters.amenities
+            : (typeof targetFilters.amenities === 'string' ? targetFilters.amenities.split(',').filter(Boolean) : []);
+
+        targetAmenities.forEach(am => {
             // Availability mapping
             if (am === 'Ready to Move') {
                 availabilities.push('Ready to move');

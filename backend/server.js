@@ -134,6 +134,7 @@ import hsSubCategoryRoutes from './routes/hsSubCategoryRoutes.js';
 import hsServiceRoutes from './routes/hsServiceRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import propertyFormRoutes from './routes/propertyFormRoutes.js';
+import { seedOnStartup } from './controllers/propertyFormController.js';
 import locationRoutes from './routes/locationRoutes.js';
 import enquiryRoutes from './routes/enquiryRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
@@ -220,6 +221,13 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
       );
 
       console.log('✅ MongoDB connected successfully');
+
+      // Seed the templates dynamically on startup
+      try {
+        await seedOnStartup();
+      } catch (seedErr) {
+        console.error('❌ Auto-seeding failed on startup:', seedErr.message);
+      }
 
       // Debug: Check Admin counts
       const adminCount = await mongoose.connection.db.collection('admins').countDocuments();

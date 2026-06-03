@@ -99,7 +99,15 @@ const ListPropertyWizard = () => {
     // Add types from DB that aren't already in our static list
     const dbTypes = configForCat.propertyTypes;
     const combined = [...baseTypes];
+    
+    // Collect all sub-types to filter them out of main types if we are in Commercial
+    const allCommercialSubtypes = propertyCategory === 'Commercial'
+      ? commercialCategories.flatMap(c => c.subTypes)
+      : [];
+
     dbTypes.forEach(type => {
+      // If it is a commercial subtype, do not list it as a main type
+      if (allCommercialSubtypes.includes(type)) return;
       if (!combined.includes(type)) combined.push(type);
     });
     return combined;
@@ -196,7 +204,7 @@ const ListPropertyWizard = () => {
 
       <div className="max-w-2xl mx-auto px-5 pt-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Add Basic Details</h1>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-10">STEP 1 OF 3</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-10">STEP 1 OF 4</p>
 
         {/* Intent Selection */}
         <section className="mb-10">

@@ -102,7 +102,11 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
 
     if (!isOpen) return null;
 
-    const popularLocalities = ['Indiranagar', 'Koramangala', 'Whitefield', 'HSR Layout', 'Electronic City', 'Marathahalli', 'Jayanagar', 'JP Nagar', 'Bellandur'];
+    const popularLocalities = [
+        'Karnataka', 'Bengaluru Urban', 'Bengaluru Rural', 'Bengaluru North', 'Bengaluru South', 'Bengaluru East', 'Yelahanka', 'Anekal', 
+        'Devanahalli', 'Doddaballapura', 'Hosakote', 'Nelamangala', 'Indiranagar', 'Koramangala', 'Whitefield', 
+        'HSR Layout', 'Electronic City', 'Marathahalli', 'Jayanagar', 'JP Nagar', 'Bellandur'
+    ];
     
     const suggestedLocations = searchInput 
         ? bengaluruAreas.filter(a => a.toLowerCase().includes(searchInput.toLowerCase())).slice(0, 8)
@@ -130,14 +134,49 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
     const handleApply = () => {
         saveSearch(selectedLocations);
         
-        let allAmenities = [
-            ...constructionStatus, 
-            ...furnishingStatus, 
+        const mappedAmenities = [];
+        
+        // 1. Bedrooms mapping
+        bedrooms.forEach(b => {
+            if (b === '1 RK/1 BHK') mappedAmenities.push('1 BHK');
+            else if (b === '2 BHK') mappedAmenities.push('2 BHK');
+            else if (b === '3 BHK') mappedAmenities.push('3 BHK');
+            else mappedAmenities.push(b);
+        });
+
+        // 2. Construction status mapping
+        constructionStatus.forEach(cs => {
+            if (cs === 'Ready to move') mappedAmenities.push('Ready to Move');
+            else mappedAmenities.push(cs);
+        });
+
+        // 3. Furnishing status mapping
+        furnishingStatus.forEach(fs => {
+            if (fs === 'Furnished') mappedAmenities.push('Fully Furnished');
+            else if (fs === 'Semi-furnished') mappedAmenities.push('Semi Furnished');
+            else mappedAmenities.push(fs);
+        });
+
+        // 4. Available for mapping
+        availableFor.forEach(af => {
+            if (af === 'Girls') mappedAmenities.push('Girls Only');
+            else if (af === 'Boys') mappedAmenities.push('Boys Only');
+            else mappedAmenities.push(af);
+        });
+
+        // 5. Sharing / Occupancy mapping
+        sharing.forEach(s => {
+            if (s === 'Private Rooms') mappedAmenities.push('Single Occupancy');
+            else if (s === '2 Per Room') mappedAmenities.push('Double Occupancy');
+            else if (s === 'More than 2 per room') mappedAmenities.push('Triple Occupancy');
+            else mappedAmenities.push(s);
+        });
+
+        // Add other array states as is
+        mappedAmenities.push(
             ...amenities, 
-            ...availableFor, 
             ...availableFrom, 
             ...ageOfProperty,
-            ...sharing,
             ...pgServices,
             ...totalCapacity,
             ...investmentOptions,
@@ -157,18 +196,28 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             ...cwActivities,
             ...cwAdditionalAmenities,
             ...cwCovidReadiness
-        ];
+        );
         
-        if (attachWashroom) allAmenities.push('Attached Washroom');
+        if (attachWashroom) mappedAmenities.push('Attached Washroom');
 
         let categoryTabVal = 'Sell';
         if (txnType === 'Rent/PG') {
             categoryTabVal = lookingFor === 'PG/Co-living' ? 'Paying Guest' : 'Rent / Lease';
         }
 
-        const finalPropertyTypes = txnType === 'Commercial' 
-            ? [...propertyTypes, ...commercialSubTypes].join(',')
-            : propertyTypes.join(',');
+        const mappedPropertyTypes = [];
+        const rawTypes = txnType === 'Commercial' 
+            ? [...propertyTypes, ...commercialSubTypes]
+            : propertyTypes;
+
+        rawTypes.forEach(pt => {
+            if (pt === 'Flat/Apartment') mappedPropertyTypes.push('Apartment');
+            else if (pt === 'Independent House/Villa') mappedPropertyTypes.push('Independent House / Villa');
+            else if (pt === 'Residential Land') mappedPropertyTypes.push('Plot / Land');
+            else if (pt === 'Serviced Apartments' || pt === 'Serviced Apartment') mappedPropertyTypes.push('Serviced Apartment');
+            else if (pt === 'Farm House' || pt === 'Farmhouse') mappedPropertyTypes.push('Farmhouse');
+            else mappedPropertyTypes.push(pt);
+        });
 
         const finalFilters = {
             categoryTab: categoryTabVal,
@@ -179,13 +228,12 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             maxPrice: maxBudget === 'No Max' ? '' : maxBudget,
             minArea: minArea === 'No Min' ? '' : minArea,
             maxArea: maxArea === 'No Max' ? '' : maxArea,
-            propertyTypes: finalPropertyTypes,
-            bhkType: bedrooms.join(','), 
-            amenities: allAmenities.join(','),
+            propertyTypes: mappedPropertyTypes,
             postedBy: postedBy.join(','),
             purchaseType: txnType === 'Commercial' ? lookingTo : purchaseType.join(','),
             bathrooms: minBathrooms > 0 ? minBathrooms : '',
-            reraApproved: reraApproved ? 'Yes' : ''
+            reraApproved: reraApproved ? 'Yes' : '',
+            amenities: mappedAmenities
         };
         onApplyFilters(finalFilters);
         onClose();
@@ -297,6 +345,11 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                             className="flex-1 min-w-[120px] outline-none text-[12px] text-gray-800 py-1"
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && searchInput.trim()) {
+                                    handleSelectLocation(searchInput.trim());
+                                }
+                            }}
                         />
                     </div>
                     <button 
@@ -379,8 +432,17 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                 </button>
                 <button 
                     onClick={() => {
-                        if (selectedLocations.length > 0) setStep(2);
-                        else alert('Please select a locality first');
+                        let currentLocs = [...selectedLocations];
+                        if (currentLocs.length === 0 && searchInput.trim()) {
+                            currentLocs.push(searchInput.trim());
+                            setSelectedLocations(currentLocs);
+                            setSearchInput('');
+                        }
+                        if (currentLocs.length > 0 || searchInput.trim()) {
+                            setStep(2);
+                        } else {
+                            alert('Please select a locality first');
+                        }
                     }}
                     className="bg-surface text-white px-8 py-2.5 rounded-lg text-[12px] font-bold flex items-center gap-2 hover:bg-surface/90 transition-colors"
                 >

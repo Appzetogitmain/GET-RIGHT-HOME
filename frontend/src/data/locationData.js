@@ -66,6 +66,9 @@ export const locationData = {
 
 // All Bengaluru areas flattened (for quick searches / tags)
 export const bengaluruAreas = [
+  'Karnataka',
+  'Bengaluru Urban',
+  'Bengaluru Rural',
   'Bengaluru North',
   'Bengaluru South',
   'Bengaluru East',
