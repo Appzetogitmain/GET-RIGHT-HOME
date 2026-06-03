@@ -567,16 +567,45 @@ export const createTemplateCombination = async (req, res) => {
         if (exists) {
             return res.status(400).json({ success: false, message: "This combination already exists" });
         }
+        let steps = [];
+        const isRent = transactionType === 'Rent / Lease';
+        
+        if (category === 'Residential') {
+            if (transactionType === 'Paying Guest') {
+                steps = createPGSteps();
+            } else if (propertyType === 'Plot / Land') {
+                steps = createPlotSteps(isRent, false);
+            } else {
+                steps = createResidentialSteps(isRent);
+            }
+        } else if (category === 'Commercial') {
+            if (propertyType.toLowerCase().includes('shop') || propertyType.toLowerCase().includes('showroom')) {
+                steps = createRetailSteps(isRent, propertyType);
+            } else if (propertyType.toLowerCase().includes('land') || propertyType.toLowerCase().includes('plot')) {
+                steps = createPlotSteps(isRent, true);
+            } else {
+                let commType = 'Office';
+                if (propertyType.toLowerCase().includes('ware') || propertyType.toLowerCase().includes('storage')) commType = 'Storage';
+                if (propertyType.toLowerCase().includes('factory') || propertyType.toLowerCase().includes('manufactur')) commType = 'Industry';
+                if (propertyType.toLowerCase().includes('hotel') || propertyType.toLowerCase().includes('resort') || propertyType.toLowerCase().includes('guest')) commType = 'Hospitality';
+                
+                steps = createCommercialSteps(isRent, commType, propertyType);
+            }
+        } else {
+             // Fallback for unknown categories
+             steps = [
+                { stepNumber: 1, title: 'Property & Location Details', description: 'Add basic details and location', fields: [] },
+                { stepNumber: 2, title: 'Property Profile & Area', description: 'Add layout and sizing details', fields: [] },
+                { stepNumber: 3, title: 'Pricing & Amenities', description: 'Pricing, maintenance, and availability', fields: [] },
+                { stepNumber: 4, title: 'Photos & Nearby Places', description: 'Add media of your property', fields: [] }
+             ];
+        }
+
         const newTemplate = new PropertyFormTemplate({
             transactionType,
             category,
             propertyType,
-            steps: [
-                { stepNumber: 1, title: 'Basic Info', fields: [] },
-                { stepNumber: 2, title: 'Property Details', fields: [] },
-                { stepNumber: 3, title: 'Location Details', fields: [] },
-                { stepNumber: 4, title: 'Amenities & Features', fields: [] }
-            ]
+            steps
         });
         await newTemplate.save();
         res.status(201).json({ success: true, template: newTemplate, message: "Configuration created successfully." });

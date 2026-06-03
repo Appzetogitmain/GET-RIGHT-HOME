@@ -92,8 +92,10 @@ const PropertyFormManager = () => {
           category,
           propertyType,
           steps: [
-            { stepNumber: 1, title: 'Basic Details', fields: [] },
-            { stepNumber: 2, title: 'Location Details', fields: [] }
+            { stepNumber: 1, title: 'Property & Location Details', description: 'Basic details and location', fields: [] },
+            { stepNumber: 2, title: 'Property Profile & Area', description: 'Layout and sizing details', fields: [] },
+            { stepNumber: 3, title: 'Pricing & Amenities', description: 'Pricing and availability', fields: [] },
+            { stepNumber: 4, title: 'Photos & Nearby Places', description: 'Media and landmarks', fields: [] }
           ]
         });
       } else {
@@ -682,12 +684,18 @@ const PropertyFormManager = () => {
                               >
                                 <option value="text">Text</option>
                                 <option value="number">Number</option>
+                                <option value="email">Email</option>
+                                <option value="tel">Phone (Tel)</option>
+                                <option value="textarea">Text Area</option>
                                 <option value="pill">Pill Selection</option>
                                 <option value="multiselect_pill">Multi-Pill Selection</option>
                                 <option value="dropdown">Dropdown Select</option>
-                                <option value="textarea">Text Area</option>
-                                <option value="date">Date picker</option>
+                                <option value="radio">Radio Buttons</option>
+                                <option value="checkbox">Single Checkbox</option>
                                 <option value="checkbox_group">Checkbox Grid</option>
+                                <option value="multiselect">Multi Select</option>
+                                <option value="date">Date picker</option>
+                                <option value="location">Location/Map</option>
                                 <option value="nearby_places">Nearby Landmarks</option>
                                 <option value="file">Media File Upload</option>
                               </select>
@@ -696,7 +704,7 @@ const PropertyFormManager = () => {
                               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Options (comma separated)</label>
                               <input 
                                 type="text"
-                                disabled={!['pill', 'dropdown', 'checkbox_group', 'multiselect_pill'].includes(field.type)}
+                                disabled={!['pill', 'dropdown', 'checkbox_group', 'multiselect_pill', 'radio', 'multiselect'].includes(field.type)}
                                 value={field.options?.join(', ') || ''}
                                 onChange={(e) => handleFieldChange(stepIdx, fieldIdx, 'options', e.target.value.split(',').map(s => s.trim()))}
                                 className="w-full text-xs font-medium border-slate-200 rounded-lg disabled:opacity-30 disabled:bg-slate-100"
@@ -719,7 +727,7 @@ const PropertyFormManager = () => {
                             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                               <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
                                 <Settings size={12} className="text-slate-400" />
-                                Validation Settings
+                                Validation & Conditional Settings
                               </span>
                               <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer">
                                 <input 
@@ -733,6 +741,38 @@ const PropertyFormManager = () => {
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                              {/* Conditional Logic UI */}
+                              <div className="md:col-span-2 space-y-1">
+                                <label className="text-[9px] font-bold text-slate-400 uppercase">Depends On Field (DB Key)</label>
+                                <input 
+                                  type="text"
+                                  value={field.dependsOn?.field || ''}
+                                  onChange={(e) => {
+                                      const updatedSteps = [...currentTemplate.steps];
+                                      if (!updatedSteps[stepIdx].fields[fieldIdx].dependsOn) updatedSteps[stepIdx].fields[fieldIdx].dependsOn = {};
+                                      updatedSteps[stepIdx].fields[fieldIdx].dependsOn.field = e.target.value;
+                                      if (!e.target.value) updatedSteps[stepIdx].fields[fieldIdx].dependsOn = undefined;
+                                      setCurrentTemplate({ ...currentTemplate, steps: updatedSteps });
+                                  }}
+                                  className="w-full p-1.5 text-xs border-slate-200 rounded font-mono bg-amber-50 focus:bg-white"
+                                  placeholder="e.g. availability"
+                                />
+                              </div>
+                              <div className="md:col-span-3 space-y-1">
+                                <label className="text-[9px] font-bold text-slate-400 uppercase">Depends On Value</label>
+                                <input 
+                                  type="text"
+                                  value={field.dependsOn?.value || ''}
+                                  onChange={(e) => {
+                                      const updatedSteps = [...currentTemplate.steps];
+                                      if (!updatedSteps[stepIdx].fields[fieldIdx].dependsOn) updatedSteps[stepIdx].fields[fieldIdx].dependsOn = {};
+                                      updatedSteps[stepIdx].fields[fieldIdx].dependsOn.value = e.target.value;
+                                      setCurrentTemplate({ ...currentTemplate, steps: updatedSteps });
+                                  }}
+                                  className="w-full p-1.5 text-xs border-slate-200 rounded bg-amber-50 focus:bg-white"
+                                  placeholder="e.g. Ready to move"
+                                />
+                              </div>
                               {field.type === 'number' ? (
                                 <>
                                   <div className="space-y-1">
