@@ -64,6 +64,25 @@ const PropertyDetailsPage = () => {
 
   // Horizontal Tab Scroll Link state
   const [activeTab, setActiveTab] = useState('overview');
+  const tabsContainerRef = useRef(null);
+
+  // Center active tab inside horizontal tabs list
+  useEffect(() => {
+    if (tabsContainerRef.current) {
+      const activeEl = tabsContainerRef.current.querySelector('[data-active="true"]');
+      if (activeEl) {
+        const container = tabsContainerRef.current;
+        const containerWidth = container.clientWidth;
+        const activeOffsetLeft = activeEl.offsetLeft;
+        const activeWidth = activeEl.clientWidth;
+        
+        container.scrollTo({
+          left: activeOffsetLeft - (containerWidth / 2) + (activeWidth / 2),
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [activeTab]);
 
   // Load User Details if available
   useEffect(() => {
@@ -186,7 +205,12 @@ const PropertyDetailsPage = () => {
   // Tab scrolling link effect
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPos = window.scrollY + 130;
+      const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 130;
+      if (isAtBottom) {
+        setActiveTab('explore-locality');
+        return;
+      }
+
       const sections = [
         { id: 'overview', el: document.getElementById('overview') },
         { id: 'highlights', el: document.getElementById('highlights') },
@@ -198,13 +222,18 @@ const PropertyDetailsPage = () => {
         { id: 'explore-locality', el: document.getElementById('explore-locality') }
       ];
 
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const sec = sections[i];
-        if (sec.el && scrollPos >= sec.el.offsetTop) {
-          setActiveTab(sec.id);
-          break;
+      let currentSection = 'overview';
+      const offsetThreshold = 140; // sticky header tabs offset
+      
+      for (const sec of sections) {
+        if (sec.el) {
+          const rect = sec.el.getBoundingClientRect();
+          if (rect.top <= offsetThreshold) {
+            currentSection = sec.id;
+          }
         }
       }
+      setActiveTab(currentSection);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -214,7 +243,7 @@ const PropertyDetailsPage = () => {
   const scrollToSection = (sectionId) => {
     const el = document.getElementById(sectionId);
     if (el) {
-      const yOffset = -120;
+      const yOffset = -130; // matches scroll threshold offset
       const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: 'smooth' });
       setActiveTab(sectionId);
@@ -720,7 +749,10 @@ const PropertyDetailsPage = () => {
         </div>
 
         {/* Scroll link Horizontal Navigation Tabs */}
-        <div className="max-w-xl mx-auto px-3 border-t border-gray-50 flex items-center gap-1 overflow-x-auto hide-scrollbar py-2 bg-white">
+        <div 
+          ref={tabsContainerRef}
+          className="max-w-xl mx-auto px-3 border-t border-gray-50 flex items-center gap-1 overflow-x-auto hide-scrollbar py-2 bg-white"
+        >
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'highlights', label: 'Highlights' },
@@ -733,6 +765,7 @@ const PropertyDetailsPage = () => {
           ].map(tab => (
             <button
               key={tab.id}
+              data-active={activeTab === tab.id ? 'true' : 'false'}
               onClick={() => scrollToSection(tab.id)}
               className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                 activeTab === tab.id
