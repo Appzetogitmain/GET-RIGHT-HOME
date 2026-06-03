@@ -1599,7 +1599,8 @@ const PropertyDetailsPage = () => {
           <button
             onClick={() => {
               const pType = propertyType?.toLowerCase();
-              if (pType === 'buy' || pType === 'plot' || pType === 'rent') {
+              const isHotelOrPg = ['hotel', 'pg', 'hostel', 'resort', 'homestay'].includes(pType);
+              if (!isHotelOrPg) {
                 handleInquiry();
               } else {
                 // Hotel booking flow

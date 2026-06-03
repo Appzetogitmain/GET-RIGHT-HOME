@@ -83,7 +83,7 @@ const BookingCheckoutPage = () => {
 
     const payload = {
       propertyId: property._id,
-      roomTypeId: selectedRoom._id,
+      roomTypeId: selectedRoom?._id,
       checkInDate: dates.checkIn,
       checkOutDate: dates.checkOut,
       guests: {
@@ -93,7 +93,7 @@ const BookingCheckoutPage = () => {
         extraAdults: priceBreakdown?.extraAdultsCount || 0,
         extraChildren: priceBreakdown?.extraChildrenCount || 0
       },
-      bookingUnit: selectedRoom.inventoryType || (['Hostel', 'PG'].includes(property.propertyType) ? 'bed' : 'room'),
+      bookingUnit: selectedRoom?.inventoryType || (['Hostel', 'PG'].includes(property.propertyType) ? 'bed' : 'room'),
       couponCode: priceBreakdown?.couponCode || null,
       paymentMethod: paymentMethod === 'online' ? 'razorpay' : 'pay_at_hotel',
       paymentStatus: 'pending',
@@ -281,7 +281,7 @@ const BookingCheckoutPage = () => {
                 </div>
                 <div className="col-span-2">
                   <p className="text-xs text-gray-500 font-medium mb-1">{isPgOrHostel ? 'Bed Type' : 'Room Type'}</p>
-                  <p className="text-sm font-bold text-gray-800">{selectedRoom.type || selectedRoom.name}</p>
+                  <p className="text-sm font-bold text-gray-800">{selectedRoom?.type || selectedRoom?.name || 'Standard Unit'}</p>
                 </div>
               </div>
             </div>
