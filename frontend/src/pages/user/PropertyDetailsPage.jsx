@@ -1299,7 +1299,12 @@ const PropertyDetailsPage = () => {
           {/* 24-Hour View Banner */}
           <div className="bg-[#eff6ff] rounded-xl p-3 border border-blue-50 flex items-center gap-2 text-[11px] font-semibold text-[#0061df]">
             <Users size={14} className="shrink-0 text-blue-500" />
-            <span>4 people viewed this property in last 24 hours</span>
+            <span>
+              {property.viewCount && property.viewCount > 0
+                ? `${property.viewCount} people viewed this property recently`
+                : 'Be among the first to enquire about this property'
+              }
+            </span>
           </div>
         </div>
 
@@ -1500,10 +1505,14 @@ const PropertyDetailsPage = () => {
         {/* 8. SECTION: ABOUT PROPERTY (DESCRIPTION) */}
         <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-2">
           <h3 className="text-sm font-bold text-slate-900">About Property</h3>
-          <p className="text-xs text-slate-500 font-semibold">Address : 0000, Piccadilly 1 CHS, Goregaon East, Mumbai</p>
+          {address && (
+            <p className="text-xs font-semibold text-slate-500">
+              Address: {address.fullAddress || [address.houseNumber, address.locality, address.city, address.state].filter(Boolean).join(', ')}
+            </p>
+          )}
           
           <div className="text-xs text-slate-600 leading-relaxed font-medium">
-            {description || 'This is a 1rk studio apartment for sale in goregaon east mumbai royal palms. It has a beautiful garden view and is close to local transit and school points.'}
+            {description || 'Detailed property information has not been provided yet. Please contact the owner/dealer for more details.'}
           </div>
         </div>
 
@@ -1521,7 +1530,11 @@ const PropertyDetailsPage = () => {
             </div>
             <div>
               <h4 className="text-xs font-bold text-gray-900">{sellerName}</h4>
-              <p className="text-[10px] text-slate-500 font-semibold">Shree Ganesh Realty | {displayPhone}</p>
+              <p className="text-[10px] text-slate-500 font-semibold">
+                {property?.partnerId?.businessName || property?.userId?.businessName || ''}
+                {(property?.partnerId?.businessName || property?.userId?.businessName) ? ' | ' : ''}
+                {displayPhone}
+              </p>
               
               <div className="flex items-center gap-4 mt-1.5 text-[9px] text-slate-500 font-bold uppercase tracking-wider">
                 <span className="flex items-center gap-0.5"><Shield size={10} className="text-emerald-500" /> {verifiedCount} Verified</span>
@@ -1531,9 +1544,16 @@ const PropertyDetailsPage = () => {
             </div>
           </div>
 
-          <a href="#complete-profile" className="block text-right text-xs font-bold text-[#0061df] hover:underline pb-2 border-b border-gray-50">
-            View Complete Profile &gt;
-          </a>
+          {property?.partnerId?._id ? (
+            <button
+              onClick={() => navigate(`/partner/${property.partnerId._id}`)}
+              className="block text-right w-full text-xs font-bold text-[#0061df] hover:underline pb-2 border-b border-gray-50"
+            >
+              View Complete Profile &gt;
+            </button>
+          ) : (
+            <div className="pb-2 border-b border-gray-50" />
+          )}
 
           {/* Lead capture form inputs */}
           <div className="space-y-3">
@@ -1674,23 +1694,56 @@ const PropertyDetailsPage = () => {
             </button>
           </div>
 
-          {/* Owner properties display card */}
+          {/* Owner / Partner other properties */}
           <div className="pt-4 border-t border-slate-50 space-y-3">
-            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Owner Properties</h4>
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              {property?.partnerId ? 'Partner' : 'Owner'} Properties
+            </h4>
             
-            <div className="rounded-xl border border-slate-100 overflow-hidden bg-slate-50/50 p-2 flex gap-3 items-center">
-              <img src={galleryImages[1] || galleryImages[0]} className="w-16 h-16 object-cover rounded-lg shadow-sm" />
-              <div className="flex-1">
-                <span className="bg-slate-200 text-slate-700 text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">₹ 40 L</span>
-                <h5 className="text-xs font-bold text-gray-800 line-clamp-1 mt-1">1 BHK Studio Apartment, 1 Baths</h5>
-                <p className="text-[10px] text-slate-500 font-medium">In Starways CHS, Goregaon East, Mu...</p>
-                <span className="text-[9px] text-slate-400 font-bold block mt-0.5">Posted by Owner 2 weeks ago</span>
+            {similarProperties && similarProperties.length > 0 ? (
+              <div className="rounded-xl border border-slate-100 overflow-hidden bg-slate-50/50 p-2 flex gap-3 items-center">
+                <img
+                  src={similarProperties[0]?.images?.cover || similarProperties[0]?.images?.gallery?.[0] || galleryImages[0]}
+                  className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                />
+                <div className="flex-1">
+                  <span className="bg-slate-200 text-slate-700 text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">
+                    {similarProperties[0]?.buyDetails?.expectedPrice
+                      ? formatPriceLakhCrore(similarProperties[0].buyDetails.expectedPrice)
+                      : similarProperties[0]?.dynamicData?.expectedPrice
+                        ? formatPriceLakhCrore(similarProperties[0].dynamicData.expectedPrice)
+                        : 'Contact for Price'}
+                  </span>
+                  <h5 className="text-xs font-bold text-gray-800 line-clamp-1 mt-1">
+                    {similarProperties[0]?.name || 'Similar Property'}
+                  </h5>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    {similarProperties[0]?.address?.locality || similarProperties[0]?.address?.city || ''}
+                  </p>
+                  <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
+                    {property?.partnerId ? 'By Partner' : 'By Owner'}
+                    {similarProperties[0]?.createdAt ? ` · ${(() => {
+                      const diff = Date.now() - new Date(similarProperties[0].createdAt).getTime();
+                      const days = Math.floor(diff / 86400000);
+                      return days > 0 ? `${days}d ago` : 'Today';
+                    })()}` : ''}
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-xs text-slate-400 font-semibold text-center py-3">
+                No other listings found
+              </div>
+            )}
 
             <div className="bg-[#eff6ff] rounded-xl p-3 border border-blue-50 flex items-center gap-2 text-[10px] font-semibold text-[#0061df]">
               <User size={13} className="text-blue-500" />
-              <span>50+ people contacted this dealer for similar properties recently</span>
+              <span>
+                {property?.enquiryCount && property.enquiryCount > 0
+                  ? `${property.enquiryCount}+ people contacted for this property recently`
+                  : 'Be among the first to enquire about this property'
+                }
+              </span>
             </div>
           </div>
 
@@ -1703,11 +1756,14 @@ const PropertyDetailsPage = () => {
                 similarProperties.map((simItem, i) => {
                   const simPrice = simItem.buyDetails?.expectedPrice 
                     ? `₹${(simItem.buyDetails.expectedPrice / 100000).toFixed(1)} Lac` 
-                    : (simItem.rentDetails?.monthlyRent ? `₹${simItem.rentDetails.monthlyRent.toLocaleString('en-IN')}/mo` : 'Contact for Price');
+                    : (simItem.rentDetails?.monthlyRent ? `₹${simItem.rentDetails.monthlyRent.toLocaleString('en-IN')}/mo` 
+                    : (simItem.dynamicData?.expectedPrice ? formatPriceLakhCrore(simItem.dynamicData.expectedPrice)
+                    : (simItem.dynamicData?.monthlyRent ? `₹${Number(simItem.dynamicData.monthlyRent).toLocaleString('en-IN')}/mo`
+                    : 'Contact for Price')));
                   const simName = simItem.propertyName || simItem.name || 'Property';
-                  const simLocality = simItem.address?.locality || simItem.address?.area || 'Mumbai';
-                  const simCover = simItem.coverImage || (simItem.propertyImages && simItem.propertyImages[0]) || galleryImages[0];
-                  const ratingVal = simItem.avgRating || 4.3;
+                  const simLocality = simItem.address?.locality || simItem.address?.area || simItem.address?.city || '';
+                  const simCover = simItem.images?.cover || (simItem.images?.gallery?.[0]) || galleryImages[0];
+                  const ratingVal = simItem.avgRating || 0;
 
                   return (
                     <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-150 p-3 w-[150px] shrink-0 shadow-sm hover:border-[#0061df] transition-colors cursor-pointer">
@@ -1715,9 +1771,11 @@ const PropertyDetailsPage = () => {
                       <h5 className="text-[10px] font-bold text-gray-800 line-clamp-1">{simName}</h5>
                       <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{simLocality}</p>
                       
-                      <div className="flex items-center gap-1 my-1 text-[9px] text-[#d97706] font-bold">
-                        <Star size={9} className="fill-[#d97706]" /> {ratingVal.toFixed(1)}
-                      </div>
+                      {ratingVal > 0 && (
+                        <div className="flex items-center gap-1 my-1 text-[9px] text-[#d97706] font-bold">
+                          <Star size={9} className="fill-[#d97706]" /> {ratingVal.toFixed(1)}
+                        </div>
+                      )}
 
                       <p className="text-xs font-extrabold text-gray-900">{simPrice}</p>
                       <p className="text-[8px] text-slate-400 font-semibold">{simItem.propertyType ? (simItem.propertyType.charAt(0).toUpperCase() + simItem.propertyType.slice(1)) : 'Residential'}</p>
@@ -1725,30 +1783,20 @@ const PropertyDetailsPage = () => {
                   );
                 })
               ) : (
-                [
-                  { title: '1 RK Studio Apart...', price: '₹35 Lac', details: 'Ready to Move (10+ Year Old)' },
-                  { title: '1 RK Studio Apart...', price: '₹39.5 Lac', details: 'Ready to Move (10+ Year Old)' },
-                  { title: '1 RK Studio Apart...', price: '₹38 Lac', details: 'Ready to Move (10+ Year Old)' }
-                ].map((simItem, i) => (
-                  <div key={i} className="bg-white rounded-xl border border-slate-150 p-3 w-[150px] shrink-0 shadow-sm hover:border-[#0061df] transition-colors cursor-pointer">
-                    <img src={galleryImages[0]} className="w-full h-16 object-cover rounded-lg mb-1.5" />
-                    <h5 className="text-[10px] font-bold text-gray-800 line-clamp-1">{simItem.title}</h5>
-                    <p className="text-[10px] text-slate-500 font-bold">Piccadilly 1 CHS</p>
-                    
-                    <div className="flex items-center gap-1 my-1 text-[9px] text-[#d97706] font-bold">
-                      <Star size={9} className="fill-[#d97706]" /> 4.3 <span className="text-slate-400 font-normal">(205 Reviews)</span>
-                    </div>
-
-                    <p className="text-xs font-extrabold text-gray-900">{simItem.price}</p>
-                    <p className="text-[8px] text-slate-400 font-semibold">{simItem.details}</p>
-                  </div>
-                ))
+                <div className="w-full py-6 text-center text-xs text-slate-400 font-semibold">
+                  No similar properties found in this area
+                </div>
               )}
             </div>
             
-            <button className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 active:scale-98 transition-all text-center block">
-              View detailed comparison
-            </button>
+            {similarProperties && similarProperties.length > 0 && (
+              <button
+                onClick={() => navigate(`/properties?city=${address?.city || ''}&type=${propertyType || ''}`)}
+                className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 active:scale-98 transition-all text-center block"
+              >
+                View more similar properties
+              </button>
+            )}
           </div>
         </div>
 
@@ -1759,7 +1807,12 @@ const PropertyDetailsPage = () => {
               <h3 className="text-sm font-bold text-slate-900">Locality Reviews</h3>
               <p className="text-[10px] text-gray-500">For {localityName}</p>
             </div>
-            <button className="text-xs font-bold text-[#0061df] hover:underline">View all</button>
+            <button
+            onClick={() => setShowReviewForm(true)}
+            className="text-xs font-bold text-[#0061df] hover:underline"
+          >
+            View all
+          </button>
           </div>
 
           {/* Average Rating Block */}
@@ -1885,65 +1938,51 @@ const PropertyDetailsPage = () => {
                   );
                 })
               ) : (
-                <>
-                  {/* Review Card 1 */}
-                  <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-3 min-w-[220px] shrink-0 text-xs font-medium text-slate-700 relative">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <span className="bg-emerald-600 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">4.7 ★</span>
-                      <span className="text-[10px] text-gray-500 font-bold ml-auto">1 person found helpful</span>
-                    </div>
-                    <h6 className="text-[11px] font-bold text-slate-900 mb-1">Aarey Milk Colony</h6>
-                    <p className="line-clamp-2 leading-relaxed opacity-95">Aarey Milk Colony is located in a prime location in the western suburbs of Mumbai, making it easily accessible...</p>
-                    <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-slate-100">
-                      <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-[10px]">N</div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-900 leading-none">Niranjan</p>
-                        <p className="text-[8px] text-slate-400">Tenant (living since 2Y) | 10mo ago</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Review Card 2 */}
-                  <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-3 min-w-[220px] shrink-0 text-xs font-medium text-slate-700 relative">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <span className="bg-yellow-500 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">3.6 ★</span>
-                    </div>
-                    <h6 className="text-[11px] font-bold text-slate-900 mb-1">Royal Palms Area</h6>
-                    <p className="line-clamp-2 leading-relaxed opacity-95">Public Transport is good but safety at late night could be better. High connectivity to vegetable markets...</p>
-                    <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-slate-100">
-                      <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[10px]">AM</div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-900 leading-none">Ankit Mishra</p>
-                        <p className="text-[8px] text-slate-400">Owner | 4Y ago</p>
-                      </div>
-                    </div>
-                  </div>
-                </>
+                <div className="w-full py-6 text-center text-xs text-slate-400 font-semibold bg-slate-50/50 rounded-xl border border-slate-100">
+                  No reviews yet for this locality. Be the first to share your experience!
+                </div>
               )}
             </div>
 
-            <button className="w-full py-3 bg-[#0061df] hover:bg-blue-700 text-white rounded-xl text-xs font-bold hover:shadow-lg active:scale-98 transition-all text-center block">
-              Review your Society / Locality
-            </button>
+          <button
+            onClick={() => setShowReviewForm(true)}
+            className="w-full py-3 bg-[#0061df] hover:bg-blue-700 text-white rounded-xl text-xs font-bold hover:shadow-lg active:scale-98 transition-all text-center block"
+          >
+            Review your Society / Locality
+          </button>
           </div>
 
           {/* Affordability EMI calculator Tool card */}
-          <div className="pt-3 border-t border-slate-50">
-            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Check your affordability</span>
-            
-            <div className="rounded-xl border border-slate-150 p-3 bg-white flex items-center justify-between cursor-pointer hover:border-slate-300 transition-colors shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-500">
-                  <Grid size={18} />
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-slate-900">Calculate EMI</h5>
-                  <p className="text-[10px] text-slate-500 font-semibold">EMI ₹ 22,386 /month for 20 years @7.4%</p>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
+          {bookingBarPrice && !isNaN(Number(bookingBarPrice)) && !isRentGroup && !isPgGroup && (
+            <div className="pt-3 border-t border-slate-50">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Check your affordability</span>
+              
+              {(() => {
+                const principal = Number(bookingBarPrice);
+                const rate = 8.5 / 100 / 12; // 8.5% annual rate
+                const tenure = 20 * 12; // 20 years in months
+                const emi = principal > 0 && rate > 0
+                  ? Math.round((principal * 0.8 * rate * Math.pow(1 + rate, tenure)) / (Math.pow(1 + rate, tenure) - 1))
+                  : 0;
+                return (
+                  <div className="rounded-xl border border-slate-150 p-3 bg-white flex items-center justify-between cursor-pointer hover:border-slate-300 transition-colors shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-500">
+                        <Grid size={18} />
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-bold text-slate-900">Calculate EMI</h5>
+                        <p className="text-[10px] text-slate-500 font-semibold">
+                          {emi > 0 ? `Est. EMI ₹${emi.toLocaleString('en-IN')}/month · 20 yrs @8.5%` : 'Tap to calculate your EMI'}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-400" />
+                  </div>
+                );
+              })()}
             </div>
-          </div>
+          )}
         </div>
 
       </div>
@@ -1952,7 +1991,12 @@ const PropertyDetailsPage = () => {
       <div className="fixed bottom-[65px] left-0 right-0 z-50 bg-[#fff5f6] border-y border-[#ffe2e5] py-2 px-4 shadow-md text-center max-w-xl mx-auto">
         <span className="text-[11px] font-bold text-red-600 flex items-center justify-center gap-1.5">
           <span className="w-2 h-2 bg-red-600 rounded-full animate-ping shrink-0" />
-          6 people already contacted since last week
+          {property?.enquiryCount && property.enquiryCount > 5
+            ? `${property.enquiryCount} people already contacted for this property`
+            : property?.viewCount && property.viewCount > 3
+              ? `${property.viewCount} people are actively viewing this property`
+              : 'High demand property — Contact now to avoid missing out'
+          }
         </span>
       </div>
 
@@ -2226,6 +2270,67 @@ const PropertyDetailsPage = () => {
           </div>
         </div>
       )}
+
+      {/* REVIEW SUBMIT MODAL */}
+      <AnimatePresence>
+        {showReviewForm && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowReviewForm(false)}>
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-xl rounded-t-[2rem] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden pb-8"
+            >
+              <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto my-3 shrink-0" />
+              
+              <div className="px-5 pb-3 border-b border-slate-50 flex items-center justify-between">
+                <h3 className="font-bold text-base text-slate-900">Write a Review</h3>
+                <button onClick={() => setShowReviewForm(false)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto">
+                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">How would you rate this property?</label>
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          size={28}
+                          className={`cursor-pointer transition-colors ${reviewData.rating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`}
+                          onClick={() => setReviewData({ ...reviewData, rating: star })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Write your review</label>
+                    <textarea
+                      value={reviewData.comment || ''}
+                      onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
+                      placeholder="Share your experience living here or about the locality..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:border-[#0061df] transition-colors resize-none"
+                      rows={5}
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={submitReviewLoading}
+                    className="w-full py-3.5 bg-[#0061df] hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center justify-center shadow-lg active:scale-95 transition-all"
+                  >
+                    {submitReviewLoading ? <Loader2 className="animate-spin" size={18} /> : 'Submit Review'}
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* OFFERS / PRICE BREAKDOWN MODAL */}
       {showOffersModal && (
