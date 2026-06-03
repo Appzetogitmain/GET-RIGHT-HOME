@@ -170,7 +170,7 @@ const GRHPropertyCard = ({ property, data }) => {
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
 
   const handleCardClick = () => {
-    setIsQuickViewOpen(true);
+    navigate(`/hotel/${_id}`);
   };
 
   const handleCloseOverlay = (e) => {

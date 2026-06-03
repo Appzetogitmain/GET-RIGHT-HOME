@@ -280,7 +280,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
           className={`flex-shrink-0 w-[280px] h-[360px] relative ${className}`}
         >
           <div
-            onClick={() => setIsQuickViewOpen(true)}
+            onClick={() => navigate(`/hotel/${_id}`)}
             className="w-full h-full bg-[#F4F5F7] rounded-[1.5rem] border border-gray-200/50 overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 flex flex-col group relative"
           >
           {/* Cover Image Section */}
@@ -403,7 +403,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
     return (
       <>
         <div
-          onClick={() => setIsQuickViewOpen(true)}
+          onClick={() => navigate(`/hotel/${_id}`)}
           className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] border border-gray-150 overflow-hidden cursor-pointer shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.12)] hover:border-emerald-500/30 transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
         >
           {/* Cover Image Container */}
@@ -536,7 +536,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
     return (
       <>
         <div
-          onClick={() => setIsQuickViewOpen(true)}
+          onClick={() => navigate(`/hotel/${_id}`)}
           className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] border border-gray-150 overflow-hidden cursor-pointer shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(217,119,6,0.15)] hover:border-amber-500/30 transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
         >
           {/* Cover Image Container */}
@@ -653,7 +653,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
   // ─── DEFAULT CARD ─────────────────────────────────────────────────
   return (
     <div
-      onClick={() => setIsQuickViewOpen(true)}
+      onClick={() => navigate(`/hotel/${_id}`)}
       className={`relative h-[270px] md:h-[340px] w-full bg-gray-100 rounded-[1.25rem] md:rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 hover:-translate-y-1 group ${className}`}
     >
       <img
