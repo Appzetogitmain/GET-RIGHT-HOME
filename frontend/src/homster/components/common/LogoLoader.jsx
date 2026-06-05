@@ -37,8 +37,8 @@ const LogoLoader = ({ fullScreen = false, overlay = false, inline = false, size 
         className={`relative ${size} flex items-center justify-center`}
       >
         <img
-          src="/truliq-logo.png"
-          alt="Truliq"
+          src="/get-right-home-logo.png"
+          alt="Get Right Home"
           className="w-full h-full object-contain"
         />
         {/* Subtle ripple effect */}

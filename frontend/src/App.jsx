@@ -63,6 +63,9 @@ const DynamicFormEngine = React.lazy(() => import('./pages/user/DynamicFormEngin
 const CartPage = React.lazy(() => import('./homster/modules/user/pages/Cart'));
 const HomeServiceCheckoutPage = React.lazy(() => import('./homster/modules/user/pages/Checkout'));
 
+// Lazy Imports - Worker Pages
+const WorkerRoutes = React.lazy(() => import('./homster/modules/worker/routes/index.jsx'));
+
 // Lazy Imports - Admin Pages
 const AdminLogin = React.lazy(() => import('./app/admin/pages/AdminLogin'));
 const AdminSignup = React.lazy(() => import('./app/admin/pages/AdminSignup'));
@@ -185,7 +188,7 @@ const Layout = ({ children }) => {
   }, []);
 
   // 1. GLOBAL HIDE: Auth pages, Admin, and Property Wizard
-  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/hotel/join', '/hotel/wizard', '/hotel/join-dynamic', '/list-property'];
+  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/hotel/join', '/hotel/wizard', '/hotel/join-dynamic', '/list-property', '/worker'];
   const shouldGlobalHide = globalHideRoutes.some(route => location.pathname.includes(route));
 
   if (shouldGlobalHide) {
@@ -596,6 +599,9 @@ function App() {
               <Route path="/my-property-dashboard/:id" element={<UserPropertyDashboard />} />
               <Route path="/properties/:id" element={<PartnerPropertyDetails />} />
             </Route>
+            
+            {/* Worker Module Routes */}
+            <Route path="/worker/*" element={<WorkerRoutes />} />
           </Routes>
         </Suspense>
       </Layout>

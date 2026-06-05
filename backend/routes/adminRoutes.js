@@ -43,6 +43,7 @@ import {
     adminUpdateEnquiry,
     adminDeleteEnquiry
 } from '../controllers/enquiryController.js';
+import { getWorkerAnalytics } from '../controllers/adminWorkerController.js';
 
 const router = express.Router();
 
@@ -96,5 +97,6 @@ router.put('/contact-messages/:id/status', updateContactStatus);
 router.get('/platform-settings', getPlatformSettings);
 router.put('/platform-settings', updatePlatformSettings);
 router.get('/reel-analysis', getReelAnalysis);
+router.get('/reports/workers', getWorkerAnalytics);
 
 export default router;

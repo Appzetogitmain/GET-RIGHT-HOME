@@ -10,14 +10,14 @@ const notificationSchema = new mongoose.Schema(
     },
     userType: {
       type: String,
-      enum: ['user', 'partner', 'admin'],
+      enum: ['user', 'partner', 'admin', 'worker'],
       default: 'user',
       required: true
     },
     userModel: {
       type: String,
       required: true,
-      enum: ['User', 'Admin', 'Partner'],
+      enum: ['User', 'Admin', 'Partner', 'Worker'],
       default: 'User'
     },
     title: {
@@ -64,6 +64,8 @@ notificationSchema.pre('save', async function () {
     this.userModel = 'Admin';
   } else if (this.userType === 'partner') {
     this.userModel = 'Partner';
+  } else if (this.userType === 'worker') {
+    this.userModel = 'Worker';
   } else {
     this.userModel = 'User';
   }

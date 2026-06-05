@@ -277,7 +277,7 @@ const Profile = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm font-semibold text-gray-800">Not set</p>
+                  <p className="text-sm font-semibold text-gray-800">Not Selected</p>
                 )}
               </div>
             </div>

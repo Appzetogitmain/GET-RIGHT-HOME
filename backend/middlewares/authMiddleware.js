@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Partner from '../models/Partner.js';
 import Admin from '../models/Admin.js';
+import Worker from '../models/Worker.js';
 
 export const protect = async (req, res, next) => {
   try {
@@ -37,9 +38,14 @@ export const protect = async (req, res, next) => {
       user = await Partner.findById(decoded.id);
     }
 
-    // 3. Check Admin Collection
+    // 3. Check Worker Collection
     if (!user) {
-      console.log('🛡️ Auth Middleware - User/Partner not found, checking Admin collection for ID:', decoded.id);
+      user = await Worker.findById(decoded.id);
+    }
+
+    // 4. Check Admin Collection
+    if (!user) {
+      console.log('🛡️ Auth Middleware - User/Partner/Worker not found, checking Admin collection for ID:', decoded.id);
       user = await Admin.findById(decoded.id);
     }
 
@@ -106,6 +112,7 @@ export const optionalProtect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       let user = await User.findById(decoded.id);
       if (!user) user = await Partner.findById(decoded.id);
+      if (!user) user = await Worker.findById(decoded.id);
       if (!user) user = await Admin.findById(decoded.id);
 
       if (user && !user.isBlocked) {
@@ -118,3 +125,6 @@ export const optionalProtect = async (req, res, next) => {
     next();
   }
 };
+
+export const authenticate = protect;
+export const isWorker = authorizedRoles('worker');

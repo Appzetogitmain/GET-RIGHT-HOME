@@ -69,21 +69,22 @@ const AdminDashboard = () => {
           endDate
         });
         
-        if (statsRes.success) {
-          const s = statsRes.data.stats;
+        if (statsRes && statsRes.success) {
+          const s = statsRes.stats || {};
           setStats({
             totalUsers: s.totalUsers,
             totalVendors: s.totalVendors,
             totalWorkers: s.totalWorkers,
-            activeBookings: s.pendingBookings,
-            completedBookings: s.completedBookings,
+            activeBookings: s.pendingBookings || s.totalBookings, // using totalBookings or activeBookings from backend
+            completedBookings: s.completedBookings || 0,
             totalRevenue: s.totalRevenue,
-            bookingRevenue: s.bookingRevenue,
-            workerSubscriptionRevenue: s.workerSubscriptionRevenue,
+            bookingRevenue: s.bookingRevenue || 0,
+            workerSubscriptionRevenue: s.workerSubscriptionRevenue || 0,
             todayRevenue: 0,
           });
-          setRecentBookingsList(statsRes.data.recentBookings || []);
+          setRecentBookingsList(statsRes.recentBookings || []);
         }
+
 
         // 3. Fetch Revenue Analytics based on Period
         const revRes = await getRevenueAnalytics({
@@ -106,7 +107,7 @@ const AdminDashboard = () => {
       }
     };
 
-    // fetchData();
+    fetchData();
   }, [period, customDates.start, customDates.end]);
 
   const handleExportCsv = () => {

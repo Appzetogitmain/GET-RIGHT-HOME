@@ -159,7 +159,7 @@ const HomeServicesPage = () => {
                 if (contentRes?.success && contentRes.homeContent) {
                     const hc = contentRes.homeContent;
                     setHomeData(hc);
-                    setPromos(hc.promos || []);
+                    setPromos([...(hc.banners || []), ...(hc.promos || [])]);
                     setNoteworthy(hc.noteworthy || []);
                     setMostBooked(hc.booked || []);
                     setCurations(hc.curated || []);
@@ -1020,6 +1020,7 @@ const HomeServicesPage = () => {
             )}
 
             {/* New and Noteworthy */}
+            {noteworthy.length > 0 && (
             <section className="mt-12 px-5 max-w-7xl mx-auto">
                 <div className="flex flex-col mb-8">
                     <div className="flex items-center gap-2 mb-1.5">
@@ -1056,8 +1057,10 @@ const HomeServicesPage = () => {
                     ))}
                 </div>
             </section>
+            )}
 
             {/* Most Booked Services */}
+            {mostBooked.length > 0 && (
             <section className="mt-12 px-5 pb-4 max-w-7xl mx-auto">
                 <div className="flex flex-col mb-8">
                     <div className="flex items-center gap-2 mb-1.5">
@@ -1106,6 +1109,58 @@ const HomeServicesPage = () => {
                     ))}
                 </div>
             </section>
+            )}
+
+            {/* Category Sections */}
+            {homeData?.isCategorySectionsVisible !== false && (homeData?.categorySections || []).map((section, sIdx) => (
+                <section key={section.id || sIdx} className="mt-12 px-5 pb-4 max-w-7xl mx-auto">
+                    <div className="flex flex-col mb-8">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
+                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Services</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                            {section.title}
+                        </h2>
+                    </div>
+                    <div className="flex overflow-x-auto gap-4 no-scrollbar pb-6">
+                        {(section.cards || []).map((card) => (
+                            <motion.div 
+                                key={card.id || card._id}
+                                whileHover={{ y: -5 }}
+                                onClick={() => {
+                                    if (card.targetCategoryId) {
+                                        const cat = categories.find(c => (c.id || c._id) === card.targetCategoryId);
+                                        openCategoryModal(cat || { id: card.targetCategoryId, title: card.title });
+                                    } else if (card.slug) {
+                                        navigate(`/service/${card.slug}`);
+                                    }
+                                }}
+                                className="min-w-[165px] bg-white rounded-[1.5rem] border border-gray-100 shadow-lg shadow-gray-200/30 overflow-hidden cursor-pointer"
+                            >
+                                <div className="h-40 bg-gray-50 p-2 overflow-hidden">
+                                    <img src={card.imageUrl || card.image} alt={card.title} className="w-full h-full object-contain" />
+                                </div>
+                                <div className="p-3 flex flex-col items-center">
+                                    <h4 className="font-bold text-gray-800 text-[11px] line-clamp-2 mb-2 h-8 leading-tight text-center">
+                                        {card.title}
+                                    </h4>
+                                    <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-700 mb-3 justify-center">
+                                        <Star size={12} className="text-yellow-400 fill-yellow-400" />
+                                        {card.rating || '4.8'}
+                                    </div>
+                                    <div className="flex items-center justify-between w-full">
+                                        <span className="text-xs font-black text-gray-900">₹{card.price}</span>
+                                        <button className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg shadow-emerald-200/50 hover:shadow-emerald-300/50 transition-all active:scale-95">
+                                            Book
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </section>
+            ))}
 
             {/* Customer Reviews Section */}
             {homeData?.isReviewsVisible !== false && (homeData?.reviews || []).length > 0 && (

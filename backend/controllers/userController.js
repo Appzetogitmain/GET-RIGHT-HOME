@@ -483,25 +483,11 @@ export const validatePromo = async (req, res) => {
 
     // Is it the first booking code?
     if (homeContent.isFirstBookingVisible && homeContent.firstBookingCode && code.toUpperCase() === homeContent.firstBookingCode.toUpperCase()) {
-      let bookingCount = 0;
-      
-      if (serviceType === 'home-services') {
-        const mongoose = await import('mongoose');
-        const truliqConnection = await mongoose.createConnection('mongodb+srv://devendra7jaiswal_db_user:asYD2ryQ8mn5VAA5@cluster0.ozwnh8j.mongodb.net/Truliq').asPromise();
-        const TruliqBooking = truliqConnection.model('Booking', new mongoose.Schema({ userId: mongoose.Schema.Types.ObjectId, status: String }, { strict: false }));
-        // Using 'status' and values from Homster booking model
-        bookingCount = await TruliqBooking.countDocuments({ 
-          userId: req.user._id, 
-          status: { $nin: ['CANCELLED', 'cancelled', 'rejected', 'no_vendors'] } 
-        });
-        await truliqConnection.close();
-      } else {
-        const Booking = (await import('../models/Booking.js')).default;
-        bookingCount = await Booking.countDocuments({ 
-          userId: req.user._id, 
-          bookingStatus: { $nin: ['cancelled', 'rejected', 'no_show'] } 
-        });
-      }
+      const Booking = (await import('../models/Booking.js')).default;
+      const bookingCount = await Booking.countDocuments({ 
+        userId: req.user._id, 
+        bookingStatus: { $nin: ['cancelled', 'rejected', 'no_show', 'CANCELLED', 'no_vendors'] } 
+      });
 
       console.log(`[PROMO] User: ${req.user._id}, Service: ${serviceType}, Bookings Found: ${bookingCount}`);
 

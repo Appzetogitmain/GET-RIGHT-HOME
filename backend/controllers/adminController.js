@@ -17,6 +17,7 @@ import Wallet from '../models/Wallet.js';
 import Transaction from '../models/Transaction.js';
 import Reel from '../models/Reel.js';
 import Enquiry from '../models/Enquiry.js';
+import Worker from '../models/Worker.js';
 
 
 
@@ -40,7 +41,8 @@ export const getDashboardStats = async (req, res) => {
       totalHotels,
       pendingHotels,
       totalBookings, bookingsLastMonth,
-      currentRevenueData, lastMonthRevenueData
+      currentRevenueData, lastMonthRevenueData,
+      totalWorkers
     ] = await Promise.all([
       User.countDocuments({}),
       User.countDocuments({ createdAt: { $lt: startOfThisMonth } }), // Approximation for trend base
@@ -62,7 +64,8 @@ export const getDashboardStats = async (req, res) => {
           }
         },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-      ])
+      ]),
+      Worker.countDocuments({})
     ]);
 
     const totalRevenue = currentRevenueData[0]?.total || 0;
@@ -207,10 +210,12 @@ export const getDashboardStats = async (req, res) => {
       stats: {
         totalUsers,
         totalPartners,
+        totalVendors: totalPartners,
         totalHotels,
         pendingHotels,
         totalBookings,
         totalRevenue,
+        totalWorkers,
         totalSubscriptionRevenue,
         totalActiveSubscribers,
         trends
@@ -354,7 +359,7 @@ export const createAdminProperty = async (req, res) => {
     propertyData.status = 'approved';
     propertyData.isLive = true;
     propertyData.isAddedByAdmin = true;
-    // partnerId is optional — null for admin-added properties
+    // partnerId is optional ΓÇö null for admin-added properties
     propertyData.partnerId = null;
 
     if (!propertyData.propertyName || !propertyData.propertyType) {

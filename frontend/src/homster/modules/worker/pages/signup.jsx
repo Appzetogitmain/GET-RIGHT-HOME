@@ -178,12 +178,12 @@ const WorkerSignup = () => {
         if (response.success) {
           toast.success(
             <div className="flex flex-col">
-              <span className="font-bold">Welcome Onboard!</span>
-              <span className="text-xs">Your worker account has been created.</span>
+              <span className="font-bold">Registration Submitted!</span>
+              <span className="text-xs">{response.message || 'Your account is pending admin approval.'}</span>
             </div>,
             { icon: <FiCheckCircle className="text-green-500" /> }
           );
-          navigate('/worker');
+          navigate('/worker/login');
         } else {
           toast.error(response.message || 'Registration failed');
         }
@@ -267,8 +267,8 @@ const WorkerSignup = () => {
       const response = await workerAuthService.register(registerData);
       if (response.success) {
         setIsLoading(false);
-        toast.success('Registration successful! Welcome to Truliq.');
-        navigate('/worker');
+        toast.success(response.message || 'Registration successful! Your account is pending admin approval.');
+        navigate('/worker/login');
       } else {
         setIsLoading(false);
         toast.error(response.message || 'Registration failed');

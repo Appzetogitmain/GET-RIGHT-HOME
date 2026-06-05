@@ -1,10 +1,10 @@
-// controllers/enquiryController.js
-// Handles all enquiry operations — completely separate from bookings
-
 import Enquiry from '../models/Enquiry.js';
 import Property from '../models/Property.js';
 import Partner from '../models/Partner.js';
 import User from '../models/User.js';
+
+// controllers/enquiryController.js
+// Handles all enquiry operations — completely separate from bookings
 
 // ─────────────────────────────────────────────────────────────────────────────
 // USER: Submit a new enquiry for a property
