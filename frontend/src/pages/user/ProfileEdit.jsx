@@ -271,7 +271,6 @@ const ProfileEdit = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
     localStorage.removeItem('user');
     toast.success('Logged out successfully');
     navigate('/login');

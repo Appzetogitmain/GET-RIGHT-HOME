@@ -167,7 +167,7 @@ const OverviewTab = ({ hotel }) => {
             </p>
         </div>
 
-        {hotel.propertyType === 'plot' ? (
+        {(hotel.propertyType === 'plot' || (hotel.plotDetails && Object.keys(hotel.plotDetails).length > 0)) ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Plot Area</h4>
@@ -190,7 +190,7 @@ const OverviewTab = ({ hotel }) => {
                     <p className="text-sm font-bold text-gray-900">{hotel.plotDetails?.landType || 'Not set'}</p>
                 </div>
             </div>
-        ) : hotel.propertyType === 'buy' ? (
+        ) : (hotel.propertyType === 'buy' || (hotel.buyDetails && Object.keys(hotel.buyDetails).length > 0)) ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Super Built-up Area</h4>
@@ -205,7 +205,7 @@ const OverviewTab = ({ hotel }) => {
                     <p className="text-sm font-bold text-gray-900">{hotel.buyDetails?.propertyAge || 'Not set'}</p>
                 </div>
             </div>
-        ) : hotel.propertyType === 'rent' ? (
+        ) : (hotel.propertyType === 'rent' || (hotel.rentDetails && Object.keys(hotel.rentDetails).length > 0)) ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Monthly Rent</h4>
@@ -246,7 +246,7 @@ const OverviewTab = ({ hotel }) => {
                     <p className="text-xs font-bold text-gray-900">{hotel.rentDetails?.lift ? 'YES' : 'NO'}</p>
                 </div>
             </div>
-        ) : hotel.propertyType === 'pg' ? (
+        ) : (hotel.propertyType === 'pg' || (hotel.pgDetails && Object.keys(hotel.pgDetails).length > 0)) ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Occupancy</h4>

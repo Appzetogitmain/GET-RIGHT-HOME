@@ -41,8 +41,8 @@ const stepSchema = new mongoose.Schema({
 });
 
 const propertyFormTemplateSchema = new mongoose.Schema({
-  transactionType: { type: String, required: true, enum: ["Sell", "Rent", "PG", "Rent / Lease", "Paying Guest"] },
-  category: { type: String, required: true, enum: ["Residential", "Commercial"] },
+  transactionType: { type: String, required: true },
+  category: { type: String, required: true },
   propertyType: { type: String, required: true }, // e.g. "Flat/Apartment", "Office Space"
   steps: [stepSchema],
   isActive: { type: Boolean, default: true }

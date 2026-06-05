@@ -2,12 +2,74 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { propertyService } from '../../services/propertyService';
 import { userService, api } from '../../services/apiService';
-import { MapPin, Search, Filter, Star, IndianRupee, Navigation, X } from 'lucide-react';
+import { MapPin, Search, Filter, Star, IndianRupee, Navigation, X, ChevronLeft, Heart, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 import PropertyCard from '../../components/user/PropertyCard';
-import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
+import AdvancedFilterModal from '../../components/user/AdvancedFilterModal';
+import MobileSearchOverlay from '../../components/user/MobileSearchOverlay';
 import { locationData, bengaluruAreas } from '../../data/locationData';
+const getAvailablePropertyTypes = (category, subCategory) => {
+    if (category === 'Paying Guest') {
+        return [
+            'Apartment',
+            'Independent House / Villa',
+            'Builder Floor',
+            '1 RK / Studio Apartment',
+            'Serviced Apartment',
+            'Hostel'
+        ];
+    }
+    if (category === 'Rent / Lease') {
+        if (subCategory === 'Commercial') {
+            return [
+                'Office',
+                'Retail',
+                'Industry',
+                'Storage',
+                'Hospitality',
+                'Plot / Land',
+                'Other'
+            ];
+        }
+        // Residential Rent
+        return [
+            'Apartment',
+            'Independent House / Villa',
+            'Builder Floor',
+            '1 RK / Studio Apartment',
+            'Serviced Apartment',
+            'Farmhouse',
+            'Other'
+        ];
+    }
+    // Sell (Buy) category
+    if (subCategory === 'Commercial') {
+        return [
+            'Office',
+            'Retail',
+            'Industry',
+            'Storage',
+            'Hospitality',
+            'Plot / Land',
+            'Other'
+        ];
+    }
+    // Sell Residential (default)
+    return [
+        'Apartment',
+        'Independent House / Villa',
+        'Builder Floor',
+        '1 RK / Studio Apartment',
+        'Serviced Apartment',
+        'Farmhouse',
+        'Plot / Land',
+        'Other'
+    ];
+};
+
 const SearchPage = () => {
+    const { isLoggedIn } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
 
@@ -15,6 +77,9 @@ const SearchPage = () => {
     const [savedHotelIds, setSavedHotelIds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showFilters, setShowFilters] = useState(false); // Mobile toggle
+    const [activeModalTab, setActiveModalTab] = useState('Quick Filters');
+    const [previewCount, setPreviewCount] = useState(0);
+    const [previewLoading, setPreviewLoading] = useState(false);
 
     // Filters State
     // Initialize filters from URL
@@ -60,11 +125,18 @@ const SearchPage = () => {
 
         landTypeFromUrl.forEach(v => amsFromUrl.push(v));
 
+        const initialPropertyTypes = [];
         subTypeFromUrl.forEach(v => {
-            const matched = ['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'].find(
-                opt => opt.toLowerCase() === v.toLowerCase()
-            );
-            if (matched) amsFromUrl.push(matched);
+            const matched = [
+                'Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 
+                'Serviced Apartment', 'Farmhouse', 'Plot / Land', 'Office', 'Retail', 
+                'Industry', 'Storage', 'Hospitality', 'Other'
+            ].find(opt => opt.toLowerCase() === v.toLowerCase());
+            if (matched) {
+                initialPropertyTypes.push(matched);
+            } else {
+                initialPropertyTypes.push(v);
+            }
         });
 
         availabilityFromUrl.forEach(v => {
@@ -74,15 +146,19 @@ const SearchPage = () => {
         });
 
         const typeVal = searchParams.get('type') || 'all';
-        const pCategory = searchParams.get('propertyCategory') || 'Residential';
+        // Only read propertyCategory from URL if explicitly set (don't default to Residential)
+        const pCategory = searchParams.get('propertyCategory') || '';
+        const transactionTypeVal = searchParams.get('transactionType') || '';
 
-        let categoryTab = 'Buy';
-        if (pCategory.toLowerCase() === 'commercial') {
-            categoryTab = 'Commercial';
-        } else if (typeVal.includes('rent') || typeVal.includes('pg') || typeVal.includes('hostel')) {
-            categoryTab = 'Rent/PG';
+        let categoryTab = 'Sell';
+        if (transactionTypeVal) {
+            categoryTab = transactionTypeVal;
+        } else if (typeVal.toLowerCase().includes('pg') || typeVal.toLowerCase().includes('hostel')) {
+            categoryTab = 'Paying Guest';
+        } else if (typeVal.toLowerCase().includes('rent')) {
+            categoryTab = 'Rent / Lease';
         } else {
-            categoryTab = 'Buy';
+            categoryTab = 'Sell';
         }
 
         const areasFromUrl = searchParams.get('areas')?.split(',').filter(Boolean) || [];
@@ -90,12 +166,13 @@ const SearchPage = () => {
         return {
             search: searchParams.get('search') || '',
             type: typeVal,
-            propertyCategory: pCategory,
+            propertyCategory: pCategory || 'Residential',
             categoryTab,
             minPrice: searchParams.get('minPrice') || '',
             maxPrice: searchParams.get('maxPrice') || '',
             sort: searchParams.get('sort') || 'newest',
             amenities: [...new Set(amsFromUrl)],
+            propertyTypes: initialPropertyTypes,
             radius: parseInt(searchParams.get('radius')) || 50,
             foodIncluded: searchParams.get('foodIncluded') === 'true',
             city: searchParams.get('city') || '',
@@ -109,6 +186,7 @@ const SearchPage = () => {
     };
 
     const [filters, setFilters] = useState(getInitialFilters());
+    const [showSearchOverlay, setShowSearchOverlay] = useState(false);
 
     const [location, setLocation] = useState(null); // { lat, lng }
     const [propertyTypes, setPropertyTypes] = useState([
@@ -144,50 +222,61 @@ const SearchPage = () => {
                 if (res.data) {
                     const categories = res.data;
 
-                    const findId = (names) => {
+                    const findIds = (names) => {
                         const searchNames = Array.isArray(names) ? names : [names];
-                        const found = categories.find(c =>
-                            searchNames.some(n =>
-                                (c.displayName || '').toLowerCase() === n.toLowerCase() ||
-                                (c.name || '').toLowerCase() === n.toLowerCase()
-                            )
-                        );
-                        return found ? found._id : null;
+                        const found = categories.filter(c => {
+                            const displayName = (c.displayName || '').toLowerCase();
+                            const name = (c.name || '').toLowerCase();
+                            return searchNames.some(n => {
+                                const target = n.toLowerCase();
+                                return displayName === target || name === target ||
+                                       displayName.includes(target) || name.includes(target);
+                            });
+                        });
+                        return found.map(c => c._id).join(',');
                     };
+
+                    const pgId = findIds(['pg', 'hostel', 'pg/co-living', 'co-living', 'paying guest', 'co-livinig']) || 'pg';
+                    const rentId = findIds('rent') || 'rent';
+                    const buyId = findIds('buy') || 'buy';
+                    const plotId = findIds(['plot', 'plots']) || 'plot';
 
                     const updatedTypes = [
                         { id: 'all', label: 'All' },
-                        { id: findId(['pg', 'hostel', 'pg/co-living', 'co-living', 'paying guest']) || 'pg', label: 'PG' },
-                        { id: findId('rent') || 'rent', label: 'Rent' },
-                        { id: findId('buy') || 'buy', label: 'Buy' },
-                        { id: findId(['plot', 'plots']) || 'plot', label: 'Plot' }
+                        { id: pgId, label: 'PG' },
+                        { id: rentId, label: 'Rent' },
+                        { id: buyId, label: 'Buy' },
+                        { id: plotId, label: 'Plot' }
                     ];
 
                     setPropertyTypes(updatedTypes);
+
+                    // Check typeVal in URL and resolve categoryTab
+                    const typeVal = searchParams.get('type') || 'all';
+                    const transactionTypeVal = searchParams.get('transactionType') || '';
+                    if (typeVal !== 'all' && !transactionTypeVal) {
+                        let resolvedTab = 'Sell';
+                        if (typeVal === pgId || typeVal.toLowerCase().includes('pg') || typeVal.toLowerCase().includes('hostel')) {
+                            resolvedTab = 'Paying Guest';
+                        } else if (typeVal === rentId || typeVal.toLowerCase().includes('rent')) {
+                            resolvedTab = 'Rent / Lease';
+                        } else if (typeVal === buyId || typeVal === plotId) {
+                            resolvedTab = 'Sell';
+                        }
+                        setFilters(prev => ({ ...prev, categoryTab: resolvedTab }));
+                    }
                 }
             } catch (err) {
                 console.warn("Failed to fetch dynamic categories:", err);
             }
         };
         fetchCategories();
-    }, []);
+    }, [searchParams]);
 
     const getAmenitiesOptions = () => {
-        const currentType = Array.isArray(filters.type) ? filters.type[0] : filters.type;
-        if (!currentType || currentType === 'all') return ['Wi-Fi', 'AC', 'Parking', 'Kitchen', 'Geyser', 'Power Backup'];
-
-        const typeObj = propertyTypes.find(t => {
-            if (t.id === currentType) return true;
-            if (t.id && currentType) {
-                const tIds = String(t.id).split(',').map(id => id.trim());
-                const cIds = String(currentType).split(',').map(id => id.trim());
-                return tIds.some(id => cIds.includes(id)) || cIds.some(id => tIds.includes(id));
-            }
-            return false;
-        });
-        const label = typeObj ? typeObj.label.toLowerCase() : '';
-
-        if (label.includes('pg') || label.includes('hostel')) {
+        const cat = filters.categoryTab;
+        
+        if (cat === 'Paying Guest') {
             return [
                 'Boys Only', 'Girls Only', 'Coliving',
                 'Single Occupancy', 'Double Occupancy', 'Triple Occupancy',
@@ -195,7 +284,7 @@ const SearchPage = () => {
                 'RO Water', 'Gym', 'Lift', 'Power Backup', 'Geyser', 'Fridge', 'Parking', 'TV', 'Kitchen'
             ];
         }
-        if (label.includes('rent')) {
+        if (cat === 'Rent / Lease') {
             return [
                 '1 BHK', '2 BHK', '3 BHK', 'Villa', 'Studio',
                 'Fully Furnished', 'Semi Furnished', 'Unfurnished',
@@ -203,25 +292,18 @@ const SearchPage = () => {
                 'Gym', 'Garden', 'Balcony', 'Modular Kitchen', 'Air Conditioning'
             ];
         }
-        if (label.includes('buy')) {
+        if (cat === 'Sell') {
             return [
-                'Apartment', 'Villa', 'Independent House',
-                'Ready to Move', 'Under Construction',
+                'Ready to Move', 'Under Construction', 'Pre Launch',
                 'East Facing', 'West Facing', 'North Facing', 'South Facing',
                 'Lift', 'Parking', 'Power Backup', 'Water Supply', 'Security Guard', 'CCTV',
                 'Gym', 'Garden', 'Balcony', 'Modular Kitchen', 'Air Conditioning', 'Club House'
             ];
         }
-        if (label.includes('plot')) {
-            return [
-                'Residential', 'Commercial', 'Agricultural', 'Industrial',
-                'East Facing', 'West Facing', 'North Facing', 'South Facing',
-                'Boundary Wall', 'Gated Community', 'Red Soil', 'Black Soil', 'Electricity Available', 'Water Source'
-            ];
-        }
 
         return ['Wi-Fi', 'AC', 'Parking', 'Kitchen', 'Geyser', 'Power Backup'];
     };
+
 
     useEffect(() => {
         fetchProperties();
@@ -241,7 +323,7 @@ const SearchPage = () => {
 
             // Fetch properties and saved status in parallel if logged in
             const promises = [propertyService.getPublicProperties(params)];
-            if (localStorage.getItem('token')) {
+            if (isLoggedIn) {
                 promises.push(userService.getSavedHotels());
             }
 
@@ -273,21 +355,83 @@ const SearchPage = () => {
         setFilters(prev => ({ ...prev, [key]: value }));
     };
 
-    const applyFilters = () => {
+    const toggleQuickFilter = (filterKey, value) => {
+        setFilters(prev => {
+            let newValues;
+            const current = filterKey === 'postedBy' 
+                ? (prev[filterKey] ? prev[filterKey].split(',') : [])
+                : (Array.isArray(prev[filterKey]) ? prev[filterKey] : []);
+
+            if (current.includes(value)) {
+                newValues = current.filter(v => v !== value);
+            } else {
+                newValues = [...current, value];
+            }
+
+            const nextFilters = { ...prev };
+            if (filterKey === 'postedBy') {
+                nextFilters[filterKey] = newValues.join(',');
+            } else {
+                nextFilters[filterKey] = newValues;
+            }
+
+            // apply filters immediately
+            setTimeout(() => {
+                const newParams = getParamsFromFilters(nextFilters);
+                setSearchParams(newParams);
+            }, 0);
+
+            return nextFilters;
+        });
+    };
+
+    const getParamsFromFilters = (targetFilters) => {
         const params = {};
-        if (filters.search) params.search = filters.search;
-        if (filters.type && filters.type !== 'all') params.type = filters.type;
-        if (filters.propertyCategory && filters.propertyCategory !== 'Residential') params.propertyCategory = filters.propertyCategory;
-        if (filters.minPrice) params.minPrice = filters.minPrice;
-        if (filters.maxPrice) params.maxPrice = filters.maxPrice;
-        if (filters.sort) params.sort = filters.sort;
-        if (filters.city) params.city = filters.city;
-        if (filters.minArea) params.minArea = filters.minArea;
-        if (filters.maxArea) params.maxArea = filters.maxArea;
-        if (filters.bathrooms) params.bathrooms = filters.bathrooms;
-        if (filters.postedBy) params.postedBy = filters.postedBy;
-        if (filters.purchaseType) params.purchaseType = filters.purchaseType;
-        if (filters.areas && filters.areas.length > 0) params.areas = filters.areas.join(',');
+        if (targetFilters.search) params.search = targetFilters.search;
+        
+        // Map categoryTab to transactionType & dynamic type ID
+        if (targetFilters.categoryTab) {
+            params.transactionType = targetFilters.categoryTab;
+            if (targetFilters.categoryTab === 'Paying Guest') {
+                const pgIdObj = propertyTypes.find(t => t.label === 'PG');
+                params.type = pgIdObj && pgIdObj.id !== 'pg' ? pgIdObj.id : 'pg';
+            } else if (targetFilters.categoryTab === 'Rent / Lease') {
+                const rentIdObj = propertyTypes.find(t => t.label === 'Rent');
+                params.type = rentIdObj && rentIdObj.id !== 'rent' ? rentIdObj.id : 'rent';
+            } else {
+                const isPlot = targetFilters.propertyTypes && (
+                    targetFilters.propertyTypes.includes('Plot / Land') ||
+                    targetFilters.propertyTypes.includes('Plot')
+                );
+                if (isPlot) {
+                    const plotIdObj = propertyTypes.find(t => t.label === 'Plot');
+                    params.type = plotIdObj && plotIdObj.id !== 'plot' ? plotIdObj.id : 'plot';
+                } else {
+                    const buyIdObj = propertyTypes.find(t => t.label === 'Buy');
+                    params.type = buyIdObj && buyIdObj.id !== 'buy' ? buyIdObj.id : 'buy';
+                }
+            }
+        }
+
+        // Only send propertyCategory to backend when user explicitly chose 'Commercial'
+        // Many properties may not have propertyCategory field set, so never filter by 'Residential' (the default)
+        if (targetFilters.propertyCategory && targetFilters.propertyCategory === 'Commercial') {
+            params.propertyCategory = targetFilters.propertyCategory;
+        }
+
+        if (targetFilters.minPrice) params.minPrice = targetFilters.minPrice;
+        if (targetFilters.maxPrice) params.maxPrice = targetFilters.maxPrice;
+        if (targetFilters.sort) params.sort = targetFilters.sort;
+        if (targetFilters.city) params.city = targetFilters.city;
+        if (targetFilters.minArea) params.minArea = targetFilters.minArea;
+        if (targetFilters.maxArea) params.maxArea = targetFilters.maxArea;
+        if (targetFilters.bathrooms) params.bathrooms = targetFilters.bathrooms;
+        if (targetFilters.postedBy) params.postedBy = targetFilters.postedBy;
+        if (targetFilters.purchaseType) params.purchaseType = targetFilters.purchaseType;
+        const targetAreas = Array.isArray(targetFilters.areas)
+            ? targetFilters.areas
+            : (typeof targetFilters.areas === 'string' ? targetFilters.areas.split(',').filter(Boolean) : []);
+        if (targetAreas.length > 0) params.areas = targetAreas.join(',');
 
         // Map Special Amenities to specific query params
         const finalAmenities = [];
@@ -296,16 +440,18 @@ const SearchPage = () => {
         const genders = [];
         const occupancies = [];
         const landTypes = [];
-        const subTypes = [];
+        const subTypes = Array.isArray(targetFilters.propertyTypes)
+            ? targetFilters.propertyTypes
+            : (typeof targetFilters.propertyTypes === 'string' ? targetFilters.propertyTypes.split(',').filter(Boolean) : []);
         const availabilities = [];
 
-        filters.amenities.forEach(am => {
-            // SubTypes mapping
-            if (['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'].includes(am)) {
-                subTypes.push(am);
-            }
+        const targetAmenities = Array.isArray(targetFilters.amenities)
+            ? targetFilters.amenities
+            : (typeof targetFilters.amenities === 'string' ? targetFilters.amenities.split(',').filter(Boolean) : []);
+
+        targetAmenities.forEach(am => {
             // Availability mapping
-            else if (am === 'Ready to Move') {
+            if (am === 'Ready to Move') {
                 availabilities.push('Ready to move');
             } else if (am === 'Under Construction') {
                 availabilities.push('Under construction');
@@ -335,7 +481,7 @@ const SearchPage = () => {
             else if (am === 'Triple Occupancy') occupancies.push('Triple');
 
             // Plot Land Type mapping
-            else if (am === 'Residential' && filters.type !== 'all' && (String(filters.type).toLowerCase().includes('plot') || String(filters.type).toLowerCase().includes('sell'))) landTypes.push('Residential');
+            else if (am === 'Residential' && targetFilters.type !== 'all' && (String(targetFilters.type).toLowerCase().includes('plot') || String(targetFilters.type).toLowerCase().includes('sell'))) landTypes.push('Residential');
             else if (am === 'Commercial') landTypes.push('Commercial');
             else if (am === 'Agricultural') landTypes.push('Agricultural');
             else if (am === 'Industrial') landTypes.push('Industrial');
@@ -354,9 +500,54 @@ const SearchPage = () => {
         if (subTypes.length > 0) params.subType = subTypes.join(',');
         if (availabilities.length > 0) params.availability = availabilities.join(',');
 
+        return params;
+    };
+
+    const applyFilters = () => {
+        const params = getParamsFromFilters(filters);
         setSearchParams(params);
         setShowFilters(false);
     };
+
+    useEffect(() => {
+        if (!showFilters) return;
+
+        let active = true;
+        const fetchPreviewCount = async () => {
+            setPreviewLoading(true);
+            try {
+                const params = getParamsFromFilters(filters);
+                if (location) {
+                    params.lat = location.lat;
+                    params.lng = location.lng;
+                    params.radius = filters.radius;
+                }
+                const res = await propertyService.getPublicProperties(params);
+                if (active) {
+                    if (Array.isArray(res)) {
+                        setPreviewCount(res.length);
+                    } else if (res.success && Array.isArray(res.properties)) {
+                        setPreviewCount(res.properties.length);
+                    } else {
+                        setPreviewCount(0);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching preview count:", err);
+            } finally {
+                if (active) setPreviewLoading(false);
+            }
+        };
+
+        const handler = setTimeout(() => {
+            fetchPreviewCount();
+        }, 300);
+
+        return () => {
+            active = false;
+            clearTimeout(handler);
+        };
+    }, [filters, location, showFilters]);
 
     const handleNearMe = async () => {
         try {
@@ -379,135 +570,155 @@ const SearchPage = () => {
     };
 
     const sortOptions = [
-        { label: 'Newest', value: 'newest' },
-        { label: 'Price: Low to High', value: 'price_low' },
-        { label: 'Price: High to Low', value: 'price_high' },
-        { label: 'Top Rated', value: 'rating' },
+        { value: 'relevance', label: 'Relevance' },
+        { value: 'newest', label: 'Newest first' },
+        { value: 'priceAsc', label: 'Price Low to High' },
+        { value: 'priceDesc', label: 'Price High to Low' },
+        { value: 'pricePerSqftAsc', label: 'Price / sq.ft. : Low to High' },
+        { value: 'pricePerSqftDesc', label: 'Price / sq.ft. : High to Low' }
     ];
 
     return (
         <div className="min-h-screen bg-white pb-24">
 
             {/* Sticky Header */}
-            <div className="sticky top-0 md:top-24 z-30 bg-white border-b border-gray-100 pb-1.5 pt-3 md:pt-2 px-4 shadow-sm">
-
+            <div className="sticky top-0 z-30 bg-white border-b border-gray-100 pb-2 pt-3 md:pt-4 px-4 shadow-sm">
                 <div className="max-w-7xl mx-auto">
-                    {/* Search & Actions Row */}
-                    <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2 md:mb-1">
-                        {/* Search Input Row */}
-                        <div className="relative flex-grow">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                            <input
-                                type="text"
-                                placeholder="Search by city, hotel, or area..."
-                                className="w-full pl-10 pr-4 py-2 md:py-2 border border-gray-300 rounded-xl focus:ring-1 focus:ring-surface focus:border-surface outline-none text-sm font-medium text-gray-700 bg-gray-100/30"
-                                value={filters.search}
-                                onChange={(e) => updateFilter('search', e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-                            />
+                    {/* Header Top Row (Search Bar) */}
+                    <div className="flex items-center gap-3 mb-3">
+                        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
+                            <ChevronLeft size={20} className="text-gray-600" />
+                        </button>
+                        <div 
+                            className="relative flex-grow"
+                            onClick={() => setShowSearchOverlay(true)}
+                        >
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <div className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-400 bg-gray-50 flex items-center h-9">
+                                {filters.areas && filters.areas.length > 0 ? filters.areas.join(', ') : (filters.search || "Search City/Locality/Project")}
+                            </div>
                         </div>
-
-                        {/* Actions Row */}
-                        <div className="flex gap-2 md:w-72">
-                            <button
-                                onClick={handleNearMe}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2 md:py-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95
-                                ${location
-                                        ? 'bg-surface/5 text-surface border-surface'
-                                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
-                            >
-                                <Navigation size={14} className={location ? "fill-surface text-surface" : ""} />
-                                {location ? "Nearby" : "Near Me"}
-                            </button>
-
-                            <button
-                                onClick={() => setShowFilters(!showFilters)}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2 md:py-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95
-                                ${(filters.minPrice || filters.maxPrice || (Array.isArray(filters.type) && filters.type.length > 0 && filters.type !== 'all') || filters.amenities.length > 0)
-                                        ? 'bg-surface/5 text-surface border-surface'
-                                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
-                            >
-                                <Filter size={14} className={(filters.minPrice || filters.maxPrice || (Array.isArray(filters.type) && filters.type.length > 0 && filters.type !== 'all') || filters.amenities.length > 0) ? "fill-surface text-surface" : ""} />
-                                Filters
-                            </button>
-                        </div>
+                        <button className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
+                            <Heart size={18} className="text-gray-600" />
+                        </button>
                     </div>
 
-                    {/* Radius Slider - Shows when Near Me is active */}
-                    {location && (
-                        <div className="mt-2 pt-2 border-t border-gray-100 transition-all animate-in fade-in slide-in-from-top-2">
-                            <div className="flex items-center justify-between mb-1.5">
-                                <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
-                                    <MapPin size={12} />
-                                    Search Radius
-                                </label>
-                                <span className="text-xs font-bold text-surface bg-surface/10 px-2 py-0.5 rounded-full">
-                                    {filters.radius} km
-                                </span>
-                            </div>
-                            <input
-                                type="range"
-                                min="1"
-                                max="100"
-                                step="1"
-                                value={filters.radius}
-                                onChange={(e) => updateFilter('radius', Number(e.target.value))}
-                                onMouseUp={() => fetchProperties()}
-                                onTouchEnd={() => fetchProperties()}
-                                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-surface"
-                            />
+                    {/* Quick Filters Horizontal Scroll */}
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4">
+                        {/* Filter Button */}
+                        <button 
+                            onClick={() => setShowFilters(true)}
+                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-full shrink-0 active:scale-95 transition-transform"
+                        >
+                            <SlidersHorizontal size={14} className="text-gray-700" />
+                            {(() => {
+                                let count = 0;
+                                if (filters.minPrice || filters.maxPrice) count++;
+                                if (filters.propertyTypes && filters.propertyTypes.length > 0) count++;
+                                if (filters.amenities && filters.amenities.length > 0) count++;
+                                if (filters.minArea || filters.maxArea) count++;
+                                if (filters.bathrooms > 0) count++;
+                                if (filters.postedBy) count++;
+                                if (filters.purchaseType) count++;
+                                if (filters.areas && filters.areas.length > 0) count++;
+                                return count > 0 ? <span className="text-xs font-bold text-surface">{count}</span> : null;
+                            })()}
+                        </button>
+
+                        {/* Sort Dropdown */}
+                        <div className="relative shrink-0">
+                            <select
+                                value={filters.sort}
+                                onChange={(e) => {
+                                    updateFilter('sort', e.target.value);
+                                    const params = { ...Object.fromEntries([...searchParams]), sort: e.target.value };
+                                    setSearchParams(params);
+                                }}
+                                className="appearance-none pl-3 pr-7 py-1.5 border border-gray-300 rounded-full text-xs font-medium text-gray-700 bg-white outline-none cursor-pointer"
+                            >
+                                <option value="" disabled hidden>Sort</option>
+                                {sortOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                         </div>
-                    )}
 
-                    {/* Horizontal Dynamic Tabs */}
-                    <div className="mt-1 md:mt-0 -mx-4 border-t border-gray-50/50">
-                        <PropertyTypeFilter
-                            selectedType={Array.isArray(filters.type) ? filters.type[0] : filters.type}
-                            onSelectType={(type) => {
-                                if (type === 'homeservice') {
-                                    navigate('/home-services');
-                                    return;
-                                }
-                                const newType = (!type || type === 'All') ? 'all' : type;
-                                setFilters(prev => ({ ...prev, type: newType, amenities: [] }));
+                        {/* Quick Filter Buttons */}
+                        {(() => {
+                            const qfButtons = [
+                                { label: 'Owner', key: 'postedBy', isToggle: true, val: 'Owner' },
+                                { label: 'Budget', isModal: true, tab: 'Budget' },
+                                { label: 'BHK', isModal: true, tab: 'BHK' },
+                                { label: 'Property Type', isModal: true, tab: 'Property Type' },
+                                { label: 'New Launch', key: 'amenities', isToggle: true, val: 'New Launch' },
+                                { label: 'Verified', key: 'amenities', isToggle: true, val: 'Verified Properties' },
+                                { label: 'New Booking', key: 'purchaseType', isToggle: true, val: 'New Bookings' },
+                                { label: 'Ready To Move', key: 'amenities', isToggle: true, val: 'Ready to Move' },
+                                { label: 'With Photos', key: 'amenities', isToggle: true, val: 'With Photos' },
+                                { label: 'With Videos', key: 'amenities', isToggle: true, val: 'With Videos' },
+                                { label: 'Gated Society', key: 'amenities', isToggle: true, val: 'Gated Society' },
+                                { label: 'Property Size', isModal: true, tab: 'Property Size' },
+                                { label: 'Under Construction', key: 'amenities', isToggle: true, val: 'Under Construction' },
+                                { label: 'Possession Status', isModal: true, tab: 'Possession Status' },
+                                { label: 'Builders', isModal: true, tab: 'Builders' },
+                                { label: 'Floor Preference', isModal: true, tab: 'Floor Preference' },
+                                { label: 'Project', isModal: true, tab: 'Projects' }
+                            ];
 
-                                // Immediately apply and search
-                                const params = { ...Object.fromEntries([...searchParams]) };
-                                if (newType === 'all') {
-                                    delete params.type;
-                                } else {
-                                    params.type = newType;
+                            return qfButtons.map(qf => {
+                                let isSelected = false;
+                                if (qf.isToggle && filters[qf.key]) {
+                                    const current = Array.isArray(filters[qf.key]) ? filters[qf.key] : filters[qf.key].split(',');
+                                    isSelected = current.includes(qf.val);
                                 }
-                                // Clear amenities from URL when switching type
-                                delete params.amenities;
-                                setSearchParams(params);
-                            }}
-                        />
+
+                                return (
+                                    <button
+                                        key={qf.label}
+                                        onClick={() => {
+                                            if (qf.isModal) {
+                                                setActiveModalTab(qf.tab);
+                                                setShowFilters(true);
+                                            } else if (qf.isToggle) {
+                                                toggleQuickFilter(qf.key, qf.val);
+                                            }
+                                        }}
+                                        className={`px-3 py-1.5 border rounded-full text-xs font-medium shrink-0 flex items-center gap-1 whitespace-nowrap transition-colors ${isSelected ? 'border-surface text-surface bg-surface/10 font-bold' : 'border-gray-300 text-gray-700 bg-white'}`}
+                                    >
+                                        {qf.label}
+                                        {qf.isModal && (
+                                            <ChevronDown size={14} className={isSelected ? "text-surface" : "text-gray-400"} />
+                                        )}
+                                    </button>
+                                );
+                            });
+                        })()}
                     </div>
                 </div>
             </div>
 
             {/* Content Area */}
-            <div className="max-w-7xl mx-auto px-4 py-4 md:py-2">
+            <div className="max-w-7xl mx-auto px-0 md:px-4 py-4 md:py-2">
 
                 {/* Results Count & Sort */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 px-4 md:px-0">
                     <h2 className="text-sm font-bold text-gray-800">
                         {properties.length} properties found
                     </h2>
 
                     {/* Sort Dropdown (Small) */}
-                    <div className="relative">
+                    <div className="relative hidden md:block">
                         <select
                             value={filters.sort}
                             onChange={(e) => {
                                 updateFilter('sort', e.target.value);
-                                // Trigger fetch immediately when sort changes
                                 const params = { ...Object.fromEntries([...searchParams]), sort: e.target.value };
                                 setSearchParams(params);
                             }}
-                            className="text-xs font-bold text-gray-500 bg-transparent outline-none pr-1 cursor-pointer"
+                            className="text-xs font-bold text-gray-600 bg-transparent outline-none pr-1 cursor-pointer appearance-none"
                         >
+                            <option value="newest" disabled hidden>Sort</option>
                             {sortOptions.map(opt => (
                                 <option key={opt.value} value={opt.value} disabled={opt.value === 'distance' && !location}>
                                     Sort by {opt.label}
@@ -519,13 +730,13 @@ const SearchPage = () => {
 
                 {/* Grid */}
                 {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-5 justify-items-center">
                         {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="bg-white h-64 rounded-2xl animate-pulse border border-gray-100"></div>
+                            <div key={i} className="bg-white h-[340px] w-full md:max-w-[340px] rounded-none md:rounded-[1.5rem] animate-pulse border-y md:border border-gray-100"></div>
                         ))}
                     </div>
                 ) : properties.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="flex flex-col items-center justify-center py-20 text-center px-4">
                         <div className="bg-gray-50 p-6 rounded-full mb-6">
                             <Search size={40} className="text-gray-300" />
                         </div>
@@ -553,522 +764,49 @@ const SearchPage = () => {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-5 justify-items-center bg-gray-100 md:bg-transparent pb-4 md:pb-0">
                         {properties.map(property => (
-                            <PropertyCard
-                                key={property._id}
-                                property={property}
-                                isSaved={savedHotelIds.includes(property._id)}
-                            />
+                            <div key={property._id} className="w-full md:max-w-[340px] flex justify-center bg-white md:bg-transparent">
+                                <PropertyCard
+                                    property={property}
+                                    isSaved={savedHotelIds.includes(property._id)}
+                                    className="!w-full !rounded-none md:!rounded-[1.5rem] border-y-0 md:border border-gray-100 shadow-sm"
+                                />
+                            </div>
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Filters Sidebar/Modal */}
-            <div className={`
-                fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300 flex justify-end
-                ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
-            `} onClick={() => setShowFilters(false)}>
-                <div
-                    data-lenis-prevent
-                    className={`
-                        w-full max-w-md md:max-w-lg bg-white shadow-2xl h-full flex flex-col transition-transform duration-300 transform
-                        ${showFilters ? 'translate-x-0' : 'translate-x-full'}
-                    `}
-                    onClick={e => e.stopPropagation()}
-                >
-                    {/* Header */}
-                    <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-white">
-                        <h2 className="text-base font-bold text-gray-900">Filters</h2>
-                        <button onClick={() => setShowFilters(false)} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
-                            <X size={20} className="text-gray-500" />
-                        </button>
-                    </div>
+            {/* Advanced Filters Modal (Bottom Sheet) */}
+            <AdvancedFilterModal 
+                isOpen={showFilters}
+                onClose={() => setShowFilters(false)}
+                filters={filters}
+                setFilters={setFilters}
+                updateFilter={updateFilter}
+                applyFilters={applyFilters}
+                previewCount={previewCount}
+                previewLoading={previewLoading}
+                clearAllFilters={() => {
+                    const params = getParamsFromFilters(getInitialFilters()); // Keep category from URL
+                    setSearchParams(params); // Refresh filters
+                    setFilters(getInitialFilters());
+                }}
+                activeTab={activeModalTab}
+                setActiveTab={setActiveModalTab}
+            />
 
-                    {/* Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto p-5 space-y-6 scrollbar-thin">
-                        {/* 1. Category Tabs */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Category</label>
-                            <div className="flex bg-gray-100 rounded-xl p-1">
-                                {['Buy', 'Rent/PG', 'Commercial'].map(tab => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => {
-                                            setFilters(prev => {
-                                                let nextType = 'buy';
-                                                let nextPC = 'Residential';
-                                                if (tab === 'Rent/PG') {
-                                                    nextType = 'rent';
-                                                } else if (tab === 'Commercial') {
-                                                    nextPC = 'Commercial';
-                                                    nextType = 'buy';
-                                                }
-                                                return {
-                                                    ...prev,
-                                                    categoryTab: tab,
-                                                    type: nextType,
-                                                    propertyCategory: nextPC,
-                                                    amenities: []
-                                                };
-                                            });
-                                        }}
-                                        className={`flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all
-                                            ${filters.categoryTab === tab
-                                                ? 'bg-surface text-white shadow-sm'
-                                                : 'text-gray-500 hover:text-gray-800'
-                                            }`}
-                                    >
-                                        {tab}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* 2. Looking to sub-toggle */}
-                        {filters.categoryTab === 'Rent/PG' && (
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Looking to</label>
-                                <div className="flex gap-2">
-                                    {[
-                                        { id: 'rent', label: 'Rent' },
-                                        { id: 'pg', label: 'PG / Co-living' }
-                                    ].map(opt => {
-                                        const isSelected = filters.type === opt.id || (opt.id === 'pg' && ['pg', 'hostel'].includes(filters.type));
-                                        return (
-                                            <button
-                                                key={opt.id}
-                                                onClick={() => updateFilter('type', opt.id)}
-                                                className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all
-                                                    ${isSelected
-                                                        ? 'bg-surface/10 text-surface border-surface'
-                                                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                                                    }`}
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {filters.categoryTab === 'Commercial' && (
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Looking to</label>
-                                <div className="flex gap-2">
-                                    {[
-                                        { id: 'buy', label: 'Commercial Buy' },
-                                        { id: 'rent', label: 'Commercial Lease' }
-                                    ].map(opt => {
-                                        const isSelected = filters.type === opt.id;
-                                        return (
-                                            <button
-                                                key={opt.id}
-                                                onClick={() => updateFilter('type', opt.id)}
-                                                className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all
-                                                    ${isSelected
-                                                        ? 'bg-surface/10 text-surface border-surface'
-                                                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                                                    }`}
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 3. Localities / Areas Multi-select */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Localities / Areas (Bengaluru)</label>
-                            
-                            {/* Selected Chips */}
-                            {filters.areas && filters.areas.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mb-3">
-                                    {filters.areas.map(area => (
-                                        <div key={area} className="flex items-center gap-1 bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
-                                            <span>{area}</span>
-                                            <button
-                                                onClick={() => {
-                                                    updateFilter('areas', filters.areas.filter(a => a !== area));
-                                                }}
-                                                className="hover:text-red-500 transition-colors"
-                                            >
-                                                <X size={12} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Dropdown to add */}
-                            <select
-                                value=""
-                                onChange={(e) => {
-                                    const area = e.target.value;
-                                    if (area && !filters.areas.includes(area)) {
-                                        updateFilter('areas', [...filters.areas, area]);
-                                    }
-                                }}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50 font-bold text-gray-700"
-                            >
-                                <option value="" disabled>+ Add Locality</option>
-                                {bengaluruAreas.map(area => (
-                                    <option key={area} value={area} disabled={filters.areas.includes(area)}>
-                                        {area}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* City / District dropdown */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">City / District</label>
-                            <select
-                                value={filters.city || ''}
-                                onChange={(e) => {
-                                    updateFilter('city', e.target.value);
-                                    updateFilter('search', '');
-                                }}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50 font-bold"
-                            >
-                                <option value="">All Bengaluru</option>
-                                <option value="Bengaluru Urban">Bengaluru Urban</option>
-                                <option value="Bengaluru Rural">Bengaluru Rural</option>
-                            </select>
-                        </div>
-
-                        {/* 4. Budget Range */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Budget Range</label>
-                            <div className="flex items-center gap-2">
-                                <div className="relative flex-1">
-                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">₹</span>
-                                    <input
-                                        type="number"
-                                        placeholder="Min"
-                                        className="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50"
-                                        value={filters.minPrice}
-                                        onChange={(e) => updateFilter('minPrice', e.target.value)}
-                                    />
-                                </div>
-                                <span className="text-gray-300 font-bold text-xs">-</span>
-                                <div className="relative flex-1">
-                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">₹</span>
-                                    <input
-                                        type="number"
-                                        placeholder="Max"
-                                        className="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50"
-                                        value={filters.maxPrice}
-                                        onChange={(e) => updateFilter('maxPrice', e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 5. Area Range */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Area Range (sq.ft.)</label>
-                            <div className="flex items-center gap-2">
-                                <div className="relative flex-1">
-                                    <input
-                                        type="number"
-                                        placeholder="Min Area"
-                                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50"
-                                        value={filters.minArea}
-                                        onChange={(e) => updateFilter('minArea', e.target.value)}
-                                    />
-                                </div>
-                                <span className="text-gray-300 font-bold text-xs">-</span>
-                                <div className="relative flex-1">
-                                    <input
-                                        type="number"
-                                        placeholder="Max Area"
-                                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-surface bg-gray-50"
-                                        value={filters.maxArea}
-                                        onChange={(e) => updateFilter('maxArea', e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 6. Property Types (Flat/Apartment, Independent House/Villa, Builder Floor, etc.) */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Property Type</label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {[
-                                    'Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse',
-                                    'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'
-                                ].map((subType) => {
-                                    const isSelected = filters.amenities.includes(subType);
-                                    return (
-                                        <button
-                                            key={subType}
-                                            onClick={() => {
-                                                const newAmenities = isSelected
-                                                    ? filters.amenities.filter(a => a !== subType)
-                                                    : [...filters.amenities, subType];
-                                                updateFilter('amenities', newAmenities);
-                                            }}
-                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all
-                                            ${isSelected
-                                                ? 'bg-surface text-white border-surface shadow-sm'
-                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                                        >
-                                            {subType}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* 7. BHK Selector (Residential Rent/Buy) */}
-                        {filters.propertyCategory === 'Residential' && (
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">BHK Type</label>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {['1 BHK', '2 BHK', '3 BHK', 'Villa', 'Studio'].map((bhk) => {
-                                        const isSelected = filters.amenities.includes(bhk);
-                                        return (
-                                            <button
-                                                key={bhk}
-                                                onClick={() => {
-                                                    const newAmenities = isSelected
-                                                        ? filters.amenities.filter(a => a !== bhk)
-                                                        : [...filters.amenities, bhk];
-                                                    updateFilter('amenities', newAmenities);
-                                                }}
-                                                className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
-                                                ${isSelected
-                                                    ? 'bg-surface text-white border-surface shadow-sm'
-                                                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                                            >
-                                                {bhk}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 8. Minimum Bathrooms Counter */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Minimum Bathrooms</label>
-                            <div className="flex items-center justify-between border border-gray-200 rounded-lg p-1.5 max-w-[130px] bg-gray-50">
-                                <button
-                                    type="button"
-                                    disabled={!filters.bathrooms || filters.bathrooms <= 0}
-                                    onClick={() => updateFilter('bathrooms', Math.max(0, filters.bathrooms - 1))}
-                                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 hover:bg-gray-50 font-bold text-gray-600 disabled:opacity-30"
-                                >
-                                    -
-                                </button>
-                                <span className="font-bold text-xs text-gray-800">{filters.bathrooms || '0'}</span>
-                                <button
-                                    type="button"
-                                    onClick={() => updateFilter('bathrooms', (filters.bathrooms || 0) + 1)}
-                                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 hover:bg-gray-50 font-bold text-gray-600"
-                                >
-                                    +
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* 9. Furnishing Status */}
-                        {filters.propertyCategory === 'Residential' && (
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Furnishing Status</label>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {['Fully Furnished', 'Semi Furnished', 'Unfurnished'].map((furnish) => {
-                                        const isSelected = filters.amenities.includes(furnish);
-                                        return (
-                                            <button
-                                                key={furnish}
-                                                onClick={() => {
-                                                    const newAmenities = isSelected
-                                                        ? filters.amenities.filter(a => a !== furnish)
-                                                        : [...filters.amenities, furnish];
-                                                    updateFilter('amenities', newAmenities);
-                                                }}
-                                                className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
-                                                ${isSelected
-                                                    ? 'bg-surface text-white border-surface shadow-sm'
-                                                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                                            >
-                                                {furnish}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 10. Construction Status */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Construction Status</label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {['Ready to Move', 'Under Construction', 'Pre Launch'].map((status) => {
-                                    const isSelected = filters.amenities.includes(status);
-                                    return (
-                                        <button
-                                            key={status}
-                                            onClick={() => {
-                                                const newAmenities = isSelected
-                                                    ? filters.amenities.filter(a => a !== status)
-                                                    : [...filters.amenities, status];
-                                                updateFilter('amenities', newAmenities);
-                                            }}
-                                            className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
-                                            ${isSelected
-                                                ? 'bg-surface text-white border-surface shadow-sm'
-                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                                        >
-                                            {status}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* 11. Purchase Type (only for Sell/Buy) */}
-                        {filters.type === 'buy' && (
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Purchase Type</label>
-                                <div className="flex gap-2">
-                                    {['Resale', 'New Bookings'].map(pType => {
-                                        const isSelected = filters.purchaseType.toLowerCase() === pType.toLowerCase();
-                                        return (
-                                            <button
-                                                key={pType}
-                                                onClick={() => {
-                                                    updateFilter('purchaseType', isSelected ? '' : pType);
-                                                }}
-                                                className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all
-                                                    ${isSelected
-                                                        ? 'bg-surface text-white border-surface shadow-sm'
-                                                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                                                    }`}
-                                            >
-                                                {pType}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 12. Posted By */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Posted By</label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {['Owner', 'Dealer', 'Builder'].map((role) => {
-                                    const isSelected = filters.postedBy.toLowerCase().includes(role.toLowerCase());
-                                    return (
-                                        <button
-                                            key={role}
-                                            onClick={() => {
-                                                const roles = filters.postedBy ? filters.postedBy.split(',').filter(Boolean) : [];
-                                                const newRoles = roles.map(r => r.toLowerCase()).includes(role.toLowerCase())
-                                                    ? roles.filter(r => r.toLowerCase() !== role.toLowerCase())
-                                                    : [...roles, role];
-                                                updateFilter('postedBy', newRoles.join(','));
-                                            }}
-                                            className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
-                                            ${isSelected
-                                                ? 'bg-surface text-white border-surface shadow-sm'
-                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                                        >
-                                            {role}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* 13. Amenities */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Amenities & Features</label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {getAmenitiesOptions().map((amenity) => (
-                                    <button
-                                        key={amenity}
-                                        onClick={() => {
-                                            const newAmenities = filters.amenities.includes(amenity)
-                                                ? filters.amenities.filter(a => a !== amenity)
-                                                : [...filters.amenities, amenity];
-                                            updateFilter('amenities', newAmenities);
-                                        }}
-                                        className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
-                                        ${filters.amenities.includes(amenity)
-                                                ? 'bg-surface/10 text-surface border-surface'
-                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                                    >
-                                        {amenity}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* 14. Radius */}
-                        {location && (
-                            <div>
-                                <div className="flex justify-between mb-1">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Search Radius</label>
-                                    <span className="text-[10px] font-bold text-surface">{filters.radius} km</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="1" max="50"
-                                    value={filters.radius}
-                                    onChange={(e) => updateFilter('radius', Number(e.target.value))}
-                                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-surface"
-                                />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Bottom Footer Action Bar */}
-                    <div className="border-t border-gray-100 p-4 bg-white flex items-center justify-between gap-3 shadow-lg">
-                        <button
-                            onClick={() => {
-                                const newFilters = {
-                                    search: '',
-                                    type: 'all',
-                                    propertyCategory: 'Residential',
-                                    categoryTab: 'Buy',
-                                    minPrice: '',
-                                    maxPrice: '',
-                                    sort: 'newest',
-                                    amenities: [],
-                                    radius: 50,
-                                    foodIncluded: false,
-                                    city: '',
-                                    minArea: '',
-                                    maxArea: '',
-                                    bathrooms: 0,
-                                    postedBy: '',
-                                    purchaseType: '',
-                                    areas: []
-                                };
-                                setFilters(newFilters);
-                                setSearchParams({});
-                            }}
-                            className="px-4 py-2.5 text-xs font-bold text-gray-600 hover:text-gray-900 border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-95 transition-all"
-                        >
-                            Clear All
-                        </button>
-                        <button
-                            onClick={applyFilters}
-                            className="flex-1 bg-surface hover:bg-surface-dark text-white py-2.5 rounded-xl font-bold text-xs shadow-md shadow-surface/20 active:scale-95 transition-all text-center"
-                        >
-                            See all {properties.length ? `${properties.length} ` : ''}Properties
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <MobileSearchOverlay 
+                isOpen={showSearchOverlay}
+                onClose={() => setShowSearchOverlay(false)}
+                initialFilters={filters}
+                onApplyFilters={(newFilters) => {
+                    const finalParams = getParamsFromFilters({...filters, ...newFilters});
+                    setSearchParams(finalParams);
+                    setFilters(prev => ({...prev, ...newFilters}));
+                }}
+            />
 
         </div>
     );

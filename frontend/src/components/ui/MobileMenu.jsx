@@ -7,20 +7,12 @@ import {
 } from 'lucide-react';
 import { userService } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const MobileMenu = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
+    const { user, logout } = useAuth();
     const [unreadCount, setUnreadCount] = useState(0);
-
-    const user = React.useMemo(() => {
-        const savedUser = localStorage.getItem('user');
-        if (!savedUser) return null;
-        try {
-            return JSON.parse(savedUser);
-        } catch (error) {
-            return null;
-        }
-    }, []);
 
     useEffect(() => {
         if (isOpen && user) {
@@ -67,7 +59,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
     };
 
     const handleLogout = () => {
-        localStorage.clear();
+        logout();
         onClose();
         navigate('/login');
     };
@@ -174,8 +166,8 @@ const MobileMenu = ({ isOpen, onClose }) => {
                             <div>
                                 <SectionTitle title="Discover" />
                                 <div className="flex flex-col gap-1">
-                                    <MenuItem icon={BookOpen} label="My Bookings" path="/bookings" />
-                                    <MenuItem icon={Heart} label="Saved Places" path="/saved-places" />
+                                    {user && <MenuItem icon={BookOpen} label="My Bookings" path="/bookings" />}
+                                    {user && <MenuItem icon={Heart} label="Saved Places" path="/saved-places" />}
                                     <MenuItem icon={Video} label="Reels" path="/reels" />
                                 </div>
                             </div>

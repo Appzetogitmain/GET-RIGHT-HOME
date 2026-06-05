@@ -162,7 +162,7 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
 
   const handleEnquiryClick = (e) => {
     e.stopPropagation();
-    if (!localStorage.getItem('token')) {
+    if (!localStorage.getItem('user')) {
       toast.error('Please login to send enquiry');
       navigate('/login', { state: { from: `/hotel/${_id}` } });
       onClose();
@@ -258,26 +258,71 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
           {!showEnquiry ? (
             <>
               <div>
-                {/* Price */}
-                <div className="text-2xl font-black text-white tracking-tight">
-                  {displayPrice}
-                </div>
+                {(() => {
+                  const plotKeywords = ['plot', 'land'];
+                  const isPlotOrLand =
+                    plotKeywords.some(k => (property.propertyCategory || '').toLowerCase().includes(k)) ||
+                    plotKeywords.some(k => (property.propertyType || '').toLowerCase().includes(k)) ||
+                    plotKeywords.some(k => (property.dynamicCategory?.displayName || '').toLowerCase().includes(k)) ||
+                    plotKeywords.some(k => (property.dynamicCategory?.name || '').toLowerCase().includes(k));
 
-                {/* BHK / Area */}
-                <div className="mt-0.5 min-h-[16px] flex items-center gap-1.5 text-xs text-gray-400">
-                  {renderDetailsRow()}
-                </div>
+                  if (isPlotOrLand) {
+                    return (
+                      <>
+                        {/* Price and Area in same line */}
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <span className="text-[18px] font-black text-white tracking-tight">
+                            {displayPrice} <span className="text-[11px] font-normal text-gray-400">onwards</span>
+                          </span>
+                          {areaValue && (
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                              {areaValue} {areaUnit}
+                            </span>
+                          )}
+                        </div>
 
-                {/* Title */}
-                <h3 className="text-sm font-semibold text-gray-150 line-clamp-2 mt-1">
-                  {displayName}
-                </h3>
+                        {/* Dashed Separator */}
+                        <div className="border-t border-dashed border-gray-800 my-2" />
 
-                {/* Location */}
-                <div className="flex items-center gap-1 text-xs text-gray-400 mt-1.5">
-                  <MapPin size={12} className="text-gray-500 shrink-0" />
-                  <span className="line-clamp-1">{locationText}</span>
-                </div>
+                        {/* Title */}
+                        <h3 className="text-sm font-bold text-gray-100 line-clamp-2">
+                          {displayName}
+                        </h3>
+
+                        {/* Location */}
+                        <div className="flex items-center gap-1 text-xs text-gray-400 mt-1.5">
+                          <MapPin size={12} className="text-gray-500 shrink-0" />
+                          <span className="line-clamp-1">{locationText}</span>
+                        </div>
+                      </>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {/* Price */}
+                      <div className="text-2xl font-black text-white tracking-tight">
+                        {displayPrice}
+                      </div>
+
+                      {/* BHK / Area */}
+                      <div className="mt-0.5 min-h-[16px] flex items-center gap-1.5 text-xs text-gray-400">
+                        {renderDetailsRow()}
+                      </div>
+
+                      {/* Title */}
+                      <h3 className="text-sm font-semibold text-gray-150 line-clamp-2 mt-1">
+                        {displayName}
+                      </h3>
+
+                      {/* Location */}
+                      <div className="flex items-center gap-1 text-xs text-gray-400 mt-1.5">
+                        <MapPin size={12} className="text-gray-500 shrink-0" />
+                        <span className="line-clamp-1">{locationText}</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Action Buttons Row */}

@@ -16,6 +16,21 @@ const generateToken = (id, role) => {
   });
 };
 
+const setTokenCookie = (res, token, req) => {
+  const isLocal = req.headers.host?.includes('localhost') || 
+                  req.headers.host?.includes('127.0.0.1') || 
+                  req.headers.host?.includes('192.168.') || 
+                  req.headers.host?.includes('10.') || 
+                  req.headers.host?.includes('172.');
+  const secure = process.env.NODE_ENV === 'production' && !isLocal;
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: secure,
+    sameSite: secure ? 'none' : 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  });
+};
+
 export const sendOtp = async (req, res) => {
   try {
     const { phone, type, role = 'user' } = req.body; // type: 'login' or 'register'
@@ -329,7 +344,7 @@ export const verifyOtp = async (req, res) => {
     }
 
     const token = generateToken(user._id, user.role);
-
+    setTokenCookie(res, token, req);
     res.status(200).json({
       message: isRegistration ? 'Registration successful' : 'Login successful',
       token,
@@ -422,7 +437,7 @@ export const verifyPartnerOtp = async (req, res) => {
     }
 
     const token = generateToken(partner._id, partner.role);
-
+    setTokenCookie(res, token, req);
     res.status(200).json({
       success: true,
       message: 'Partner registration completed successfully.',
@@ -480,7 +495,7 @@ export const adminLogin = async (req, res) => {
     await admin.save();
 
     const token = generateToken(admin._id, admin.role);
-
+    setTokenCookie(res, token, req);
     res.status(200).json({
       message: 'Admin login successful',
       token,
@@ -824,5 +839,174 @@ export const uploadDocsBase64 = async (req, res) => {
   } catch (error) {
     console.error('Upload Docs Base64 Error:', error);
     res.status(500).json({ message: error.message || 'Upload failed' });
+  }
+};
+
+export const lazyEnquiryLoginRegister = async (req, res) => {
+  try {
+    const { name, email, phone, otp, message, propertyId } = req.body;
+
+    if (!phone || !otp || !name || !propertyId) {
+      return res.status(400).json({ success: false, message: 'Name, Phone, OTP and Property ID are required' });
+    }
+
+    // Verify OTP (123456 or from Otp db)
+    if (otp !== '123456') {
+      const otpRecord = await Otp.findOne({ phone });
+      if (!otpRecord || otpRecord.otp !== otp || otpRecord.expiresAt < Date.now()) {
+        return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+      }
+      await Otp.deleteOne({ phone });
+    }
+
+    // Find if user exists
+    let user = await User.findOne({ phone });
+    let isNewUser = false;
+
+    if (!user) {
+      user = new User({
+        name,
+        phone,
+        email: email || undefined,
+        role: 'user',
+        isVerified: true,
+        password: await bcrypt.hash(Math.random().toString(36), 10)
+      });
+      isNewUser = true;
+    } else {
+      if (!user.name) user.name = name;
+      if (email && !user.email) user.email = email;
+      user.isVerified = true;
+    }
+
+    await user.save();
+
+    // Create the enquiry
+    const enquiryId = `ENQ-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
+    const EnquiryModel = (await import('../models/Enquiry.js')).default;
+    const PropertyModel = (await import('../models/Property.js')).default;
+
+    const property = await PropertyModel.findById(propertyId);
+    if (!property) {
+      return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    const enquiry = new EnquiryModel({
+      enquiryId,
+      userId: user._id,
+      propertyId,
+      enquiryType: 'contact_owner',
+      message: message || 'Interested in this property.',
+      status: 'new'
+    });
+
+    await enquiry.save();
+
+    // Increment lead counts
+    await PropertyModel.findByIdAndUpdate(propertyId, { $inc: { enquiryCount: 1 } });
+    if (property.partnerId) {
+      await Partner.findByIdAndUpdate(property.partnerId, {
+        $inc: { 'subscription.leadsUsedThisMonth': 1 }
+      });
+    } else if (property.userId) {
+      await User.findByIdAndUpdate(property.userId, {
+        $inc: { 'subscription.leadsUsedThisMonth': 1 }
+      });
+    }
+
+    const token = generateToken(user._id, user.role);
+    setTokenCookie(res, token, req);
+    res.status(200).json({
+      success: true,
+      message: isNewUser ? 'Account registered & Enquiry submitted' : 'Login successful & Enquiry submitted',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isPartner: user.isPartner || false,
+        profileImage: user.profileImage
+      },
+      enquiry
+    });
+
+  } catch (error) {
+    console.error('Lazy Enquiry Error:', error);
+    res.status(500).json({ success: false, message: 'Server error during enquiry submission' });
+  }
+};
+
+export const lazyListingLoginRegister = async (req, res) => {
+  try {
+    const { name, phone, role, otp } = req.body;
+
+    if (!phone || !otp || !role) {
+      return res.status(400).json({ success: false, message: 'Phone, OTP and Role are required' });
+    }
+
+    if (!['owner', 'broker'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role' });
+    }
+
+    // Verify OTP (123456 or from Otp db)
+    if (otp !== '123456') {
+      const otpRecord = await Otp.findOne({ phone });
+      if (!otpRecord || otpRecord.otp !== otp || otpRecord.expiresAt < Date.now()) {
+        return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+      }
+      await Otp.deleteOne({ phone });
+    }
+
+    let user = await User.findOne({ phone });
+    let isUpgrade = false;
+    let isNewUser = false;
+
+    if (!user) {
+      if (!name) {
+        return res.status(400).json({ success: false, message: 'Name is required for registration' });
+      }
+      user = new User({
+        name,
+        phone,
+        role,
+        isVerified: true,
+        password: await bcrypt.hash(Math.random().toString(36), 10)
+      });
+      isNewUser = true;
+    } else {
+      if (user.role === 'user') {
+        user.role = role;
+        isUpgrade = true;
+      }
+      if (name && !user.name) user.name = name;
+      user.isVerified = true;
+    }
+
+    await user.save();
+
+    const token = generateToken(user._id, user.role);
+    setTokenCookie(res, token, req);
+    res.status(200).json({
+      success: true,
+      message: isNewUser 
+        ? 'Account registered successfully' 
+        : (isUpgrade ? 'Account upgraded successfully' : 'Login successful'),
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isPartner: user.isPartner || false,
+        profileImage: user.profileImage
+      }
+    });
+
+  } catch (error) {
+    console.error('Lazy Listing Error:', error);
+    res.status(500).json({ success: false, message: 'Server error during listing authentication' });
   }
 };

@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Mail, ArrowRight, Loader2, Shield } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import logo from '../../assets/grh-logo.png';
 import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 const UserLogin = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { login } = useAuth();
     const [step, setStep] = useState(1); // 1: Enter Phone, 2: Enter OTP
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -112,7 +114,7 @@ const UserLogin = () => {
 
         try {
             setLoading(true);
-            await authService.verifyOtp({ phone, otp: otpString });
+            const res = await authService.verifyOtp({ phone, otp: otpString });
 
             // Update FCM Token
             try {
@@ -124,6 +126,7 @@ const UserLogin = () => {
                 console.warn('FCM update failed', fcmError);
             }
 
+            login(res.user);
             navigate('/');
         } catch (err) {
             // Check if error is due to account not found
@@ -154,14 +157,15 @@ const UserLogin = () => {
             >
                 {/* Logo */}
                 <div className="text-center mb-8">
-                    <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", delay: 0.1 }}
-                        className="inline-block mb-2"
-                    >
-                        <img src={logo} alt="GRH Logo" className="h-32 w-auto mx-auto object-contain" />
-                    </motion.div>
+                    <Link to="/" className="inline-block mb-2">
+                        <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: "spring", delay: 0.1 }}
+                        >
+                            <img src={logo} alt="GRH Logo" className="h-32 w-auto mx-auto object-contain" />
+                        </motion.div>
+                    </Link>
                     <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Welcome Back</h1>
                     <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Get-Right-Home Hub</p>
                 </div>
@@ -318,15 +322,23 @@ const UserLogin = () => {
                 </div>
 
                 {/* Footer */}
-                <p className="text-center text-gray-400 text-xs mt-8 font-medium">
-                    New to Get-Right-Home?{' '}
-                    <button
-                        onClick={() => navigate('/signup')}
-                        className="text-amber-600 font-bold hover:underline"
+                <div className="flex flex-col items-center gap-3 mt-8">
+                    <p className="text-gray-400 text-xs font-medium">
+                        New to Get-Right-Home?{' '}
+                        <button
+                            onClick={() => navigate('/signup')}
+                            className="text-amber-600 font-bold hover:underline"
+                        >
+                            Create Account
+                        </button>
+                    </p>
+                    <Link
+                        to="/"
+                        className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-amber-600 font-bold transition-colors mt-2"
                     >
-                        Create Account
-                    </button>
-                </p>
+                        ← Back to Store
+                    </Link>
+                </div>
             </motion.div>
         </div>
     );

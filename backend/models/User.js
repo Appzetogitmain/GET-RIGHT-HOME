@@ -19,11 +19,11 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true
+    required: false
   },
   role: {
     type: String,
-    enum: ['user', 'partner', 'owner', 'broker'],
+    enum: ['user', 'partner', 'owner', 'broker', 'manager', 'builder'],
     default: 'user'
   },
   isPartner: {
@@ -77,6 +77,23 @@ const userSchema = new mongoose.Schema({
   isVip: { type: Boolean, default: false },
   vipExpiry: { type: Date },
 
+  // Subscription Details (For Owner / Broker)
+  subscription: {
+    planId: { type: mongoose.Schema.Types.ObjectId, ref: 'SubscriptionPlan' },
+    status: {
+      type: String,
+      enum: ['active', 'expired', 'inactive'],
+      default: 'inactive'
+    },
+    startDate: { type: Date },
+    expiryDate: { type: Date },
+    propertiesAdded: { type: Number, default: 0 },
+    transactionId: { type: String },
+    leadsUsedThisMonth: { type: Number, default: 0 },
+    isPaused: { type: Boolean, default: false },
+    pauseStartDate: { type: Date }
+  },
+
   // Status tracking
   registrationStep: {
     type: Number,
@@ -99,6 +116,14 @@ const userSchema = new mongoose.Schema({
     default: null
   },
   createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  totalListingsCount: {
+    type: Number,
+    default: 0
+  },
+  memberSinceDate: {
     type: Date,
     default: Date.now
   }

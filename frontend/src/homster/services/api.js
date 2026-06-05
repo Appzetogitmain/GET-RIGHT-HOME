@@ -9,8 +9,7 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  },
-  withCredentials: true // For cookies
+  }
 });
 
 // Helper to get token keys based on role/path
@@ -202,11 +201,9 @@ export const handleLogout = (role = null) => {
     }
   } else {
     // User
-    localStorage.removeItem('token');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userData');
-    sessionStorage.removeItem('token');
     sessionStorage.removeItem('accessToken');
     sessionStorage.removeItem('refreshToken');
     sessionStorage.removeItem('userData');

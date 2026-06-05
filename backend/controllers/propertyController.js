@@ -28,35 +28,74 @@ export const createProperty = async (req, res) => {
     const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
 
     let partner = null;
+    let uDoc = null;
+    let maxAllowed = Infinity;
+    let isSubscriptionRequired = false;
+
     if (isPartner) {
-      // --- SUBSCRIPTION GUARD: Check if partner can add more properties ---
+      isSubscriptionRequired = true;
       partner = await Partner.findById(req.user._id).populate('subscription.planId');
       if (!partner) return res.status(404).json({ message: 'Partner not found' });
+    } else if (['owner', 'broker'].includes(req.user.role)) {
+      isSubscriptionRequired = true;
+      uDoc = await User.findById(req.user._id).populate('subscription.planId');
+      if (!uDoc) return res.status(404).json({ message: 'User not found' });
+    }
 
-      const { subscription } = partner;
+    if (isSubscriptionRequired) {
+      const subject = partner || uDoc;
+      const { subscription } = subject;
       const isSubscriptionActive =
         subscription?.status === 'active' &&
         subscription?.expiryDate &&
         new Date(subscription.expiryDate) > new Date();
 
-      let maxAllowed = isSubscriptionActive ? (subscription.planId?.maxProperties || 1) : 9999;
+      let isFreeTrialMode = false;
 
-      const currentPropertyCount = await Property.countDocuments({
-        partnerId: req.user._id,
-        status: { $ne: 'deleted' }
-      });
+      if (isSubscriptionActive) {
+        maxAllowed = subscription.planId?.maxProperties || 1;
+      } else {
+        // Free Trial Mode: Use PlatformSettings to determine listing limit
+        const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
+        const settings = await PlatformSettings.getSettings();
+        maxAllowed = settings.freeTrialListingLimit || 10;
+        isFreeTrialMode = true;
+
+        // Also check free trial duration
+        const trialDays = settings.freeTrialDurationDays || 30;
+        const createdAt = subject.createdAt || subject.partnerSince || new Date();
+        const trialEndDate = new Date(createdAt);
+        trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+
+        if (new Date() > trialEndDate) {
+          return res.status(403).json({
+            message: `Your free trial period of ${trialDays} days has expired. Please subscribe to a plan to continue listing properties.`,
+            trialExpired: true,
+            limitReached: true
+          });
+        }
+      }
+
+      // Count properties listed by this actor
+      const query = isPartner ? { partnerId: req.user._id } : { userId: req.user._id };
+      query.status = { $ne: 'deleted' };
+
+      const currentPropertyCount = await Property.countDocuments(query);
 
       if (currentPropertyCount >= maxAllowed) {
         return res.status(403).json({
-          message: `Property limit reached. Your plan allows ${maxAllowed} properties. Please upgrade your subscription.`,
+          message: isFreeTrialMode
+            ? `Free trial limit reached. You can add up to ${maxAllowed} properties during your trial. Please subscribe to add more.`
+            : `Property limit reached. Your plan allows ${maxAllowed} properties. Please upgrade your subscription.`,
           limitReached: true,
           currentCount: currentPropertyCount,
-          maxAllowed: maxAllowed
+          maxAllowed: maxAllowed,
+          isFreeTrialMode
         });
       }
     }
 
-    const { propertyName, contactNumber, propertyType, propertyCategory, dynamicData, description, shortDescription, logo, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating, dynamicCategory, pgDetails, rentDetails, plotDetails, buyDetails, status } = req.body;
+    const { propertyName, contactNumber, propertyType, propertyCategory, dynamicData, description, shortDescription, logo, coverImage, propertyImages, amenities, highlights, topAmenities, otherAmenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating, dynamicCategory, pgDetails, rentDetails, plotDetails, buyDetails, status } = req.body;
     
     // Extract and fallback fields from dynamicData if root is empty
     const finalPropertyName = propertyName || (dynamicData && dynamicData.propertyName) || `${propertyCategory || 'Residential'} ${propertyType} for ${req.body.transactionType || 'Sell'}`;
@@ -72,6 +111,15 @@ export const createProperty = async (req, res) => {
       : (dynamicData && Array.isArray(dynamicData.nearbyPlaces) ? dynamicData.nearbyPlaces : []);
       
     const finalAmenities = (amenities && amenities.length > 0) ? amenities : (dynamicData && Array.isArray(dynamicData.amenities) ? dynamicData.amenities : []);
+    const finalHighlights = (highlights && highlights.length > 0) ? highlights : (dynamicData && Array.isArray(dynamicData.highlights) ? dynamicData.highlights : []);
+    
+    // Auto-split amenities into topAmenities (first 6) and otherAmenities (rest) if not explicitly provided
+    let finalTopAmenities = (topAmenities && topAmenities.length > 0) ? topAmenities : (dynamicData && Array.isArray(dynamicData.topAmenities) ? dynamicData.topAmenities : []);
+    let finalOtherAmenities = (otherAmenities && otherAmenities.length > 0) ? otherAmenities : (dynamicData && Array.isArray(dynamicData.otherAmenities) ? dynamicData.otherAmenities : []);
+    if (finalTopAmenities.length === 0 && finalAmenities.length > 0) {
+      finalTopAmenities = finalAmenities.slice(0, 6);
+      finalOtherAmenities = finalAmenities.slice(6);
+    }
     
     const propertyImagesArray = Array.isArray(propertyImages) && propertyImages.length > 0 
       ? propertyImages 
@@ -140,6 +188,9 @@ export const createProperty = async (req, res) => {
       location: locationValue,
       nearbyPlaces: nearbyPlacesArray,
       amenities: finalAmenities,
+      highlights: finalHighlights,
+      topAmenities: finalTopAmenities,
+      otherAmenities: finalOtherAmenities,
       logo: finalLogo,
       coverImage: coverImageValue,
       propertyImages: propertyImagesArray,
@@ -204,9 +255,22 @@ export const createProperty = async (req, res) => {
       notifyAdminOfNewProperty(doc).catch(e => console.error(e));
     }
 
-    if (partner) {
+    if (isPartner && partner) {
       partner.subscription.propertiesAdded = (partner.subscription.propertiesAdded || 0) + 1;
+      partner.totalListingsCount = (partner.totalListingsCount || 0) + 1;
       await partner.save();
+    } else if (req.user && req.user._id) {
+      const activeUser = uDoc || await User.findById(req.user._id);
+      if (activeUser) {
+        if (['owner', 'broker'].includes(activeUser.role)) {
+          if (!activeUser.subscription) {
+            activeUser.subscription = {};
+          }
+          activeUser.subscription.propertiesAdded = (activeUser.subscription.propertiesAdded || 0) + 1;
+        }
+        activeUser.totalListingsCount = (activeUser.totalListingsCount || 0) + 1;
+        await activeUser.save();
+      }
     }
 
     res.status(201).json({ success: true, property: doc });
@@ -234,6 +298,9 @@ export const updateProperty = async (req, res) => {
       'location',
       'nearbyPlaces',
       'amenities',
+      'highlights',
+      'topAmenities',
+      'otherAmenities',
       'logo',
       'coverImage',
       'propertyImages',
@@ -281,6 +348,20 @@ export const updateProperty = async (req, res) => {
       }
       if (dd.amenities && Array.isArray(dd.amenities)) {
         property.amenities = dd.amenities;
+        // Auto-split into topAmenities / otherAmenities if not explicitly provided
+        if (!dd.topAmenities || !dd.topAmenities.length) {
+          property.topAmenities = dd.amenities.slice(0, 6);
+          property.otherAmenities = dd.amenities.slice(6);
+        }
+      }
+      if (dd.highlights && Array.isArray(dd.highlights)) {
+        property.highlights = dd.highlights;
+      }
+      if (dd.topAmenities && Array.isArray(dd.topAmenities)) {
+        property.topAmenities = dd.topAmenities;
+      }
+      if (dd.otherAmenities && Array.isArray(dd.otherAmenities)) {
+        property.otherAmenities = dd.otherAmenities;
       }
       if (dd.propertyImages && Array.isArray(dd.propertyImages) && dd.propertyImages.length > 0) {
         property.propertyImages = dd.propertyImages;
@@ -563,7 +644,37 @@ export const upsertDocuments = async (req, res) => {
   }
 };
 
+// TEMP DEBUG - Remove after debugging
+export const debugProperties = async (req, res) => {
+  try {
+    const cats = await PropertyCategory.find({}).lean();
+    const props = await Property.find({}).select('propertyName propertyType transactionType propertyCategory dynamicCategory status isLive').lean();
+    const statusBreakdown = {};
+    props.forEach(p => {
+      const key = `status:${p.status}|isLive:${p.isLive}`;
+      statusBreakdown[key] = (statusBreakdown[key] || 0) + 1;
+    });
+    res.json({
+      categories: cats.map(c => ({ id: c._id, name: c.name, displayName: c.displayName, isActive: c.isActive })),
+      totalProperties: props.length,
+      statusBreakdown,
+      approvedLive: props.filter(p => p.status === 'approved' && p.isLive).map(p => ({
+        name: p.propertyName, propertyType: p.propertyType, transactionType: p.transactionType,
+        propertyCategory: p.propertyCategory, dynamicCategory: p.dynamicCategory
+      })),
+      allProperties: props.map(p => ({
+        name: p.propertyName, status: p.status, isLive: p.isLive,
+        propertyType: p.propertyType, transactionType: p.transactionType,
+        propertyCategory: p.propertyCategory, dynamicCategory: p.dynamicCategory
+      }))
+    });
+  } catch(e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
 export const getPublicProperties = async (req, res) => {
+
   try {
     const {
       search,
@@ -594,6 +705,7 @@ export const getPublicProperties = async (req, res) => {
       postedBy,
       purchaseType,
       propertyCategory,
+      transactionType,
       areas
     } = req.query;
 
@@ -624,9 +736,50 @@ export const getPublicProperties = async (req, res) => {
       const dynamicTypes = typesList.filter(t => mongoose.Types.ObjectId.isValid(t));
       const staticTypes = typesList.filter(t => !mongoose.Types.ObjectId.isValid(t)).map(t => t.toLowerCase());
 
+      const parentToSubtypesMap = {
+        'office': [
+          'Ready to move office space',
+          'Bare shell office space',
+          'Co-working office space'
+        ],
+        'retail': [
+          'Commercial Shops',
+          'Commercial Showrooms'
+        ],
+        'plot / land': [
+          'Commercial Land/Inst. Land',
+          'Agricultural/Farm Land',
+          'Industrial Lands/Plots'
+        ],
+        'storage': [
+          'Ware House',
+          'Cold Storage'
+        ],
+        'industry': [
+          'Factory',
+          'Manufacturing'
+        ],
+        'hospitality': [
+          'Hotel/Resorts',
+          'Guest-House/Banquet-Halls'
+        ]
+      };
+
+      const expandSubtypes = (list) => {
+        const expanded = [...list];
+        list.forEach(item => {
+          const lower = item.toLowerCase();
+          if (parentToSubtypesMap[lower]) {
+            expanded.push(...parentToSubtypesMap[lower]);
+          }
+        });
+        return expanded;
+      };
+
       if (dynamicTypes.length > 0 && staticTypes.length > 0) {
+        const expandedStaticTypes = expandSubtypes(staticTypes);
         matchConditions.$or = [
-          { propertyType: { $in: staticTypes } },
+          { propertyType: { $in: expandedStaticTypes.map(t => new RegExp('^' + t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i')) } },
           { dynamicCategory: { $in: dynamicTypes.map(id => new mongoose.Types.ObjectId(id)) } }
         ];
       } else if (dynamicTypes.length > 0) {
@@ -666,7 +819,8 @@ export const getPublicProperties = async (req, res) => {
         ];
 
         if (fallbackList.length > 0) {
-          const regexes = fallbackList.map(type => new RegExp('^' + type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+          const expandedFallbackList = expandSubtypes(fallbackList);
+          const regexes = expandedFallbackList.map(type => new RegExp('^' + type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
           orConditions.push({ propertyType: { $in: regexes } });
         }
 
@@ -702,7 +856,8 @@ export const getPublicProperties = async (req, res) => {
         const orConditions = [];
 
         if (fallbackPropertyTypes.size > 0) {
-          const regexes = [...fallbackPropertyTypes].map(type => new RegExp('^' + type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+          const expandedFallbackPropertyTypes = expandSubtypes([...fallbackPropertyTypes]);
+          const regexes = expandedFallbackPropertyTypes.map(type => new RegExp('^' + type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
           orConditions.push({ propertyType: { $in: regexes } });
         }
 
@@ -711,7 +866,8 @@ export const getPublicProperties = async (req, res) => {
         }
 
         if (fallbackStaticTypes.length > 0) {
-          const regexes = fallbackStaticTypes.map(t => new RegExp('^' + t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+          const expandedFallbackStaticTypes = expandSubtypes(fallbackStaticTypes);
+          const regexes = expandedFallbackStaticTypes.map(t => new RegExp('^' + t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
           orConditions.push({ propertyType: { $in: regexes } });
         }
 
@@ -727,7 +883,12 @@ export const getPublicProperties = async (req, res) => {
         { propertyName: regex },
         { "address.city": regex },
         { "address.area": regex },
-        { "address.fullAddress": regex }
+        { "address.fullAddress": regex },
+        { propertyType: regex },
+        { transactionType: regex },
+        { propertyCategory: regex },
+        { description: regex },
+        { shortDescription: regex }
       ];
 
       if (matchConditions.$or) {
@@ -743,8 +904,23 @@ export const getPublicProperties = async (req, res) => {
 
     if (amenities) {
       const amList = Array.isArray(amenities) ? amenities : amenities.split(',');
-      if (amList.length > 0) {
-        matchConditions.amenities = { $all: amList };
+      const actualAmenities = [];
+
+      amList.forEach(am => {
+        const lowerAm = am.trim().toLowerCase();
+        if (lowerAm === 'with photos') {
+          matchConditions.propertyImages = { $exists: true, $not: { $size: 0 } };
+        } else if (lowerAm === 'with videos') {
+          matchConditions.videoUrl = { $exists: true, $ne: '' };
+        } else if (lowerAm === 'verified properties' || lowerAm === 'verified') {
+          matchConditions.isVerified = true;
+        } else {
+          actualAmenities.push(am.trim());
+        }
+      });
+
+      if (actualAmenities.length > 0) {
+        matchConditions.amenities = { $all: actualAmenities };
       }
     }
 
@@ -758,7 +934,14 @@ export const getPublicProperties = async (req, res) => {
       matchConditions['rentDetails.furnishing'] = { $in: furnishList };
     }
     if (gender) {
-      const genderList = gender.split(',').map(g => new RegExp(`^${g.trim()}$`, 'i'));
+      const genders = gender.split(',').map(g => g.trim());
+      const expandedGenders = [];
+      genders.forEach(g => {
+        expandedGenders.push(g);
+        if (g.toLowerCase() === 'co-ed') expandedGenders.push('unisex');
+        if (g.toLowerCase() === 'unisex') expandedGenders.push('co-ed');
+      });
+      const genderList = expandedGenders.map(g => new RegExp(`^${g}$`, 'i'));
       // Check both pgType (old) and pgDetails.gender (new)
       const genderMatch = {
         $or: [
@@ -788,9 +971,38 @@ export const getPublicProperties = async (req, res) => {
       matchConditions['plotDetails.landType'] = { $in: landList };
     }
 
-    if (propertyCategory) {
-      const catRegex = new RegExp('^' + propertyCategory.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
-      matchConditions.propertyCategory = catRegex;
+    if (propertyCategory && propertyCategory !== 'all') {
+      if (propertyCategory.toLowerCase() === 'commercial') {
+        // Strict filter for Commercial
+        matchConditions.propertyCategory = /^Commercial$/i;
+      } else if (propertyCategory.toLowerCase() === 'residential') {
+        // For Residential, include properties with null/missing propertyCategory (likely residential)
+        const residentialCondition = {
+          $or: [
+            { propertyCategory: /^Residential$/i },
+            { propertyCategory: { $exists: false } },
+            { propertyCategory: null },
+            { propertyCategory: '' }
+          ]
+        };
+        if (matchConditions.$and) {
+          matchConditions.$and.push(residentialCondition);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, residentialCondition];
+        } else {
+          matchConditions.$or = residentialCondition.$or;
+        }
+      }
+    }
+
+    // Only apply transactionType direct filter when type is NOT a dynamic ObjectId
+    // (dynamic ObjectId resolution already includes transactionType in the $or conditions)
+    const typeHasDynamicId = type && type !== 'all' && type.split(',').some(t => mongoose.Types.ObjectId.isValid(t.trim()));
+    if (transactionType && transactionType !== 'all' && !typeHasDynamicId) {
+      const txnRegex = new RegExp('^' + transactionType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
+      matchConditions.transactionType = txnRegex;
     }
 
     if (req.query.foodIncluded === 'true') {
@@ -800,7 +1012,12 @@ export const getPublicProperties = async (req, res) => {
     if (subType) {
       const subTypeList = subType.split(',').map(s => s.trim()).filter(Boolean);
       if (subTypeList.length > 0) {
-        const subTypeRegexes = subTypeList.map(s => new RegExp('^' + s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+        const subTypeRegexes = subTypeList.map(s => {
+          const escaped = s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          // Replace escaped slash with flexible spacing regex
+          const flexSlash = escaped.replace(/\\\/|\\s\*\\\/\\s\*/g, '\\s*\\/\\s*');
+          return new RegExp('^' + flexSlash + '$', 'i');
+        });
         matchConditions.propertyType = { $in: subTypeRegexes };
       }
     }
@@ -849,13 +1066,20 @@ export const getPublicProperties = async (req, res) => {
     }
 
     if (areas) {
-      const areaList = areas.split(',').map(a => new RegExp('^' + a.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
-      const areaMatch = {
-        $or: [
-          { 'address.area': { $in: areaList } },
-          { 'address.fullAddress': { $in: areaList } }
-        ]
-      };
+      const areaQueries = areas.split(',').map(a => {
+        const escaped = a.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regex = new RegExp(escaped, 'i');
+        return {
+          $or: [
+            { 'address.area': regex },
+            { 'address.city': regex },
+            { 'address.district': regex },
+            { 'address.state': regex },
+            { 'address.fullAddress': regex }
+          ]
+        };
+      });
+      const areaMatch = { $or: areaQueries };
 
       if (matchConditions.$and) {
         matchConditions.$and.push(areaMatch);
@@ -875,10 +1099,14 @@ export const getPublicProperties = async (req, res) => {
       const areaMatchList = [];
       
       const constructAreaQuery = (field) => {
-        const q = {};
-        if (!isNaN(minA)) q.$gte = minA;
-        if (!isNaN(maxA)) q.$lte = maxA;
-        return { [field]: q };
+        const conditions = [];
+        if (!isNaN(minA)) {
+            conditions.push({ $gte: [ { $convert: { input: `$${field}`, to: "double", onError: null, onNull: null } }, minA ] });
+        }
+        if (!isNaN(maxA)) {
+            conditions.push({ $lte: [ { $convert: { input: `$${field}`, to: "double", onError: null, onNull: null } }, maxA ] });
+        }
+        return { $expr: { $and: conditions } };
       };
 
       areaMatchList.push(constructAreaQuery('buyDetails.area.superBuiltUp'));
@@ -1060,25 +1288,90 @@ export const getPublicProperties = async (req, res) => {
     pipeline.push({
       $addFields: {
         startingPrice: {
-          $cond: {
-            if: { $gt: [{ $size: "$roomTypes" }, 0] },
-            then: { $min: "$roomTypes.pricePerNight" },
-            else: {
-              $ifNull: [
-                "$rentDetails.monthlyRent",
-                {
+          $convert: {
+            input: {
+              $cond: {
+                if: { $gt: [{ $size: "$roomTypes" }, 0] },
+                then: { $min: "$roomTypes.pricePerNight" },
+                else: {
                   $ifNull: [
-                    "$buyDetails.expectedPrice",
+                    "$rentDetails.monthlyRent",
                     {
                       $ifNull: [
-                        "$plotDetails.expectedPrice",
-                        null
+                        "$buyDetails.expectedPrice",
+                        {
+                          $ifNull: [
+                            "$plotDetails.expectedPrice",
+                            {
+                              $ifNull: [
+                                "$dynamicData.price",
+                                {
+                                  $ifNull: [
+                                    "$dynamicData.expectedPrice",
+                                    {
+                                      $ifNull: [
+                                        "$dynamicData.rent",
+                                        {
+                                          $ifNull: [
+                                            "$dynamicData.monthlyRent",
+                                            null
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            to: "double",
+            onError: null,
+            onNull: null
+          }
+        },
+        startingArea: {
+          $convert: {
+            input: {
+              $ifNull: [
+                "$buyDetails.area.superBuiltUp",
+                {
+                  $ifNull: [
+                    "$buyDetails.area.carpet",
+                    {
+                      $ifNull: [
+                        "$plotDetails.plotArea",
+                        {
+                          $ifNull: [
+                            "$dynamicData.carpetArea",
+                            {
+                              $ifNull: [
+                                "$dynamicData.plotArea",
+                                {
+                                  $ifNull: [
+                                    "$dynamicData.superArea",
+                                    null
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
                       ]
                     }
                   ]
                 }
               ]
-            }
+            },
+            to: "double",
+            onError: null,
+            onNull: null
           }
         },
         hasMatchingRooms: {
@@ -1091,13 +1384,30 @@ export const getPublicProperties = async (req, res) => {
                   $or: [
                     { $gt: ["$rentDetails.monthlyRent", null] },
                     { $gt: ["$buyDetails.expectedPrice", null] },
-                    { $gt: ["$plotDetails.expectedPrice", null] }
+                    { $gt: ["$plotDetails.expectedPrice", null] },
+                    { $gt: ["$dynamicData.price", null] },
+                    { $gt: ["$dynamicData.expectedPrice", null] },
+                    { $gt: ["$dynamicData.rent", null] },
+                    { $gt: ["$dynamicData.monthlyRent", null] }
                   ]
                 },
                 then: true,
                 else: false
               }
             }
+          }
+        }
+      }
+    });
+
+    // Calculate Price Per Sq.Ft.
+    pipeline.push({
+      $addFields: {
+        pricePerSqft: {
+          $cond: {
+            if: { $and: [{ $gt: ["$startingArea", 0] }, { $gt: ["$startingPrice", 0] }] },
+            then: { $divide: ["$startingPrice", "$startingArea"] },
+            else: null
           }
         }
       }
@@ -1125,11 +1435,16 @@ export const getPublicProperties = async (req, res) => {
     // 7. Sorting
     let sortStage = { rankingWeight: -1, createdAt: -1 }; // Priority: Weight then Newest
     if (sort) {
-      if (sort === 'newest') sortStage = { rankingWeight: -1, createdAt: -1 };
-      if (sort === 'price_low') sortStage = { startingPrice: 1, rankingWeight: -1 };
-      if (sort === 'price_high') sortStage = { startingPrice: -1, rankingWeight: -1 };
+      if (sort === 'relevance') sortStage = { rankingWeight: -1, createdAt: -1 };
+      if (sort === 'newest') sortStage = { createdAt: -1, rankingWeight: -1 };
+      if (sort === 'price_low' || sort === 'priceAsc') sortStage = { startingPrice: 1, rankingWeight: -1 };
+      if (sort === 'price_high' || sort === 'priceDesc') sortStage = { startingPrice: -1, rankingWeight: -1 };
       if (sort === 'rating') sortStage = { avgRating: -1, rankingWeight: -1 };
       if (sort === 'distance' && lat && lng) sortStage = { distance: 1, rankingWeight: -1 };
+      
+      // Sort by calculated price per sqft
+      if (sort === 'pricePerSqftAsc') sortStage = { pricePerSqft: 1, rankingWeight: -1 };
+      if (sort === 'pricePerSqftDesc') sortStage = { pricePerSqft: -1, rankingWeight: -1 };
     }
 
     pipeline.push({ $sort: sortStage });
@@ -1166,11 +1481,7 @@ export const getMyProperties = async (req, res) => {
 export const getPropertyDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await Property.findByIdAndUpdate(
-      id,
-      { $inc: { views: 1 } },
-      { new: true }
-    ).populate('partnerId').populate('userId');
+    const property = await Property.findById(id).populate('partnerId').populate('userId');
     if (!property) return res.status(404).json({ message: 'Property not found' });
     const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
     const documents = await PropertyDocument.findOne({ propertyId: id });
@@ -1228,28 +1539,60 @@ export const revealContact = async (req, res) => {
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
     const partner = property.partnerId;
-    if (!partner) return res.status(404).json({ message: 'Partner details missing' });
+    if (partner) {
+      const sub = partner.subscription;
+      const plan = sub?.planId;
 
-    const sub = partner.subscription;
-    const plan = sub?.planId;
+      const isSubscriptionActive =
+        sub?.status === 'active' &&
+        sub?.expiryDate &&
+        new Date(sub.expiryDate) > new Date();
 
-    // Check if partner is active and has a plan
-    if (sub?.status === 'active' && plan) {
-      // Logic for Silver Tier Lead Capping
-      if (plan.tier === 'silver' && plan.leadCap > 0) {
-        if ((sub.leadsUsedThisMonth || 0) >= plan.leadCap) {
-          return res.status(403).json({
-            success: false,
-            message: 'Partner lead limit reached. Try another property.',
-            limitReached: true
-          });
+      let isTrialActive = false;
+      let trialDays = 30;
+      if (!isSubscriptionActive) {
+        // Check free trial status
+        const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
+        const settings = await PlatformSettings.getSettings();
+        trialDays = settings.freeTrialDurationDays || 30;
+        const partnerCreatedAt = partner.createdAt || partner.partnerSince || new Date();
+        const trialEndDate = new Date(partnerCreatedAt);
+        trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+
+        if (new Date() <= trialEndDate) {
+          isTrialActive = true;
         }
       }
 
-      // Increment leads count
-      partner.subscription.leadsUsedThisMonth = (sub.leadsUsedThisMonth || 0) + 1;
-      await partner.save();
+      if (!isSubscriptionActive && !isTrialActive) {
+        return res.status(403).json({
+          success: false,
+          message: `Seller subscription has expired or is inactive. Please ask them to subscribe.`,
+          subscriptionExpired: true
+        });
+      }
+
+      // If active subscription and has a plan, check limits
+      if (isSubscriptionActive && plan) {
+        // Logic for Silver Tier Lead Capping
+        if (plan.tier === 'silver' && plan.leadCap > 0) {
+          if ((sub.leadsUsedThisMonth || 0) >= plan.leadCap) {
+            return res.status(403).json({
+              success: false,
+              message: 'Partner lead limit reached. Try another property.',
+              limitReached: true
+            });
+          }
+        }
+
+        // Increment leads count
+        partner.subscription.leadsUsedThisMonth = (sub.leadsUsedThisMonth || 0) + 1;
+        await partner.save();
+      }
     }
+
+    // Increment property enquiryCount for action-based lead tracking
+    await Property.findByIdAndUpdate(id, { $inc: { enquiryCount: 1 } });
 
     res.json({
       success: true,

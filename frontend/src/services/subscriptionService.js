@@ -48,6 +48,11 @@ const subscriptionService = {
     togglePause: async () => {
         const response = await api.post('/subscriptions/toggle-pause');
         return response.data;
+    },
+
+    getTrialSettings: async () => {
+        const response = await api.get('/info/platform/trial-settings');
+        return response.data;
     }
 };
 

@@ -26,15 +26,20 @@ const AdminLogin = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const isAuthenticated = useAdminStore(state => state.isAuthenticated);
+
     useEffect(() => {
         const checkExistingAuth = async () => {
             await checkAuth();
-            if (localStorage.getItem('adminToken')) {
-                navigate('/admin/dashboard');
-            }
         };
         checkExistingAuth();
-    }, [checkAuth, navigate]);
+    }, [checkAuth]);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate('/admin/dashboard');
+        }
+    }, [isAuthenticated, navigate]);
 
     const handleLogin = async (e) => {
         e.preventDefault();

@@ -51,7 +51,7 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
         };
 
         // PG/Co-Living often groups multiple categories
-        const pgIds = findCategoryIds(['hostel', 'pg', 'pg/co-living', 'co-living', 'pg/co-livinig']);
+        const pgIds = findCategoryIds(['hostel', 'pg', 'pg/co-living', 'co-living', 'pg/co-livinig', 'paying guest']);
         const rentIds = findCategoryIds('Rent');
         const buyIds = findCategoryIds('Buy');
         const plotIds = findCategoryIds(['Plot', 'Plots']);

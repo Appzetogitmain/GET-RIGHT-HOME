@@ -6,9 +6,11 @@ import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 const HotelLoginPage = () => {
     const navigate = useNavigate();
+    const { login } = useAuth();
     const [step, setStep] = useState(1);
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -18,10 +20,9 @@ const HotelLoginPage = () => {
     const [canResend, setCanResend] = useState(false);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
         const userRaw = localStorage.getItem('user');
         const user = userRaw ? JSON.parse(userRaw) : null;
-        if (token && user && user.role === 'partner' && user.partnerApprovalStatus === 'approved') {
+        if (user && user.role === 'partner' && user.partnerApprovalStatus === 'approved') {
             navigate('/hotel/dashboard', { replace: true });
         }
     }, [navigate]);
@@ -106,7 +107,7 @@ const HotelLoginPage = () => {
 
         setLoading(true);
         try {
-            await authService.verifyOtp({
+            const res = await authService.verifyOtp({
                 phone: phone,
                 otp: otpString,
                 role: 'partner'
@@ -122,6 +123,7 @@ const HotelLoginPage = () => {
                 console.warn('FCM update failed', fcmError);
             }
 
+            login(res.user);
             navigate('/hotel/dashboard');
         } catch (err) {
             setError(err.message || 'Invalid OTP');

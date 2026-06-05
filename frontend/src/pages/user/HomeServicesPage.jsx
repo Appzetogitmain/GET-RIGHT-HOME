@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    Search, 
-    MapPin, 
-    ChevronRight, 
-    Star, 
-    Clock, 
-    ShieldCheck, 
+import {
+    Search,
+    MapPin,
+    ChevronRight,
+    Star,
+    Clock,
+    ShieldCheck,
     ArrowLeft,
     Sparkles,
     Hammer,
@@ -35,11 +35,11 @@ import { toast } from 'react-hot-toast';
 import { createVipOrder, verifyVipPayment } from '../../homster/modules/user/services/planService';
 
 const toAssetUrl = (url) => {
-  if (!url) return '';
-  const clean = url.replace('/api/upload', '/upload');
-  if (clean.startsWith('http')) return clean;
-  const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/api$/, '');
-  return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
+    if (!url) return '';
+    const clean = url.replace('/api/upload', '/upload');
+    if (clean.startsWith('http')) return clean;
+    const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/api$/, '');
+    return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
 
 const HomeServicesPage = () => {
@@ -70,7 +70,7 @@ const HomeServicesPage = () => {
             if (scrollContainerRef.current) {
                 const { scrollLeft, offsetWidth, scrollWidth } = scrollContainerRef.current;
                 const nextScroll = scrollLeft + offsetWidth;
-                
+
                 if (nextScroll >= scrollWidth) {
                     scrollContainerRef.current.scrollTo({ left: 0, behavior: 'smooth' });
                 } else {
@@ -105,7 +105,7 @@ const HomeServicesPage = () => {
     const [directCategories, setDirectCategories] = useState([]);
     const [directServicesMap, setDirectServicesMap] = useState({});
     const [directSubCategoriesMap, setDirectSubCategoriesMap] = useState({});
-    
+
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -173,7 +173,7 @@ const HomeServicesPage = () => {
                         const allCats = catRes.categories || [];
                         const stdCats = allCats.filter(c => !c.isDirectService);
                         const dirCats = allCats.filter(c => c.isDirectService);
-                        
+
                         setCategories(stdCats);
                         setDirectCategories(dirCats);
 
@@ -181,9 +181,9 @@ const HomeServicesPage = () => {
                         const subCategoriesMap = {};
                         await Promise.all(dirCats.map(async (cat) => {
                             try {
-                                const res = await publicCatalogService.getSubCategories({ 
+                                const res = await publicCatalogService.getSubCategories({
                                     categoryId: cat._id || cat.id,
-                                    cityId 
+                                    cityId
                                 });
                                 if (res.success) {
                                     subCategoriesMap[cat._id || cat.id] = res.subCategories || [];
@@ -231,13 +231,13 @@ const HomeServicesPage = () => {
             <div className="relative w-full">
                 {/* Full-Width Carousel Container (overflow-hidden with rounded bottom corners) */}
                 <div className="relative w-full h-[64vw] sm:h-80 bg-gray-150 overflow-hidden shadow-sm rounded-b-[2.5rem] sm:rounded-b-[3rem]">
-                    <div 
+                    <div
                         ref={scrollContainerRef}
                         onScroll={handleBannerScroll}
                         className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-full"
                     >
                         {promos.map((promo) => (
-                            <motion.div 
+                            <motion.div
                                 key={promo.id}
                                 onClick={() => {
                                     if (promo.targetCategoryId) {
@@ -249,9 +249,9 @@ const HomeServicesPage = () => {
                                 }}
                                 className="min-w-full snap-center h-full relative cursor-pointer flex-shrink-0"
                             >
-                                <img 
-                                    src={promo.imageUrl || promo.image} 
-                                    alt={promo.title} 
+                                <img
+                                    src={promo.imageUrl || promo.image}
+                                    alt={promo.title}
                                     className="absolute inset-0 w-full h-full object-cover"
                                 />
                                 {/* Bottom Overlay */}
@@ -274,8 +274,8 @@ const HomeServicesPage = () => {
                     {/* Floating Carousel Indicators */}
                     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex justify-center gap-2 z-20">
                         {promos.map((_, i) => (
-                            <div 
-                                key={i} 
+                            <div
+                                key={i}
                                 className={`h-1.5 rounded-full transition-all duration-300 ${activeBanner === i ? 'w-6 bg-orange-500' : 'w-1.5 bg-white/50'}`}
                             />
                         ))}
@@ -283,7 +283,7 @@ const HomeServicesPage = () => {
 
                     {/* Transparent Floating Header Action Buttons */}
                     <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between">
-                        <button 
+                        <button
                             onClick={() => navigate('/')}
                             className="w-10 h-10 flex items-center justify-center bg-black/45 backdrop-blur-md rounded-full border border-white/20 text-white hover:bg-black/60 transition-all active:scale-95 shadow-md"
                         >
@@ -307,9 +307,9 @@ const HomeServicesPage = () => {
                 <div className="absolute bottom-0 left-6 right-6 translate-y-1/2 z-30 max-w-xl mx-auto">
                     <div className="flex items-center bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-lg shadow-gray-200/80 gap-2.5">
                         <Search size={18} className="text-gray-400 flex-shrink-0 stroke-[3]" />
-                        <input 
-                            type="text" 
-                            placeholder="Search for services or R.O..." 
+                        <input
+                            type="text"
+                            placeholder="Search for services or R.O..."
                             className="bg-transparent border-none outline-none w-full text-sm font-semibold text-gray-700 placeholder:text-gray-400"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -333,7 +333,7 @@ const HomeServicesPage = () => {
 
                 <div className="grid grid-cols-4 gap-y-4 gap-x-3.5">
                     {categories.map((cat) => (
-                        <motion.button 
+                        <motion.button
                             key={cat.id || cat._id}
                             whileHover={{ y: -6 }}
                             whileTap={{ scale: 0.96 }}
@@ -349,10 +349,10 @@ const HomeServicesPage = () => {
 
                             {/* High Quality Category Image at the bottom */}
                             <div className="w-full h-[58%] relative overflow-hidden flex-shrink-0 bg-gray-50/50">
-                                <img 
-                                    src={cat.imageUrl || cat.image || cat.homeIconUrl} 
-                                    alt={cat.title || cat.name} 
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                                <img
+                                    src={cat.imageUrl || cat.image || cat.homeIconUrl}
+                                    alt={cat.title || cat.name}
+                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                 />
                                 {/* Overlay Gradient blending image into the top white background */}
                                 <div className="absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-white via-white/40 to-transparent" />
@@ -395,10 +395,10 @@ const HomeServicesPage = () => {
                         {curations.map((item, idx) => {
                             const youtubeId = getYoutubeId(item.youtubeUrl);
                             const isPlaying = playingVideoIdx === idx;
-                            
+
                             if (youtubeId) {
                                 return (
-                                    <div 
+                                    <div
                                         key={idx}
                                         className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200/40 bg-black group"
                                     >
@@ -411,11 +411,11 @@ const HomeServicesPage = () => {
                                                 allowFullScreen
                                             ></iframe>
                                         ) : (
-                                            <div 
+                                            <div
                                                 className="absolute inset-0 w-full h-full cursor-pointer"
                                                 onClick={() => setPlayingVideoIdx(idx)}
                                             >
-                                                <img 
+                                                <img
                                                     src={`https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`}
                                                     alt={item.title}
                                                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -438,7 +438,7 @@ const HomeServicesPage = () => {
                             }
 
                             return (
-                                <motion.div 
+                                <motion.div
                                     key={idx}
                                     whileHover={{ y: -8 }}
                                     onClick={() => {
@@ -455,24 +455,24 @@ const HomeServicesPage = () => {
                                         {item.gifUrl ? (
                                             (() => {
                                                 const isImage = item.gifUrl.match(/\.(gif|webp|jpg|jpeg|png)$/i);
-                                                
+
                                                 if (isImage) {
                                                     return (
-                                                        <img 
-                                                            src={item.gifUrl} 
-                                                            alt={item.title} 
-                                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                                        <img
+                                                            src={item.gifUrl}
+                                                            alt={item.title}
+                                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                                         />
                                                     );
                                                 } else {
                                                     return (
-                                                        <video 
+                                                        <video
                                                             key={item.gifUrl}
-                                                            src={item.gifUrl} 
-                                                            className="w-full h-full object-cover" 
-                                                            autoPlay 
-                                                            loop 
-                                                            muted 
+                                                            src={item.gifUrl}
+                                                            className="w-full h-full object-cover"
+                                                            autoPlay
+                                                            loop
+                                                            muted
                                                             playsInline
                                                             preload="auto"
                                                         />
@@ -552,10 +552,10 @@ const HomeServicesPage = () => {
                                 animation: buttonShineSweep 3.5s infinite linear;
                             }
                         `}</style>
-                        
+
                         {/* Background subtle glow */}
                         <div className="absolute top-[-50%] left-[20%] w-[120%] h-[120%] bg-white/[0.02] rotate-12 pointer-events-none" />
-                        
+
                         {/* Header Row */}
                         <div className="relative z-10 flex items-center justify-between gap-4 pb-5 border-b border-neutral-800/60">
                             <div className="flex items-center gap-3">
@@ -566,7 +566,7 @@ const HomeServicesPage = () => {
                                     </span>
                                     <Sparkles className="absolute -top-1 -right-3 w-4 h-4 text-[#eab308] animate-pulse fill-[#eab308]" />
                                 </div>
-                                
+
                                 <div className="ml-1">
                                     <h3 className="text-xs md:text-sm font-semibold tracking-widest text-neutral-300 uppercase leading-tight mb-1">
                                         VIP MEMBERSHIP
@@ -578,7 +578,7 @@ const HomeServicesPage = () => {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             {/* BUY / ACTIVE Button */}
                             {user?.isVip && user?.vipExpiry && new Date(user.vipExpiry) > new Date() ? (
                                 <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold text-xs px-4 py-2 rounded-lg uppercase tracking-wider flex items-center gap-1.5">
@@ -662,7 +662,7 @@ const HomeServicesPage = () => {
                                                             stored.isVip = true;
                                                             stored.vipExpiry = verifyRes.vip?.vipExpiry;
                                                             localStorage.setItem('userData', JSON.stringify(stored));
-                                                            
+
                                                             toast.success('🎉 VIP Membership Activated!', { id: 'vip-verify' });
                                                         } else {
                                                             toast.error(verifyRes.message || 'Activation failed.', { id: 'vip-verify' });
@@ -710,7 +710,7 @@ const HomeServicesPage = () => {
                             <div className="flex overflow-x-auto gap-4 no-scrollbar mt-5 pb-1 -mx-1 px-1 snap-x snap-mandatory">
                                 {homeData.vipCards.map((card, idx) => {
                                     const matchedCat = [...categories, ...directCategories].find(c => (c.id || c._id) === card.targetCategoryId);
-                                    
+
                                     // Render card
                                     return (
                                         <motion.div
@@ -733,7 +733,7 @@ const HomeServicesPage = () => {
                                                 <p className="text-[17px] font-bold text-neutral-900 leading-snug mt-3">
                                                     {card.caption || (matchedCat ? `On ${matchedCat.title}` : "Special Discount")}
                                                 </p>
-                                                
+
                                                 {/* Bullets layout if selected */}
                                                 {card.bgType === "bullets" || (card.bullets && card.bullets.length > 0) ? (
                                                     <ul className="mt-4 space-y-2 text-xs font-medium text-neutral-500 pl-4 list-disc text-left">
@@ -743,7 +743,7 @@ const HomeServicesPage = () => {
                                                     </ul>
                                                 ) : null}
                                             </div>
-                                            
+
                                             {/* Bottom decoration based on layout type */}
                                             {card.bgType === "bullets" || (card.bullets && card.bullets.length > 0) ? (
                                                 <div className="flex justify-end pt-2 absolute bottom-4 right-4">
@@ -754,22 +754,22 @@ const HomeServicesPage = () => {
                                                 </div>
                                             ) : (() => {
                                                 const allVipCards = homeData?.vipCards || [];
-                                                
+
                                                 const getCardImageUrl = (offset = 0) => {
                                                     let targetCard = card;
-                                                    
+
                                                     // Resolve adjacent cards
                                                     if (offset !== 0 && allVipCards.length > 1) {
                                                         const targetIdx = (idx + offset + allVipCards.length) % allVipCards.length;
                                                         targetCard = allVipCards[targetIdx];
                                                     }
-                                                    
+
                                                     if (targetCard) {
                                                         if (targetCard.cardImage) return targetCard.cardImage;
                                                         const cat = [...categories, ...directCategories].find(c => (c.id || c._id) === targetCard.targetCategoryId);
                                                         if (cat) return cat.imageUrl || cat.homeIconUrl || cat.icon || '';
                                                     }
-                                                    
+
                                                     // Fallback to generic categories in catalog if not enough cards
                                                     const allCats = [...categories, ...directCategories];
                                                     if (allCats.length > 0) {
@@ -790,9 +790,9 @@ const HomeServicesPage = () => {
                                                             {/* Background image left */}
                                                             {leftImg && (
                                                                 <div className="absolute left-7 w-16 h-20 rounded-xl bg-neutral-100 overflow-hidden shadow-sm opacity-50 scale-90 -rotate-12 origin-bottom transition-all blur-[1.5px]">
-                                                                    <img 
-                                                                        src={toAssetUrl(leftImg)} 
-                                                                        alt="" 
+                                                                    <img
+                                                                        src={toAssetUrl(leftImg)}
+                                                                        alt=""
                                                                         className="w-full h-full object-cover grayscale-[20%]"
                                                                     />
                                                                 </div>
@@ -800,9 +800,9 @@ const HomeServicesPage = () => {
                                                             {/* Background image right */}
                                                             {rightImg && (
                                                                 <div className="absolute right-7 w-16 h-20 rounded-xl bg-neutral-100 overflow-hidden shadow-sm opacity-50 scale-90 rotate-12 origin-bottom transition-all blur-[1.5px]">
-                                                                    <img 
-                                                                        src={toAssetUrl(rightImg)} 
-                                                                        alt="" 
+                                                                    <img
+                                                                        src={toAssetUrl(rightImg)}
+                                                                        alt=""
                                                                         className="w-full h-full object-cover grayscale-[20%]"
                                                                     />
                                                                 </div>
@@ -810,9 +810,9 @@ const HomeServicesPage = () => {
                                                             {/* Main front image */}
                                                             {frontImg && (
                                                                 <div className="absolute w-20 h-24 rounded-xl bg-neutral-100 overflow-hidden shadow-lg z-10 border border-white/50 origin-bottom scale-100 transition-all hover:scale-105">
-                                                                    <img 
-                                                                        src={toAssetUrl(frontImg)} 
-                                                                        alt={matchedCat?.title || "VIP Card Image"} 
+                                                                    <img
+                                                                        src={toAssetUrl(frontImg)}
+                                                                        alt={matchedCat?.title || "VIP Card Image"}
                                                                         className="w-full h-full object-cover"
                                                                     />
                                                                 </div>
@@ -857,19 +857,19 @@ const HomeServicesPage = () => {
                                     key={subCat._id || subCat.id}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => {
-                                        navigate('/home-services/sub-category', { 
-                                            state: { 
+                                        navigate('/home-services/sub-category', {
+                                            state: {
                                                 subCategory: {
                                                     id: subCat._id || subCat.id,
                                                     title: subCat.title,
                                                     iconUrl: subCat.icon || subCat.imageUrl,
                                                     bannerUrl: subCat.bannerUrl || subCat.imageUrl || subCat.icon
-                                                }, 
+                                                },
                                                 category: {
                                                     id: cat._id || cat.id,
                                                     title: cat.title
                                                 }
-                                            } 
+                                            }
                                         });
                                     }}
                                     className="flex flex-col items-center flex-shrink-0 snap-start group cursor-pointer"
@@ -877,8 +877,8 @@ const HomeServicesPage = () => {
                                 >
                                     {/* Circular image container matching screenshot exactly */}
                                     <div className="w-[84px] h-[84px] rounded-full border-2 border-emerald-500/20 group-hover:border-emerald-500 overflow-hidden relative shadow-md transition-all duration-300 bg-white flex items-center justify-center p-[3px]">
-                                        <img 
-                                            src={toAssetUrl(subCat.icon || subCat.imageUrl)} 
+                                        <img
+                                            src={toAssetUrl(subCat.icon || subCat.imageUrl)}
                                             alt={subCat.title}
                                             className="w-full h-full object-cover rounded-full transition-transform duration-500 group-hover:scale-110"
                                         />
@@ -900,15 +900,15 @@ const HomeServicesPage = () => {
                     {/* Decorative Elements */}
                     <div className="absolute top-[-20%] right-[-10%] w-80 h-80 bg-white/10 blur-[100px] rounded-full animate-pulse" />
                     <div className="absolute bottom-[-10%] left-[-5%] w-40 h-40 bg-emerald-400/20 blur-[60px] rounded-full" />
-                    
+
                     <div className="relative z-10">
                         <div className="flex items-center gap-2 mb-4">
                             <div className="h-[2px] w-8 bg-emerald-300/50 rounded-full" />
                             <span className="text-[10px] font-bold text-emerald-200/80 uppercase tracking-[0.2em]">Why Choose Us</span>
                         </div>
-                        
+
                         <h3 className="text-3xl font-bold text-white mb-10 leading-tight tracking-tight">
-                            Standardizing Home <br /> 
+                            Standardizing Home <br />
                             <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-200 to-teal-100">
                                 Services for You.
                             </span>
@@ -929,7 +929,7 @@ const HomeServicesPage = () => {
                                     color: "from-amber-400 to-orange-500"
                                 }
                             ].map((feature, idx) => (
-                                <motion.div 
+                                <motion.div
                                     key={idx}
                                     whileHover={{ x: 5 }}
                                     className="flex items-center gap-4 bg-white/10 backdrop-blur-xl border border-white/10 p-4 rounded-3xl group transition-all"
@@ -962,15 +962,15 @@ const HomeServicesPage = () => {
                             <span className="text-[10px] md:text-xs font-black text-neutral-400 uppercase tracking-widest block mb-1">
                                 {homeData?.firstBookingTitle || "Home Cleaning Offer"}
                             </span>
-                            
+
                             <h4 className="text-xl md:text-2xl font-black text-neutral-800 tracking-tight leading-tight mb-5">
                                 <span className="text-[#6366f1] inline-block mr-1">
                                     {homeData?.firstBookingDiscount || 10}% off*
                                 </span>{" "}
                                 {homeData?.firstBookingCaption || "on first booking"}
                             </h4>
-                            
-                            <div 
+
+                            <div
                                 onClick={handleCopyCode}
                                 className="inline-flex items-center gap-2.5 px-4 py-2 bg-emerald-50/40 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl cursor-pointer transition-all active:scale-95 group"
                             >
@@ -982,10 +982,10 @@ const HomeServicesPage = () => {
                                         Copied!
                                     </span>
                                 ) : (
-                                    <svg 
-                                        className="w-3.5 h-3.5 text-emerald-600 transition-transform group-hover:scale-110" 
-                                        fill="none" 
-                                        stroke="currentColor" 
+                                    <svg
+                                        className="w-3.5 h-3.5 text-emerald-600 transition-transform group-hover:scale-110"
+                                        fill="none"
+                                        stroke="currentColor"
                                         viewBox="0 0 24 24"
                                     >
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
@@ -993,21 +993,21 @@ const HomeServicesPage = () => {
                                 )}
                             </div>
                         </div>
-                        
+
                         {/* Right graphics area */}
                         <div className="relative shrink-0 flex items-center justify-end w-36 h-28 md:w-56 md:h-36 overflow-visible">
                             {/* Background light olive curve shape */}
                             <div className="absolute right-[-15%] bottom-[-15%] w-[110%] h-[110%] bg-[#e3ecd5]/60 rounded-full pointer-events-none z-0" />
-                            
+
                             {/* Elegant Bedroom image with white borders */}
                             <div className="relative z-10 w-28 h-24 md:w-44 md:h-32 rounded-2xl overflow-hidden shadow-md border-4 border-white">
-                                <img 
-                                    src={homeData?.firstBookingImage ? toAssetUrl(homeData.firstBookingImage) : "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=400&q=80"} 
-                                    alt="Modern clean bedroom" 
+                                <img
+                                    src={homeData?.firstBookingImage ? toAssetUrl(homeData.firstBookingImage) : "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=400&q=80"}
+                                    alt="Modern clean bedroom"
                                     className="w-full h-full object-cover"
                                 />
                             </div>
-                            
+
                             {/* Floating mini vacuum icon badge */}
                             <div className="absolute bottom-1 right-2 z-20 bg-white p-2 rounded-xl shadow-lg border border-neutral-100 flex items-center justify-center animate-bounce">
                                 <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1033,7 +1033,7 @@ const HomeServicesPage = () => {
                 </div>
                 <div className="flex overflow-x-auto gap-4 no-scrollbar pb-4">
                     {noteworthy.map((item) => (
-                        <motion.div 
+                        <motion.div
                             key={item.id || item._id}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => {
@@ -1071,7 +1071,7 @@ const HomeServicesPage = () => {
                 </div>
                 <div className="flex overflow-x-auto gap-4 no-scrollbar pb-6">
                     {mostBooked.map((service) => (
-                        <motion.div 
+                        <motion.div
                             key={service.id || service._id}
                             whileHover={{ y: -5 }}
                             onClick={() => {
@@ -1120,10 +1120,10 @@ const HomeServicesPage = () => {
                         </h2>
                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">What our clients say about us</p>
                     </div>
-                    
+
                     <div className="flex overflow-x-auto gap-5 no-scrollbar pb-6 -mx-5 px-5">
                         {homeData.reviews.map((review, idx) => (
-                            <div 
+                            <div
                                 key={review.id || idx}
                                 className="min-w-[280px] max-w-[280px] bg-white rounded-3xl border border-gray-100 shadow-md shadow-gray-200/20 p-5 flex flex-col justify-between"
                             >
@@ -1131,9 +1131,9 @@ const HomeServicesPage = () => {
                                     <div className="flex items-center">
                                         <div className="relative w-12 h-12 flex-shrink-0">
                                             {review.imageUrl ? (
-                                                <img 
-                                                    src={toAssetUrl(review.imageUrl)} 
-                                                    alt={review.name} 
+                                                <img
+                                                    src={toAssetUrl(review.imageUrl)}
+                                                    alt={review.name}
                                                     className="w-full h-full object-cover rounded-full"
                                                 />
                                             ) : (
@@ -1151,12 +1151,12 @@ const HomeServicesPage = () => {
                                             <span className="text-[9px] text-gray-400 font-bold uppercase tracking-tight mt-0.5 truncate">{review.subText || 'Customer'}</span>
                                         </div>
                                     </div>
-                                    
+
                                     <p className="text-[11px] text-gray-500 font-medium leading-relaxed mt-4 line-clamp-4">
                                         {review.description}
                                     </p>
                                 </div>
-                                
+
                                 <div className="mt-3">
                                     <span className="text-teal-600 hover:text-teal-700 text-[10px] font-black cursor-pointer">see more</span>
                                 </div>
@@ -1194,13 +1194,13 @@ const HomeServicesPage = () => {
                                         </span>
                                         <div className="flex-shrink-0 ml-4 transition-transform duration-300">
                                             {isOpen ? (
-                                                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                                             ) : (
-                                                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
+                                                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
                                             )}
                                         </div>
                                     </button>
-                                    
+
                                     <AnimatePresence initial={false}>
                                         {isOpen && (
                                             <motion.div
@@ -1225,7 +1225,7 @@ const HomeServicesPage = () => {
 
             {/* Custom Bottom Nav for Home Services */}
             <BottomNav />
-            <CategoryModal 
+            <CategoryModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 category={selectedCategory}

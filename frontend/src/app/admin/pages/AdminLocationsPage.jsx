@@ -20,17 +20,12 @@ const colorClass = {
   orange:  { bg: 'bg-orange-50',  badge: 'bg-orange-100 text-orange-700', border: 'border-orange-200' }
 };
 
-const authHeader = () => {
-  const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-};
-
 const api = {
-  get: async (url) => { const r = await fetch(url, { headers: authHeader() }); return r.json(); },
-  post: async (url, body) => { const r = await fetch(url, { method: 'POST', headers: authHeader(), body: JSON.stringify(body) }); return r.json(); },
-  put: async (url, body) => { const r = await fetch(url, { method: 'PUT', headers: authHeader(), body: JSON.stringify(body) }); return r.json(); },
-  patch: async (url) => { const r = await fetch(url, { method: 'PATCH', headers: authHeader() }); return r.json(); },
-  delete: async (url) => { const r = await fetch(url, { method: 'DELETE', headers: authHeader() }); return r.json(); }
+  get: async (url) => { const r = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json' } }); return r.json(); },
+  post: async (url, body) => { const r = await fetch(url, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return r.json(); },
+  put: async (url, body) => { const r = await fetch(url, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return r.json(); },
+  patch: async (url) => { const r = await fetch(url, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' } }); return r.json(); },
+  delete: async (url) => { const r = await fetch(url, { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' } }); return r.json(); }
 };
 
 /* ─── Add / Edit Modal ─── */

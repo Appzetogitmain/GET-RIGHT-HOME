@@ -146,7 +146,9 @@ export const getCurrentSubscription = async (req, res) => {
 
         res.json({
             success: true,
-            subscription: partner.subscription
+            subscription: partner.subscription,
+            createdAt: partner.createdAt,
+            partnerSince: partner.partnerSince
         });
     } catch (error) {
         console.error('Get Subscription Error:', error);

@@ -34,14 +34,14 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter }) => {
       {/* Section Header */}
       <div className="flex justify-between items-end px-5 md:px-0 mb-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-serif font-bold text-gray-900 tracking-tight">{title}</h2>
-          {subtitle && <p className="text-sm text-gray-500 mt-1 font-normal">{subtitle}</p>}
+          <h2 className="text-[17px] sm:text-xl md:text-2xl font-serif font-bold text-gray-900 tracking-tight whitespace-nowrap truncate">{title}</h2>
+           {subtitle && <p className="text-[11px] sm:text-xs text-gray-400 sm:text-gray-500 mt-0.5 font-normal">{subtitle}</p>}
         </div>
         <button
           onClick={handleViewMore}
-          className="px-4 py-1.5 border border-gray-200 hover:bg-gray-50 active:scale-95 text-xs font-semibold text-gray-700 bg-white rounded-lg transition-all whitespace-nowrap shrink-0"
+          className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline whitespace-nowrap shrink-0"
         >
-          View More
+          View All
         </button>
       </div>
 

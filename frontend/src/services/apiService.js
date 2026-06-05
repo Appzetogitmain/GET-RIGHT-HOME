@@ -6,11 +6,12 @@ import { API_BASE_URL } from '../config/apiConfig';
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 60000,
+  withCredentials: true,
 });
 
 // Interceptor to add Token and Log
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+  const token = localStorage.getItem('adminToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -18,7 +19,7 @@ api.interceptors.request.use((config) => {
   return config;
 }, (error) => Promise.reject(error));
 
-// Interceptor to handle 401 Unauthorized (Token invalid/expired)
+// Interceptor to handle 401 Unauthorized (Session invalid/expired)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -26,15 +27,14 @@ api.interceptors.response.use(
     const isBlocked = error.response?.data?.isBlocked;
 
     if (status === 401 || (status === 403 && isBlocked)) {
-      // Clear invalid token and redirect if not already on auth pages
-      localStorage.removeItem('token');
+      // Clear invalid session metadata and redirect if not already on auth pages
       localStorage.removeItem('user');
       if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
         console.warn("Session expired or account blocked. Redirecting to login...");
         if (window.location.pathname.includes('/hotel/')) {
           window.location.href = '/hotel/login';
         } else {
-          window.location.href = '/';
+          window.location.href = '/login';
         }
       }
     }
@@ -58,8 +58,7 @@ export const authService = {
   verifyOtp: async (data) => {
     try {
       const response = await api.post('/auth/verify-otp', data);
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
+      if (response.data.user) {
         localStorage.setItem('user', JSON.stringify(response.data.user));
       }
       return response.data;
@@ -130,9 +129,34 @@ export const authService = {
     }
   },
 
+  // Lazy Enquiry Login/Register
+  lazyEnquiryLogin: async (data) => {
+    try {
+      const response = await api.post('/auth/lazy-enquiry-login', data);
+      if (response.data.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Lazy Listing Login/Register
+  lazyListingLogin: async (data) => {
+    try {
+      const response = await api.post('/auth/lazy-listing-login', data);
+      if (response.data.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   // Logout
   logout: () => {
-    localStorage.removeItem('token');
     localStorage.removeItem('user');
   }
 };
@@ -886,6 +910,33 @@ export const faqService = {
   deleteFaq: async (id) => {
     try {
       const response = await api.delete(`/faqs/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
+export const localityReviewService = {
+  createReview: async (reviewData) => {
+    try {
+      const response = await api.post('/locality-reviews', reviewData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getStats: async (localityName) => {
+    try {
+      const response = await api.get('/locality-reviews/stats', { params: { localityName } });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getReviews: async (localityName, page = 1, limit = 10) => {
+    try {
+      const response = await api.get('/locality-reviews', { params: { localityName, page, limit } });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

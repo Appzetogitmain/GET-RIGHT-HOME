@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { propertyService, userService } from '../../services/apiService';
 import PropertyCard from './PropertyCard';
+import GRHPropertyCard from './GRHPropertyCard';
 import { Loader2 } from 'lucide-react';
 
 const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, extraFilters = {} }) => {
@@ -29,7 +30,7 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
 
         // Fetch properties and saved status in parallel if logged in
         const promises = [propertyService.getPublic(filters)];
-        if (localStorage.getItem('token')) {
+        if (localStorage.getItem('user')) {
           promises.push(userService.getSavedHotels());
         }
 
@@ -85,12 +86,11 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
 
   if (viewMode === 'carousel') {
     return (
-      <div className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-1 w-full">
+      <div className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full">
         {displayedProperties.map(property => (
-          <PropertyCard
+          <GRHPropertyCard
             key={property._id}
             data={property}
-            className="min-w-[70vw] md:min-w-[270px] snap-start shrink-0"
             isSaved={savedHotelIds.includes(property._id)}
           />
         ))}

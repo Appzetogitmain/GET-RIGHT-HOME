@@ -12,7 +12,7 @@ const ListPropertyWizard = () => {
   const location = useLocation();
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
-  const token = localStorage.getItem('token');
+  const isLoggedIn = !!user;
 
   // Clear any unsaved/draft property listings when starting fresh
   useEffect(() => {
@@ -37,6 +37,14 @@ const ListPropertyWizard = () => {
   const [roleLoading, setRoleLoading] = useState(false);
   const [showMoreTypes, setShowMoreTypes] = useState(false);
   const [dynamicTypes, setDynamicTypes] = useState([]);
+  const [listingForm, setListingForm] = useState({
+    name: '',
+    phone: '',
+    otp: '',
+    role: 'owner'
+  });
+  const [otpSent, setOtpSent] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
 
   // Fetch dynamic types from DB that Admin might have added
   useEffect(() => {
@@ -99,7 +107,15 @@ const ListPropertyWizard = () => {
     // Add types from DB that aren't already in our static list
     const dbTypes = configForCat.propertyTypes;
     const combined = [...baseTypes];
+    
+    // Collect all sub-types to filter them out of main types if we are in Commercial
+    const allCommercialSubtypes = propertyCategory === 'Commercial'
+      ? commercialCategories.flatMap(c => c.subTypes)
+      : [];
+
     dbTypes.forEach(type => {
+      // If it is a commercial subtype, do not list it as a main type
+      if (allCommercialSubtypes.includes(type)) return;
       if (!combined.includes(type)) combined.push(type);
     });
     return combined;
@@ -130,15 +146,76 @@ const ListPropertyWizard = () => {
 
   const subTypes = getSubTypes();
 
-  const handleNext = () => {
+  const handleSendOtp = async () => {
+    if (!listingForm.phone) {
+      toast.error("Please enter your mobile number");
+      return;
+    }
+    setSendingOtp(true);
+    try {
+      await api.post('/auth/send-otp', { phone: listingForm.phone, type: 'login', role: listingForm.role });
+      setOtpSent(true);
+      toast.success("OTP sent successfully!");
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || "Failed to send OTP");
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    window.location.reload();
+  };
+
+  const handleNext = async () => {
     if (!intent || !propertyCategory || !selectedType) {
       toast.error('Please select all details to continue');
       return;
     }
 
-    if (!token) {
-      toast.error('Please login to continue');
-      navigate('/login', { state: { from: location.pathname } });
+    if (!isLoggedIn) {
+      if (!listingForm.name.trim()) {
+        toast.error('Please enter your name');
+        return;
+      }
+      if (!listingForm.phone.trim()) {
+        toast.error('Please enter your mobile number');
+        return;
+      }
+      if (!listingForm.otp.trim()) {
+        toast.error('Please enter the OTP received');
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await api.post('/auth/lazy-listing-login', {
+          name: listingForm.name,
+          phone: listingForm.phone,
+          role: listingForm.role,
+          otp: listingForm.otp
+        });
+        if (res.data.success) {
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+          toast.success('Authenticated successfully!');
+          
+          // Re-fetch user in local scope
+          const uStr = localStorage.getItem('user');
+          const u = uStr ? JSON.parse(uStr) : null;
+          
+          if (u && (u.role === 'owner' || u.role === 'broker')) {
+            proceedToWizard();
+          } else {
+            setShowRoleSheet(true);
+          }
+        } else {
+          toast.error(res.data.message || 'Authentication failed');
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || err.message || 'Authentication failed');
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
@@ -196,7 +273,7 @@ const ListPropertyWizard = () => {
 
       <div className="max-w-2xl mx-auto px-5 pt-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Add Basic Details</h1>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-10">STEP 1 OF 3</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-10">STEP 1 OF 4</p>
 
         {/* Intent Selection */}
         <section className="mb-10">
@@ -293,40 +370,131 @@ const ListPropertyWizard = () => {
         )}
 
         {/* Contact Details Card */}
-        <section className="mb-12">
-          <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">Your contact details</h2>
-          <div className="bg-white border border-slate-200 rounded-xl p-0 overflow-hidden relative group mt-2 focus-within:border-[#0073E6] transition-all">
-            <label className="absolute top-2 left-4 text-[10px] text-slate-500">
-              Phone number / User name / E-mail
-            </label>
-            <div className="flex items-center px-4 pt-6 pb-2">
-              <div className="flex items-center gap-1.5 pr-3 border-r border-slate-200">
-                <span className="text-sm text-slate-600">+91</span>
-                <ChevronRight size={14} className="text-slate-400 rotate-90" />
+        {user ? (
+          <section className="mb-12">
+            <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">Your contact details</h2>
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm">
+                  {user.name ? user.name.charAt(0).toUpperCase() : <User size={18} />}
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-slate-800">Posting property as {user.name}</p>
+                  <p className="text-[11px] text-slate-500 font-semibold">+91 {user.phone}</p>
+                </div>
               </div>
+              <button 
+                onClick={handleLogout} 
+                className="text-[11px] font-bold text-[#0073E6] hover:underline bg-transparent border-none cursor-pointer"
+              >
+                Change Account
+              </button>
+            </div>
+            {user.role !== 'owner' && user.role !== 'broker' && (
+              <p className="mt-3 text-[11px] text-slate-500 font-medium">
+                Note: You'll be asked to choose your posting role (Owner/Broker) next.
+              </p>
+            )}
+          </section>
+        ) : (
+          <section className="mb-12 space-y-4">
+            <h2 className="text-[15px] font-bold text-[#000000] mb-2 tracking-tight">Your contact details</h2>
+            <p className="text-[11px] text-slate-500 font-medium -mt-2">Enter your details to create an account & start posting</p>
+            
+            {/* Name input */}
+            <div className="bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] transition-all">
+              <label className="text-[10px] text-slate-400 font-bold block mb-1">YOUR NAME</label>
               <input
                 type="text"
-                readOnly={!!user}
-                value={user?.phone || ''}
-                placeholder=""
-                className="flex-1 px-3 bg-transparent outline-none text-[15px] font-medium text-slate-800"
+                value={listingForm.name}
+                onChange={(e) => setListingForm({ ...listingForm, name: e.target.value })}
+                placeholder="e.g. John Doe"
+                className="w-full bg-transparent outline-none text-[13px] font-semibold text-slate-800"
               />
-              <div className="w-5 h-5 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-slate-400"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+
+            {/* Mobile input */}
+            <div className="flex gap-2">
+              <div className="flex-1 bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] transition-all">
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">MOBILE NUMBER</label>
+                <div className="flex items-center">
+                  <span className="text-[13px] text-slate-500 font-bold mr-1.5">+91</span>
+                  <input
+                    type="tel"
+                    value={listingForm.phone}
+                    onChange={(e) => setListingForm({ ...listingForm, phone: e.target.value })}
+                    placeholder="9876543210"
+                    maxLength={10}
+                    className="w-full bg-transparent outline-none text-[13px] font-bold tracking-wide text-slate-800"
+                  />
+                </div>
+              </div>
+              
+              <button
+                type="button"
+                disabled={sendingOtp || !listingForm.phone || listingForm.phone.length < 10}
+                onClick={handleSendOtp}
+                className="px-4 bg-blue-50 text-[#0073E6] hover:bg-blue-100 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+              >
+                {sendingOtp ? <Loader2 className="animate-spin" size={16} /> : otpSent ? 'Resend' : 'Send OTP'}
+              </button>
+            </div>
+
+            {/* OTP input */}
+            {otpSent && (
+              <div className="bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] transition-all animate-in fade-in slide-in-from-top-2 duration-200">
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">ENTER OTP</label>
+                <input
+                  type="text"
+                  value={listingForm.otp}
+                  onChange={(e) => setListingForm({ ...listingForm, otp: e.target.value })}
+                  placeholder="123456"
+                  maxLength={6}
+                  className="w-full bg-transparent outline-none text-[13px] font-bold tracking-widest text-slate-800"
+                />
+                <span className="absolute right-3 bottom-3 text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                  Test OTP: 123456
+                </span>
+              </div>
+            )}
+
+            {/* Role selection */}
+            <div className="space-y-2">
+              <label className="text-[11px] text-slate-400 font-bold uppercase tracking-wider block">Select Posting Role</label>
+              <div className="flex gap-4">
+                <label className={`flex-1 flex items-center justify-between p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${listingForm.role === 'owner' ? 'border-[#0073E6] bg-blue-50/20' : 'border-slate-200'}`}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="listingRole"
+                      checked={listingForm.role === 'owner'}
+                      onChange={() => setListingForm({ ...listingForm, role: 'owner' })}
+                      className="accent-[#0073E6]"
+                    />
+                    <span className="text-[12px] font-bold text-slate-700">Property Owner</span>
+                  </div>
+                </label>
+                
+                <label className={`flex-1 flex items-center justify-between p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${listingForm.role === 'broker' ? 'border-[#0073E6] bg-blue-50/20' : 'border-slate-200'}`}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="listingRole"
+                      checked={listingForm.role === 'broker'}
+                      onChange={() => setListingForm({ ...listingForm, role: 'broker' })}
+                      className="accent-[#0073E6]"
+                    />
+                    <span className="text-[12px] font-bold text-slate-700">Broker / Agent</span>
+                  </div>
+                </label>
               </div>
             </div>
-          </div>
-          
-          {user ? (
-            <div className="mt-3 px-1 flex items-center gap-1 text-[12px] text-slate-500">
-              You're posting as {user.name} - <button onClick={() => navigate('/login')} className="font-bold text-[#0073E6]">Change Account</button>
+            
+            <div className="mt-3 px-1 text-[11px] text-slate-500 font-semibold">
+              Already have an account? <button onClick={() => navigate('/login')} className="font-bold text-[#0073E6] hover:underline">Login</button>
             </div>
-          ) : (
-            <p className="mt-3 px-1 text-[12px] text-slate-500">
-              Are you a registered user? <button onClick={() => navigate('/login')} className="font-bold text-[#0073E6]">Login</button>
-            </p>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Next Button */}
         <div className="mt-12 mb-10">

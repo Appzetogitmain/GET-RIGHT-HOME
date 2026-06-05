@@ -55,3 +55,21 @@ export const getFinancialSettings = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error fetching financial settings' });
   }
 };
+
+/**
+ * @desc    Get free trial configuration (public endpoint for partner dashboard)
+ * @route   GET /api/info/trial-settings
+ * @access  Public
+ */
+export const getTrialSettings = async (req, res) => {
+  try {
+    const settings = await PlatformSettings.getSettings();
+    res.status(200).json({
+      success: true,
+      freeTrialListingLimit: settings.freeTrialListingLimit || 10,
+      freeTrialDurationDays: settings.freeTrialDurationDays || 30
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching trial settings' });
+  }
+};

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, Outlet }
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 import { Clock, Loader2 } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Eager Imports (Critical UI)
 import BottomNavbar from './components/ui/BottomNavbar';
@@ -256,10 +257,10 @@ const Layout = ({ children }) => {
 
 // Simple Protected Route for Users
 const UserProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
+  const { isLoggedIn } = useAuth();
   const location = useLocation();
 
-  if (!token) {
+  if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -268,9 +269,7 @@ const UserProtectedRoute = ({ children }) => {
 
 // Partner & User Property Listing Protected Route
 const PartnerProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const userRaw = localStorage.getItem('user');
-  const user = userRaw ? JSON.parse(userRaw) : null;
+  const { user } = useAuth();
   const location = useLocation();
 
   // Allow access to login/register/join
@@ -280,7 +279,7 @@ const PartnerProtectedRoute = ({ children }) => {
   }
 
   // Allow both Partners and Users
-  if (!token || !user || (user.role !== 'partner' && user.role !== 'user')) {
+  if (!user || (user.role !== 'partner' && user.role !== 'user')) {
     return <Navigate to="/hotel/login" state={{ from: location }} replace />;
   }
 
@@ -332,8 +331,8 @@ const PartnerProtectedRoute = ({ children }) => {
 
 // Public Route (redirects to home if already logged in)
 const PublicRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  if (token) {
+  const { isLoggedIn } = useAuth();
+  if (isLoggedIn) {
     return <Navigate to="/" replace />;
   }
   return children;
@@ -359,7 +358,7 @@ function App() {
             const adminToken = localStorage.getItem('adminToken');
             if (adminToken) {
               await adminService.updateFcmToken(appToken, 'app');
-            } else if (localStorage.getItem('token')) {
+            } else if (localStorage.getItem('user')) {
               await userService.updateFcmToken(appToken, 'app');
             }
             return;
@@ -377,7 +376,7 @@ function App() {
           const adminToken = localStorage.getItem('adminToken');
           if (adminToken) {
             await adminService.updateFcmToken(appToken, 'app');
-          } else if (localStorage.getItem('token')) {
+          } else if (localStorage.getItem('user')) {
             await userService.updateFcmToken(appToken, 'app');
           }
         }
@@ -385,7 +384,7 @@ function App() {
 
       // 3. Web FCM: Only request if user is already logged in
       // (Login/Signup pages handle FCM for fresh sessions themselves)
-      const isLoggedIn = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      const isLoggedIn = localStorage.getItem('user') || localStorage.getItem('adminToken');
       if (!isLoggedIn) return;
 
       try {
@@ -397,9 +396,8 @@ function App() {
             await adminService.updateFcmToken(token, 'web');
             return;
           }
-          const tokenAuth = localStorage.getItem('token');
           const userStr = localStorage.getItem('user');
-          if (tokenAuth && userStr) {
+          if (userStr) {
             const user = JSON.parse(userStr);
             console.log('FCM Token received, updating backend for role:', user.role);
             await userService.updateFcmToken(token, 'web');
@@ -434,9 +432,10 @@ function App() {
   return (
     <CityProvider>
       <CartProvider>
-        <Router>
-      <ScrollToTop />
-      <Toaster position="top-center" reverseOrder={false} />
+        <AuthProvider>
+          <Router>
+            <ScrollToTop />
+            <Toaster position="top-center" reverseOrder={false} />
       <Layout>
         <Suspense fallback={<PageLoader />}>
           <Routes>
@@ -453,22 +452,36 @@ function App() {
             <Route path="/home-services/sub-category" element={<SubCategoryPage />} />
             <Route path="/home-service" element={<Navigate to="/home-services" replace />} />
 
-            {/* User Property Listing (C2C) Routes */}
+            {/* Public User Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/reels" element={<ReelsPage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/listings" element={<Navigate to="/search" replace />} />
+            <Route path="/partner-landing" element={<PartnerLandingPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+
+            {/* Unified Property Details (C2C & Hotel) - Public */}
+            <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
+            <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
+            <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />
+            <Route path="/hotel/:id/offers" element={<OffersPage />} />
+            
+            <Route path="/property/:id" element={<UserPropertyDetailsPage />} />
+            <Route path="/property/:id/amenities" element={<AmenitiesPage />} />
+            <Route path="/property/:id/reviews" element={<ReviewsPage />} />
+            <Route path="/property/:id/offers" element={<OffersPage />} />
+
+            {/* User Property Listing (C2C) Routes (Public/Self-Authenticating) */}
             <Route path="/list-property" element={<ListPropertyWizard />} />
-            <Route path="/list-property/dynamic-form" element={<UserProtectedRoute><DynamicFormEngine /></UserProtectedRoute>} />
-            <Route path="/list-property/wizard/:categoryId/:id?" element={<UserProtectedRoute><AddDynamicWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-hotel/:id?" element={<UserProtectedRoute><AddHotelWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-resort/:id?" element={<UserProtectedRoute><AddResortWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-hostel/:id?" element={<UserProtectedRoute><AddHostelWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-villa/:id?" element={<UserProtectedRoute><AddVillaWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-pg/:id?" element={<UserProtectedRoute><AddPGWizard /></UserProtectedRoute>} />
-            <Route path="/list-property/join-homestay/:id?" element={<UserProtectedRoute><AddHomestayWizard /></UserProtectedRoute>} />
-            <Route path="/my-properties" element={<UserProtectedRoute><MyProperties /></UserProtectedRoute>} />
-            <Route path="/my-received-bookings" element={<UserProtectedRoute><UserReceivedBookingsPage /></UserProtectedRoute>} />
-            <Route path="/my-enquiries" element={<UserProtectedRoute><UserReceivedEnquiriesPage /></UserProtectedRoute>} />
-            <Route path="/my-subscriptions" element={<UserProtectedRoute><UserSubscriptionsPage /></UserProtectedRoute>} />
-            <Route path="/my-property-dashboard/:id" element={<UserProtectedRoute><UserPropertyDashboard /></UserProtectedRoute>} />
-            <Route path="/properties/:id" element={<UserProtectedRoute><PartnerPropertyDetails /></UserProtectedRoute>} />
+            <Route path="/list-property/dynamic-form" element={<DynamicFormEngine />} />
+            <Route path="/list-property/wizard/:categoryId/:id?" element={<AddDynamicWizard />} />
+            <Route path="/list-property/join-hotel/:id?" element={<AddHotelWizard />} />
+            <Route path="/list-property/join-resort/:id?" element={<AddResortWizard />} />
+            <Route path="/list-property/join-hostel/:id?" element={<AddHostelWizard />} />
+            <Route path="/list-property/join-villa/:id?" element={<AddVillaWizard />} />
+            <Route path="/list-property/join-pg/:id?" element={<AddPGWizard />} />
+            <Route path="/list-property/join-homestay/:id?" element={<AddHomestayWizard />} />
 
             {/* Hotel/Partner Module Routes */}
             <Route path="/hotel/login" element={<HotelLogin />} />
@@ -557,25 +570,10 @@ function App() {
 
             {/* Protected User Pages */}
             <Route element={<UserProtectedRoute />}>
-              <Route path="/" element={<Home />} />
-              <Route path="/reels" element={<ReelsPage />} />
               <Route path="/reels/my" element={<MyReelsPage />} />
-            <Route path="/profile" element={<UserProtectedRoute><ProfileEdit /></UserProtectedRoute>} />
-              
-              {/* Unified Property Details (C2C & Hotel) */}
-              <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
-              <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
-              <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />
-              <Route path="/hotel/:id/offers" element={<OffersPage />} />
-              
-              <Route path="/property/:id" element={<UserPropertyDetailsPage />} />
-              <Route path="/property/:id/amenities" element={<AmenitiesPage />} />
-              <Route path="/property/:id/reviews" element={<ReviewsPage />} />
-              <Route path="/property/:id/offers" element={<OffersPage />} />
-              <Route path="/search" element={<SearchPage />} />
+              <Route path="/profile" element={<ProfileEdit />} />
               <Route path="/bookings" element={<BookingsPage />} />
               <Route path="/my-reviews" element={<UserMyReviewsPage />} />
-              <Route path="/listings" element={<Navigate to="/search" replace />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/payment" element={<PaymentPage />} />
               <Route path="/support" element={<SupportPage />} />
@@ -586,17 +584,23 @@ function App() {
               <Route path="/saved-places" element={<SavedPlacesPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/partner-landing" element={<PartnerLandingPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/contact" element={<ContactPage />} />
               <Route path="/user/cart" element={<CartPage />} />
               <Route path="/user/checkout" element={<HomeServiceCheckoutPage />} />
               <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />
+
+              {/* User Property Listing Dashboard & Bookings Routes (Protected) */}
+              <Route path="/my-properties" element={<MyProperties />} />
+              <Route path="/my-received-bookings" element={<UserReceivedBookingsPage />} />
+              <Route path="/my-enquiries" element={<UserReceivedEnquiriesPage />} />
+              <Route path="/my-subscriptions" element={<UserSubscriptionsPage />} />
+              <Route path="/my-property-dashboard/:id" element={<UserPropertyDashboard />} />
+              <Route path="/properties/:id" element={<PartnerPropertyDetails />} />
             </Route>
           </Routes>
         </Suspense>
       </Layout>
-        </Router>
+          </Router>
+        </AuthProvider>
       </CartProvider>
     </CityProvider>
   );

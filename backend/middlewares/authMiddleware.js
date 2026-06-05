@@ -10,7 +10,18 @@ export const protect = async (req, res, next) => {
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
-
+    if (!token && req.headers.cookie) {
+      const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
+        const separatorIndex = cookie.indexOf('=');
+        if (separatorIndex !== -1) {
+          const key = cookie.substring(0, separatorIndex).trim();
+          const value = cookie.substring(separatorIndex + 1).trim();
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+      token = cookies.token;
+    }
     if (!token) {
       return res.status(401).json({ message: 'Not authorized, no token' });
     }
@@ -79,7 +90,18 @@ export const optionalProtect = async (req, res, next) => {
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
-
+    if (!token && req.headers.cookie) {
+      const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
+        const separatorIndex = cookie.indexOf('=');
+        if (separatorIndex !== -1) {
+          const key = cookie.substring(0, separatorIndex).trim();
+          const value = cookie.substring(separatorIndex + 1).trim();
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+      token = cookies.token;
+    }
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       let user = await User.findById(decoded.id);

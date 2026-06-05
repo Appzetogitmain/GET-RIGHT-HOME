@@ -22,13 +22,11 @@ const propertySchema = new mongoose.Schema({
   
   transactionType: {
     type: String,
-    enum: ["Sell", "Rent", "PG", "Rent / Lease", "Paying Guest"], // Supported transaction types
     required: false // Optional for now to not break existing data
   },
   
   propertyCategory: {
     type: String,
-    enum: ["Residential", "Commercial"], // Core top-level categories
     required: false
   },
 
@@ -129,6 +127,9 @@ const propertySchema = new mongoose.Schema({
 
   // AMENITIES (PROPERTY LEVEL)
   amenities: [String],
+  highlights: [String],
+  topAmenities: [String],
+  otherAmenities: [String],
 
   // POLICIES
   checkInTime: String,
@@ -234,6 +235,7 @@ const propertySchema = new mongoose.Schema({
   // RATINGS
   avgRating: { type: Number, default: 0 },
   totalReviews: { type: Number, default: 0 },
+  enquiryCount: { type: Number, default: 0 },
   views: { type: Number, default: 0 }
 
 }, { timestamps: true });

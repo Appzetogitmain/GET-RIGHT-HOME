@@ -57,24 +57,24 @@ const MessageBlock = ({ message }) => {
     const cls = 'bg-slate-50 border-slate-100 text-slate-700';
 
     return (
-        <div className={`rounded-xl border p-2.5 space-y-1 ${cls}`}>
-            <p className="text-[8px] font-black uppercase tracking-wider text-indigo-600 mb-0.5">{parsed.type}</p>
+        <div className={`rounded-lg border p-2 space-y-0.5 ${cls}`}>
+            <p className="text-[7.5px] font-black uppercase tracking-wider text-indigo-600 mb-0.5">{parsed.type}</p>
             {parsed.date && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-1.5 py-0.5 border-b border-slate-100/50">
-                    <span className="font-extrabold text-slate-400 uppercase tracking-wider text-[8px] shrink-0">Date:</span>
-                    <span className="font-bold text-slate-700 text-[10px]">{parsed.date}</span>
+                    <span className="font-extrabold text-slate-400 uppercase tracking-wider text-[7.5px] shrink-0">Date:</span>
+                    <span className="font-bold text-slate-700 text-[9.5px]">{parsed.date}</span>
                 </div>
             )}
             {parsed.timeSlot && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-1.5 py-0.5 border-b border-slate-100/50">
-                    <span className="font-extrabold text-slate-400 uppercase tracking-wider text-[8px] shrink-0">Time Slot:</span>
-                    <span className="font-bold text-slate-700 text-[10px]">{parsed.timeSlot}</span>
+                    <span className="font-extrabold text-slate-400 uppercase tracking-wider text-[7.5px] shrink-0">Time Slot:</span>
+                    <span className="font-bold text-slate-700 text-[9.5px]">{parsed.timeSlot}</span>
                 </div>
             )}
             {parsed.notes && (
                 <div className="flex flex-col gap-0.5 py-0.5">
-                    <span className="font-extrabold text-slate-400 uppercase tracking-wider text-[8px]">Notes:</span>
-                    <span className="font-bold text-slate-700 text-[10px] leading-snug whitespace-pre-wrap">{parsed.notes}</span>
+                    <span className="font-extrabold text-slate-400 uppercase tracking-wider text-[7.5px]">Notes:</span>
+                    <span className="font-bold text-slate-700 text-[9.5px] leading-tight whitespace-pre-wrap">{parsed.notes}</span>
                 </div>
             )}
         </div>
@@ -172,6 +172,8 @@ const UserReceivedEnquiriesPage = () => {
         // 2. Resolve Area
         let area = null;
         const possibleAreaValues = [
+            prop.buyDetails?.area?.superBuiltUp,
+            prop.buyDetails?.area?.carpet,
             prop.carpetArea,
             prop.superArea,
             prop.dynamicData?.carpetArea,
@@ -186,17 +188,17 @@ const UserReceivedEnquiriesPage = () => {
         for (const val of possibleAreaValues) {
             if (val !== undefined && val !== null) {
                 if (typeof val === 'object') {
-                    const possibleAreaKeys = ['value', 'amount', 'size', 'carpet', 'super'];
+                    const possibleAreaKeys = ['superBuiltUp', 'carpet', 'value', 'amount', 'size', 'super'];
                     let found = false;
                     for (const key of possibleAreaKeys) {
-                        if (val[key] !== undefined && val[key] !== null) {
+                        if (val[key] !== undefined && val[key] !== null && val[key] !== '') {
                             area = val[key];
                             found = true;
                             break;
                         }
                     }
                     if (found) break;
-                } else {
+                } else if (val !== '') {
                     area = val;
                     break;
                 }
@@ -207,12 +209,12 @@ const UserReceivedEnquiriesPage = () => {
         // 3. Resolve Unit
         let unit = '';
         const possibleUnitValues = [
+            prop.buyDetails?.area?.unit,
             prop.carpetAreaUnit,
             prop.areaUnit,
             prop.dynamicData?.carpetAreaUnit,
             prop.dynamicData?.areaUnit,
             prop.dynamicData?.superAreaUnit,
-            prop.buyDetails?.area?.unit,
             prop.plotDetails?.unit,
             prop.rentDetails?.unit
         ];
@@ -241,7 +243,7 @@ const UserReceivedEnquiriesPage = () => {
 
         const isRent = ['rent', 'lease', 'pg', 'hostel'].includes(pType) || (prop.transactionType || '').toLowerCase().includes('rent');
         const priceStr = price > 0 ? (formatPriceLakhCrore(price) + (isRent ? '/mo' : '')) : 'Price on Request';
-        const areaStr = `${area} ${unit}`;
+        const areaStr = area !== '–' ? `${area} ${unit}` : '–';
         
         const loc = prop.address?.city || prop.city || prop.address?.fullAddress || '';
         return `${areaStr} • ${priceStr}${loc ? ` • ${loc}` : ''}`;
@@ -380,28 +382,29 @@ const UserReceivedEnquiriesPage = () => {
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.97 }}
-                                        className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4"
+                                        className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3"
                                     >
                                         {/* Row 1: Avatar + Name + Status selector */}
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className="flex items-center gap-2.5">
-                                                <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-black text-[13px] flex items-center justify-center uppercase shrink-0">
+                                        <div className="flex items-start justify-between mb-2.5">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-7.5 h-7.5 rounded-full bg-indigo-100 text-indigo-700 font-black text-[11.5px] flex items-center justify-center uppercase shrink-0">
                                                     {initial}
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-extrabold text-slate-900 text-[13px] leading-tight">{buyerName}</h3>
-                                                    <span className="text-[10px] text-slate-400 font-medium">{fmtDate(item.createdAt)}</span>
+                                                    <h3 className="font-extrabold text-slate-900 text-[11.5px] leading-tight">{buyerName}</h3>
+                                                    <span className="text-[8.5px] text-slate-400 font-medium">{fmtDate(item.createdAt)}</span>
                                                 </div>
                                             </div>
 
                                             <select
                                                 value={status}
                                                 onChange={(e) => handleUpdateStatus(item._id, e.target.value)}
-                                                className={`text-[9px] font-black px-2 py-1 rounded-lg border outline-none cursor-pointer uppercase shrink-0 ${
+                                                className={`text-[9.5px] font-black py-0 px-1 rounded-md border outline-none cursor-pointer uppercase shrink-0 leading-tight ${
                                                     status === 'contacted' ? 'bg-amber-50 text-amber-700 border-amber-200'
                                                     : status === 'new' ? 'bg-blue-50 text-blue-700 border-blue-200'
                                                     : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                 }`}
+                                                style={{ height: '22px' }}
                                             >
                                                 <option value="new">New</option>
                                                 <option value="contacted">Contacted</option>
@@ -412,32 +415,32 @@ const UserReceivedEnquiriesPage = () => {
                                         </div>
 
                                         {/* Property Specs */}
-                                        <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 mb-3">
+                                        <div className="bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1.5 mb-2">
                                             <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Property Specs</p>
-                                            <p className="text-[11px] font-bold text-slate-700 leading-snug">{getSpecs(item.propertyId)}</p>
+                                            <p className="text-[10px] font-bold text-slate-700 leading-tight">{getSpecs(item.propertyId)}</p>
                                         </div>
 
                                         {/* Structured message */}
                                         {rawMsg && <MessageBlock message={rawMsg} />}
 
                                         {/* Action buttons */}
-                                        <div className="flex gap-2 mt-3">
+                                        <div className="flex gap-2 mt-2.5">
                                             {phone && (
                                                 <a
                                                     href={`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=Hello%20${encodeURIComponent(buyerName)},%20thank%20you%20for%20enquiring.`}
                                                     target="_blank" rel="noopener noreferrer"
-                                                    className="flex-1 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center gap-1 transition-all text-[11px] font-black"
+                                                    className="flex-1 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center gap-1 transition-all text-[9.5px] font-black"
                                                 >
-                                                    <Send size={12} /> WhatsApp
+                                                    <Send size={10.5} /> WhatsApp
                                                 </a>
                                             )}
 
                                             {phone && (
                                                 <a
                                                     href={`tel:${phone}`}
-                                                    className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center gap-1 transition-all text-[11px] font-black"
+                                                    className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center justify-center gap-1 transition-all text-[9.5px] font-black"
                                                 >
-                                                    <PhoneCall size={12} /> Call
+                                                    <PhoneCall size={10.5} /> Call
                                                 </a>
                                             )}
                                         </div>

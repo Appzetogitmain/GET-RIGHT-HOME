@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
-import { propertyService, legalService, reviewService, offerService, availabilityService, userService, bookingService, enquiryService } from '../../services/apiService';
+import { authService, propertyService, legalService, reviewService, offerService, availabilityService, userService, bookingService, enquiryService, localityReviewService } from '../../services/apiService';
 import GRHPropertyCard from '../../components/user/GRHPropertyCard';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
   Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare, Tag, X, Gift,
   CheckCircle, Shield, Info, Clock, Wifi, Coffee, Car, Phone, Scan, Maximize2, Compass, Move, Grid, Landmark, LayoutTemplate,
-  Wind, Droplets, Zap, Thermometer, Shirt, Sparkles, Camera, Dumbbell, Box, Flame, ArrowUpCircle, Tv, Utensils, User
+  Wind, Droplets, Zap, Thermometer, Shirt, Sparkles, Camera, Dumbbell, Box, Flame, ArrowUpCircle, Tv, Utensils, User,
+  Lock, Award, Check, ChevronDown, Percent
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import ModernDatePicker from '../../components/ui/ModernDatePicker';
 
 const PropertyDetailsPage = () => {
   const { id } = useParams();
@@ -22,7 +22,7 @@ const PropertyDetailsPage = () => {
   const [guests, setGuests] = useState({ rooms: 1, adults: 2, children: 0 });
   const [bookingLoading, setBookingLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [taxRate, setTaxRate] = useState(0); // Fetched from backend
+  const [taxRate, setTaxRate] = useState(0); 
   const [availability, setAvailability] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [revealedNumber, setRevealedNumber] = useState(null);
@@ -37,71 +37,15 @@ const PropertyDetailsPage = () => {
   const [similarProperties, setSimilarProperties] = useState([]);
   const [showVisitModal, setShowVisitModal] = useState(false);
   const [showCallbackModal, setShowCallbackModal] = useState(false);
-
-  // Check Availability Logic
-  const checkAvailability = async (directCall = false) => {
-    const isPgOrHostel = propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel';
-    if (!selectedRoom || (!isPgOrHostel && (!dates.checkIn || !dates.checkOut))) {
-      if (directCall) {
-        toast.error(selectedRoom ? "Please select dates first" : "Please select a room/unit first");
-      }
-      setAvailability(null);
-      return null;
-    }
-
-    const pgDates = getDefaultPgDates();
-    const checkIn = (isPgOrHostel && !dates.checkIn) ? pgDates.checkIn : dates.checkIn;
-    const checkOut = (isPgOrHostel && !dates.checkOut) ? pgDates.checkOut : dates.checkOut;
-
-    setCheckingAvailability(true);
-    try {
-      const response = await availabilityService.check({
-        propertyId: id,
-        roomTypeId: selectedRoom._id,
-        checkIn: checkIn,
-        checkOut: checkOut,
-        rooms: guests.rooms
-      });
-
-      let result = null;
-
-      // Handle array response from backend
-      if (Array.isArray(response)) {
-        // Ensure ID comparison handles string/object ID types safely
-        const roomAvail = response.find(r => String(r.roomTypeId) === String(selectedRoom._id));
-        if (roomAvail) {
-          const requiredUnits = guests.rooms || 1;
-          if (roomAvail.availableUnits >= requiredUnits) {
-            result = { available: true, unitsLeft: roomAvail.availableUnits };
-          } else {
-            result = { available: false, message: `Only ${roomAvail.availableUnits} units available`, unitsLeft: roomAvail.availableUnits };
-          }
-        } else {
-          result = { available: false, message: "Sold Out for these dates", unitsLeft: 0 };
-        }
-      } else {
-        result = response;
-      }
-
-      setAvailability(result);
-      return result;
-    } catch (error) {
-      console.error("Availability check failed:", error);
-      const errorResult = { available: false, message: error.message || "Unable to verify availability" };
-      setAvailability(errorResult);
-      return errorResult;
-    } finally {
-      setCheckingAvailability(false);
-    }
-  };
-
-  // Removed useEffect for automatic availability check as per requirement
-  // to only check on "Book Now" click.
-  /*
-  useEffect(() => {
-    checkAvailability();
-  }, [dates.checkIn, dates.checkOut, selectedRoom?._id, guests.rooms]);
-  */
+  const [showEnquiryModal, setShowEnquiryModal] = useState(false);
+  const [enquiryForm, setEnquiryForm] = useState({
+    name: '',
+    phone: '',
+    otp: '',
+    message: 'Interested in this property.'
+  });
+  const [otpSent, setOtpSent] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
 
   // Reviews State
   const [reviews, setReviews] = useState([]);
@@ -119,9 +63,58 @@ const PropertyDetailsPage = () => {
   const [showOffersModal, setShowOffersModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
 
+  // 99acres Specific Drawers / Modals State
+  const [showHighlightsModal, setShowHighlightsModal] = useState(false);
+  const [showAllAmenitiesModal, setShowAllAmenitiesModal] = useState(false);
+  const [leadName, setLeadName] = useState('');
+  const [leadPhone, setLeadPhone] = useState('');
+  const [isAgent, setIsAgent] = useState(false);
+  const [agreedTerms, setAgreedTerms] = useState(true);
+
+  const [localityStats, setLocalityStats] = useState(null);
+  const [localityReviews, setLocalityReviews] = useState([]);
+  const [loadingLocalityStats, setLoadingLocalityStats] = useState(false);
+  const isManualScrollRef = useRef(false);
+
+  // Horizontal Tab Scroll Link state
+  const [activeTab, setActiveTab] = useState('overview');
+  const tabsContainerRef = useRef(null);
+
+  // Center active tab inside horizontal tabs list
+  useEffect(() => {
+    if (tabsContainerRef.current) {
+      const activeEl = tabsContainerRef.current.querySelector('[data-active="true"]');
+      if (activeEl) {
+        const container = tabsContainerRef.current;
+        const containerWidth = container.clientWidth;
+        const activeOffsetLeft = activeEl.offsetLeft;
+        const activeWidth = activeEl.clientWidth;
+        
+        container.scrollTo({
+          left: activeOffsetLeft - (containerWidth / 2) + (activeWidth / 2),
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [activeTab]);
+
+  // Load User Details if available
+  useEffect(() => {
+    const userRaw = localStorage.getItem('user');
+    if (userRaw) {
+      try {
+        const u = JSON.parse(userRaw);
+        setLeadName(u.name || '');
+        setLeadPhone(u.phone || '');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }, []);
+
   // Lock Body Scroll when Modal Open
   useEffect(() => {
-    if (showOffersModal || showImageModal) {
+    if (showOffersModal || showImageModal || showHighlightsModal || showAllAmenitiesModal || showVisitModal || showCallbackModal) {
       if (window.lenis) window.lenis.stop();
       document.body.style.overflow = 'hidden';
       document.documentElement.style.overflow = 'hidden';
@@ -135,7 +128,7 @@ const PropertyDetailsPage = () => {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
     };
-  }, [showOffersModal, showImageModal]);
+  }, [showOffersModal, showImageModal, showHighlightsModal, showAllAmenitiesModal, showVisitModal, showCallbackModal]);
 
   useEffect(() => {
     legalService.getFinancialSettings()
@@ -144,6 +137,26 @@ const PropertyDetailsPage = () => {
       })
       .catch(err => console.error("Failed to fetch tax rate", err));
   }, []);
+
+  const fetchLocalityData = async (localityName) => {
+    if (!localityName) return;
+    setLoadingLocalityStats(true);
+    try {
+      const statsRes = await localityReviewService.getStats(localityName);
+      if (statsRes && statsRes.success) {
+        setLocalityStats(statsRes.stats);
+      }
+      
+      const revRes = await localityReviewService.getReviews(localityName, 1, 3);
+      if (revRes && revRes.success) {
+        setLocalityReviews(revRes.reviews || []);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch locality stats:", err);
+    } finally {
+      setLoadingLocalityStats(false);
+    }
+  };
 
   const loadPropertyDetails = async () => {
     try {
@@ -161,6 +174,9 @@ const PropertyDetailsPage = () => {
           images: { cover: p.coverImage, gallery: p.propertyImages || [] },
           propertyType: p.propertyType ? p.propertyType.charAt(0).toUpperCase() + p.propertyType.slice(1) : '',
           amenities: p.amenities || [],
+          highlights: p.highlights || [],
+          topAmenities: p.topAmenities || [],
+          otherAmenities: p.otherAmenities || [],
           inventory: rts.map(rt => ({
             _id: rt._id,
             type: rt.name,
@@ -191,6 +207,12 @@ const PropertyDetailsPage = () => {
           }
         };
         setProperty(adapted);
+
+        // Fetch locality details
+        const localityString = p.address?.locality || p.address?.area || p.address?.city || '';
+        if (localityString) {
+          fetchLocalityData(localityString);
+        }
         
         // Fetch similar properties
         try {
@@ -202,11 +224,6 @@ const PropertyDetailsPage = () => {
         } catch (err) {
           console.warn("Failed to load similar properties:", err);
         }
-        // Only set selected room on first load if not set
-        // REMOVED: Do NOT auto select room, so Property Images show first by default.
-        // if (!selectedRoom && adapted.inventory && adapted.inventory.length > 0) {
-        //   setSelectedRoom(adapted.inventory[0]);
-        // }
       } else {
         setProperty(response);
       }
@@ -221,11 +238,294 @@ const PropertyDetailsPage = () => {
     loadPropertyDetails();
   }, [id]);
 
-  // Helper derived state for hooks (safe access)
+  useEffect(() => {
+    if (id) {
+      fetchReviews();
+      fetchOffers();
+    }
+  }, [id]);
+
+  // Tab scrolling link effect
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isManualScrollRef.current) return;
+      const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 130;
+      if (isAtBottom) {
+        setActiveTab('explore-locality');
+        return;
+      }
+
+      const sections = [
+        { id: 'overview', el: document.getElementById('overview') },
+        { id: 'highlights', el: document.getElementById('highlights') },
+        { id: 'property-details', el: document.getElementById('property-details') },
+        { id: 'photos', el: document.getElementById('photos') },
+        { id: 'facilities', el: document.getElementById('facilities') },
+        { id: 'seller', el: document.getElementById('seller') },
+        { id: 'compare', el: document.getElementById('compare') },
+        { id: 'explore-locality', el: document.getElementById('explore-locality') }
+      ];
+
+      let currentSection = 'overview';
+      const offsetThreshold = 140; // sticky header tabs offset
+      
+      for (const sec of sections) {
+        if (sec.el) {
+          const rect = sec.el.getBoundingClientRect();
+          if (rect.top <= offsetThreshold) {
+            currentSection = sec.id;
+          }
+        }
+      }
+      setActiveTab(currentSection);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToSection = (sectionId) => {
+    const el = document.getElementById(sectionId);
+    if (el) {
+      isManualScrollRef.current = true;
+      setActiveTab(sectionId);
+      const yOffset = -130; // matches scroll threshold offset
+      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+      
+      setTimeout(() => {
+        isManualScrollRef.current = false;
+      }, 800);
+    }
+  };
+
+  const formatMemberSince = (dateStr) => {
+    if (!dateStr) return 'Jan 2023';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    } catch (e) {
+      return 'Jan 2023';
+    }
+  };
+
+  const getSpecs = () => {
+    const specs = [];
+    if (!property) return specs;
+
+    specs.push({ label: 'Property Type', value: property.propertyType || 'Residential' });
+    specs.push({ label: 'Transaction Type', value: property.transactionType || 'Sell' });
+
+    if (property.buyDetails) {
+      const bd = property.buyDetails;
+      if (bd.type) specs.push({ label: 'Configuration', value: bd.type });
+      if (bd.expectedPrice) specs.push({ label: 'Expected Price', value: `₹${bd.expectedPrice.toLocaleString('en-IN')}` });
+      if (bd.area?.carpet) specs.push({ label: 'Carpet Area', value: `${bd.area.carpet} ${bd.area.unit || 'sqft'}` });
+      if (bd.ownership) specs.push({ label: 'Ownership', value: bd.ownership });
+      if (bd.propertyAge) specs.push({ label: 'Property Age', value: bd.propertyAge });
+      if (bd.facing) specs.push({ label: 'Facing', value: bd.facing });
+      if (bd.builderName) specs.push({ label: 'Builder', value: bd.builderName });
+    } else if (property.rentDetails) {
+      const rd = property.rentDetails;
+      if (rd.type) specs.push({ label: 'Configuration', value: rd.type });
+      if (rd.monthlyRent) specs.push({ label: 'Monthly Rent', value: `₹${rd.monthlyRent.toLocaleString('en-IN')}/month` });
+      if (rd.furnishing) specs.push({ label: 'Furnishing', value: rd.furnishing });
+      if (rd.tenantPreference) specs.push({ label: 'Tenant Preference', value: rd.tenantPreference });
+      if (rd.societyName) specs.push({ label: 'Society', value: rd.societyName });
+      if (rd.waterSupply) specs.push({ label: 'Water Supply', value: rd.waterSupply });
+    } else if (property.plotDetails) {
+      const pd = property.plotDetails;
+      if (pd.expectedPrice) specs.push({ label: 'Expected Price', value: `₹${pd.expectedPrice.toLocaleString('en-IN')}` });
+      if (pd.plotArea) specs.push({ label: 'Plot Area', value: `${pd.plotArea} ${pd.unit || 'sqyrd'}` });
+      if (pd.landType) specs.push({ label: 'Land Type', value: pd.landType });
+      if (pd.facing) specs.push({ label: 'Facing', value: pd.facing });
+      if (pd.roadWidth) specs.push({ label: 'Road Width', value: pd.roadWidth });
+      if (pd.approvalAuthority) specs.push({ label: 'Approval Authority', value: pd.approvalAuthority });
+    } else if (property.pgDetails) {
+      const pgd = property.pgDetails;
+      if (pgd.gender) specs.push({ label: 'Gender Allowed', value: pgd.gender });
+      if (pgd.occupancy) specs.push({ label: 'Occupancy', value: pgd.occupancy });
+      if (pgd.securityDeposit) specs.push({ label: 'Security Deposit', value: `₹${pgd.securityDeposit.toLocaleString('en-IN')}` });
+      if (pgd.minStay) specs.push({ label: 'Min Stay', value: pgd.minStay });
+      if (pgd.noticePeriod) specs.push({ label: 'Notice Period', value: pgd.noticePeriod });
+      if (pgd.foodIncluded !== undefined) specs.push({ label: 'Food Included', value: pgd.foodIncluded ? 'Yes' : 'No' });
+    }
+
+    if (specs.length <= 2) {
+      const dd = property.dynamicData || {};
+      const getDdVal = (key) => {
+        if (typeof dd.get === 'function') return dd.get(key);
+        return dd[key];
+      };
+      // Pull from dynamicData (new form submissions)
+      if (getDdVal('bedrooms')) specs.push({ label: 'Bedrooms', value: getDdVal('bedrooms') });
+      if (getDdVal('bathrooms')) specs.push({ label: 'Bathrooms', value: getDdVal('bathrooms') });
+      if (getDdVal('balconies')) specs.push({ label: 'Balconies', value: getDdVal('balconies') });
+      if (getDdVal('furnishing')) specs.push({ label: 'Furnishing', value: getDdVal('furnishing') });
+      if (getDdVal('carpetArea')) specs.push({ label: 'Carpet Area', value: `${getDdVal('carpetArea')} ${getDdVal('carpetAreaUnit') || 'sq.ft.'}` });
+      if (getDdVal('superArea')) specs.push({ label: 'Super Built-up Area', value: `${getDdVal('superArea')} ${getDdVal('superAreaUnit') || 'sq.ft.'}` });
+      if (getDdVal('totalFloors')) specs.push({ label: 'Total Floors', value: getDdVal('totalFloors') });
+      if (getDdVal('floorNumber')) specs.push({ label: 'Floor Number', value: getDdVal('floorNumber') });
+      if (getDdVal('facing')) specs.push({ label: 'Facing', value: getDdVal('facing') });
+      if (getDdVal('availability')) specs.push({ label: 'Availability', value: getDdVal('availability') });
+      if (getDdVal('gatedCommunity')) specs.push({ label: 'Gated Community', value: getDdVal('gatedCommunity') });
+      if (getDdVal('waterSupply')) specs.push({ label: 'Water Supply', value: getDdVal('waterSupply') });
+      if (getDdVal('expectedPrice')) specs.push({ label: 'Expected Price', value: `₹${Number(getDdVal('expectedPrice')).toLocaleString('en-IN')}` });
+      if (getDdVal('monthlyRent')) specs.push({ label: 'Monthly Rent', value: `₹${Number(getDdVal('monthlyRent')).toLocaleString('en-IN')}/mo` });
+      if (getDdVal('securityDeposit')) specs.push({ label: 'Security Deposit', value: `₹${Number(getDdVal('securityDeposit')).toLocaleString('en-IN')}` });
+      if (getDdVal('plotArea')) specs.push({ label: 'Plot Area', value: `${getDdVal('plotArea')} ${getDdVal('areaUnit') || 'sq.ft.'}` });
+      if (getDdVal('approvalAuthority')) specs.push({ label: 'Approval Authority', value: getDdVal('approvalAuthority') });
+      if (getDdVal('boundaryWall')) specs.push({ label: 'Boundary Wall', value: getDdVal('boundaryWall') });
+      
+      // Only use truly static fallback if we still have nothing
+      if (specs.length <= 2) {
+        specs.push(
+          { label: 'Layout', value: '1 RK, 1 Baths' },
+          { label: 'Ownership', value: 'Freehold' },
+          { label: 'Carpet Area', value: '244 sq.ft.' },
+          { label: 'Floor Number', value: '1' },
+          { label: 'Furnishing', value: 'Unfurnished' },
+          { label: 'Facing', value: 'East' }
+        );
+      }
+    }
+    return specs;
+  };
+
+  const getCircularWidgets = () => {
+    const widgets = [];
+    if (!property) return widgets;
+
+    if (property.buyDetails?.type || property.rentDetails?.type) {
+      widgets.push({
+        icon: LayoutTemplate,
+        label: property.buyDetails?.type || property.rentDetails?.type,
+        color: 'text-slate-600'
+      });
+    } else if (property.pgDetails?.gender) {
+      widgets.push({
+        icon: Users,
+        label: `${property.pgDetails.gender} PG`,
+        color: 'text-slate-600'
+      });
+    } else {
+      widgets.push({
+        icon: LayoutTemplate,
+        label: property.propertyType || 'Residential',
+        color: 'text-slate-600'
+      });
+    }
+
+    if (property.buyDetails?.area?.carpet) {
+      widgets.push({
+        icon: Maximize2,
+        label: `${property.buyDetails.area.carpet} ${property.buyDetails.area.unit || 'sqft'} carpet`,
+        color: 'text-slate-600'
+      });
+    } else if (property.plotDetails?.plotArea) {
+      widgets.push({
+        icon: Maximize2,
+        label: `${property.plotDetails.plotArea} ${property.plotDetails.unit || 'sqyrd'} area`,
+        color: 'text-slate-600'
+      });
+    } else if (property.dynamicData) {
+      const dd = property.dynamicData;
+      const getDd = (k) => typeof dd.get === 'function' ? dd.get(k) : dd[k];
+      const area = getDd('carpetArea') || getDd('plotArea') || getDd('superArea');
+      const unit = getDd('carpetAreaUnit') || getDd('areaUnit') || getDd('superAreaUnit') || 'sq.ft.';
+      if (area) {
+        widgets.push({ icon: Maximize2, label: `${area} ${unit} carpet`, color: 'text-slate-600' });
+      } else {
+        widgets.push({ icon: Maximize2, label: 'Area N/A', color: 'text-slate-400' });
+      }
+    }
+
+    if (property.buyDetails?.expectedPrice) {
+      const carpetVal = property.buyDetails.area?.carpet || 1;
+      const perSqft = Math.round(property.buyDetails.expectedPrice / carpetVal);
+      widgets.push({
+        icon: null,
+        symbol: '₹',
+        label: `₹${perSqft.toLocaleString('en-IN')}/sqft`,
+        color: 'text-[#0061df]'
+      });
+    } else if (property.rentDetails?.monthlyRent) {
+      widgets.push({
+        icon: null,
+        symbol: '₹',
+        label: `₹${property.rentDetails.monthlyRent.toLocaleString('en-IN')}/mo`,
+        color: 'text-[#0061df]'
+      });
+    } else if (property.pgDetails?.securityDeposit) {
+      widgets.push({
+        icon: null,
+        symbol: '₹',
+        label: `₹${property.pgDetails.securityDeposit.toLocaleString('en-IN')} Dep`,
+        color: 'text-[#0061df]'
+      });
+    } else if (property.dynamicData) {
+      const dd = property.dynamicData;
+      const getDd = (k) => typeof dd.get === 'function' ? dd.get(k) : dd[k];
+      const price = getDd('expectedPrice') || getDd('monthlyRent') || getDd('expectedRent');
+      if (price) {
+        widgets.push({ icon: null, symbol: '₹', label: formatPriceLakhCrore(price), color: 'text-[#0061df]' });
+      } else {
+        widgets.push({ icon: null, symbol: '₹', label: 'Price on Request', color: 'text-[#0061df]' });
+      }
+    }
+
+    if (property.buyDetails?.facing || property.plotDetails?.facing) {
+      widgets.push({
+        icon: Compass,
+        label: `${property.buyDetails?.facing || property.plotDetails?.facing} Facing`,
+        color: 'text-slate-600'
+      });
+    } else if (property.buyDetails?.propertyAge) {
+      widgets.push({
+        icon: Calendar,
+        label: `${property.buyDetails.propertyAge} Old`,
+        color: 'text-slate-600'
+      });
+    } else if (property.dynamicData) {
+      const dd = property.dynamicData;
+      const getDd = (k) => typeof dd.get === 'function' ? dd.get(k) : dd[k];
+      const facing = getDd('facing');
+      if (facing) {
+        widgets.push({ icon: Compass, label: `${facing} Facing`, color: 'text-slate-600' });
+      } else {
+        widgets.push({ icon: Compass, label: 'Facing N/A', color: 'text-slate-400' });
+      }
+    }
+
+    if (property.rentDetails?.furnishing) {
+      widgets.push({
+        icon: Grid,
+        label: property.rentDetails.furnishing,
+        color: 'text-slate-600'
+      });
+    } else if (property.pgDetails?.occupancy) {
+      widgets.push({
+        icon: Users,
+        label: property.pgDetails.occupancy,
+        color: 'text-slate-600'
+      });
+    } else if (property.dynamicData) {
+      const dd = property.dynamicData;
+      const getDd = (k) => typeof dd.get === 'function' ? dd.get(k) : dd[k];
+      const furnishing = getDd('furnishing');
+      if (furnishing) {
+        widgets.push({ icon: Grid, label: furnishing, color: 'text-slate-600' });
+      } else {
+        widgets.push({ icon: Grid, label: 'Details N/A', color: 'text-slate-400' });
+      }
+    }
+
+    return widgets.slice(0, 5);
+  };
+
   const propertyType = property?.propertyType;
   const isBedBased = ['hostel', 'pg'].includes(propertyType?.toLowerCase());
 
-  // Update guests when rooms change to ensure valid state
   useEffect(() => {
     if (isBedBased) {
       setGuests(prev => ({ ...prev, adults: prev.rooms, children: 0 }));
@@ -234,16 +534,9 @@ const PropertyDetailsPage = () => {
 
   const getDefaultPgDates = () => {
     const start = new Date().toISOString().split('T')[0];
-    const end = new Date(new Date().getTime() + 2592000000).toISOString().split('T')[0]; // 30 days
+    const end = new Date(new Date().getTime() + 2592000000).toISOString().split('T')[0]; 
     return { checkIn: start, checkOut: end };
   };
-
-  useEffect(() => {
-    if (id) {
-      fetchReviews();
-      fetchOffers();
-    }
-  }, [id]);
 
   const fetchOffers = async () => {
     try {
@@ -255,12 +548,11 @@ const PropertyDetailsPage = () => {
   };
 
   useEffect(() => {
-    if (localStorage.getItem('token')) {
+    if (localStorage.getItem('user')) {
       userService.getSavedHotels()
         .then(res => {
           const list = res.data || res.savedHotels || [];
           if (Array.isArray(list)) {
-            // Check if current ID exists in the list (handles populated objects or raw IDs)
             const found = list.some(h => (typeof h === 'object' ? h._id : h) === id);
             setIsSaved(found);
           }
@@ -270,21 +562,16 @@ const PropertyDetailsPage = () => {
   }, [id]);
 
   const handleToggleSave = async () => {
-    if (!localStorage.getItem('token')) {
+    if (!localStorage.getItem('user')) {
       toast.error("Please login to save properties");
-      // Optional: navigate to login
       return;
     }
     try {
-      // Optimistic update
       const newState = !isSaved;
       setIsSaved(newState);
-
       await userService.toggleSavedHotel(id);
-
       toast.success(newState ? "Added to wishlist" : "Removed from wishlist");
     } catch (err) {
-      // Revert on error
       setIsSaved(!isSaved);
       toast.error("Failed to update wishlist");
     }
@@ -292,7 +579,7 @@ const PropertyDetailsPage = () => {
 
   const handleShare = async () => {
     const shareData = {
-      title: property?.name || 'HoomZo Stay',
+      title: property?.name || 'Get-Right-home',
       text: `Check out ${property?.name || 'this amazing place'} on Get-Right-Home!`,
       url: window.location.href
     };
@@ -320,7 +607,7 @@ const PropertyDetailsPage = () => {
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
-    if (!localStorage.getItem('token')) {
+    if (!localStorage.getItem('user')) {
       toast.error('Please login to submit a review');
       return;
     }
@@ -342,12 +629,61 @@ const PropertyDetailsPage = () => {
     }
   };
 
-  useEffect(() => {
-    setCurrentImageIndex(0);
-  }, [selectedRoom]);
+  const checkAvailability = async (directCall = false) => {
+    const isPgOrHostel = propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel';
+    if (!selectedRoom || (!isPgOrHostel && (!dates.checkIn || !dates.checkOut))) {
+      if (directCall) {
+        toast.error(selectedRoom ? "Please select dates first" : "Please select a room/unit first");
+      }
+      setAvailability(null);
+      return null;
+    }
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-surface" size={40} /></div>;
-  if (!property) return <div className="h-screen flex items-center justify-center">Property not found</div>;
+    const pgDates = getDefaultPgDates();
+    const checkIn = (isPgOrHostel && !dates.checkIn) ? pgDates.checkIn : dates.checkIn;
+    const checkOut = (isPgOrHostel && !dates.checkOut) ? pgDates.checkOut : dates.checkOut;
+
+    setCheckingAvailability(true);
+    try {
+      const response = await availabilityService.check({
+        propertyId: id,
+        roomTypeId: selectedRoom._id,
+        checkIn: checkIn,
+        checkOut: checkOut,
+        rooms: guests.rooms
+      });
+
+      let result = null;
+      if (Array.isArray(response)) {
+        const roomAvail = response.find(r => String(r.roomTypeId) === String(selectedRoom._id));
+        if (roomAvail) {
+          const requiredUnits = guests.rooms || 1;
+          if (roomAvail.availableUnits >= requiredUnits) {
+            result = { available: true, unitsLeft: roomAvail.availableUnits };
+          } else {
+            result = { available: false, message: `Only ${roomAvail.availableUnits} units available`, unitsLeft: roomAvail.availableUnits };
+          }
+        } else {
+          result = { available: false, message: "Sold Out for these dates", unitsLeft: 0 };
+        }
+      } else {
+        result = response;
+      }
+
+      setAvailability(result);
+      return result;
+    } catch (error) {
+      console.error("Availability check failed:", error);
+      const errorResult = { available: false, message: error.message || "Unable to verify availability" };
+      setAvailability(errorResult);
+      return errorResult;
+    } finally {
+      setCheckingAvailability(false);
+    }
+  };
+
+  if (loading) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-[#0061df]" size={36} /></div>;
+  if (!property) return <div className="h-screen flex items-center justify-center bg-white text-gray-500 font-medium">Property not found</div>;
 
   const {
     _id, name, address, images, description, avgRating: rating,
@@ -358,7 +694,6 @@ const PropertyDetailsPage = () => {
   } = property;
 
   const hasInventory = inventory && inventory.length > 0;
-  // Treated as Whole Unit if it's a Villa, Independent House, or (Homestay/Apartment with NO separate inventory units)
   const isWholeUnit = [
     'villa',
     'independent house',
@@ -370,11 +705,19 @@ const PropertyDetailsPage = () => {
   ].includes(propertyType?.toLowerCase() || '') ||
   (['homestay', 'apartment'].includes(propertyType?.toLowerCase() || '') && !hasInventory);
 
+  const getRoomPrice = (room) => {
+    if (!room) return null;
+    if (room.pricing) {
+      if (typeof room.pricing.basePrice === 'number') return room.pricing.basePrice;
+      if (typeof room.pricing.weekendPrice === 'number') return room.pricing.weekendPrice;
+    }
+    return room.price || null;
+  };
+
   const getNightBreakup = (room) => {
     if (!room) {
       return { nights: 0, weekdayNights: 0, weekendNights: 0, perNight: 0 };
     }
-
     const pricing = room.pricing || {};
     const { basePrice, weekendPrice } = pricing;
     const fallbackPrice = getRoomPrice(room);
@@ -410,15 +753,6 @@ const PropertyDetailsPage = () => {
     return { nights, weekdayNights, weekendNights, perNight };
   };
 
-  const getRoomPrice = (room) => {
-    if (!room) return null;
-    if (room.pricing) {
-      if (typeof room.pricing.basePrice === 'number') return room.pricing.basePrice;
-      if (typeof room.pricing.weekendPrice === 'number') return room.pricing.weekendPrice;
-    }
-    return room.price || null;
-  };
-
   const getExtraPricingLabels = (room) => {
     if (!room || !room.pricing) return [];
     const labels = [];
@@ -434,41 +768,6 @@ const PropertyDetailsPage = () => {
       labels.push(`Extra child: ₹${room.pricing.extraChildPrice}${suffix ? ` / ${suffix}` : ''}`);
     }
     return labels;
-  };
-
-  const getMaxAdults = () => {
-    // If a specific room/unit is selected (which contains the limits), use it
-    if (selectedRoom) {
-      // Multiply by number of units/rooms selected if applicable
-      // But for 'Entire Villa' (inventoryType='entire'), usually quantity is 1 which is guests.rooms
-      return (selectedRoom.maxAdults || 12) * (isWholeUnit ? 1 : guests.rooms);
-    }
-
-    if (isWholeUnit) return property.structure?.maxGuests || property.maxGuests || 12;
-    if (isBedBased) return guests.rooms; // 1 person per bed
-
-    if (propertyType === 'Resort') return guests.rooms * 4;
-    return guests.rooms * 3;
-  };
-
-  const getMaxChildren = () => {
-    if (selectedRoom) {
-      if (selectedRoom.maxChildren !== undefined) {
-        return selectedRoom.maxChildren * (isWholeUnit ? 1 : guests.rooms);
-      }
-    }
-
-    if (isBedBased) return 0;
-    if (isWholeUnit) return 6;
-
-    return guests.rooms * 2;
-  };
-
-  const getUnitLabel = () => {
-    if (propertyType === 'Tent') return 'Tents';
-    if (propertyType === 'Homestay' || propertyType === 'Villa') return 'Units';
-    if (['PG', 'Hostel'].includes(propertyType)) return 'Beds';
-    return 'Rooms';
   };
 
   const getGalleryImages = () => {
@@ -489,7 +788,7 @@ const PropertyDetailsPage = () => {
   const activeRoom = selectedRoom || (hasInventory ? inventory[0] : null);
   const stayPricing = getNightBreakup(activeRoom);
   const bookingRoom = selectedRoom || activeRoom;
-  const extraPricingLabels = getExtraPricingLabels(bookingRoom);
+  
   const getPriceBreakdown = () => {
     const isPg = propertyType?.toLowerCase() === 'pg';
     const isHostel = propertyType?.toLowerCase() === 'hostel';
@@ -497,29 +796,17 @@ const PropertyDetailsPage = () => {
     if (!selectedRoom || (!isPgOrHostel && (!dates.checkIn || !dates.checkOut))) return null;
 
     let { nights: stayNights, perNight } = stayPricing;
-
-    // For PGs/Hostels, if dates aren't selected, we assume 1 month (1 unit of pricing)
     const nights = isPgOrHostel ? 1 : stayNights;
     if (nights === 0 && !isPgOrHostel) return null;
 
-    // Ensure perNight is valid even if dates are missing for PG/Hostel
     if (isPgOrHostel && !dates.checkIn) {
       perNight = getRoomPrice(selectedRoom);
     }
 
     const units = isWholeUnit ? 1 : guests.rooms;
-
-    // Base Occupancy Logic
-    // If Villa/WholeUnit -> assuming base is 2 per unit for calculation if extraAdultPrice > 0, 
-    // BUT usually 'Entire Villa' standard price covers up to a certain amount.
-    // Given the user prompt implies dynamic calculation, we assume Standard Base = 2.
-    // Ideally this should come from backend (e.g. baseAdults). Defaults to 2.
-    // Dynamic Base Capacity from Room/Property
     const baseAdultsPerUnit = selectedRoom.maxAdults || property.maxGuests || 2;
     const baseChildrenPerUnit = selectedRoom.maxChildren !== undefined ? selectedRoom.maxChildren : 0;
 
-    // Calculate Extras
-    // Total Adults - (Base * Units)
     const extraAdultsCount = Math.max(0, guests.adults - (baseAdultsPerUnit * units));
     const extraChildrenCount = Math.max(0, guests.children - (baseChildrenPerUnit * units));
 
@@ -533,10 +820,8 @@ const PropertyDetailsPage = () => {
 
     const grossAmount = totalBasePrice + totalExtraAdultCharge + totalExtraChildCharge;
 
-    // --- DISCOUNT CALCULATION ---
     let discountAmount = 0;
     if (appliedOffer) {
-      // Validate Min Booking Amount
       if (grossAmount >= (appliedOffer.minBookingAmount || 0)) {
         if (appliedOffer.discountType === 'percentage') {
           discountAmount = (grossAmount * appliedOffer.discountValue) / 100;
@@ -547,23 +832,13 @@ const PropertyDetailsPage = () => {
           discountAmount = appliedOffer.discountValue;
         }
         discountAmount = Math.floor(discountAmount);
-      } else {
-        // Auto-remove if condition met no longer? Or simply don't apply.
-        // Let's not apply but maybe don't remove so user sees why?
-        // Simpler: Just 0 discount.
-        discountAmount = 0;
       }
     }
 
-    // Ensure we don't discount below 0
     discountAmount = Math.min(discountAmount, grossAmount);
-
-    const commissionableAmount = grossAmount; // Base + Extras
+    const commissionableAmount = grossAmount;
     const taxableAmount = grossAmount - discountAmount;
-
-    // Tax Calculation (on Commissionable Amount) matching backend logic
     const taxAmount = Math.round((commissionableAmount * taxRate) / 100);
-
     const grandTotal = taxableAmount + taxAmount;
 
     return {
@@ -619,8 +894,6 @@ const PropertyDetailsPage = () => {
     }
   }
 
-  const priceLabel = isPgGroup ? 'Monthly Rent' : isBuyGroup ? 'Asking Price' : isRentGroup ? 'Monthly Rent' : 'Price per night';
-
   const priceBreakdown = getPriceBreakdown();
 
   const handlePrevImage = () => {
@@ -633,136 +906,113 @@ const PropertyDetailsPage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
   };
 
-  const handleInquiry = async () => {
-    if (!localStorage.getItem('token')) {
-      toast.error("Please login to send inquiry");
-      navigate('/login', { state: { from: `/hotel/${id}` } });
+  const handleSendOtp = async () => {
+    if (!enquiryForm.phone) {
+      toast.error("Please enter your mobile number");
       return;
+    }
+    setSendingOtp(true);
+    try {
+      await authService.sendOtp(enquiryForm.phone, 'login', 'user');
+      setOtpSent(true);
+      toast.success("OTP sent to your mobile number!");
+    } catch (err) {
+      toast.error(err.message || "Failed to send OTP");
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleEnquirySubmit = async (e) => {
+    e.preventDefault();
+    const isLoggedIn = !!localStorage.getItem('user');
+
+    if (!isLoggedIn) {
+      if (!enquiryForm.name.trim()) {
+        toast.error("Please enter your name");
+        return;
+      }
+      if (!enquiryForm.phone.trim()) {
+        toast.error("Please enter your mobile number");
+        return;
+      }
+      if (!enquiryForm.otp.trim()) {
+        toast.error("Please enter the OTP received");
+        return;
+      }
     }
 
     setBookingLoading(true);
     try {
-      const pType = propertyType?.toLowerCase() || 'buy';
-      let messageBody = '';
-      let preferredDate = dates.checkIn ? new Date(dates.checkIn) : new Date();
-
-      if (enquiryTab === 'contact') {
-        messageBody = `[Contact Owner Request]\nMessage: ${enquiryMessage || 'Hi, I am interested in this property. Please share details.'}`;
-      } else if (enquiryTab === 'visit') {
-        if (!visitDate) {
-          toast.error("Please select a date for your visit");
-          setBookingLoading(false);
-          return;
-        }
-        preferredDate = new Date(visitDate);
-        messageBody = `[Schedule Visit Request]\nDate: ${visitDate}\nTime Slot: ${visitSlot}\nMessage: ${enquiryMessage || 'I would like to schedule a visit to this property.'}`;
-      } else if (enquiryTab === 'callback') {
-        messageBody = `[Request Callback]\nPreferred Time: ${callbackTime}\nMessage: ${enquiryMessage || 'Please call me back.'}`;
+      let response;
+      if (isLoggedIn) {
+        let messageBody = `[Inquiry from Detail Page]\nName: ${leadName}\nPhone: ${leadPhone}\nAgent Status: ${isAgent ? 'Real Estate Agent' : 'Individual/Buyer'}\nMessage: ${enquiryForm.message || 'Interested in this property.'}`;
+        response = await enquiryService.create({
+          propertyId: id,
+          enquiryType: 'contact_owner',
+          message: messageBody,
+          preferredDate: new Date(),
+          timeSlot: '',
+          budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
+        });
+      } else {
+        response = await authService.lazyEnquiryLogin({
+          name: enquiryForm.name,
+          phone: enquiryForm.phone,
+          otp: enquiryForm.otp,
+          message: enquiryForm.message,
+          propertyId: id
+        });
       }
-
-      // Determine enquiry type
-      let enquiryType = 'general';
-      if (enquiryTab === 'contact') enquiryType = 'contact_owner';
-      else if (enquiryTab === 'visit') enquiryType = 'schedule_visit';
-      else if (enquiryTab === 'callback') enquiryType = 'request_callback';
-
-      const response = await enquiryService.create({
-        propertyId: id,
-        enquiryType,
-        message: messageBody,
-        preferredDate: preferredDate,
-        timeSlot: enquiryTab === 'visit' ? (visitSlot || '') : (enquiryTab === 'callback' ? callbackTime : ''),
-        budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
-      });
 
       if (response.success) {
-        toast.success(
-          enquiryTab === 'visit' ? "Visit scheduled successfully! The partner will contact you soon." :
-          enquiryTab === 'callback' ? "Callback requested! You will get a call soon." :
-          "Inquiry sent to owner successfully!"
-        );
-        setEnquiryMessage('');
+        toast.success("Enquiry submitted successfully!");
+        setShowEnquiryModal(false);
+        setOtpSent(false);
+        setEnquiryForm({ name: '', phone: '', otp: '', message: 'Interested in this property.' });
+        
+        if (response.user) {
+          localStorage.setItem('user', JSON.stringify(response.user));
+          setLeadName(response.user.name || '');
+          setLeadPhone(response.user.phone || '');
+          window.dispatchEvent(new Event('storage'));
+        }
+
+        await handleRevealContact();
+      } else {
+        toast.error(response.message || "Failed to submit enquiry");
       }
     } catch (error) {
-      toast.error(error.message || "Failed to send inquiry");
+      toast.error(error.message || "Failed to submit enquiry");
     } finally {
       setBookingLoading(false);
     }
   };
 
-  const handleBook = async () => {
-    const pType = propertyType?.toLowerCase();
-    if (pType === 'buy' || pType === 'plot' || pType === 'rent') {
-      handleInquiry();
+  const handleEnquiryButtonClick = () => {
+    if (!agreedTerms) {
+      toast.error("Please agree to the Terms & Conditions");
+      return;
+    }
+    if (revealedNumber) {
       return;
     }
 
-    const isPgOrHostel = pType === 'pg' || pType === 'hostel';
-    if (!isPgOrHostel && (!dates.checkIn || !dates.checkOut)) {
-      toast.error("Please select check-in and check-out dates");
-      return;
-    }
-
-    if (!selectedRoom && !['Rent', 'Buy', 'Plot'].includes(propertyType)) {
-      toast.error("Please select a room/unit");
-      return;
-    }
-
-    // Capture availability result (either from state or fresh check)
-    let currentAvailability = availability;
-
-    if (!currentAvailability || checkingAvailability) {
-      // If we are currently checking, or haven't checked yet, do a fresh wait
-      currentAvailability = await checkAvailability();
-    }
-
-    if (!currentAvailability || currentAvailability.available !== true) {
-      toast.error(currentAvailability?.message || (isPgOrHostel ? "Selected room/bed is not available" : "Selected room is not available for these dates"));
-      return;
-    }
-
-    if (!localStorage.getItem('token')) {
-      toast.error("Please login to book");
-      navigate('/login', { state: { from: `/hotel/${id}` } });
-      return;
-    }
-
-    if (!priceBreakdown) {
-      toast.error("Unable to calculate price. Please check dates.");
-      return;
-    }
-
-    navigate('/checkout', {
-      state: {
-        property,
-        selectedRoom,
-        dates: (propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? getDefaultPgDates() : dates,
-        guests: {
-          ...guests,
-          rooms: guests.rooms
-        },
-        priceBreakdown,
-        taxRate,
-        couponCode: priceBreakdown.couponCode
+    const userRaw = localStorage.getItem('user');
+    if (userRaw) {
+      try {
+        const u = JSON.parse(userRaw);
+        setEnquiryForm(prev => ({
+          ...prev,
+          name: u.name || '',
+          phone: u.phone || '',
+          otp: '123456'
+        }));
+      } catch (err) {
+        console.error(err);
       }
-    });
-  };
-
-  const handleApplyOffer = (offer) => {
-    // Basic pre-validation
-    const gross = priceBreakdown ? priceBreakdown.grossAmount : (bookingBarPrice || 0);
-    if (offer.minBookingAmount && gross < offer.minBookingAmount) {
-      toast.error(`Min booking amount of ₹${offer.minBookingAmount} required`);
-      return;
     }
-    setAppliedOffer(offer);
-    setShowOffersModal(false);
-    toast.success(`'${offer.code}' applied!`);
-  };
-
-  const handleRemoveOffer = () => {
-    setAppliedOffer(null);
-    toast.success('Coupon removed');
+    setShowEnquiryModal(true);
   };
 
   const handleRevealContact = async () => {
@@ -772,11 +1022,19 @@ const PropertyDetailsPage = () => {
       const response = await propertyService.revealContact(id);
       if (response.success) {
         setRevealedNumber(response.contactNumber);
+        toast.success("Contact number revealed!");
       } else {
         toast.error(response.message || "Failed to reveal contact");
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to reveal contact");
+      const errData = error.response?.data || error;
+      if (errData?.subscriptionExpired) {
+        toast.error("This seller's subscription has expired. Their contact details are currently unavailable.", { duration: 5000 });
+      } else if (errData?.limitReached) {
+        toast.error("This seller has reached their monthly lead limit. Please try again next month or contact another seller.", { duration: 5000 });
+      } else {
+        toast.error(errData?.message || "Failed to reveal contact");
+      }
     } finally {
       setRevealLoading(false);
     }
@@ -798,10 +1056,8 @@ const PropertyDetailsPage = () => {
     if (!phone || phone === 'N/A') return 'N/A';
     const str = String(phone).trim();
     if (str.length < 5) return str;
-    
     let cleanStr = str;
     let countryPrefix = '';
-    
     if (str.startsWith('+91')) {
       cleanStr = str.substring(3).trim();
       countryPrefix = '+91 ';
@@ -815,1143 +1071,1309 @@ const PropertyDetailsPage = () => {
         cleanStr = str.substring(3);
       }
     }
-    
-    if (cleanStr.length < 5) return str;
     return `${countryPrefix}${cleanStr.substring(0, 4)}XXXXXX${cleanStr.substring(cleanStr.length - 2)}`;
   };
 
-  const renderEnquiryWidget = () => {
-    const ownerName = property?.partnerId?.name || property?.userId?.name || 'Owner';
-    const dbPhone = property?.contactNumber || property?.partnerId?.phone || property?.userId?.phone || 'N/A';
-    const displayPhone = revealedNumber ? revealedNumber : maskPhone(dbPhone);
+  const dbPhone = property?.contactNumber || property?.partnerId?.phone || property?.userId?.phone || 'N/A';
+  const displayPhone = revealedNumber ? revealedNumber : maskPhone(dbPhone);
+  const sellerName = property?.partnerId?.name || property?.userId?.name || 'Umesh Diwakar';
+  const memberSinceDate = property?.partnerId?.createdAt || property?.userId?.createdAt || '';
+  const memberSinceText = memberSinceDate ? `Member Since ${formatMemberSince(memberSinceDate)}` : 'Member Since Jan 2023';
+  const listedCount = property?.partnerId?.listedPropertiesCount || property?.userId?.listedPropertiesCount || 46;
+  const verifiedCount = property?.partnerId?.verifiedPropertiesCount || property?.userId?.verifiedPropertiesCount || 12;
 
-    return (
-      <div className="space-y-4">
-        {/* Price Card */}
-        <div className="bg-[#f0f7ff] rounded-2xl p-5 mb-4 border border-blue-50/50">
-          <p className="text-sm text-gray-500 font-semibold mb-1">Price</p>
-          <p className="text-3xl font-black text-[#0061df] tracking-tight">
-            {formatPriceLakhCrore(bookingBarPrice)}
-            {(isRentGroup || isPgGroup) && <span className="text-sm text-gray-400 font-medium ml-1">/ month</span>}
-          </p>
-        </div>
-
-        {/* 3 Call-to-actions */}
-        <div className="space-y-3">
-          <button
-            onClick={handleRevealContact}
-            disabled={revealLoading}
-            className="w-full py-3.5 bg-[#0061df] hover:bg-[#0052be] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm text-sm"
-          >
-            {revealLoading ? <Loader2 className="animate-spin text-white" size={16} /> : (
-              <>
-                <Phone size={16} className="fill-white text-white" />
-                <span>Contact Owner</span>
-              </>
-            )}
-          </button>
-
-          <button
-            onClick={() => {
-              if (!localStorage.getItem('token')) {
-                toast.error("Please login to schedule a visit");
-                navigate('/login', { state: { from: `/hotel/${_id}` } });
-                return;
-              }
-              setShowVisitModal(true);
-            }}
-            className="w-full py-3.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm text-sm"
-          >
-            <Calendar size={16} className="text-slate-500" />
-            <span>Schedule Visit</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (!localStorage.getItem('token')) {
-                toast.error("Please login to request a callback");
-                navigate('/login', { state: { from: `/hotel/${_id}` } });
-                return;
-              }
-              setShowCallbackModal(true);
-            }}
-            className="w-full py-3.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm text-sm"
-          >
-            <Phone size={16} className="text-slate-500" />
-            <span>Request Callback</span>
-          </button>
-        </div>
-
-        <hr className="border-slate-100 my-4" />
-
-        {/* Owner Details */}
-        <div>
-          <h3 className="text-slate-900 text-base font-bold mb-3">Owner Details</h3>
-          <div className="grid grid-cols-3 gap-y-2 text-sm mb-4">
-            <span className="text-slate-500 font-medium col-span-1">Name:</span>
-            <span className="text-slate-800 font-bold col-span-2">{ownerName}</span>
-            
-            <span className="text-slate-500 font-medium col-span-1">Phone:</span>
-            <span className="text-slate-800 font-bold col-span-2">{displayPhone}</span>
-          </div>
-        </div>
-
-        {/* Support Alert Box */}
-        <div className="bg-[#eff6ff] border border-blue-100 rounded-xl p-3.5 text-xs text-blue-700 font-medium flex items-start gap-2 leading-relaxed">
-          <Info size={14} className="mt-0.5 shrink-0 text-blue-600" />
-          <span>Contact our support team for inquiries about this property</span>
-        </div>
-
-        {/* Support Buttons */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              const msg = encodeURIComponent(`Hi, I am interested in property "${name}" (${_id}) listed on Get Right Home.`);
-              window.open(`https://wa.me/919652961607?text=${msg}`, '_blank');
-            }}
-            className="flex-1 py-2.5 bg-[#25d366] hover:bg-[#20ba5a] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
-          >
-            💬 WhatsApp Support
-          </button>
-          <a
-            href="tel:+919652961607"
-            className="flex-1 py-2.5 bg-[#1e293b] hover:bg-[#0f172a] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all text-center"
-          >
-            📞 Call Support
-          </a>
-        </div>
-
-        <p className="text-center text-[10px] text-slate-500 font-semibold tracking-wide mt-2">
-          Platform Support: +91 9652961607
-        </p>
-      </div>
-    );
+  const localityName = property?.address?.locality || property?.address?.area || property?.address?.city || 'Goregaon East, Mumbai';
+  const totalLocalityReviews = localityStats?.totalReviews || 205;
+  const avgLocalityRating = localityStats?.averageRating || 4.3;
+  const getStarPercentage = (starVal) => {
+    if (!localityStats?.ratingDistribution) {
+      return starVal === 5 ? 65 : (starVal === 4 ? 25 : (starVal === 3 ? 8 : 2));
+    }
+    const dist = localityStats.ratingDistribution;
+    const count = dist[starVal] || 0;
+    if (totalLocalityReviews <= 0) return 0;
+    return Math.round((count / totalLocalityReviews) * 100);
   };
+  const featureRatings = [
+    { title: 'Connectivity', val: `${localityStats?.ratingsByFeature?.connectivity?.toFixed(1) || '4.3'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.connectivity || 4.3) * 20) },
+    { title: 'Lifestyle', val: `${localityStats?.ratingsByFeature?.lifestyle?.toFixed(1) || '4.3'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.lifestyle || 4.3) * 20) },
+    { title: 'Safety', val: `${localityStats?.ratingsByFeature?.safety?.toFixed(1) || '4.2'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.safety || 4.2) * 20) },
+    { title: 'Green Area', val: `${localityStats?.ratingsByFeature?.greenArea?.toFixed(1) || '4.2'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.greenArea || 4.2) * 20) }
+  ];
+  const localityPositives = localityStats?.positives && localityStats.positives.length > 0
+    ? localityStats.positives
+    : ['Good Public Transport', 'Easy Cab/Auto Availability', 'Good Schools are nearby', 'Markets at a walkable distance', 'Well-maintained Roads', 'Good Hospitals are nearby'];
+
+  const localityNegatives = localityStats?.negatives && localityStats.negatives.length > 0
+    ? localityStats.negatives
+    : ['Frequent Traffic Jams', 'Frequent Parking Issues'];
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-24 lg:pb-12 relative">
-      {/* Header Image Gallery */}
-      <div className="relative h-[40vh] md:h-[60vh] bg-gray-200 group z-0">
-        <div className="hidden md:grid h-full grid-cols-4 gap-1.5 p-1.5">
-          {/* Main Large Image */}
-          <div className="relative col-span-2 h-full overflow-hidden rounded-l-xl cursor-pointer" onClick={() => { setCurrentImageIndex(0); setShowImageModal(true); }}>
-            <img src={galleryImages[0]} alt={name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
-            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
+    <div className="bg-[#f8fafe] min-h-screen pb-32 text-gray-800 font-sans selection:bg-blue-100 antialiased">
+      
+      {/* Premium Top Navigation Action Bar */}
+      <div className="sticky top-0 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 z-40 transition-all">
+        <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <ArrowLeft size={20} className="text-gray-700" />
+            </button>
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider line-clamp-1">
+              {property?.propertyType} {property?.transactionType ? `· ${property.transactionType}` : ''}
+            </span>
+              <span className="text-sm font-bold text-gray-900 line-clamp-1">
+                {name || 'Property Details'}
+              </span>
+            </div>
           </div>
-
-          {/* Middle Column */}
-          <div className="col-span-1 flex flex-col gap-1.5 h-full">
-            <div className="relative h-1/2 overflow-hidden cursor-pointer" onClick={() => { setCurrentImageIndex(1); setShowImageModal(true); }}>
-              <img src={galleryImages[1] || galleryImages[0]} alt={name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
-            </div>
-            <div className="relative h-1/2 overflow-hidden cursor-pointer" onClick={() => { setCurrentImageIndex(2); setShowImageModal(true); }}>
-              <img src={galleryImages[2] || galleryImages[0]} alt={name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
-            </div>
-          </div>
-
-          {/* Right Column */}
-          <div className="col-span-1 flex flex-col gap-1.5 h-full">
-            <div className="relative h-1/2 overflow-hidden rounded-tr-xl cursor-pointer" onClick={() => { setCurrentImageIndex(3); setShowImageModal(true); }}>
-              <img src={galleryImages[3] || galleryImages[0]} alt={name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
-            </div>
-            <div className="relative h-1/2 overflow-hidden rounded-br-xl cursor-pointer" onClick={() => { setCurrentImageIndex(Math.min(4, galleryImages.length - 1)); setShowImageModal(true); }}>
-              <img src={galleryImages[Math.min(4, galleryImages.length - 1)] || galleryImages[0]} alt={name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
-              {/* View All Overlay */}
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[2px] hover:bg-black/60 transition-colors group/view">
-                <span className="text-white font-bold text-sm tracking-wide border border-white/50 px-4 py-2 rounded-full group-hover/view:bg-white group-hover/view:text-black transition-all">
-                  +{galleryImages.length > 5 ? galleryImages.length - 5 : 'View'} Photos
-                </span>
-              </div>
-            </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={handleShare} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600">
+              <Share2 size={19} />
+            </button>
+            <button onClick={handleToggleSave} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <Heart size={19} className={isSaved ? 'fill-red-500 text-red-500' : 'text-gray-600'} />
+            </button>
           </div>
         </div>
 
-        {/* Mobile Carousel */}
-        <div className="md:hidden relative h-full w-full bg-gray-200">
-          <img
-            src={mainImage}
-            alt={name}
-            onClick={() => setShowImageModal(true)}
-            className="w-full h-full object-cover"
-          />
-          {galleryImages.length > 1 && (
-            <>
-              <button
-                onClick={handlePrevImage}
-                className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-md border border-white/20"
+        {/* Scroll link Horizontal Navigation Tabs */}
+        <div 
+          ref={tabsContainerRef}
+          className="max-w-xl mx-auto px-3 border-t border-gray-50 flex items-center gap-1 overflow-x-auto hide-scrollbar py-2 bg-white"
+        >
+          {[
+            { id: 'overview', label: 'Overview' },
+            { id: 'highlights', label: 'Highlights' },
+            { id: 'property-details', label: 'Property Details' },
+            { id: 'photos', label: 'Photos' },
+            { id: 'facilities', label: 'Facilities' },
+            { id: 'seller', label: 'Seller' },
+            { id: 'compare', label: 'Compare' },
+            { id: 'explore-locality', label: 'Explore Locality' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              data-active={activeTab === tab.id ? 'true' : 'false'}
+              onClick={() => scrollToSection(tab.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                activeTab === tab.id
+                  ? 'bg-blue-50 text-[#0061df]'
+                  : 'text-gray-500 hover:text-gray-900 bg-transparent'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Single Column Container - Match Premium Mobile View */}
+      <div className="max-w-xl mx-auto px-4 pt-4 space-y-4">
+
+        {/* 1. SECTION: HERO IMAGE GALLERY (id="overview") */}
+        <div id="overview" className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm relative group">
+          <div className="relative h-[250px] bg-slate-900">
+            <img
+              src={mainImage}
+              alt={name}
+              onClick={() => setShowImageModal(true)}
+              className="w-full h-full object-cover cursor-zoom-in"
+            />
+            
+            {/* Top Verified Indicator overlay */}
+            <div className="absolute top-3 left-3 flex gap-1.5">
+              {isVerified && (
+                <span className="bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded flex items-center gap-1 shadow">
+                  <Shield size={10} className="fill-white text-emerald-600" />
+                  Verified
+                </span>
+              )}
+              {isFeatured && (
+                <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                  Featured
+                </span>
+              )}
+            </div>
+
+            {/* Price Overlay tag inside image block like 99acres (Image 5) */}
+            <div className="absolute bottom-4 left-4 text-white z-10 drop-shadow-md">
+              <h2 className="text-2xl font-black flex items-baseline gap-1">
+                {formatPriceLakhCrore(bookingBarPrice)}
+                {(isRentGroup || isPgGroup) && <span className="text-xs font-medium opacity-85">/mo</span>}
+              </h2>
+              <p className="text-[10px] opacity-90 font-medium">
+                {property?.dynamicData?.priceNegotiable === 'Yes' || property?.isNegotiable ? 'Negotiable' : 'Non-negotiable'}
+                {property?.dynamicData?.brokersOk === 'Yes' ? ', Brokers OK' : ''}
+                {property?.dynamicData?.maintenanceCharges ? `, ₹${Number(property.dynamicData.maintenanceCharges).toLocaleString('en-IN')} maintenance` : ''}
+              </p>
+              <button 
+                onClick={() => setShowOffersModal(true)} 
+                className="mt-1 bg-white/20 backdrop-blur-md border border-white/25 px-2.5 py-1 rounded text-[10px] font-bold flex items-center gap-1 active:scale-95 transition-all text-white"
               >
-                <ChevronLeft size={20} />
+                See Price Details <ChevronRight size={10} />
               </button>
-              <button
-                onClick={handleNextImage}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-md border border-white/20"
-              >
-                <ChevronRight size={20} />
-              </button>
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-10">
-                {galleryImages.map((_, index) => (
-                  <span
-                    key={index}
-                    className={`w-1.5 h-1.5 rounded-full transition-all shadow-sm ${index === currentImageIndex ? 'bg-white w-4' : 'bg-white/40'}`}
-                  />
+            </div>
+
+            {/* Carousel navigation indicators */}
+            {galleryImages.length > 1 && (
+              <>
+                <button
+                  onClick={handlePrevImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1.5 rounded-full backdrop-blur-sm border border-white/10 active:scale-90"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={handleNextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1.5 rounded-full backdrop-blur-sm border border-white/10 active:scale-90"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                <div className="absolute bottom-4 right-4 bg-black/60 text-white text-[10px] font-bold px-2.5 py-1 rounded backdrop-blur-sm flex items-center gap-1">
+                  <Camera size={11} /> {currentImageIndex + 1}/{galleryImages.length}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Quick Checklist beneath cover image — shows first 4 highlights or graceful static fallback */}
+          <div className="p-4 bg-[#f8fbff] grid grid-cols-2 gap-y-2 gap-x-4 border-t border-gray-50 text-[11px] font-bold text-slate-700">
+            {property.highlights && property.highlights.length > 0
+              ? property.highlights.slice(0, 4).map((hl, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="text-emerald-500">✓</span> {hl}
+                  </div>
+                ))
+              : [
+                  property.buyDetails?.facing ? `${property.buyDetails.facing} Facing` : null,
+                  property.rentDetails?.furnishing || null,
+                  property.dynamicData?.gatedCommunity === 'Yes' ? 'Gated Society' : null,
+                  property.transactionType?.includes('Sell') ? 'Ready to Move In' : null
+                ].filter(Boolean).concat(['East Facing', 'Gated Society', 'Corner Property', 'Vastu Compliant']).slice(0, 4).map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="text-emerald-500">✓</span> {item}
+                  </div>
+                ))
+            }
+          </div>
+        </div>
+
+        {/* 2. SECTION: CORE DETAILS & TITLE */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="bg-[#eff6ff] text-[#0061df] text-[10px] font-bold px-2 py-0.5 rounded border border-blue-100 uppercase tracking-wider">
+              {propertyType}
+            </span>
+            <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded border border-slate-200 uppercase">
+              ID: {property?.propertyId || id?.substring(id?.length - 6).toUpperCase()}
+            </span>
+            <span className="text-[10px] text-gray-400 font-medium ml-auto">
+              {property?.createdAt
+                ? (() => {
+                    const diff = Date.now() - new Date(property.createdAt).getTime();
+                    const days = Math.floor(diff / 86400000);
+                    const hours = Math.floor(diff / 3600000);
+                    const mins = Math.floor(diff / 60000);
+                    return days > 0 ? `${days}d ago` : hours > 0 ? `${hours}h ago` : `${mins}m ago`;
+                  })()
+                : 'Recently posted'
+              } by {property?.partnerId ? 'Partner' : property?.userId ? 'Owner' : 'Dealer'}
+            </span>
+          </div>
+
+          <h1 className="text-base font-bold text-gray-900 leading-snug">
+            {name}{
+              (address?.locality || address?.area || address?.city)
+                ? ` in ${[address?.locality || address?.area, address?.city].filter(Boolean).join(', ')}`
+                : ''
+            }
+          </h1>
+
+          <div className="flex items-start gap-1.5 text-gray-500 text-xs">
+            <MapPin size={14} className="mt-0.5 shrink-0 text-slate-400" />
+            <span className="leading-tight">
+              {address?.fullAddress || `${address?.locality}, ${address?.city}, ${address?.state}`}
+            </span>
+          </div>
+
+          {/* Nearby Places Pills — from DB or count badge */}
+          {nearbyPlaces && nearbyPlaces.length > 0 && (
+            <div className="pt-2 border-t border-gray-50">
+              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">
+                {nearbyPlaces.length} Places Nearby
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
+                {nearbyPlaces.slice(0, 6).map((place, idx) => (
+                  <span key={idx} className="bg-gray-50 hover:bg-gray-100 text-slate-700 text-xs font-semibold px-3 py-1 rounded-full border border-gray-150 whitespace-nowrap cursor-pointer transition-colors">
+                    {place.name} {place.distanceKm ? `· ${place.distanceKm}km` : ''}
+                  </span>
                 ))}
               </div>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Navigation & Actions */}
-        <div className="absolute top-4 left-4 z-20">
-          <button onClick={() => navigate(-1)} className="bg-white/90 p-2 rounded-full shadow-lg hover:bg-white transition-all active:scale-95 text-gray-700 hover:text-black">
-            <ArrowLeft size={20} />
-          </button>
+        {/* 3. SECTION: HIGHLIGHT CIRCULAR WIDGET MATRIX */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <div className="grid grid-cols-5 gap-1.5 text-center">
+            {getCircularWidgets().map((widget, i) => {
+              const Icon = widget.icon;
+              return (
+                <div key={i} className="flex flex-col items-center justify-center space-y-1">
+                  <div className={`w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center ${widget.color}`}>
+                    {Icon ? <Icon size={18} /> : <span className="text-xs font-black">{widget.symbol}</span>}
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-800 line-clamp-2 leading-tight">{widget.label}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="absolute top-4 right-4 flex gap-3 z-20">
-          <button onClick={handleShare} className="bg-white/90 p-2 rounded-full shadow-lg hover:bg-white transition-all active:scale-95 text-gray-700 hover:text-black">
-            <Share2 size={20} />
-          </button>
-          <button onClick={handleToggleSave} className="bg-white/90 p-2 rounded-full shadow-lg hover:bg-white transition-all active:scale-95">
-            <Heart size={20} className={`${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
-          </button>
-        </div>
-      </div>
 
-      {/* Main Content Layout */}
-      <div className="max-w-7xl mx-auto md:px-6 md:py-6 lg:py-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {/* 4. SECTION: KEY HIGHLIGHTS BOX & ...more (id="highlights") */}
+        <div id="highlights" className="bg-[#fffdf7] border border-[#fdf3da]/60 rounded-2xl p-4 shadow-sm space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-[#fdf3da] flex items-center justify-center text-[#d97706]">
+              <Award size={14} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Key Highlights</h3>
+              <p className="text-[10px] text-slate-500">Why you should choose this property</p>
+            </div>
+          </div>
 
-          {/* Left Content Column */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white md:rounded-2xl p-5 md:p-8 md:shadow-[0_2px_8px_rgba(0,0,0,0.04)] md:border border-gray-100">
-
-              {/* Title & Badge */}
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="bg-surface/10 text-surface text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                      {propertyType}
-                    </span>
-                    {isVerified && <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1"><Shield size={10} className="fill-blue-600 text-blue-600" /> Verified</span>}
-                    {isFeatured && <span className="bg-amber-50 text-amber-600 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-100 flex items-center gap-1"><Star size={10} className="fill-amber-600 text-amber-600" /> Featured</span>}
-                    {isUrgent && <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded border border-red-100">Urgent</span>}
-                    {isNegotiable && <span className="bg-green-50 text-green-600 text-[10px] font-bold px-2 py-0.5 rounded border border-green-100">Negotiable</span>}
-                    {rating !== undefined && rating !== null && (
-                      <div className="flex items-center gap-1 bg-honey/10 text-honey-dark px-2 py-0.5 rounded text-[10px] font-bold">
-                        <Star size={10} className="fill-honey text-honey" />
-                        {Number(rating) > 0 && reviews.length > 0 ? Number(rating).toFixed(1) : 'New'}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h1 className="text-xl md:text-3xl font-bold text-textDark leading-tight">{name}</h1>
-                    <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded border border-slate-200 uppercase tracking-wider shrink-0">
-                      Property ID: {property?.propertyId || id?.substring(id?.length - 8).toUpperCase() || 'N/A'}
-                    </span>
-                    {property?.dynamicData?.availability && (
-                      <span className="text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded border border-blue-100 uppercase tracking-wider shrink-0">
-                        {property.dynamicData.availability}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-start gap-1.5 text-gray-500 text-xs md:text-sm">
-                    <MapPin size={14} className="mt-0.5 shrink-0" />
-                    <span className="line-clamp-3 md:line-clamp-1">
-                      {address?.fullAddress}
-                      {address?.city ? `, ${address.city}` : ''}
-                      {address?.district ? `, ${address.district}` : ''}
-
-                      {address?.state ? `, ${address.state}` : ''}
-                      {address?.pincode ? ` - ${address.pincode}` : ''}
-                    </span>
-                  </div>
-                </div>
-                <div className="hidden md:block text-right">
-                  <p className="text-sm text-gray-500">{priceLabel || 'Starting from'}</p>
-                  <p className="text-2xl font-bold text-surface">₹{bookingBarPrice?.toLocaleString() || 'N/A'}</p>
-                  {stayPricing.nights > 0 && (
-                    <p className="text-[11px] text-gray-400">
-                      {stayPricing.nights} nights ({stayPricing.weekdayNights} weekday, {stayPricing.weekendNights} weekend)
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <hr className="border-gray-100 mb-6" />
-
-              {/* Mobile Owner/Enquiry Section (Above Specs Tab Bar) */}
-              <div className="lg:hidden mb-8">
-                {renderEnquiryWidget()}
-              </div>
-
-              {/* Horizontal Specs Tab Bar */}
-              <div className="flex gap-2 border-b border-gray-100 pb-3 mb-6 overflow-x-auto hide-scrollbar sticky top-0 bg-white z-20 pt-2">
-                <button
-                  onClick={() => document.getElementById('overview')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-all shrink-0"
-                >
-                  🏠 Overview
-                </button>
-                <button
-                  onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-all shrink-0"
-                >
-                  ✨ Key Features
-                </button>
-                <button
-                  onClick={() => document.getElementById('amenities')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-all shrink-0"
-                >
-                  🏊 Amenities
-                </button>
-              </div>
-
-              <div className="mb-8" id="overview">
-                <h2 className="text-lg font-bold text-textDark mb-3">About this place</h2>
-                {property.shortDescription && (
-                  <p className="text-gray-500 font-bold italic text-sm mb-3">
-                    {property.shortDescription}
-                  </p>
-                )}
-                <p className="text-gray-600 leading-relaxed text-sm md:text-base mb-4">
-                  {description || "No description available."}
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {videoUrl && (
-                    <a href={videoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-bold text-sm">
-                      <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center"><div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-red-600 border-b-[4px] border-b-transparent ml-0.5"></div></div>
-                      Watch Video
-                    </a>
-                  )}
-                  {virtualTourLink && (
-                    <a href={virtualTourLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors font-bold text-sm">
-                      <Users size={18} /> 360° Virtual Tour
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              {/* Amenities - Dynamic Switching */}
-              {(() => {
-                // 1. Determine which list to use: Room-specific if selected, otherwise Property-wide
-                const showRoomAmenities = selectedRoom && selectedRoom.amenities && selectedRoom.amenities.length > 0;
-                const displayAmenities = showRoomAmenities ? selectedRoom.amenities : amenities;
-                const title = showRoomAmenities ? 'Room Amenities' : 'Amenities';
-
-                // 2. Filter valid items
-                const validAmenities = displayAmenities?.filter(item => item && typeof item === 'string' && item.trim().length > 0) || [];
-
-                // 3. Render if items exist
-                if (validAmenities.length === 0) return null;
-
+          <div className="bg-white rounded-xl p-3 border border-slate-100 space-y-2 text-xs font-semibold text-slate-700">
+            {property.highlights && property.highlights.length > 0 ? (
+              property.highlights.slice(0, 3).map((hl, idx) => {
+                const isLast = idx === Math.min(property.highlights.length, 3) - 1;
+                const hasMore = property.highlights.length > 3;
                 return (
-                  <div className="mb-4" id="amenities">
-                    <h2 className="text-lg font-bold text-textDark mb-2">{title}</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {validAmenities.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
-                          <div className="p-2 bg-gray-50 rounded-lg">
-                            {(() => {
-                              const iconName = item.toLowerCase().trim();
-                              const IconComponent = {
-                                'wi-fi': Wifi,
-                                'wifi': Wifi,
-                                'ac': Wind,
-                                'air conditioning': Wind,
-                                'ro water': Droplets,
-                                'water': Droplets,
-                                'power backup': Zap,
-                                'backup': Zap,
-                                'geyser': Thermometer,
-                                'laundry': Shirt,
-                                'washing machine': Shirt,
-                                'housekeeping': Sparkles,
-                                'cleaning': Sparkles,
-                                'cctv': Camera,
-                                'security': Shield,
-                                'parking': Car,
-                                'gym': Dumbbell,
-                                'fridge': Box,
-                                'refrigerator': Box,
-                                'kitchen': Flame,
-                                'induction': Flame,
-                                'lift': ArrowUpCircle,
-                                'tv': Tv,
-                                'television': Tv,
-                                'food': Utensils,
-                                'meal': Utensils,
-                                'single occupancy': User,
-                                'double occupancy': Users,
-                                'triple occupancy': Users
-                              }[iconName] || CheckCircle;
-                              return <IconComponent size={16} className="text-surface" />;
-                            })()}
-                          </div>
-                          {item}
-                        </div>
-                      ))}
-                    </div>
+                  <div key={idx} className="flex items-center gap-2">
+                    <CheckCircle size={13} className="text-emerald-500 shrink-0" />
+                    <span>
+                      {hl}
+                      {isLast && hasMore && (
+                        <button
+                          onClick={() => setShowHighlightsModal(true)}
+                          className="text-[#0061df] font-bold ml-1 hover:underline focus:outline-none"
+                        >
+                          ...more
+                        </button>
+                      )}
+                    </span>
                   </div>
                 );
-              })()}
-              {/* Type Specific Info - Dynamic Rendering */}
-              <div id="features" className="space-y-6">
-                {/* PG Details */}
-              {(propertyType === 'PG' || pgDetails) && (pgDetails || config) && (
-                <div className="mb-8 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-                  <h3 className="font-bold text-yellow-900 mb-3">PG / Co-Living Details</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-yellow-900">
-                    {pgDetails?.occupancy && <div><span className="opacity-70 text-xs block">Occupancy</span>{pgDetails.occupancy}</div>}
-                    {pgDetails?.gender && <div><span className="opacity-70 text-xs block">Gender</span>{pgDetails.gender}</div>}
-                    {pgDetails?.minStay && <div><span className="opacity-70 text-xs block">Min Stay</span>{pgDetails.minStay}</div>}
-                    {pgDetails?.noticePeriod && <div><span className="opacity-70 text-xs block">Notice Period</span>{pgDetails.noticePeriod}</div>}
-                    {pgDetails?.securityDeposit && <div><span className="opacity-70 text-xs block">Security Deposit</span>₹{pgDetails.securityDeposit}</div>}
-                    {pgDetails?.availableFrom && <div><span className="opacity-70 text-xs block">Available From</span>{new Date(pgDetails.availableFrom).toLocaleDateString()}</div>}
-                    <div><span className="opacity-70 text-xs block">Food</span>{pgDetails?.foodIncluded ? 'Included' : 'Not Included'}</div>
-                    {/* Fallback to old config if pgDetails not present */}
-                    {!pgDetails && config && (
-                      <>
-                        <div>Type: {config.pgType}</div>
-                        <div>Notice: {config.noticePeriod}</div>
-                      </>
-                    )}
-                  </div>
-                  {pgDetails?.rules && (
-                    <div className="mt-3 pt-3 border-t border-yellow-200/50">
-                      <span className="opacity-70 text-xs block mb-2 font-bold text-yellow-900">PG Rules</span>
-                      <div className="flex flex-wrap gap-2">
-                        {pgDetails.rules.smoking !== undefined && <span className={`px-2 py-1 rounded text-xs border ${pgDetails.rules.smoking ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>Smoking: {pgDetails.rules.smoking ? 'Yes' : 'No'}</span>}
-                        {pgDetails.rules.drinking !== undefined && <span className={`px-2 py-1 rounded text-xs border ${pgDetails.rules.drinking ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>Drinking: {pgDetails.rules.drinking ? 'Yes' : 'No'}</span>}
-                        {pgDetails.rules.visitors !== undefined && <span className={`px-2 py-1 rounded text-xs border ${pgDetails.rules.visitors ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>Visitors: {pgDetails.rules.visitors ? 'Yes' : 'No'}</span>}
-                        {pgDetails.rules.curfew && <span className="px-2 py-1 rounded text-xs border border-yellow-200 bg-yellow-100 text-yellow-800">Curfew: {pgDetails.rules.curfew}</span>}
-                      </div>
-                    </div>
-                  )}
+              })
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Zap size={13} className="text-blue-500 fill-blue-50 shrink-0" />
+                  <span>Full Power Backup</span>
                 </div>
-              )}
-
-              {/* Rent Details */}
-              {propertyType === 'Rent' && rentDetails && (
-                <div className="mb-8 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                  <h3 className="font-bold text-blue-900 mb-3">Rental Details</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-blue-900">
-                    <div><span className="opacity-70 text-xs block">Monthly Rent</span>₹{rentDetails.monthlyRent?.toLocaleString() || 'Not set'}</div>
-                    <div><span className="opacity-70 text-xs block">Maintenance</span>₹{rentDetails.maintenanceCharges?.toLocaleString() || 0}</div>
-                    <div><span className="opacity-70 text-xs block">Type</span>{rentDetails.type || 'Not specified'}</div>
-                    <div><span className="opacity-70 text-xs block">Furnishing</span>{rentDetails.furnishing || 'Not specified'}</div>
-                    <div><span className="opacity-70 text-xs block">Tenant Preference</span>{rentDetails.tenantPreference || 'Any'}</div>
-                    {rentDetails.societyName && <div><span className="opacity-70 text-xs block">Society</span>{rentDetails.societyName}</div>}
-                    <div><span className="opacity-70 text-xs block">Water Supply</span>{rentDetails.waterSupply || 'Not specified'}</div>
-                    <div className="col-span-full flex gap-2 mt-1">
-                      {rentDetails.electricityIncluded && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold uppercase">Electricity Incl.</span>}
-                      {rentDetails.lift && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold uppercase">Lift Available</span>}
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Car size={13} className="text-[#0061df] shrink-0" />
+                  <span>Visitor Parking Available</span>
                 </div>
-              )}
-
-              {/* Buy Details */}
-              {propertyType === 'Buy' && buyDetails && (
-                <div className="mb-8 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                  <h3 className="font-bold text-emerald-900 mb-3">Property Details</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-emerald-900">
-                    <div><span className="opacity-70 text-xs block">Type</span>{buyDetails.type}</div>
-                    <div><span className="opacity-70 text-xs block">Super Built-up Area</span>{buyDetails.area?.superBuiltUp} {buyDetails.area?.unit || 'sqft'}</div>
-                    {buyDetails.area?.carpet && <div><span className="opacity-70 text-xs block">Carpet Area</span>{buyDetails.area?.carpet} {buyDetails.area?.unit || 'sqft'}</div>}
-                    <div><span className="opacity-70 text-xs block">Ownership</span>{buyDetails.ownership}</div>
-                    <div><span className="opacity-70 text-xs block">Floor</span>{buyDetails.floor?.current} / {buyDetails.floor?.total}</div>
-                    <div><span className="opacity-70 text-xs block">Facing</span>{buyDetails.facing}</div>
-                    <div><span className="opacity-70 text-xs block">Age</span>{buyDetails.propertyAge}</div>
-                    {buyDetails.builderName && <div className="col-span-1"><span className="opacity-70 text-xs block">Builder</span>{buyDetails.builderName}</div>}
-                    {buyDetails.propertyTax && <div><span className="opacity-70 text-xs block">Property Tax</span>₹{buyDetails.propertyTax.toLocaleString()}</div>}
-                    <div className="col-span-full flex flex-wrap gap-2 mt-2">
-                      {buyDetails.loanEligible && <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold uppercase">Loan Eligible</span>}
-                      {buyDetails.legalVerified && <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold uppercase">Legal Verified</span>}
-                      {buyDetails.registrationIncluded && <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold uppercase">Registration Incl.</span>}
-                      {buyDetails.stampDutyIncluded && <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold uppercase">Stamp Duty Incl.</span>}
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Wind size={13} className="text-emerald-500 shrink-0" />
+                  <span>
+                    Centrally Air Conditioned{' '}
+                    <button
+                      onClick={() => setShowHighlightsModal(true)}
+                      className="text-[#0061df] font-bold ml-1 hover:underline focus:outline-none"
+                    >
+                      ...more
+                    </button>
+                  </span>
                 </div>
-              )}
-
-              {/* Plot Details - Housing.com Style */}
-              {propertyType === 'Plot' && plotDetails && (
-                <div className="mb-8">
-                  <h3 className="font-bold text-gray-900 text-lg mb-4">Plot Details</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
-                    {/* Plot Area */}
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 text-gray-400">
-                        <Scan size={20} strokeWidth={1.5} />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">Plot Area</p>
-                        <p className="text-sm font-bold text-gray-900">{plotDetails.plotArea} {plotDetails.unit}</p>
-                      </div>
-                    </div>
-
-                    {/* Dimensions */}
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 text-gray-400">
-                        <Maximize2 size={20} strokeWidth={1.5} />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">Dimensions</p>
-                        <p className="text-sm font-bold text-gray-900">{plotDetails.dimensions?.length} x {plotDetails.dimensions?.breadth}</p>
-                      </div>
-                    </div>
-
-                    {/* Facing */}
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 text-gray-400">
-                        <Compass size={20} strokeWidth={1.5} />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">Facing</p>
-                        <p className="text-sm font-bold text-gray-900">{plotDetails.facing}</p>
-                      </div>
-                    </div>
-
-                    {/* Road Width */}
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 text-gray-400">
-                        <Move size={20} strokeWidth={1.5} />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">Road Width</p>
-                        <p className="text-sm font-bold text-gray-900">{plotDetails.roadWidth ? `${plotDetails.roadWidth} ft` : 'N/A'}</p>
-                      </div>
-                    </div>
-
-                    {/* Land Type */}
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 text-gray-400">
-                        <Grid size={20} strokeWidth={1.5} />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">Land Type</p>
-                        <p className="text-sm font-bold text-gray-900">{plotDetails.landType}</p>
-                      </div>
-                    </div>
-
-                    {/* Authority */}
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 text-gray-400">
-                        <Landmark size={20} strokeWidth={1.5} />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">Authority</p>
-                        <p className="text-sm font-bold text-gray-900">{plotDetails.approvalAuthority || 'N/A'}</p>
-                      </div>
-                    </div>
-
-                    {/* Boundary Wall */}
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 text-gray-400">
-                        <LayoutTemplate size={20} strokeWidth={1.5} />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">Boundary Wall</p>
-                        <p className="text-sm font-bold text-gray-900">{plotDetails.boundaryMarked ? 'Yes' : 'No'}</p>
-                      </div>
-                    </div>
-
-                    {/* Nearby Landmark */}
-                    {plotDetails.nearbyLandmark && (
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 text-gray-400">
-                          <MapPin size={20} strokeWidth={1.5} />
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 mb-0.5">Landmark</p>
-                          <p className="text-sm font-bold text-gray-900">{plotDetails.nearbyLandmark}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-
-              {propertyType === 'Hotel' && config && (config.hotelCategory || config.starRating) && (
-                <div className="mb-8 grid md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-blue-50 rounded-xl">
-                    <h3 className="font-bold text-blue-900 mb-2">Hotel Info</h3>
-                    <ul className="text-sm text-blue-800 space-y-1">
-                      {config.hotelCategory && <li>Category: {config.hotelCategory}</li>}
-                      {config.starRating && <li>Rating: {config.starRating} Stars</li>}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {/* Have to check these later */}
-              {['villa', 'independent house', 'independenthouse', 'house'].includes(propertyType?.toLowerCase() || '') && (property.structure || config) && (
-                <div className="mb-8 grid md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-green-50 rounded-xl">
-                    <h3 className="font-bold text-green-900 mb-2">
-                      {propertyType?.toLowerCase() === 'villa' ? 'Villa Structure' : 'Property Structure'}
-                    </h3>
-                    <ul className="text-sm text-green-800 space-y-1">
-                      {property.structure ? (
-                        <>
-                          <li>Bedrooms: {property.structure.bedrooms}</li>
-                          <li>Bathrooms: {property.structure.bathrooms}</li>
-                          <li>Max Guests: {property.structure.maxGuests}</li>
-                          <li>Kitchen: {property.structure.kitchenAvailable ? 'Available' : 'No'}</li>
-                        </>
-                      ) : (
-                        <li>Details available on request</li>
-                      )}
-                    </ul>
-                  </div>
-
-                  {/* Price Details Card */}
-                  {selectedRoom && (
-                    <div className="p-4 bg-white rounded-xl border border-gray-200">
-                      <h3 className="text-gray-500 text-sm mb-1">
-                        {(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? 'Monthly Rent' : 'Price per night'}
-                      </h3>
-                      <div className="text-2xl font-black text-gray-900 mb-1 flex items-baseline gap-1">
-                        ₹{(selectedRoom.pricing?.basePrice || selectedRoom.price || 0).toLocaleString()}
-                        <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">
-                          / {(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? 'month' : 'night'}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-                        <div>Extra adult: ₹{selectedRoom.pricing?.extraAdultPrice || selectedRoom.extraAdultPrice || 0} / {(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? 'month' : 'night'} •</div>
-                        <div>Extra child: ₹{selectedRoom.pricing?.extraChildPrice || selectedRoom.extraChildPrice || 0} / {(propertyType?.toLowerCase() === 'pg' || propertyType?.toLowerCase() === 'hostel') ? 'month' : 'night'}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {propertyType === 'Resort' && config && (
-                <div className="mb-8">
-                  <div className="grid md:grid-cols-2 gap-4 mb-4">
-                    <div className="p-4 bg-amber-50 rounded-xl">
-                      <h3 className="font-bold text-amber-900 mb-2">Resort Highlights</h3>
-                      <ul className="text-sm text-amber-800 space-y-1">
-                        <li>Theme: {config.resortTheme}</li>
-                        <li>Category: {config.resortCategory}</li>
-                        <li>Reception: {config.receptionAvailable ? '24/7' : 'Limited Hours'}</li>
-                      </ul>
-                    </div>
-                    {property.mealPlans && property.mealPlans.length > 0 && (
-                      <div className="p-4 bg-orange-50 rounded-xl">
-                        <h3 className="font-bold text-orange-900 mb-2">Meal Plans</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {property.mealPlans.map((plan, i) => (
-                            <span key={i} className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
-                              {plan.mealType}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {property.activities && property.activities.length > 0 && (
-                    <div className="p-4 bg-indigo-50 rounded-xl">
-                      <h3 className="font-bold text-indigo-900 mb-2">Activities</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {property.activities.map((act, i) => (
-                          <div key={i} className="text-sm text-indigo-800">
-                            <span className="font-semibold">{act.name}</span>
-                            <span className="text-xs ml-1 opacity-75">({act.type})</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {propertyType === 'Homestay' && config && (
-                <div className="mb-8 grid md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-amber-50 rounded-xl">
-                    <h3 className="font-bold text-amber-900 mb-2">Homestay Experience</h3>
-                    <ul className="text-sm text-amber-800 space-y-1">
-                      {property.hostName && <li>Host: {property.hostName}</li>}
-                      <li>Food: {config.foodType} ({config.mealsAvailable === 'Yes' ? 'Available' : 'Not Available'})</li>
-                      <li>Shared Areas: {config.sharedAreas ? 'Yes' : 'No'}</li>
-                      {config.idealFor && config.idealFor.length > 0 && <li>Ideal For: {Array.isArray(config.idealFor) ? config.idealFor.join(', ') : config.idealFor}</li>}
-                      {config.stayExperience && <li>Experience: {config.stayExperience}</li>}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {propertyType === 'Hostel' && config && (
-                <div className="mb-8 grid md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-purple-50 rounded-xl">
-                    <h3 className="font-bold text-purple-900 mb-2">Hostel Info</h3>
-                    <ul className="text-sm text-purple-800 space-y-1">
-                      <li>Type: {config.hostelType}</li>
-                      <li>Curfew: {config.curfewTime || 'No Curfew'}</li>
-                      <li>Age Restriction: {config.ageRestriction ? 'Yes' : 'No'}</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-              </div>
-
-              {/* Inventory / Rooms - Conditional */}
-              {!isWholeUnit && inventory && inventory.length > 0 && (
-                <div className="mb-8">
-                  <h2 className="text-lg font-bold text-textDark mb-4">
-                    {isBedBased ? 'Choose your Bed/Room' : propertyType === 'Tent' ? 'Choose your tent' : 'Choose your room'}
-                  </h2>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {inventory.map((room) => (
-                      <div
-                        key={room._id}
-                        onClick={() => {
-                          setSelectedRoom(room);
-                          // Force scroll to top using multiple methods for reliability
-                          window.scrollTo(0, 0);
-                          document.documentElement.scrollTop = 0;
-                          document.body.scrollTop = 0;
-                        }}
-                        className={`
-                      border rounded-xl p-4 cursor-pointer transition-all relative overflow-hidden
-                      ${selectedRoom?._id === room._id ? 'border-surface bg-surface/5 ring-1 ring-surface' : 'border-gray-200 hover:border-surface/50'}
-                    `}
-                      >
-                        {selectedRoom?._id === room._id && (
-                          <div className="absolute top-0 right-0 bg-surface text-white text-[10px] px-2 py-1 rounded-bl-lg">
-                            Selected
-                          </div>
-                        )}
-                        <div className={`flex justify-between items-start mb-2 ${selectedRoom?._id === room._id ? 'pr-14' : ''}`}>
-                          <h4 className="font-bold text-textDark">{room.type}</h4>
-                          <span className="font-bold text-surface">₹{getRoomPrice(room) || 'N/A'}</span>
-                        </div>
-                        <p className="text-xs text-gray-500 line-clamp-2 mb-2">{room.description || `Comfortable ${room.type}`}</p>
-                        {getExtraPricingLabels(room).length > 0 && (
-                          <div className="text-[11px] text-gray-600 mb-2 space-y-0.5">
-                            {getExtraPricingLabels(room).map((label, index) => (
-                              <div key={index}>{label}</div>
-                            ))}
-                          </div>
-                        )}
-                        <div className="flex gap-1.5 flex-wrap">
-                          {room.roomCategory && (() => {
-                            const config = {
-                              triple: { label: 'Triple Sharing', bg: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-                              double: { label: 'Double Sharing', bg: 'bg-blue-50 text-blue-700 border-blue-100' },
-                              private: { label: 'Private Room', bg: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
-                              shared: { label: 'Shared Dorm', bg: 'bg-gray-100 text-gray-700 border-gray-200' }
-                            }[room.roomCategory.toLowerCase()] || { label: room.roomCategory, bg: 'bg-surface/10 text-surface border-surface/20' };
-
-                            return (
-                              <span className={`text-[9px] ${config.bg} px-2 py-0.5 rounded border font-bold uppercase tracking-wider`}>
-                                {config.label}
-                              </span>
-                            );
-                          })()}
-                          {room.bathroomType && (
-                            <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold uppercase tracking-tighter">
-                              {room.bathroomType}
-                            </span>
-                          )}
-                          {room.amenities?.filter(a => a && typeof a === 'string' && a.trim()).slice(0, 3).map((am, i) => (
-                            <span key={i} className="text-[10px] bg-gray-100 px-2 py-1 rounded-full text-gray-600">{am}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-
-              {/* Policies */}
-              {policies && !['buy', 'plot'].includes(propertyType?.toLowerCase()) && (
-                <div className="mb-8">
-                  <h2 className="text-lg font-bold text-textDark mb-4">House Rules & Policies</h2>
-                  <div className="grid md:grid-cols-2 gap-y-4 gap-x-8 text-sm text-gray-600">
-                    {!['pg', 'hostel', 'rent', 'buy', 'plot'].includes(propertyType?.toLowerCase()) && (
-                      <>
-                        <div className="flex items-center gap-3">
-                          <Clock size={18} className="text-surface" />
-                          <div>
-                            <span className="font-semibold block text-textDark">Check-in</span>
-                            <span>{policies.checkInTime ? (policies.checkInTime.toString().includes(':') ? policies.checkInTime : `${policies.checkInTime}:00 AM`) : '12:00 PM'}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Clock size={18} className="text-surface" />
-                          <div>
-                            <span className="font-semibold block text-textDark">Check-out</span>
-                            <span>{policies.checkOutTime ? (policies.checkOutTime.toString().includes(':') ? policies.checkOutTime : `${policies.checkOutTime}:00 AM`) : '11:00 AM'}</span>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {policies.cancellationPolicy && (
-                      <div className="flex items-center gap-3 col-span-2 md:col-span-1">
-                        <Info size={18} className="text-surface" />
-                        <div>
-                          <span className="font-semibold block text-textDark">Cancellation Policy</span>
-                          <span>{policies.cancellationPolicy}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Dynamic Policy Badges */}
-                    <div className="col-span-2 grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                      {[
-                        { label: 'Pets Allowed', value: policies.petsAllowed || policies.petFriendly, type: 'bool' },
-                        { label: 'Smoking Allowed', value: policies.smokingAllowed || policies.smokingAlcohol, type: 'bool' },
-                        { label: 'Alcohol Allowed', value: policies.alcoholAllowed, type: 'bool' },
-                        { label: 'Couple Friendly', value: policies.coupleFriendly, type: 'bool' },
-                        { label: 'ID Required', value: policies.idProofMandatory || policies.idProofRequired || policies.idRequirement, type: 'mixed' }
-                      ].map((rule, idx) => {
-                        if (rule.value === undefined || rule.value === null) return null;
-
-                        let displayValue = '';
-                        if (rule.type === 'bool') {
-                          if (rule.value === true || rule.value === 'Yes' || rule.value === 'Allowed') displayValue = 'Yes';
-                          else if (rule.value === false || rule.value === 'No' || rule.value === 'Not Allowed') displayValue = 'No';
-                          else displayValue = rule.value; // Fallback
-                        } else {
-                          displayValue = typeof rule.value === 'boolean' ? (rule.value ? 'Yes' : 'No') : rule.value;
-                        }
-
-                        if (!displayValue) return null;
-
-                        return (
-                          <div key={idx} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
-                            <Shield size={14} className="text-gray-400" />
-                            <span>{rule.label}: <span className="font-semibold text-textDark">{displayValue}</span></span>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Custom House Rules List */}
-                    {policies.houseRules && Array.isArray(policies.houseRules) && policies.houseRules.length > 0 && (
-                      <div className="col-span-2 mt-2">
-                        <span className="font-semibold block text-textDark mb-2">Additional Rules</span>
-                        <ul className="list-disc list-inside space-y-1">
-                          {policies.houseRules.map((rule, i) => (
-                            <li key={i}>{rule}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {/* Object based house rules (Villa) */}
-                    {policies.houseRules && !Array.isArray(policies.houseRules) && typeof policies.houseRules === 'object' && (
-                      <div className="col-span-2 mt-2">
-                        <span className="font-semibold block text-textDark mb-2">House Rules</span>
-                        <div className="flex flex-wrap gap-2">
-                          {Object.entries(policies.houseRules).map(([key, val], i) => (
-                            <span key={i} className={`text-xs px-2 py-1 rounded border ${val ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
-                              {key.replace(/([A-Z])/g, ' $1').trim()}: {val ? 'Yes' : 'No'}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Nearby Places */}
-              {nearbyPlaces && nearbyPlaces.length > 0 && (
-                <div className="mb-8">
-                  <h2 className="text-lg font-bold text-textDark mb-4">Nearby Places</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {nearbyPlaces.map((place, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-white rounded-lg shadow-sm text-surface">
-                            <MapPin size={16} />
-                          </div>
-                          <div>
-                            <p className="font-bold text-sm text-textDark">{place.name}</p>
-                            <p className="text-xs text-gray-500 capitalize">{place.type}</p>
-                          </div>
-                        </div>
-                        <span className="text-xs font-bold text-surface bg-surface/5 px-2 py-1 rounded-md">
-                          {place.distanceKm} km
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* User Reviews Section */}
-              <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-bold text-textDark">Guest Reviews</h2>
-                    <div className="flex items-center text-sm text-gray-500 pt-1">
-                      <span>{reviews.length > 0 ? `(${reviews.length})` : ''}</span>
-                      <span className="mx-1">•</span>
-                      <span className="font-bold text-black mr-1">{rating ? Number(rating).toFixed(1) : 'New'}</span>
-                      <Star size={14} className="fill-honey text-honey" />
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowReviewForm(!showReviewForm)}
-                    className="text-xs font-bold text-surface border border-surface px-3 py-1.5 rounded bg-surface/5 hover:bg-surface hover:text-white transition-all flex items-center gap-1.5"
-                  >
-                    <MessageSquare size={14} /> <span>Write a Review</span>
-                  </button>
-                </div>
-
-                {/* Review Form */}
-                {showReviewForm && (
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6 animate-fadeIn">
-                    <h3 className="font-bold text-gray-800 mb-3">Rate your experience</h3>
-                    <form onSubmit={handleReviewSubmit}>
-                      <div className="flex gap-2 mb-4">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            onClick={() => setReviewData({ ...reviewData, rating: star })}
-                            className="focus:outline-none"
-                          >
-                            <Star
-                              size={24}
-                              className={`${reviewData.rating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} transition-colors`}
-                            />
-                          </button>
-                        ))}
-                      </div>
-                      <textarea
-                        value={reviewData.comment}
-                        onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
-                        placeholder="Share your experience..."
-                        rows={3}
-                        className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-surface outline-none mb-3"
-                        required
-                      />
-                      <div className="flex justify-end gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setShowReviewForm(false)}
-                          className="px-4 py-2 text-gray-500 font-medium hover:text-gray-700"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={submitReviewLoading}
-                          className="px-6 py-2 bg-black text-white rounded-lg font-bold disabled:opacity-50"
-                        >
-                          {submitReviewLoading ? 'Submitting...' : 'Submit Review'}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-
-                {/* Reviews Display - Carousel if > 3 */}
-                {reviews.length === 0 ? (
-                  <div className="text-center py-8 bg-gray-50 rounded-xl border border-dotted border-gray-300">
-                    <p className="text-gray-500">No reviews yet. Be the first to share your experience!</p>
-                  </div>
-                ) : (
-                  // Simple Scrollable Row for simplicity and UX
-                  <div className="flex overflow-x-auto pb-4 gap-4 snap-x hide-scrollbar">
-                    {reviews.slice(0, 3).map((review) => (
-                      <div key={review._id} className="min-w-[280px] md:min-w-[320px] max-w-[320px] bg-white p-4 rounded-xl border border-gray-100 shadow-sm snap-center flex-shrink-0">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-full bg-surface/10 flex items-center justify-center text-surface font-bold text-lg">
-                            {review.userId?.name?.charAt(0) || 'U'}
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-800 text-sm line-clamp-1">{review.userId?.name || 'User'}</p>
-                            <p className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</p>
-                          </div>
-                          <div className="ml-auto flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-xs font-bold">
-                            {review.rating} <Star size={10} className="fill-yellow-500 text-yellow-500" />
-                          </div>
-                        </div>
-                        <p className="text-gray-600 text-sm leading-relaxed line-clamp-4">
-                          "{review.comment}"
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-              </div>
-
-            </div>
+              </>
+            )}
           </div>
 
-          {/* Right Sidebar - Sticky Booking/Contact Card */}
-          <div className="hidden lg:block lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
-              <div className="bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 p-6 overflow-hidden relative">
-                {/* Header Gradient */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700" />
-                
-                {renderEnquiryWidget()}
-              </div>
-            </div>
+          {/* 24-Hour View Banner */}
+          <div className="bg-[#eff6ff] rounded-xl p-3 border border-blue-50 flex items-center gap-2 text-[11px] font-semibold text-[#0061df]">
+            <Users size={14} className="shrink-0 text-blue-500" />
+            <span>
+              {property.viewCount && property.viewCount > 0
+                ? `${property.viewCount} people viewed this property recently`
+                : 'Be among the first to enquire about this property'
+              }
+            </span>
           </div>
         </div>
-      </div>
 
-      {/* Sticky Bottom Booking Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3.5 shadow-lg z-50 lg:hidden">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+        {/* 5. SECTION: PROPERTY DETAILS SPECIFICATION TABLE (id="property-details") */}
+        <div id="property-details" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+          <h3 className="text-sm font-bold text-slate-900 border-b border-gray-50 pb-2">Property Details</h3>
+          
+          <div className="space-y-2">
+            {getSpecs().map((spec, i) => (
+              <div key={i} className="flex justify-between items-center text-xs py-1 border-b border-slate-50 last:border-b-0">
+                <span className="text-slate-500 font-medium">{spec.label}</span>
+                <span className="text-slate-900 font-bold">{spec.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 6. SECTION: PHOTO ALBUMS GRID / TAKE A TOUR (id="photos") */}
+        <div id="photos" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
           <div>
-            <p className="text-xs text-gray-400 font-medium">Starting from</p>
-            <p className="font-bold text-lg text-slate-900">
-              ₹{bookingBarPrice?.toLocaleString() || 'N/A'}
-            </p>
+            <h3 className="text-sm font-bold text-slate-900">Take a tour of the Property</h3>
+            <p className="text-[10px] text-gray-500">With photos and videos</p>
           </div>
-          <div className="flex gap-2 flex-1 justify-end max-w-[280px]">
-            <button
-              onClick={() => {
-                const msg = encodeURIComponent(`Hi, I am interested in your property "${name}" listed on Get Right Home.`);
-                window.open(`https://wa.me/${revealedNumber || '9652961607'}?text=${msg}`, '_blank');
-              }}
-              className="px-4 py-2.5 bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all flex-1"
-            >
-              💬 WhatsApp
-            </button>
-            <button
-              onClick={handleRevealContact}
-              className="px-4 py-2.5 bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all flex-1"
-            >
-              📞 {revealedNumber ? 'Call' : 'Call Owner'}
-            </button>
+
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { title: 'Entrance', count: 1, img: galleryImages[0] },
+              { title: 'Hall', count: 1, img: galleryImages[1] || galleryImages[0] },
+              { title: 'Bedroom', count: 2, img: galleryImages[2] || galleryImages[0] },
+              { title: 'Kitchen', count: 1, img: galleryImages[3] || galleryImages[0] }
+            ].map((album, idx) => (
+              <div
+                key={idx}
+                onClick={() => {
+                  setCurrentImageIndex(idx % galleryImages.length);
+                  setShowImageModal(true);
+                }}
+                className={`relative rounded-xl overflow-hidden h-[75px] cursor-pointer group ${
+                  idx === 0 ? 'col-span-3 h-[130px]' : 'col-span-1'
+                }`}
+              >
+                <img src={album.img} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
+                
+                <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white shadow-sm">
+                  {album.title}
+                </span>
+                
+                <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm flex items-center gap-0.5">
+                  <Camera size={9} /> {album.count}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
 
-      {/* ALL OFFERS MODAL */}
-      {showOffersModal && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-4 animate-fadeIn">
-          <div className="bg-white w-full md:max-w-md md:rounded-2xl rounded-t-2xl max-h-[90vh] flex flex-col shadow-2xl animate-slideUp">
+        {/* 7. SECTION: FACILITIES & AMENITIES (id="facilities") */}
+        <div id="facilities" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4">
+          
+          {/* Essential Facilities */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Essential Facilities</h3>
+              <p className="text-[10px] text-gray-500">Core amenities already setup</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3 text-xs font-semibold text-slate-700">
+              {property.topAmenities && property.topAmenities.length > 0 ? (
+                property.topAmenities.map((am, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+                    <span className="line-clamp-1">{am}</span>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Zap size={14} className="text-amber-500 fill-amber-50" />
+                    <span>Power Back-up</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Compass size={14} className="text-teal-500" />
+                    <span>Corner Property</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Car size={14} className="text-[#0061df]" />
+                    <span>Reserved Parking</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ArrowUpCircle size={14} className="text-slate-600" />
+                    <span>Lift(s)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Shield size={14} className="text-blue-500 fill-blue-50" />
+                    <span>Security Guard</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Droplets size={14} className="text-sky-500" />
+                    <span>Water Storage</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Car size={14} className="text-[#0061df]" />
+                    <span>1 Covered Parking</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Grid size={14} className="text-indigo-500" />
+                    <span>In a Gated Society</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
-            {/* Modal Header */}
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0 rounded-t-2xl">
-              <h3 className="font-bold text-lg text-gray-900">Available Offers</h3>
+          {/* Other Key Facilities Horizontal scroll with view all */}
+          <div className="pt-3 border-t border-slate-50 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Other Key Facilities</span>
               <button
-                onClick={() => setShowOffersModal(false)}
-                className="p-2 bg-gray-100 rounded-full hover:bg-gray-200"
+                onClick={() => setShowAllAmenitiesModal(true)}
+                className="text-xs font-bold text-[#0061df] hover:underline"
               >
-                <X size={20} className="text-gray-600" />
+                View all ({(property.topAmenities?.length || 0) + (property.otherAmenities?.length || 0) || 14})
               </button>
             </div>
 
-            {/* Modal Body - Scrollable */}
-            <div
-              className="p-4 overflow-y-auto overflow-x-hidden space-y-4 bg-gray-50 flex-1 overscroll-y-contain"
-              data-lenis-prevent
-            >
-              {offers.map((offer) => (
-                <div
-                  key={offer._id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative flex flex-col"
-                >
-                  <div className={`h-24 ${offer.bg || 'bg-gray-800'} relative p-4 flex flex-col justify-center text-white`}>
-                    {offer.image && (
-                      <img src={offer.image} alt="offer" className="absolute inset-0 w-full h-full object-cover opacity-30" />
-                    )}
-                    <div className="relative z-10">
-                      <h4 className="font-black text-xl">{offer.discountType === 'percentage' ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`}</h4>
-                      <p className="text-xs opacity-90 font-medium">{offer.title}</p>
+            <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
+              {property.otherAmenities && property.otherAmenities.length > 0 ? (
+                property.otherAmenities.slice(0, 5).map((am, idx) => (
+                  <div key={idx} className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-100 bg-slate-50/50 text-center min-w-[120px] shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-1.5 shadow-sm">
+                      <Grid size={14} />
                     </div>
-                    <div className="absolute top-3 right-3 bg-white text-black text-xs font-bold px-2 py-1 rounded shadow-sm z-10">
-                      {offer.code}
-                    </div>
+                    <span className="text-[10px] font-bold text-gray-800 leading-tight line-clamp-1">{am}</span>
                   </div>
-                  <div className="p-4">
-                    <p className="text-gray-600 text-sm mb-3">{offer.description || offer.subtitle}</p>
-
-                    <div className="flex items-center justify-between mt-auto">
-                      <div className="text-[10px] text-gray-400 font-medium">
-                        {offer.minBookingAmount > 0 ? `Min. Spend: ₹${offer.minBookingAmount}` : 'No Min Spend'}
+                ))
+              ) : (
+                [
+                  { title: 'Security / Fire Alarm', icon: Shield, bg: 'bg-[#fff5f5] text-red-500' },
+                  { title: 'Centrally Air Conditioned', icon: Wind, bg: 'bg-[#effbfb] text-teal-600' },
+                  { title: 'Vaastu Compliant', icon: Compass, bg: 'bg-[#fffbf0] text-amber-600' }
+                ].map((other, idx) => {
+                  const Icon = other.icon;
+                  return (
+                    <div key={idx} className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-100 bg-slate-50/50 text-center min-w-[120px] shrink-0">
+                      <div className={`w-8 h-8 rounded-full ${other.bg} flex items-center justify-center mb-1.5 shadow-sm`}>
+                        <Icon size={14} />
                       </div>
-                      <button
-                        onClick={() => handleApplyOffer(offer)}
-                        className="bg-surface text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md shadow-surface/20 active:scale-95 transition-all"
-                      >
-                        Apply
-                      </button>
+                      <span className="text-[10px] font-bold text-gray-800 leading-tight line-clamp-1">{other.title}</span>
                     </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* HOTEL ONLY SECTION: Room availability wizard selection */}
+        {!isWholeUnit && inventory && inventory.length > 0 && (
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4">
+            <div className="flex flex-col">
+              <h3 className="text-sm font-bold text-slate-900">Choose Room Type</h3>
+              <p className="text-[10px] text-gray-500">Required if booking beds or rooms</p>
+            </div>
+
+            <div className="space-y-3">
+              {inventory.map((room) => (
+                <div
+                  key={room._id}
+                  onClick={() => setSelectedRoom(room)}
+                  className={`border rounded-xl p-3 cursor-pointer transition-all relative ${
+                    selectedRoom?._id === room._id ? 'border-[#0061df] bg-blue-50/30' : 'border-gray-200'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-1.5">
+                    <h4 className="font-bold text-xs text-slate-800">{room.type}</h4>
+                    <span className="font-bold text-xs text-[#0061df]">₹{getRoomPrice(room)}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 line-clamp-2 leading-relaxed mb-2">{room.description}</p>
+                  
+                  <div className="flex gap-1.5 flex-wrap">
+                    {room.bathroomType && (
+                      <span className="text-[8px] bg-slate-100 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase">
+                        {room.bathroomType}
+                      </span>
+                    )}
+                    {room.roomCategory && (
+                      <span className="text-[8px] bg-blue-50 border border-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase">
+                        {room.roomCategory}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+          </div>
+        )}
 
+        {/* 8. SECTION: ABOUT PROPERTY (DESCRIPTION) */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-2">
+          <h3 className="text-sm font-bold text-slate-900">About Property</h3>
+          {address && (
+            <p className="text-xs font-semibold text-slate-500">
+              Address: {address.fullAddress || [address.houseNumber, address.locality, address.city, address.state].filter(Boolean).join(', ')}
+            </p>
+          )}
+          
+          <div className="text-xs text-slate-600 leading-relaxed font-medium">
+            {description || 'Detailed property information has not been provided yet. Please contact the owner/dealer for more details.'}
           </div>
         </div>
-      )}
 
+        {/* 9. SECTION: CONTACT SELLER / LEAD GENERATION FORM (id="seller") */}
+        <div id="seller" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Contact Dealer</h3>
+            <p className="text-[10px] text-gray-500">Get a callback and resolve your queries</p>
+          </div>
 
-
-      {/* FULL SCREEN IMAGE MODAL */}
-      {showImageModal && (
-        <div className="fixed inset-0 z-[9999] flex flex-col bg-black/95 animate-fadeIn">
-          {/* Header */}
-          <div className="p-4 flex items-center justify-between text-white z-10">
-            <div className="flex flex-col">
-              <h3 className="font-bold text-sm md:text-base line-clamp-1">{name}</h3>
-              <p className="text-[10px] md:text-xs opacity-70">Image {currentImageIndex + 1} of {galleryImages.length}</p>
+          {/* Seller profile overview */}
+          <div className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
+            <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0061df] font-black text-lg shadow-inner">
+              {sellerName.charAt(0)}
             </div>
+            <div>
+              <h4 className="text-xs font-bold text-gray-900">{sellerName}</h4>
+              <p className="text-[10px] text-slate-500 font-semibold">
+                {property?.partnerId?.businessName || property?.userId?.businessName || ''}
+                {(property?.partnerId?.businessName || property?.userId?.businessName) ? ' | ' : ''}
+                {displayPhone}
+              </p>
+              
+              <div className="flex items-center gap-4 mt-1.5 text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                <span className="flex items-center gap-0.5"><Shield size={10} className="text-emerald-500" /> {verifiedCount} Verified</span>
+                <span>{listedCount} Listed</span>
+                <span>{memberSinceText}</span>
+              </div>
+            </div>
+          </div>
+
+          {property?.partnerId?._id ? (
             <button
-              onClick={() => setShowImageModal(false)}
-              className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+              onClick={() => navigate(`/partner/${property.partnerId._id}`)}
+              className="block text-right w-full text-xs font-bold text-[#0061df] hover:underline pb-2 border-b border-gray-50"
             >
-              <X size={24} />
+              View Complete Profile &gt;
+            </button>
+          ) : (
+            <div className="pb-2 border-b border-gray-50" />
+          )}
+
+          {/* Lead capture form inputs */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Name</label>
+              <input
+                type="text"
+                value={leadName}
+                onChange={(e) => setLeadName(e.target.value)}
+                placeholder="Enter your name"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-semibold outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phone Number</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">+91</span>
+                <input
+                  type="text"
+                  value={leadPhone}
+                  onChange={(e) => setLeadPhone(e.target.value)}
+                  placeholder="Enter phone number"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-10 text-xs font-semibold outline-none focus:border-blue-500 transition-colors"
+                />
+                <Lock size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
+
+            {/* Is Real Estate Agent trigger toggle */}
+            <div>
+              <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Are you a Real Estate Agent?</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAgent(true)}
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${
+                    isAgent
+                      ? 'bg-blue-50 border-blue-500 text-[#0061df]'
+                      : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAgent(false)}
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${
+                    !isAgent
+                      ? 'bg-blue-50 border-blue-500 text-[#0061df]'
+                      : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+
+            {/* Terms checkbox */}
+            <label className="flex items-start gap-2 pt-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreedTerms}
+                onChange={(e) => setAgreedTerms(e.target.checked)}
+                className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-[10px] text-slate-500 leading-normal font-semibold">
+                I agree to Get-Right-home's <span className="text-[#0061df] hover:underline">Terms & Conditions</span> and <span className="text-[#0061df] hover:underline">Privacy Policy</span>.
+              </span>
+            </label>
+
+            {/* Primary Action Button to View/Enquire */}
+            <button
+              onClick={() => {
+                if (revealedNumber) {
+                  window.location.href = `tel:${revealedNumber}`;
+                } else {
+                  handleEnquiryButtonClick();
+                }
+              }}
+              disabled={bookingLoading || revealLoading}
+              className="w-full py-3.5 bg-blue-50 hover:bg-blue-100 text-[#0061df] rounded-xl font-bold transition-all text-xs border border-blue-100 flex items-center justify-center gap-1.5 mt-2"
+            >
+              {(bookingLoading || revealLoading) ? <Loader2 className="animate-spin text-[#0061df]" size={14} /> : (revealedNumber ? `📞 ${revealedNumber}` : 'View Phone Number')}
+            </button>
+          </div>
+        </div>
+
+        {/* 10. SECTION: RECENT VIEWS COMPARE SLIDER (id="compare") */}
+        <div id="compare" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4">
+          
+          {/* Compare Recent Views */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Compare your recent views</h3>
+              <p className="text-[10px] text-gray-500">Find the home that best matches your requirements</p>
+            </div>
+
+            {/* Horizontal side by side vs items */}
+            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-1">
+              
+              {/* Item 1 */}
+              <div className="p-2 rounded-xl border border-slate-100 bg-slate-50/50 min-w-[120px] shrink-0 text-center relative">
+                <img src={galleryImages[0]} className="w-full h-12 object-cover rounded-lg mb-1" />
+                <h4 className="text-[10px] font-bold text-gray-800 line-clamp-1">Piccadilly 1 CHS</h4>
+                <p className="text-[10px] text-gray-900 font-extrabold">₹35 Lac</p>
+                <span className="text-[9px] text-slate-500 font-semibold block">by Dealer</span>
+              </div>
+
+              <div className="text-[9px] font-bold text-white bg-slate-700 w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                Vs
+              </div>
+
+              {/* Item 2 */}
+              <div className="p-2 rounded-xl border border-slate-100 bg-slate-50/50 min-w-[120px] shrink-0 text-center relative">
+                <img src={galleryImages[1] || galleryImages[0]} className="w-full h-12 object-cover rounded-lg mb-1" />
+                <h4 className="text-[10px] font-bold text-gray-800 line-clamp-1">Golden Isle</h4>
+                <p className="text-[10px] text-gray-900 font-extrabold">₹35.5 Lac</p>
+                <span className="text-[9px] text-slate-500 font-semibold block">by Owner</span>
+              </div>
+
+              <div className="text-[9px] font-bold text-white bg-slate-700 w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                Vs
+              </div>
+
+              {/* Item 3 */}
+              <div className="p-2 rounded-xl border border-slate-100 bg-slate-50/50 min-w-[120px] shrink-0 text-center relative">
+                <img src={galleryImages[2] || galleryImages[0]} className="w-full h-12 object-cover rounded-lg mb-1" />
+                <h4 className="text-[10px] font-bold text-gray-800 line-clamp-1">Aditya Old Mhada</h4>
+                <p className="text-[10px] text-gray-900 font-extrabold">₹30 Lac</p>
+                <span className="text-[9px] text-slate-500 font-semibold block">by Owner</span>
+              </div>
+
+            </div>
+
+            <button className="w-full py-2.5 bg-white border border-[#0061df] text-[#0061df] rounded-xl text-xs font-bold hover:bg-blue-50/50 active:scale-98 transition-all text-center block">
+              View Comparison
             </button>
           </div>
 
-          {/* Main Image View */}
-          <div className="flex-1 w-full h-full relative flex items-center justify-center p-4 overflow-hidden" onClick={() => setShowImageModal(false)}>
-            <motion.img
-              key={currentImageIndex}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.2 }}
-              src={galleryImages[currentImageIndex]}
-              alt={`Gallery ${currentImageIndex}`}
-              onClick={(e) => { e.stopPropagation(); handleNextImage(); }} // Click image to go next
-              className="max-w-full max-h-full w-auto h-auto object-contain shadow-2xl cursor-pointer"
-            />
-
-            {galleryImages.length > 1 && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
-                  className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-4 rounded-full backdrop-blur-md transition-all active:scale-95 z-50 group hover:ring-2 hover:ring-white/50"
-                  aria-label="Previous Image"
-                >
-                  <ChevronLeft size={32} className="group-hover:-translate-x-0.5 transition-transform" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
-                  className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-4 rounded-full backdrop-blur-md transition-all active:scale-95 z-50 group hover:ring-2 hover:ring-white/50"
-                  aria-label="Next Image"
-                >
-                  <ChevronRight size={32} className="group-hover:translate-x-0.5 transition-transform" />
-                </button>
-              </>
+          {/* Owner / Partner other properties */}
+          <div className="pt-4 border-t border-slate-50 space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              {property?.partnerId ? 'Partner' : 'Owner'} Properties
+            </h4>
+            
+            {similarProperties && similarProperties.length > 0 ? (
+              <div className="rounded-xl border border-slate-100 overflow-hidden bg-slate-50/50 p-2 flex gap-3 items-center">
+                <img
+                  src={similarProperties[0]?.images?.cover || similarProperties[0]?.images?.gallery?.[0] || galleryImages[0]}
+                  className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                />
+                <div className="flex-1">
+                  <span className="bg-slate-200 text-slate-700 text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">
+                    {similarProperties[0]?.buyDetails?.expectedPrice
+                      ? formatPriceLakhCrore(similarProperties[0].buyDetails.expectedPrice)
+                      : similarProperties[0]?.dynamicData?.expectedPrice
+                        ? formatPriceLakhCrore(similarProperties[0].dynamicData.expectedPrice)
+                        : 'Contact for Price'}
+                  </span>
+                  <h5 className="text-xs font-bold text-gray-800 line-clamp-1 mt-1">
+                    {similarProperties[0]?.name || 'Similar Property'}
+                  </h5>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    {similarProperties[0]?.address?.locality || similarProperties[0]?.address?.city || ''}
+                  </p>
+                  <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
+                    {property?.partnerId ? 'By Partner' : 'By Owner'}
+                    {similarProperties[0]?.createdAt ? ` · ${(() => {
+                      const diff = Date.now() - new Date(similarProperties[0].createdAt).getTime();
+                      const days = Math.floor(diff / 86400000);
+                      return days > 0 ? `${days}d ago` : 'Today';
+                    })()}` : ''}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-slate-400 font-semibold text-center py-3">
+                No other listings found
+              </div>
             )}
+
+            <div className="bg-[#eff6ff] rounded-xl p-3 border border-blue-50 flex items-center gap-2 text-[10px] font-semibold text-[#0061df]">
+              <User size={13} className="text-blue-500" />
+              <span>
+                {property?.enquiryCount && property.enquiryCount > 0
+                  ? `${property.enquiryCount}+ people contacted for this property recently`
+                  : 'Be among the first to enquire about this property'
+                }
+              </span>
+            </div>
           </div>
 
-          {/* Thumbnails / Counter Bar */}
-          <div className="p-4 flex justify-center gap-1.5 overflow-x-auto hide-scrollbar z-10">
+          {/* Compare with similar homes list carousel */}
+          <div className="pt-4 border-t border-slate-50 space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Compare with Similar Homes</h4>
+            
+            <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {similarProperties && similarProperties.length > 0 ? (
+                similarProperties.map((simItem, i) => {
+                  const simPrice = simItem.buyDetails?.expectedPrice 
+                    ? `₹${(simItem.buyDetails.expectedPrice / 100000).toFixed(1)} Lac` 
+                    : (simItem.rentDetails?.monthlyRent ? `₹${simItem.rentDetails.monthlyRent.toLocaleString('en-IN')}/mo` 
+                    : (simItem.dynamicData?.expectedPrice ? formatPriceLakhCrore(simItem.dynamicData.expectedPrice)
+                    : (simItem.dynamicData?.monthlyRent ? `₹${Number(simItem.dynamicData.monthlyRent).toLocaleString('en-IN')}/mo`
+                    : 'Contact for Price')));
+                  const simName = simItem.propertyName || simItem.name || 'Property';
+                  const simLocality = simItem.address?.locality || simItem.address?.area || simItem.address?.city || '';
+                  const simCover = simItem.images?.cover || (simItem.images?.gallery?.[0]) || galleryImages[0];
+                  const ratingVal = simItem.avgRating || 0;
+
+                  return (
+                    <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-150 p-3 w-[150px] shrink-0 shadow-sm hover:border-[#0061df] transition-colors cursor-pointer">
+                      <img src={simCover} className="w-full h-16 object-cover rounded-lg mb-1.5" />
+                      <h5 className="text-[10px] font-bold text-gray-800 line-clamp-1">{simName}</h5>
+                      <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{simLocality}</p>
+                      
+                      {ratingVal > 0 && (
+                        <div className="flex items-center gap-1 my-1 text-[9px] text-[#d97706] font-bold">
+                          <Star size={9} className="fill-[#d97706]" /> {ratingVal.toFixed(1)}
+                        </div>
+                      )}
+
+                      <p className="text-xs font-extrabold text-gray-900">{simPrice}</p>
+                      <p className="text-[8px] text-slate-400 font-semibold">{simItem.propertyType ? (simItem.propertyType.charAt(0).toUpperCase() + simItem.propertyType.slice(1)) : 'Residential'}</p>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="w-full py-6 text-center text-xs text-slate-400 font-semibold">
+                  No similar properties found in this area
+                </div>
+              )}
+            </div>
+            
+            {similarProperties && similarProperties.length > 0 && (
+              <button
+                onClick={() => navigate(`/properties?city=${address?.city || ''}&type=${propertyType || ''}`)}
+                className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 active:scale-98 transition-all text-center block"
+              >
+                View more similar properties
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 11. SECTION: LOCALITY REVIEWS DETAILS (id="explore-locality") */}
+        <div id="explore-locality" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Locality Reviews</h3>
+              <p className="text-[10px] text-gray-500">For {localityName}</p>
+            </div>
+            <button
+            onClick={() => setShowReviewForm(true)}
+            className="text-xs font-bold text-[#0061df] hover:underline"
+          >
+            View all
+          </button>
+          </div>
+
+          {/* Average Rating Block */}
+          <div className="flex items-center gap-6 p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
+            <div className="text-center">
+              <h4 className="text-2xl font-black text-slate-900 leading-none">{avgLocalityRating.toFixed(1)}<span className="text-sm text-slate-400 font-normal"> / 5</span></h4>
+              <div className="flex items-center gap-0.5 justify-center mt-1 text-[#d97706]">
+                {[1, 2, 3, 4, 5].map((starIdx) => {
+                  const isFull = starIdx <= Math.floor(avgLocalityRating);
+                  return (
+                    <Star key={starIdx} size={11} className={isFull ? "fill-[#d97706] text-[#d97706]" : "text-slate-300"} />
+                  );
+                })}
+              </div>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Average Rating</p>
+              <p className="text-[8px] text-slate-400">({totalLocalityReviews} Total Reviews)</p>
+            </div>
+
+            {/* Bars */}
+            <div className="flex-1 space-y-1">
+              {[5, 4, 3, 2, 1].map((starVal) => {
+                const percentage = getStarPercentage(starVal);
+                return (
+                  <div key={starVal} className="flex items-center gap-2 text-[9px] font-bold text-slate-600">
+                    <span className="w-1">{starVal}</span>
+                    <Star size={7} className="fill-slate-400 text-slate-400" />
+                    <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${percentage}%` }} />
+                    </div>
+                    <span className="w-4 text-right opacity-70">{starVal === 5 ? '5★' : `${starVal}★`}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <a href="#ratings-calc" className="block text-xs font-bold text-[#0061df] hover:underline">
+            See how ratings are calculated
+          </a>
+
+          {/* Ratings by Features - progress circle indicators style */}
+          <div className="space-y-2.5">
+            <h4 className="text-xs font-bold text-slate-900">Ratings by features</h4>
+            
+            <div className="grid grid-cols-4 gap-2 text-center">
+              {featureRatings.map((feat, idx) => (
+                <div key={idx} className="flex flex-col items-center justify-center">
+                  <div className="relative w-12 h-12 flex items-center justify-center mb-1">
+                    <svg className="absolute w-full h-full transform -rotate-90">
+                      <circle cx="24" cy="24" r="18" className="stroke-slate-100 fill-transparent" strokeWidth="3" />
+                      <circle cx="24" cy="24" r="18" className="stroke-[#0061df] fill-transparent" strokeWidth="3"
+                        strokeDasharray={113} strokeDashoffset={113 - (113 * feat.percent) / 100} strokeLinecap="round" />
+                    </svg>
+                    <span className="text-[9px] font-black text-gray-800">{feat.val.split('/')[0]}</span>
+                  </div>
+                  <span className="text-[9px] font-bold text-gray-600 leading-tight">{feat.title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Positives & Negatives List tags */}
+          <div className="space-y-3 pt-2 border-t border-slate-50">
+            
+            {/* Positives */}
+            <div className="space-y-1.5">
+              <h5 className="text-xs font-bold text-slate-900">What are the positives</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {localityPositives.map((pos, i) => (
+                  <span key={i} className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded border border-emerald-100">
+                    {pos}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Negatives */}
+            <div className="space-y-1.5">
+              <h5 className="text-xs font-bold text-slate-900">What are the negatives</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {localityNegatives.map((neg, i) => (
+                  <span key={i} className="bg-red-50 text-red-800 text-[10px] font-bold px-2.5 py-1 rounded border border-red-100">
+                    {neg}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Reviews by Residents Horizontal scroll list */}
+          <div className="space-y-3 pt-3 border-t border-slate-50">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-slate-900">Reviews by Residents</span>
+              <button className="text-xs font-bold text-[#0061df] hover:underline">View all</button>
+            </div>
+
+            <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {localityReviews && localityReviews.length > 0 ? (
+                localityReviews.map((rev, idx) => {
+                  const ratingVal = rev.rating || 4.0;
+                  const reviewerName = rev.reviewerName || rev.userId?.name || rev.name || 'Anonymous';
+                  const role = rev.reviewerType || rev.role || 'Resident';
+                  const duration = rev.stayDuration ? ` | living since ${rev.stayDuration}` : '';
+                  const timeAgo = rev.createdAt ? `${new Date(rev.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : '1mo ago';
+                  return (
+                    <div key={idx} className="bg-slate-50/50 rounded-xl border border-slate-100 p-3 min-w-[220px] max-w-[260px] shrink-0 text-xs font-medium text-slate-700 relative">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <span className="bg-emerald-600 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">{ratingVal.toFixed(1)} ★</span>
+                      </div>
+                      <h6 className="text-[11px] font-bold text-slate-900 mb-1 line-clamp-1">{rev.title || 'Locality Rating'}</h6>
+                      <p className="line-clamp-2 leading-relaxed opacity-95">{rev.reviewText || rev.review || 'No comment provided.'}</p>
+                      <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-slate-100">
+                        <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-[10px]">
+                          {reviewerName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-slate-900 leading-none">{reviewerName}</p>
+                          <p className="text-[8px] text-slate-400">{role}{duration} | {timeAgo}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="w-full py-6 text-center text-xs text-slate-400 font-semibold bg-slate-50/50 rounded-xl border border-slate-100">
+                  No reviews yet for this locality. Be the first to share your experience!
+                </div>
+              )}
+            </div>
+
+          <button
+            onClick={() => setShowReviewForm(true)}
+            className="w-full py-3 bg-[#0061df] hover:bg-blue-700 text-white rounded-xl text-xs font-bold hover:shadow-lg active:scale-98 transition-all text-center block"
+          >
+            Review your Society / Locality
+          </button>
+          </div>
+
+          {/* Affordability EMI calculator Tool card */}
+          {bookingBarPrice && !isNaN(Number(bookingBarPrice)) && !isRentGroup && !isPgGroup && (
+            <div className="pt-3 border-t border-slate-50">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Check your affordability</span>
+              
+              {(() => {
+                const principal = Number(bookingBarPrice);
+                const rate = 8.5 / 100 / 12; // 8.5% annual rate
+                const tenure = 20 * 12; // 20 years in months
+                const emi = principal > 0 && rate > 0
+                  ? Math.round((principal * 0.8 * rate * Math.pow(1 + rate, tenure)) / (Math.pow(1 + rate, tenure) - 1))
+                  : 0;
+                return (
+                  <div className="rounded-xl border border-slate-150 p-3 bg-white flex items-center justify-between cursor-pointer hover:border-slate-300 transition-colors shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-500">
+                        <Grid size={18} />
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-bold text-slate-900">Calculate EMI</h5>
+                        <p className="text-[10px] text-slate-500 font-semibold">
+                          {emi > 0 ? `Est. EMI ₹${emi.toLocaleString('en-IN')}/month · 20 yrs @8.5%` : 'Tap to calculate your EMI'}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-400" />
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* Ticker / Banner on top of footer bar */}
+      <div className="fixed bottom-[65px] left-0 right-0 z-50 bg-[#fff5f6] border-y border-[#ffe2e5] py-2 px-4 shadow-md text-center max-w-xl mx-auto">
+        <span className="text-[11px] font-bold text-red-600 flex items-center justify-center gap-1.5">
+          <span className="w-2 h-2 bg-red-600 rounded-full animate-ping shrink-0" />
+          {property?.enquiryCount && property.enquiryCount > 5
+            ? `${property.enquiryCount} people already contacted for this property`
+            : property?.viewCount && property.viewCount > 3
+              ? `${property.viewCount} people are actively viewing this property`
+              : 'High demand property — Contact now to avoid missing out'
+          }
+        </span>
+      </div>
+
+      {/* Sticky Bottom Actions Bar (Matches Image 1) */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 p-2.5 shadow-2xl z-50 max-w-xl mx-auto">
+        <div className="flex items-center gap-2">
+          
+          {/* WhatsApp Support */}
+          <button
+            onClick={() => {
+              const msg = encodeURIComponent(`Hi, I am interested in property "${name}" (${id}) listed on Get Right Home.`);
+              window.open(`https://wa.me/919652961607?text=${msg}`, '_blank');
+            }}
+            className="flex-1 py-3 bg-white hover:bg-slate-50 text-emerald-600 border border-emerald-500 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all text-center"
+          >
+            💬 WhatsApp
+          </button>
+
+          {/* Solid blue core action button */}
+          <button
+            onClick={() => {
+              const pType = propertyType?.toLowerCase();
+              const isHotelOrPg = ['hotel', 'pg', 'hostel', 'resort', 'homestay'].includes(pType);
+              if (!isHotelOrPg) {
+                if (revealedNumber) {
+                  window.location.href = `tel:${revealedNumber}`;
+                } else {
+                  handleEnquiryButtonClick();
+                }
+              } else {
+                // Hotel booking flow
+                if (!selectedRoom && inventory && inventory.length > 0) {
+                  toast.error("Please choose a Room Type first");
+                  const el = document.getElementById('facilities');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  return;
+                }
+                
+                // Route to checkout with selected dates
+                const checkInDate = dates.checkIn || new Date().toISOString().split('T')[0];
+                const checkOutDate = dates.checkOut || new Date(new Date().getTime() + 86400000).toISOString().split('T')[0];
+                
+                navigate('/checkout', {
+                  state: {
+                    property,
+                    selectedRoom: selectedRoom || (inventory && inventory[0]),
+                    dates: { checkIn: checkInDate, checkOut: checkOutDate },
+                    guests,
+                    priceBreakdown: priceBreakdown || {
+                      nights: 1,
+                      units: 1,
+                      pricePerNight: bookingBarPrice,
+                      grossAmount: bookingBarPrice,
+                      grandTotal: bookingBarPrice + Math.round((bookingBarPrice * taxRate) / 100),
+                      taxAmount: Math.round((bookingBarPrice * taxRate) / 100)
+                    },
+                    taxRate
+                  }
+                });
+              }
+            }}
+            className="flex-[2] py-3.5 bg-[#0061df] hover:bg-blue-700 text-white rounded-full text-xs font-bold flex items-center justify-center gap-1 shadow-lg active:scale-95 transition-all"
+          >
+            <span>{revealedNumber ? `📞 ${revealedNumber}` : 'View Number / Enquire'}</span>
+          </button>
+
+          {/* Call icon */}
+          {revealedNumber ? (
+            <a
+              href={`tel:${revealedNumber}`}
+              className="w-11 h-11 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all"
+            >
+              <Phone size={16} className="fill-current" />
+            </a>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                handleEnquiryButtonClick();
+              }}
+              disabled={revealLoading}
+              className="w-11 h-11 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-[#0061df] rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all"
+            >
+              {revealLoading ? <Loader2 size={14} className="animate-spin" /> : <Phone size={16} className="fill-current" />}
+            </button>
+          )}
+
+        </div>
+      </div>
+
+      {/* DRAWER MODAL 1: PROPERTY HIGHLIGHTS BOTTOM DRAWER */}
+      <AnimatePresence>
+        {showHighlightsModal && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowHighlightsModal(false)}>
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-xl rounded-t-[2rem] max-h-[85vh] flex flex-col shadow-2xl overflow-hidden pb-8"
+            >
+              {/* Drawer handle indicator */}
+              <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto my-3 shrink-0" />
+              
+              <div className="px-5 pb-3 border-b border-slate-50 flex items-center justify-between">
+                <h3 className="font-bold text-base text-slate-900">Property Highlights</h3>
+                <button onClick={() => setShowHighlightsModal(false)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto space-y-4">
+                {property.highlights && property.highlights.length > 0 ? (
+                  property.highlights.map((hl, i) => (
+                    <div key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-700 border-b border-slate-50 pb-2.5 last:border-0 last:pb-0">
+                      <div className="w-6 h-6 rounded-full bg-blue-50 text-[#0061df] flex items-center justify-center">
+                        <CheckCircle size={12} />
+                      </div>
+                      <span>{hl}</span>
+                    </div>
+                  ))
+                ) : (
+                  [
+                    { label: 'Full Power Backup', icon: Zap },
+                    { label: 'Visitor Parking Available', icon: Car },
+                    { label: 'Centrally Air Conditioned', icon: Wind },
+                    { label: 'On-Call Maintenance Staff', icon: Sparkles },
+                    { label: 'Overlooking Park', icon: Grid },
+                    { label: 'Overlooking Main Road', icon: Move },
+                    { label: 'Vaastu Compliant', icon: Compass },
+                    { label: 'Natural Light', icon: Droplets },
+                    { label: 'Air Rooms', icon: Wind },
+                    { label: 'Spacious Interiors', icon: LayoutTemplate }
+                  ].map((item, i) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-700 border-b border-slate-50 pb-2.5 last:border-0 last:pb-0">
+                        <div className="w-6 h-6 rounded-full bg-blue-50 text-[#0061df] flex items-center justify-center">
+                          <Icon size={12} />
+                        </div>
+                        <span>{item.label}</span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* DRAWER MODAL 2: BUILDING AMENITIES VIEW ALL BOTTOM DRAWER */}
+      <AnimatePresence>
+        {showAllAmenitiesModal && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAllAmenitiesModal(false)}>
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-xl rounded-t-[2rem] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden pb-8"
+            >
+              {/* Drawer handle indicator */}
+              <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto my-3 shrink-0" />
+              
+              <div className="px-5 pb-3 border-b border-slate-50 flex items-center justify-between">
+                <h3 className="font-bold text-base text-slate-900">Building amenities</h3>
+                <button onClick={() => setShowAllAmenitiesModal(false)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto space-y-5">
+                
+                {/* Top Amenities Grid (Matches Image 8) */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Top amenities</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {property.topAmenities && property.topAmenities.length > 0 ? (
+                      property.topAmenities.map((am, i) => (
+                        <div key={i} className="p-3 rounded-2xl flex flex-col items-center justify-center text-center bg-[#f0f7ff] text-blue-600 border border-blue-50">
+                          <CheckCircle size={18} className="mb-1" />
+                          <span className="text-[9px] font-bold leading-tight">{am}</span>
+                        </div>
+                      ))
+                    ) : (
+                      [
+                        { title: 'Security / Fire Alarm', icon: Shield, bg: 'bg-[#fff5f5] text-red-500 border border-red-50' },
+                        { title: 'Centrally Air Conditioned', icon: Wind, bg: 'bg-[#effbfb] text-teal-600 border border-teal-50' },
+                        { title: 'Vaastu Compliant', icon: Compass, bg: 'bg-[#fffbf0] text-amber-600 border border-amber-50' },
+                        { title: 'Visitor Parking', icon: Car, bg: 'bg-[#f0f7ff] text-blue-600 border border-blue-50' },
+                        { title: 'Intercom Facility', icon: Phone, bg: 'bg-[#fffbf0] text-amber-600 border border-amber-50' },
+                        { title: 'Park', icon: Grid, bg: 'bg-[#f0fff4] text-green-600 border border-green-50' },
+                        { title: 'Fitness Centre / GYM', icon: Dumbbell, bg: 'bg-[#fff5f5] text-red-500 border border-red-50' },
+                        { title: 'Maintenance Staff', icon: Sparkles, bg: 'bg-[#f0f7ff] text-blue-600 border border-blue-50' },
+                        { title: 'Rain Water Harvesting', icon: Droplets, bg: 'bg-[#effbfb] text-teal-600 border border-teal-50' }
+                      ].map((topA, i) => {
+                        const Icon = topA.icon;
+                        return (
+                          <div key={i} className={`p-3 rounded-2xl flex flex-col items-center justify-center text-center ${topA.bg}`}>
+                            <Icon size={18} className="mb-1" />
+                            <span className="text-[9px] font-bold leading-tight">{topA.title}</span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Other Amenities list (Matches Image 8) */}
+                <div className="space-y-2 pt-3 border-t border-slate-50">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Other amenities</h4>
+                  
+                  <div className="space-y-2">
+                    {property.otherAmenities && property.otherAmenities.length > 0 ? (
+                      property.otherAmenities.map((am, i) => (
+                        <div key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-700 py-1.5 border-b border-slate-50 last:border-0 last:pb-0">
+                          <CheckCircle size={14} className="text-emerald-500" />
+                          <span>{am}</span>
+                        </div>
+                      ))
+                    ) : (
+                      [
+                        { title: 'Piped-gas', icon: Flame },
+                        { title: 'Bank Attached Property', icon: Landmark },
+                        { title: 'Recently Renovated', icon: CheckCircle },
+                        { title: 'High Ceiling Height', icon: Move },
+                        { title: 'False Ceiling Lighting', icon: Sparkles }
+                      ].map((otherA, i) => {
+                        const Icon = otherA.icon;
+                        return (
+                          <div key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-700 py-1.5 border-b border-slate-50 last:border-0 last:pb-0">
+                            <Icon size={14} className="text-slate-400" />
+                            <span>{otherA.title}</span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* FULL SCREEN GALLERY IMAGE VIEW MODAL */}
+      {showImageModal && (
+        <div className="fixed inset-0 z-[9999] flex flex-col bg-black animate-fadeIn">
+          <div className="p-4 flex items-center justify-between text-white z-10 shrink-0">
+            <div className="flex flex-col">
+              <h3 className="font-bold text-sm line-clamp-1">{name}</h3>
+              <p className="text-[10px] opacity-70">Image {currentImageIndex + 1} of {galleryImages.length}</p>
+            </div>
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="p-2 bg-white/10 rounded-full hover:bg-white/20"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="flex-1 w-full h-full relative flex items-center justify-center p-4" onClick={() => setShowImageModal(false)}>
+            <img
+              src={galleryImages[currentImageIndex]}
+              alt={`Gallery ${currentImageIndex}`}
+              onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
+              className="max-w-full max-h-full w-auto h-auto object-contain cursor-pointer shadow-2xl"
+            />
+          </div>
+
+          <div className="p-4 flex justify-center gap-1.5 overflow-x-auto hide-scrollbar z-10 shrink-0">
             {galleryImages.map((img, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentImageIndex(idx)}
-                className={`
-                  w-12 h-12 md:w-16 md:h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all
-                  ${idx === currentImageIndex ? 'border-surface scale-110 shadow-lg' : 'border-transparent opacity-40 hover:opacity-100'}
-                `}
+                className={`w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${
+                  idx === currentImageIndex ? 'border-[#0061df] scale-105' : 'border-transparent opacity-55'
+                }`}
               >
                 <img src={img} className="w-full h-full object-cover" />
               </button>
@@ -1959,155 +2381,244 @@ const PropertyDetailsPage = () => {
           </div>
         </div>
       )}
-      {/* Similar / Recommended Properties Slider */}
-      {similarProperties && similarProperties.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-12 border-t border-gray-200 mt-12">
-          <div className="mb-8">
-            <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">Recommended Properties</h2>
-            <p className="text-gray-500 text-sm mt-1">Similar properties you might be interested in</p>
-          </div>
-          
-          <div className="flex flex-col gap-6 items-center md:items-start">
-            {similarProperties.map((prop) => (
-              <div key={prop._id} className="w-[280px]">
-                <GRHPropertyCard property={prop} />
+
+      {/* REVIEW SUBMIT MODAL */}
+      <AnimatePresence>
+        {showReviewForm && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowReviewForm(false)}>
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-xl rounded-t-[2rem] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden pb-8"
+            >
+              <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto my-3 shrink-0" />
+              
+              <div className="px-5 pb-3 border-b border-slate-50 flex items-center justify-between">
+                <h3 className="font-bold text-base text-slate-900">Write a Review</h3>
+                <button onClick={() => setShowReviewForm(false)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600">
+                  <X size={16} />
+                </button>
               </div>
-            ))}
+
+              <div className="p-5 overflow-y-auto">
+                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">How would you rate this property?</label>
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          size={28}
+                          className={`cursor-pointer transition-colors ${reviewData.rating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`}
+                          onClick={() => setReviewData({ ...reviewData, rating: star })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Write your review</label>
+                    <textarea
+                      value={reviewData.comment || ''}
+                      onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
+                      placeholder="Share your experience living here or about the locality..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:border-[#0061df] transition-colors resize-none"
+                      rows={5}
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={submitReviewLoading}
+                    className="w-full py-3.5 bg-[#0061df] hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center justify-center shadow-lg active:scale-95 transition-all"
+                  >
+                    {submitReviewLoading ? <Loader2 className="animate-spin" size={18} /> : 'Submit Review'}
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* OFFERS / PRICE BREAKDOWN MODAL */}
+      {showOffersModal && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowOffersModal(false)}>
+          <div className="bg-white w-full max-w-xl rounded-t-[2rem] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <h3 className="font-bold text-base text-gray-900">Price Details Breakdown</h3>
+              <button onClick={() => setShowOffersModal(false)} className="p-1 bg-slate-100 rounded-full text-slate-500">✕</button>
+            </div>
+
+            <div className="mt-4 space-y-3 overflow-y-auto max-h-[50vh] text-xs font-semibold text-slate-700">
+              <div className="flex justify-between">
+                <span>Asking Base Price</span>
+                <span className="font-extrabold text-slate-900">{formatPriceLakhCrore(bookingBarPrice)}</span>
+              </div>
+              <div className="flex justify-between text-slate-500">
+                <span>Brokerage Charges</span>
+                <span>2% / Negotiable</span>
+              </div>
+              <div className="flex justify-between text-slate-500">
+                <span>Stamp Duty & Registration</span>
+                <span>Additional / standard rates</span>
+              </div>
+              <div className="flex justify-between pt-3 border-t border-slate-100 text-sm font-extrabold text-[#0061df]">
+                <span>Total Expected Value</span>
+                <span>{formatPriceLakhCrore(bookingBarPrice)}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* SCHEDULE VISIT DIALOG MODAL */}
-      {showVisitModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowVisitModal(false)}>
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-              <h3 className="font-bold text-lg text-gray-900">Schedule a Visit</h3>
-              <button onClick={() => setShowVisitModal(false)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
-            </div>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              setBookingLoading(true);
-              try {
-                const response = await enquiryService.create({
-                  propertyId: id,
-                  enquiryType: 'schedule_visit',
-                  message: enquiryMessage || 'I would like to schedule a visit to this property.',
-                  preferredDate: new Date(visitDate),
-                  timeSlot: visitSlot || '',
-                  budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
-                });
-                if (response.success) {
-                  toast.success("Visit scheduled successfully! The partner will contact you soon.");
-                  setShowVisitModal(false);
-                  setEnquiryMessage('');
-                }
-              } catch (err) {
-                toast.error(err.message || "Failed to schedule visit");
-              } finally {
-                setBookingLoading(false);
-              }
-            }} className="space-y-4 mt-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Preferred Date</label>
-                <input
-                  type="date"
-                  value={visitDate}
-                  onChange={(e) => setVisitDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-semibold outline-none focus:ring-1 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Preferred Time Slot</label>
-                <select
-                  value={visitSlot}
-                  onChange={(e) => setVisitSlot(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-semibold outline-none focus:ring-1 focus:ring-blue-500"
+      {/* LAZY ENQUIRY REGISTRATION MODAL */}
+      <AnimatePresence>
+        {showEnquiryModal && (
+          <div 
+            className="fixed inset-0 z-[110] flex items-end justify-center bg-black/60 backdrop-blur-sm" 
+            onClick={() => {
+              setShowEnquiryModal(false);
+              setOtpSent(false);
+            }}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-xl rounded-t-[2rem] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden pb-8 font-sans"
+            >
+              {/* Drawer handle indicator */}
+              <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto my-3 shrink-0" />
+              
+              <div className="px-5 pb-3 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Contact Owner / Dealer</h3>
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Submit enquiry to view phone number</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowEnquiryModal(false);
+                    setOtpSent(false);
+                  }} 
+                  className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600"
                 >
-                  <option value="Morning (10 AM - 12 PM)">Morning (10 AM - 12 PM)</option>
-                  <option value="Afternoon (12 PM - 3 PM)">Afternoon (12 PM - 3 PM)</option>
-                  <option value="Evening (3 PM - 6 PM)">Evening (3 PM - 6 PM)</option>
-                </select>
+                  <X size={16} />
+                </button>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Additional Notes</label>
-                <textarea
-                  value={enquiryMessage}
-                  onChange={(e) => setEnquiryMessage(e.target.value)}
-                  placeholder="e.g. I want to see the parking space and facing direction."
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm min-h-[80px] outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={bookingLoading}
-                className="w-full py-3 bg-[#0d6efd] hover:bg-[#0b5ed7] text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all text-sm flex items-center justify-center gap-2"
-              >
-                {bookingLoading ? <Loader2 className="animate-spin" size={18} /> : 'Schedule Visit'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {/* REQUEST CALLBACK DIALOG MODAL */}
-      {showCallbackModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowCallbackModal(false)}>
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-              <h3 className="font-bold text-lg text-gray-900">Request Callback</h3>
-              <button onClick={() => setShowCallbackModal(false)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
-            </div>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              setBookingLoading(true);
-              try {
-                const response = await enquiryService.create({
-                  propertyId: id,
-                  enquiryType: 'request_callback',
-                  message: 'Please call me back at my registered number.',
-                  timeSlot: callbackTime || '',
-                  budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
-                });
-                if (response.success) {
-                  toast.success("Callback requested! You will get a call soon.");
-                  setShowCallbackModal(false);
-                }
-              } catch (err) {
-                toast.error(err.message || "Failed to request callback");
-              } finally {
-                setBookingLoading(false);
-              }
-            }} className="space-y-4 mt-4">
-              <p className="text-sm text-gray-600 leading-relaxed">
-                The owner or their agent will call you back shortly on your registered phone number.
-              </p>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Preferred Callback Time</label>
-                <select
-                  value={callbackTime}
-                  onChange={(e) => setCallbackTime(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-semibold outline-none focus:ring-1 focus:ring-blue-500"
+              <form onSubmit={handleEnquirySubmit} className="p-5 overflow-y-auto space-y-4 max-h-[70vh]">
+                {!localStorage.getItem('user') ? (
+                  <>
+                    {/* Name */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
+                      <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Your Full Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={enquiryForm.name}
+                        onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
+                        placeholder="e.g. John Doe"
+                        className="w-full bg-transparent outline-none text-xs font-bold text-slate-800"
+                      />
+                    </div>
+
+                    {/* Phone + Send OTP */}
+                    <div className="flex gap-2">
+                      <div className="flex-1 bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
+                        <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Mobile Number</label>
+                        <div className="flex items-center">
+                          <span className="text-xs text-slate-500 font-bold mr-1.5">+91</span>
+                          <input
+                            type="tel"
+                            required
+                            value={enquiryForm.phone}
+                            onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
+                            placeholder="9876543210"
+                            maxLength={10}
+                            className="w-full bg-transparent outline-none text-xs font-bold tracking-wide text-slate-800"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={sendingOtp || !enquiryForm.phone || enquiryForm.phone.length < 10}
+                        onClick={handleSendOtp}
+                        className="px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center shrink-0 border border-blue-100/50"
+                      >
+                        {sendingOtp ? <Loader2 className="animate-spin text-blue-600" size={16} /> : otpSent ? 'Resend' : 'Send OTP'}
+                      </button>
+                    </div>
+
+                    {/* OTP */}
+                    {otpSent && (
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all animate-in fade-in slide-in-from-top-2 duration-200">
+                        <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Enter OTP Sent</label>
+                        <input
+                          type="text"
+                          required
+                          value={enquiryForm.otp}
+                          onChange={(e) => setEnquiryForm({ ...enquiryForm, otp: e.target.value })}
+                          placeholder="123456"
+                          maxLength={6}
+                          className="w-full bg-transparent outline-none text-xs font-bold tracking-widest text-slate-800"
+                        />
+                        <span className="absolute right-3 bottom-3 text-[8px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                          Bypass: 123456
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-blue-50/30 border border-blue-100/50 rounded-2xl p-4 flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
+                      {enquiryForm.name ? enquiryForm.name.charAt(0).toUpperCase() : <User size={14} />}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Submitting as {enquiryForm.name}</p>
+                      <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Verified Mobile: +91 {enquiryForm.phone}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Message */}
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
+                  <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Your Message / Requirement</label>
+                  <textarea
+                    rows={3}
+                    value={enquiryForm.message}
+                    onChange={(e) => setEnquiryForm({ ...enquiryForm, message: e.target.value })}
+                    placeholder="Describe your requirement..."
+                    className="w-full bg-transparent outline-none text-xs font-semibold text-slate-800 resize-none pt-1"
+                  />
+                </div>
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={bookingLoading}
+                  className="w-full py-4 bg-[#0061df] hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg active:scale-[0.98] transition-all disabled:opacity-75"
                 >
-                  <option value="Immediate (within 15 mins)">Immediate (within 15 mins)</option>
-                  <option value="Within 2 Hours">Within 2 Hours</option>
-                  <option value="Evening (after 5 PM)">Evening (after 5 PM)</option>
-                  <option value="Tomorrow Morning">Tomorrow Morning</option>
-                </select>
-              </div>
-              <button
-                type="submit"
-                disabled={bookingLoading}
-                className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all text-sm flex items-center justify-center gap-2"
-              >
-                {bookingLoading ? <Loader2 className="animate-spin" size={18} /> : 'Request Callback'}
-              </button>
-            </form>
+                  {bookingLoading ? (
+                    <Loader2 className="animate-spin text-white" size={16} />
+                  ) : (
+                    <span>{!localStorage.getItem('user') ? 'Verify & Submit Enquiry' : 'Submit Enquiry'}</span>
+                  )}
+                </button>
+                
+                <p className="text-[10px] text-center text-slate-400 font-semibold">
+                  🔒 Your contact information is safe with us.
+                </p>
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };
