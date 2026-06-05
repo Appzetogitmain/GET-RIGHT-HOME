@@ -49,24 +49,35 @@ const TopNavbar = () => {
 
             {/* User Actions */}
             <div className="flex items-center gap-4">
-                <Link
-                    to="/saved-places"
-                    className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition border border-transparent hover:border-emerald-100"
-                >
-                    <Globe size={18} className="text-gray-500 hover:text-emerald-600" />
-                </Link>
+                {user ? (
+                    <>
+                        <Link
+                            to="/saved-places"
+                            className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition border border-transparent hover:border-emerald-100"
+                        >
+                            <Globe size={18} className="text-gray-500 hover:text-emerald-600" />
+                        </Link>
 
-                <Link
-                    to="/settings"
-                    className="pl-3 pr-4 py-1.5 bg-white border border-gray-100 rounded-full flex items-center gap-3 hover:border-emerald-200 hover:bg-emerald-50/30 transition group shadow-sm"
-                >
-                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-emerald-200">
-                        {userName.charAt(0)}
-                    </div>
-                    <span className="text-sm font-bold text-emerald-950 group-hover:text-emerald-700">
-                        {userName.split(' ')[0]}
-                    </span>
-                </Link>
+                        <Link
+                            to="/settings"
+                            className="pl-3 pr-4 py-1.5 bg-white border border-gray-100 rounded-full flex items-center gap-3 hover:border-emerald-200 hover:bg-emerald-50/30 transition group shadow-sm"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-emerald-200">
+                                {userName.charAt(0)}
+                            </div>
+                            <span className="text-sm font-bold text-emerald-950 group-hover:text-emerald-700">
+                                {userName.split(' ')[0]}
+                            </span>
+                        </Link>
+                    </>
+                ) : (
+                    <Link
+                        to="/login"
+                        className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-full transition shadow-sm active:scale-95"
+                    >
+                        Login / Signup
+                    </Link>
+                )}
             </div>
 
         </nav>

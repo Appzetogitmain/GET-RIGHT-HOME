@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Mail, ArrowRight, Loader2, Shield, User } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import logo from '../../assets/grh-logo.png';
 import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
@@ -162,14 +162,15 @@ const UserSignup = () => {
                 className="relative w-full max-w-md"
             >
                 <div className="text-center mb-8">
-                    <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", delay: 0.2 }}
-                        className="inline-block mb-2"
-                    >
-                        <img src={logo} alt="GRH Logo" className="h-24 w-auto mx-auto object-contain" />
-                    </motion.div>
+                    <Link to="/" className="inline-block mb-2">
+                        <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: "spring", delay: 0.2 }}
+                        >
+                            <img src={logo} alt="GRH Logo" className="h-24 w-auto mx-auto object-contain" />
+                        </motion.div>
+                    </Link>
                     <h1 className="text-3xl font-bold text-gray-900 uppercase">Create Account</h1>
                     <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Get-Right-Home Hub</p>
                 </div>
@@ -382,15 +383,23 @@ const UserSignup = () => {
                     </AnimatePresence>
                 </motion.div>
 
-                <p className="text-center text-gray-500 text-sm mt-6">
-                    Already have an account?{' '}
-                    <button
-                        onClick={() => navigate('/login')}
-                        className="text-amber-600 font-medium hover:underline"
+                <div className="flex flex-col items-center gap-3 mt-6">
+                    <p className="text-center text-gray-500 text-sm">
+                        Already have an account?{' '}
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="text-amber-600 font-medium hover:underline"
+                        >
+                            Login
+                        </button>
+                    </p>
+                    <Link
+                        to="/"
+                        className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-amber-600 font-bold transition-colors mt-2"
                     >
-                        Login
-                    </button>
-                </p>
+                        ← Back to Store
+                    </Link>
+                </div>
             </motion.div >
         </div >
     );

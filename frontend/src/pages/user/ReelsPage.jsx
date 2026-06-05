@@ -5,6 +5,7 @@ import ReelCard from '../../components/reels/ReelCard';
 import ReelCommentsSheet from '../../components/reels/ReelCommentsSheet';
 import { reelService } from '../../services/reelService';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 const BENGALURU_AREAS = [
   "Bengaluru North",
@@ -42,6 +43,7 @@ const BHK_OPTIONS = ["1 BHK", "2 BHK", "3 BHK", "4 BHK", "5 BHK"];
 
 export default function ReelsPage() {
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
   const [reels, setReels] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -171,6 +173,11 @@ export default function ReelsPage() {
   const likeLockRef = useRef({});
 
   const handleLikeToggle = useCallback(async (reelId) => {
+    if (!isLoggedIn) {
+      toast.error('Please login to like reels');
+      navigate('/login');
+      return;
+    }
     if (likeLockRef.current[reelId]) return;
     likeLockRef.current[reelId] = true;
 
@@ -210,9 +217,14 @@ export default function ReelsPage() {
     } finally {
       likeLockRef.current[reelId] = false;
     }
-  }, []);
+  }, [isLoggedIn, navigate]);
 
   const handleShortlistToggle = useCallback(async (reelId) => {
+    if (!isLoggedIn) {
+      toast.error('Please login to shortlist projects');
+      navigate('/login');
+      return;
+    }
     try {
       const res = await reelService.shortlist(reelId);
       setReels((prev) =>
@@ -224,9 +236,16 @@ export default function ReelsPage() {
     } catch (err) {
       toast.error('Failed to update shortlist status');
     }
-  }, []);
+  }, [isLoggedIn, navigate]);
 
-  const handleCommentClick = useCallback((reel) => setCommentReel(reel), []);
+  const handleCommentClick = useCallback((reel) => {
+    if (!isLoggedIn) {
+      toast.error('Please login to view or add comments');
+      navigate('/login');
+      return;
+    }
+    setCommentReel(reel);
+  }, [isLoggedIn, navigate]);
   const handleCloseComments = useCallback(() => setCommentReel(null), []);
 
   const handleCommentAdded = useCallback((reelId) => {
@@ -558,6 +577,11 @@ export default function ReelsPage() {
         <button
           type="button"
           onClick={() => {
+            if (!isLoggedIn) {
+              toast.error('Please login to upload reels');
+              navigate('/login');
+              return;
+            }
             resetWizard();
             setUploadOpen(true);
           }}
