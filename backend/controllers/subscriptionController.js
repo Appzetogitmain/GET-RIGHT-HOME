@@ -1,5 +1,6 @@
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
 import Partner from '../models/Partner.js';
+import User from '../models/User.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import PaymentConfig from '../config/payment.config.js';
@@ -140,15 +141,16 @@ export const getActivePlans = async (req, res) => {
 export const getCurrentSubscription = async (req, res) => {
     try {
         const partnerId = req.user._id || req.user.id;
-        const partner = await Partner.findById(partnerId).populate('subscription.planId');
+        const Model = req.user.role === 'partner' ? Partner : User;
+        const partner = await Model.findById(partnerId).populate('subscription.planId');
 
-        if (!partner) return res.status(404).json({ message: 'Partner not found' });
+        if (!partner) return res.status(404).json({ message: 'User not found' });
 
         res.json({
             success: true,
             subscription: partner.subscription,
             createdAt: partner.createdAt,
-            partnerSince: partner.partnerSince
+            partnerSince: partner.partnerSince || partner.createdAt
         });
     } catch (error) {
         console.error('Get Subscription Error:', error);
@@ -236,28 +238,22 @@ export const verifySubscription = async (req, res) => {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + plan.durationDays);
 
-        const partner = await Partner.findById(partnerId);
+        const Model = req.user.role === 'partner' ? Partner : User;
+        const partner = await Model.findById(partnerId);
+        if (!partner) return res.status(404).json({ message: 'User not found' });
 
-        // Logic: Reset properties count or carry over? 
-        // Usually, upgrading/renewing gives fresh capacity for that tier, 
-        // OR we just set the new max limit. 
-        // The requirement says "jab plan ke according number of property hotel patner add kar chuka ho to vo fir se property add nahi kar sakta he".
-        // This implies `propertiesAdded` is a counter for the *current* plan cycle. 
-        // If I renew, my counter technically should reset for *new* additions if it was a usage-based limit, 
-        // BUT usually "Max 5 properties" means "Total Active Properties". 
-        // If I have 5, and I renew a 5-property plan, I still have 5. I can't add more. 
-        // If I upgrade to 10, I can add 5 more. 
-        // So, we don't necessarily reset `propertiesAdded`. We just check `propertiesAdded < maxProperties` in the Guard logic.
-        // However, the `propertiesAdded` field in Partner schema needs to stay accurate to *actual* properties in DB.
-        // We should probably sync it with `Property.countDocuments({ partnerId })` to be safe, but for now let's leave it as is 
-        // and assume the Add Property flow increments it. 
+        // Recount active properties to ensure data integrity
+        const Property = (await import('../models/Property.js')).default;
+        const query = req.user.role === 'partner' ? { partnerId } : { userId: partnerId };
+        query.status = { $ne: 'deleted' };
+        const actualPropsCount = await Property.countDocuments(query);
 
         partner.subscription = {
             planId: plan._id,
             status: 'active',
             startDate: new Date(),
             expiryDate: expiryDate,
-            propertiesAdded: partner.subscription?.propertiesAdded || 0,
+            propertiesAdded: actualPropsCount,
             transactionId: razorpay_payment_id,
             leadsUsedThisMonth: 0, // Reset/Initialize leads
             isPaused: false
@@ -284,7 +280,8 @@ export const verifySubscription = async (req, res) => {
 export const toggleSubscriptionPause = async (req, res) => {
     try {
         const partnerId = req.user._id || req.user.id;
-        const partner = await Partner.findById(partnerId).populate('subscription.planId');
+        const Model = req.user.role === 'partner' ? Partner : User;
+        const partner = await Model.findById(partnerId).populate('subscription.planId');
 
         if (!partner || !partner.subscription.planId) {
             return res.status(404).json({ message: 'Active subscription not found' });

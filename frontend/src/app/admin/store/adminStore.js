@@ -16,7 +16,11 @@ const useAdminStore = create((set, get) => ({
   login: async (email, password) => {
     try {
       const response = await axiosInstance.post(`/auth/admin/login`, { email, password });
-      const { user } = response.data;
+      const { user, token } = response.data;
+
+      if (token) {
+        localStorage.setItem('adminToken', token);
+      }
 
       set({ admin: user, isAuthenticated: true, loading: false });
       return { success: true };
@@ -30,6 +34,7 @@ const useAdminStore = create((set, get) => ({
   },
 
   logout: () => {
+    localStorage.removeItem('adminToken');
     set({ admin: null, isAuthenticated: false });
   },
 

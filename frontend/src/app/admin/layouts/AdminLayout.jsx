@@ -80,6 +80,7 @@ const AdminLayout = () => {
             items: [
                 { icon: Users, label: 'User Management', path: '/admin/users' },
                 { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
+                { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
                 { icon: Home, label: 'Property Management', path: '/admin/properties' },
                 { icon: LayoutGrid, label: 'Categories', path: '/admin/categories' },
                 { icon: FileText, label: 'Property Form CMS', path: '/admin/property-forms' },
@@ -93,7 +94,6 @@ const AdminLayout = () => {
         {
             title: 'SYSTEM',
             items: [
-                { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
                 { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },
                 { icon: Tag, label: 'Offers & Coupons', path: '/admin/offers' },
                 { icon: Bell, label: 'Notifications', path: '/admin/notifications', badge: unreadCount > 0 },
