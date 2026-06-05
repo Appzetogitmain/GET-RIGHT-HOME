@@ -21,6 +21,7 @@ import {
 import adminMenu from "../../config/adminMenu.json";
 import dashboardService from "../../services/dashboardService";
 import Logo from "../../../../components/common/Logo";
+import useAdminStore from "../../../../../app/admin/store/adminStore";
 
 // Icon mapping for menu items
 const iconMap = {
@@ -117,6 +118,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
   const [adminUser, setAdminUser] = useState({ name: 'Admin', email: '', role: 'admin' });
+  const { admin: storeAdmin } = useAdminStore();
   const [counts, setCounts] = useState({
     bookings: 0,
     vendors: 0,
@@ -125,8 +127,16 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     scraps: 0
   });
 
-  // Load admin user from storage
+  // Load admin user from storage/store
   useEffect(() => {
+    if (storeAdmin) {
+      setAdminUser({
+        name: storeAdmin.name || 'Admin',
+        email: storeAdmin.email || '',
+        role: storeAdmin.role || 'admin'
+      });
+      return;
+    }
     try {
       const storedData = sessionStorage.getItem('adminData') || localStorage.getItem('adminData');
       const stored = JSON.parse(storedData || '{}');
@@ -140,13 +150,19 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     } catch (e) {
       console.error('Failed to parse admin data:', e);
     }
-  }, []);
+  }, [storeAdmin]);
 
   // Filter menu items by role
-  const filteredMenu = useMemo(() => adminMenu.filter(item => {
-    if (!item.allowedRoles) return true;
-    return item.allowedRoles.includes(adminUser.role);
-  }), [adminUser.role]);
+  const filteredMenu = useMemo(() => {
+    console.log('AdminSidebar - adminUser.role:', adminUser.role);
+    const menu = adminMenu.filter(item => {
+      if (!item.allowedRoles) return true;
+      const normalizedRole = adminUser.role === 'superadmin' ? 'super_admin' : adminUser.role;
+      return item.allowedRoles.includes(normalizedRole);
+    });
+    console.log('AdminSidebar - filteredMenu:', menu);
+    return menu;
+  }, [adminUser.role]);
 
   // Fetch pending counts for badges
   useEffect(() => {
