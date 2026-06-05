@@ -4,6 +4,7 @@ import { propertyService } from '../../services/propertyService';
 import { userService, api } from '../../services/apiService';
 import { MapPin, Search, Filter, Star, IndianRupee, Navigation, X, ChevronLeft, Heart, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 import PropertyCard from '../../components/user/PropertyCard';
 import AdvancedFilterModal from '../../components/user/AdvancedFilterModal';
 import MobileSearchOverlay from '../../components/user/MobileSearchOverlay';
@@ -68,6 +69,7 @@ const getAvailablePropertyTypes = (category, subCategory) => {
 };
 
 const SearchPage = () => {
+    const { isLoggedIn } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
 
@@ -321,7 +323,7 @@ const SearchPage = () => {
 
             // Fetch properties and saved status in parallel if logged in
             const promises = [propertyService.getPublicProperties(params)];
-            if (localStorage.getItem('token')) {
+            if (isLoggedIn) {
                 promises.push(userService.getSavedHotels());
             }
 

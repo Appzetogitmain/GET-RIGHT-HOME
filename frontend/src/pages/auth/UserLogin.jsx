@@ -6,10 +6,12 @@ import logo from '../../assets/grh-logo.png';
 import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 const UserLogin = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { login } = useAuth();
     const [step, setStep] = useState(1); // 1: Enter Phone, 2: Enter OTP
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -112,7 +114,7 @@ const UserLogin = () => {
 
         try {
             setLoading(true);
-            await authService.verifyOtp({ phone, otp: otpString });
+            const res = await authService.verifyOtp({ phone, otp: otpString });
 
             // Update FCM Token
             try {
@@ -124,6 +126,7 @@ const UserLogin = () => {
                 console.warn('FCM update failed', fcmError);
             }
 
+            login(res.user);
             navigate('/');
         } catch (err) {
             // Check if error is due to account not found

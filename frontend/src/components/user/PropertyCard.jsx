@@ -27,7 +27,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
 
   const handleToggleSave = async (e) => {
     e.stopPropagation();
-    if (!localStorage.getItem('token')) {
+    if (!localStorage.getItem('user')) {
       toast.error("Please login to save properties");
       return;
     }

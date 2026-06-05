@@ -72,8 +72,8 @@ const BookingCheckoutPage = () => {
   }
 
   const handleConfirmBooking = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    const isLoggedIn = !!localStorage.getItem('user');
+    if (!isLoggedIn) {
       toast.error("Please login to continue");
       navigate('/login', { state: { from: location } });
       return;

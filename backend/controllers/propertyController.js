@@ -28,30 +28,69 @@ export const createProperty = async (req, res) => {
     const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
 
     let partner = null;
+    let uDoc = null;
+    let maxAllowed = Infinity;
+    let isSubscriptionRequired = false;
+
     if (isPartner) {
-      // --- SUBSCRIPTION GUARD: Check if partner can add more properties ---
+      isSubscriptionRequired = true;
       partner = await Partner.findById(req.user._id).populate('subscription.planId');
       if (!partner) return res.status(404).json({ message: 'Partner not found' });
+    } else if (['owner', 'broker'].includes(req.user.role)) {
+      isSubscriptionRequired = true;
+      uDoc = await User.findById(req.user._id).populate('subscription.planId');
+      if (!uDoc) return res.status(404).json({ message: 'User not found' });
+    }
 
-      const { subscription } = partner;
+    if (isSubscriptionRequired) {
+      const subject = partner || uDoc;
+      const { subscription } = subject;
       const isSubscriptionActive =
         subscription?.status === 'active' &&
         subscription?.expiryDate &&
         new Date(subscription.expiryDate) > new Date();
 
-      let maxAllowed = isSubscriptionActive ? (subscription.planId?.maxProperties || 1) : 9999;
+      let isFreeTrialMode = false;
 
-      const currentPropertyCount = await Property.countDocuments({
-        partnerId: req.user._id,
-        status: { $ne: 'deleted' }
-      });
+      if (isSubscriptionActive) {
+        maxAllowed = subscription.planId?.maxProperties || 1;
+      } else {
+        // Free Trial Mode: Use PlatformSettings to determine listing limit
+        const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
+        const settings = await PlatformSettings.getSettings();
+        maxAllowed = settings.freeTrialListingLimit || 10;
+        isFreeTrialMode = true;
+
+        // Also check free trial duration
+        const trialDays = settings.freeTrialDurationDays || 30;
+        const createdAt = subject.createdAt || subject.partnerSince || new Date();
+        const trialEndDate = new Date(createdAt);
+        trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+
+        if (new Date() > trialEndDate) {
+          return res.status(403).json({
+            message: `Your free trial period of ${trialDays} days has expired. Please subscribe to a plan to continue listing properties.`,
+            trialExpired: true,
+            limitReached: true
+          });
+        }
+      }
+
+      // Count properties listed by this actor
+      const query = isPartner ? { partnerId: req.user._id } : { userId: req.user._id };
+      query.status = { $ne: 'deleted' };
+
+      const currentPropertyCount = await Property.countDocuments(query);
 
       if (currentPropertyCount >= maxAllowed) {
         return res.status(403).json({
-          message: `Property limit reached. Your plan allows ${maxAllowed} properties. Please upgrade your subscription.`,
+          message: isFreeTrialMode
+            ? `Free trial limit reached. You can add up to ${maxAllowed} properties during your trial. Please subscribe to add more.`
+            : `Property limit reached. Your plan allows ${maxAllowed} properties. Please upgrade your subscription.`,
           limitReached: true,
           currentCount: currentPropertyCount,
-          maxAllowed: maxAllowed
+          maxAllowed: maxAllowed,
+          isFreeTrialMode
         });
       }
     }
@@ -221,10 +260,16 @@ export const createProperty = async (req, res) => {
       partner.totalListingsCount = (partner.totalListingsCount || 0) + 1;
       await partner.save();
     } else if (req.user && req.user._id) {
-      const uDoc = await User.findById(req.user._id);
-      if (uDoc) {
-        uDoc.totalListingsCount = (uDoc.totalListingsCount || 0) + 1;
-        await uDoc.save();
+      const activeUser = uDoc || await User.findById(req.user._id);
+      if (activeUser) {
+        if (['owner', 'broker'].includes(activeUser.role)) {
+          if (!activeUser.subscription) {
+            activeUser.subscription = {};
+          }
+          activeUser.subscription.propertiesAdded = (activeUser.subscription.propertiesAdded || 0) + 1;
+        }
+        activeUser.totalListingsCount = (activeUser.totalListingsCount || 0) + 1;
+        await activeUser.save();
       }
     }
 
@@ -1436,11 +1481,7 @@ export const getMyProperties = async (req, res) => {
 export const getPropertyDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await Property.findByIdAndUpdate(
-      id,
-      { $inc: { views: 1 } },
-      { new: true }
-    ).populate('partnerId').populate('userId');
+    const property = await Property.findById(id).populate('partnerId').populate('userId');
     if (!property) return res.status(404).json({ message: 'Property not found' });
     const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
     const documents = await PropertyDocument.findOne({ propertyId: id });
@@ -1498,28 +1539,60 @@ export const revealContact = async (req, res) => {
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
     const partner = property.partnerId;
-    if (!partner) return res.status(404).json({ message: 'Partner details missing' });
+    if (partner) {
+      const sub = partner.subscription;
+      const plan = sub?.planId;
 
-    const sub = partner.subscription;
-    const plan = sub?.planId;
+      const isSubscriptionActive =
+        sub?.status === 'active' &&
+        sub?.expiryDate &&
+        new Date(sub.expiryDate) > new Date();
 
-    // Check if partner is active and has a plan
-    if (sub?.status === 'active' && plan) {
-      // Logic for Silver Tier Lead Capping
-      if (plan.tier === 'silver' && plan.leadCap > 0) {
-        if ((sub.leadsUsedThisMonth || 0) >= plan.leadCap) {
-          return res.status(403).json({
-            success: false,
-            message: 'Partner lead limit reached. Try another property.',
-            limitReached: true
-          });
+      let isTrialActive = false;
+      let trialDays = 30;
+      if (!isSubscriptionActive) {
+        // Check free trial status
+        const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
+        const settings = await PlatformSettings.getSettings();
+        trialDays = settings.freeTrialDurationDays || 30;
+        const partnerCreatedAt = partner.createdAt || partner.partnerSince || new Date();
+        const trialEndDate = new Date(partnerCreatedAt);
+        trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+
+        if (new Date() <= trialEndDate) {
+          isTrialActive = true;
         }
       }
 
-      // Increment leads count
-      partner.subscription.leadsUsedThisMonth = (sub.leadsUsedThisMonth || 0) + 1;
-      await partner.save();
+      if (!isSubscriptionActive && !isTrialActive) {
+        return res.status(403).json({
+          success: false,
+          message: `Seller subscription has expired or is inactive. Please ask them to subscribe.`,
+          subscriptionExpired: true
+        });
+      }
+
+      // If active subscription and has a plan, check limits
+      if (isSubscriptionActive && plan) {
+        // Logic for Silver Tier Lead Capping
+        if (plan.tier === 'silver' && plan.leadCap > 0) {
+          if ((sub.leadsUsedThisMonth || 0) >= plan.leadCap) {
+            return res.status(403).json({
+              success: false,
+              message: 'Partner lead limit reached. Try another property.',
+              limitReached: true
+            });
+          }
+        }
+
+        // Increment leads count
+        partner.subscription.leadsUsedThisMonth = (sub.leadsUsedThisMonth || 0) + 1;
+        await partner.save();
+      }
     }
+
+    // Increment property enquiryCount for action-based lead tracking
+    await Property.findByIdAndUpdate(id, { $inc: { enquiryCount: 1 } });
 
     res.json({
       success: true,

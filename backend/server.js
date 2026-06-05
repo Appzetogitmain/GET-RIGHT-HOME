@@ -82,7 +82,7 @@ app.use(cors({
     // Check if origin is localhost or local network IP
     const allowedOrigins = [
       'http://localhost:5173',
-      'http://126.0.0.1:5173',
+      'http://127.0.0.1:5173',
       'https://rukkoo.in',
       'https://www.rukkoo.in',
       'https://rukkoo-project.vercel.app',
@@ -211,6 +211,37 @@ const mongoOptions = {
   retryReads: true,
 };
 
+// Seed admin user helper
+const seedAdminOnStartup = async () => {
+  try {
+    const Admin = (await import('./models/Admin.js')).default;
+    const bcrypt = (await import('bcryptjs')).default;
+    const email = 'hoomzoteam@gmail.com';
+    const existingAdmin = await Admin.findOne({ email });
+    const hashedPassword = await bcrypt.hash('SumeeT@2020', 10);
+
+    if (existingAdmin) {
+      existingAdmin.password = hashedPassword;
+      existingAdmin.isActive = true;
+      existingAdmin.role = 'superadmin';
+      await existingAdmin.save();
+      console.log('✅ Admin credentials updated successfully on startup');
+    } else {
+      await Admin.create({
+        name: 'HoomZo Admin',
+        email,
+        phone: '9999999999',
+        password: hashedPassword,
+        role: 'superadmin',
+        isActive: true
+      });
+      console.log('✅ Admin user created successfully on startup');
+    }
+  } catch (err) {
+    console.error('❌ Auto-seeding admin failed on startup:', err.message);
+  }
+};
+
 // Database Connection with Retry Logic
 const connectWithRetry = async (retries = 5, delay = 5000) => {
   for (let i = 0; i < retries; i++) {
@@ -229,6 +260,13 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
         await seedOnStartup();
       } catch (seedErr) {
         console.error('❌ Auto-seeding failed on startup:', seedErr.message);
+      }
+
+      // Seed admin user on startup
+      try {
+        await seedAdminOnStartup();
+      } catch (adminErr) {
+        console.error('❌ Auto-seeding admin failed on startup:', adminErr.message);
       }
 
       // Debug: Check Admin counts

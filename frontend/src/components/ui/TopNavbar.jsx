@@ -2,11 +2,12 @@ import React from 'react';
 import { User, Globe } from 'lucide-react';
 import logo from '../../assets/grh-logo.png';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const TopNavbar = () => {
-    // Get user from local storage
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const userName = user.name || 'User';
+    // Get user from useAuth hook
+    const { user } = useAuth();
+    const userName = user?.name || 'User';
 
     return (
         <nav className="hidden md:flex w-full h-24 bg-white/95 backdrop-blur-md border-b border-gray-100 px-8 justify-between items-center fixed top-0 z-50">

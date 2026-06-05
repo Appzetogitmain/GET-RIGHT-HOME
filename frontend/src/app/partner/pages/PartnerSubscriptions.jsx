@@ -61,6 +61,8 @@ const PartnerSubscriptions = () => {
     const [processing, setProcessing] = useState(false);
     const [plans, setPlans] = useState([]);
     const [currentSub, setCurrentSub] = useState(null);
+    const [registrationDate, setRegistrationDate] = useState(null);
+    const [trialSettings, setTrialSettings] = useState(null);
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
 
     useEffect(() => {
@@ -69,9 +71,10 @@ const PartnerSubscriptions = () => {
 
     const fetchData = async () => {
         try {
-            const [plansData, subData] = await Promise.all([
+            const [plansData, subData, trialData] = await Promise.all([
                 subscriptionService.getActivePlans(),
-                subscriptionService.getCurrentSubscription()
+                subscriptionService.getCurrentSubscription(),
+                subscriptionService.getTrialSettings()
             ]);
 
             if (plansData.success) {
@@ -82,6 +85,10 @@ const PartnerSubscriptions = () => {
             }
             if (subData.success) {
                 setCurrentSub(subData.subscription);
+                setRegistrationDate(subData.createdAt || subData.partnerSince || null);
+            }
+            if (trialData.success) {
+                setTrialSettings(trialData);
             }
         } catch (error) {
             console.error(error);
@@ -177,6 +184,14 @@ const PartnerSubscriptions = () => {
     const isExpired = currentSub?.status === 'expired' || (currentSub?.expiryDate && new Date(currentSub.expiryDate) < new Date());
     const isActive = currentSub?.status === 'active' && !isExpired;
 
+    const trialDurationDays = trialSettings?.freeTrialDurationDays || 30;
+    const partnerRegDate = registrationDate ? new Date(registrationDate) : new Date();
+    const trialEndDate = new Date(partnerRegDate);
+    trialEndDate.setDate(trialEndDate.getDate() + trialDurationDays);
+    const msDiff = trialEndDate.getTime() - new Date().getTime();
+    const trialDaysRemaining = Math.max(0, Math.ceil(msDiff / (1000 * 60 * 60 * 24)));
+    const isTrialValid = trialDaysRemaining > 0;
+
     return (
         <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-12">
             <div>
@@ -190,8 +205,54 @@ const PartnerSubscriptions = () => {
                 </div>
             ) : (
                 <>
+                    {/* Free Trial Banner */}
+                    {(!currentSub || !currentSub.planId || isExpired) && (
+                        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-900 to-emerald-950 text-white p-8 md:p-10 shadow-2xl">
+                            {/* Decorative Elements */}
+                            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl" />
+                            <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl" />
+
+                            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 flex-wrap md:flex-nowrap">
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3">
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isTrialValid ? 'bg-teal-500/20 text-teal-400 border border-teal-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'}`}>
+                                            {isTrialValid ? 'Free Trial Mode' : 'Trial Expired'}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-4xl font-black flex items-center gap-3">
+                                        Partner Free Trial
+                                        <Package className="text-teal-400 animate-pulse" />
+                                    </h2>
+                                    <p className="text-gray-300 max-w-md text-sm leading-relaxed">
+                                        {isTrialValid 
+                                            ? `You are currently on the platform free trial. Subscribe to a premium plan below to unlock unlimited features and premium branding.`
+                                            : `Your free trial period has ended. Please subscribe to one of our premium plans to reactivate your listings and receive leads.`
+                                        }
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full md:w-auto shrink-0">
+                                    <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-md">
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Listings Used</p>
+                                        <p className="text-xl font-bold">
+                                            {currentSub?.propertiesAdded || 0} <span className="text-gray-500 text-sm">/ {trialSettings?.freeTrialListingLimit || 10}</span>
+                                        </p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-md">
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Trial Status</p>
+                                        <p className="text-xl font-bold">{isTrialValid ? 'Active' : 'Expired'}</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-md col-span-2 md:col-span-1">
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Days Remaining</p>
+                                        <p className="text-xl font-bold text-teal-400">{trialDaysRemaining} Days</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Active Subscription Banner */}
-                    {currentSub && currentSub.planId && (
+                    {currentSub && currentSub.planId && !isExpired && (
                         <div className="relative overflow-hidden rounded-3xl bg-gray-900 text-white p-8 md:p-10 shadow-2xl">
                             {/* Decorative Elements */}
                             <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl" />

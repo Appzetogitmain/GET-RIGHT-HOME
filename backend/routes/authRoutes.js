@@ -1,5 +1,20 @@
 import express from 'express';
-import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, registerPartner, updateFcmToken, uploadDocs, deleteDoc, uploadDocsBase64 } from '../controllers/authController.js';
+import { 
+  sendOtp, 
+  verifyOtp, 
+  verifyPartnerOtp, 
+  adminLogin, 
+  getMe, 
+  updateProfile, 
+  updateAdminProfile, 
+  registerPartner, 
+  updateFcmToken, 
+  uploadDocs, 
+  deleteDoc, 
+  uploadDocsBase64,
+  lazyEnquiryLoginRegister,
+  lazyListingLoginRegister
+} from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { uploadDocuments } from '../utils/multer.js';
 
@@ -9,6 +24,8 @@ router.post('/send-otp', sendOtp);
 router.post('/verify-otp', verifyOtp);
 router.post('/partner/register', registerPartner);
 router.post('/partner/verify-otp', verifyPartnerOtp);
+router.post('/lazy-enquiry-login', lazyEnquiryLoginRegister);
+router.post('/lazy-listing-login', lazyListingLoginRegister);
 
 // Upload routes for partner registration
 router.post('/partner/upload-docs', uploadDocuments.array('files', 5), uploadDocs);

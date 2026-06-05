@@ -3,6 +3,8 @@
 
 import Enquiry from '../models/Enquiry.js';
 import Property from '../models/Property.js';
+import Partner from '../models/Partner.js';
+import User from '../models/User.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // USER: Submit a new enquiry for a property
@@ -36,6 +38,21 @@ export const createEnquiry = async (req, res) => {
         });
 
         await enquiry.save();
+
+        // --- ACTION-BASED LEAD TRACKING ---
+        // Increment the property's enquiry count (used in UI for social proof)
+        await Property.findByIdAndUpdate(propertyId, { $inc: { enquiryCount: 1 } });
+
+        // Increment the partner/owner's leadsUsedThisMonth (for subscription lead capping)
+        if (property.partnerId) {
+            await Partner.findByIdAndUpdate(property.partnerId, {
+                $inc: { 'subscription.leadsUsedThisMonth': 1 }
+            });
+        } else if (property.userId) {
+            await User.findByIdAndUpdate(property.userId, {
+                $inc: { 'subscription.leadsUsedThisMonth': 1 }
+            });
+        }
 
         return res.status(201).json({
             success: true,

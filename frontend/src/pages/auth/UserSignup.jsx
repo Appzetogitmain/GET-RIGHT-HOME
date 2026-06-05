@@ -6,10 +6,12 @@ import logo from '../../assets/grh-logo.png';
 import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 const UserSignup = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { login } = useAuth();
     const [step, setStep] = useState(1); // 1: Enter Details, 2: Enter OTP
     const [formData, setFormData] = useState({
         name: '',
@@ -123,7 +125,7 @@ const UserSignup = () => {
         try {
             setLoading(true);
             // Send name (required), phone, otp, and email (optional)
-            await authService.verifyOtp({
+            const res = await authService.verifyOtp({
                 phone: formData.phone,
                 otp: otpString,
                 name: formData.name,
@@ -141,6 +143,7 @@ const UserSignup = () => {
                 console.warn('FCM update failed after signup', fcmError);
             }
 
+            login(res.user);
             navigate('/');
         } catch (err) {
             setError(err.message || 'Verification failed');

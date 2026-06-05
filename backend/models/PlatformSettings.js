@@ -37,6 +37,14 @@ const platformSettingsSchema = new mongoose.Schema(
     reelCouponDiscount: {
       type: Number,
       default: 500 // Default flat discount
+    },
+    freeTrialListingLimit: {
+      type: Number,
+      default: 10
+    },
+    freeTrialDurationDays: {
+      type: Number,
+      default: 30
     }
   },
   { timestamps: true }

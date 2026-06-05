@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, Outlet }
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 import { Clock, Loader2 } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Eager Imports (Critical UI)
 import BottomNavbar from './components/ui/BottomNavbar';
@@ -256,10 +257,10 @@ const Layout = ({ children }) => {
 
 // Simple Protected Route for Users
 const UserProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
+  const { isLoggedIn } = useAuth();
   const location = useLocation();
 
-  if (!token) {
+  if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -268,9 +269,7 @@ const UserProtectedRoute = ({ children }) => {
 
 // Partner & User Property Listing Protected Route
 const PartnerProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const userRaw = localStorage.getItem('user');
-  const user = userRaw ? JSON.parse(userRaw) : null;
+  const { user } = useAuth();
   const location = useLocation();
 
   // Allow access to login/register/join
@@ -280,7 +279,7 @@ const PartnerProtectedRoute = ({ children }) => {
   }
 
   // Allow both Partners and Users
-  if (!token || !user || (user.role !== 'partner' && user.role !== 'user')) {
+  if (!user || (user.role !== 'partner' && user.role !== 'user')) {
     return <Navigate to="/hotel/login" state={{ from: location }} replace />;
   }
 
@@ -332,8 +331,8 @@ const PartnerProtectedRoute = ({ children }) => {
 
 // Public Route (redirects to home if already logged in)
 const PublicRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  if (token) {
+  const { isLoggedIn } = useAuth();
+  if (isLoggedIn) {
     return <Navigate to="/" replace />;
   }
   return children;
@@ -359,7 +358,7 @@ function App() {
             const adminToken = localStorage.getItem('adminToken');
             if (adminToken) {
               await adminService.updateFcmToken(appToken, 'app');
-            } else if (localStorage.getItem('token')) {
+            } else if (localStorage.getItem('user')) {
               await userService.updateFcmToken(appToken, 'app');
             }
             return;
@@ -377,7 +376,7 @@ function App() {
           const adminToken = localStorage.getItem('adminToken');
           if (adminToken) {
             await adminService.updateFcmToken(appToken, 'app');
-          } else if (localStorage.getItem('token')) {
+          } else if (localStorage.getItem('user')) {
             await userService.updateFcmToken(appToken, 'app');
           }
         }
@@ -385,7 +384,7 @@ function App() {
 
       // 3. Web FCM: Only request if user is already logged in
       // (Login/Signup pages handle FCM for fresh sessions themselves)
-      const isLoggedIn = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      const isLoggedIn = localStorage.getItem('user') || localStorage.getItem('adminToken');
       if (!isLoggedIn) return;
 
       try {
@@ -397,9 +396,8 @@ function App() {
             await adminService.updateFcmToken(token, 'web');
             return;
           }
-          const tokenAuth = localStorage.getItem('token');
           const userStr = localStorage.getItem('user');
-          if (tokenAuth && userStr) {
+          if (userStr) {
             const user = JSON.parse(userStr);
             console.log('FCM Token received, updating backend for role:', user.role);
             await userService.updateFcmToken(token, 'web');
@@ -434,9 +432,10 @@ function App() {
   return (
     <CityProvider>
       <CartProvider>
-        <Router>
-      <ScrollToTop />
-      <Toaster position="top-center" reverseOrder={false} />
+        <AuthProvider>
+          <Router>
+            <ScrollToTop />
+            <Toaster position="top-center" reverseOrder={false} />
       <Layout>
         <Suspense fallback={<PageLoader />}>
           <Routes>
@@ -596,7 +595,8 @@ function App() {
           </Routes>
         </Suspense>
       </Layout>
-        </Router>
+          </Router>
+        </AuthProvider>
       </CartProvider>
     </CityProvider>
   );

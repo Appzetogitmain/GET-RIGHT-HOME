@@ -14,6 +14,8 @@ const PartnerProperties = () => {
   const [propertyToDelete, setPropertyToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [subscription, setSubscription] = useState(null);
+  const [registrationDate, setRegistrationDate] = useState(null);
+  const [trialSettings, setTrialSettings] = useState(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   const fetchProperties = async () => {
@@ -37,12 +39,20 @@ const PartnerProperties = () => {
 
   const fetchSubscription = async () => {
     try {
-      const data = await subscriptionService.getCurrentSubscription();
-      if (data.success) {
-        setSubscription(data.subscription);
+      const [subData, trialData] = await Promise.all([
+        subscriptionService.getCurrentSubscription(),
+        subscriptionService.getTrialSettings()
+      ]);
+
+      if (subData.success) {
+        setSubscription(subData.subscription);
+        setRegistrationDate(subData.createdAt || subData.partnerSince || null);
+      }
+      if (trialData.success) {
+        setTrialSettings(trialData);
       }
     } catch (e) {
-      console.error('Failed to fetch subscription:', e);
+      console.error('Failed to fetch subscription or trial settings:', e);
     }
   };
 
@@ -53,22 +63,35 @@ const PartnerProperties = () => {
 
   const checkSubscriptionLimit = () => {
     // Check if subscription exists and is active
-    const isActive =
+    const isSubActive =
       subscription?.status === 'active' &&
       subscription?.expiryDate &&
       new Date(subscription.expiryDate) > new Date();
 
-    if (!isActive) {
+    const trialDurationDays = trialSettings?.freeTrialDurationDays || 30;
+    const partnerRegDate = registrationDate ? new Date(registrationDate) : new Date();
+    const trialEndDate = new Date(partnerRegDate);
+    trialEndDate.setDate(trialEndDate.getDate() + trialDurationDays);
+    const isTrialActive = new Date() <= trialEndDate;
+
+    if (!isSubActive && !isTrialActive) {
+      toast.error("Your subscription / trial has expired. Please subscribe to continue.");
       setShowSubscriptionModal(true);
       return false;
     }
 
     // Check property limit
     const totalProperties = Object.values(propertiesByType).reduce((sum, list) => sum + list.length, 0);
-    const maxAllowed = subscription?.planId?.maxProperties || 0;
+    const maxAllowed = isSubActive
+      ? (subscription?.planId?.maxProperties || 0)
+      : (trialSettings?.freeTrialListingLimit || 10);
 
     if (totalProperties >= maxAllowed) {
-      toast.error(`Property limit reached! Your plan allows ${maxAllowed} properties.`);
+      if (isSubActive) {
+        toast.error(`Property limit reached! Your plan allows ${maxAllowed} properties.`);
+      } else {
+        toast.error(`Free trial limit reached! You can add up to ${maxAllowed} properties during trial.`);
+      }
       setShowSubscriptionModal(true);
       return false;
     }
@@ -303,9 +326,26 @@ const PartnerProperties = () => {
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Subscription Required</h3>
                 <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-                  {subscription?.status === 'active'
-                    ? `You've reached your property limit. Upgrade your plan to add more properties.`
-                    : `You need an active subscription to add properties. Choose a plan that fits your needs.`}
+                  {(() => {
+                    const isSubActive =
+                      subscription?.status === 'active' &&
+                      subscription?.expiryDate &&
+                      new Date(subscription.expiryDate) > new Date();
+
+                    const trialDurationDays = trialSettings?.freeTrialDurationDays || 30;
+                    const partnerRegDate = registrationDate ? new Date(registrationDate) : new Date();
+                    const trialEndDate = new Date(partnerRegDate);
+                    trialEndDate.setDate(trialEndDate.getDate() + trialDurationDays);
+                    const isTrialActive = new Date() <= trialEndDate;
+
+                    if (isSubActive) {
+                      return `You've reached your plan's property limit (${subscription?.planId?.maxProperties || 0} properties). Upgrade your plan to add more properties.`;
+                    } else if (isTrialActive) {
+                      return `You've reached your free trial property limit (${trialSettings?.freeTrialListingLimit || 10} properties). Subscribe to a plan to list more properties.`;
+                    } else {
+                      return "Your free trial has expired and you do not have an active subscription. Choose a plan to list your properties.";
+                    }
+                  })()}
                 </p>
                 <div className="flex flex-col gap-3">
                   <button

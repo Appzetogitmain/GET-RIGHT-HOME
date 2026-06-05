@@ -16,6 +16,8 @@ const loadRazorpay = () => new Promise(resolve => {
     document.body.appendChild(s);
 });
 
+import { useAuth } from '../../context/AuthContext';
+
 const TIER_CONFIG = {
     silver: { gradient: 'from-slate-400 to-slate-600', icon: Package, bg: 'bg-slate-50', text: 'text-slate-700' },
     gold_basic: { gradient: 'from-amber-300 to-amber-500', icon: Star, bg: 'bg-amber-50', text: 'text-amber-700' },
@@ -37,7 +39,7 @@ const UserSubscriptionsPage = () => {
     const [processing, setProcessing] = useState(null); // Changed from boolean to planId
     const [plans, setPlans] = useState([]);
     const [currentSub, setCurrentSub] = useState(null);
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const { user } = useAuth();
 
     useEffect(() => { fetchData(); }, []);
 
@@ -77,7 +79,7 @@ const UserSubscriptionsPage = () => {
                 name: 'Get Right Home',
                 description: `Plan: ${plan.name}`,
                 order_id: order.id,
-                prefill: { name: user.name, email: user.email, contact: user.phone },
+                prefill: { name: user?.name || '', email: user?.email || '', contact: user?.phone || '' },
                 theme: { color: '#059669' },
                 handler: async (response) => {
                     try {

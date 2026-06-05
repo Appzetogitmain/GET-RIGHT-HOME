@@ -47,6 +47,8 @@ const AdminSettings = () => {
     const [maintenanceMessage, setMaintenanceMessage] = useState('');
     const [commission, setCommission] = useState(10);
     const [taxRate, setTaxRate] = useState(12);
+    const [freeTrialListingLimit, setFreeTrialListingLimit] = useState(10);
+    const [freeTrialDurationDays, setFreeTrialDurationDays] = useState(30);
 
     const [loadingSettings, setLoadingSettings] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
@@ -77,6 +79,8 @@ const AdminSettings = () => {
                     setMaintenanceMessage(res.settings.maintenanceMessage || '');
                     setCommission(res.settings.defaultCommission || 10);
                     setTaxRate(res.settings.taxRate || 12);
+                    setFreeTrialListingLimit(res.settings.freeTrialListingLimit ?? 10);
+                    setFreeTrialDurationDays(res.settings.freeTrialDurationDays ?? 30);
                 }
             } catch (error) {
                 toast.error('Failed to load platform settings');
@@ -120,7 +124,9 @@ const AdminSettings = () => {
                 maintenanceTitle,
                 maintenanceMessage,
                 defaultCommission: Number(commission),
-                taxRate: Number(taxRate)
+                taxRate: Number(taxRate),
+                freeTrialListingLimit: Number(freeTrialListingLimit),
+                freeTrialDurationDays: Number(freeTrialDurationDays)
             });
             toast.success('Platform settings updated');
         } catch (error) {
@@ -250,6 +256,29 @@ const AdminSettings = () => {
                                 value={taxRate}
                                 onChange={(e) => setTaxRate(e.target.value)}
                                 className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black"
+                            />
+                        </div>
+                    </div>
+                    <div className="pb-4 pt-6 font-bold text-lg flex items-center gap-4 border-t border-gray-100 mt-6"><CreditCard size={18} />Free Trial Settings</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Trial Property Listing Limit</label>
+                            <input
+                                type="number"
+                                value={freeTrialListingLimit}
+                                onChange={(e) => setFreeTrialListingLimit(e.target.value)}
+                                className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black"
+                                min="0"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Trial Duration (Days)</label>
+                            <input
+                                type="number"
+                                value={freeTrialDurationDays}
+                                onChange={(e) => setFreeTrialDurationDays(e.target.value)}
+                                className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black"
+                                min="1"
                             />
                         </div>
                     </div>

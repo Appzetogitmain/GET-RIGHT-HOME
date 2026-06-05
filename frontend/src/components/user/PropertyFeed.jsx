@@ -30,7 +30,7 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
 
         // Fetch properties and saved status in parallel if logged in
         const promises = [propertyService.getPublic(filters)];
-        if (localStorage.getItem('token')) {
+        if (localStorage.getItem('user')) {
           promises.push(userService.getSavedHotels());
         }
 

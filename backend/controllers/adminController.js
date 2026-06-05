@@ -943,7 +943,9 @@ export const updatePlatformSettings = async (req, res) => {
       defaultCommission,
       taxRate,
       reelCouponTarget,
-      reelCouponDiscount
+      reelCouponDiscount,
+      freeTrialListingLimit,
+      freeTrialDurationDays
     } = req.body;
 
     const settings = await PlatformSettings.getSettings();
@@ -958,6 +960,8 @@ export const updatePlatformSettings = async (req, res) => {
     if (taxRate !== undefined) settings.taxRate = Number(taxRate);
     if (reelCouponTarget !== undefined) settings.reelCouponTarget = Number(reelCouponTarget);
     if (reelCouponDiscount !== undefined) settings.reelCouponDiscount = Number(reelCouponDiscount);
+    if (freeTrialListingLimit !== undefined) settings.freeTrialListingLimit = Number(freeTrialListingLimit);
+    if (freeTrialDurationDays !== undefined) settings.freeTrialDurationDays = Number(freeTrialDurationDays);
 
     await settings.save();
     res.status(200).json({ success: true, settings });

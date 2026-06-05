@@ -162,7 +162,7 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
 
   const handleEnquiryClick = (e) => {
     e.stopPropagation();
-    if (!localStorage.getItem('token')) {
+    if (!localStorage.getItem('user')) {
       toast.error('Please login to send enquiry');
       navigate('/login', { state: { from: `/hotel/${_id}` } });
       onClose();
