@@ -12,6 +12,7 @@ import { toast } from 'react-hot-toast';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import { motion } from 'framer-motion';
 import { createVipOrder, verifyVipPayment } from '../services/planService';
+import { userService } from '../../../../services/apiService';
 
 // Lazy load heavy components for better initial load performance
 import PromoCarousel from './components/PromoCarousel';
@@ -274,6 +275,32 @@ const Home = () => {
       return u.isVip === true && u.vipExpiry && new Date(u.vipExpiry) > new Date();
     } catch { return false; }
   });
+
+  // Fetch latest profile to ensure VIP status is synced
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+        if (token) {
+          const res = await userService.getProfile();
+          // Handle both {success, user} and flat user object response formats
+          const userData = res?.user || (res?._id ? res : null);
+          if (userData) {
+            const isActive = userData.isVip === true && userData.vipExpiry && new Date(userData.vipExpiry) > new Date();
+            setUserIsVip(isActive);
+            // Sync with localStorage
+            const stored = JSON.parse(localStorage.getItem('userData') || '{}');
+            stored.isVip = userData.isVip;
+            stored.vipExpiry = userData.vipExpiry;
+            localStorage.setItem('userData', JSON.stringify(stored));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to sync profile:", err);
+      }
+    };
+    fetchUserProfile();
+  }, []);
 
   // Handle scroll separately (only when needed)
   useEffect(() => {
@@ -722,7 +749,7 @@ const Home = () => {
                             <div className="flex items-baseline gap-1.5">
                               <span className="text-white text-xl font-black">₹{homeContent?.vipPrice || 199}</span>
                               <span className="text-gray-400 text-xs line-through">₹{homeContent?.vipOriginalPrice || 599}</span>
-                              <span className="text-gray-400 text-xs">for {homeContent?.vipDurationText || '6 months'}</span>
+                              <span className="text-gray-400 text-xs">for {homeContent?.vipDurationDays || 56} days</span>
                             </div>
                           </div>
                         </div>

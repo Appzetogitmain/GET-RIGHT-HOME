@@ -27,7 +27,7 @@ const homeContentSchema = new mongoose.Schema({
   isFaqsVisible: { type: Boolean, default: true },
   isFirstBookingVisible: { type: Boolean, default: true },
   firstBookingTitle: { type: String, default: "HOME CLEANING OFFER" },
-  firstBookingDiscount: { type: String, default: "10% off*" },
+  firstBookingDiscount: { type: Number, default: 10 },
   firstBookingCaption: { type: String, default: "on first booking" },
   firstBookingCode: { type: String, default: "NEWCLEAN10" },
   firstBookingImage: { type: String, default: "" }

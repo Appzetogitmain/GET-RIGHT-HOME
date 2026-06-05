@@ -125,14 +125,25 @@ const HomeServicesPage = () => {
     useEffect(() => {
         const fetchUserProfile = async () => {
             try {
-                if (localStorage.getItem('token')) {
+                // Check both possible token keys
+                const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+                if (token) {
                     const res = await userService.getProfile();
-                    if (res?.success && res.user) {
-                        setUser(res.user);
+                    // Handle both {success, user} and flat user object formats
+                    const userData = res?.user || (res?._id ? res : null);
+                    if (userData) {
+                        setUser(userData);
                     }
+                } else {
+                    // Not logged in, try to read from localStorage as fallback
+                    const stored = JSON.parse(localStorage.getItem('userData') || 'null');
+                    if (stored) setUser(stored);
                 }
             } catch (err) {
                 console.error("Failed to load user profile", err);
+                // Fallback to localStorage
+                const stored = JSON.parse(localStorage.getItem('userData') || 'null');
+                if (stored) setUser(stored);
             }
         };
         fetchUserProfile();
@@ -563,13 +574,13 @@ const HomeServicesPage = () => {
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-xl md:text-2xl font-bold text-white">₹{homeData?.vipPrice ?? 199}</span>
                                         <span className="text-sm text-neutral-500 line-through decoration-neutral-500/50">₹{homeData?.vipOriginalPrice ?? 599}</span>
-                                        <span className="text-sm text-neutral-500 font-medium">for {homeData?.vipDurationText || "6 months"}</span>
+                                        <span className="text-sm text-neutral-500 font-medium">for {homeData?.vipDurationDays || 56} days</span>
                                     </div>
                                 </div>
                             </div>
                             
                             {/* BUY / ACTIVE Button */}
-                            {user?.isVip ? (
+                            {user?.isVip && user?.vipExpiry && new Date(user.vipExpiry) > new Date() ? (
                                 <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold text-xs px-4 py-2 rounded-lg uppercase tracking-wider flex items-center gap-1.5">
                                     <CheckCircle2 size={14} className="fill-emerald-400/20" /> Active
                                 </span>
@@ -954,7 +965,7 @@ const HomeServicesPage = () => {
                             
                             <h4 className="text-xl md:text-2xl font-black text-neutral-800 tracking-tight leading-tight mb-5">
                                 <span className="text-[#6366f1] inline-block mr-1">
-                                    {homeData?.firstBookingDiscount || "10% off*"}
+                                    {homeData?.firstBookingDiscount || 10}% off*
                                 </span>{" "}
                                 {homeData?.firstBookingCaption || "on first booking"}
                             </h4>

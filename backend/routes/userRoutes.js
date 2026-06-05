@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUserProfile, updateUserProfile, updateFcmToken, getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead, getSavedHotels, toggleSavedHotel, updateUserRole } from '../controllers/userController.js';
+import { getUserProfile, updateUserProfile, updateFcmToken, getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead, getSavedHotels, toggleSavedHotel, updateUserRole, getCheckoutData, validatePromo } from '../controllers/userController.js';
 import { createVipOrder, verifyVipPayment } from '../controllers/vipController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
@@ -7,8 +7,10 @@ const router = express.Router();
 
 router.get('/profile', protect, getUserProfile);
 router.put('/profile', protect, updateUserProfile);
+router.get('/checkout-data', protect, getCheckoutData);
 router.put('/role', protect, updateUserRole);
 router.put('/fcm-token', protect, updateFcmToken);
+router.post('/validate-promo', protect, validatePromo);
 
 // Wishlist Routes
 router.get('/saved-hotels', protect, getSavedHotels);

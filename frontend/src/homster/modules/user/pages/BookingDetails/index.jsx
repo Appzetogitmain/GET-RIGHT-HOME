@@ -1261,6 +1261,18 @@ const BookingDetails = () => {
                         </div>
                       )}
 
+                      {/* Promo Discount */}
+                      {booking.promoDiscount > 0 && (
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <div className="flex justify-between text-xs font-bold text-green-600">
+                            <span className="flex items-center gap-2 uppercase tracking-wide">
+                              Promo ({booking.promoCode})
+                            </span>
+                            <span className="font-mono">-₹{(booking.promoDiscount).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+
                       {(booking.paymentMethod || booking.paymentStatus === 'success') && (
                         <div className="mt-2 pt-2 border-t border-gray-100">
                           <div className="flex justify-between text-xs font-bold text-gray-600">
@@ -1282,7 +1294,7 @@ const BookingDetails = () => {
                       <div className="pt-4 mt-2 border-t-2 border-gray-100 flex justify-between items-center">
                         <span className="font-bold text-gray-900 text-lg">Grand Total</span>
                         <span className="font-black text-teal-700 text-2xl">
-                          ₹{(originalBase + extraServiceBase + partsBase + (bill?.transportCharges || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ₹{(originalBase + extraServiceBase + partsBase + (bill?.transportCharges || 0) - (booking.promoDiscount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
 
                       </div>
@@ -1309,6 +1321,13 @@ const BookingDetails = () => {
                         <div className="flex justify-between text-sm">
                           <span className="text-green-600">Discount</span>
                           <span className="font-medium text-green-600">-₹{booking.discount.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+
+                      {booking.paymentMethod !== 'plan_benefit' && booking.promoDiscount > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-green-600">Promo ({booking.promoCode})</span>
+                          <span className="font-medium text-green-600">-₹{booking.promoDiscount.toLocaleString('en-IN')}</span>
                         </div>
                       )}
 

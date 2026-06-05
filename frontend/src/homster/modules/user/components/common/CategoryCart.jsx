@@ -47,7 +47,12 @@ const CategoryCart = ({
       const item = categoryItems.find(i => i._id === itemId || i.id === itemId);
       if (!item) return;
 
-      const newCount = Math.max(1, (item.serviceCount || 1) + change);
+      const newCount = (item.serviceCount || 1) + change;
+
+      if (newCount <= 0) {
+        return handleDelete(itemId);
+      }
+
       const response = await updateItem(itemId, newCount);
 
       if (!response.success) {

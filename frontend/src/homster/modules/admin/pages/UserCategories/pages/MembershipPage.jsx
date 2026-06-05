@@ -23,7 +23,7 @@ const MembershipPage = ({ selectedCity }) => {
   // First Booking Card States
   const [isFirstBookingVisible, setIsFirstBookingVisible] = useState(true);
   const [firstBookingTitle, setFirstBookingTitle] = useState("HOME CLEANING OFFER");
-  const [firstBookingDiscount, setFirstBookingDiscount] = useState("10% off*");
+  const [firstBookingDiscount, setFirstBookingDiscount] = useState(10);
   const [firstBookingCaption, setFirstBookingCaption] = useState("on first booking");
   const [firstBookingCode, setFirstBookingCode] = useState("NEWCLEAN10");
   const [firstBookingImage, setFirstBookingImage] = useState("");
@@ -74,7 +74,7 @@ const MembershipPage = ({ selectedCity }) => {
 
         setIsFirstBookingVisible(hc.isFirstBookingVisible !== false);
         setFirstBookingTitle(hc.firstBookingTitle || "HOME CLEANING OFFER");
-        setFirstBookingDiscount(hc.firstBookingDiscount || "10% off*");
+        setFirstBookingDiscount(hc.firstBookingDiscount || 10);
         setFirstBookingCaption(hc.firstBookingCaption || "on first booking");
         setFirstBookingCode(hc.firstBookingCode || "NEWCLEAN10");
         setFirstBookingImage(hc.firstBookingImage || "");
@@ -337,16 +337,21 @@ const MembershipPage = ({ selectedCity }) => {
               />
             </div>
 
-            {/* Discount Text */}
+            {/* Discount Percentage */}
             <div>
-              <label className="block text-xs font-black uppercase text-gray-600 mb-1">Discount Text</label>
-              <input
-                type="text"
-                value={firstBookingDiscount}
-                onChange={e => setFirstBookingDiscount(e.target.value)}
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-bold"
-                placeholder="10% off*"
-              />
+              <label className="block text-xs font-black uppercase text-gray-600 mb-1">Discount Percentage (%)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={firstBookingDiscount}
+                  onChange={e => setFirstBookingDiscount(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-bold"
+                  placeholder="10"
+                />
+                <span className="text-sm font-bold text-gray-500 whitespace-nowrap">% off*</span>
+              </div>
             </div>
 
             {/* Caption Text */}

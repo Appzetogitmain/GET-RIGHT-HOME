@@ -71,6 +71,12 @@ const Checkout = () => {
   const [gstPercentage, setGstPercentage] = useState(18);
   const [bookingType, setBookingType] = useState('instant'); // 'instant' | 'scheduled'
 
+  // Promo Code States
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState('');
+
   // Check if Razorpay is loaded (defer to avoid blocking initial render)
   useEffect(() => {
     // Defer Razorpay check until after page load
@@ -252,7 +258,27 @@ const Checkout = () => {
     };
 
     fetchData();
-  }, [category, subCategoryName, plan, globalCartItems]);
+  }, [category, subCategoryName, plan]);
+
+  // Sync cart items whenever global cart changes, without refetching profile APIs
+  useEffect(() => {
+    if (plan) return; // Plan doesn't use global cart
+    let items = globalCartItems || [];
+    if (subCategoryName) {
+      const normalizedSub = subCategoryName.toLowerCase().trim();
+      items = items.filter(item => {
+        const itemSub = (item.subCategory || 'Other').toLowerCase().trim();
+        return itemSub === normalizedSub;
+      });
+    } else if (category) {
+      const normalizedCategory = category.toLowerCase().trim();
+      items = items.filter(item => {
+        const itemCat = (item.category || 'Other').toLowerCase().trim();
+        return itemCat === normalizedCategory;
+      });
+    }
+    setCartItems(items);
+  }, [globalCartItems, category, subCategoryName, plan]);
 
   const loadCart = async () => {
     let items = globalCartItems || [];
@@ -283,7 +309,12 @@ const Checkout = () => {
       const item = cartItems.find(i => (i._id || i.id) === itemId);
       if (!item) return;
 
-      const newCount = Math.max(1, (item.serviceCount || 1) + change);
+      const newCount = (item.serviceCount || 1) + change;
+
+      if (newCount <= 0) {
+        return handleRemoveItem(itemId);
+      }
+
       const response = await updateItemGlobal(itemId, newCount);
 
       if (response.success) {
@@ -314,6 +345,30 @@ const Checkout = () => {
 
   const getAddressComponent = (type) => {
     return addressDetails?.components?.find(c => c.types.includes(type))?.long_name || '';
+  };
+
+  const handleApplyPromo = async () => {
+    if (!promoCodeInput.trim()) return;
+    setPromoLoading(true);
+    setPromoError('');
+    try {
+      const response = await userAuthService.validatePromo(promoCodeInput.trim(), addressDetails?.city);
+      if (response.success) {
+        setAppliedPromo(response);
+        toast.success(response.message || 'Promo code applied!');
+      } else {
+        setPromoError(response.message || 'Invalid promo code');
+      }
+    } catch (err) {
+      setPromoError(err.response?.data?.message || 'Failed to validate promo code');
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoCodeInput('');
   };
 
   const handleProceed = async () => {
@@ -398,6 +453,8 @@ const Checkout = () => {
         discount: savings,
         tax: taxesAndFee,
         visitationFee: finalVisitedFee,
+        promoCode: appliedPromo ? appliedPromo.code : null,
+        promoDiscount: promoDiscountAmount,
 
         // Metadata for better data capture
         serviceCategory: firstItem.categoryTitle || firstItem.category || 'General',
@@ -631,6 +688,8 @@ const Checkout = () => {
         discount: savings,
         tax: taxesAndFee,
         visitationFee: finalVisitedFee,
+        promoCode: appliedPromo ? appliedPromo.code : null,
+        promoDiscount: promoDiscountAmount,
 
         // Metadata for better data capture
         serviceCategory: firstItem.categoryTitle || firstItem.category || 'General',
@@ -1149,9 +1208,9 @@ const Checkout = () => {
 
       // Fetch VIP cards from homeContent + user VIP status
       try {
-        const { homeContentService } = await import('../../../../services/catalogService');
+        const { publicCatalogService } = await import('../../../../services/catalogService');
         const [contentRes, userRes2] = await Promise.all([
-          homeContentService.get({}),
+          publicCatalogService.getHomeContent(),
           userAuthService.getProfile()
         ]);
 
@@ -1238,7 +1297,12 @@ const Checkout = () => {
   const taxesAndFee = 0;
   const finalVisitedFee = 0;
 
-  const totalAmount = itemTotal;
+  let promoDiscountAmount = 0;
+  if (appliedPromo && appliedPromo.discountPercentage) {
+    promoDiscountAmount = Math.round(totalOriginalPrice * (appliedPromo.discountPercentage / 100));
+  }
+
+  const totalAmount = Math.max(0, itemTotal - promoDiscountAmount);
   const amountToPay = totalAmount;
 
   // Helper for Free Plan Full Breakdown Display
@@ -1511,6 +1575,48 @@ const Checkout = () => {
           </div>
         </div>
 
+        {/* Promo Code Section */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+          <div className="flex flex-col gap-3">
+            <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <FiCheckCircle className="w-4 h-4 text-green-600" /> Apply Promo Code
+            </h4>
+            {!appliedPromo ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={promoCodeInput}
+                  onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                  placeholder="Enter code (e.g. NEWCLEAN10)"
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase font-bold focus:outline-none focus:border-indigo-500"
+                />
+                <button
+                  onClick={handleApplyPromo}
+                  disabled={promoLoading || !promoCodeInput.trim()}
+                  className="text-white px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
+                  style={{ background: themeColors.button }}
+                >
+                  {promoLoading ? 'Applying...' : 'Apply'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <FiCheckCircle className="text-green-600 w-5 h-5" />
+                  <div>
+                    <span className="font-bold text-green-700">{appliedPromo.code}</span>
+                    <p className="text-xs text-green-600">{appliedPromo.message}</p>
+                  </div>
+                </div>
+                <button onClick={handleRemovePromo} className="text-red-500 text-xs font-bold hover:underline">
+                  REMOVE
+                </button>
+              </div>
+            )}
+            {promoError && <p className="text-xs text-red-500 font-medium">{promoError}</p>}
+          </div>
+        </div>
+
         {/* Payment Summary */}
         <div className="bg-white border-2 border-slate-100 rounded-2xl p-5 mb-6 shadow-sm overflow-hidden relative">
           {/* Decorative Background for Header */}
@@ -1530,11 +1636,30 @@ const Checkout = () => {
               </span>
             </div>
 
-            {/* Discount Line */}
-            {displaySavings > 0 && (
+            {/* General Discount Line */}
+            {(displaySavings - vipDiscountAmount) > 0 && (
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-green-600">Discount</span>
-                <span className="text-sm font-medium text-green-600">-₹{displaySavings.toLocaleString('en-IN')}</span>
+                <span className="text-sm font-medium text-green-600">-₹{(displaySavings - vipDiscountAmount).toLocaleString('en-IN')}</span>
+              </div>
+            )}
+
+            {/* VIP Discount Line */}
+            {vipDiscountAmount > 0 && (
+              <div className="flex justify-between items-center bg-yellow-50 p-2 rounded-lg border border-yellow-100">
+                <span className="text-sm font-bold text-[#C8960C] flex items-center gap-1.5">
+                  <span className="text-[10px] font-black bg-gradient-to-r from-[#C8960C] to-[#f5c518] text-white px-1.5 py-0.5 rounded shadow-sm tracking-wider">VIP</span> 
+                  Savings
+                </span>
+                <span className="text-sm font-black text-[#C8960C]">-₹{vipDiscountAmount.toLocaleString('en-IN')}</span>
+              </div>
+            )}
+
+            {/* Promo Discount Line */}
+            {promoDiscountAmount > 0 && (
+              <div className="flex justify-between items-center text-green-600">
+                <span className="text-sm font-bold flex items-center gap-1">Promo Applied</span>
+                <span className="text-sm font-bold">-₹{promoDiscountAmount.toLocaleString('en-IN')}</span>
               </div>
             )}
 

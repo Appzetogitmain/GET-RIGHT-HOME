@@ -173,6 +173,20 @@ app.get('/api/public/categories', getPublicCategories);
 app.get('/api/public/sub-categories', getPublicSubCategories);
 app.get('/api/public/services', getPublicServices);
 app.get('/api/public/cities', getActiveCities);
+// Plans public endpoint (returns empty list if no plans configured)
+app.get('/api/public/plans', (req, res) => {
+  res.json({ success: true, data: [] });
+});
+app.get('/api/public/home-data', async (req, res) => {
+  try {
+    const { cityId } = req.query;
+    const HomeContent = (await import('./models/HomeContent.js')).default;
+    const homeContent = await HomeContent.findOne(cityId ? { cityId } : {});
+    res.json({ success: true, homeContent: homeContent || {} });
+  } catch (e) {
+    res.json({ success: true, homeContent: {} });
+  }
+});
 app.use('/api/upload', uploadRoutes);
 app.use('/api/property-forms', propertyFormRoutes);
 app.use('/api/locations', locationRoutes);

@@ -10,7 +10,7 @@ export const getUserProfile = async (req, res) => {
     const user = await User.findById(req.user._id);
 
     if (user) {
-      res.json({
+      const userData = {
         _id: user._id,
         name: user.name,
         email: user.email,
@@ -22,12 +22,18 @@ export const getUserProfile = async (req, res) => {
         partnerSince: user.partnerSince,
         isVip: user.isVip || false,
         vipExpiry: user.vipExpiry || null
+      };
+      res.json({
+        success: true,
+        user: userData,
+        // Also spread fields at root level for backward compatibility
+        ...userData
       });
     } else {
       // Check if it's a partner
       const partner = await Partner.findById(req.user._id);
       if (partner) {
-        res.json({
+        const partnerData = {
           _id: partner._id,
           name: partner.name,
           email: partner.email,
@@ -41,6 +47,11 @@ export const getUserProfile = async (req, res) => {
           address: partner.address,
           aadhaarNumber: partner.aadhaarNumber,
           panNumber: partner.panNumber
+        };
+        res.json({
+          success: true,
+          user: partnerData,
+          ...partnerData
         });
       } else {
         res.status(404).json({ message: 'User not found' });
@@ -48,6 +59,39 @@ export const getUserProfile = async (req, res) => {
     }
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get checkout data (user profile + app settings)
+// @route   GET /api/users/checkout-data
+// @access  Private
+export const getCheckoutData = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        addresses: user.addresses || [],
+        isVip: user.isVip || false,
+        vipExpiry: user.vipExpiry || null,
+        plans: user.plans || null
+      },
+      settings: {
+        visitedCharges: 29,
+        serviceGstPercentage: 18
+      },
+      bookingModel: 'worker'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -414,5 +458,74 @@ export const updateUserRole = async (req, res) => {
   } catch (error) {
     console.error('Update User Role Error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Validate promo code (e.g. First Booking)
+ * @route   POST /api/users/validate-promo
+ * @access  Private
+ */
+export const validatePromo = async (req, res) => {
+  try {
+    const { code, cityId, serviceType } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Promo code is required' });
+    }
+
+    // 1. Check HomeContent for first booking promo
+    const HomeContent = (await import('../models/HomeContent.js')).default;
+    const homeContent = await HomeContent.findOne(cityId ? { cityId } : {});
+    
+    if (!homeContent) {
+      return res.status(404).json({ success: false, message: 'No promotions available for this city' });
+    }
+
+    // Is it the first booking code?
+    if (homeContent.isFirstBookingVisible && homeContent.firstBookingCode && code.toUpperCase() === homeContent.firstBookingCode.toUpperCase()) {
+      let bookingCount = 0;
+      
+      if (serviceType === 'home-services') {
+        const mongoose = await import('mongoose');
+        const truliqConnection = await mongoose.createConnection('mongodb+srv://devendra7jaiswal_db_user:asYD2ryQ8mn5VAA5@cluster0.ozwnh8j.mongodb.net/Truliq').asPromise();
+        const TruliqBooking = truliqConnection.model('Booking', new mongoose.Schema({ userId: mongoose.Schema.Types.ObjectId, status: String }, { strict: false }));
+        // Using 'status' and values from Homster booking model
+        bookingCount = await TruliqBooking.countDocuments({ 
+          userId: req.user._id, 
+          status: { $nin: ['CANCELLED', 'cancelled', 'rejected', 'no_vendors'] } 
+        });
+        await truliqConnection.close();
+      } else {
+        const Booking = (await import('../models/Booking.js')).default;
+        bookingCount = await Booking.countDocuments({ 
+          userId: req.user._id, 
+          bookingStatus: { $nin: ['cancelled', 'rejected', 'no_show'] } 
+        });
+      }
+
+      console.log(`[PROMO] User: ${req.user._id}, Service: ${serviceType}, Bookings Found: ${bookingCount}`);
+
+      if (bookingCount > 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'This promo code is only valid for your first booking.' 
+        });
+      }
+
+      // Valid first booking promo!
+      return res.json({
+        success: true,
+        message: 'Promo code applied successfully!',
+        discountPercentage: homeContent.firstBookingDiscount || 10,
+        promoType: 'first_booking',
+        code: homeContent.firstBookingCode
+      });
+    }
+
+    return res.status(400).json({ success: false, message: 'Invalid or expired promo code' });
+
+  } catch (error) {
+    console.error('Validate Promo Error:', error);
+    res.status(500).json({ success: false, message: 'Server error validating promo' });
   }
 };

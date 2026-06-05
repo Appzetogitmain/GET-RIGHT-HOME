@@ -9,7 +9,7 @@ export const bookingService = {
   // Create a new booking
   create: async (bookingData) => {
     console.log('[BookingService] Creating booking with payload:', JSON.stringify(bookingData, null, 2));
-    const response = await api.post('/users/bookings', bookingData);
+    const response = await api.post('/bookings', bookingData);
     return response.data;
   },
 
@@ -22,19 +22,19 @@ export const bookingService = {
     if (params.page) queryParams.append('page', params.page);
     if (params.limit) queryParams.append('limit', params.limit);
 
-    const response = await api.get(`/users/bookings${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+    const response = await api.get(`/bookings/my${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     return response.data;
   },
 
   // Get booking details by ID
   getById: async (id) => {
-    const response = await api.get(`/users/bookings/${id}`);
+    const response = await api.get(`/bookings/${id}`);
     return response.data;
   },
 
   // Cancel booking
   cancel: async (id, cancellationReason) => {
-    const response = await api.post(`/users/bookings/${id}/cancel`, { cancellationReason });
+    const response = await api.post(`/bookings/${id}/cancel`, { cancellationReason });
     return response.data;
   },
 
