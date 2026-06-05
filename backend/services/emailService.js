@@ -283,4 +283,5 @@ class EmailService {
   }
 }
 
+export const sendBookingEmails = async () => {};
 export default new EmailService();

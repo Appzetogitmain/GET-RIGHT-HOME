@@ -4,7 +4,7 @@ export const adminBookingService = {
   // Get all bookings with filters and search
   getAllBookings: async (params) => {
     try {
-      const response = await api.get('/admin/bookings', { params });
+      const response = await api.get('/admin/workers/jobs', { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch bookings' };

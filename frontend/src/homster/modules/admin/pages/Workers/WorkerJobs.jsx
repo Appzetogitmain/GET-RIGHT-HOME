@@ -23,8 +23,10 @@ const WorkerJobs = () => {
       };
       const response = await adminWorkerService.getAllJobs(params);
       if (response.success) {
-        setJobs(response.data);
-        setPagination(response.pagination);
+        setJobs(response.data || []);
+        if (response.pagination) {
+          setPagination(response.pagination);
+        }
       }
     } catch (error) {
       console.error('Error loading jobs:', error);
@@ -144,7 +146,7 @@ const WorkerJobs = () => {
         </div>
 
         {/* Pagination */}
-        {!loading && pagination.pages > 1 && (
+        {!loading && (pagination?.pages ?? 0) > 1 && (
           <div className="flex justify-center mt-8 gap-2">
             {[...Array(pagination.pages)].map((_, i) => (
               <button

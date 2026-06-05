@@ -13,8 +13,17 @@ class NotificationService {
 
     // Get platform-based tokens (app and web)
     if (user.fcmTokens) {
-      if (user.fcmTokens.app) tokens.push(user.fcmTokens.app);
-      if (user.fcmTokens.web) tokens.push(user.fcmTokens.web);
+      if (Array.isArray(user.fcmTokens)) {
+        tokens.push(...user.fcmTokens);
+      } else {
+        if (user.fcmTokens.app) tokens.push(user.fcmTokens.app);
+        if (user.fcmTokens.web) tokens.push(user.fcmTokens.web);
+      }
+    }
+
+    // Handle mobile tokens for workers
+    if (user.fcmTokenMobile && Array.isArray(user.fcmTokenMobile)) {
+      tokens.push(...user.fcmTokenMobile);
     }
 
     return tokens.filter(Boolean); // Remove null/undefined
@@ -120,6 +129,9 @@ class NotificationService {
       } else if (userType === 'partner') {
         const Partner = (await import('../models/Partner.js')).default;
         user = await Partner.findById(userId);
+      } else if (userType === 'worker') {
+        const Worker = (await import('../models/Worker.js')).default;
+        user = await Worker.findById(userId);
       } else {
         user = await User.findById(userId);
       }

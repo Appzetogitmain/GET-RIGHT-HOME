@@ -93,10 +93,18 @@ export const userAuthService = {
   // Get profile
   getProfile: async () => {
     const response = await api.get('/users/profile');
-    if (response.data.user) {
-      localStorage.setItem('userData', JSON.stringify(response.data.user));
+    const data = response.data;
+    // Handle both {success, user: {...}} and flat {_id, isVip, ...} response formats
+    const userData = data.user || (data._id ? data : null);
+    if (userData) {
+      localStorage.setItem('userData', JSON.stringify(userData));
     }
-    return response.data;
+    // Normalize to always return {success, user} format
+    return {
+      success: data.success !== false,
+      user: userData,
+      ...data
+    };
   },
 
   // Update profile
@@ -111,6 +119,12 @@ export const userAuthService = {
   // Get checkout summary data
   getCheckoutData: async () => {
     const response = await api.get('/users/checkout-data');
+    return response.data;
+  },
+
+  // Validate Promo
+  validatePromo: async (code, cityId) => {
+    const response = await api.post('/users/validate-promo', { code, cityId, serviceType: 'home-services' });
     return response.data;
   }
 };

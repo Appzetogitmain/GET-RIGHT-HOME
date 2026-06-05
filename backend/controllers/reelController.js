@@ -4,16 +4,13 @@ import ReelComment from '../models/ReelComment.js';
 import ReelCommentLike from '../models/ReelCommentLike.js';
 import User from '../models/User.js';
 import mongoose from 'mongoose';
-import {
-  uploadVideoToCloudinary,
-  getVideoThumbnailUrl,
-  deleteVideoFromCloudinary,
-} from '../utils/cloudinary.js';
 import fs from 'fs';
+import { uploadVideoToCloudinary, getVideoThumbnailUrl, deleteVideoFromCloudinary } from '../utils/cloudinary.js';
 
 const MAX_REEL_DURATION_SEC = 30;
 const MAX_CAPTION_LENGTH = 500;
 const MAX_COMMENT_LENGTH = 300;
+
 
 /** Sanitize caption for storage: trim, strip control chars, normalize whitespace, max length */
 function sanitizeCaption(input) {

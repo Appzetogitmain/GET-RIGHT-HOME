@@ -1,5 +1,6 @@
-// controllers/locationController.js
 import Location from '../models/Location.js';
+
+// controllers/locationController.js
 
 /* ─────────────────────────────────────────────
    PUBLIC ENDPOINTS (no auth required)

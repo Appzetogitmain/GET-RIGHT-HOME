@@ -12,6 +12,9 @@ import { initializeFirebase } from './config/firebase.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import morgan from 'morgan';
+import workerRoutes from './routes/workerRoutes.js';
+import hsBookingRoutes from './routes/hsBookingRoutes.js';
+import adminWorkerRoutes from './routes/adminWorkerRoutes.js';
 
 // Initialize Firebase
 initializeFirebase();
@@ -83,6 +86,9 @@ app.use(cors({
     const allowedOrigins = [
       'http://localhost:5173',
       'http://127.0.0.1:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+      'http://126.0.0.1:5173',
       'https://rukkoo.in',
       'https://www.rukkoo.in',
       'https://rukkoo-project.vercel.app',
@@ -138,6 +144,7 @@ import { seedOnStartup } from './controllers/propertyFormController.js';
 import locationRoutes from './routes/locationRoutes.js';
 import enquiryRoutes from './routes/enquiryRoutes.js';
 import localityReviewRoutes from './routes/localityReviewRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
@@ -175,11 +182,34 @@ app.get('/api/public/categories', getPublicCategories);
 app.get('/api/public/sub-categories', getPublicSubCategories);
 app.get('/api/public/services', getPublicServices);
 app.get('/api/public/cities', getActiveCities);
+// Plans public endpoint (returns empty list if no plans configured)
+app.get('/api/public/plans', (req, res) => {
+  res.json({ success: true, data: [] });
+});
+app.get('/api/public/home-data', async (req, res) => {
+  try {
+    const { cityId } = req.query;
+    const HomeContent = (await import('./models/HomeContent.js')).default;
+    let homeContent = await HomeContent.findOne(cityId ? { cityId } : {});
+    
+    if (!homeContent && cityId && cityId !== 'default') {
+      homeContent = await HomeContent.findOne({ cityId: 'default' });
+    }
+    
+    res.json({ success: true, homeContent: homeContent || {} });
+  } catch (e) {
+    res.json({ success: true, homeContent: {} });
+  }
+});
 app.use('/api/upload', uploadRoutes);
 app.use('/api/property-forms', propertyFormRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/enquiries', enquiryRoutes);
 app.use('/api/locality-reviews', localityReviewRoutes);
+app.use('/api/workers', workerRoutes);
+app.use('/api/hs-bookings', hsBookingRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin/workers', adminWorkerRoutes);
 
 
 

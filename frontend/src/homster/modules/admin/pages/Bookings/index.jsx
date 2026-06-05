@@ -71,15 +71,22 @@ const Bookings = () => {
 
       const res = await adminBookingService.getAllBookings(params);
       if (res.success) {
-        setBookings(res.data);
-        setTotalPages(res.pagination.pages);
+        setBookings(res.data || res.bookings || []);
+        
+        if (res.pagination) {
+          setTotalPages(res.pagination.pages);
+        } else if (res.total !== undefined) {
+          setTotalPages(Math.ceil(res.total / (res.limit || 10)));
+        } else {
+          setTotalPages(1);
+        }
       }
 
       // 2. Fetch Stats (only if not already fetched or if total is 0)
       if (stats.total === 0) {
         const statsRes = await getDashboardStats();
         if (statsRes.success) {
-          const s = statsRes.data.stats;
+          const s = statsRes.stats;
           setStats({
             pending: s.pendingBookings || 0,
             confirmed: 0,

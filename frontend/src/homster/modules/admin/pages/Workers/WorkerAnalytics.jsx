@@ -40,6 +40,18 @@ const WorkerAnalytics = () => {
     );
   }
 
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px] text-gray-400">
+        <div className="text-center">
+          <FiActivity className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p className="text-sm">No analytics data available yet.</p>
+        </div>
+      </div>
+    );
+  }
+
+
   const COLORS = ['#10B981', '#EF4444', '#F59E0B', '#2874F0', '#6366F1'];
 
   return (
@@ -51,7 +63,7 @@ const WorkerAnalytics = () => {
             <div>
               <p className="text-blue-100 text-[10px] font-medium uppercase tracking-wider">Total Active Workers</p>
               <h3 className="text-xl font-bold mt-0.5">
-                {data?.availabilityDistribution?.reduce((acc, curr) => acc + curr.count, 0) || 0}
+              {(data?.availabilityDistribution || []).reduce((acc, curr) => acc + curr.count, 0) || 0}
               </h3>
             </div>
             <div className="bg-white/20 p-2 rounded-lg">
@@ -65,7 +77,7 @@ const WorkerAnalytics = () => {
             <div>
               <p className="text-green-100 text-[10px] font-medium uppercase tracking-wider">Jobs Completed</p>
               <h3 className="text-xl font-bold mt-0.5">
-                {data?.topWorkers?.reduce((acc, curr) => acc + curr.completedJobs, 0) || 0}
+              {(data?.topWorkers || []).reduce((acc, curr) => acc + curr.completedJobs, 0) || 0}
               </h3>
             </div>
             <div className="bg-white/20 p-2 rounded-lg">
@@ -109,7 +121,7 @@ const WorkerAnalytics = () => {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={data?.availabilityDistribution}
+                  data={data?.availabilityDistribution || []}
                   cx="50%"
                   cy="50%"
                   innerRadius={50}
@@ -118,7 +130,7 @@ const WorkerAnalytics = () => {
                   dataKey="count"
                   nameKey={(entry) => entry._id ? 'Available' : 'Unavailable'}
                 >
-                  {data?.availabilityDistribution.map((entry, index) => (
+                  {(data?.availabilityDistribution || []).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

@@ -52,7 +52,7 @@ const EditProfile = () => {
     },
     serviceCategories: [],
     profilePhoto: null,
-    status: 'OFFLINE'
+    status: 'offline'
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -91,7 +91,7 @@ const EditProfile = () => {
             },
             serviceCategories: w.serviceCategories || (w.serviceCategory ? [w.serviceCategory] : []),
             profilePhoto: w.profilePhoto || null,
-            status: w.status || 'OFFLINE'
+            status: w.status || 'offline'
           });
         }
 
@@ -321,8 +321,8 @@ const EditProfile = () => {
 
           <div className="flex gap-3">
             <button
-              onClick={() => handleInputChange('status', 'ONLINE')}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 ${formData.status === 'ONLINE'
+              onClick={() => handleInputChange('status', 'online')}
+              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 ${formData.status === 'online'
                 ? 'bg-green-50 border-green-500 text-green-700'
                 : 'bg-white border-gray-200 text-gray-500'
                 }`}
@@ -330,8 +330,8 @@ const EditProfile = () => {
               Online
             </button>
             <button
-              onClick={() => handleInputChange('status', 'OFFLINE')}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 ${formData.status === 'OFFLINE'
+              onClick={() => handleInputChange('status', 'offline')}
+              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 ${formData.status === 'offline'
                 ? 'bg-red-50 border-red-500 text-red-700'
                 : 'bg-white border-gray-200 text-gray-500'
                 }`}
@@ -452,7 +452,10 @@ const EditProfile = () => {
               </div>
 
               {isCategoryOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-60 overflow-y-auto">
+                <div 
+                  className="mt-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-y-auto overscroll-contain max-h-[240px]"
+                  style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+                >
                   {categories.map((cat, index) => {
                     const isSelected = formData.serviceCategories.includes(cat.title);
                     return (
@@ -460,9 +463,10 @@ const EditProfile = () => {
                         key={cat._id || index}
                         onClick={() => {
                           handleCategoryChange(cat.title);
-                          // Don't close immediately for multi-select
                         }}
-                        className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 font-medium text-gray-700 flex justify-between items-center"
+                        className={`px-4 py-3 cursor-pointer border-b border-gray-50 last:border-0 font-medium flex justify-between items-center transition-colors ${
+                          isSelected ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'
+                        }`}
                       >
                         <span>{cat.title}</span>
                         {isSelected && <FiCheck className="text-blue-600 w-4 h-4" />}
