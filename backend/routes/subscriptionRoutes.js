@@ -28,7 +28,7 @@ router.use('/admin', adminRouter);
 // --- USER & PARTNER ROUTES ---
 const partnerRouter = express.Router();
 partnerRouter.use(protect);
-partnerRouter.use(authorizedRoles('partner', 'user', 'admin'));
+partnerRouter.use(authorizedRoles('partner', 'user', 'admin', 'owner', 'broker'));
 
 partnerRouter.get('/plans', getActivePlans);
 partnerRouter.get('/current', getCurrentSubscription);

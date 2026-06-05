@@ -1538,7 +1538,13 @@ export const revealContact = async (req, res) => {
 
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
-    const partner = property.partnerId;
+    let partner = property.partnerId;
+    if (!partner && property.userId) {
+      const userDoc = await User.findById(property.userId).populate('subscription.planId');
+      if (userDoc && ['owner', 'broker'].includes(userDoc.role)) {
+        partner = userDoc;
+      }
+    }
     if (partner) {
       const sub = partner.subscription;
       const plan = sub?.planId;
