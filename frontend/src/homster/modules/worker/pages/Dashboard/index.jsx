@@ -412,59 +412,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Subscription Status Alert */}
-        {subscriptionStatus && (
-          <div className="px-4 pt-2 -mb-2">
-            {!subscriptionStatus.isActive ? (
-              <div
-                onClick={() => navigate('/worker/subscription')}
-                className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r shadow-sm cursor-pointer hover:bg-red-100 transition-colors"
-              >
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <FiClock className="h-5 w-5 text-red-500" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-bold text-red-700">Plan Expired!</p>
-                    <p className="text-xs text-red-600">
-                      Your subscription ended on {new Date(subscriptionStatus.expiryDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}.
-                    </p>
-                  </div>
-                  <div className="ml-auto">
-                    <FiArrowRight className="h-4 w-4 text-red-500" />
-                  </div>
-                </div>
-              </div>
-            ) : (() => {
-              const diff = new Date(subscriptionStatus.expiryDate) - new Date();
-              const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-              if (days <= 3) {
-                return (
-                  <div
-                    onClick={() => navigate('/worker/subscription')}
-                    className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r shadow-sm cursor-pointer hover:bg-amber-100 transition-colors"
-                  >
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <FiClock className="h-5 w-5 text-amber-500" />
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-bold text-amber-700">Plan Expiring Soon!</p>
-                        <p className="text-xs text-amber-600">
-                          Expires on {new Date(subscriptionStatus.expiryDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}.
-                        </p>
-                      </div>
-                      <div className="ml-auto">
-                        <FiArrowRight className="h-4 w-4 text-amber-500" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-          </div>
-        )}
+
 
         {/* Incomplete Profile Prompt */}
         {((!workerProfile.categories || workerProfile.categories.length === 0) ||

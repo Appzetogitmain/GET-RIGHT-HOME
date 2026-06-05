@@ -35,34 +35,6 @@
     ]
   },
   {
-    "title": "Payments",
-    "route": "/admin/home-service/payments",
-    "allowedRoles": [
-      "super_admin"
-    ],
-    "children": [
-      "Payment Overview",
-      "User Payments",
-      "Worker Payments",
-      "Vendor Payments",
-      "Admin Revenue",
-      "Payment Reports"
-    ]
-  },
-  {
-    "title": "Settlements",
-    "route": "/admin/home-service/settlements",
-    "allowedRoles": [
-      "super_admin"
-    ],
-    "children": [
-      "Pending",
-      "Withdrawals",
-      "Vendors with Due",
-      "History"
-    ]
-  },
-  {
     "title": "User Catalog",
     "route": "/admin/home-service/user-categories",
     "allowedRoles": [
@@ -76,41 +48,5 @@
       "Manage Services",
       "Manage Membership"
     ]
-  },
-  {
-    "title": "Reports",
-    "route": "/admin/home-service/reports",
-    "allowedRoles": [
-      "super_admin"
-    ],
-    "children": [
-      "Revenue Report",
-      "Booking Report",
-      "Payment Report"
-    ]
-  },
-  {
-    "title": "Reviews",
-    "route": "/admin/home-service/reviews",
-    "allowedRoles": [
-      "super_admin"
-    ],
-    "children": []
-  },
-  {
-    "title": "Plans",
-    "route": "/admin/home-service/plans",
-    "allowedRoles": [
-      "super_admin"
-    ],
-    "children": []
-  },
-  {
-    "title": "Worker Plans",
-    "route": "/admin/home-service/worker-plans",
-    "allowedRoles": [
-      "super_admin"
-    ],
-    "children": []
   }
 ]

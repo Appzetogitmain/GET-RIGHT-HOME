@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBell, FiVolume2, FiGlobe, FiLogOut, FiStar, FiChevronRight } from 'react-icons/fi';
+import { FiBell, FiVolume2 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { workerTheme as themeColors } from '../../../../theme';
-import { workerAuthService } from '../../../../services/authService';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
 import workerService from '../../../../services/workerService';
@@ -107,29 +106,6 @@ const Settings = () => {
     }
   };
 
-  const handleLanguageChange = async (lang) => {
-    const updated = { ...settings, language: lang };
-    setSettings(updated);
-    await updateDBSettings(updated);
-  };
-
-  const handleLogout = async () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      try {
-        await workerAuthService.logout();
-        toast.success('Logged out successfully');
-        navigate('/worker/login');
-      } catch (error) {
-        // Even if API call fails, clear local storage
-        localStorage.removeItem('workerAccessToken');
-        localStorage.removeItem('workerRefreshToken');
-        localStorage.removeItem('workerData');
-        toast.success('Logged out successfully');
-        navigate('/worker/login');
-      }
-    }
-  };
-
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
       <Header title="Settings" />
@@ -200,75 +176,6 @@ const Settings = () => {
             </div>
           </div>
         </div>
-
-        {/* Language Settings */}
-        <div
-          className="bg-white rounded-xl p-4 mb-6 shadow-md"
-          style={{
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <FiGlobe className="w-5 h-5" style={{ color: themeColors.icon }} />
-            <h3 className="font-bold text-gray-800">Language</h3>
-          </div>
-
-          <div className="space-y-2">
-            {[
-              { code: 'en', name: 'English' },
-              { code: 'hi', name: 'हिंदी' },
-            ].map((lang) => (
-              <button
-                key={lang.code}
-                onClick={() => handleLanguageChange(lang.code)}
-                className={`w-full py-3 px-4 rounded-lg text-left transition-all ${settings.language === lang.code
-                  ? 'text-white'
-                  : 'bg-gray-50 text-gray-700'
-                  }`}
-                style={
-                  settings.language === lang.code
-                    ? {
-                      background: themeColors.button,
-                      boxShadow: `0 2px 8px ${themeColors.button}40`,
-                    }
-                    : {}
-                }
-              >
-                {lang.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Subscription */}
-        <button
-          onClick={() => navigate('/worker/subscription')}
-          className="w-full rounded-xl p-4 mb-6 flex items-center justify-between shadow-md active:scale-95 transition-all"
-          style={{ background: 'linear-gradient(135deg, #302b63, #24243e)', border: '1px solid rgba(108,99,255,0.4)' }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-full bg-purple-500/20">
-              <FiStar className="w-5 h-5 text-purple-400" />
-            </div>
-            <div className="text-left">
-              <p className="font-bold text-white">My Subscription</p>
-              <p className="text-white/50 text-xs">View & manage your plan</p>
-            </div>
-          </div>
-          <FiChevronRight className="text-white/40 w-5 h-5" />
-        </button>
-
-        {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="w-full bg-white rounded-xl p-4 flex items-center justify-center gap-3 shadow-md transition-all active:scale-95"
-          style={{
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <FiLogOut className="w-5 h-5 text-red-500" />
-          <span className="font-semibold text-red-500">Logout</span>
-        </button>
       </main>
 
       <BottomNav />

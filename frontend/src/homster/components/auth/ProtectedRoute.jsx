@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import useAdminStore from '../../../app/admin/store/adminStore';
 
 /**
  * Protected Route Component
@@ -10,9 +11,22 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated: hoomzoIsAuthenticated, loading: hoomzoLoading } = useAdminStore();
 
   useEffect(() => {
     const checkAuth = async () => {
+      if (userType === 'admin') {
+        if (hoomzoLoading) {
+          setIsLoading(true);
+          return;
+        }
+        if (hoomzoIsAuthenticated) {
+          setIsAuthenticated(true);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       let tokenKey = 'accessToken';
       let refreshTokenKey = 'refreshToken';
       let dataKey = 'userData';
@@ -99,7 +113,7 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
     };
 
     checkAuth();
-  }, [userType, location.pathname]);
+  }, [userType, location.pathname, hoomzoIsAuthenticated, hoomzoLoading]);
 
   if (isLoading) {
     return (
