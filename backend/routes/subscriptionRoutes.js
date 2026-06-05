@@ -7,7 +7,11 @@ import {
     getActivePlans,
     getCurrentSubscription,
     createSubscriptionOrder,
-    verifySubscription
+    verifySubscription,
+    getAllTiers,
+    createTier,
+    updateTier,
+    deleteTier
 } from '../controllers/subscriptionController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 
@@ -23,6 +27,12 @@ adminRouter.get('/all', getAllPlans);
 adminRouter.put('/:id', updatePlan);
 adminRouter.delete('/:id', deletePlan);
 
+// Admin Tier Management
+adminRouter.get('/tiers', getAllTiers);
+adminRouter.post('/tiers', createTier);
+adminRouter.put('/tiers/:id', updateTier);
+adminRouter.delete('/tiers/:id', deleteTier);
+
 router.use('/admin', adminRouter);
 
 // --- USER & PARTNER ROUTES ---
@@ -34,6 +44,7 @@ partnerRouter.get('/plans', getActivePlans);
 partnerRouter.get('/current', getCurrentSubscription);
 partnerRouter.post('/checkout', createSubscriptionOrder);
 partnerRouter.post('/verify', verifySubscription);
+partnerRouter.get('/tiers', getAllTiers); // Read-only access for partners/users
 
 router.use('/', partnerRouter);
 

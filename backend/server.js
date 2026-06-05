@@ -292,6 +292,28 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
         console.error('❌ Auto-seeding failed on startup:', seedErr.message);
       }
 
+      // Seed subscription tiers dynamically on startup
+      try {
+        const SubscriptionTier = (await import('./models/SubscriptionTier.js')).default;
+        const defaultTiers = [
+            { name: "Silver", key: "silver" },
+            { name: "Gold Basic", key: "gold_basic" },
+            { name: "Gold", key: "gold" },
+            { name: "Platinum", key: "platinum" },
+            { name: "Diamond", key: "diamond" }
+        ];
+        for (const tier of defaultTiers) {
+            await SubscriptionTier.findOneAndUpdate(
+                { key: tier.key },
+                tier,
+                { upsert: true }
+            );
+        }
+        console.log('✅ Subscription Tiers verified on startup');
+      } catch (tierErr) {
+        console.error('❌ Auto-seeding tiers failed on startup:', tierErr.message);
+      }
+
       // Seed admin user on startup
       try {
         await seedAdminOnStartup();

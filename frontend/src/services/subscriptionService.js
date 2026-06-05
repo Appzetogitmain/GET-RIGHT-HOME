@@ -19,8 +19,29 @@ const subscriptionService = {
         return response.data;
     },
 
-    deletePlan: async (id) => {
-        const response = await axiosInstance.delete(`/subscriptions/admin/${id}`);
+    deletePlan: async (id, hard = false) => {
+        const response = await axiosInstance.delete(`/subscriptions/admin/${id}${hard ? '?hard=true' : ''}`);
+        return response.data;
+    },
+
+    // --- ADMIN TIERS ---
+    getAdminTiers: async () => {
+        const response = await axiosInstance.get('/subscriptions/admin/tiers');
+        return response.data;
+    },
+
+    createTier: async (tierData) => {
+        const response = await axiosInstance.post('/subscriptions/admin/tiers', tierData);
+        return response.data;
+    },
+
+    updateTier: async (id, tierData) => {
+        const response = await axiosInstance.put(`/subscriptions/admin/tiers/${id}`, tierData);
+        return response.data;
+    },
+
+    deleteTier: async (id) => {
+        const response = await axiosInstance.delete(`/subscriptions/admin/tiers/${id}`);
         return response.data;
     },
 
@@ -52,6 +73,11 @@ const subscriptionService = {
 
     getTrialSettings: async () => {
         const response = await api.get('/info/platform/trial-settings');
+        return response.data;
+    },
+
+    getUserTiers: async () => {
+        const response = await api.get('/subscriptions/tiers');
         return response.data;
     }
 };

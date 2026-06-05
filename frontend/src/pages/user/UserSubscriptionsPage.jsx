@@ -127,6 +127,11 @@ const UserSubscriptionsPage = () => {
     const isExpired = currentSub?.status === 'expired' || (currentSub?.expiryDate && new Date(currentSub.expiryDate) < new Date());
     const isActive = currentSub?.status === 'active' && !isExpired;
 
+    const expiryDateObj = currentSub?.expiryDate ? new Date(currentSub.expiryDate) : null;
+    const today = new Date();
+    const daysRemaining = expiryDateObj ? Math.ceil((expiryDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+    const isExpiringSoon = isActive && daysRemaining !== null && daysRemaining <= 5 && daysRemaining >= 0;
+
     return (
         <div className="min-h-screen bg-gray-50 pb-28">
             {/* Header */}
@@ -149,6 +154,32 @@ const UserSubscriptionsPage = () => {
                     </div>
                 ) : (
                     <>
+                        {isExpiringSoon && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-3xl flex items-center justify-between text-amber-900"
+                            >
+                                <div className="flex-1 pr-2">
+                                    <p className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-amber-800">
+                                        <AlertCircle size={14} className="text-amber-600" /> Plan Expiring Soon
+                                    </p>
+                                    <p className="text-[11px] font-bold text-amber-600 uppercase mt-0.5 leading-normal">
+                                        Your {currentSub.planId?.name || 'current'} subscription expires in {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}. Renew or upgrade to avoid listing deactivation.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        const el = document.getElementById('available-plans-section');
+                                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                    }}
+                                    className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition shrink-0 shadow-sm"
+                                >
+                                    Renew / Upgrade
+                                </button>
+                            </motion.div>
+                        )}
+
                         {/* Current Plan Banner */}
                         {currentSub?.planId && (
                             <motion.div
@@ -190,9 +221,9 @@ const UserSubscriptionsPage = () => {
                         )}
 
                         {/* Plan Cards */}
-                        <div className="space-y-4">
+                        <div id="available-plans-section" className="space-y-4">
                             {plans.map((plan, i) => {
-                                const cfg = TIER_CONFIG[plan.tier] || TIER_CONFIG.silver;
+                                const cfg = TIER_CONFIG[plan.tier?.toLowerCase()] || { gradient: 'from-gray-700 to-gray-900', icon: Package, bg: 'bg-gray-50', text: 'text-gray-700' };
                                 const PlanIcon = cfg.icon;
                                 const isCurrent = currentSub?.planId?._id === plan._id && isActive;
 

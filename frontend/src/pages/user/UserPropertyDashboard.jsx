@@ -50,6 +50,7 @@ const UserPropertyDashboard = () => {
     const [property, setProperty] = useState(null);
     const [stats, setStats] = useState(null);
     const [recentEnquiries, setRecentEnquiries] = useState([]);
+    const [subscription, setSubscription] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -59,11 +60,12 @@ const UserPropertyDashboard = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [propRes, statsRes, enqRes] = await Promise.allSettled([
+            const [propRes, statsRes, enqRes, subRes] = await Promise.allSettled([
                 api.get(`/properties/${id}`),
                 api.get(`/properties/${id}/stats`),
                 // Fetch enquiries received for this property (owner view)
                 api.get(`/enquiries/received`, { params: { propertyId: id } }),
+                api.get('/subscriptions/current')
             ]);
 
             if (propRes.status === 'fulfilled' && propRes.value.data.success) {
@@ -74,6 +76,9 @@ const UserPropertyDashboard = () => {
             }
             if (enqRes.status === 'fulfilled' && enqRes.value.data.success) {
                 setRecentEnquiries(enqRes.value.data.enquiries || []);
+            }
+            if (subRes.status === 'fulfilled' && subRes.value.data.success) {
+                setSubscription(subRes.value.data.subscription);
             }
         } catch (err) {
             console.error(err);
@@ -219,8 +224,8 @@ const UserPropertyDashboard = () => {
                     <StatCard
                         icon={TrendingUp}
                         label="Subscription"
-                        value="Free"
-                        sub="Upgrade for more leads"
+                        value={subscription?.planId?.name || 'Free Plan'}
+                        sub={subscription?.planId ? `Expires ${new Date(subscription.expiryDate).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}` : 'Upgrade for more leads'}
                         color="text-emerald-600"
                         onClick={() => navigate('/my-subscriptions')}
                     />

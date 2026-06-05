@@ -1816,3 +1816,59 @@ export const getPropertyStats = async (req, res) => {
   }
 };
 
+export const getPartnerPublicDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First try to find a Partner
+    let partner = await Partner.findById(id)
+      .select('name email phone businessName businessAddress partnerSince profileImage subscription role')
+      .populate('subscription.planId');
+    
+    // If not found, try to find a User (who might be an owner or broker)
+    if (!partner) {
+      const user = await User.findById(id)
+        .select('name email phone businessName partnerSince profileImage subscription role')
+        .populate('subscription.planId');
+      if (user && ['owner', 'broker'].includes(user.role)) {
+        partner = user;
+      }
+    }
+    
+    if (!partner) {
+      return res.status(404).json({ success: false, message: 'Seller not found' });
+    }
+    
+    // Fetch all live properties of this seller
+    const properties = await Property.find({
+      $or: [
+        { partnerId: id },
+        { userId: id }
+      ],
+      status: 'approved',
+      isLive: true
+    });
+    
+    res.status(200).json({
+      success: true,
+      partner: {
+        _id: partner._id,
+        name: partner.name,
+        email: partner.email,
+        phone: partner.phone,
+        businessName: partner.businessName || '',
+        businessAddress: partner.businessAddress || '',
+        partnerSince: partner.partnerSince || partner.createdAt,
+        profileImage: partner.profileImage || '',
+        role: partner.role || 'partner',
+        subscriptionTier: partner.subscription?.planId?.tier || 'free'
+      },
+      properties
+    });
+  } catch (error) {
+    console.error('getPartnerPublicDetails Error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching seller profile' });
+  }
+};
+
+

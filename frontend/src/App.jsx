@@ -114,6 +114,7 @@ const PartnerBookings = React.lazy(() => import('./app/partner/pages/PartnerBook
 const PartnerWallet = React.lazy(() => import('./app/partner/pages/PartnerWallet'));
 const PartnerReviews = React.lazy(() => import('./app/partner/pages/PartnerReviews'));
 const PartnerPage = React.lazy(() => import('./app/partner/pages/PartnerPage'));
+const PartnerProfilePage = React.lazy(() => import('./pages/user/PartnerProfilePage'));
 const PartnerJoinPropertyType = React.lazy(() => import('./app/partner/pages/PartnerJoinPropertyType'));
 const PartnerProperties = React.lazy(() => import('./app/partner/pages/PartnerProperties'));
 const PartnerPropertyDetails = React.lazy(() => import('./app/partner/pages/PartnerPropertyDetails'));
@@ -474,6 +475,7 @@ function App() {
             <Route path="/property/:id/amenities" element={<AmenitiesPage />} />
             <Route path="/property/:id/reviews" element={<ReviewsPage />} />
             <Route path="/property/:id/offers" element={<OffersPage />} />
+            <Route path="/partner/:id" element={<PartnerProfilePage />} />
 
             {/* User Property Listing (C2C) Routes (Public/Self-Authenticating) */}
             <Route path="/list-property" element={<ListPropertyWizard />} />

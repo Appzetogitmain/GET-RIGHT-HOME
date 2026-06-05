@@ -1639,9 +1639,9 @@ const PropertyDetailsPage = () => {
             </div>
           </div>
 
-          {property?.partnerId?._id ? (
+          {(property?.partnerId?._id || property?.userId?._id) ? (
             <button
-              onClick={() => navigate(`/partner/${property.partnerId._id}`)}
+              onClick={() => navigate(`/partner/${property?.partnerId?._id || property?.userId?._id}`)}
               className="block text-right w-full text-xs font-bold text-[#0061df] hover:underline pb-2 border-b border-gray-50"
             >
               View Complete Profile &gt;
@@ -2082,18 +2082,7 @@ const PropertyDetailsPage = () => {
 
       </div>
 
-      {/* Ticker / Banner on top of footer bar */}
-      <div className="fixed bottom-[65px] left-0 right-0 z-50 bg-[#fff5f6] border-y border-[#ffe2e5] py-2 px-4 shadow-md text-center max-w-xl mx-auto">
-        <span className="text-[11px] font-bold text-red-600 flex items-center justify-center gap-1.5">
-          <span className="w-2 h-2 bg-red-600 rounded-full animate-ping shrink-0" />
-          {property?.enquiryCount && property.enquiryCount > 5
-            ? `${property.enquiryCount} people already contacted for this property`
-            : property?.viewCount && property.viewCount > 3
-              ? `${property.viewCount} people are actively viewing this property`
-              : 'High demand property — Contact now to avoid missing out'
-          }
-        </span>
-      </div>
+
 
       {/* Sticky Bottom Actions Bar (Matches Image 1) */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 p-2.5 shadow-2xl z-50 max-w-xl mx-auto">

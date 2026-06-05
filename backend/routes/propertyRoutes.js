@@ -16,7 +16,8 @@ import {
   getAdminPropertiesByLocation,
   getAdminPropertyCities,
   getPropertyStats,
-  debugProperties
+  debugProperties,
+  getPartnerPublicDetails
 } from '../controllers/propertyController.js';
 
 
@@ -27,6 +28,7 @@ router.get('/debug-data', debugProperties); // TEMP - remove after debugging
 router.get('/recommended-sellers', getRecommendedSellers);
 router.get('/admin-added', getAdminPropertiesByLocation);
 router.get('/admin-cities', getAdminPropertyCities);
+router.get('/partner-public-details/:id', getPartnerPublicDetails);
 
 // User & Partner can manage their own properties
 const ownerRoles = authorizedRoles('partner', 'admin', 'user', 'superadmin', 'owner', 'broker');

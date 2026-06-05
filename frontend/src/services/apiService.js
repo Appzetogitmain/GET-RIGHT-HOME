@@ -426,6 +426,14 @@ export const propertyService = {
       throw error.response?.data || error.message;
     }
   },
+  getPartnerPublicDetails: async (id) => {
+    try {
+      const response = await api.get(`/properties/partner-public-details/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
 };
 
 

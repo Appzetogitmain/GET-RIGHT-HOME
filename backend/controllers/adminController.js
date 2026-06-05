@@ -683,7 +683,7 @@ export const updateBookingStatus = async (req, res) => {
 export const getUserDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id);
+    const user = await User.findById(id).populate('subscription.planId');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const bookings = await Booking.find({ userId: id })
@@ -726,7 +726,7 @@ export const getUserDetails = async (req, res) => {
 export const getPartnerDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const partner = await Partner.findById(id);
+    const partner = await Partner.findById(id).populate('subscription.planId');
     if (!partner) return res.status(404).json({ success: false, message: 'Partner not found' });
 
     const properties = await Property.find({ partnerId: id });

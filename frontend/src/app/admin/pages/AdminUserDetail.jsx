@@ -351,6 +351,36 @@ const AdminUserDetail = () => {
                             <span className="text-[10px] text-gray-500 uppercase font-bold">Total Properties</span>
                             <span className="text-lg font-bold text-gray-900">{properties.length}</span>
                         </div>
+                        <div className="p-3 bg-white/50 rounded-lg border border-gray-200/50 flex flex-col gap-1.5">
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] text-gray-500 uppercase font-bold">Active Plan</span>
+                                <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-full ${user.subscription?.planId ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-400'}`}>
+                                    {user.subscription?.planId?.name || 'No Active Plan'}
+                                </span>
+                            </div>
+                            {user.subscription?.planId && (
+                                <div className="mt-1 pt-1.5 border-t border-gray-100 flex flex-col gap-1 text-[9px] font-bold text-gray-400 uppercase">
+                                    <div className="flex justify-between">
+                                        <span>Expires:</span>
+                                        <span className="text-gray-700">
+                                            {new Date(user.subscription.expiryDate).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Properties:</span>
+                                        <span className="text-gray-700">
+                                            {user.subscription.propertiesAdded || 0}/{user.subscription.planId.maxProperties}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Leads:</span>
+                                        <span className="text-gray-700">
+                                            {user.subscription.leadsUsedThisMonth || 0}/{user.subscription.planId.leadCap || '∞'}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
