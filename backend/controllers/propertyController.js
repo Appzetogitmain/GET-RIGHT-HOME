@@ -677,6 +677,7 @@ export const getPublicProperties = async (req, res) => {
 
   try {
     const {
+      ids,
       search,
       type,
       minPrice,
@@ -729,6 +730,13 @@ export const getPublicProperties = async (req, res) => {
 
     // 2. Text/Filter Match
     const matchConditions = {};
+
+    if (ids) {
+      const idsList = ids.split(',').map(id => id.trim()).filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (idsList.length > 0) {
+        matchConditions._id = { $in: idsList.map(id => new mongoose.Types.ObjectId(id)) };
+      }
+    }
 
     if (type && type !== 'all') {
       const typesList = type.split(',').map(t => t.trim()).filter(Boolean);

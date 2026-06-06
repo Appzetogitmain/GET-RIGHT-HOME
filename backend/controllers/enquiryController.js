@@ -8,7 +8,7 @@ import RoomType from '../models/RoomType.js';
 const attachPropertyStartingPrice = async (property) => {
     if (!property) return null;
     
-    const propDoc = property.toObject ? property.toObject() : property;
+    const propDoc = JSON.parse(JSON.stringify(property));
     
     // 1. Try to find RoomTypes
     const roomTypes = await RoomType.find({ propertyId: propDoc._id, isActive: true }).select('pricePerNight');

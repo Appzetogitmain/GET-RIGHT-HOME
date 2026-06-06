@@ -23,6 +23,7 @@ import { CartProvider } from './homster/context/CartContext';
 // Lazy Imports - User Pages
 const Home = React.lazy(() => import('./pages/user/Home'));
 const UserPropertyDetailsPage = React.lazy(() => import('./pages/user/PropertyDetailsPage'));
+const PropertyComparePage = React.lazy(() => import('./pages/user/PropertyComparePage'));
 const UserLogin = React.lazy(() => import('./pages/auth/UserLogin'));
 const UserSignup = React.lazy(() => import('./pages/auth/UserSignup'));
 const SearchPage = React.lazy(() => import('./pages/user/SearchPage'));
@@ -460,6 +461,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/reels" element={<ReelsPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/compare" element={<PropertyComparePage />} />
             <Route path="/listings" element={<Navigate to="/search" replace />} />
             <Route path="/partner-landing" element={<PartnerLandingPage />} />
             <Route path="/about" element={<AboutPage />} />
