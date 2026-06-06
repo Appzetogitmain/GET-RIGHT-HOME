@@ -7,6 +7,7 @@ import User from '../models/User.js';
 // Handles all enquiry operations — completely separate from bookings
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // USER: Submit a new enquiry for a property
 // POST /api/enquiries
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,13 +24,66 @@ export const createEnquiry = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Property not found' });
         }
 
+        let userId = null;
+        let customerName = '';
+        let customerPhone = '';
+        let customerEmail = '';
+
+        if (req.user) {
+            userId = req.user._id;
+            customerName = req.user.name;
+            customerPhone = req.user.phone;
+            customerEmail = req.user.email || '';
+        } else {
+            // Guest User Form Submission
+            const { name, email, phone } = req.body;
+            if (!name || !phone || !email) {
+                return res.status(400).json({ success: false, message: 'Name, email, and phone are required for guest enquiries' });
+            }
+
+            customerName = name.trim();
+            customerPhone = phone.trim();
+            customerEmail = email.trim().toLowerCase();
+
+            // Look up if user exists by phone or email in either User or Partner collection
+            let existingUser = await User.findOne({
+                $or: [{ phone: customerPhone }, { email: customerEmail }]
+            });
+
+            if (!existingUser) {
+                existingUser = await Partner.findOne({
+                    $or: [{ phone: customerPhone }, { email: customerEmail }]
+                });
+            }
+
+            if (existingUser) {
+                userId = existingUser._id;
+                customerName = existingUser.name || customerName;
+                customerPhone = existingUser.phone || customerPhone;
+                customerEmail = existingUser.email || customerEmail;
+            } else {
+                // Auto-register guest as user/customer
+                const newUser = new User({
+                    name: customerName,
+                    phone: customerPhone,
+                    email: customerEmail,
+                    role: 'user'
+                });
+                await newUser.save();
+                userId = newUser._id;
+            }
+        }
+
         const enquiryId = `ENQ-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
 
         const enquiry = new Enquiry({
             enquiryId,
-            userId: req.user._id,
+            userId,
             propertyId,
-            enquiryType: enquiryType || 'general',
+            name: customerName,
+            phone: customerPhone,
+            email: customerEmail,
+            enquiryType: enquiryType || 'callback',
             message: message || '',
             preferredDate: preferredDate ? new Date(preferredDate) : null,
             timeSlot: timeSlot || '',
@@ -63,6 +117,28 @@ export const createEnquiry = async (req, res) => {
         console.error('Create Enquiry Error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
+};
+
+// Helper function to mask phone number
+const maskPhone = (ph) => {
+    if (!ph) return '';
+    const str = ph.toString().trim();
+    if (str.length < 4) return str;
+    return `${str.substring(0, 4)}XXXXX${str.substring(str.length - 1)}`;
+};
+
+// Helper function to mask email address
+const maskEmail = (em) => {
+    if (!em) return '';
+    const str = em.toString().trim();
+    const parts = str.split('@');
+    if (parts.length !== 2) return str;
+    const local = parts[0];
+    const domain = parts[1];
+    if (local.length <= 3) {
+        return `${local.substring(0, 1)}***@${domain}`;
+    }
+    return `${local.substring(0, 3)}***@${domain}`;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -103,7 +179,7 @@ export const getReceivedEnquiries = async (req, res) => {
         const propertyIds = properties.map(p => p._id);
 
         if (propertyIds.length === 0) {
-            return res.json({ success: true, enquiries: [] });
+            return res.json({ success: true, isPremium: false, enquiries: [] });
         }
 
         const query = { propertyId: { $in: propertyIds } };
@@ -111,12 +187,31 @@ export const getReceivedEnquiries = async (req, res) => {
             query.status = status;
         }
 
+        // Check if the current user has premium access (admin/superadmin or active subscription)
+        const sub = req.user.subscription;
+        const isPremium = sub && sub.status === 'active' && sub.expiryDate && new Date(sub.expiryDate) >= new Date();
+        const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+        const hasAccess = isPremium || isAdmin;
+
         const enquiries = await Enquiry.find(query)
             .populate('userId', 'name phone email avatar')
-            .populate('propertyId', 'propertyName coverImage address propertyType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice')
+            .populate('propertyId', 'propertyName coverImage address propertyType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice partnerId userId')
             .sort({ createdAt: -1 });
 
-        res.json({ success: true, enquiries });
+        const processedEnquiries = enquiries.map(e => {
+            const doc = e.toObject();
+            if (!hasAccess) {
+                doc.phone = maskPhone(doc.phone);
+                doc.email = maskEmail(doc.email);
+                if (doc.userId) {
+                    doc.userId.phone = maskPhone(doc.userId.phone);
+                    doc.userId.email = maskEmail(doc.userId.email);
+                }
+            }
+            return doc;
+        });
+
+        res.json({ success: true, isPremium: hasAccess, enquiries: processedEnquiries });
     } catch (error) {
         console.error('Get Received Enquiries Error:', error);
         res.status(500).json({ success: false, message: error.message });
@@ -199,7 +294,11 @@ export const adminGetAllEnquiries = async (req, res) => {
             .populate('userId', 'name email phone avatar')
             .populate({
                 path: 'propertyId',
-                select: 'propertyName coverImage address buyDetails rentDetails plotDetails pgDetails propertyType partnerId userId dynamicData price startingPrice'
+                select: 'propertyName coverImage address buyDetails rentDetails plotDetails pgDetails propertyType partnerId userId dynamicData price startingPrice',
+                populate: [
+                    { path: 'partnerId', select: 'name phone email' },
+                    { path: 'userId', select: 'name phone email' }
+                ]
             })
             .sort({ createdAt: -1 })
             .skip(skip)

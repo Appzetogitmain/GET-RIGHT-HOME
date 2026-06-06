@@ -895,7 +895,10 @@ export const lazyEnquiryLoginRegister = async (req, res) => {
       enquiryId,
       userId: user._id,
       propertyId,
-      enquiryType: 'contact_owner',
+      name: user.name || name,
+      phone: user.phone || phone,
+      email: user.email || email || 'guest@getrighthome.com',
+      enquiryType: 'callback',
       message: message || 'Interested in this property.',
       status: 'new'
     });

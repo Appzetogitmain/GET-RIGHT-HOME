@@ -40,10 +40,12 @@ const PropertyDetailsPage = () => {
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
   const [enquiryForm, setEnquiryForm] = useState({
     name: '',
+    email: '',
     phone: '',
     otp: '',
     message: 'Interested in this property.'
   });
+  const [enquiryErrors, setEnquiryErrors] = useState({});
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
 
@@ -68,8 +70,36 @@ const PropertyDetailsPage = () => {
   const [showAllAmenitiesModal, setShowAllAmenitiesModal] = useState(false);
   const [leadName, setLeadName] = useState('');
   const [leadPhone, setLeadPhone] = useState('');
+  const [leadEmail, setLeadEmail] = useState('');
+  const [leadErrors, setLeadErrors] = useState({});
   const [isAgent, setIsAgent] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(true);
+
+  // Helper validation function
+  const validateForm = (name, email, phone) => {
+    const errors = {};
+    if (!name || !name.trim()) {
+      errors.name = "Name is required";
+    } else if (!/^[A-Za-z\s]+$/.test(name.trim())) {
+      errors.name = "Name must contain letters and spaces only";
+    }
+
+    if (!email || !email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    if (!phone || !phone.trim()) {
+      errors.phone = "Phone number is required";
+    } else {
+      const cleanPhone = phone.trim();
+      if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+        errors.phone = "Mobile number must be exactly 10 digits and start with 6-9";
+      }
+    }
+    return errors;
+  };
 
   const [localityStats, setLocalityStats] = useState(null);
   const [localityReviews, setLocalityReviews] = useState([]);
@@ -106,6 +136,13 @@ const PropertyDetailsPage = () => {
         const u = JSON.parse(userRaw);
         setLeadName(u.name || '');
         setLeadPhone(u.phone || '');
+        setLeadEmail(u.email || '');
+        setEnquiryForm(prev => ({
+          ...prev,
+          name: u.name || '',
+          phone: u.phone || '',
+          email: u.email || ''
+        }));
       } catch (err) {
         console.error(err);
       }
@@ -906,11 +943,27 @@ const PropertyDetailsPage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
   };
 
+  const handleSendOtpForPhone = async (phoneVal) => {
+    setSendingOtp(true);
+    try {
+      await authService.sendOtp(phoneVal, 'login', 'user');
+      setOtpSent(true);
+      toast.success("OTP sent to your mobile number!");
+    } catch (err) {
+      toast.error(err.message || "Failed to send OTP");
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
   const handleSendOtp = async () => {
-    if (!enquiryForm.phone) {
-      toast.error("Please enter your mobile number");
+    const errors = validateForm(enquiryForm.name, enquiryForm.email, enquiryForm.phone);
+    if (Object.keys(errors).length > 0) {
+      setEnquiryErrors(errors);
       return;
     }
+    setEnquiryErrors({});
+
     setSendingOtp(true);
     try {
       await authService.sendOtp(enquiryForm.phone, 'login', 'user');
@@ -923,33 +976,69 @@ const PropertyDetailsPage = () => {
     }
   };
 
+  const handleDirectLoggedInEnquiry = async () => {
+    const errors = validateForm(leadName, leadEmail, leadPhone);
+    if (Object.keys(errors).length > 0) {
+      setLeadErrors(errors);
+      return;
+    }
+    setLeadErrors({});
+
+    setBookingLoading(true);
+    try {
+      let messageBody = `[Inquiry from Detail Page]\nName: ${leadName}\nPhone: ${leadPhone}\nEmail: ${leadEmail}\nAgent Status: ${isAgent ? 'Real Estate Agent' : 'Individual/Buyer'}\nMessage: Interested in this property.`;
+      const response = await enquiryService.create({
+        propertyId: id,
+        enquiryType: 'callback',
+        name: leadName,
+        phone: leadPhone,
+        email: leadEmail,
+        message: messageBody,
+        preferredDate: new Date(),
+        timeSlot: '',
+        budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
+      });
+
+      if (response.success) {
+        toast.success("Enquiry submitted successfully!");
+        await handleRevealContact();
+      } else {
+        toast.error(response.message || "Failed to submit enquiry");
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to submit enquiry");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
   const handleEnquirySubmit = async (e) => {
     e.preventDefault();
     const isLoggedIn = !!localStorage.getItem('user');
 
     if (!isLoggedIn) {
-      if (!enquiryForm.name.trim()) {
-        toast.error("Please enter your name");
+      const errors = validateForm(enquiryForm.name, enquiryForm.email, enquiryForm.phone);
+      if (!enquiryForm.otp || !enquiryForm.otp.trim()) {
+        errors.otp = "OTP is required";
+      }
+      if (Object.keys(errors).length > 0) {
+        setEnquiryErrors(errors);
         return;
       }
-      if (!enquiryForm.phone.trim()) {
-        toast.error("Please enter your mobile number");
-        return;
-      }
-      if (!enquiryForm.otp.trim()) {
-        toast.error("Please enter the OTP received");
-        return;
-      }
+      setEnquiryErrors({});
     }
 
     setBookingLoading(true);
     try {
       let response;
       if (isLoggedIn) {
-        let messageBody = `[Inquiry from Detail Page]\nName: ${leadName}\nPhone: ${leadPhone}\nAgent Status: ${isAgent ? 'Real Estate Agent' : 'Individual/Buyer'}\nMessage: ${enquiryForm.message || 'Interested in this property.'}`;
+        let messageBody = `[Inquiry from Detail Page]\nName: ${leadName}\nPhone: ${leadPhone}\nEmail: ${leadEmail}\nAgent Status: ${isAgent ? 'Real Estate Agent' : 'Individual/Buyer'}\nMessage: ${enquiryForm.message || 'Interested in this property.'}`;
         response = await enquiryService.create({
           propertyId: id,
-          enquiryType: 'contact_owner',
+          enquiryType: 'callback',
+          name: leadName,
+          phone: leadPhone,
+          email: leadEmail,
           message: messageBody,
           preferredDate: new Date(),
           timeSlot: '',
@@ -958,6 +1047,7 @@ const PropertyDetailsPage = () => {
       } else {
         response = await authService.lazyEnquiryLogin({
           name: enquiryForm.name,
+          email: enquiryForm.email,
           phone: enquiryForm.phone,
           otp: enquiryForm.otp,
           message: enquiryForm.message,
@@ -969,12 +1059,14 @@ const PropertyDetailsPage = () => {
         toast.success("Enquiry submitted successfully!");
         setShowEnquiryModal(false);
         setOtpSent(false);
-        setEnquiryForm({ name: '', phone: '', otp: '', message: 'Interested in this property.' });
+        setEnquiryForm({ name: '', email: '', phone: '', otp: '', message: 'Interested in this property.' });
+        setEnquiryErrors({});
         
         if (response.user) {
           localStorage.setItem('user', JSON.stringify(response.user));
           setLeadName(response.user.name || '');
           setLeadPhone(response.user.phone || '');
+          setLeadEmail(response.user.email || '');
           window.dispatchEvent(new Event('storage'));
         }
 
@@ -1000,19 +1092,27 @@ const PropertyDetailsPage = () => {
 
     const userRaw = localStorage.getItem('user');
     if (userRaw) {
-      try {
-        const u = JSON.parse(userRaw);
-        setEnquiryForm(prev => ({
-          ...prev,
-          name: u.name || '',
-          phone: u.phone || '',
-          otp: '123456'
-        }));
-      } catch (err) {
-        console.error(err);
-      }
+      handleDirectLoggedInEnquiry();
+      return;
     }
+
+    const errors = validateForm(leadName, leadEmail, leadPhone);
+    if (Object.keys(errors).length > 0) {
+      setLeadErrors(errors);
+      return;
+    }
+    setLeadErrors({});
+
+    setEnquiryForm(prev => ({
+      ...prev,
+      name: leadName,
+      email: leadEmail,
+      phone: leadPhone,
+      otp: ''
+    }));
+
     setShowEnquiryModal(true);
+    handleSendOtpForPhone(leadPhone);
   };
 
   const handleRevealContact = async () => {
@@ -1657,10 +1757,41 @@ const PropertyDetailsPage = () => {
               <input
                 type="text"
                 value={leadName}
-                onChange={(e) => setLeadName(e.target.value)}
+                onChange={(e) => {
+                  setLeadName(e.target.value);
+                  if (leadErrors.name) {
+                    setLeadErrors(prev => ({ ...prev, name: '' }));
+                  }
+                }}
                 placeholder="Enter your name"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-semibold outline-none focus:border-blue-500 transition-colors"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-semibold outline-none focus:border-blue-500 transition-colors animate-none"
               />
+              {leadErrors.name && (
+                <p className="text-red-500 text-[10px] font-bold mt-1 pl-1">
+                  {leadErrors.name}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Email Address</label>
+              <input
+                type="email"
+                value={leadEmail}
+                onChange={(e) => {
+                  setLeadEmail(e.target.value);
+                  if (leadErrors.email) {
+                    setLeadErrors(prev => ({ ...prev, email: '' }));
+                  }
+                }}
+                placeholder="Enter your email"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-semibold outline-none focus:border-blue-500 transition-colors animate-none"
+              />
+              {leadErrors.email && (
+                <p className="text-red-500 text-[10px] font-bold mt-1 pl-1">
+                  {leadErrors.email}
+                </p>
+              )}
             </div>
 
             <div>
@@ -1670,12 +1801,22 @@ const PropertyDetailsPage = () => {
                 <input
                   type="text"
                   value={leadPhone}
-                  onChange={(e) => setLeadPhone(e.target.value)}
+                  onChange={(e) => {
+                    setLeadPhone(e.target.value);
+                    if (leadErrors.phone) {
+                      setLeadErrors(prev => ({ ...prev, phone: '' }));
+                    }
+                  }}
                   placeholder="Enter phone number"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-10 text-xs font-semibold outline-none focus:border-blue-500 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-10 text-xs font-semibold outline-none focus:border-blue-500 transition-colors animate-none"
                 />
                 <Lock size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
               </div>
+              {leadErrors.phone && (
+                <p className="text-red-500 text-[10px] font-bold mt-1 pl-1">
+                  {leadErrors.phone}
+                </p>
+              )}
             </div>
 
             {/* Is Real Estate Agent trigger toggle */}
@@ -2510,37 +2651,76 @@ const PropertyDetailsPage = () => {
                         type="text"
                         required
                         value={enquiryForm.name}
-                        onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
+                        onChange={(e) => {
+                          setEnquiryForm({ ...enquiryForm, name: e.target.value });
+                          if (enquiryErrors.name) setEnquiryErrors(prev => ({ ...prev, name: '' }));
+                        }}
                         placeholder="e.g. John Doe"
                         className="w-full bg-transparent outline-none text-xs font-bold text-slate-800"
                       />
+                      {enquiryErrors.name && (
+                        <p className="text-red-500 text-[10px] font-bold mt-1">
+                          {enquiryErrors.name}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Email */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
+                      <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Email Address</label>
+                      <input
+                        type="email"
+                        required
+                        value={enquiryForm.email}
+                        onChange={(e) => {
+                          setEnquiryForm({ ...enquiryForm, email: e.target.value });
+                          if (enquiryErrors.email) setEnquiryErrors(prev => ({ ...prev, email: '' }));
+                        }}
+                        placeholder="e.g. john@example.com"
+                        className="w-full bg-transparent outline-none text-xs font-bold text-slate-800"
+                      />
+                      {enquiryErrors.email && (
+                        <p className="text-red-500 text-[10px] font-bold mt-1">
+                          {enquiryErrors.email}
+                        </p>
+                      )}
                     </div>
 
                     {/* Phone + Send OTP */}
-                    <div className="flex gap-2">
-                      <div className="flex-1 bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
-                        <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Mobile Number</label>
-                        <div className="flex items-center">
-                          <span className="text-xs text-slate-500 font-bold mr-1.5">+91</span>
-                          <input
-                            type="tel"
-                            required
-                            value={enquiryForm.phone}
-                            onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
-                            placeholder="9876543210"
-                            maxLength={10}
-                            className="w-full bg-transparent outline-none text-xs font-bold tracking-wide text-slate-800"
-                          />
+                    <div>
+                      <div className="flex gap-2">
+                        <div className="flex-1 bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
+                          <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Mobile Number</label>
+                          <div className="flex items-center">
+                            <span className="text-xs text-slate-500 font-bold mr-1.5">+91</span>
+                            <input
+                              type="tel"
+                              required
+                              value={enquiryForm.phone}
+                              onChange={(e) => {
+                                setEnquiryForm({ ...enquiryForm, phone: e.target.value });
+                                if (enquiryErrors.phone) setEnquiryErrors(prev => ({ ...prev, phone: '' }));
+                              }}
+                              placeholder="9876543210"
+                              maxLength={10}
+                              className="w-full bg-transparent outline-none text-xs font-bold tracking-wide text-slate-800"
+                            />
+                          </div>
                         </div>
+                        <button
+                          type="button"
+                          disabled={sendingOtp || !enquiryForm.phone || enquiryForm.phone.length < 10}
+                          onClick={handleSendOtp}
+                          className="px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center shrink-0 border border-blue-100/50"
+                        >
+                          {sendingOtp ? <Loader2 className="animate-spin text-blue-600" size={16} /> : otpSent ? 'Resend' : 'Send OTP'}
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        disabled={sendingOtp || !enquiryForm.phone || enquiryForm.phone.length < 10}
-                        onClick={handleSendOtp}
-                        className="px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center shrink-0 border border-blue-100/50"
-                      >
-                        {sendingOtp ? <Loader2 className="animate-spin text-blue-600" size={16} /> : otpSent ? 'Resend' : 'Send OTP'}
-                      </button>
+                      {enquiryErrors.phone && (
+                        <p className="text-red-500 text-[10px] font-bold mt-1">
+                          {enquiryErrors.phone}
+                        </p>
+                      )}
                     </div>
 
                     {/* OTP */}
@@ -2551,7 +2731,10 @@ const PropertyDetailsPage = () => {
                           type="text"
                           required
                           value={enquiryForm.otp}
-                          onChange={(e) => setEnquiryForm({ ...enquiryForm, otp: e.target.value })}
+                          onChange={(e) => {
+                            setEnquiryForm({ ...enquiryForm, otp: e.target.value });
+                            if (enquiryErrors.otp) setEnquiryErrors(prev => ({ ...prev, otp: '' }));
+                          }}
                           placeholder="123456"
                           maxLength={6}
                           className="w-full bg-transparent outline-none text-xs font-bold tracking-widest text-slate-800"
@@ -2559,6 +2742,11 @@ const PropertyDetailsPage = () => {
                         <span className="absolute right-3 bottom-3 text-[8px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
                           Bypass: 123456
                         </span>
+                        {enquiryErrors.otp && (
+                          <p className="text-red-500 text-[10px] font-bold mt-1">
+                            {enquiryErrors.otp}
+                          </p>
+                        )}
                       </div>
                     )}
                   </>
@@ -2570,6 +2758,7 @@ const PropertyDetailsPage = () => {
                     <div>
                       <p className="text-xs font-bold text-slate-800">Submitting as {enquiryForm.name}</p>
                       <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Verified Mobile: +91 {enquiryForm.phone}</p>
+                      <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Email: {enquiryForm.email}</p>
                     </div>
                   </div>
                 )}
