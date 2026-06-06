@@ -2,6 +2,52 @@ import Enquiry from '../models/Enquiry.js';
 import Property from '../models/Property.js';
 import Partner from '../models/Partner.js';
 import User from '../models/User.js';
+import RoomType from '../models/RoomType.js';
+
+// Helper to attach starting price to a populated property doc
+const attachPropertyStartingPrice = async (property) => {
+    if (!property) return null;
+    
+    const propDoc = property.toObject ? property.toObject() : property;
+    
+    // 1. Try to find RoomTypes
+    const roomTypes = await RoomType.find({ propertyId: propDoc._id, isActive: true }).select('pricePerNight');
+    if (roomTypes.length > 0) {
+        propDoc.startingPrice = Math.min(...roomTypes.map(rt => rt.pricePerNight));
+        return propDoc;
+    }
+    
+    // 2. Try to get from dynamicData if it exists
+    const dd = propDoc.dynamicData || {};
+    const priceVal =
+        propDoc.startingPrice ??
+        propDoc.rentDetails?.monthlyRent ??
+        propDoc.pgDetails?.monthlyRent ??
+        propDoc.buyDetails?.expectedPrice ??
+        propDoc.plotDetails?.expectedPrice ??
+        dd.price ??
+        dd.expectedPrice ??
+        dd.rent ??
+        dd.monthlyRent ??
+        propDoc.price;
+        
+    propDoc.startingPrice = priceVal || null;
+    return propDoc;
+};
+
+// Helper to attach starting prices to an array of enquiries
+const attachStartingPricesToEnquiries = async (enquiries) => {
+    const enriched = [];
+    for (const e of enquiries) {
+        const doc = e.toObject ? e.toObject() : e;
+        if (doc.propertyId) {
+            doc.propertyId = await attachPropertyStartingPrice(doc.propertyId);
+        }
+        enriched.push(doc);
+    }
+    return enriched;
+};
+
 
 // controllers/enquiryController.js
 // Handles all enquiry operations — completely separate from bookings
@@ -148,10 +194,18 @@ const maskEmail = (em) => {
 export const getMyEnquiries = async (req, res) => {
     try {
         const enquiries = await Enquiry.find({ userId: req.user._id })
-            .populate('propertyId', 'propertyName coverImage address propertyType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice')
+            .populate({
+                path: 'propertyId',
+                select: 'propertyName coverImage address propertyType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice userId partnerId',
+                populate: [
+                    { path: 'userId', select: 'name phone email' },
+                    { path: 'partnerId', select: 'name phone email' }
+                ]
+            })
             .sort({ createdAt: -1 });
 
-        res.json({ success: true, enquiries });
+        const enriched = await attachStartingPricesToEnquiries(enquiries);
+        res.json({ success: true, enquiries: enriched });
     } catch (error) {
         console.error('Get My Enquiries Error:', error);
         res.status(500).json({ success: false, message: error.message });
@@ -211,7 +265,8 @@ export const getReceivedEnquiries = async (req, res) => {
             return doc;
         });
 
-        res.json({ success: true, isPremium: hasAccess, enquiries: processedEnquiries });
+        const enriched = await attachStartingPricesToEnquiries(processedEnquiries);
+        res.json({ success: true, isPremium: hasAccess, enquiries: enriched });
     } catch (error) {
         console.error('Get Received Enquiries Error:', error);
         res.status(500).json({ success: false, message: error.message });
@@ -260,7 +315,7 @@ export const adminGetAllEnquiries = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
-        const { status, search, propertyId } = req.query;
+        const { status, search, propertyId, startDate, endDate, category, ownerBroker } = req.query;
 
         const query = {};
         if (propertyId) {
@@ -269,6 +324,52 @@ export const adminGetAllEnquiries = async (req, res) => {
 
         if (status && status !== 'all') {
             query.status = status;
+        }
+
+        // Date filters
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) {
+                query.createdAt.$gte = new Date(startDate);
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                query.createdAt.$lte = end;
+            }
+        }
+
+        // Category or Owner/Broker property level filters
+        if (category || ownerBroker) {
+            const propertyQuery = {};
+            if (category) {
+                propertyQuery.propertyType = new RegExp(category, 'i');
+            }
+            if (ownerBroker) {
+                if (ownerBroker === 'owner') {
+                    propertyQuery.userId = { $ne: null };
+                } else if (ownerBroker === 'broker') {
+                    propertyQuery.partnerId = { $ne: null };
+                }
+            }
+
+            const matchingProperties = await Property.find(propertyQuery).select('_id');
+            const matchingPropertyIds = matchingProperties.map(p => p._id);
+
+            // If query filters returned no matching properties, result is immediately empty
+            if (matchingPropertyIds.length === 0) {
+                return res.status(200).json({ success: true, enquiries: [], total: 0, page, limit });
+            }
+
+            if (query.propertyId) {
+                if (matchingPropertyIds.map(id => id.toString()).includes(query.propertyId.toString())) {
+                    // stays as is
+                } else {
+                    return res.status(200).json({ success: true, enquiries: [], total: 0, page, limit });
+                }
+            } else {
+                query.propertyId = { $in: matchingPropertyIds };
+            }
         }
 
         if (search) {
@@ -304,7 +405,8 @@ export const adminGetAllEnquiries = async (req, res) => {
             .skip(skip)
             .limit(limit);
 
-        res.status(200).json({ success: true, enquiries, total, page, limit });
+        const enriched = await attachStartingPricesToEnquiries(enquiries);
+        res.status(200).json({ success: true, enquiries: enriched, total, page, limit });
     } catch (error) {
         console.error('Admin Get All Enquiries Error:', error);
         res.status(500).json({ success: false, message: 'Server error fetching enquiries' });
@@ -337,7 +439,11 @@ export const adminUpdateEnquiry = async (req, res) => {
             .populate('userId', 'name email phone avatar')
             .populate('propertyId', 'propertyName coverImage address buyDetails rentDetails plotDetails propertyType dynamicData price startingPrice');
 
-        res.status(200).json({ success: true, enquiry: updated });
+        let enrichedEnquiry = updated.toObject();
+        if (enrichedEnquiry.propertyId) {
+            enrichedEnquiry.propertyId = await attachPropertyStartingPrice(enrichedEnquiry.propertyId);
+        }
+        res.status(200).json({ success: true, enquiry: enrichedEnquiry });
     } catch (error) {
         console.error('Admin Update Enquiry Error:', error);
         res.status(500).json({ success: false, message: 'Server error updating enquiry' });

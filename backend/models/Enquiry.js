@@ -74,7 +74,7 @@ const enquirySchema = new mongoose.Schema({
     // ── Status Tracking ───────────────────────────────────────────────────────
     status: {
         type: String,
-        enum: ['new', 'contacted', 'follow-up', 'negotiation', 'closed'],
+        enum: ['new', 'contacted', 'scheduled', 'follow-up', 'negotiation', 'closed', 'sold', 'rented', 'dropped'],
         default: 'new'
     },
 
