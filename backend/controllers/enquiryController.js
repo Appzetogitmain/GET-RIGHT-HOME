@@ -8,7 +8,23 @@ import RoomType from '../models/RoomType.js';
 const attachPropertyStartingPrice = async (property) => {
     if (!property) return null;
     
-    const propDoc = JSON.parse(JSON.stringify(property));
+    let propDoc;
+    if (typeof property.toObject === 'function') {
+        propDoc = property.toObject({ flattenMaps: true });
+    } else {
+        propDoc = JSON.parse(JSON.stringify(property));
+        // If it's a plain object but dynamicData was an ES6 Map, JSON.stringify would make it {}
+        // So let's copy dynamicData properly if it was a Map on the original property object
+        if (property.dynamicData) {
+            if (typeof property.dynamicData.get === 'function') {
+                propDoc.dynamicData = Object.fromEntries(property.dynamicData);
+            } else if (property.dynamicData instanceof Map) {
+                propDoc.dynamicData = Object.fromEntries(property.dynamicData);
+            } else {
+                propDoc.dynamicData = property.dynamicData;
+            }
+        }
+    }
     
     // 1. Try to find RoomTypes
     const roomTypes = await RoomType.find({ propertyId: propDoc._id, isActive: true }).select('pricePerNight');
@@ -19,16 +35,21 @@ const attachPropertyStartingPrice = async (property) => {
     
     // 2. Try to get from dynamicData if it exists
     const dd = propDoc.dynamicData || {};
+    const getVal = (key) => {
+        if (typeof dd.get === 'function') return dd.get(key);
+        return dd[key];
+    };
+    
     const priceVal =
         propDoc.startingPrice ??
         propDoc.rentDetails?.monthlyRent ??
         propDoc.pgDetails?.monthlyRent ??
         propDoc.buyDetails?.expectedPrice ??
         propDoc.plotDetails?.expectedPrice ??
-        dd.price ??
-        dd.expectedPrice ??
-        dd.rent ??
-        dd.monthlyRent ??
+        getVal('price') ??
+        getVal('expectedPrice') ??
+        getVal('rent') ??
+        getVal('monthlyRent') ??
         propDoc.price;
         
     propDoc.startingPrice = priceVal || null;
@@ -196,7 +217,7 @@ export const getMyEnquiries = async (req, res) => {
         const enquiries = await Enquiry.find({ userId: req.user._id })
             .populate({
                 path: 'propertyId',
-                select: 'propertyName coverImage address propertyType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice userId partnerId',
+                select: 'propertyName coverImage address propertyType transactionType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice userId partnerId',
                 populate: [
                     { path: 'userId', select: 'name phone email' },
                     { path: 'partnerId', select: 'name phone email' }
@@ -249,7 +270,7 @@ export const getReceivedEnquiries = async (req, res) => {
 
         const enquiries = await Enquiry.find(query)
             .populate('userId', 'name phone email avatar')
-            .populate('propertyId', 'propertyName coverImage address propertyType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice partnerId userId')
+            .populate('propertyId', 'propertyName coverImage address propertyType transactionType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice partnerId userId')
             .sort({ createdAt: -1 });
 
         const processedEnquiries = enquiries.map(e => {
@@ -404,7 +425,7 @@ export const adminGetAllEnquiries = async (req, res) => {
             .populate('userId', 'name email phone avatar')
             .populate({
                 path: 'propertyId',
-                select: 'propertyName coverImage address buyDetails rentDetails plotDetails pgDetails propertyType partnerId userId dynamicData price startingPrice',
+                select: 'propertyName coverImage address buyDetails rentDetails plotDetails pgDetails propertyType transactionType partnerId userId dynamicData price startingPrice',
                 populate: [
                     { path: 'partnerId', select: 'name phone email' },
                     { path: 'userId', select: 'name phone email' }
@@ -455,7 +476,7 @@ export const adminUpdateEnquiry = async (req, res) => {
 
         const updated = await Enquiry.findById(id)
             .populate('userId', 'name email phone avatar')
-            .populate('propertyId', 'propertyName coverImage address buyDetails rentDetails plotDetails propertyType dynamicData price startingPrice');
+            .populate('propertyId', 'propertyName coverImage address buyDetails rentDetails plotDetails propertyType transactionType dynamicData price startingPrice');
 
         let enrichedEnquiry = updated.toObject();
         if (enrichedEnquiry.propertyId) {
