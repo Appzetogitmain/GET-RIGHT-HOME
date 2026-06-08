@@ -145,6 +145,7 @@ import locationRoutes from './routes/locationRoutes.js';
 import enquiryRoutes from './routes/enquiryRoutes.js';
 import localityReviewRoutes from './routes/localityReviewRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import feedbackRoutes from './routes/feedbackRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
@@ -209,6 +210,7 @@ app.use('/api/locality-reviews', localityReviewRoutes);
 app.use('/api/workers', workerRoutes);
 app.use('/api/hs-bookings', hsBookingRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin/workers', adminWorkerRoutes);
 
 

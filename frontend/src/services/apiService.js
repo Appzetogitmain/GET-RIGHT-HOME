@@ -952,4 +952,31 @@ export const localityReviewService = {
   }
 };
 
+export const feedbackService = {
+  getMyFeedback: async () => {
+    try {
+      const response = await api.get('/feedback/my');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  saveFeedback: async (feedbackData) => {
+    try {
+      const response = await api.post('/feedback', feedbackData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  deleteFeedback: async () => {
+    try {
+      const response = await api.delete('/feedback');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
 export default api;
