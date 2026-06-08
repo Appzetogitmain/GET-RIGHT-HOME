@@ -212,7 +212,6 @@ const SupportSection = () => {
       setEnquiryLoading(false);
     }
   };
-
   return (
     <div className="w-full bg-[#f8fafc] py-12 px-6 border-t border-slate-100 font-sans max-w-4xl mx-auto">
       {/* 1. Feedback Card */}
@@ -251,7 +250,7 @@ const SupportSection = () => {
           </div>
 
           {/* Text Labels */}
-          <div className="flex justify-between items-center px-4 text-[10px] font-bold text-amber-700/80 mb-6 uppercase tracking-wider">
+          <div className="flex justify-between items-center px-4 text-[10px] font-semibold text-slate-400 mb-6 uppercase tracking-wider">
             <span>Not Really</span>
             <span>Loving It</span>
           </div>
@@ -265,13 +264,13 @@ const SupportSection = () => {
               className="w-full bg-white border border-slate-200/80 rounded-xl p-3 text-xs outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all font-medium text-slate-700 min-h-[70px] resize-none"
             />
 
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-4 w-full max-w-md mx-auto">
               {isSaved && (
                 <button
                   type="button"
                   onClick={handleDeleteFeedback}
                   disabled={loading}
-                  className="px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl transition-all disabled:opacity-50"
+                  className="flex-1 py-3 px-4 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-2xl transition-all disabled:opacity-50 whitespace-nowrap text-center"
                 >
                   Remove Feedback
                 </button>
@@ -279,7 +278,7 @@ const SupportSection = () => {
               <button
                 type="submit"
                 disabled={loading || rating === 0}
-                className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+                className="flex-1 py-3 px-4 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-2xl shadow-md hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 whitespace-nowrap text-center"
               >
                 {loading ? <Loader2 className="animate-spin" size={14} /> : isSaved ? 'Update Review' : 'Submit Review'}
               </button>
@@ -290,48 +289,53 @@ const SupportSection = () => {
 
       {/* 2. Get Support Section */}
       <div className="mt-8 space-y-4">
-        <div className="flex items-center gap-2 text-slate-800 font-extrabold text-sm uppercase tracking-wider px-1">
-          <Headphones size={18} className="text-slate-600" />
-          <span>Get Support</span>
+        <div className="flex items-center gap-2.5 text-slate-500 font-semibold text-base px-1">
+          <Headphones size={20} className="text-slate-400 stroke-[1.75]" />
+          <span>Get support</span>
         </div>
 
         {/* Support Options Card */}
-        <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-100">
+        <div className="bg-white rounded-[24px] border border-slate-100/80 shadow-sm overflow-hidden divide-y divide-slate-100">
           {/* Toll Free Option */}
           <div className="p-5 flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Call on support number</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Call on support number</span>
               <span className="text-base font-extrabold text-slate-800 mt-1 block">{supportPhone}</span>
             </div>
             <button
               onClick={() => handleSupportAction('call')}
-              className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all"
+              className="w-12 h-12 rounded-[14px] bg-[#EEF2F6]/80 hover:bg-[#E2E8F0] flex items-center justify-center transition-all cursor-pointer"
               title="Call Support"
             >
-              <Phone size={16} className="fill-slate-600 text-slate-600" />
+              <Phone size={18} className="fill-[#0d6efd] text-[#0d6efd]" />
             </button>
           </div>
 
           {/* Chat with us Option */}
           <div className="p-5 flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Chat with us</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Chat with us</span>
               <span className="text-base font-extrabold text-slate-800 mt-1 block">WhatsApp | Chat</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <button
                 onClick={() => handleSupportAction('whatsapp')}
-                className="w-10 h-10 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-all"
+                className="w-12 h-12 rounded-[14px] bg-[#EEF2F6]/80 hover:bg-[#E2E8F0] flex items-center justify-center transition-all cursor-pointer"
                 title="Chat via WhatsApp"
               >
-                <MessageCircle size={18} className="fill-emerald-600 text-emerald-600" />
+                <svg viewBox="0 0 24 24" width="22" height="22" className="fill-[#25D366]">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.498 1.45 5.419 1.451 5.428 0 9.848-4.42 9.851-9.85.002-2.63-1.019-5.1-2.872-6.956-1.854-1.855-4.325-2.877-6.953-2.878-5.433 0-9.854 4.421-9.856 9.852-.001 1.93.502 3.816 1.457 5.429L1.712 21.8l4.935-1.294z" />
+                  <path d="M12.004 3.731c-4.484 0-8.132 3.648-8.134 8.134a8.106 8.106 0 0 0 1.258 4.316l-.824 3.013 3.083-.808a8.093 8.093 0 0 0 4.617 1.413c4.483 0 8.132-3.648 8.134-8.134a8.12 8.12 0 0 0-8.134-8.134zm4.846 11.385c-.266-.134-1.573-.775-1.817-.864-.243-.089-.422-.134-.599.134-.177.268-.687.864-.842 1.042-.156.177-.312.2-.578.067-.266-.134-1.123-.414-2.14-1.322-.79-.705-1.324-1.577-1.48-1.844-.156-.268-.017-.412.117-.545.12-.12.266-.312.4-.467.133-.156.177-.267.266-.445.089-.178.045-.334-.022-.467-.067-.134-.599-1.442-.82-1.975-.215-.518-.432-.448-.599-.457l-.51-.01c-.178 0-.467.067-.71.334-.244.267-.932.912-.932 2.224 0 1.312.954 2.58 1.088 2.758.133.178 1.877 2.867 4.548 4.02.635.275 1.13.438 1.517.562.638.203 1.22.175 1.679.106.512-.077 1.573-.642 1.795-1.264.222-.622.222-1.156.156-1.267-.067-.111-.244-.178-.51-.312z" />
+                </svg>
               </button>
               <button
                 onClick={() => handleSupportAction('chat')}
-                className="w-10 h-10 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-all"
+                className="w-12 h-12 rounded-[14px] bg-[#EEF2F6]/80 hover:bg-[#E2E8F0] flex items-center justify-center transition-all cursor-pointer"
                 title="Live Chat"
               >
-                <MessageSquare size={16} className="fill-blue-600 text-blue-600" />
+                <svg viewBox="0 0 24 24" width="22" height="22" className="fill-[#0D6EFD] text-[#0D6EFD]">
+                  <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
+                </svg>
               </button>
             </div>
           </div>
