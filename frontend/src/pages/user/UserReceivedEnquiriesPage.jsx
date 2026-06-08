@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { enquiryService, propertyService } from '../../services/apiService';
 import subscriptionService from '../../services/subscriptionService';
+import LeadTypeBadge from '../../components/LeadTypeBadge';
 import toast from 'react-hot-toast';
 
 // Helper: parse raw message string into structured sections
@@ -521,7 +522,10 @@ const UserReceivedEnquiriesPage = () => {
                                                             >
                                                                 {prop.propertyName || 'Deleted Property'}
                                                             </h3>
-                                                            <EnquiryStatusBadge status={item.status || item.inquiryMetadata?.status} />
+                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                <LeadTypeBadge type={item.enquiryType || 'callback'} />
+                                                                <EnquiryStatusBadge status={item.status || item.inquiryMetadata?.status} />
+                                                            </div>
                                                         </div>
                                                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
                                                             {prop.propertyType || 'Property'} • {fmtDate(item.createdAt)}
@@ -639,21 +643,36 @@ const UserReceivedEnquiriesPage = () => {
                                                     {/* Buyer info + status select */}
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-start justify-between gap-2">
-                                                            <div className="min-w-0">
-                                                                <h3 className="font-extrabold text-slate-900 text-xs leading-none truncate">{buyerName}</h3>
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                                                                    <h3 className="font-extrabold text-slate-900 text-xs leading-none truncate min-w-0 flex-shrink">{buyerName}</h3>
+                                                                    <div className="flex-shrink-0"><LeadTypeBadge type={item.enquiryType || 'callback'} /></div>
+                                                                </div>
                                                                 <span className="text-[9px] text-slate-400 font-semibold">{fmtDate(item.createdAt)}</span>
                                                             </div>
                                                             <select
                                                                 value={status}
                                                                 onChange={(e) => handleUpdateStatus(item._id, e.target.value)}
-                                                                className={`text-[9px] font-black py-0.5 px-2 rounded-lg border outline-none cursor-pointer uppercase shrink-0 ${
+                                                                className={`font-black rounded-md border outline-none cursor-pointer uppercase shrink-0 transition-all ${
                                                                     status === 'contacted' ? 'bg-purple-50 text-purple-700 border-purple-200'
                                                                     : status === 'new' ? 'bg-blue-50 text-blue-700 border-blue-200'
                                                                     : status === 'scheduled' ? 'bg-amber-50 text-amber-700 border-amber-200'
                                                                     : status === 'dropped' ? 'bg-red-50 text-red-700 border-red-200'
                                                                     : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                                 }`}
-                                                                style={{ height: '22px' }}
+                                                                style={{ 
+                                                                     height: '20px', 
+                                                                     fontSize: '10px', 
+                                                                     paddingTop: '0px', 
+                                                                     paddingBottom: '0px', 
+                                                                     paddingLeft: '6px', 
+                                                                     paddingRight: '6px', 
+                                                                     lineHeight: '20px',
+                                                                     appearance: 'none',
+                                                                     WebkitAppearance: 'none',
+                                                                     MozAppearance: 'none',
+                                                                     textAlign: 'center'
+                                                                 }}
                                                             >
                                                                 <option value="new">New</option>
                                                                 <option value="contacted">Contacted</option>

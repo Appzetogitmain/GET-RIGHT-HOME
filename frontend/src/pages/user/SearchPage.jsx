@@ -598,7 +598,17 @@ const SearchPage = () => {
                                 {filters.areas && filters.areas.length > 0 ? filters.areas.join(', ') : (filters.search || "Search City/Locality/Project")}
                             </div>
                         </div>
-                        <button className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
+                        <button 
+                            onClick={() => {
+                                if (!localStorage.getItem('user')) {
+                                    toast.error('Please login to view saved places');
+                                    navigate('/login', { state: { from: '/saved-places' } });
+                                } else {
+                                    navigate('/saved-places');
+                                }
+                            }}
+                            className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0 hover:bg-gray-50 transition-colors"
+                        >
                             <Heart size={18} className="text-gray-600" />
                         </button>
                     </div>
@@ -770,6 +780,7 @@ const SearchPage = () => {
                                 <PropertyCard
                                     property={property}
                                     isSaved={savedHotelIds.includes(property._id)}
+                                    isSearchPage={true}
                                     className="!w-full !rounded-none md:!rounded-[1.5rem] border-y-0 md:border border-gray-100 shadow-sm"
                                 />
                             </div>

@@ -280,7 +280,13 @@ export const getReceivedEnquiries = async (req, res) => {
 export const updateEnquiryStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const rawStatus = req.body.status;
+
+        const ALLOWED = ['new', 'contacted', 'scheduled', 'follow-up', 'negotiation', 'closed', 'sold', 'rented', 'dropped'];
+        const status = (rawStatus || '').toLowerCase().trim();
+        if (!ALLOWED.includes(status)) {
+            return res.status(400).json({ success: false, message: `Invalid status "${rawStatus}". Allowed: ${ALLOWED.join(', ')}` });
+        }
 
         const enquiry = await Enquiry.findById(id).populate('propertyId', 'partnerId userId');
         if (!enquiry) {
@@ -292,7 +298,10 @@ export const updateEnquiryStatus = async (req, res) => {
             String(prop?.partnerId) === String(req.user._id) ||
             String(prop?.userId) === String(req.user._id);
 
-        if (!isOwner) {
+        // Allow admin/superadmin to update any enquiry
+        const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+
+        if (!isOwner && !isAdmin) {
             return res.status(403).json({ success: false, message: 'Not authorized' });
         }
 
@@ -420,14 +429,23 @@ export const adminGetAllEnquiries = async (req, res) => {
 export const adminUpdateEnquiry = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, preferredDate, timeSlot, message, adminNotes } = req.body;
+        const { preferredDate, timeSlot, message, adminNotes } = req.body;
+        const rawStatus = req.body.status;
+
+        const ALLOWED = ['new', 'contacted', 'scheduled', 'follow-up', 'negotiation', 'closed', 'sold', 'rented', 'dropped'];
 
         const enquiry = await Enquiry.findById(id);
         if (!enquiry) {
             return res.status(404).json({ success: false, message: 'Enquiry not found' });
         }
 
-        if (status) enquiry.status = status;
+        if (rawStatus !== undefined) {
+            const status = (rawStatus || '').toLowerCase().trim();
+            if (!ALLOWED.includes(status)) {
+                return res.status(400).json({ success: false, message: `Invalid status "${rawStatus}". Allowed: ${ALLOWED.join(', ')}` });
+            }
+            enquiry.status = status;
+        }
         if (preferredDate) enquiry.preferredDate = new Date(preferredDate);
         if (timeSlot !== undefined) enquiry.timeSlot = timeSlot;
         if (message !== undefined) enquiry.message = message;

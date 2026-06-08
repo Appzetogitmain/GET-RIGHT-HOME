@@ -9,6 +9,7 @@ import emailService from '../services/emailService.js';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 import Booking from '../models/Booking.js';
+import Enquiry from '../models/Enquiry.js';
 
 const notifyAdminOfNewProperty = async (property) => {
   try {
@@ -1237,6 +1238,15 @@ export const getPublicProperties = async (req, res) => {
       { $unwind: { path: '$partner', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
           from: 'subscriptionplans',
           localField: 'partner.subscription.planId',
           foreignField: '_id',
@@ -1489,7 +1499,11 @@ export const getMyProperties = async (req, res) => {
 export const getPropertyDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await Property.findById(id).populate('partnerId').populate('userId');
+    const property = await Property.findByIdAndUpdate(
+      id,
+      { $inc: { views: 1 } },
+      { new: true }
+    ).populate('partnerId').populate('userId');
     if (!property) return res.status(404).json({ message: 'Property not found' });
     const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
     const documents = await PropertyDocument.findOne({ propertyId: id });
@@ -1786,8 +1800,8 @@ export const getPropertyStats = async (req, res) => {
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
     // Authorization check
-    if (String(property.partnerId) !== String(req.user._id) && 
-        String(property.userId) !== String(req.user._id) && 
+    if (String(property.partnerId) !== String(req.user._id) &&
+        String(property.userId) !== String(req.user._id) &&
         req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Unauthorized access to property stats' });
     }
@@ -1796,16 +1810,49 @@ export const getPropertyStats = async (req, res) => {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const [totalBookings, monthBookings, totalRevenue, totalReviews] = await Promise.all([
+    const propObjectId = new mongoose.Types.ObjectId(id);
+
+    const [totalBookings, monthBookings, totalRevenue, leadsAggregate, monthLeadsAggregate] = await Promise.all([
       Booking.countDocuments({ propertyId: id, bookingStatus: { $ne: 'cancelled' } }),
       Booking.countDocuments({ propertyId: id, bookingStatus: { $ne: 'cancelled' }, createdAt: { $gte: startOfMonth } }),
       Booking.aggregate([
-        { $match: { propertyId: new mongoose.Types.ObjectId(id), bookingStatus: { $in: ['confirmed', 'checked_in', 'checked_out', 'completed'] } } },
+        { $match: { propertyId: propObjectId, bookingStatus: { $in: ['confirmed', 'checked_in', 'checked_out', 'completed'] } } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
       ]),
-      // Assuming a Review model exists and is imported, if not just default to 0 for now or fetch from property
-      Promise.resolve(property.totalReviews || 0)
+      // Aggregate ALL leads (enquiries) for this property, grouped by type
+      Enquiry.aggregate([
+        { $match: { propertyId: propObjectId } },
+        { $group: { _id: '$enquiryType', count: { $sum: 1 } } }
+      ]),
+      // This month's leads
+      Enquiry.aggregate([
+        { $match: { propertyId: propObjectId, createdAt: { $gte: startOfMonth } } },
+        { $group: { _id: '$enquiryType', count: { $sum: 1 } } }
+      ])
     ]);
+
+    // Build leads breakdown object
+    const leadsBreakdown = { call: 0, whatsapp: 0, callback: 0, total: 0 };
+    leadsAggregate.forEach(item => {
+      if (item._id && leadsBreakdown.hasOwnProperty(item._id)) {
+        leadsBreakdown[item._id] = item.count;
+      }
+      leadsBreakdown.total += item.count;
+    });
+
+    const monthLeadsBreakdown = { call: 0, whatsapp: 0, callback: 0, total: 0 };
+    monthLeadsAggregate.forEach(item => {
+      if (item._id && monthLeadsBreakdown.hasOwnProperty(item._id)) {
+        monthLeadsBreakdown[item._id] = item.count;
+      }
+      monthLeadsBreakdown.total += item.count;
+    });
+
+    // Conversion rate: leads / views (as percentage)
+    const totalViews = property.views || 0;
+    const conversionRate = totalViews > 0
+      ? Math.round((leadsBreakdown.total / totalViews) * 100 * 10) / 10
+      : 0;
 
     res.json({
       success: true,
@@ -1813,9 +1860,17 @@ export const getPropertyStats = async (req, res) => {
         totalBookings,
         bookingsThisMonth: monthBookings,
         totalRevenue: totalRevenue[0]?.total || 0,
-        totalReviews,
+        totalReviews: property.totalReviews || 0,
         avgRating: property.avgRating || 0,
-        totalViews: property.views || 0 // Assuming a views field exists
+        totalViews,
+        // Leads — action-based contacts (call, whatsapp, callback enquiries)
+        totalLeads: leadsBreakdown.total,
+        leadsThisMonth: monthLeadsBreakdown.total,
+        leadsBreakdown,
+        monthLeadsBreakdown,
+        // Contact reveals via revealContact endpoint
+        contactReveals: property.enquiryCount || 0,
+        conversionRate
       }
     });
   } catch (error) {

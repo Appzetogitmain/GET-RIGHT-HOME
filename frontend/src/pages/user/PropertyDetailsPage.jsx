@@ -1583,6 +1583,30 @@ const PropertyDetailsPage = () => {
           </div>
         </div>
 
+        {/* 6b. SECTION: PROPERTY VIDEO (shown only if videoUrl exists) */}
+        {property?.videoUrl && (
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Property Video</h3>
+              <p className="text-[10px] text-gray-500">Watch the property walkthrough</p>
+            </div>
+
+            <div className="relative rounded-2xl overflow-hidden bg-black shadow-inner border border-slate-100">
+              <video
+                src={property.videoUrl}
+                controls
+                controlsList="nodownload"
+                preload="metadata"
+                playsInline
+                className="w-full max-h-[320px] object-contain rounded-2xl"
+                poster={galleryImages?.[0] || undefined}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        )}
+
         {/* 7. SECTION: FACILITIES & AMENITIES (id="facilities") */}
         <div id="facilities" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4">
           

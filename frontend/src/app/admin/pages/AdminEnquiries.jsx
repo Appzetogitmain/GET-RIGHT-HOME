@@ -5,6 +5,7 @@ import {
     AlertTriangle, Eye, FileText, Download, Loader2, ChevronLeft, ChevronRight, Edit2, Trash2
 } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
+import LeadTypeBadge from '../../../components/LeadTypeBadge';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
 
@@ -608,6 +609,8 @@ const AdminEnquiries = () => {
                                                                 <div className="text-sm font-semibold text-gray-900 leading-tight">
                                                                     {enquiry.userId?.name || 'Guest User'}
                                                                 </div>
+                                                                {/* Lead type badge */}
+                                                                <LeadTypeBadge type={enquiry.enquiryType || 'callback'} />
                                                                 <div className="text-xs text-gray-500 font-normal mt-0.5">
                                                                     {enquiry.userId?.phone && <span>{enquiry.userId.phone}</span>}
                                                                     {enquiry.userId?.email && <span className="block">{enquiry.userId.email}</span>}
