@@ -146,6 +146,7 @@ import enquiryRoutes from './routes/enquiryRoutes.js';
 import localityReviewRoutes from './routes/localityReviewRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import feedbackRoutes from './routes/feedbackRoutes.js';
+import managerRoutes from './routes/managerRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
@@ -212,6 +213,10 @@ app.use('/api/hs-bookings', hsBookingRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin/workers', adminWorkerRoutes);
+
+// Manager routes: CRUD under admin namespace + module registry
+app.use('/api/admin/managers', managerRoutes);
+app.use('/api/managers', managerRoutes);
 
 
 

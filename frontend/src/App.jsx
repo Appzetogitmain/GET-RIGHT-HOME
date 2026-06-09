@@ -97,6 +97,13 @@ const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAn
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
 const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/PropertyFormManager'));
 const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocationsPage'));
+const AdminManagers = React.lazy(() => import('./app/admin/pages/AdminManagers'));
+
+// Lazy Imports - Manager Panel
+const ManagerLogin = React.lazy(() => import('./app/manager/pages/ManagerLogin'));
+const ManagerDashboard = React.lazy(() => import('./app/manager/pages/ManagerDashboard'));
+const ManagerLayout = React.lazy(() => import('./app/manager/layouts/ManagerLayout'));
+const ManagerProtectedRoute = React.lazy(() => import('./app/manager/ManagerProtectedRoute'));
 
 
 // Lazy Imports - Partner Pages
@@ -190,7 +197,7 @@ const Layout = ({ children }) => {
   }, []);
 
   // 1. GLOBAL HIDE: Auth pages, Admin, and Property Wizard
-  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/hotel/join', '/hotel/wizard', '/hotel/join-dynamic', '/list-property', '/worker'];
+  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/manager', '/hotel/join', '/hotel/wizard', '/hotel/join-dynamic', '/list-property', '/worker'];
   const shouldGlobalHide = globalHideRoutes.some(route => location.pathname.includes(route));
 
   if (shouldGlobalHide) {
@@ -572,6 +579,54 @@ function App() {
                 <Route path="banners" element={<AdminBanners />} />
                 <Route path="property-forms" element={<AdminPropertyFormManager />} />
                 <Route path="locations" element={<AdminLocationsPage />} />
+                <Route path="managers" element={<AdminManagers />} />
+              </Route>
+            </Route>
+
+            {/* Manager Auth Routes */}
+            <Route path="/manager/login" element={<ManagerLogin />} />
+
+            {/* Manager App Routes */}
+            <Route element={<ManagerProtectedRoute />}>
+              <Route path="/manager" element={<ManagerLayout />}>
+                <Route index element={<ManagerDashboard />} />
+                <Route path="dashboard" element={<ManagerDashboard />} />
+
+                {/* User Management */}
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="users/:id" element={<AdminUserDetail />} />
+
+                {/* Partner Management */}
+                <Route path="partners" element={<AdminPartners />} />
+                <Route path="partners/:id" element={<AdminPartnerDetail />} />
+
+                {/* Property Management */}
+                <Route path="properties" element={<AdminProperties />} />
+                <Route path="properties/add" element={<AdminAddProperty />} />
+                <Route path="properties/:id" element={<AdminHotelDetail />} />
+
+                {/* Bookings & Enquiries */}
+                <Route path="bookings" element={<AdminBookings />} />
+                <Route path="bookings/:id" element={<AdminBookingDetail />} />
+                <Route path="enquiries" element={<AdminEnquiries />} />
+
+                {/* Content & Catalog */}
+                <Route path="categories" element={<AdminCategories />} />
+                <Route path="banners" element={<AdminBanners />} />
+                <Route path="property-forms" element={<AdminPropertyFormManager />} />
+                <Route path="locations" element={<AdminLocationsPage />} />
+                <Route path="reel-analysis" element={<AdminReelAnalysis />} />
+                <Route path="reviews" element={<AdminReviews />} />
+                <Route path="subscriptions" element={<AdminSubscriptions />} />
+
+                {/* System */}
+                <Route path="finance" element={<AdminFinance />} />
+                <Route path="offers" element={<AdminOffers />} />
+                <Route path="notifications" element={<AdminNotifications />} />
+                <Route path="legal" element={<AdminLegalPages />} />
+                <Route path="contact-messages" element={<AdminContactMessages />} />
+                <Route path="faqs" element={<AdminFaqs />} />
+                <Route path="settings" element={<AdminSettings />} />
               </Route>
             </Route>
 

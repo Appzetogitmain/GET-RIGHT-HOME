@@ -9,6 +9,7 @@ import {
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import upload from '../utils/multer.js';
 import { uploadToCloudinary } from '../utils/cloudinary.js';
+import { checkManagerPermission } from '../middlewares/managerPermission.js';
 
 const router = express.Router();
 
@@ -30,14 +31,11 @@ router.post('/upload', upload.single('image'), async (req, res) => {
   }
 });
 
-// Admin routes
-router.use(protect);
-router.use(authorizedRoles('admin', 'superadmin'));
-
-router.get('/admin', getAllBannersAdmin);
-router.post('/', createBanner);
-router.put('/:id', updateBanner);
-router.delete('/:id', deleteBanner);
+// Admin / Manager routes
+router.get('/admin', protect, authorizedRoles('admin', 'superadmin', 'manager'), checkManagerPermission('banners', 'view'), getAllBannersAdmin);
+router.post('/', protect, authorizedRoles('admin', 'superadmin', 'manager'), checkManagerPermission('banners', 'add'), createBanner);
+router.put('/:id', protect, authorizedRoles('admin', 'superadmin', 'manager'), checkManagerPermission('banners', 'edit'), updateBanner);
+router.delete('/:id', protect, authorizedRoles('admin', 'superadmin', 'manager'), checkManagerPermission('banners', 'delete'), deleteBanner);
 
 export default router;
 

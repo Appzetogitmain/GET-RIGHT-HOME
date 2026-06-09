@@ -15,6 +15,7 @@ import {
   lazyEnquiryLoginRegister,
   lazyListingLoginRegister
 } from '../controllers/authController.js';
+import { managerLogin, getManagerProfile } from '../controllers/managerController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { uploadDocuments } from '../utils/multer.js';
 
@@ -33,6 +34,8 @@ router.post('/partner/upload-docs-base64', uploadDocsBase64); // Flutter camera 
 router.post('/partner/delete-doc', deleteDoc);
 
 router.post('/admin/login', adminLogin);
+router.post('/manager/login', managerLogin);
+router.get('/manager/me', protect, getManagerProfile);
 router.get('/me', protect, getMe);
 router.put('/update-profile', protect, updateProfile);
 router.put('/admin/update-profile', protect, updateAdminProfile);

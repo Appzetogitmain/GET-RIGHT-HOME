@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Partner from '../models/Partner.js';
 import Admin from '../models/Admin.js';
 import Worker from '../models/Worker.js';
+import Manager from '../models/Manager.js';
 
 export const protect = async (req, res, next) => {
   try {
@@ -47,6 +48,11 @@ export const protect = async (req, res, next) => {
     if (!user) {
       console.log('🛡️ Auth Middleware - User/Partner/Worker not found, checking Admin collection for ID:', decoded.id);
       user = await Admin.findById(decoded.id);
+    }
+
+    // 5. Check Manager Collection
+    if (!user) {
+      user = await Manager.findById(decoded.id);
     }
 
     if (!user) {
@@ -114,6 +120,7 @@ export const optionalProtect = async (req, res, next) => {
       if (!user) user = await Partner.findById(decoded.id);
       if (!user) user = await Worker.findById(decoded.id);
       if (!user) user = await Admin.findById(decoded.id);
+      if (!user) user = await Manager.findById(decoded.id);
 
       if (user && !user.isBlocked) {
         req.user = user;

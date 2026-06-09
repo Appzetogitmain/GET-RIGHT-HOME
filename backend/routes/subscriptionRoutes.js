@@ -14,24 +14,25 @@ import {
     deleteTier
 } from '../controllers/subscriptionController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
+import { checkManagerPermission } from '../middlewares/managerPermission.js';
 
 const router = express.Router();
 
 // --- ADMIN ROUTES ---
 const adminRouter = express.Router();
 adminRouter.use(protect);
-adminRouter.use(authorizedRoles('admin', 'superadmin'));
+adminRouter.use(authorizedRoles('admin', 'superadmin', 'manager'));
 
-adminRouter.post('/create', createPlan);
-adminRouter.get('/all', getAllPlans);
-adminRouter.put('/:id', updatePlan);
-adminRouter.delete('/:id', deletePlan);
+adminRouter.post('/create', checkManagerPermission('subscriptions', 'add'), createPlan);
+adminRouter.get('/all', checkManagerPermission('subscriptions', 'view'), getAllPlans);
+adminRouter.put('/:id', checkManagerPermission('subscriptions', 'edit'), updatePlan);
+adminRouter.delete('/:id', checkManagerPermission('subscriptions', 'delete'), deletePlan);
 
 // Admin Tier Management
-adminRouter.get('/tiers', getAllTiers);
-adminRouter.post('/tiers', createTier);
-adminRouter.put('/tiers/:id', updateTier);
-adminRouter.delete('/tiers/:id', deleteTier);
+adminRouter.get('/tiers', checkManagerPermission('subscriptions', 'view'), getAllTiers);
+adminRouter.post('/tiers', checkManagerPermission('subscriptions', 'add'), createTier);
+adminRouter.put('/tiers/:id', checkManagerPermission('subscriptions', 'edit'), updateTier);
+adminRouter.delete('/tiers/:id', checkManagerPermission('subscriptions', 'delete'), deleteTier);
 
 router.use('/admin', adminRouter);
 
