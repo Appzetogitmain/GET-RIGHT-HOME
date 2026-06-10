@@ -70,6 +70,12 @@ const useManagerStore = create((set, get) => ({
 
       if (response.data.user && response.data.user.role === 'manager') {
         localStorage.setItem('managerData', JSON.stringify(response.data.user));
+        localStorage.setItem('adminData', JSON.stringify(response.data.user));
+        const token = localStorage.getItem('managerToken');
+        if (token) {
+          localStorage.setItem('adminToken', token);
+          localStorage.setItem('adminAccessToken', token);
+        }
         set({
           manager: response.data.user,
           isAuthenticated: true,
