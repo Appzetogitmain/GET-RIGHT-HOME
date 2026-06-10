@@ -47,15 +47,21 @@ const useManagerStore = create((set, get) => ({
     }
   },
 
-  logout: () => {
-    localStorage.removeItem('managerToken');
-    localStorage.removeItem('managerAccessToken');
-    localStorage.removeItem('managerData');
-    // Remove the bridged admin tokens so admin pages can't be accessed after manager logout
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminAccessToken');
-    localStorage.removeItem('adminData');
-    set({ manager: null, isAuthenticated: false, permissions: [] });
+  logout: async () => {
+    try {
+      await axiosInstance.post('/auth/logout');
+    } catch (error) {
+      console.error('Manager logout error:', error);
+    } finally {
+      localStorage.removeItem('managerToken');
+      localStorage.removeItem('managerAccessToken');
+      localStorage.removeItem('managerData');
+      // Remove the bridged admin tokens so admin pages can't be accessed after manager logout
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminAccessToken');
+      localStorage.removeItem('adminData');
+      set({ manager: null, isAuthenticated: false, permissions: [] });
+    }
   },
 
   checkAuth: async () => {
@@ -71,14 +77,14 @@ const useManagerStore = create((set, get) => ({
           loading: false
         });
       } else {
-        get().logout();
+        await get().logout();
         set({ loading: false });
       }
     } catch (error) {
       if (error.response?.status !== 401) {
         console.error('Manager Check Auth Error:', error);
       }
-      get().logout();
+      await get().logout();
       set({ loading: false });
     }
   },
@@ -96,7 +102,7 @@ const useManagerStore = create((set, get) => ({
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && error.config && !error.config.url.endsWith('/auth/logout')) {
       useManagerStore.getState().logout();
     }
     return Promise.reject(error);

@@ -13,7 +13,8 @@ import {
   deleteDoc, 
   uploadDocsBase64,
   lazyEnquiryLoginRegister,
-  lazyListingLoginRegister
+  lazyListingLoginRegister,
+  logout
 } from '../controllers/authController.js';
 import { managerLogin, getManagerProfile } from '../controllers/managerController.js';
 import { protect } from '../middlewares/authMiddleware.js';
@@ -27,6 +28,7 @@ router.post('/partner/register', registerPartner);
 router.post('/partner/verify-otp', verifyPartnerOtp);
 router.post('/lazy-enquiry-login', lazyEnquiryLoginRegister);
 router.post('/lazy-listing-login', lazyListingLoginRegister);
+router.post('/logout', logout);
 
 // Upload routes for partner registration
 router.post('/partner/upload-docs', uploadDocuments.array('files', 5), uploadDocs);

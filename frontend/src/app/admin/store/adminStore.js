@@ -37,11 +37,17 @@ const useAdminStore = create((set, get) => ({
     }
   },
 
-  logout: () => {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminAccessToken');
-    localStorage.removeItem('adminData');
-    set({ admin: null, isAuthenticated: false });
+  logout: async () => {
+    try {
+      await axiosInstance.post('/auth/logout');
+    } catch (error) {
+      console.error('Admin logout error:', error);
+    } finally {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminAccessToken');
+      localStorage.removeItem('adminData');
+      set({ admin: null, isAuthenticated: false });
+    }
   },
 
   checkAuth: async () => {
@@ -56,7 +62,7 @@ const useAdminStore = create((set, get) => ({
           loading: false
         });
       } else {
-        get().logout();
+        await get().logout();
         set({ loading: false });
       }
     } catch (error) {
@@ -64,7 +70,7 @@ const useAdminStore = create((set, get) => ({
       if (error.response?.status !== 401) {
         console.error('Check Auth Error:', error);
       }
-      get().logout();
+      await get().logout();
       set({ loading: false });
     }
   }
@@ -74,7 +80,7 @@ const useAdminStore = create((set, get) => ({
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && error.config && !error.config.url.endsWith('/auth/logout')) {
       useAdminStore.getState().logout();
     }
     return Promise.reject(error);

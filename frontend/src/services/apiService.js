@@ -154,14 +154,13 @@ export const authService = {
       throw error.response?.data || error.message;
     }
   },
-
-  // Logout
-  logout: () => {
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {}
     localStorage.removeItem('user');
   }
 };
-
-
 
 // Booking Services
 export const bookingService = {
