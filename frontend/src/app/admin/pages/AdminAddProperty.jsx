@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ChevronLeft, Loader2, Save, Layers, ArrowRight, 
   MapPin, Check, Plus, Trash2, Info 
@@ -28,6 +28,8 @@ const pricingFieldsToFilter = [
 ];
 
 const AdminAddProperty = () => {
+  const location = useLocation();
+  const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [configs, setConfigs] = useState([]);
@@ -277,7 +279,7 @@ const AdminAddProperty = () => {
       const res = await adminService.createProperty(payload);
       if (res.success) {
         toast.success('Admin property published successfully!');
-        navigate('/admin/properties');
+        navigate(`${basePath}/properties`);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Publishing failed');

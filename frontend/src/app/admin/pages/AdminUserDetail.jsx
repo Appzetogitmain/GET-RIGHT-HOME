@@ -5,12 +5,15 @@ import {
     History, AlertTriangle, Ban, CheckCircle, Lock, Unlock, Loader2, ArrowDownLeft, ArrowUpRight,
     MessageSquare, Clock, FileText, Home
 } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
 
-const UserPropertiesTab = ({ properties }) => (
+const UserPropertiesTab = ({ properties }) => {
+    const location = useLocation();
+    const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
+    return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
@@ -39,7 +42,7 @@ const UserPropertiesTab = ({ properties }) => (
                                 </span>
                             </td>
                             <td className="p-4 text-right">
-                                <Link to={`/admin/properties/${prop._id}`} className="text-black font-bold uppercase text-[10px] border-b border-black pb-0.5 hover:text-gray-600 hover:border-gray-600 transition-colors">
+                                <Link to={`${basePath}/properties/${prop._id}`} className="text-black font-bold uppercase text-[10px] border-b border-black pb-0.5 hover:text-gray-600 hover:border-gray-600 transition-colors">
                                     Details
                                 </Link>
                             </td>
@@ -53,7 +56,8 @@ const UserPropertiesTab = ({ properties }) => (
             </tbody>
         </table>
     </div>
-);
+    );
+};
 
 // ─── Enquiry status badge ─────────────────────────────────────────────────────
 const EnqStatusBadge = ({ status }) => {
@@ -200,6 +204,8 @@ const UserTransactionsTab = ({ wallet, transactions }) => (
 
 
 const AdminUserDetail = () => {
+    const location = useLocation();
+    const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
     const { id } = useParams();
     const [user, setUser] = useState(null);
     const [bookings, setBookings] = useState([]);
@@ -283,7 +289,7 @@ const AdminUserDetail = () => {
                 <AlertTriangle size={48} className="mx-auto text-red-400 mb-4" />
                 <h2 className="text-2xl font-bold text-gray-900">User Not Found</h2>
                 <p className="text-gray-500 mt-2">The user you're looking for doesn't exist or has been deleted.</p>
-                <Link to="/admin/users" className="mt-6 inline-block text-black font-bold uppercase text-xs border-b-2 border-black pb-1">Back to Users</Link>
+                <Link to={`${basePath}/users`} className="mt-6 inline-block text-black font-bold uppercase text-xs border-b-2 border-black pb-1">Back to Users</Link>
             </div>
         );
     }
@@ -303,7 +309,7 @@ const AdminUserDetail = () => {
             />
 
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-gray-500 mb-2">
-                <Link to="/admin/users" className="hover:text-black transition-colors">Users</Link>
+                <Link to={`${basePath}/users`} className="hover:text-black transition-colors">Users</Link>
                 <span>/</span>
                 <span className="text-black">{user.name}</span>
             </div>

@@ -167,8 +167,8 @@ const Layout = ({ children }) => {
     maintenanceMessage: ''
   });
 
-  // Disable Lenis on Admin routes only (as requested)
-  const isCmsRoute = location.pathname.startsWith('/admin');
+  // Disable Lenis on Admin and Manager routes (as requested)
+  const isCmsRoute = location.pathname.startsWith('/admin') || location.pathname.startsWith('/manager');
   useLenis(isCmsRoute);
 
   React.useEffect(() => {

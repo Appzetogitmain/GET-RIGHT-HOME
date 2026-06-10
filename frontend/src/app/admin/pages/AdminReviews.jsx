@@ -5,7 +5,7 @@ import {
     CheckCircle, XCircle, AlertTriangle, ThumbsUp, ThumbsDown, Flag, Loader2,
     ChevronLeft, ChevronRight, Download
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
@@ -46,6 +46,8 @@ const StatusBadge = ({ status }) => {
 };
 
 const AdminReviews = () => {
+    const location = useLocation();
+    const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalReviews, setTotalReviews] = useState(0);
@@ -259,7 +261,7 @@ const AdminReviews = () => {
                                                         <StarRating rating={review.rating} />
                                                     </div>
                                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
-                                                        Reviewed <Link to={`/admin/hotels/${review.hotelId?._id}`} className="text-black font-bold hover:underline">{review.hotelId?.name || 'Deleted Hotel'}</Link> • {new Date(review.createdAt).toLocaleDateString()}
+                                                        Reviewed <Link to={`${basePath}/properties/${review.hotelId?._id}`} className="text-black font-bold hover:underline">{review.hotelId?.name || 'Deleted Hotel'}</Link> • {new Date(review.createdAt).toLocaleDateString()}
                                                     </p>
                                                 </div>
                                                 <StatusBadge status={review.status} />

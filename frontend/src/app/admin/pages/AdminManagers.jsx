@@ -657,7 +657,7 @@ const AdminManagers = () => {
                                     </div>
                                 )}
 
-                                {(panelMode === 'permissions' || panelMode === 'add') && (
+                                {(panelMode === 'permissions' || panelMode === 'add' || panelMode === 'edit') && (
                                     <div className="space-y-4">
                                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-2">
                                             <h4 className="text-xs font-bold uppercase text-gray-800 tracking-wider flex items-center gap-1.5">

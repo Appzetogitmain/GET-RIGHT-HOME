@@ -485,6 +485,13 @@ export const adminUpdateEnquiry = async (req, res) => {
         res.status(200).json({ success: true, enquiry: enrichedEnquiry });
     } catch (error) {
         console.error('Admin Update Enquiry Error:', error);
+        try {
+            const fs = await import('fs');
+            const path = await import('path');
+            fs.appendFileSync(path.join('e:/Appzeto/Get-Right-home/backend', 'error.log'), `[${new Date().toISOString()}] Admin Update Enquiry Error\nError: ${error.message}\nStack: ${error.stack}\n\n`);
+        } catch (e) {
+            console.error('Failed to log to file:', e);
+        }
         res.status(500).json({ success: false, message: 'Server error updating enquiry' });
     }
 };
@@ -503,6 +510,13 @@ export const adminDeleteEnquiry = async (req, res) => {
         res.status(200).json({ success: true, message: 'Enquiry deleted successfully' });
     } catch (error) {
         console.error('Admin Delete Enquiry Error:', error);
+        try {
+            const fs = await import('fs');
+            const path = await import('path');
+            fs.appendFileSync(path.join('e:/Appzeto/Get-Right-home/backend', 'error.log'), `[${new Date().toISOString()}] Admin Delete Enquiry Error\nError: ${error.message}\nStack: ${error.stack}\n\n`);
+        } catch (e) {
+            console.error('Failed to log to file:', e);
+        }
         res.status(500).json({ success: false, message: 'Server error deleting enquiry' });
     }
 };

@@ -4,6 +4,7 @@ import Admin from '../models/Admin.js';
 import User from '../models/User.js';
 import Partner from '../models/Partner.js';
 import Otp from '../models/Otp.js';
+import Manager from '../models/Manager.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import smsService from '../utils/smsService.js';
@@ -568,6 +569,8 @@ export const updateProfile = async (req, res) => {
     if (['admin', 'superadmin'].includes(currentUser.role)) {
       // Admins use updateAdminProfile usually, but if they hit this:
       Model = Admin;
+    } else if (currentUser.role === 'manager') {
+      Model = Manager;
     }
 
     let user = await Model.findById(currentUser._id);
