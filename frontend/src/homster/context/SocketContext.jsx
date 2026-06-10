@@ -153,8 +153,7 @@ export const SocketProvider = ({ children }) => {
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      // console.log(`✅ ${userType?.toUpperCase()} App Socket connected`);
-      // console.log(`[DEBUG] userType: ${userType}, hasToken: ${!!token}`);
+      console.log(`✅ [Socket] ${userType?.toUpperCase()} connected → socket.id: ${newSocket.id}`);
       
       // Register FCM token for push notifications (on page load/refresh)
       if (userType && token) {
@@ -163,16 +162,12 @@ export const SocketProvider = ({ children }) => {
           // Play sound and show notification (handled internally by the service)
         });
 
-        // console.log(`[SocketContext] Registering FCM token for ${userType}...`);
-
         registerFCMToken(userType, true).then((fcmToken) => {
           if (fcmToken) {
-            // console.log(`[SocketContext] ✅ FCM token registered for ${userType}`);
-          } else {
-            // console.log(`[SocketContext] ⚠️ FCM token registration returned null for ${userType}`);
+            console.log(`[Socket] ✅ FCM token registered for ${userType}`);
           }
         }).catch((err) => {
-          // console.error(`[SocketContext] ❌ FCM token registration failed for ${userType}:`, err);
+          // silent
         });
       }
 
@@ -182,7 +177,10 @@ export const SocketProvider = ({ children }) => {
         const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
         const vendorId = vendorData.id || vendorData._id;
         if (vendorId) {
+          console.log(`[Socket] VENDOR joining room: vendor_${vendorId}`);
           newSocket.emit('join_vendor_room', vendorId);
+        } else {
+          console.warn('[Socket] ⚠️ VENDOR: no vendorId found in localStorage');
         }
       }
 
@@ -190,17 +188,36 @@ export const SocketProvider = ({ children }) => {
         const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
         const workerId = workerData.id || workerData._id;
         if (workerId) {
+          console.log(`[Socket] WORKER joining room: worker_${workerId}`);
           newSocket.emit('join_worker_room', workerId);
+        } else {
+          console.warn('[Socket] ⚠️ WORKER: no workerId found in localStorage');
+        }
+      }
+
+      if (userType === 'user') {
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        const userId = userData.id || userData._id;
+        if (userId) {
+          console.log(`[Socket] USER joining room: user_${userId}`);
+          newSocket.emit('join_user_room', userId);
+        } else {
+          console.warn('[Socket] ⚠️ USER: no userId found in localStorage. userData:', userData);
         }
       }
     });
 
-    newSocket.on('disconnect', () => {
-      // console.log(`❌ ${userType.toUpperCase()} App Socket disconnected`);
+    newSocket.on('disconnect', (reason) => {
+      console.log(`❌ [Socket] ${userType?.toUpperCase()} disconnected → reason: ${reason}`);
+    });
+
+    newSocket.on('connect_error', (err) => {
+      console.error(`[Socket] ❌ Connection error for ${userType}:`, err.message);
     });
 
     // Listen for generic notifications
     newSocket.on('notification', (data) => {
+      console.log(`[Socket] 🔔 '${userType}' received NOTIFICATION:`, data);
       if (isSoundEnabled(userType)) {
         playNotificationSound();
       }
@@ -240,7 +257,7 @@ export const SocketProvider = ({ children }) => {
 
     // Listen for real-time booking updates
     newSocket.on('booking_updated', (data) => {
-      // console.log('Booking Updated:', data);
+      console.log(`[Socket] 📦 '${userType}' received BOOKING_UPDATED:`, data);
       if (userType === 'user') window.dispatchEvent(new Event('userBookingsUpdated'));
       if (userType === 'vendor') window.dispatchEvent(new Event('vendorJobsUpdated'));
       if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
@@ -417,6 +434,9 @@ export const SocketProvider = ({ children }) => {
           brandName: data.brandName,
           brandIcon: data.brandIcon,
           categoryIcon: data.categoryIcon,
+          bookedItems: data.bookedItems,
+          requirementText: data.requirementText,
+          isConsultancyRequest: data.isConsultancyRequest,
           scheduledDate: data.scheduledDate,
           scheduledTime: data.scheduledTime,
           timeSlot: {

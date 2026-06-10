@@ -38,7 +38,7 @@ const Footer = () => {
     {
       title: 'Quick Links',
       links: [
-        { label: 'My Bookings', path: '/user/my-bookings' },
+        { label: 'My Bookings', path: '/user/home-services/bookings' },
         { label: 'My Wallet', path: '/user/wallet' },
         { label: 'My Plan', path: '/user/my-plan' },
         { label: 'Register as Vendor', path: '/vendor/signup' },

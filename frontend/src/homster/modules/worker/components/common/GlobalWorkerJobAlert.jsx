@@ -96,13 +96,41 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 120 })
           {/* Service Details Card */}
           <div className="bg-white rounded-[1rem] p-3 border border-gray-100 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-            <div className="pl-2">
+            <div className="pl-2 flex flex-col h-full">
               <h4 className="text-[14px] font-black text-gray-900 leading-tight">
                 {booking.serviceName || booking.serviceType || 'Service Job'}
               </h4>
-              <p className="text-[10px] font-bold text-gray-500 mt-1 uppercase tracking-wider">
-                Price: ₹{booking.price || 'N/A'}
-              </p>
+              
+              {/* Display Booked Items or Requirement Text */}
+              <div className="mt-2 space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar">
+                {booking.isConsultancyRequest && booking.requirementText && (
+                  <p className="text-[11px] text-gray-600 bg-orange-50/50 p-2 rounded-lg border border-orange-100/50 italic leading-snug">
+                    <span className="font-bold text-orange-600 block mb-0.5 not-italic">Problem Description:</span>
+                    "{booking.requirementText}"
+                  </p>
+                )}
+                {booking.bookedItems && booking.bookedItems.length > 0 && (
+                  <div className="space-y-1">
+                    {booking.bookedItems.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-start text-[11px] border-b border-gray-50/50 pb-1 last:border-0 last:pb-0">
+                        <span className="text-gray-700 font-medium leading-tight line-clamp-2 pr-2">
+                          <span className="font-bold text-blue-600 mr-1">{item.quantity}x</span>
+                          {item.brandName || item.card?.title || 'Service Item'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-auto pt-2 flex items-center justify-between border-t border-gray-50 mt-2">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Total Price
+                </span>
+                <span className="text-[13px] font-black text-green-600">
+                  ₹{booking.price || 'N/A'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -147,11 +175,15 @@ export default function GlobalWorkerJobAlert() {
   useEffect(() => {
     const handleShowAlert = (e) => {
       if (e.detail) {
+        let isNew = false;
         setActiveAlerts(prev => {
           if (prev.find(b => String(b.id || b._id) === String(e.detail.id || e.detail._id))) return prev;
-          playAlertRing(true);
+          isNew = true;
           return [e.detail, ...prev];
         });
+        if (isNew) {
+          playAlertRing(true);
+        }
       }
     };
 
@@ -159,8 +191,15 @@ export default function GlobalWorkerJobAlert() {
       if (e.detail?.id) {
         setActiveAlerts(prev => {
           const np = prev.filter(b => String(b.id || b._id) !== String(e.detail.id));
-          if (np.length === 0) stopAlertRing();
           return np;
+        });
+        
+        // Use a setTimeout to allow state to settle, or check current length
+        setActiveAlerts(prev => {
+          if (prev.length === 0) { 
+             stopAlertRing();
+          }
+          return prev;
         });
       }
     };
@@ -184,11 +223,12 @@ export default function GlobalWorkerJobAlert() {
       const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(id));
       localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
 
-      setActiveAlerts(prev => {
-        const np = prev.filter(b => String(b.id || b._id) !== String(id));
-        if (np.length === 0) stopAlertRing();
-        return np;
-      });
+      setActiveAlerts(prev => prev.filter(b => String(b.id || b._id) !== String(id)));
+      
+      // Stop alert ring if this was the last alert
+      if (activeAlerts.length <= 1) {
+        stopAlertRing();
+      }
 
       window.dispatchEvent(new Event('workerJobsUpdated'));
       toast.success('Job Accepted Successfully!');
@@ -208,11 +248,12 @@ export default function GlobalWorkerJobAlert() {
       const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(id));
       localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
 
-      setActiveAlerts(prev => {
-        const np = prev.filter(b => String(b.id || b._id) !== String(id));
-        if (np.length === 0) stopAlertRing();
-        return np;
-      });
+      setActiveAlerts(prev => prev.filter(b => String(b.id || b._id) !== String(id)));
+      
+      // Stop alert ring if this was the last alert
+      if (activeAlerts.length <= 1) {
+        stopAlertRing();
+      }
 
       if (!isAutoReject) toast.success('Job Rejected');
       window.dispatchEvent(new Event('workerJobsUpdated'));

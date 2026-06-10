@@ -1,12 +1,14 @@
 import express from 'express';
 import {
   getDashboardStats,
+  getDashboardRevenue,
   getAllUsers,
   getAllPartners,
   getAllHotels,
   getAllBookings,
   getPropertyRequests,
   updateHotelStatus,
+  getReviewStats,
   getReviewModeration,
   deleteReview,
   updateReviewStatus,
@@ -64,6 +66,7 @@ router.delete('/notifications', deleteAdminNotifications);
 
 router.put('/fcm-token', updateFcmToken);
 router.get('/dashboard-stats', getDashboardStats);
+router.get('/dashboard/revenue', getDashboardRevenue);
 router.get('/finance', getFinanceStats);
 router.get('/users', getAllUsers);
 router.get('/partners', getAllPartners);
@@ -74,9 +77,10 @@ router.get('/bookings', getAllBookings);
 router.get('/property-requests', getPropertyRequests);
 router.put('/hotel-status', updateHotelStatus);
 router.put('/update-hotel-status', updateHotelStatus);
+router.get('/reviews/stats', getReviewStats);
 router.get('/reviews', getReviewModeration);
 router.delete('/delete-review', deleteReview);
-router.put('/update-review-status', updateReviewStatus);
+router.patch('/reviews/:id/status', updateReviewStatus);
 router.put('/update-user-status', updateUserStatus);
 router.put('/update-partner-status', updatePartnerStatus);
 router.put('/update-partner-approval', updatePartnerApprovalStatus);

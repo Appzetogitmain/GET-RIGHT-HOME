@@ -120,33 +120,17 @@ const HomeServicesPage = () => {
     const [noteworthy, setNoteworthy] = useState([]);
     const [mostBooked, setMostBooked] = useState([]);
     const [playingVideoIdx, setPlayingVideoIdx] = useState(null);
+    const [currentCurationIdx, setCurrentCurationIdx] = useState(0);
+    const curationScrollRef = useRef(null);
     const [user, setUser] = useState(null);
 
     useEffect(() => {
-        const fetchUserProfile = async () => {
-            try {
-                // Check both possible token keys
-                const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-                if (token) {
-                    const res = await userService.getProfile();
-                    // Handle both {success, user} and flat user object formats
-                    const userData = res?.user || (res?._id ? res : null);
-                    if (userData) {
-                        setUser(userData);
-                    }
-                } else {
-                    // Not logged in, try to read from localStorage as fallback
-                    const stored = JSON.parse(localStorage.getItem('userData') || 'null');
-                    if (stored) setUser(stored);
-                }
-            } catch (err) {
-                console.error("Failed to load user profile", err);
-                // Fallback to localStorage
-                const stored = JSON.parse(localStorage.getItem('userData') || 'null');
-                if (stored) setUser(stored);
-            }
-        };
-        fetchUserProfile();
+        // Read user data from localStorage directly — avoids wrong-token API errors
+        // User data is stored on login and kept updated by the auth flow
+        const stored = 
+            JSON.parse(localStorage.getItem('userData') || 'null') ||
+            JSON.parse(localStorage.getItem('user') || 'null');
+        if (stored) setUser(stored);
     }, []);
 
     useEffect(() => {
@@ -159,7 +143,7 @@ const HomeServicesPage = () => {
                 if (contentRes?.success && contentRes.homeContent) {
                     const hc = contentRes.homeContent;
                     setHomeData(hc);
-                    setPromos([...(hc.banners || []), ...(hc.promos || [])]);
+                    setPromos(hc.promos || []);
                     setNoteworthy(hc.noteworthy || []);
                     setMostBooked(hc.booked || []);
                     setCurations(hc.curated || []);
@@ -391,7 +375,16 @@ const HomeServicesPage = () => {
                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Expertly selected for your lifestyle</p>
                     </div>
 
-                    <div className="flex overflow-x-auto gap-5 no-scrollbar pb-6 -mx-1 px-1 snap-x snap-mandatory">
+                    <div
+                        ref={curationScrollRef}
+                        onScroll={(e) => {
+                            const scrollLeft = e.target.scrollLeft;
+                            const width = e.target.offsetWidth;
+                            const index = Math.round(scrollLeft / width);
+                            setCurrentCurationIdx(index);
+                        }}
+                        className="flex overflow-x-auto gap-5 no-scrollbar pb-6 -mx-1 px-1 snap-x snap-mandatory"
+                    >
                         {curations.map((item, idx) => {
                             const youtubeId = getYoutubeId(item.youtubeUrl);
                             const isPlaying = playingVideoIdx === idx;
@@ -403,13 +396,28 @@ const HomeServicesPage = () => {
                                         className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200/40 bg-black group"
                                     >
                                         {isPlaying ? (
-                                            <iframe
-                                                src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1`}
-                                                title={item.title}
-                                                className="absolute inset-0 w-full h-full border-0"
-                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                allowFullScreen
-                                            ></iframe>
+                                            <div className="absolute inset-0 w-full h-full">
+                                                <iframe
+                                                    src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1`}
+                                                    title={item.title}
+                                                    className="w-full h-full border-0"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allowFullScreen
+                                                ></iframe>
+                                                {/* Pause Overlay Button */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPlayingVideoIdx(null);
+                                                    }}
+                                                    className="absolute top-4 right-4 z-30 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 backdrop-blur-sm transition-all shadow-md active:scale-95 flex items-center justify-center"
+                                                    title="Pause/Stop Video"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
                                         ) : (
                                             <div
                                                 className="absolute inset-0 w-full h-full cursor-pointer"
@@ -492,6 +500,31 @@ const HomeServicesPage = () => {
                             );
                         })}
                     </div>
+
+                    {/* Pagination Dots indicator to show there is another video/item ahead */}
+                    {curations.length > 1 && (
+                        <div className="flex justify-center items-center gap-2 mt-4">
+                            {curations.map((_, dotIdx) => (
+                                <button
+                                    key={dotIdx}
+                                    onClick={() => {
+                                        if (curationScrollRef.current) {
+                                            const width = curationScrollRef.current.offsetWidth;
+                                            curationScrollRef.current.scrollTo({
+                                                left: dotIdx * width,
+                                                behavior: 'smooth'
+                                            });
+                                            setCurrentCurationIdx(dotIdx);
+                                        }
+                                    }}
+                                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                                        currentCurationIdx === dotIdx ? 'w-6 bg-emerald-500' : 'w-1.5 bg-gray-300'
+                                    }`}
+                                    aria-label={`Go to slide ${dotIdx + 1}`}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </section>
             )}
 
@@ -1099,7 +1132,19 @@ const HomeServicesPage = () => {
                                     {service.rating || '4.0'}
                                 </div>
                                 <div className="flex items-center justify-between w-full">
-                                    <span className="text-xs font-black text-gray-900">₹{service.price}</span>
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-xs font-black text-gray-900">₹{service.price}</span>
+                                            {service.originalPrice && (
+                                                <span className="text-[9px] text-gray-400 line-through">₹{service.originalPrice}</span>
+                                            )}
+                                        </div>
+                                        {service.discount && (
+                                            <span className="text-[9px] text-green-600 font-bold text-left mt-0.5 leading-none">
+                                                {service.discount}
+                                            </span>
+                                        )}
+                                    </div>
                                     <button className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg shadow-emerald-200/50 hover:shadow-emerald-300/50 transition-all active:scale-95">
                                         Book
                                     </button>

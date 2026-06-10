@@ -681,7 +681,7 @@ const BookingTrack = () => {
             }
           }}
         >
-          {currentLocation ? (
+          {map && currentLocation ? (
             <>
               {directions && (
                 <>
@@ -705,7 +705,7 @@ const BookingTrack = () => {
               )}
               {riderMarker}
             </>
-          ) : (
+          ) : map ? (
             // Fallback when rider location is not yet available
             <OverlayView
               position={coords || defaultCenter}
@@ -718,9 +718,9 @@ const BookingTrack = () => {
                 </div>
               </div>
             </OverlayView>
-          )}
-
-          {destinationMarker}
+          ) : null}
+          
+          {map && destinationMarker}
         </GoogleMap>
 
 

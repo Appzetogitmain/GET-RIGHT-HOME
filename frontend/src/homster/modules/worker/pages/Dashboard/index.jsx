@@ -251,49 +251,20 @@ const Dashboard = () => {
 
 
 
-  // Socket Listener for New Jobs
+  // Clean up previous unnecessary local socket listeners since SocketContext handles global job alerts
   useEffect(() => {
-    if (!socket) return;
-
-    const handleNotification = (notif) => {
-      // Listen for new job assignments
-      if ((notif.type === 'booking_created' || notif.type === 'job_assigned') && notif.relatedId) {
-        setAlertJobId(notif.relatedId);
-      }
-    };
-
-    socket.on('notification', handleNotification);
-
-    // Listen for real-time alert events from SocketContext
-    const handleJobAlert = (e) => {
-      const jobData = e.detail;
-      if (jobData && jobData.id) {
-        setAlertJobId(jobData.id);
-      }
-    };
-
-    window.addEventListener('showWorkerJobAlert', handleJobAlert);
-
-    // Listen for push notifications in foreground
+    // Only keeping push notification handling if needed locally, but we don't need to open any local modal
     const handlePushNotification = (e) => {
-      const payload = e.detail;
-      const data = payload.data || {};
-      
-      // Only open modal for real job assignments with a valid bookingId
-      if (data.type === 'job_assigned' && data.bookingId && data.bookingId !== 'test-id') {
-        setAlertJobId(data.bookingId);
-      }
-      // 'test' type notifications just show the toast - no modal
+      // Just refresh data on push
+      fetchDashboardData();
     };
 
     window.addEventListener('appNotificationReceived', handlePushNotification);
 
     return () => {
-      socket.off('notification', handleNotification);
-      window.removeEventListener('showWorkerJobAlert', handleJobAlert);
       window.removeEventListener('appNotificationReceived', handlePushNotification);
     };
-  }, [socket, recentJobs]);
+  }, []);
 
   // Test Push Notification
   const handleTestPush = async () => {
@@ -508,6 +479,7 @@ const Dashboard = () => {
                 onClick={() => {
                   if (window.fcmDebug) window.fcmDebug();
                   if (window.testLocalFCMUI) window.testLocalFCMUI();
+                  window.dispatchEvent(new CustomEvent('showWorkerJobAlert', { detail: { id: 'test-id' } }));
                 }}
                 className="p-2 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 active:scale-95 transition-all"
                >
@@ -889,17 +861,6 @@ const Dashboard = () => {
             <FiBell className="w-7 h-7 text-white" />
           </button>
         </div>
-
-      <WorkerJobAlertModal
-        isOpen={!!alertJobId}
-        jobId={alertJobId}
-        onClose={() => setAlertJobId(null)}
-        onJobAccepted={(id) => {
-          fetchDashboardData();
-          navigate(`/worker/job/${id}`);
-        }}
-      />
-
 
     </div >
   );

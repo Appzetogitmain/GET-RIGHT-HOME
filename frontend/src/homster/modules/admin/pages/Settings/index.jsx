@@ -72,7 +72,7 @@ const AdminSettings = () => {
   const [profileLoading, setProfileLoading] = useState(false);
   const [activeView, setActiveView] = useState('main'); // 'main', 'profile', 'financial', 'system', 'admins'
 
-  const isSuperAdmin = profile.role === 'super_admin';
+  const isSuperAdmin = profile.role === 'super_admin' || profile.role === 'superadmin';
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -925,7 +925,7 @@ const AdminSettings = () => {
                           <select value={newAdmin.role} onChange={e => setNewAdmin(p => ({ ...p, role: e.target.value }))}
                             className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200">
                             <option value="admin">Admin</option>
-                            <option value="super_admin">Super Admin</option>
+                            <option value="superadmin">Super Admin</option>
                           </select>
 
                           {/* City Selection */}
@@ -978,11 +978,11 @@ const AdminSettings = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`px-3 py-1 text-xs font-bold rounded-full border ${admin.role === 'super_admin'
+                            <span className={`px-3 py-1 text-xs font-bold rounded-full border ${admin.role === 'superadmin'
                               ? 'bg-amber-50 text-amber-700 border-amber-100'
                               : 'bg-blue-50 text-blue-700 border-blue-100'
                               }`}>
-                              {admin.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                              {admin.role === 'superadmin' ? 'Super Admin' : 'Admin'}
                             </span>
                           </td>
                           <td className="px-6 py-4">

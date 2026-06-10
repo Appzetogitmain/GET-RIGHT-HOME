@@ -18,8 +18,22 @@ import {
   getReceivedEnquiries,
   updateReceivedEnquiryStatus
 } from '../controllers/bookingController.js';
+import {
+  initiateOnlineCollection,
+  verifyOnlineCollection,
+  initiateCashCollection,
+  collectCash,
+  confirmManualOnlineCollection
+} from '../controllers/workerControllers/workerBookingController.js';
 
 const router = express.Router();
+
+// Cash & Online collection routes
+router.post('/cash/:id/initiate-online', protect, initiateOnlineCollection);
+router.post('/cash/:id/verify-online', protect, verifyOnlineCollection);
+router.post('/cash/:id/initiate', protect, initiateCashCollection);
+router.post('/cash/:id/confirm', protect, collectCash);
+router.post('/cash/:id/confirm-manual-online', protect, confirmManualOnlineCollection);
 
 // Property Owner (user or partner) - view bookings on their listed properties
 router.get('/received', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), getReceivedBookings);

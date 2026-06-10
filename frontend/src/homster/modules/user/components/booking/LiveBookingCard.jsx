@@ -81,6 +81,10 @@ const LiveBookingCard = ({ hasBottomNav }) => {
           // Hide LiveBookingCard if status is WORK_DONE and review is already done
           if (s === 'WORK_DONE' && b.rating) return false;
 
+          // Check if this specific booking has been dismissed by the user
+          const isDismissedLocal = localStorage.getItem(`dismissed_booking_${b._id || b.id}`);
+          if (isDismissedLocal) return false;
+
           return ['ASSIGNED', 'STARTED', 'JOURNEY_STARTED', 'VISITED', 'IN_PROGRESS', 'WORK_DONE', 'SEARCHING', 'REQUESTED'].includes(s);
         });
         setActiveBooking(ongoing || null);
@@ -154,11 +158,14 @@ const LiveBookingCard = ({ hasBottomNav }) => {
           <button
             onClick={(e) => {
               e.stopPropagation();
+              if (activeBooking) {
+                localStorage.setItem(`dismissed_booking_${activeBooking._id || activeBooking.id}`, 'true');
+              }
               setIsDismissed(true);
             }}
-            className="absolute top-1 right-1 p-1 bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 z-20 pointer-events-auto"
+            className="absolute top-2 right-2 p-1.5 bg-gray-100 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-200 z-50 pointer-events-auto transition-colors"
           >
-            <FiX className="w-3 h-3" />
+            <FiX className="w-3.5 h-3.5" />
           </button>
 
           {/* Progress Bar Background */}

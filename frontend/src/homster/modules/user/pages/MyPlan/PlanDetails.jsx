@@ -393,7 +393,7 @@ const PlanDetails = () => {
           {!isCurrent && !isDowngradeOrSame ? (
             <button
               onClick={() => {
-                navigate('/user/checkout', {
+                navigate('/user/home-services/checkout', {
                   state: {
                     plan: {
                       id: plan._id,

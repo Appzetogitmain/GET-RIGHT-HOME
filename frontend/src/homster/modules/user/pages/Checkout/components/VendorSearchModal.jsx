@@ -81,11 +81,19 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
             </div>
 
             {/* Bottom Pill - Now positioned relative to avoid overlap */}
-            <div className="flex justify-center mt-2">
+            <div className="flex justify-center mt-2 mb-4">
               <div className="px-4 py-2 bg-gray-50 rounded-full border border-gray-100 text-[10px] font-black uppercase tracking-tighter text-gray-400">
                 Searching for available {bookingModel}s
               </div>
             </div>
+
+            {/* Cancel Search Button */}
+            <button
+              onClick={onClose}
+              className="px-6 py-2.5 rounded-full border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-sm"
+            >
+              Cancel Search
+            </button>
 
           </div>
         )}

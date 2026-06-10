@@ -7,6 +7,7 @@ import ErrorBoundary from '../components/common/ErrorBoundary';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
 import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
+import { SocketProvider } from '../../../context/SocketContext';
 
 // Lazy load wrapper with error handling
 const lazyLoad = (importFunc) => {
@@ -77,40 +78,42 @@ const WorkerRoutes = () => {
   const shouldShowBottomNav = !shouldHideBottomNav;
 
   return (
-    <ErrorBoundary>
-      {/* Main content area - leaves space for bottom nav when needed */}
-      <div className={shouldShowBottomNav ? "pb-24" : ""}>
-        <Suspense fallback={<LoadingFallback />}>
-          <PageTransition>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<PublicRoute userType="worker"><Login /></PublicRoute>} />
-              <Route path="/signup" element={<PublicRoute userType="worker"><Signup /></PublicRoute>} />
+    <SocketProvider>
+      <ErrorBoundary>
+        {/* Main content area - leaves space for bottom nav when needed */}
+        <div className={shouldShowBottomNav ? "pb-24" : ""}>
+          <Suspense fallback={<LoadingFallback />}>
+            <PageTransition>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<PublicRoute userType="worker"><Login /></PublicRoute>} />
+                <Route path="/signup" element={<PublicRoute userType="worker"><Signup /></PublicRoute>} />
 
-              {/* Protected routes (auth required) */}
-              <Route path="/" element={<ProtectedRoute userType="worker"><Navigate to="dashboard" replace /></ProtectedRoute>} />
-              <Route path="/dashboard" element={<ProtectedRoute userType="worker"><Dashboard /></ProtectedRoute>} />
-              <Route path="/jobs" element={<ProtectedRoute userType="worker"><AssignedJobs /></ProtectedRoute>} />
-              <Route path="/job/:id" element={<ProtectedRoute userType="worker"><JobDetails /></ProtectedRoute>} />
-              <Route path="/job/:id/map" element={<ProtectedRoute userType="worker"><JobMap /></ProtectedRoute>} />
-              <Route path="/job/:id/timeline" element={<ProtectedRoute userType="worker"><JobTimeline /></ProtectedRoute>} />
-              <Route path="/job/:id/billing" element={<ProtectedRoute userType="worker"><BillingPage /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute userType="worker"><Profile /></ProtectedRoute>} />
-              <Route path="/profile/edit" element={<ProtectedRoute userType="worker"><EditProfile /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute userType="worker"><Settings /></ProtectedRoute>} />
-              <Route path="/notifications" element={<ProtectedRoute userType="worker"><Notifications /></ProtectedRoute>} />
-              <Route path="/wallet" element={<ProtectedRoute userType="worker"><Wallet /></ProtectedRoute>} />
-              <Route path="/subscription" element={<ProtectedRoute userType="worker"><Subscription /></ProtectedRoute>} />
-            </Routes>
-          </PageTransition>
-        </Suspense>
-      </div>
+                {/* Protected routes (auth required) */}
+                <Route path="/" element={<ProtectedRoute userType="worker"><Navigate to="dashboard" replace /></ProtectedRoute>} />
+                <Route path="/dashboard" element={<ProtectedRoute userType="worker"><Dashboard /></ProtectedRoute>} />
+                <Route path="/jobs" element={<ProtectedRoute userType="worker"><AssignedJobs /></ProtectedRoute>} />
+                <Route path="/job/:id" element={<ProtectedRoute userType="worker"><JobDetails /></ProtectedRoute>} />
+                <Route path="/job/:id/map" element={<ProtectedRoute userType="worker"><JobMap /></ProtectedRoute>} />
+                <Route path="/job/:id/timeline" element={<ProtectedRoute userType="worker"><JobTimeline /></ProtectedRoute>} />
+                <Route path="/job/:id/billing" element={<ProtectedRoute userType="worker"><BillingPage /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute userType="worker"><Profile /></ProtectedRoute>} />
+                <Route path="/profile/edit" element={<ProtectedRoute userType="worker"><EditProfile /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute userType="worker"><Settings /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute userType="worker"><Notifications /></ProtectedRoute>} />
+                <Route path="/wallet" element={<ProtectedRoute userType="worker"><Wallet /></ProtectedRoute>} />
+                <Route path="/subscription" element={<ProtectedRoute userType="worker"><Subscription /></ProtectedRoute>} />
+              </Routes>
+            </PageTransition>
+          </Suspense>
+        </div>
 
-      {/* BottomNav is OUTSIDE Suspense so it persists during page loads */}
-      {shouldShowBottomNav && <BottomNav />}
+        {/* BottomNav is OUTSIDE Suspense so it persists during page loads */}
+        {shouldShowBottomNav && <BottomNav />}
 
-      <GlobalWorkerJobAlert />
-    </ErrorBoundary>
+        <GlobalWorkerJobAlert />
+      </ErrorBoundary>
+    </SocketProvider>
   );
 };
 

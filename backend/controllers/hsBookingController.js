@@ -1,7 +1,9 @@
 import mongoose from 'mongoose';
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
-import UserService from '../models/UserService.js';
+import Service from '../models/HomeServiceService.js';
 import Category from '../models/Category.js';
+import UserService from '../models/UserService.js';
+import Vendor from '../models/Partner.js';
 import Cart from '../models/Cart.js';
 import User from '../models/User.js';
 import Worker from '../models/Worker.js';
@@ -10,6 +12,7 @@ import VendorBill from '../models/VendorBill.js';
 import Plan from '../models/Plan.js';
 import Settings from '../models/Settings.js';
 import Transaction from '../models/Transaction.js';
+import Review from '../models/Review.js';
 import { validationResult } from 'express-validator';
 import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
 import { createNotification } from './notificationControllers/notificationController.js';
@@ -524,7 +527,7 @@ const createBooking = async (req, res) => {
           console.log(`[CreateBooking] Emitting Socket.IO events to ${wave1Partners.length} ${bookingModel}s in Wave 1...`);
           wave1Partners.forEach(async (partner) => {
             const partnerRoom = `${bookingModel}_${partner._id.toString()}`;
-            io.to(partnerRoom).emit('new_booking_request', {
+              io.to(partnerRoom).emit('new_booking_request', {
               bookingId: bookingForBackground._id,
               serviceName: serviceForBackground.title,
               customerName: userForBackground.name,
@@ -538,6 +541,9 @@ const createBooking = async (req, res) => {
               brandName: bookingForBackground.brandName,
               brandIcon: bookingForBackground.brandIcon,
               categoryIcon: bookingForBackground.categoryIcon,
+              bookedItems: bookingForBackground.bookedItems,
+              requirementText: bookingForBackground.requirementText,
+              isConsultancyRequest: bookingForBackground.isConsultancyRequest,
               createdAt: bookingForBackground.createdAt || new Date(),
               expiresAt: new Date(new Date(bookingForBackground.createdAt || Date.now()).getTime() + (60 * 1000)).toISOString(),
               playSound: true,

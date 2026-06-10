@@ -13,7 +13,10 @@ import {
   verifyVisit,
   workerReachedLocation,
   collectCash,
-  respondToJob
+  respondToJob,
+  getBill,
+  createBill,
+  initiateCashCollection
 } from '../../controllers/workerControllers/workerBookingController.js';
 
 // Validation rules
@@ -40,6 +43,9 @@ router.post('/:id/reached', authenticate, isWorker, workerReachedLocation);
 router.post('/:id/visit/verify', authenticate, isWorker, verifyVisit);
 router.post('/:id/complete', authenticate, isWorker, completeJob);
 router.post('/:id/payment/collect', authenticate, isWorker, collectCash);
+router.post('/:id/payment/initiate-cash', authenticate, isWorker, initiateCashCollection);
 router.post('/:id/notes', authenticate, isWorker, addNotesValidation, addWorkerNotes);
+router.get('/:id/bill', authenticate, isWorker, getBill);
+router.post('/:id/bill', authenticate, isWorker, createBill);
 
 export default router;

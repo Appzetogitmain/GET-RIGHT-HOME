@@ -64,7 +64,12 @@ const CategoryCart = ({
   };
 
   const handleCheckout = () => {
-    navigate('/user/checkout', { state: { category: category } });
+    navigate('/user/home-services/checkout', {
+      state: { 
+        category: category,
+        subCategory: null 
+      }
+    });
   };
 
   const handleCartClick = () => {

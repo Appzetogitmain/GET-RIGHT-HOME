@@ -57,7 +57,7 @@ const UserCategories = () => {
     try {
       const storedData = sessionStorage.getItem('adminData') || localStorage.getItem('adminData');
       const stored = JSON.parse(storedData || '{}');
-      return (stored.role || 'admin') === 'super_admin';
+      return (stored.role || 'admin') === 'superadmin' || (stored.role || 'admin') === 'super_admin';
     } catch (e) {
       return false;
     }

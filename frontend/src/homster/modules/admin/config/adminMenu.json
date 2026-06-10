@@ -35,6 +35,15 @@
     ]
   },
   {
+    "title": "Reviews",
+    "route": "/admin/home-service/reviews",
+    "allowedRoles": [
+      "super_admin",
+      "admin"
+    ],
+    "children": []
+  },
+  {
     "title": "User Catalog",
     "route": "/admin/home-service/user-categories",
     "allowedRoles": [
@@ -48,5 +57,14 @@
       "Manage Services",
       "Manage Membership"
     ]
+  },
+  {
+    "title": "Settings",
+    "route": "/admin/home-service/settings",
+    "allowedRoles": [
+      "super_admin",
+      "admin"
+    ],
+    "children": []
   }
 ]

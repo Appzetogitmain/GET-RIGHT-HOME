@@ -25,16 +25,20 @@ const workerBillService = {
    * Get service catalog for billing
    */
   getServiceCatalog: async () => {
-    const response = await api.get('/workers/catalog/services');
-    return response.data;
+    try {
+      const response = await api.get('/public/services');
+      return { success: true, services: response.data.services || response.data.data || [] };
+    } catch (e) {
+      return { success: false, services: [] };
+    }
   },
 
   /**
    * Get parts catalog for billing
    */
   getPartsCatalog: async () => {
-    const response = await api.get('/workers/catalog/parts');
-    return response.data;
+    // Currently no dedicated parts catalog, workers use custom items for parts
+    return { success: true, parts: [] };
   }
 };
 

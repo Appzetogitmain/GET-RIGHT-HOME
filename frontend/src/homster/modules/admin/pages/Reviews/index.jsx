@@ -35,8 +35,12 @@ const ReviewsPage = () => {
       setLoading(true);
       const response = await reviewService.getAllReviews(filters);
       if (response.success) {
-        setReviews(response.data);
-        setPagination(response.pagination);
+        setReviews(response.reviews || []);
+        setPagination({
+          total: response.total || 0,
+          page: response.page || 1,
+          pages: Math.ceil((response.total || 0) / (response.limit || 10))
+        });
       }
     } catch (error) {
       console.error('Fetch reviews error:', error);
@@ -131,18 +135,7 @@ const ReviewsPage = () => {
             </select>
           </div>
 
-          <div className="flex-1 min-w-[180px]">
-            <label className="block text-xs font-bold text-gray-700 mb-1 ml-1">Status</label>
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-            >
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="hidden">Hidden</option>
-            </select>
-          </div>
+
         </div>
       </CardShell>
 
@@ -156,20 +149,19 @@ const ReviewsPage = () => {
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-600 uppercase tracking-wider">Feedback</th>
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-600 uppercase tracking-wider">Entity</th>
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-600 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center">
+                  <td colSpan="4" className="px-4 py-8 text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
                     <p className="text-gray-500 mt-2 text-xs font-medium">Loading reviews...</p>
                   </td>
                 </tr>
               ) : reviews.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="4" className="px-4 py-8 text-center text-gray-500">
                     <FiSearch className="w-10 h-10 mx-auto mb-2 opacity-20" />
                     <p className="text-base font-medium">No reviews found</p>
                   </td>
@@ -183,7 +175,7 @@ const ReviewsPage = () => {
                           {review.userId?.name?.charAt(0) || <FiUser />}
                         </div>
                         <div>
-                          <p className="font-bold text-gray-900 text-sm">{review.userId?.name || 'Deleted User'}</p>
+                          <p className="font-bold text-gray-900 text-sm">{review.userId?.name || 'Unknown User'}</p>
                           <p className="text-[10px] text-gray-500 font-medium">{review.userId?.phone}</p>
                         </div>
                       </div>
@@ -191,7 +183,7 @@ const ReviewsPage = () => {
                     <td className="px-4 py-3 max-w-md">
                       <div className="space-y-1">
                         {renderStars(review.rating)}
-                        <p className="text-slate-700 text-xs leading-snug line-clamp-2">{review.review}</p>
+                        <p className="text-slate-700 text-xs leading-snug line-clamp-2">{review.review || review.comment}</p>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
                           {new Date(review.createdAt).toLocaleDateString(undefined, {
                             year: 'numeric',
@@ -205,53 +197,21 @@ const ReviewsPage = () => {
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 text-[10px]">
                           <FiBriefcase className="text-slate-400 w-3 h-3" />
-                          <span className="font-bold text-slate-700">{review.vendorId?.businessName || 'N/A'}</span>
+                          <span className="font-bold text-slate-700">{review.vendorId?.businessName || review.workerId?.name || review.propertyId?.propertyName || 'N/A'}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-[10px]">
                           <FiBox className="text-slate-400 w-3 h-3" />
-                          <span className="text-slate-600">{review.serviceId?.title || 'N/A'}</span>
+                          <span className="text-slate-600">{review.serviceId?.title || 'General Review'}</span>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${review.status === 'active'
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${review.status === 'active' || review.status === 'approved'
                         ? 'bg-green-100 text-green-700 border border-green-200'
                         : 'bg-amber-100 text-amber-700 border border-amber-200'
                         }`}>
                         {review.status}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        {review.status === 'active' ? (
-                          <button
-                            onClick={() => handleStatusUpdate(review._id, 'hidden')}
-                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Hide Review"
-                          >
-                            <FiEyeOff size={16} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleStatusUpdate(review._id, 'active')}
-                            className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            title="Show Review"
-                          >
-                            <FiEye size={16} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Are you sure you want to delete this review?')) {
-                              handleStatusUpdate(review._id, 'deleted');
-                            }
-                          }}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete Review"
-                        >
-                          <FiTrash2 size={16} />
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))

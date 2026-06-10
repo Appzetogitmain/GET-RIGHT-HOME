@@ -99,7 +99,7 @@ const AssignedJobs = () => {
     if (filter === 'all') {
       matchesFilter = true;
     } else if (filter === 'confirmed') {
-      matchesFilter = ['confirmed', 'assigned', 'pending'].includes(status);
+      matchesFilter = ['confirmed', 'assigned', 'pending', 'requested', 'searching'].includes(status);
     } else if (filter === 'in_progress') {
       matchesFilter = ['in_progress', 'started', 'reached', 'visited', 'work_done', 'on_the_way'].includes(status);
     } else if (filter === 'completed') {

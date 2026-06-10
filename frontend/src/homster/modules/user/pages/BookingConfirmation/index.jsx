@@ -120,11 +120,11 @@ const BookingConfirmation = () => {
           }
         } else {
           toast.error(response.message || 'Booking not found');
-          navigate('/user/my-bookings');
+          navigate('/user/home-services/bookings');
         }
       } catch (error) {
         toast.error('Failed to load booking details');
-        navigate('/user/my-bookings');
+        navigate('/user/home-services/bookings');
       } finally {
         setLoading(false);
       }
@@ -203,7 +203,7 @@ const BookingConfirmation = () => {
         <div className="text-center">
           <p className="text-gray-500">Booking not found</p>
           <button
-            onClick={() => navigate('/user/my-bookings')}
+            onClick={() => navigate('/user/home-services/bookings')}
             className="mt-4 px-4 py-2 rounded-lg text-white"
             style={{ backgroundColor: themeColors.button }}
           >
@@ -284,7 +284,7 @@ const BookingConfirmation = () => {
           )}
 
           {/* Success Icon - Show when confirmed */}
-          {!isSearching && ['confirmed', 'assigned', 'journey_started', 'work_in_progress', 'visited', 'work_done', 'completed'].includes(booking?.status?.toLowerCase()) && (
+          {!isSearching && ['confirmed', 'assigned', 'journey_started', 'work_in_progress', 'visited', 'work_done', 'completed'].includes(String(booking?.status || '').toLowerCase()) && (
             <div className="flex flex-col items-center justify-center mb-6">
               <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
                 <FiCheckCircle className="w-12 h-12 text-green-600" />
@@ -297,7 +297,7 @@ const BookingConfirmation = () => {
           )}
 
           {/* Request Sent Icon - Show when status is requested but searching animation is stopped */}
-          {!isSearching && booking?.status?.toLowerCase() === 'requested' && (
+          {!isSearching && String(booking?.status || '').toLowerCase() === 'requested' && (
             <div className="flex flex-col items-center justify-center mb-6">
               <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-4 border border-amber-100 shadow-sm">
                 <FiBell className="w-10 h-10 text-amber-500 animate-pulse" />
@@ -310,7 +310,7 @@ const BookingConfirmation = () => {
           )}
 
           {/* Failure Icon - Show when expired/cancelled/rejected */}
-          {!isSearching && ['expired', 'cancelled', 'rejected', 'failed', 'timeout'].includes(booking?.status?.toLowerCase()) && (
+          {!isSearching && ['expired', 'cancelled', 'rejected', 'failed', 'timeout'].includes(String(booking?.status || '').toLowerCase()) && (
             <div className="flex flex-col items-center justify-center mb-6">
               <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <FiXCircle className="w-12 h-12 text-red-600" />
@@ -403,39 +403,42 @@ const BookingConfirmation = () => {
                   <div className="flex items-center gap-3 pt-3 border-t border-dashed border-gray-100">
                     <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 overflow-hidden">
                       {brandIcon ? (
-                        <img src={brandIcon} alt={brandName} className="w-6 h-6 object-contain" />
+                        <img src={brandIcon} alt={String(brandName)} className="w-6 h-6 object-contain" />
                       ) : (
-                        <span className="text-base font-black text-slate-400">{brandName.charAt(0)}</span>
+                        <span className="text-base font-black text-slate-400">{String(brandName).charAt(0)}</span>
                       )}
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Brand</p>
-                      <p className="text-sm font-bold text-gray-800">{brandName}</p>
+                      <p className="text-sm font-bold text-gray-800">{String(brandName)}</p>
                     </div>
                   </div>
                 );
               })()}
 
               {/* Service Cards */}
-              {booking.bookedItems && booking.bookedItems.length > 0 ? (
+              {Array.isArray(booking.bookedItems) && booking.bookedItems.length > 0 ? (
                 <div className="pt-3 border-t border-dashed border-gray-100 space-y-2">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Services Booked</p>
-                  {booking.bookedItems.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start bg-gray-50 rounded-xl p-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold px-1.5 py-0.5 rounded border"
-                            style={{ color: themeColors.button, backgroundColor: 'rgba(0,166,166,0.08)', borderColor: 'rgba(0,166,166,0.2)' }}>
-                            ×{item.quantity}
-                          </span>
-                          <span className="text-sm font-semibold text-gray-900 truncate">{item.card?.title || 'Service'}</span>
+                  {booking.bookedItems.map((item, idx) => {
+                    if (!item) return null; // Prevent null item crash
+                    return (
+                      <div key={idx} className="flex justify-between items-start bg-gray-50 rounded-xl p-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded border"
+                              style={{ color: themeColors.button, backgroundColor: 'rgba(0,166,166,0.08)', borderColor: 'rgba(0,166,166,0.2)' }}>
+                              ×{item.quantity || 1}
+                            </span>
+                            <span className="text-sm font-semibold text-gray-900 truncate">{item.card?.title || 'Service'}</span>
+                          </div>
+                          {item.card?.subtitle && <p className="text-xs text-gray-400 mt-0.5 ml-8 line-clamp-1">{item.card.subtitle}</p>}
+                          {item.card?.duration && <p className="text-xs text-gray-400 mt-0.5 ml-8">⏱ {item.card.duration}</p>}
                         </div>
-                        {item.card?.subtitle && <p className="text-xs text-gray-400 mt-0.5 ml-8 line-clamp-1">{item.card.subtitle}</p>}
-                        {item.card?.duration && <p className="text-xs text-gray-400 mt-0.5 ml-8">⏱ {item.card.duration}</p>}
+                        <span className="text-sm font-bold text-gray-900 ml-3 shrink-0">₹{((Number(item.card?.price) || 0) * (Number(item.quantity) || 1)).toLocaleString('en-IN')}</span>
                       </div>
-                      <span className="text-sm font-bold text-gray-900 ml-3 shrink-0">₹{((item.card?.price || 0) * (item.quantity || 1)).toLocaleString('en-IN')}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : null}
             </div>

@@ -382,7 +382,14 @@ const JobMap = () => {
             map.setCenter(currentLocation);
             map.setZoom(15);
           } else {
-            setRouteError('Could not calculate a driving route to this location.');
+            if (status === window.google.maps.DirectionsStatus.ZERO_RESULTS) {
+              // Usually means origin and destination are too close
+              map.setCenter(currentLocation);
+              map.setZoom(18);
+              setRouteError(null);
+            } else {
+              setRouteError('Could not calculate a driving route to this location.');
+            }
           }
         }
       );

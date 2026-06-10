@@ -42,6 +42,17 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
   const loadJobDetails = async () => {
     try {
       setLoading(true);
+      if (jobId === 'test-id') {
+        // Mock data for UI testing
+        setJob({
+          id: 'test-id',
+          serviceType: 'AC Service & Repair',
+          address: '123 Main Street, Delhi',
+          distance: 2.4,
+        });
+        setLoading(false);
+        return;
+      }
       const res = await workerService.getJobById(jobId);
       if (res.success) {
         setJob(res.data);

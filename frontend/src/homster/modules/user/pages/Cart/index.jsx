@@ -92,7 +92,7 @@ const Cart = () => {
   const handleSubCategoryCheckout = (subCategoryName) => {
     const itemsInSub = groupedItems[subCategoryName] || [];
     const firstItem = itemsInSub[0];
-    navigate('/user/checkout', {
+    navigate('/user/home-services/checkout', {
       state: {
         subCategory: subCategoryName,
         subCategoryId: firstItem?.subCategoryId

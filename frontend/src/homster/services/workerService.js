@@ -63,8 +63,8 @@ const workerService = {
   },
 
   initiateCashCollection: async (id, totalAmount, extraItems = []) => {
-    const response = await api.post(`/bookings/cash/${id}/initiate`, {
-      totalAmount,
+    const response = await api.post(`/workers/jobs/${id}/payment/initiate-cash`, {
+      amount: totalAmount,
       extraItems
     });
     return response.data;
@@ -87,7 +87,7 @@ const workerService = {
   },
 
   collectCash: async (id, otp, amount, extraItems = []) => {
-    const response = await api.post(`/bookings/cash/${id}/confirm`, {
+    const response = await api.post(`/workers/jobs/${id}/payment/collect`, {
       otp,
       amount,
       extraItems

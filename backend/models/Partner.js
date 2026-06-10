@@ -115,4 +115,7 @@ const partnerSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const Partner = mongoose.model('Partner', partnerSchema);
+if (!mongoose.models.Vendor) {
+  mongoose.model('Vendor', partnerSchema);
+}
 export default Partner;

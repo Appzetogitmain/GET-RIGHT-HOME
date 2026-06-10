@@ -25,6 +25,8 @@ const app = express();
 const server = createServer(app); // Create HTTP server
 const PORT = process.env.PORT || 5000;
 
+import { initIO } from './sockets.js';
+
 // Initialize Socket.io
 const io = new Server(server, {
   cors: {
@@ -33,37 +35,14 @@ const io = new Server(server, {
       'http://127.0.0.1:5173',
       'https://homezoo.vercel.app',
       'homezoo.vercel.app',
-
-
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
   }
 });
 
-// Socket.io Logic
-io.on('connection', (socket) => {
-  console.log('🔌 New Client Connected:', socket.id);
-
-  // User joins a tracking room (e.g., their booking ID or just a hotel room)
-  socket.on('join_tracking', (room) => {
-    socket.join(room);
-    console.log(`User ${socket.id} joined room: ${room}`);
-  });
-
-  // User emits location updates
-  socket.on('update_location', (data) => {
-    const { room, location } = data;
-    // Broadcast to others in the room (e.g., Hotel Dashboard)
-    socket.to(room).emit('live_location_update', location);
-    // console.log(`Location update from ${socket.id} in ${room}:`, location);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
-
+initIO(io);
+app.set('io', io);
 // Middleware
 app.use(morgan('dev'));
 // Middleware to log request start
@@ -185,6 +164,33 @@ app.get('/api/public/cities', getActiveCities);
 // Plans public endpoint (returns empty list if no plans configured)
 app.get('/api/public/plans', (req, res) => {
   res.json({ success: true, data: [] });
+});
+app.get('/api/public/config', async (req, res) => {
+  try {
+    const Settings = (await import('./models/Settings.js')).default;
+    let settings = await Settings.findOne({ type: 'global' });
+    if (!settings) {
+      settings = {
+        supportEmail: 'help@Truliq.in',
+        supportPhone: '+919999999999',
+        visitedCharges: 29,
+        serviceGstPercentage: 18,
+        partsGstPercentage: 18
+      };
+    }
+    res.json({ success: true, settings });
+  } catch (err) {
+    res.json({
+      success: true,
+      settings: {
+        supportEmail: 'help@Truliq.in',
+        supportPhone: '+919999999999',
+        visitedCharges: 29,
+        serviceGstPercentage: 18,
+        partsGstPercentage: 18
+      }
+    });
+  }
 });
 app.get('/api/public/home-data', async (req, res) => {
   try {

@@ -7,6 +7,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import NotificationBell from '../../components/common/NotificationBell';
 import { motion } from 'framer-motion';
 import { bookingService } from '../../../../services/bookingService';
+import BottomNav from '../../components/layout/BottomNav';
 
 const MyBookings = () => {
   const navigate = useNavigate();
@@ -181,7 +182,7 @@ const MyBookings = () => {
         <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/40 border-b border-black/[0.03] px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/home-services')}
               className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-black/[0.02]"
             >
               <FiArrowLeft className="w-5 h-5 text-gray-800" />
@@ -394,8 +395,9 @@ const MyBookings = () => {
             </motion.div>
           )}
         </main>
-      </div>
     </div>
+    <BottomNav />
+  </div>
   );
 };
 

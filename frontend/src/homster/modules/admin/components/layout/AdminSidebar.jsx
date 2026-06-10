@@ -410,7 +410,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                 {adminUser.name}
               </h2>
               <p className="text-xs text-gray-400 truncate">
-                {adminUser.role === 'super_admin' ? '⭐ Super Admin' : 'Admin'}
+                {(adminUser.role === 'superadmin' || adminUser.role === 'super_admin') ? '⭐ Super Admin' : 'Admin'}
               </p>
             </div>
           </div>

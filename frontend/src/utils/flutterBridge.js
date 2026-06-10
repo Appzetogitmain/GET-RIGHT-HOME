@@ -194,11 +194,49 @@ export const pickVideo = async (onSuccess, onError) => {
   }
 };
 
+/**
+ * Get current location coordinates
+ * @returns {Promise<Object>} {latitude, longitude}
+ */
+export const getCurrentLocation = async () => {
+  if (isFlutterApp() && window.flutter_inappwebview) {
+    try {
+      const result = await window.flutter_inappwebview.callHandler('getCurrentLocation');
+      if (result && result.latitude && result.longitude) {
+        return result;
+      }
+    } catch (e) {
+      console.warn('Flutter getCurrentLocation handler failed, falling back to browser:', e);
+    }
+  }
+
+  // Browser standard Geolocation fallback
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported by your browser'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+      },
+      (error) => {
+        reject(error);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+};
+
 export default {
   isFlutterApp,
   openFlutterCamera,
   openFlutterVideoCamera,
   uploadBase64Image,
   pickImage,
-  pickVideo
+  pickVideo,
+  getCurrentLocation
 };

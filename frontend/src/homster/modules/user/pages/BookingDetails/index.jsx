@@ -106,7 +106,7 @@ const BookingDetails = () => {
         setBooking(data);
       } else {
         toast.error(response.message || 'Booking not found');
-        navigate('/user/my-bookings');
+        navigate('/user/home-services/bookings');
       }
     } catch (error) {
       // Failed to load booking details
@@ -144,7 +144,7 @@ const BookingDetails = () => {
   useEffect(() => {
     if (!booking) return;
 
-    const isPaymentDone = booking.paymentStatus === 'success' || booking.cashCollected === true;
+    const isPaymentDone = ['success', 'paid', 'collected_by_vendor'].includes(booking.paymentStatus?.toLowerCase()) || booking.cashCollected === true;
 
     // Track the latest OTP to detect a fresh payment request from the vendor
     const lastSeenOtp = sessionStorage.getItem(`last_seen_otp_${booking._id}`);
@@ -174,28 +174,29 @@ const BookingDetails = () => {
     if (socket && id) {
       // Handler for booking updates
       const handleUpdate = (data) => {
-        // Check if update relates to this booking
-        if (data.bookingId === id || data.relatedId === id || data.data?.bookingId === id) {
+        // Check if update relates to this booking — use String comparison to handle ObjectId vs string
+        const incomingId = String(data.bookingId || data.relatedId || data.data?.bookingId || '');
+        const currentId = String(id);
+        if (incomingId !== currentId) return;
 
-          // Instant UI update for critical fields (status, OTPs, amounts)
-          setBooking(prev => {
-            if (!prev) return prev;
-            const newData = { ...prev, ...(data.data || data) };
+        // Instant UI update for critical fields (status, OTPs, amounts)
+        setBooking(prev => {
+          if (!prev) return prev;
+          const newData = { ...prev, ...(data.data || data) };
 
-            // Calculate notional display values for plan_benefit
-            if (newData.paymentMethod === 'plan_benefit') {
-              if (!newData.tax) newData.tax = 0;
-              if (!newData.visitingCharges && !newData.visitationFee) newData.visitingCharges = 0;
-            }
-            return newData;
-          });
-
-          // Fetch full data to ensure consistency
-          loadBooking();
-
-          if (data.message) {
-            toast(data.message, { icon: '🔔' });
+          // Calculate notional display values for plan_benefit
+          if (newData.paymentMethod === 'plan_benefit') {
+            if (!newData.tax) newData.tax = 0;
+            if (!newData.visitingCharges && !newData.visitationFee) newData.visitingCharges = 0;
           }
+          return newData;
+        });
+
+        // Fetch full data to ensure consistency
+        loadBooking();
+
+        if (data.message) {
+          toast(data.message, { icon: '🔔' });
         }
       };
 
@@ -502,7 +503,7 @@ const BookingDetails = () => {
           </div>
           <p className="text-gray-500 font-bold">Booking not found</p>
           <button
-            onClick={() => navigate('/user/my-bookings')}
+            onClick={() => navigate('/user/home-services/bookings')}
             className="mt-6 px-8 py-3 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all"
           >
             Go to My Bookings
@@ -603,7 +604,7 @@ const BookingDetails = () => {
         <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/40 border-b border-black/[0.03] px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/user/my-bookings')}
+              onClick={() => navigate('/user/home-services/bookings')}
               className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-black/[0.02]"
             >
               <FiArrowLeft className="w-5 h-5 text-gray-800" />
@@ -1413,41 +1414,6 @@ const BookingDetails = () => {
 
           {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Support */}
-            {/* Support */}
-            <button
-              onClick={() => {
-                const phone = supportInfo.phone || '+919999999999';
-                if (phone) {
-                  // Use native anchor click for better WebView compatibility
-                  const link = document.createElement('a');
-                  link.href = `tel:${phone.replace(/[^\d+]/g, '')}`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                } else {
-                  toast.error('Support phone number not available');
-                }
-              }}
-              className="col-span-1 flex flex-col items-center justify-center gap-2 p-4 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 transition-colors active:scale-95"
-            >
-              <FiPhone className="w-6 h-6 text-gray-700" />
-              <span className="text-sm font-bold text-gray-700">Call Support</span>
-            </button>
-            <button
-              onClick={() => {
-                const email = supportInfo.email || 'help@Truliq.in';
-                const link = document.createElement('a');
-                link.href = `mailto:${email}`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
-              className="col-span-1 flex flex-col items-center justify-center gap-2 p-4 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 transition-colors active:scale-95"
-            >
-              <FiMail className="w-6 h-6 text-gray-700" />
-              <span className="text-sm font-bold text-gray-700">Email Help</span>
-            </button>
 
             {/* Cancel */}
             {!['cancelled', 'completed', 'work_done'].includes(booking.status?.toLowerCase()) && (

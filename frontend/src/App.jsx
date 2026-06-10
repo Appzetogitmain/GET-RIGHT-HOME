@@ -62,6 +62,9 @@ const ListPropertyWizard = React.lazy(() => import('./pages/user/ListPropertyWiz
 const DynamicFormEngine = React.lazy(() => import('./pages/user/DynamicFormEngine'));
 const CartPage = React.lazy(() => import('./homster/modules/user/pages/Cart'));
 const HomeServiceCheckoutPage = React.lazy(() => import('./homster/modules/user/pages/Checkout'));
+const HomeServiceBookingsPage = React.lazy(() => import('./homster/modules/user/pages/MyBookings'));
+const HSBookingDetailsPage = React.lazy(() => import('./homster/modules/user/pages/BookingDetails'));
+const HSBookingConfirmationPage = React.lazy(() => import('./homster/modules/user/pages/BookingConfirmation'));
 
 // Lazy Imports - Worker Pages
 const WorkerRoutes = React.lazy(() => import('./homster/modules/worker/routes/index.jsx'));
@@ -202,7 +205,7 @@ const Layout = ({ children }) => {
   const showUserNavs = !isPartnerApp;
 
   // Specific user pages where BottomNav is hidden (reels = full-screen experience)
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/checkout'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
   const isReelsPage = location.pathname.startsWith('/reels');
 
@@ -588,7 +591,10 @@ function App() {
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/user/cart" element={<CartPage />} />
-              <Route path="/user/checkout" element={<HomeServiceCheckoutPage />} />
+              <Route path="/user/home-services/checkout" element={<HomeServiceCheckoutPage />} />
+              <Route path="/user/home-services/bookings" element={<HomeServiceBookingsPage />} />
+              <Route path="/user/booking/:id" element={<HSBookingDetailsPage />} />
+              <Route path="/user/booking-confirmation/:id" element={<HSBookingConfirmationPage />} />
               <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />
 
               {/* User Property Listing Dashboard & Bookings Routes (Protected) */}

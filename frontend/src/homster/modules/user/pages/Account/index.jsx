@@ -433,7 +433,7 @@ const Account = () => {
             <MenuItem
               icon={FiClipboard}
               label="My Bookings"
-              onClick={() => navigate('/user/my-bookings')}
+              onClick={() => navigate('/user/home-services/bookings')}
             />
             <MenuItem
               icon={FiStar}

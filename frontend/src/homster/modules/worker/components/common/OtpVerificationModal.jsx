@@ -5,25 +5,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 const OtpVerificationModal = ({ isOpen, onClose, onVerify, loading }) => {
   const [otp, setOtp] = useState('');
   const inputRef = useRef(null);
+  // Guard to prevent calling onVerify more than once per OTP entry
+  const verifyCalledRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
       setOtp('');
+      verifyCalledRef.current = false; // reset guard on open
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
 
   useEffect(() => {
-    if (otp.length === 4) {
+    if (otp.length === 4 && !verifyCalledRef.current && !loading) {
+      verifyCalledRef.current = true; // mark as called
       onVerify(otp);
     }
-  }, [otp, onVerify]);
+  }, [otp]); // Only depend on otp, NOT on onVerify (to prevent re-triggers)
 
   // Clear OTP on failure (when loading finishes and modal is still open)
   const prevLoading = useRef(loading);
   useEffect(() => {
     if (prevLoading.current && !loading && isOpen) {
       setOtp('');
+      verifyCalledRef.current = false; // allow retry
       inputRef.current?.focus();
     }
     prevLoading.current = loading;
@@ -31,6 +36,8 @@ const OtpVerificationModal = ({ isOpen, onClose, onVerify, loading }) => {
 
   const handleChange = (e) => {
     const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+    // Reset guard if user edits OTP (e.g. deletes a digit)
+    if (val.length < 4) verifyCalledRef.current = false;
     setOtp(val);
   };
 

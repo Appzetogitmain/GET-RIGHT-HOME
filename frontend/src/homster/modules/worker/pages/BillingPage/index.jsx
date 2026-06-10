@@ -13,6 +13,9 @@ import { publicCatalogService } from '../../../../services/catalogService';
 const BillingPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // Always replace history so back button doesn't return to billing after job completion
+  const goToDashboard = () => navigate('/worker/dashboard', { replace: true });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [job, setJob] = useState(null);
@@ -213,7 +216,8 @@ const BillingPage = () => {
   // --- FILTERING ---
   const filteredServices = useMemo(() => {
     return servicesCatalog.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(serviceSearch.toLowerCase());
+      const itemName = item.name || item.title || '';
+      const matchesSearch = itemName.toLowerCase().includes(serviceSearch.toLowerCase());
       const matchesCategory = selectedCategory === 'All' || (item.categoryId?.title || 'Uncategorized') === selectedCategory;
       return matchesSearch && matchesCategory;
     });
@@ -221,7 +225,8 @@ const BillingPage = () => {
 
   const filteredParts = useMemo(() => {
     return partsCatalog.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(partSearch.toLowerCase());
+      const itemName = item.name || item.title || '';
+      const matchesSearch = itemName.toLowerCase().includes(partSearch.toLowerCase());
       const matchesCategory = selectedPartCategory === 'All' || (item.categoryId?.title || 'Uncategorized') === selectedPartCategory;
       return matchesSearch && matchesCategory;
     });
@@ -234,12 +239,14 @@ const BillingPage = () => {
       if (exists) {
         return prev.filter(s => s.catalogId !== item._id);
       }
+      const itemName = item.name || item.title || 'Unknown Service';
+      const itemPrice = item.price !== undefined ? item.price : (item.basePrice || 0);
       return [...prev, {
         catalogId: item._id,
-        name: item.name,
-        price: item.price,
+        name: itemName,
+        price: itemPrice,
         quantity: 1,
-        total: item.price
+        total: itemPrice
       }];
     });
   };
@@ -252,16 +259,14 @@ const BillingPage = () => {
       if (exists) {
         return prev.filter(p => p.catalogId !== item._id);
       }
-      const gstPercentage = item.gstPercentage || 18;
-      const gstAmount = (item.price * gstPercentage) / 100;
+      const itemName = item.name || item.title || 'Unknown Part';
+      const itemPrice = item.price !== undefined ? item.price : (item.basePrice || 0);
       return [...prev, {
         catalogId: item._id,
-        name: item.name,
-        price: item.price,
-        gstPercentage,
+        name: itemName,
+        price: itemPrice,
         quantity: 1,
-        gstAmount,
-        total: item.price + gstAmount
+        total: itemPrice
       }];
     });
   };
@@ -429,24 +434,26 @@ const BillingPage = () => {
   };
 
   const handleVerifyOTP = async (code) => {
+    if (otpLoading) return; // prevent double call
     try {
       setOtpLoading(true);
       const validCustomItems = customItems.filter(item => item.name.trim() !== '');
       const res = await workerService.collectCash(id, code, calculations.finalBillAmount, [...selectedParts, ...validCustomItems]);
       if (res.success) {
         setShowOtpModal(false);
-        toast.success('Payment verified successfully!');
+        toast.success('Job completed! Payment collected successfully 🎉');
         localStorage.removeItem(`worker_billing_step_${id}`);
         localStorage.removeItem(`worker_billing_max_step_${id}`);
         localStorage.removeItem(`worker_billing_data_${id}`);
-        fetchData();
-        navigate(`/worker/job/${id}`);
+        // Replace history so back button goes to dashboard, not billing
+        goToDashboard();
       } else {
         toast.error(res.message || 'Invalid OTP');
       }
     } catch (error) {
       console.error('Verify OTP error:', error);
-      toast.error('Verification failed');
+      const msg = error?.response?.data?.message || 'Verification failed';
+      toast.error(msg);
     } finally {
       setOtpLoading(false);
     }
@@ -488,12 +495,12 @@ const BillingPage = () => {
       const res = await workerService.verifyOnlineCollection(id);
       if (res.success) {
         setShowQrModal(false);
-        toast.success('Payment verified successfully!');
+        toast.success('Job completed! Payment received successfully 🎉');
         localStorage.removeItem(`worker_billing_step_${id}`);
         localStorage.removeItem(`worker_billing_max_step_${id}`);
         localStorage.removeItem(`worker_billing_data_${id}`);
-        fetchData();
-        navigate(`/worker/job/${id}`);
+        // Replace history so back button goes to dashboard, not billing
+        goToDashboard();
       } else {
         toast.error(res.message || 'Payment not yet confirmed');
       }
@@ -506,20 +513,21 @@ const BillingPage = () => {
   useEffect(() => {
     if (socket && id) {
       const handleJobUpdate = (data) => {
-        if (data.bookingId === id || data.relatedId === id || data._id === id) {
-          const isPaymentSuccess =
-            data.paymentStatus === 'SUCCESS' ||
-            data.paymentStatus === 'paid' ||
-            data.type === 'payment_success';
+        const incomingId = String(data.bookingId || data.relatedId || data._id || '');
+        if (incomingId !== String(id)) return;
 
-          if (isPaymentSuccess) {
-            toast.success('Online Payment Received!');
-            // Clean up and navigate back to job details
-            localStorage.removeItem(`worker_billing_step_${id}`);
-            localStorage.removeItem(`worker_billing_max_step_${id}`);
-            localStorage.removeItem(`worker_billing_data_${id}`);
-            setTimeout(() => navigate(`/worker/job/${id}`), 1000);
-          }
+        const isPaymentSuccess =
+          data.paymentStatus === 'SUCCESS' ||
+          data.paymentStatus === 'paid' ||
+          data.type === 'payment_success';
+
+        if (isPaymentSuccess) {
+          toast.success('Online Payment Received! Job Completed 🎉');
+          // Clean up and navigate to dashboard
+          localStorage.removeItem(`worker_billing_step_${id}`);
+          localStorage.removeItem(`worker_billing_max_step_${id}`);
+          localStorage.removeItem(`worker_billing_data_${id}`);
+          setTimeout(() => goToDashboard(), 1000);
         }
       };
 
@@ -691,7 +699,17 @@ const BillingPage = () => {
     <div className="min-h-screen bg-gray-50 pb-0 flex flex-col">
       <div className="sticky top-0 z-50 bg-white">
         <div className="px-4 py-4 shadow-sm border-b border-gray-100 flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full">
+          <button
+            onClick={() => {
+              // If job is already completed, go directly to dashboard
+              if (job?.status === 'completed') {
+                goToDashboard();
+              } else {
+                navigate(-1);
+              }
+            }}
+            className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
+          >
             <FiArrowLeft className="w-5 h-5" />
           </button>
           <div>
@@ -934,6 +952,18 @@ const BillingPage = () => {
                     <div className="flex justify-between text-sm pl-2 font-bold text-gray-800">
                       <span>Transport Price</span>
                       <span>₹{Number(transportCharges).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+                {calculations.totalGST > 0 && (
+                  <div>
+                    <h4 className="font-bold text-gray-900 flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+                      <span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-black">%</span>
+                      Taxes & Fees
+                    </h4>
+                    <div className="flex justify-between text-sm pl-2 text-gray-600">
+                      <span>GST (18%)</span>
+                      <span>₹{calculations.totalGST.toFixed(2)}</span>
                     </div>
                   </div>
                 )}

@@ -277,6 +277,35 @@ export const bookingService = {
   }
 };
 
+// Home Service Booking Services
+export const hsBookingService = {
+  getMyBookings: async (status) => {
+    try {
+      const url = status ? `/hs-bookings/my?status=${status}` : '/hs-bookings/my';
+      const response = await api.get(url);
+      return response.data; // Note: This usually returns { success: true, data: [...] }
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getBookingDetail: async (id) => {
+    try {
+      const response = await api.get(`/hs-bookings/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  cancelBooking: async (id, reason) => {
+    try {
+      const response = await api.post(`/hs-bookings/${id}/cancel`, { cancellationReason: reason });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
 // ── Dedicated Enquiry Service ─────────────────────────────────────────────────
 export const enquiryService = {
   // Submit an enquiry from the property details page

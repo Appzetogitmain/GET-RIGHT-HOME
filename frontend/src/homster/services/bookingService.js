@@ -40,19 +40,19 @@ export const bookingService = {
 
   // Reschedule booking
   reschedule: async (id, rescheduleData) => {
-    const response = await api.put(`/users/hs-bookings/${id}/reschedule`, rescheduleData);
+    const response = await api.put(`/hs-bookings/${id}/reschedule`, rescheduleData);
     return response.data;
   },
 
   // Add review and rating
   addReview: async (id, reviewData) => {
-    const response = await api.post(`/users/hs-bookings/${id}/review`, reviewData);
+    const response = await api.post(`/hs-bookings/${id}/review`, reviewData);
     return response.data;
   },
 
   // Get user ratings and reviews
   getRatings: async (params = {}) => {
-    const response = await api.get('/users/hs-bookings/ratings', { params });
+    const response = await api.get('/hs-bookings/ratings', { params });
     return response.data;
   }
 };

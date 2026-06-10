@@ -119,21 +119,62 @@ export const playSingleBeep = () => {
 
 // Play urgent ring for booking alerts
 let currentAudio = null; // Global variable to track current playing audio
+let alertInterval = null; // Global variable to track synthesizer interval
 
 export const playAlertRing = (loop = false) => {
   try {
-    // If audio is already playing, do nothing if we want to sustain it, or restart ??
-    // Actually, proper behavior: if playing, stop previous and start new to ensure fresh start
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
-    }
+    stopAlertRing();
 
     const audio = new Audio('/booking-alert.mp3');
     if (loop) audio.loop = true;
     currentAudio = audio; // Track the new audio instance
 
-    audio.play().catch(e => console.error('Error playing alert file:', e));
+    audio.play().catch(e => {
+      console.warn('External audio file not found/allowed, falling back to Web Audio API synthesis:', e);
+      
+      // Synthesized Fallback: Play urgent ringing tones
+      initAudio();
+      
+      const playSynthRing = () => {
+        if (!audioContext) return;
+        if (audioContext.state === 'suspended') {
+          audioContext.resume().catch(e => console.warn('Could not resume AudioContext:', e));
+        }
+        
+        const now = audioContext.currentTime;
+        // Pleasant modern ringtone sequence (similar to a smartphone ring)
+        const pulseTones = [
+          { freq: 659.25, time: 0, dur: 0.2 },     // E5
+          { freq: 880.00, time: 0.15, dur: 0.2 },  // A5
+          { freq: 1046.50, time: 0.3, dur: 0.2 },  // C6
+          { freq: 1318.51, time: 0.45, dur: 0.4 }  // E6
+        ];
+
+        pulseTones.forEach(({ freq, time, dur }) => {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+
+          osc.type = 'sine'; // Sine wave is softer and more pleasant
+          osc.frequency.setValueAtTime(freq, now + time);
+
+          // Fast attack, slow decay for a "bell" or "marimba" sound
+          gain.gain.setValueAtTime(0, now + time);
+          gain.gain.linearRampToValueAtTime(0.5, now + time + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + time + dur);
+
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+
+          osc.start(now + time);
+          osc.stop(now + time + dur);
+        });
+      };
+
+      playSynthRing();
+      if (loop) {
+        alertInterval = setInterval(playSynthRing, 1200);
+      }
+    });
 
     // Cleanup when audio finishes (if not looping)
     audio.onended = () => {
@@ -151,9 +192,15 @@ export const playAlertRing = (loop = false) => {
 
 export const stopAlertRing = () => {
   if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    } catch (err) {}
     currentAudio = null;
+  }
+  if (alertInterval) {
+    clearInterval(alertInterval);
+    alertInterval = null;
   }
 };
 
