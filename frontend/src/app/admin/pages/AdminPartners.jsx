@@ -5,7 +5,7 @@ import {
     Mail, Phone, Shield, Trash2, Unlock, Eye,
     ChevronLeft, ChevronRight, Download
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
@@ -29,6 +29,8 @@ const StatusBadge = ({ label, type }) => {
 };
 
 const AdminPartners = () => {
+    const location = useLocation();
+    const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalUsers, setTotalUsers] = useState(0);
@@ -289,7 +291,7 @@ const AdminPartners = () => {
                                                 className="hover:bg-gray-50/50 transition-colors group relative font-bold"
                                             >
                                                 <td className="p-4">
-                                                    <Link to={`/admin/partners/${user._id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                                                    <Link to={`${basePath}/partners/${user._id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                                                         <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shrink-0 border border-white shadow-sm font-bold uppercase text-xs overflow-hidden">
                                                             {user.profileImage ? (
                                                                 <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
@@ -341,7 +343,7 @@ const AdminPartners = () => {
 
                                                     {activeDropdown === user._id && (
                                                         <div className="absolute right-8 top-8 w-40 bg-white border border-gray-200 rounded-lg shadow-xl z-20 py-1 text-left">
-                                                            <Link to={`/admin/partners/${user._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
+                                                            <Link to={`${basePath}/partners/${user._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
                                                             {user.partnerApprovalStatus !== 'approved' && (

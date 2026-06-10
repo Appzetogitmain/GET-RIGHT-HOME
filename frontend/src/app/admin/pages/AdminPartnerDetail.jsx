@@ -5,13 +5,16 @@ import {
     History, AlertTriangle, Ban, CheckCircle, Lock, Unlock, Loader2,
     Building, FileText, CheckSquare, XSquare, ArrowDownLeft, ArrowUpRight
 } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import walletService from '../../../services/walletService';
 import toast from 'react-hot-toast';
 
-const PartnerPropertiesTab = ({ properties }) => (
+const PartnerPropertiesTab = ({ properties }) => {
+    const location = useLocation();
+    const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
+    return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
@@ -28,7 +31,7 @@ const PartnerPropertiesTab = ({ properties }) => (
                     properties.map((property, i) => (
                         <tr key={i} className="hover:bg-gray-50">
                             <td className="p-4 font-bold text-gray-900">
-                                <Link to={`/admin/hotels/${property._id}`} className="hover:text-blue-600 hover:underline">
+                                <Link to={`${basePath}/properties/${property._id}`} className="hover:text-blue-600 hover:underline">
                                     {property.propertyName}
                                 </Link>
                             </td>
@@ -55,7 +58,8 @@ const PartnerPropertiesTab = ({ properties }) => (
             </tbody>
         </table>
     </div>
-);
+    );
+};
 
 const PartnerDocumentsTab = ({ partner }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -221,6 +225,8 @@ const PartnerTransactionsTab = ({ partnerId }) => {
 };
 
 const AdminPartnerDetail = () => {
+    const location = useLocation();
+    const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
     const { id } = useParams();
     const [partner, setPartner] = useState(null);
     const [properties, setProperties] = useState([]);
@@ -308,7 +314,7 @@ const AdminPartnerDetail = () => {
                 <AlertTriangle size={48} className="mx-auto text-red-400 mb-4" />
                 <h2 className="text-2xl font-bold text-gray-900">Partner Not Found</h2>
                 <p className="text-gray-500 mt-2">The partner you're looking for doesn't exist or has been deleted.</p>
-                <Link to="/admin/partners" className="mt-6 inline-block text-black font-bold uppercase text-xs border-b-2 border-black pb-1">Back to Partners</Link>
+                <Link to={`${basePath}/partners`} className="mt-6 inline-block text-black font-bold uppercase text-xs border-b-2 border-black pb-1">Back to Partners</Link>
             </div>
         );
     }
@@ -328,7 +334,7 @@ const AdminPartnerDetail = () => {
             />
 
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-gray-500 mb-2">
-                <Link to="/admin/partners" className="hover:text-black transition-colors">Partners</Link>
+                <Link to={`${basePath}/partners`} className="hover:text-black transition-colors">Partners</Link>
                 <span>/</span>
                 <span className="text-black">{partner.name}</span>
             </div>
@@ -393,6 +399,36 @@ const AdminPartnerDetail = () => {
                         <div className="p-3 bg-white/50 rounded-lg border border-gray-200/50 flex justify-between items-center">
                             <span className="text-[10px] text-gray-500 uppercase font-bold">Total Properties</span>
                             <span className="text-lg font-bold text-gray-900">{properties.length}</span>
+                        </div>
+                        <div className="p-3 bg-white/50 rounded-lg border border-gray-200/50 flex flex-col gap-1.5">
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] text-gray-500 uppercase font-bold">Active Plan</span>
+                                <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-full ${partner.subscription?.planId ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-400'}`}>
+                                    {partner.subscription?.planId?.name || 'No Active Plan'}
+                                </span>
+                            </div>
+                            {partner.subscription?.planId && (
+                                <div className="mt-1 pt-1.5 border-t border-gray-100 flex flex-col gap-1 text-[9px] font-bold text-gray-400 uppercase">
+                                    <div className="flex justify-between">
+                                        <span>Expires:</span>
+                                        <span className="text-gray-700">
+                                            {new Date(partner.subscription.expiryDate).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Properties:</span>
+                                        <span className="text-gray-700">
+                                            {partner.subscription.propertiesAdded || 0}/{partner.subscription.planId.maxProperties}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Leads:</span>
+                                        <span className="text-gray-700">
+                                            {partner.subscription.leadsUsedThisMonth || 0}/{partner.subscription.planId.leadCap || '∞'}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

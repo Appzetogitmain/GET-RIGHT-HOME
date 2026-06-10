@@ -26,11 +26,27 @@ const enquirySchema = new mongoose.Schema({
         required: true
     },
 
+    // ── Customer Details (Stored directly in lead) ───────────────────────────
+    name: {
+        type: String,
+        required: true
+    },
+
+    phone: {
+        type: String,
+        required: true
+    },
+
+    email: {
+        type: String,
+        required: true
+    },
+
     // ── Enquiry Type ──────────────────────────────────────────────────────────
     enquiryType: {
         type: String,
-        enum: ['contact_owner', 'schedule_visit', 'request_callback', 'general'],
-        default: 'general'
+        enum: ['call', 'whatsapp', 'callback'],
+        default: 'callback'
     },
 
     // ── Content ───────────────────────────────────────────────────────────────
@@ -58,7 +74,7 @@ const enquirySchema = new mongoose.Schema({
     // ── Status Tracking ───────────────────────────────────────────────────────
     status: {
         type: String,
-        enum: ['new', 'contacted', 'scheduled', 'closed', 'sold', 'rented', 'dropped'],
+        enum: ['new', 'contacted', 'scheduled', 'follow-up', 'negotiation', 'closed', 'sold', 'rented', 'dropped'],
         default: 'new'
     },
 

@@ -154,14 +154,13 @@ export const authService = {
       throw error.response?.data || error.message;
     }
   },
-
-  // Logout
-  logout: () => {
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {}
     localStorage.removeItem('user');
   }
 };
-
-
 
 // Booking Services
 export const bookingService = {
@@ -450,6 +449,14 @@ export const propertyService = {
   revealContact: async (id) => {
     try {
       const response = await api.get(`/properties/${id}/reveal-contact`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getPartnerPublicDetails: async (id) => {
+    try {
+      const response = await api.get(`/properties/partner-public-details/${id}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -966,6 +973,33 @@ export const localityReviewService = {
   getReviews: async (localityName, page = 1, limit = 10) => {
     try {
       const response = await api.get('/locality-reviews', { params: { localityName, page, limit } });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
+export const feedbackService = {
+  getMyFeedback: async () => {
+    try {
+      const response = await api.get('/feedback/my');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  saveFeedback: async (feedbackData) => {
+    try {
+      const response = await api.post('/feedback', feedbackData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  deleteFeedback: async () => {
+    try {
+      const response = await api.delete('/feedback');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

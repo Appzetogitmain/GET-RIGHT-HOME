@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
-    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin
+    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin, ShieldCheck
 } from 'lucide-react';
 
 
@@ -62,8 +62,8 @@ const AdminLayout = () => {
         }
     };
 
-    const handleLogout = () => {
-        logout();
+    const handleLogout = async () => {
+        await logout();
         toast.success('Logged out successfully');
         navigate('/admin/login');
     };
@@ -79,6 +79,7 @@ const AdminLayout = () => {
             title: 'MANAGEMENT',
             items: [
                 { icon: Users, label: 'User Management', path: '/admin/users' },
+                { icon: ShieldCheck, label: 'Manager Management', path: '/admin/managers' },
                 { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
                 { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
                 { icon: Home, label: 'Property Management', path: '/admin/properties' },

@@ -1,6 +1,6 @@
 // routes/enquiryRoutes.js
 import express from 'express';
-import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
+import { protect, optionalProtect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import {
     createEnquiry,
     getMyEnquiries,
@@ -12,7 +12,7 @@ const router = express.Router();
 
 // ── User/Buyer routes ─────────────────────────────────────────────────────────
 // Submit a new enquiry for a property
-router.post('/', protect, createEnquiry);
+router.post('/', optionalProtect, createEnquiry);
 
 // View enquiries I've submitted (buyer)
 router.get('/my', protect, getMyEnquiries);

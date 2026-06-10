@@ -4,12 +4,14 @@ import {
     CheckCircle, XCircle, AlertTriangle, FileText,
     Download, ShieldCheck, Phone, Mail, Loader2
 } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
 
 const AdminBookingDetail = () => {
+    const location = useLocation();
+    const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
     const { id } = useParams();
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -74,7 +76,7 @@ const AdminBookingDetail = () => {
         <div className="text-center py-20">
             <AlertTriangle size={48} className="mx-auto text-red-400 mb-4" />
             <h2 className="text-2xl font-bold text-gray-900">Booking Not Found</h2>
-            <Link to="/admin/bookings" className="mt-6 inline-block text-black font-bold uppercase text-xs border-b-2 border-black pb-1">Back to Bookings</Link>
+            <Link to={`${basePath}/bookings`} className="mt-6 inline-block text-black font-bold uppercase text-xs border-b-2 border-black pb-1">Back to Bookings</Link>
         </div>
     );
 
@@ -88,7 +90,7 @@ const AdminBookingDetail = () => {
 
             {/* Nav */}
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-gray-500 mb-2">
-                <Link to="/admin/bookings" className="hover:text-black transition-colors">Bookings</Link>
+                <Link to={`${basePath}/bookings`} className="hover:text-black transition-colors">Bookings</Link>
                 <span>/</span>
                 <span className="text-black">#{booking.bookingId || booking._id.slice(-6)}</span>
             </div>

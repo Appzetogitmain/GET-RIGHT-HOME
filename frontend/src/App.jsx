@@ -23,6 +23,7 @@ import { CartProvider } from './homster/context/CartContext';
 // Lazy Imports - User Pages
 const Home = React.lazy(() => import('./pages/user/Home'));
 const UserPropertyDetailsPage = React.lazy(() => import('./pages/user/PropertyDetailsPage'));
+const PropertyComparePage = React.lazy(() => import('./pages/user/PropertyComparePage'));
 const UserLogin = React.lazy(() => import('./pages/auth/UserLogin'));
 const UserSignup = React.lazy(() => import('./pages/auth/UserSignup'));
 const SearchPage = React.lazy(() => import('./pages/user/SearchPage'));
@@ -99,6 +100,13 @@ const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAn
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
 const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/PropertyFormManager'));
 const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocationsPage'));
+const AdminManagers = React.lazy(() => import('./app/admin/pages/AdminManagers'));
+
+// Lazy Imports - Manager Panel
+const ManagerLogin = React.lazy(() => import('./app/manager/pages/ManagerLogin'));
+const ManagerDashboard = React.lazy(() => import('./app/manager/pages/ManagerDashboard'));
+const ManagerLayout = React.lazy(() => import('./app/manager/layouts/ManagerLayout'));
+const ManagerProtectedRoute = React.lazy(() => import('./app/manager/ManagerProtectedRoute'));
 
 
 // Lazy Imports - Partner Pages
@@ -117,6 +125,7 @@ const PartnerBookings = React.lazy(() => import('./app/partner/pages/PartnerBook
 const PartnerWallet = React.lazy(() => import('./app/partner/pages/PartnerWallet'));
 const PartnerReviews = React.lazy(() => import('./app/partner/pages/PartnerReviews'));
 const PartnerPage = React.lazy(() => import('./app/partner/pages/PartnerPage'));
+const PartnerProfilePage = React.lazy(() => import('./pages/user/PartnerProfilePage'));
 const PartnerJoinPropertyType = React.lazy(() => import('./app/partner/pages/PartnerJoinPropertyType'));
 const PartnerProperties = React.lazy(() => import('./app/partner/pages/PartnerProperties'));
 const PartnerPropertyDetails = React.lazy(() => import('./app/partner/pages/PartnerPropertyDetails'));
@@ -161,8 +170,8 @@ const Layout = ({ children }) => {
     maintenanceMessage: ''
   });
 
-  // Disable Lenis on Admin routes only (as requested)
-  const isCmsRoute = location.pathname.startsWith('/admin');
+  // Disable Lenis on Admin and Manager routes (as requested)
+  const isCmsRoute = location.pathname.startsWith('/admin') || location.pathname.startsWith('/manager');
   useLenis(isCmsRoute);
 
   React.useEffect(() => {
@@ -191,7 +200,7 @@ const Layout = ({ children }) => {
   }, []);
 
   // 1. GLOBAL HIDE: Auth pages, Admin, and Property Wizard
-  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/hotel/join', '/hotel/wizard', '/hotel/join-dynamic', '/list-property', '/worker'];
+  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/manager', '/hotel/join', '/hotel/wizard', '/hotel/join-dynamic', '/list-property', '/worker'];
   const shouldGlobalHide = globalHideRoutes.some(route => location.pathname.includes(route));
 
   if (shouldGlobalHide) {
@@ -462,6 +471,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/reels" element={<ReelsPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/compare" element={<PropertyComparePage />} />
             <Route path="/listings" element={<Navigate to="/search" replace />} />
             <Route path="/partner-landing" element={<PartnerLandingPage />} />
             <Route path="/about" element={<AboutPage />} />
@@ -477,6 +487,7 @@ function App() {
             <Route path="/property/:id/amenities" element={<AmenitiesPage />} />
             <Route path="/property/:id/reviews" element={<ReviewsPage />} />
             <Route path="/property/:id/offers" element={<OffersPage />} />
+            <Route path="/partner/:id" element={<PartnerProfilePage />} />
 
             {/* User Property Listing (C2C) Routes (Public/Self-Authenticating) */}
             <Route path="/list-property" element={<ListPropertyWizard />} />
@@ -571,6 +582,54 @@ function App() {
                 <Route path="banners" element={<AdminBanners />} />
                 <Route path="property-forms" element={<AdminPropertyFormManager />} />
                 <Route path="locations" element={<AdminLocationsPage />} />
+                <Route path="managers" element={<AdminManagers />} />
+              </Route>
+            </Route>
+
+            {/* Manager Auth Routes */}
+            <Route path="/manager/login" element={<ManagerLogin />} />
+
+            {/* Manager App Routes */}
+            <Route element={<ManagerProtectedRoute />}>
+              <Route path="/manager" element={<ManagerLayout />}>
+                <Route index element={<ManagerDashboard />} />
+                <Route path="dashboard" element={<ManagerDashboard />} />
+
+                {/* User Management */}
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="users/:id" element={<AdminUserDetail />} />
+
+                {/* Partner Management */}
+                <Route path="partners" element={<AdminPartners />} />
+                <Route path="partners/:id" element={<AdminPartnerDetail />} />
+
+                {/* Property Management */}
+                <Route path="properties" element={<AdminProperties />} />
+                <Route path="properties/add" element={<AdminAddProperty />} />
+                <Route path="properties/:id" element={<AdminHotelDetail />} />
+
+                {/* Bookings & Enquiries */}
+                <Route path="bookings" element={<AdminBookings />} />
+                <Route path="bookings/:id" element={<AdminBookingDetail />} />
+                <Route path="enquiries" element={<AdminEnquiries />} />
+
+                {/* Content & Catalog */}
+                <Route path="categories" element={<AdminCategories />} />
+                <Route path="banners" element={<AdminBanners />} />
+                <Route path="property-forms" element={<AdminPropertyFormManager />} />
+                <Route path="locations" element={<AdminLocationsPage />} />
+                <Route path="reel-analysis" element={<AdminReelAnalysis />} />
+                <Route path="reviews" element={<AdminReviews />} />
+                <Route path="subscriptions" element={<AdminSubscriptions />} />
+
+                {/* System */}
+                <Route path="finance" element={<AdminFinance />} />
+                <Route path="offers" element={<AdminOffers />} />
+                <Route path="notifications" element={<AdminNotifications />} />
+                <Route path="legal" element={<AdminLegalPages />} />
+                <Route path="contact-messages" element={<AdminContactMessages />} />
+                <Route path="faqs" element={<AdminFaqs />} />
+                <Route path="settings" element={<AdminSettings />} />
               </Route>
             </Route>
 

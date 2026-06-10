@@ -4,6 +4,7 @@ import Admin from '../models/Admin.js';
 import User from '../models/User.js';
 import Partner from '../models/Partner.js';
 import Otp from '../models/Otp.js';
+import Manager from '../models/Manager.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import smsService from '../utils/smsService.js';
@@ -568,6 +569,8 @@ export const updateProfile = async (req, res) => {
     if (['admin', 'superadmin'].includes(currentUser.role)) {
       // Admins use updateAdminProfile usually, but if they hit this:
       Model = Admin;
+    } else if (currentUser.role === 'manager') {
+      Model = Manager;
     }
 
     let user = await Model.findById(currentUser._id);
@@ -895,7 +898,10 @@ export const lazyEnquiryLoginRegister = async (req, res) => {
       enquiryId,
       userId: user._id,
       propertyId,
-      enquiryType: 'contact_owner',
+      name: user.name || name,
+      phone: user.phone || phone,
+      email: user.email || email || 'guest@getrighthome.com',
+      enquiryType: 'callback',
       message: message || 'Interested in this property.',
       status: 'new'
     });
@@ -1008,5 +1014,30 @@ export const lazyListingLoginRegister = async (req, res) => {
   } catch (error) {
     console.error('Lazy Listing Error:', error);
     res.status(500).json({ success: false, message: 'Server error during listing authentication' });
+  }
+};
+
+/**
+ * @desc    Logout User / Clear Cookie
+ * @route   POST /api/auth/logout
+ * @access  Public
+ */
+export const logout = async (req, res) => {
+  try {
+    const isLocal = req.headers.host?.includes('localhost') || 
+                    req.headers.host?.includes('127.0.0.1') || 
+                    req.headers.host?.includes('192.168.') || 
+                    req.headers.host?.includes('10.') || 
+                    req.headers.host?.includes('172.');
+    const secure = process.env.NODE_ENV === 'production' && !isLocal;
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: secure,
+      sameSite: secure ? 'none' : 'lax'
+    });
+    res.status(200).json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout Error:', error);
+    res.status(500).json({ message: 'Server error during logout' });
   }
 };

@@ -1,4 +1,5 @@
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
+import SubscriptionTier from '../models/SubscriptionTier.js';
 import Partner from '../models/Partner.js';
 import User from '../models/User.js';
 import Razorpay from 'razorpay';
@@ -106,10 +107,16 @@ export const updatePlan = async (req, res) => {
  */
 export const deletePlan = async (req, res) => {
     try {
-        // We strictly soft delete to preserve history for partners using this plan
-        const plan = await SubscriptionPlan.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
-        if (!plan) return res.status(404).json({ message: 'Plan not found' });
-        res.json({ success: true, message: 'Plan deactivated' });
+        const { hard } = req.query;
+        if (hard === 'true') {
+            const plan = await SubscriptionPlan.findByIdAndDelete(req.params.id);
+            if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
+            return res.json({ success: true, message: 'Plan deleted permanently' });
+        } else {
+            const plan = await SubscriptionPlan.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+            if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
+            return res.json({ success: true, message: 'Plan deactivated' });
+        }
     } catch (error) {
         console.error('Delete Plan Error:', error);
         res.status(500).json({ success: false, message: 'Failed to delete plan' });
@@ -320,3 +327,80 @@ export const toggleSubscriptionPause = async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to toggle pause' });
     }
 };
+
+// --- ADMIN TIER CONTROLLERS ---
+
+export const getAllTiers = async (req, res) => {
+    try {
+        const tiers = await SubscriptionTier.find().sort({ createdAt: 1 });
+        res.json({ success: true, tiers });
+    } catch (error) {
+        console.error('Get All Tiers Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch tiers' });
+    }
+};
+
+export const createTier = async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name) {
+            return res.status(400).json({ success: false, message: 'Tier name is required' });
+        }
+        const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '');
+        
+        // Check if exists
+        const existing = await SubscriptionTier.findOne({ $or: [{ name }, { key }] });
+        if (existing) {
+            return res.status(400).json({ success: false, message: 'Tier name or key already exists' });
+        }
+
+        const tier = await SubscriptionTier.create({ name, key });
+        res.status(201).json({ success: true, tier });
+    } catch (error) {
+        console.error('Create Tier Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to create tier' });
+    }
+};
+
+export const updateTier = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name } = req.body;
+        if (!name) {
+            return res.status(400).json({ success: false, message: 'Tier name is required' });
+        }
+        const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '');
+
+        const tier = await SubscriptionTier.findByIdAndUpdate(id, { name, key }, { new: true });
+        if (!tier) {
+            return res.status(404).json({ success: false, message: 'Tier not found' });
+        }
+        res.json({ success: true, tier });
+    } catch (error) {
+        console.error('Update Tier Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update tier' });
+    }
+};
+
+export const deleteTier = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tier = await SubscriptionTier.findById(id);
+        if (!tier) {
+            return res.status(404).json({ success: false, message: 'Tier not found' });
+        }
+
+        // Check if any plan is using this tier
+        const plansUsing = await SubscriptionPlan.findOne({ tier: tier.key });
+        if (plansUsing) {
+            return res.status(400).json({ success: false, message: 'Cannot delete tier. Active subscription plans are using it.' });
+        }
+
+        await SubscriptionTier.findByIdAndDelete(id);
+        res.json({ success: true, message: 'Tier deleted successfully' });
+    } catch (error) {
+        console.error('Delete Tier Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete tier' });
+    }
+};
+

@@ -46,61 +46,62 @@ import {
     adminDeleteEnquiry
 } from '../controllers/enquiryController.js';
 import { getWorkerAnalytics } from '../controllers/adminWorkerController.js';
+import { checkManagerPermission, requireAdminOrManager } from '../middlewares/managerPermission.js';
 
 const router = express.Router();
 
 router.use(protect);
-router.use(authorizedRoles('admin', 'superadmin'));
+router.use(authorizedRoles('admin', 'superadmin', 'manager'));
 
 // Enquiries (dedicated Enquiry collection — not Booking)
-router.get('/enquiries', adminGetAllEnquiries);
-router.put('/enquiries/:id', adminUpdateEnquiry);
-router.delete('/enquiries/:id', adminDeleteEnquiry);
-
+router.get('/enquiries', checkManagerPermission('enquiries', 'view'), adminGetAllEnquiries);
+router.put('/enquiries/:id', checkManagerPermission('enquiries', 'edit'), adminUpdateEnquiry);
+router.delete('/enquiries/:id', checkManagerPermission('enquiries', 'delete'), adminDeleteEnquiry);
 
 // Notifications
-router.get('/notifications', getAdminNotifications);
-router.post('/notifications/send', createBroadcastNotification);
-router.put('/notifications/read-all', markAllAdminNotificationsRead);
-router.delete('/notifications', deleteAdminNotifications);
+router.get('/notifications', checkManagerPermission('notifications', 'view'), getAdminNotifications);
+router.post('/notifications/send', checkManagerPermission('notifications', 'add'), createBroadcastNotification);
+router.put('/notifications/read-all', checkManagerPermission('notifications', 'edit'), markAllAdminNotificationsRead);
+router.delete('/notifications', checkManagerPermission('notifications', 'delete'), deleteAdminNotifications);
 
-router.put('/fcm-token', updateFcmToken);
-router.get('/dashboard-stats', getDashboardStats);
-router.get('/dashboard/revenue', getDashboardRevenue);
-router.get('/finance', getFinanceStats);
-router.get('/users', getAllUsers);
-router.get('/partners', getAllPartners);
-router.get('/hotels', getAllHotels);
-router.post('/properties', createAdminProperty);
-router.get('/bookings', getAllBookings);
+router.put('/fcm-token', requireAdminOrManager, updateFcmToken);
+router.get('/dashboard-stats', checkManagerPermission('dashboard', 'view'), getDashboardStats);
+router.get('/dashboard/revenue', checkManagerPermission('dashboard', 'view'), getDashboardRevenue);
+router.get('/finance', checkManagerPermission('finance', 'view'), getFinanceStats);
+router.get('/users', checkManagerPermission('users', 'view'), getAllUsers);
+router.get('/partners', checkManagerPermission('partners', 'view'), getAllPartners);
+router.get('/hotels', checkManagerPermission('properties', 'view'), getAllHotels);
+router.post('/properties', checkManagerPermission('properties', 'add'), createAdminProperty);
+router.get('/bookings', checkManagerPermission('bookings', 'view'), getAllBookings);
 
-router.get('/property-requests', getPropertyRequests);
-router.put('/hotel-status', updateHotelStatus);
-router.put('/update-hotel-status', updateHotelStatus);
-router.get('/reviews/stats', getReviewStats);
-router.get('/reviews', getReviewModeration);
-router.delete('/delete-review', deleteReview);
-router.patch('/reviews/:id/status', updateReviewStatus);
-router.put('/update-user-status', updateUserStatus);
-router.put('/update-partner-status', updatePartnerStatus);
-router.put('/update-partner-approval', updatePartnerApprovalStatus);
-router.delete('/delete-user', deleteUser);
-router.delete('/delete-partner', deletePartner);
-router.delete('/delete-hotel', deleteHotel);
-router.get('/user-details/:id', getUserDetails);
-router.get('/partner-details/:id', getPartnerDetails);
-router.put('/verify-documents', verifyPropertyDocuments);
-router.get('/hotel-details/:id', getHotelDetails);
-router.get('/booking-details/:id', getBookingDetails);
-router.put('/booking-status', updateBookingStatus);
-router.put('/update-booking-status', updateBookingStatus);
-router.get('/legal-pages', getLegalPages);
-router.post('/legal-pages', upsertLegalPage);
-router.get('/contact-messages', getContactMessages);
-router.put('/contact-messages/:id/status', updateContactStatus);
-router.get('/platform-settings', getPlatformSettings);
-router.put('/platform-settings', updatePlatformSettings);
-router.get('/reel-analysis', getReelAnalysis);
-router.get('/reports/workers', getWorkerAnalytics);
+router.get('/property-requests', checkManagerPermission('properties', 'view'), getPropertyRequests);
+router.put('/hotel-status', checkManagerPermission('properties', 'approve'), updateHotelStatus);
+router.put('/update-hotel-status', checkManagerPermission('properties', 'approve'), updateHotelStatus);
+router.get('/reviews/stats', checkManagerPermission('reviews', 'view'), getReviewStats);
+router.get('/reviews', checkManagerPermission('reviews', 'view'), getReviewModeration);
+router.delete('/delete-review', checkManagerPermission('reviews', 'delete'), deleteReview);
+router.patch('/reviews/:id/status', checkManagerPermission('reviews', 'edit'), updateReviewStatus);
+router.put('/update-review-status', checkManagerPermission('reviews', 'edit'), updateReviewStatus);
+router.put('/update-user-status', checkManagerPermission('users', 'edit'), updateUserStatus);
+router.put('/update-partner-status', checkManagerPermission('partners', 'edit'), updatePartnerStatus);
+router.put('/update-partner-approval', checkManagerPermission('partners', 'approve'), updatePartnerApprovalStatus);
+router.delete('/delete-user', checkManagerPermission('users', 'delete'), deleteUser);
+router.delete('/delete-partner', checkManagerPermission('partners', 'delete'), deletePartner);
+router.delete('/delete-hotel', checkManagerPermission('properties', 'delete'), deleteHotel);
+router.get('/user-details/:id', checkManagerPermission('users', 'view'), getUserDetails);
+router.get('/partner-details/:id', checkManagerPermission('partners', 'view'), getPartnerDetails);
+router.put('/verify-documents', checkManagerPermission('properties', 'approve'), verifyPropertyDocuments);
+router.get('/hotel-details/:id', checkManagerPermission('properties', 'view'), getHotelDetails);
+router.get('/booking-details/:id', checkManagerPermission('bookings', 'view'), getBookingDetails);
+router.put('/booking-status', checkManagerPermission('bookings', 'edit'), updateBookingStatus);
+router.put('/update-booking-status', checkManagerPermission('bookings', 'edit'), updateBookingStatus);
+router.get('/legal-pages', checkManagerPermission('legal', 'view'), getLegalPages);
+router.post('/legal-pages', checkManagerPermission('legal', 'edit'), upsertLegalPage);
+router.get('/contact-messages', checkManagerPermission('contact_messages', 'view'), getContactMessages);
+router.put('/contact-messages/:id/status', checkManagerPermission('contact_messages', 'edit'), updateContactStatus);
+router.get('/platform-settings', checkManagerPermission('settings', 'view'), getPlatformSettings);
+router.put('/platform-settings', checkManagerPermission('settings', 'edit'), updatePlatformSettings);
+router.get('/reel-analysis', checkManagerPermission('reel_analysis', 'view'), getReelAnalysis);
+router.get('/reports/workers', checkManagerPermission('dashboard', 'view'), getWorkerAnalytics);
 
 export default router;

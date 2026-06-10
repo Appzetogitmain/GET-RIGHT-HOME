@@ -144,6 +144,10 @@ const adminService = {
     const response = await axiosInstance.put('/auth/admin/update-profile', payload);
     return response.data;
   },
+  updateProfile: async (payload) => {
+    const response = await axiosInstance.put('/auth/update-profile', payload);
+    return response.data;
+  },
 
   updateFcmToken: async (fcmToken, platform = 'web') => {
     try {
@@ -262,6 +266,40 @@ const adminService = {
   },
   deleteEnquiry: async (id) => {
     const response = await axiosInstance.delete(`/admin/enquiries/${id}`);
+    return response.data;
+  },
+
+  // Manager Management
+  getManagers: async (params) => {
+    const response = await axiosInstance.get('/admin/managers', { params });
+    return response.data;
+  },
+  getManagerDetails: async (id) => {
+    const response = await axiosInstance.get(`/admin/managers/${id}`);
+    return response.data;
+  },
+  createManager: async (data) => {
+    const response = await axiosInstance.post('/admin/managers', data);
+    return response.data;
+  },
+  updateManager: async (id, data) => {
+    const response = await axiosInstance.put(`/admin/managers/${id}`, data);
+    return response.data;
+  },
+  updateManagerPermissions: async (id, permissions) => {
+    const response = await axiosInstance.put(`/admin/managers/${id}/permissions`, { permissions });
+    return response.data;
+  },
+  toggleManagerStatus: async (id) => {
+    const response = await axiosInstance.put(`/admin/managers/${id}/toggle`);
+    return response.data;
+  },
+  deleteManager: async (id) => {
+    const response = await axiosInstance.delete(`/admin/managers/${id}`);
+    return response.data;
+  },
+  getManagerModules: async () => {
+    const response = await axiosInstance.get('/managers/modules');
     return response.data;
   }
 };

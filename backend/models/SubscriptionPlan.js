@@ -34,7 +34,6 @@ const subscriptionPlanSchema = new mongoose.Schema({
     },
     tier: {
         type: String,
-        enum: ['silver', 'gold_basic', 'gold', 'platinum', 'diamond'],
         required: true
     },
     leadCap: {

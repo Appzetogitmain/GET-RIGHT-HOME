@@ -269,7 +269,11 @@ export const getAllUsers = async (req, res) => {
     }
 
     if (status) {
-      query.isBlocked = status === 'blocked';
+      if (status === 'blocked') {
+        query.isBlocked = true;
+      } else if (status === 'active') {
+        query.isBlocked = { $ne: true };
+      }
     }
 
     const total = await User.countDocuments(query);
@@ -308,7 +312,7 @@ export const getAllPartners = async (req, res) => {
       if (status === 'blocked') {
         query.isBlocked = true;
       } else if (status === 'active') {
-        query.isBlocked = false;
+        query.isBlocked = { $ne: true };
       }
     }
 
@@ -710,7 +714,7 @@ export const updateBookingStatus = async (req, res) => {
 export const getUserDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id);
+    const user = await User.findById(id).populate('subscription.planId');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const bookings = await Booking.find({ userId: id })
@@ -753,7 +757,7 @@ export const getUserDetails = async (req, res) => {
 export const getPartnerDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const partner = await Partner.findById(id);
+    const partner = await Partner.findById(id).populate('subscription.planId');
     if (!partner) return res.status(404).json({ success: false, message: 'Partner not found' });
 
     const properties = await Property.find({ partnerId: id });

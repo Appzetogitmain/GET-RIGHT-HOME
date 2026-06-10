@@ -35,15 +35,18 @@ const PropertyDetailsPage = () => {
   const [visitSlot, setVisitSlot] = useState('Morning (10 AM - 12 PM)');
   const [callbackTime, setCallbackTime] = useState('Immediate (within 15 mins)');
   const [similarProperties, setSimilarProperties] = useState([]);
+  const [recentProperties, setRecentProperties] = useState([]);
   const [showVisitModal, setShowVisitModal] = useState(false);
   const [showCallbackModal, setShowCallbackModal] = useState(false);
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
   const [enquiryForm, setEnquiryForm] = useState({
     name: '',
+    email: '',
     phone: '',
     otp: '',
     message: 'Interested in this property.'
   });
+  const [enquiryErrors, setEnquiryErrors] = useState({});
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
 
@@ -68,8 +71,36 @@ const PropertyDetailsPage = () => {
   const [showAllAmenitiesModal, setShowAllAmenitiesModal] = useState(false);
   const [leadName, setLeadName] = useState('');
   const [leadPhone, setLeadPhone] = useState('');
+  const [leadEmail, setLeadEmail] = useState('');
+  const [leadErrors, setLeadErrors] = useState({});
   const [isAgent, setIsAgent] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(true);
+
+  // Helper validation function
+  const validateForm = (name, email, phone) => {
+    const errors = {};
+    if (!name || !name.trim()) {
+      errors.name = "Name is required";
+    } else if (!/^[A-Za-z\s]+$/.test(name.trim())) {
+      errors.name = "Name must contain letters and spaces only";
+    }
+
+    if (!email || !email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    if (!phone || !phone.trim()) {
+      errors.phone = "Phone number is required";
+    } else {
+      const cleanPhone = phone.trim();
+      if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+        errors.phone = "Mobile number must be exactly 10 digits and start with 6-9";
+      }
+    }
+    return errors;
+  };
 
   const [localityStats, setLocalityStats] = useState(null);
   const [localityReviews, setLocalityReviews] = useState([]);
@@ -106,6 +137,13 @@ const PropertyDetailsPage = () => {
         const u = JSON.parse(userRaw);
         setLeadName(u.name || '');
         setLeadPhone(u.phone || '');
+        setLeadEmail(u.email || '');
+        setEnquiryForm(prev => ({
+          ...prev,
+          name: u.name || '',
+          phone: u.phone || '',
+          email: u.email || ''
+        }));
       } catch (err) {
         console.error(err);
       }
@@ -208,6 +246,34 @@ const PropertyDetailsPage = () => {
         };
         setProperty(adapted);
 
+        // Save to recent views in localStorage
+        try {
+          const recentsRaw = localStorage.getItem('recentViews') || '[]';
+          let recents = JSON.parse(recentsRaw);
+          recents = recents.filter(rid => rid !== p._id);
+          recents.unshift(p._id);
+          recents = recents.slice(0, 10);
+          localStorage.setItem('recentViews', JSON.stringify(recents));
+        } catch (e) {
+          console.warn("Failed to update recent views in localStorage", e);
+        }
+
+        // Fetch details for recently viewed properties
+        try {
+          const recentsRaw = localStorage.getItem('recentViews') || '[]';
+          let recents = JSON.parse(recentsRaw);
+          const otherRecents = recents.filter(rid => rid !== p._id).slice(0, 3);
+          if (otherRecents.length > 0) {
+            const recentsRes = await propertyService.getPublic({ ids: otherRecents.join(',') });
+            const recentsArray = Array.isArray(recentsRes) ? recentsRes : (recentsRes && Array.isArray(recentsRes.properties) ? recentsRes.properties : []);
+            setRecentProperties(recentsArray);
+          } else {
+            setRecentProperties([]);
+          }
+        } catch (err) {
+          console.warn("Failed to load recent properties:", err);
+        }
+
         // Fetch locality details
         const localityString = p.address?.locality || p.address?.area || p.address?.city || '';
         if (localityString) {
@@ -261,7 +327,6 @@ const PropertyDetailsPage = () => {
         { id: 'property-details', el: document.getElementById('property-details') },
         { id: 'photos', el: document.getElementById('photos') },
         { id: 'facilities', el: document.getElementById('facilities') },
-        { id: 'seller', el: document.getElementById('seller') },
         { id: 'compare', el: document.getElementById('compare') },
         { id: 'explore-locality', el: document.getElementById('explore-locality') }
       ];
@@ -906,11 +971,27 @@ const PropertyDetailsPage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
   };
 
+  const handleSendOtpForPhone = async (phoneVal) => {
+    setSendingOtp(true);
+    try {
+      await authService.sendOtp(phoneVal, 'login', 'user');
+      setOtpSent(true);
+      toast.success("OTP sent to your mobile number!");
+    } catch (err) {
+      toast.error(err.message || "Failed to send OTP");
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
   const handleSendOtp = async () => {
-    if (!enquiryForm.phone) {
-      toast.error("Please enter your mobile number");
+    const errors = validateForm(enquiryForm.name, enquiryForm.email, enquiryForm.phone);
+    if (Object.keys(errors).length > 0) {
+      setEnquiryErrors(errors);
       return;
     }
+    setEnquiryErrors({});
+
     setSendingOtp(true);
     try {
       await authService.sendOtp(enquiryForm.phone, 'login', 'user');
@@ -923,33 +1004,69 @@ const PropertyDetailsPage = () => {
     }
   };
 
+  const handleDirectLoggedInEnquiry = async () => {
+    const errors = validateForm(leadName, leadEmail, leadPhone);
+    if (Object.keys(errors).length > 0) {
+      setLeadErrors(errors);
+      return;
+    }
+    setLeadErrors({});
+
+    setBookingLoading(true);
+    try {
+      let messageBody = `[Inquiry from Detail Page]\nName: ${leadName}\nPhone: ${leadPhone}\nEmail: ${leadEmail}\nAgent Status: ${isAgent ? 'Real Estate Agent' : 'Individual/Buyer'}\nMessage: Interested in this property.`;
+      const response = await enquiryService.create({
+        propertyId: id,
+        enquiryType: 'callback',
+        name: leadName,
+        phone: leadPhone,
+        email: leadEmail,
+        message: messageBody,
+        preferredDate: new Date(),
+        timeSlot: '',
+        budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
+      });
+
+      if (response.success) {
+        toast.success("Enquiry submitted successfully!");
+        await handleRevealContact();
+      } else {
+        toast.error(response.message || "Failed to submit enquiry");
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to submit enquiry");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
   const handleEnquirySubmit = async (e) => {
     e.preventDefault();
     const isLoggedIn = !!localStorage.getItem('user');
 
     if (!isLoggedIn) {
-      if (!enquiryForm.name.trim()) {
-        toast.error("Please enter your name");
+      const errors = validateForm(enquiryForm.name, enquiryForm.email, enquiryForm.phone);
+      if (!enquiryForm.otp || !enquiryForm.otp.trim()) {
+        errors.otp = "OTP is required";
+      }
+      if (Object.keys(errors).length > 0) {
+        setEnquiryErrors(errors);
         return;
       }
-      if (!enquiryForm.phone.trim()) {
-        toast.error("Please enter your mobile number");
-        return;
-      }
-      if (!enquiryForm.otp.trim()) {
-        toast.error("Please enter the OTP received");
-        return;
-      }
+      setEnquiryErrors({});
     }
 
     setBookingLoading(true);
     try {
       let response;
       if (isLoggedIn) {
-        let messageBody = `[Inquiry from Detail Page]\nName: ${leadName}\nPhone: ${leadPhone}\nAgent Status: ${isAgent ? 'Real Estate Agent' : 'Individual/Buyer'}\nMessage: ${enquiryForm.message || 'Interested in this property.'}`;
+        let messageBody = `[Inquiry from Detail Page]\nName: ${leadName}\nPhone: ${leadPhone}\nEmail: ${leadEmail}\nAgent Status: ${isAgent ? 'Real Estate Agent' : 'Individual/Buyer'}\nMessage: ${enquiryForm.message || 'Interested in this property.'}`;
         response = await enquiryService.create({
           propertyId: id,
-          enquiryType: 'contact_owner',
+          enquiryType: 'callback',
+          name: leadName,
+          phone: leadPhone,
+          email: leadEmail,
           message: messageBody,
           preferredDate: new Date(),
           timeSlot: '',
@@ -958,6 +1075,7 @@ const PropertyDetailsPage = () => {
       } else {
         response = await authService.lazyEnquiryLogin({
           name: enquiryForm.name,
+          email: enquiryForm.email,
           phone: enquiryForm.phone,
           otp: enquiryForm.otp,
           message: enquiryForm.message,
@@ -969,12 +1087,14 @@ const PropertyDetailsPage = () => {
         toast.success("Enquiry submitted successfully!");
         setShowEnquiryModal(false);
         setOtpSent(false);
-        setEnquiryForm({ name: '', phone: '', otp: '', message: 'Interested in this property.' });
+        setEnquiryForm({ name: '', email: '', phone: '', otp: '', message: 'Interested in this property.' });
+        setEnquiryErrors({});
         
         if (response.user) {
           localStorage.setItem('user', JSON.stringify(response.user));
           setLeadName(response.user.name || '');
           setLeadPhone(response.user.phone || '');
+          setLeadEmail(response.user.email || '');
           window.dispatchEvent(new Event('storage'));
         }
 
@@ -1000,19 +1120,27 @@ const PropertyDetailsPage = () => {
 
     const userRaw = localStorage.getItem('user');
     if (userRaw) {
-      try {
-        const u = JSON.parse(userRaw);
-        setEnquiryForm(prev => ({
-          ...prev,
-          name: u.name || '',
-          phone: u.phone || '',
-          otp: '123456'
-        }));
-      } catch (err) {
-        console.error(err);
-      }
+      handleDirectLoggedInEnquiry();
+      return;
     }
+
+    const errors = validateForm(leadName, leadEmail, leadPhone);
+    if (Object.keys(errors).length > 0) {
+      setLeadErrors(errors);
+      return;
+    }
+    setLeadErrors({});
+
+    setEnquiryForm(prev => ({
+      ...prev,
+      name: leadName,
+      email: leadEmail,
+      phone: leadPhone,
+      otp: ''
+    }));
+
     setShowEnquiryModal(true);
+    handleSendOtpForPhone(leadPhone);
   };
 
   const handleRevealContact = async () => {
@@ -1148,7 +1276,6 @@ const PropertyDetailsPage = () => {
             { id: 'property-details', label: 'Property Details' },
             { id: 'photos', label: 'Photos' },
             { id: 'facilities', label: 'Facilities' },
-            { id: 'seller', label: 'Seller' },
             { id: 'compare', label: 'Compare' },
             { id: 'explore-locality', label: 'Explore Locality' }
           ].map(tab => (
@@ -1456,6 +1583,30 @@ const PropertyDetailsPage = () => {
           </div>
         </div>
 
+        {/* 6b. SECTION: PROPERTY VIDEO (shown only if videoUrl exists) */}
+        {property?.videoUrl && (
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Property Video</h3>
+              <p className="text-[10px] text-gray-500">Watch the property walkthrough</p>
+            </div>
+
+            <div className="relative rounded-2xl overflow-hidden bg-black shadow-inner border border-slate-100">
+              <video
+                src={property.videoUrl}
+                controls
+                controlsList="nodownload"
+                preload="metadata"
+                playsInline
+                className="w-full max-h-[320px] object-contain rounded-2xl"
+                poster={galleryImages?.[0] || undefined}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        )}
+
         {/* 7. SECTION: FACILITIES & AMENITIES (id="facilities") */}
         <div id="facilities" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4">
           
@@ -1611,131 +1762,6 @@ const PropertyDetailsPage = () => {
           </div>
         </div>
 
-        {/* 9. SECTION: CONTACT SELLER / LEAD GENERATION FORM (id="seller") */}
-        <div id="seller" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">Contact Dealer</h3>
-            <p className="text-[10px] text-gray-500">Get a callback and resolve your queries</p>
-          </div>
-
-          {/* Seller profile overview */}
-          <div className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
-            <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0061df] font-black text-lg shadow-inner">
-              {sellerName.charAt(0)}
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-gray-900">{sellerName}</h4>
-              <p className="text-[10px] text-slate-500 font-semibold">
-                {property?.partnerId?.businessName || property?.userId?.businessName || ''}
-                {(property?.partnerId?.businessName || property?.userId?.businessName) ? ' | ' : ''}
-                {displayPhone}
-              </p>
-              
-              <div className="flex items-center gap-4 mt-1.5 text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                <span className="flex items-center gap-0.5"><Shield size={10} className="text-emerald-500" /> {verifiedCount} Verified</span>
-                <span>{listedCount} Listed</span>
-                <span>{memberSinceText}</span>
-              </div>
-            </div>
-          </div>
-
-          {property?.partnerId?._id ? (
-            <button
-              onClick={() => navigate(`/partner/${property.partnerId._id}`)}
-              className="block text-right w-full text-xs font-bold text-[#0061df] hover:underline pb-2 border-b border-gray-50"
-            >
-              View Complete Profile &gt;
-            </button>
-          ) : (
-            <div className="pb-2 border-b border-gray-50" />
-          )}
-
-          {/* Lead capture form inputs */}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Name</label>
-              <input
-                type="text"
-                value={leadName}
-                onChange={(e) => setLeadName(e.target.value)}
-                placeholder="Enter your name"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-semibold outline-none focus:border-blue-500 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phone Number</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">+91</span>
-                <input
-                  type="text"
-                  value={leadPhone}
-                  onChange={(e) => setLeadPhone(e.target.value)}
-                  placeholder="Enter phone number"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-10 text-xs font-semibold outline-none focus:border-blue-500 transition-colors"
-                />
-                <Lock size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              </div>
-            </div>
-
-            {/* Is Real Estate Agent trigger toggle */}
-            <div>
-              <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Are you a Real Estate Agent?</span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAgent(true)}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${
-                    isAgent
-                      ? 'bg-blue-50 border-blue-500 text-[#0061df]'
-                      : 'bg-slate-50 border-slate-200 text-slate-700'
-                  }`}
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAgent(false)}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${
-                    !isAgent
-                      ? 'bg-blue-50 border-blue-500 text-[#0061df]'
-                      : 'bg-slate-50 border-slate-200 text-slate-700'
-                  }`}
-                >
-                  No
-                </button>
-              </div>
-            </div>
-
-            {/* Terms checkbox */}
-            <label className="flex items-start gap-2 pt-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={agreedTerms}
-                onChange={(e) => setAgreedTerms(e.target.checked)}
-                className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-[10px] text-slate-500 leading-normal font-semibold">
-                I agree to Get-Right-home's <span className="text-[#0061df] hover:underline">Terms & Conditions</span> and <span className="text-[#0061df] hover:underline">Privacy Policy</span>.
-              </span>
-            </label>
-
-            {/* Primary Action Button to View/Enquire */}
-            <button
-              onClick={() => {
-                if (revealedNumber) {
-                  window.location.href = `tel:${revealedNumber}`;
-                } else {
-                  handleEnquiryButtonClick();
-                }
-              }}
-              disabled={bookingLoading || revealLoading}
-              className="w-full py-3.5 bg-blue-50 hover:bg-blue-100 text-[#0061df] rounded-xl font-bold transition-all text-xs border border-blue-100 flex items-center justify-center gap-1.5 mt-2"
-            >
-              {(bookingLoading || revealLoading) ? <Loader2 className="animate-spin text-[#0061df]" size={14} /> : (revealedNumber ? `📞 ${revealedNumber}` : 'View Phone Number')}
-            </button>
-          </div>
-        </div>
 
         {/* 10. SECTION: RECENT VIEWS COMPARE SLIDER (id="compare") */}
         <div id="compare" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4">
@@ -1748,43 +1774,108 @@ const PropertyDetailsPage = () => {
             </div>
 
             {/* Horizontal side by side vs items */}
-            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-1">
+            <div className="flex flex-nowrap items-center gap-3 overflow-x-auto no-scrollbar py-2 w-full">
               
-              {/* Item 1 */}
-              <div className="p-2 rounded-xl border border-slate-100 bg-slate-50/50 min-w-[120px] shrink-0 text-center relative">
-                <img src={galleryImages[0]} className="w-full h-12 object-cover rounded-lg mb-1" />
-                <h4 className="text-[10px] font-bold text-gray-800 line-clamp-1">Piccadilly 1 CHS</h4>
-                <p className="text-[10px] text-gray-900 font-extrabold">₹35 Lac</p>
-                <span className="text-[9px] text-slate-500 font-semibold block">by Dealer</span>
+              {/* Current Property */}
+              <div 
+                onClick={() => navigate(`/property/${property?._id}`)}
+                className="p-3 rounded-2xl border border-slate-200 bg-white min-w-[210px] w-[210px] shrink-0 text-left relative shadow-sm hover:shadow-md transition-all cursor-pointer group"
+              >
+                <span className="absolute top-2 left-2 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-md z-10">
+                  Current
+                </span>
+                <img 
+                  src={(galleryImages && galleryImages[0]) || "/placeholder-property.jpg"} 
+                  className="w-full h-28 object-cover rounded-xl mb-2 group-hover:scale-102 transition-transform duration-300 shadow-sm" 
+                />
+                <h4 className="text-[12px] font-extrabold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">{property?.propertyName || property?.name}</h4>
+                <p className="text-[13px] text-slate-950 font-black mt-1">
+                  {property?.buyDetails?.expectedPrice
+                    ? formatPriceLakhCrore(property.buyDetails.expectedPrice)
+                    : property?.rentDetails?.monthlyRent
+                      ? `₹${property.rentDetails.monthlyRent.toLocaleString('en-IN')}/mo`
+                      : property?.dynamicData?.expectedPrice
+                        ? formatPriceLakhCrore(property.dynamicData.expectedPrice)
+                        : property?.dynamicData?.monthlyRent
+                          ? `₹${Number(property.dynamicData.monthlyRent).toLocaleString('en-IN')}/mo`
+                          : property?.startingPrice
+                            ? formatPriceLakhCrore(property.startingPrice)
+                            : 'Contact for Price'}
+                </p>
+                <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400 font-extrabold">
+                  <span className="uppercase">by {property?.partnerId ? 'Partner' : 'Owner'}</span>
+                  <span className="text-indigo-600 font-bold hover:underline">View →</span>
+                </div>
               </div>
 
-              <div className="text-[9px] font-bold text-white bg-slate-700 w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-sm">
-                Vs
-              </div>
+              {/* Loop over comparison items */}
+              {((recentProperties && recentProperties.length > 0) ? recentProperties.slice(0, 2) : (similarProperties && similarProperties.length > 0 ? similarProperties.slice(0, 2) : [])).map((item, idx) => {
+                const itemPrice = item.buyDetails?.expectedPrice
+                  ? formatPriceLakhCrore(item.buyDetails.expectedPrice)
+                  : item.rentDetails?.monthlyRent
+                    ? `₹${item.rentDetails.monthlyRent.toLocaleString('en-IN')}/mo`
+                    : item.dynamicData?.expectedPrice
+                      ? formatPriceLakhCrore(item.dynamicData.expectedPrice)
+                      : item.dynamicData?.monthlyRent
+                        ? `₹${Number(item.dynamicData.monthlyRent).toLocaleString('en-IN')}/mo`
+                        : item.startingPrice
+                          ? formatPriceLakhCrore(item.startingPrice)
+                          : 'Contact for Price';
+                const itemCover = item.images?.cover || item.images?.gallery?.[0] || item.coverImage || (item.propertyImages?.[0]) || "/placeholder-property.jpg";
 
-              {/* Item 2 */}
-              <div className="p-2 rounded-xl border border-slate-100 bg-slate-50/50 min-w-[120px] shrink-0 text-center relative">
-                <img src={galleryImages[1] || galleryImages[0]} className="w-full h-12 object-cover rounded-lg mb-1" />
-                <h4 className="text-[10px] font-bold text-gray-800 line-clamp-1">Golden Isle</h4>
-                <p className="text-[10px] text-gray-900 font-extrabold">₹35.5 Lac</p>
-                <span className="text-[9px] text-slate-500 font-semibold block">by Owner</span>
-              </div>
+                return (
+                  <React.Fragment key={item._id}>
+                    <div className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 w-7 h-7 rounded-full flex items-center justify-center shrink-0 shadow-sm mx-1">
+                      VS
+                    </div>
 
-              <div className="text-[9px] font-bold text-white bg-slate-700 w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-sm">
-                Vs
-              </div>
+                    <div 
+                      onClick={() => navigate(`/property/${item._id}`)}
+                      className="p-3 rounded-2xl border border-slate-150 bg-white min-w-[210px] w-[210px] shrink-0 text-left relative shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                    >
+                      <img 
+                        src={itemCover} 
+                        className="w-full h-28 object-cover rounded-xl mb-2 group-hover:scale-102 transition-transform duration-300 shadow-sm" 
+                      />
+                      <h4 className="text-[12px] font-extrabold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">{item.propertyName || item.name}</h4>
+                      <p className="text-[13px] text-slate-950 font-black mt-1">{itemPrice}</p>
+                      <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400 font-extrabold">
+                        <span className="uppercase">by {item.partnerId ? 'Partner' : 'Owner'}</span>
+                        <span className="text-indigo-600 font-bold hover:underline">View →</span>
+                      </div>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
 
-              {/* Item 3 */}
-              <div className="p-2 rounded-xl border border-slate-100 bg-slate-50/50 min-w-[120px] shrink-0 text-center relative">
-                <img src={galleryImages[2] || galleryImages[0]} className="w-full h-12 object-cover rounded-lg mb-1" />
-                <h4 className="text-[10px] font-bold text-gray-800 line-clamp-1">Aditya Old Mhada</h4>
-                <p className="text-[10px] text-gray-900 font-extrabold">₹30 Lac</p>
-                <span className="text-[9px] text-slate-500 font-semibold block">by Owner</span>
-              </div>
+              {/* If no other items, show an add comparison helper */}
+              {(!recentProperties || recentProperties.length === 0) && (!similarProperties || similarProperties.length === 0) && (
+                <>
+                  <div className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 w-7 h-7 rounded-full flex items-center justify-center shrink-0 shadow-sm mx-1">
+                    VS
+                  </div>
+                  <div 
+                    onClick={() => navigate(`/compare?ids=${property?._id}`)}
+                    className="p-3 rounded-2xl border border-dashed border-slate-350 bg-slate-50/50 min-w-[210px] w-[210px] h-[190px] shrink-0 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="text-3xl text-indigo-500 font-bold mb-1">+</span>
+                    <span className="text-[11px] font-extrabold text-slate-500">Choose to compare</span>
+                  </div>
+                </>
+              )}
 
             </div>
 
-            <button className="w-full py-2.5 bg-white border border-[#0061df] text-[#0061df] rounded-xl text-xs font-bold hover:bg-blue-50/50 active:scale-98 transition-all text-center block">
+            <button 
+              onClick={() => {
+                const comparisonList = (recentProperties && recentProperties.length > 0)
+                  ? recentProperties.slice(0, 2)
+                  : (similarProperties && similarProperties.length > 0 ? similarProperties.slice(0, 2) : []);
+                const ids = [property?._id, ...comparisonList.map(item => item._id)].join(',');
+                navigate(`/compare?ids=${ids}`);
+              }}
+              className="w-full py-2.5 bg-white border border-[#0061df] text-[#0061df] rounded-xl text-xs font-bold hover:bg-blue-50/50 active:scale-98 transition-all text-center block"
+            >
               View Comparison
             </button>
           </div>
@@ -2082,18 +2173,7 @@ const PropertyDetailsPage = () => {
 
       </div>
 
-      {/* Ticker / Banner on top of footer bar */}
-      <div className="fixed bottom-[65px] left-0 right-0 z-50 bg-[#fff5f6] border-y border-[#ffe2e5] py-2 px-4 shadow-md text-center max-w-xl mx-auto">
-        <span className="text-[11px] font-bold text-red-600 flex items-center justify-center gap-1.5">
-          <span className="w-2 h-2 bg-red-600 rounded-full animate-ping shrink-0" />
-          {property?.enquiryCount && property.enquiryCount > 5
-            ? `${property.enquiryCount} people already contacted for this property`
-            : property?.viewCount && property.viewCount > 3
-              ? `${property.viewCount} people are actively viewing this property`
-              : 'High demand property — Contact now to avoid missing out'
-          }
-        </span>
-      </div>
+
 
       {/* Sticky Bottom Actions Bar (Matches Image 1) */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 p-2.5 shadow-2xl z-50 max-w-xl mx-auto">
@@ -2521,37 +2601,76 @@ const PropertyDetailsPage = () => {
                         type="text"
                         required
                         value={enquiryForm.name}
-                        onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
+                        onChange={(e) => {
+                          setEnquiryForm({ ...enquiryForm, name: e.target.value });
+                          if (enquiryErrors.name) setEnquiryErrors(prev => ({ ...prev, name: '' }));
+                        }}
                         placeholder="e.g. John Doe"
                         className="w-full bg-transparent outline-none text-xs font-bold text-slate-800"
                       />
+                      {enquiryErrors.name && (
+                        <p className="text-red-500 text-[10px] font-bold mt-1">
+                          {enquiryErrors.name}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Email */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
+                      <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Email Address</label>
+                      <input
+                        type="email"
+                        required
+                        value={enquiryForm.email}
+                        onChange={(e) => {
+                          setEnquiryForm({ ...enquiryForm, email: e.target.value });
+                          if (enquiryErrors.email) setEnquiryErrors(prev => ({ ...prev, email: '' }));
+                        }}
+                        placeholder="e.g. john@example.com"
+                        className="w-full bg-transparent outline-none text-xs font-bold text-slate-800"
+                      />
+                      {enquiryErrors.email && (
+                        <p className="text-red-500 text-[10px] font-bold mt-1">
+                          {enquiryErrors.email}
+                        </p>
+                      )}
                     </div>
 
                     {/* Phone + Send OTP */}
-                    <div className="flex gap-2">
-                      <div className="flex-1 bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
-                        <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Mobile Number</label>
-                        <div className="flex items-center">
-                          <span className="text-xs text-slate-500 font-bold mr-1.5">+91</span>
-                          <input
-                            type="tel"
-                            required
-                            value={enquiryForm.phone}
-                            onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
-                            placeholder="9876543210"
-                            maxLength={10}
-                            className="w-full bg-transparent outline-none text-xs font-bold tracking-wide text-slate-800"
-                          />
+                    <div>
+                      <div className="flex gap-2">
+                        <div className="flex-1 bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
+                          <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Mobile Number</label>
+                          <div className="flex items-center">
+                            <span className="text-xs text-slate-500 font-bold mr-1.5">+91</span>
+                            <input
+                              type="tel"
+                              required
+                              value={enquiryForm.phone}
+                              onChange={(e) => {
+                                setEnquiryForm({ ...enquiryForm, phone: e.target.value });
+                                if (enquiryErrors.phone) setEnquiryErrors(prev => ({ ...prev, phone: '' }));
+                              }}
+                              placeholder="9876543210"
+                              maxLength={10}
+                              className="w-full bg-transparent outline-none text-xs font-bold tracking-wide text-slate-800"
+                            />
+                          </div>
                         </div>
+                        <button
+                          type="button"
+                          disabled={sendingOtp || !enquiryForm.phone || enquiryForm.phone.length < 10}
+                          onClick={handleSendOtp}
+                          className="px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center shrink-0 border border-blue-100/50"
+                        >
+                          {sendingOtp ? <Loader2 className="animate-spin text-blue-600" size={16} /> : otpSent ? 'Resend' : 'Send OTP'}
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        disabled={sendingOtp || !enquiryForm.phone || enquiryForm.phone.length < 10}
-                        onClick={handleSendOtp}
-                        className="px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center shrink-0 border border-blue-100/50"
-                      >
-                        {sendingOtp ? <Loader2 className="animate-spin text-blue-600" size={16} /> : otpSent ? 'Resend' : 'Send OTP'}
-                      </button>
+                      {enquiryErrors.phone && (
+                        <p className="text-red-500 text-[10px] font-bold mt-1">
+                          {enquiryErrors.phone}
+                        </p>
+                      )}
                     </div>
 
                     {/* OTP */}
@@ -2562,7 +2681,10 @@ const PropertyDetailsPage = () => {
                           type="text"
                           required
                           value={enquiryForm.otp}
-                          onChange={(e) => setEnquiryForm({ ...enquiryForm, otp: e.target.value })}
+                          onChange={(e) => {
+                            setEnquiryForm({ ...enquiryForm, otp: e.target.value });
+                            if (enquiryErrors.otp) setEnquiryErrors(prev => ({ ...prev, otp: '' }));
+                          }}
                           placeholder="123456"
                           maxLength={6}
                           className="w-full bg-transparent outline-none text-xs font-bold tracking-widest text-slate-800"
@@ -2570,6 +2692,11 @@ const PropertyDetailsPage = () => {
                         <span className="absolute right-3 bottom-3 text-[8px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
                           Bypass: 123456
                         </span>
+                        {enquiryErrors.otp && (
+                          <p className="text-red-500 text-[10px] font-bold mt-1">
+                            {enquiryErrors.otp}
+                          </p>
+                        )}
                       </div>
                     )}
                   </>
@@ -2581,6 +2708,7 @@ const PropertyDetailsPage = () => {
                     <div>
                       <p className="text-xs font-bold text-slate-800">Submitting as {enquiryForm.name}</p>
                       <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Verified Mobile: +91 {enquiryForm.phone}</p>
+                      <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Email: {enquiryForm.email}</p>
                     </div>
                   </div>
                 )}

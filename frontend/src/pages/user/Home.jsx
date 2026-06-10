@@ -13,6 +13,7 @@ import PopularBuilders from '../../components/user/PopularBuilders';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import { categoryService } from '../../services/categoryService';
 import GRHHomeSection from '../../components/user/GRHHomeSection';
+import SupportSection from '../../components/user/SupportSection';
 
 
 // Category Theme Map - Professional palettes inspired by Housing.com
@@ -262,6 +263,7 @@ const Home = () => {
                     </div>
                 )}
             </div>
+            <SupportSection />
         </main>
     );
 };
