@@ -101,6 +101,7 @@ const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
 const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/PropertyFormManager'));
 const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocationsPage'));
 const AdminManagers = React.lazy(() => import('./app/admin/pages/AdminManagers'));
+const AdminBuilders = React.lazy(() => import('./app/admin/pages/AdminBuilders'));
 
 // Lazy Imports - Manager Panel
 const ManagerLogin = React.lazy(() => import('./app/manager/pages/ManagerLogin'));
@@ -564,6 +565,7 @@ function App() {
                 <Route path="enquiries" element={<AdminEnquiries />} />
                 <Route path="partners" element={<AdminPartners />} />
                 <Route path="partners/:id" element={<AdminPartnerDetail />} />
+                <Route path="builders" element={<AdminBuilders />} />
                 <Route path="reviews" element={<AdminReviews />} />
                 <Route path="finance" element={<AdminFinance />} />
                 <Route path="legal" element={<AdminLegalPages />} />
@@ -602,6 +604,7 @@ function App() {
                 {/* Partner Management */}
                 <Route path="partners" element={<AdminPartners />} />
                 <Route path="partners/:id" element={<AdminPartnerDetail />} />
+                <Route path="builders" element={<AdminBuilders />} />
 
                 {/* Property Management */}
                 <Route path="properties" element={<AdminProperties />} />

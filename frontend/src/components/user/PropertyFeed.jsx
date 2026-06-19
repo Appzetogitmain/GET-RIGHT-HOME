@@ -43,7 +43,15 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
 
         let filteredData = data;
         if (selectedCity && selectedCity !== 'All') {
-          filteredData = data.filter(p => p.address?.city?.toLowerCase() === selectedCity.toLowerCase());
+          filteredData = filteredData.filter(p => p.address?.city?.toLowerCase() === selectedCity.toLowerCase());
+        }
+
+        if (extraFilters.excludePropertyType) {
+          const excludeTypes = extraFilters.excludePropertyType.toLowerCase().split(',').map(s => s.trim());
+          filteredData = filteredData.filter(p => {
+             const pType = (p.propertyType || p.dynamicCategory?.name || p.propertyCategory || '').toLowerCase();
+             return !excludeTypes.some(t => pType.includes(t));
+          });
         }
 
         setProperties(filteredData);
@@ -88,10 +96,11 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
     return (
       <div className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full">
         {displayedProperties.map(property => (
-          <GRHPropertyCard
+          <PropertyCard
             key={property._id}
             data={property}
             isSaved={savedHotelIds.includes(property._id)}
+            className="min-w-[280px] max-w-[280px] flex-shrink-0"
           />
         ))}
         {/* Spacer for right padding */}

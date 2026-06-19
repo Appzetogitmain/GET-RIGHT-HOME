@@ -269,6 +269,28 @@ const adminService = {
     return response.data;
   },
 
+  // Builder Management
+  getBuilders: async (params) => {
+    const response = await axiosInstance.get('/admin/builders', { params });
+    return response.data;
+  },
+  addBuilder: async (data) => {
+    const response = await axiosInstance.post('/admin/builders', data);
+    return response.data;
+  },
+  updateBuilder: async (id, data) => {
+    const response = await axiosInstance.put(`/admin/builders/${id}`, data);
+    return response.data;
+  },
+  deleteBuilder: async (id) => {
+    const response = await axiosInstance.delete(`/admin/builders/${id}`);
+    return response.data;
+  },
+  uploadImageBase64: async (payload) => {
+    const response = await axiosInstance.post('/hotels/upload-base64', payload);
+    return response.data;
+  },
+
   // Manager Management
   getManagers: async (params) => {
     const response = await axiosInstance.get('/admin/managers', { params });

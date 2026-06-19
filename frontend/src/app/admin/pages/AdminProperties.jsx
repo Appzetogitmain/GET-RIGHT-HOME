@@ -50,10 +50,13 @@ const AdminProperties = () => {
     const [filters, setFilters] = useState({
         search: '',
         status: '',
-        type: ''
+        type: '',
+        builder: ''
     });
 
     const [dynamicCategories, setDynamicCategories] = useState([]);
+
+    const [builders, setBuilders] = useState([]);
 
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
@@ -67,7 +70,18 @@ const AdminProperties = () => {
                 console.error("Failed to fetch categories:", err);
             }
         };
+        const fetchBuilders = async () => {
+            try {
+                const res = await adminService.getBuilders();
+                if (res.success) {
+                    setBuilders(res.builders || []);
+                }
+            } catch (err) {
+                console.error("Failed to fetch builders:", err);
+            }
+        };
         fetchCategories();
+        fetchBuilders();
     }, []);
 
     const fetchProperties = useCallback(async (page, currentFilters) => {
@@ -81,7 +95,8 @@ const AdminProperties = () => {
                 limit,
                 search: currentFilters.search,
                 status: currentFilters.status,
-                type: currentFilters.type || undefined
+                type: currentFilters.type || undefined,
+                builder: currentFilters.builder || undefined
             };
             const data = await adminService.getHotels(params);
             if (data.success) {
@@ -262,6 +277,18 @@ const AdminProperties = () => {
                         <option value="homestay">Homestay</option>
                         {dynamicCategories.map(cat => (
                             <option key={cat._id} value={cat._id}>{cat.displayName}</option>
+                        ))}
+                    </select>
+                    <select
+                        value={filters.builder}
+                        onChange={(e) => handleFilterChange('builder', e.target.value)}
+                        className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
+                    >
+                        <option value="">All Builders</option>
+                        {builders.map(b => (
+                            <option key={b._id} value={b._id}>
+                                {b.builderProfile?.companyName || b.name}
+                            </option>
                         ))}
                     </select>
                 </div>

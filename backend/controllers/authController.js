@@ -290,14 +290,24 @@ export const verifyOtp = async (req, res) => {
       // Determine registration role
       const finalRole = ['owner', 'broker', 'builder'].includes(role) ? role : 'user';
 
-      user = new User({
+      const newUserObj = {
         name,
         phone,
         email,
         role: finalRole,
         isVerified: true,
         password: await bcrypt.hash(Math.random().toString(36), 10)
-      });
+      };
+
+      if (finalRole === 'builder') {
+        newUserObj.builderProfile = {
+          companyName: req.body.companyName || '',
+          reraRegistrationNumber: req.body.reraRegistrationNumber || '',
+          gstNumber: req.body.gstNumber || ''
+        };
+      }
+
+      user = new User(newUserObj);
       isRegistration = true;
       await Otp.deleteOne({ phone });
     }

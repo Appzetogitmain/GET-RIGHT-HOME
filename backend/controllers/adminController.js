@@ -334,7 +334,7 @@ export const getAllHotels = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const { search, status, type } = req.query;
+    const { search, status, type, builder } = req.query;
 
     const query = {};
 
@@ -352,6 +352,10 @@ export const getAllHotels = async (req, res) => {
 
     if (type) {
       query.propertyType = String(type).toLowerCase();
+    }
+
+    if (builder) {
+      query.userId = builder;
     }
 
     const total = await Property.countDocuments(query);

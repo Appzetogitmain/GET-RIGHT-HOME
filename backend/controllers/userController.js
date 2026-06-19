@@ -433,7 +433,7 @@ export const markAllNotificationsRead = async (req, res) => {
  */
 export const updateUserRole = async (req, res) => {
   try {
-    const { role } = req.body;
+    const { role, builderData } = req.body;
     if (!['owner', 'broker', 'builder'].includes(role)) {
       return res.status(400).json({ message: 'Invalid role. Must be owner, broker or builder.' });
     }
@@ -444,6 +444,15 @@ export const updateUserRole = async (req, res) => {
     }
 
     user.role = role;
+    
+    if (role === 'builder' && builderData) {
+      user.builderProfile = {
+        companyName: builderData.companyName || '',
+        reraRegistrationNumber: builderData.reraRegistrationNumber || '',
+        gstNumber: builderData.gstNumber || ''
+      };
+    }
+
     await user.save();
 
     res.json({
@@ -452,7 +461,8 @@ export const updateUserRole = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        role: user.role
+        role: user.role,
+        builderProfile: user.builderProfile
       }
     });
   } catch (error) {

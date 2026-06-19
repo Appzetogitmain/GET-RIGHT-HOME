@@ -1376,8 +1376,10 @@ const PropertyDetailsPage = () => {
                   property.buyDetails?.facing ? `${property.buyDetails.facing} Facing` : null,
                   property.rentDetails?.furnishing || null,
                   property.dynamicData?.gatedCommunity === 'Yes' ? 'Gated Society' : null,
-                  property.transactionType?.includes('Sell') ? 'Ready to Move In' : null
-                ].filter(Boolean).concat(['East Facing', 'Gated Society', 'Corner Property', 'Vastu Compliant']).slice(0, 4).map((item, idx) => (
+                  property.transactionType?.includes('Sell') ? 'Ready to Move In' : null,
+                  property.dynamicData?.availability || null,
+                  property.dynamicData?.waterSupply ? `${property.dynamicData.waterSupply} Water` : null
+                ].filter(Boolean).slice(0, 4).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-1.5">
                     <span className="text-emerald-500">✓</span> {item}
                   </div>
@@ -1492,29 +1494,29 @@ const PropertyDetailsPage = () => {
                   </div>
                 );
               })
+            ) : property.amenities && property.amenities.length > 0 ? (
+              property.amenities.slice(0, 3).map((am, idx) => {
+                const isLast = idx === Math.min(property.amenities.length, 3) - 1;
+                const hasMore = property.amenities.length > 3;
+                return (
+                  <div key={idx} className="flex items-center gap-2">
+                    <CheckCircle size={13} className="text-emerald-500 shrink-0" />
+                    <span>
+                      {am}
+                      {isLast && hasMore && (
+                        <button
+                          onClick={() => setShowHighlightsModal(true)}
+                          className="text-[#0061df] font-bold ml-1 hover:underline focus:outline-none"
+                        >
+                          ...more
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                );
+              })
             ) : (
-              <>
-                <div className="flex items-center gap-2">
-                  <Zap size={13} className="text-blue-500 fill-blue-50 shrink-0" />
-                  <span>Full Power Backup</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Car size={13} className="text-[#0061df] shrink-0" />
-                  <span>Visitor Parking Available</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Wind size={13} className="text-emerald-500 shrink-0" />
-                  <span>
-                    Centrally Air Conditioned{' '}
-                    <button
-                      onClick={() => setShowHighlightsModal(true)}
-                      className="text-[#0061df] font-bold ml-1 hover:underline focus:outline-none"
-                    >
-                      ...more
-                    </button>
-                  </span>
-                </div>
-              </>
+                <div className="text-gray-500 text-xs italic">Highlights available on request</div>
             )}
           </div>
 
@@ -1625,41 +1627,15 @@ const PropertyDetailsPage = () => {
                     <span className="line-clamp-1">{am}</span>
                   </div>
                 ))
+              ) : property.amenities && property.amenities.length > 0 ? (
+                property.amenities.slice(0, 8).map((am, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+                    <span className="line-clamp-1">{am}</span>
+                  </div>
+                ))
               ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Zap size={14} className="text-amber-500 fill-amber-50" />
-                    <span>Power Back-up</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Compass size={14} className="text-teal-500" />
-                    <span>Corner Property</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Car size={14} className="text-[#0061df]" />
-                    <span>Reserved Parking</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ArrowUpCircle size={14} className="text-slate-600" />
-                    <span>Lift(s)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Shield size={14} className="text-blue-500 fill-blue-50" />
-                    <span>Security Guard</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Droplets size={14} className="text-sky-500" />
-                    <span>Water Storage</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Car size={14} className="text-[#0061df]" />
-                    <span>1 Covered Parking</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Grid size={14} className="text-indigo-500" />
-                    <span>In a Gated Society</span>
-                  </div>
-                </>
+                <div className="text-gray-500 text-xs italic col-span-2">Facilities available on request</div>
               )}
             </div>
           </div>
@@ -1686,22 +1662,17 @@ const PropertyDetailsPage = () => {
                     <span className="text-[10px] font-bold text-gray-800 leading-tight line-clamp-1">{am}</span>
                   </div>
                 ))
-              ) : (
-                [
-                  { title: 'Security / Fire Alarm', icon: Shield, bg: 'bg-[#fff5f5] text-red-500' },
-                  { title: 'Centrally Air Conditioned', icon: Wind, bg: 'bg-[#effbfb] text-teal-600' },
-                  { title: 'Vaastu Compliant', icon: Compass, bg: 'bg-[#fffbf0] text-amber-600' }
-                ].map((other, idx) => {
-                  const Icon = other.icon;
-                  return (
-                    <div key={idx} className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-100 bg-slate-50/50 text-center min-w-[120px] shrink-0">
-                      <div className={`w-8 h-8 rounded-full ${other.bg} flex items-center justify-center mb-1.5 shadow-sm`}>
-                        <Icon size={14} />
-                      </div>
-                      <span className="text-[10px] font-bold text-gray-800 leading-tight line-clamp-1">{other.title}</span>
+              ) : property.amenities && property.amenities.length > 8 ? (
+                property.amenities.slice(8, 13).map((am, idx) => (
+                  <div key={idx} className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-100 bg-slate-50/50 text-center min-w-[120px] shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-1.5 shadow-sm">
+                      <Grid size={14} />
                     </div>
-                  );
-                })
+                    <span className="text-[10px] font-bold text-gray-800 leading-tight line-clamp-1">{am}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-gray-500 text-xs italic">Other amenities available on request</div>
               )}
             </div>
           </div>

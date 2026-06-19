@@ -18,6 +18,7 @@ const MODULE_NAV_MAP = {
     dashboard:       { icon: LayoutDashboard, label: 'Dashboard',          path: '/manager/dashboard' },
     users:           { icon: Users,           label: 'User Management',    path: '/manager/users' },
     partners:        { icon: Building2,        label: 'Partner Management', path: '/manager/partners' },
+    builders:        { icon: Building2,        label: 'Builder Management', path: '/manager/builders' },
     subscriptions:   { icon: CreditCard,       label: 'Subscriptions',      path: '/manager/subscriptions' },
     properties:      { icon: Home,             label: 'Properties',         path: '/manager/properties' },
     categories:      { icon: LayoutGrid,       label: 'Categories',         path: '/manager/categories' },

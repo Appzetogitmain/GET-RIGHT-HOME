@@ -438,6 +438,8 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     };
 
     const postedByName = item.buyDetails?.builderName || 
+                         (item.user?.role === 'builder' && item.user?.builderProfile?.companyName) ||
+                         (item.userId?.role === 'builder' && item.userId?.builderProfile?.companyName) ||
                          item.partner?.name || 
                          item.partnerId?.name || 
                          item.user?.name || 
@@ -1025,7 +1027,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
 
             {/* Premium Glassmorphic Transaction Badge */}
             <span className="absolute top-3 left-3 bg-emerald-500/90 text-white text-[9px] font-black px-3 py-1 rounded-md backdrop-blur-md shadow-md uppercase tracking-wider z-20 border border-white/10">
-              RENTAL
+              {typeLabel}
             </span>
 
             {/* Floating Embedded Price Tag inside Image */}
@@ -1176,7 +1178,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
 
             {/* Translucent Transaction Type Badge on Bottom-Left */}
             <span className="absolute bottom-3 left-3 bg-amber-500/90 text-white text-[9px] font-black px-3 py-1 rounded-md backdrop-blur-md shadow-md uppercase tracking-wider z-20 border border-white/10">
-              FOR SALE
+              {typeLabel}
             </span>
           </div>
 

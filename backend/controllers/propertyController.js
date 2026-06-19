@@ -22,6 +22,15 @@ const notifyAdminOfNewProperty = async (property) => {
   }
 };
 
+export const getPublicBuilders = async (req, res) => {
+  try {
+    const builders = await User.find({ role: 'builder' }).select('name builderProfile').sort({ createdAt: -1 });
+    res.json({ success: true, builders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching builders' });
+  }
+};
+
 export const createProperty = async (req, res) => {
   try {
     const isPartner = req.user.role === 'partner';
@@ -708,7 +717,9 @@ export const getPublicProperties = async (req, res) => {
       purchaseType,
       propertyCategory,
       transactionType,
-      areas
+      areas,
+      builder,
+      excludeAvailability
     } = req.query;
 
     const pipeline = [];
@@ -1054,6 +1065,29 @@ export const getPublicProperties = async (req, res) => {
       }
     }
 
+    if (excludeAvailability) {
+      const excludeList = excludeAvailability.split(',').map(a => a.trim()).filter(Boolean);
+      if (excludeList.length > 0) {
+        const excludeRegexes = excludeList.map(a => new RegExp('^' + a.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+        const excludeMatch = {
+          $and: [
+            { 'dynamicData.availability': { $not: { $in: excludeRegexes } } },
+            { 'dynamicData.availabilityStatus': { $not: { $in: excludeRegexes } } }
+          ]
+        };
+
+        if (matchConditions.$and) {
+          matchConditions.$and.push(excludeMatch);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, excludeMatch];
+        } else {
+          matchConditions.$and = [excludeMatch];
+        }
+      }
+    }
+
     if (city) {
       const cityRegex = new RegExp('^' + city.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
       const cityMatch = {
@@ -1218,6 +1252,13 @@ export const getPublicProperties = async (req, res) => {
         } else {
           matchConditions.$or = purchaseMatch.$or;
         }
+      }
+    }
+
+    if (builder) {
+      const builderIds = builder.split(',').map(id => id.trim()).filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (builderIds.length > 0) {
+        matchConditions.userId = { $in: builderIds.map(id => new mongoose.Types.ObjectId(id)) };
       }
     }
 

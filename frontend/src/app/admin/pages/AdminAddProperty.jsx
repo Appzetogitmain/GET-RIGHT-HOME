@@ -39,6 +39,9 @@ const AdminAddProperty = () => {
   const [selectedCat, setSelectedCat] = useState('');
   const [selectedPropType, setSelectedPropType] = useState('');
   
+  const [builders, setBuilders] = useState([]);
+  const [selectedBuilder, setSelectedBuilder] = useState('');
+  
   const [template, setTemplate] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [errors, setErrors] = useState({});
@@ -58,22 +61,29 @@ const AdminAddProperty = () => {
   const [modalFrequency, setModalFrequency] = useState('Monthly');
   const [modalBooking, setModalBooking] = useState('');
 
-  // Fetch Category combinations on load
+  // Fetch Category combinations and Builders on load
   useEffect(() => {
-    const fetchConfigs = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/property-forms/configs');
-        if (res.data.success) {
-          setConfigs(res.data.configs);
+        const [configsRes, buildersRes] = await Promise.all([
+          api.get('/property-forms/configs'),
+          adminService.getBuilders()
+        ]);
+        
+        if (configsRes.data.success) {
+          setConfigs(configsRes.data.configs);
+        }
+        if (buildersRes.success) {
+          setBuilders(buildersRes.builders || []);
         }
       } catch (err) {
-        toast.error('Failed to load category configurations');
+        toast.error('Failed to load initial data');
       } finally {
         setLoading(false);
       }
     };
-    fetchConfigs();
+    fetchData();
   }, []);
 
   // Fetch Template when all 3 selections are made
@@ -275,6 +285,10 @@ const AdminAddProperty = () => {
         isLive: true,
         isAddedByAdmin: true
       };
+
+      if (selectedBuilder) {
+        payload.userId = selectedBuilder;
+      }
 
       const res = await adminService.createProperty(payload);
       if (res.success) {
@@ -669,7 +683,7 @@ const AdminAddProperty = () => {
           <Layers size={16} className="text-[#004F4D]" /> Select Property Category
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           
           {/* Level 1 selector */}
           <div className="space-y-1">
@@ -720,6 +734,21 @@ const AdminAddProperty = () => {
               </select>
             </div>
           )}
+
+          {/* Builder Dropdown (Optional) */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase">Associate Builder</label>
+            <select
+              value={selectedBuilder}
+              onChange={(e) => setSelectedBuilder(e.target.value)}
+              className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all"
+            >
+              <option value="">None (Optional)</option>
+              {builders.map(b => (
+                <option key={b._id} value={b._id}>{b.builderProfile?.companyName || b.name}</option>
+              ))}
+            </select>
+          </div>
 
         </div>
       </div>

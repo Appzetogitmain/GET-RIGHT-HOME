@@ -71,14 +71,68 @@ const RoleSelectionSheet = ({ isOpen, onClose, onSelect, loading }) => {
                 </button>
               </div>
 
-              <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+              <p className="text-[10px] text-slate-400 font-medium leading-relaxed mb-4">
                 Please choose accurately. You won't be able to change this in the future.
               </p>
+
+              <AnimatePresence>
+                {selected === 'builder' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3 mb-6"
+                  >
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Company Name *</label>
+                      <input 
+                        type="text" 
+                        id="builderCompanyName"
+                        placeholder="e.g. Prestige Estates"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1">RERA No.</label>
+                        <input 
+                          type="text" 
+                          id="builderRera"
+                          placeholder="Optional"
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1">GST No.</label>
+                        <input 
+                          type="text" 
+                          id="builderGst"
+                          placeholder="Optional"
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <button
               disabled={loading}
-              onClick={() => onSelect(selected)}
+              onClick={() => {
+                const builderData = selected === 'builder' ? {
+                  companyName: document.getElementById('builderCompanyName')?.value || '',
+                  reraRegistrationNumber: document.getElementById('builderRera')?.value || '',
+                  gstNumber: document.getElementById('builderGst')?.value || ''
+                } : null;
+                
+                if (selected === 'builder' && !builderData.companyName.trim()) {
+                  alert('Please enter your Company Name');
+                  return;
+                }
+                
+                onSelect(selected, builderData);
+              }}
               className="w-full bg-[#0078DB] text-white font-bold py-4 rounded-xl shadow-sm active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center text-[15px]"
             >
               {loading ? (

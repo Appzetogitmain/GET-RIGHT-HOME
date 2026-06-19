@@ -48,10 +48,14 @@ import {
 import { getWorkerAnalytics } from '../controllers/adminWorkerController.js';
 import { checkManagerPermission, requireAdminOrManager } from '../middlewares/managerPermission.js';
 
+import builderRoutes from './builderRoutes.js';
+
 const router = express.Router();
 
 router.use(protect);
 router.use(authorizedRoles('admin', 'superadmin', 'manager'));
+
+router.use('/builders', builderRoutes);
 
 // Enquiries (dedicated Enquiry collection — not Booking)
 router.get('/enquiries', checkManagerPermission('enquiries', 'view'), adminGetAllEnquiries);

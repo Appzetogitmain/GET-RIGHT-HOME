@@ -59,6 +59,11 @@ const UserSignup = () => {
             return;
         }
 
+        if (formData.role === 'builder' && (!formData.companyName || formData.companyName.trim().length < 2)) {
+            setError('Please enter your Company Name');
+            return;
+        }
+
         try {
             setLoading(true);
             await authService.sendOtp(formData.phone, 'register', formData.role);
@@ -124,13 +129,15 @@ const UserSignup = () => {
 
         try {
             setLoading(true);
-            // Send name (required), phone, otp, and email (optional)
             const res = await authService.verifyOtp({
                 phone: formData.phone,
                 otp: otpString,
                 name: formData.name,
                 email: formData.email || undefined,
-                role: formData.role
+                role: formData.role,
+                companyName: formData.companyName,
+                reraRegistrationNumber: formData.reraRegistrationNumber,
+                gstNumber: formData.gstNumber
             });
 
             // Update FCM Token after successful registration
@@ -265,6 +272,58 @@ const UserSignup = () => {
                                             />
                                         </div>
                                     </div>
+
+                                    {/* Builder Specific Fields */}
+                                    {formData.role === 'builder' && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="space-y-5 border-t border-gray-100 pt-5 mt-5"
+                                        >
+                                            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Builder Profile Details</h3>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Company Name <span className="text-red-500">*</span>
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.companyName || ''}
+                                                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                                                    placeholder="e.g. Prestige Estates"
+                                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        RERA No.
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.reraRegistrationNumber || ''}
+                                                        onChange={(e) => setFormData({ ...formData, reraRegistrationNumber: e.target.value })}
+                                                        placeholder="RERA Number"
+                                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        GST No.
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.gstNumber || ''}
+                                                        onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value })}
+                                                        placeholder="GSTIN"
+                                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
 
                                     {error && (
                                         <motion.p

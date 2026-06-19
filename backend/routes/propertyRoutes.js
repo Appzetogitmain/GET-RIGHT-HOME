@@ -17,12 +17,14 @@ import {
   getAdminPropertyCities,
   getPropertyStats,
   debugProperties,
-  getPartnerPublicDetails
+  getPartnerPublicDetails,
+  getPublicBuilders
 } from '../controllers/propertyController.js';
 
 
 const router = express.Router();
 
+router.get('/builders', getPublicBuilders);
 router.get('/', getPublicProperties);
 router.get('/debug-data', debugProperties); // TEMP - remove after debugging
 router.get('/recommended-sellers', getRecommendedSellers);

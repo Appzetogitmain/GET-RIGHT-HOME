@@ -81,6 +81,7 @@ const AdminLayout = () => {
                 { icon: Users, label: 'User Management', path: '/admin/users' },
                 { icon: ShieldCheck, label: 'Manager Management', path: '/admin/managers' },
                 { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
+                { icon: Building2, label: 'Builder Management', path: '/admin/builders' },
                 { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
                 { icon: Home, label: 'Property Management', path: '/admin/properties' },
                 { icon: LayoutGrid, label: 'Categories', path: '/admin/categories' },

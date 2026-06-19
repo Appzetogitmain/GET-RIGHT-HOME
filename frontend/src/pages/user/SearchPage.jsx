@@ -181,7 +181,8 @@ const SearchPage = () => {
             bathrooms: parseInt(searchParams.get('bathrooms')) || 0,
             postedBy: searchParams.get('postedBy') || '',
             purchaseType: searchParams.get('purchaseType') || '',
-            areas: areasFromUrl
+            areas: areasFromUrl,
+            builder: searchParams.get('builder') ? searchParams.get('builder').split(',').filter(Boolean) : []
         };
     };
 
@@ -214,6 +215,8 @@ const SearchPage = () => {
     useEffect(() => {
         setFilters(getInitialFilters());
     }, [searchParams]);
+
+    const [builders, setBuilders] = useState([]);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -270,7 +273,20 @@ const SearchPage = () => {
                 console.warn("Failed to fetch dynamic categories:", err);
             }
         };
+
+        const fetchBuilders = async () => {
+            try {
+                const res = await api.get('/properties/builders');
+                if (res.data && res.data.success) {
+                    setBuilders(res.data.builders || []);
+                }
+            } catch (err) {
+                console.warn("Failed to fetch builders:", err);
+            }
+        };
+
         fetchCategories();
+        fetchBuilders();
     }, [searchParams]);
 
     const getAmenitiesOptions = () => {
@@ -378,7 +394,7 @@ const SearchPage = () => {
             // apply filters immediately
             setTimeout(() => {
                 const newParams = getParamsFromFilters(nextFilters);
-                setSearchParams(newParams);
+                setSearchParams(newParams, { replace: true });
             }, 0);
 
             return nextFilters;
@@ -432,6 +448,11 @@ const SearchPage = () => {
             ? targetFilters.areas
             : (typeof targetFilters.areas === 'string' ? targetFilters.areas.split(',').filter(Boolean) : []);
         if (targetAreas.length > 0) params.areas = targetAreas.join(',');
+
+        const targetBuilders = Array.isArray(targetFilters.builder)
+            ? targetFilters.builder
+            : (typeof targetFilters.builder === 'string' ? targetFilters.builder.split(',').filter(Boolean) : []);
+        if (targetBuilders.length > 0) params.builder = targetBuilders.join(',');
 
         // Map Special Amenities to specific query params
         const finalAmenities = [];
@@ -505,7 +526,7 @@ const SearchPage = () => {
 
     const applyFilters = () => {
         const params = getParamsFromFilters(filters);
-        setSearchParams(params);
+        setSearchParams(params, { replace: true });
         setShowFilters(false);
     };
 
@@ -562,7 +583,7 @@ const SearchPage = () => {
                 const p = Object.fromEntries([...prev]);
                 p.sort = 'distance';
                 return p;
-            });
+            }, { replace: true });
         } catch (err) {
             toast.dismiss();
             toast.error('Could not get location. Please enable permissions.');
@@ -631,6 +652,7 @@ const SearchPage = () => {
                                 if (filters.postedBy) count++;
                                 if (filters.purchaseType) count++;
                                 if (filters.areas && filters.areas.length > 0) count++;
+                                if (filters.builder && Array.isArray(filters.builder) && filters.builder.length > 0) count++;
                                 return count > 0 ? <span className="text-xs font-bold text-surface">{count}</span> : null;
                             })()}
                         </button>
@@ -642,7 +664,7 @@ const SearchPage = () => {
                                 onChange={(e) => {
                                     updateFilter('sort', e.target.value);
                                     const params = { ...Object.fromEntries([...searchParams]), sort: e.target.value };
-                                    setSearchParams(params);
+                                    setSearchParams(params, { replace: true });
                                 }}
                                 className="appearance-none pl-3 pr-7 py-1.5 border border-gray-300 rounded-full text-xs font-medium text-gray-700 bg-white outline-none cursor-pointer"
                             >
@@ -724,7 +746,7 @@ const SearchPage = () => {
                             onChange={(e) => {
                                 updateFilter('sort', e.target.value);
                                 const params = { ...Object.fromEntries([...searchParams]), sort: e.target.value };
-                                setSearchParams(params);
+                                setSearchParams(params, { replace: true });
                             }}
                             className="text-xs font-bold text-gray-600 bg-transparent outline-none pr-1 cursor-pointer appearance-none"
                         >
@@ -763,10 +785,11 @@ const SearchPage = () => {
                                     maxPrice: '',
                                     sort: 'newest',
                                     amenities: [],
-                                    radius: 50
+                                    radius: 50,
+                                    builder: []
                                 });
                                 setLocation(null);
-                                setSearchParams({});
+                                setSearchParams({}, { replace: true });
                             }}
                             className="mt-8 text-sm font-bold text-surface hover:underline"
                         >
@@ -800,12 +823,33 @@ const SearchPage = () => {
                 previewCount={previewCount}
                 previewLoading={previewLoading}
                 clearAllFilters={() => {
-                    const params = getParamsFromFilters(getInitialFilters()); // Keep category from URL
-                    setSearchParams(params); // Refresh filters
-                    setFilters(getInitialFilters());
+                    setSearchParams({}, { replace: true });
+                    setFilters({
+                        search: '',
+                        type: 'all',
+                        propertyCategory: 'Residential',
+                        categoryTab: 'Sell',
+                        minPrice: '',
+                        maxPrice: '',
+                        sort: 'newest',
+                        amenities: [],
+                        propertyTypes: [],
+                        radius: 50,
+                        foodIncluded: false,
+                        city: '',
+                        minArea: '',
+                        maxArea: '',
+                        bathrooms: 0,
+                        postedBy: '',
+                        purchaseType: '',
+                        areas: [],
+                        builder: []
+                    });
+                    setLocation(null);
                 }}
                 activeTab={activeModalTab}
                 setActiveTab={setActiveModalTab}
+                builders={builders}
             />
 
             <MobileSearchOverlay 
@@ -814,7 +858,7 @@ const SearchPage = () => {
                 initialFilters={filters}
                 onApplyFilters={(newFilters) => {
                     const finalParams = getParamsFromFilters({...filters, ...newFilters});
-                    setSearchParams(finalParams);
+                    setSearchParams(finalParams, { replace: true });
                     setFilters(prev => ({...prev, ...newFilters}));
                 }}
             />

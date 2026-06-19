@@ -109,7 +109,7 @@ const Home = () => {
     const pageBg = '#FFFFFF';
 
     // Section Component
-    const HomeSection = ({ title, typeId, subtitle }) => (
+    const HomeSection = ({ title, typeId, subtitle, extraFilters }) => (
         <div className="py-4 border-b border-gray-100 last:border-0 relative">
             <div className="flex justify-between items-end px-5 md:px-0 mb-2">
                 <div>
@@ -134,7 +134,7 @@ const Home = () => {
                     View All
                 </button>
             </div>
-            <PropertyFeed selectedType={typeId} viewMode="carousel" limit={8} />
+            <PropertyFeed selectedType={typeId} viewMode="carousel" limit={8} extraFilters={extraFilters} />
         </div>
     );
 
@@ -205,6 +205,7 @@ const Home = () => {
                                 title="Properties for Rent"
                                 subtitle="Apartments, Homes, and Villas for Rent"
                                 typeId={sectionIds.rent}
+                                extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
                             />
                         )}
                         {sectionIds.buy && (
@@ -212,6 +213,7 @@ const Home = () => {
                                 title="Dream Homes for Sale"
                                 subtitle="Buy your perfect home today"
                                 typeId={sectionIds.buy}
+                                extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
                             />
                         )}
                         {sectionIds.plot && (

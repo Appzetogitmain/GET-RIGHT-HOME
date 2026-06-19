@@ -12,7 +12,8 @@ const AdvancedFilterModal = ({
     previewLoading,
     clearAllFilters,
     activeTab,
-    setActiveTab
+    setActiveTab,
+    builders = []
 }) => {
 
     const tabs = [
@@ -108,8 +109,49 @@ const AdvancedFilterModal = ({
                 return renderMultiSelect('amenities', 'Amenities & Facilities', amenitiesList);
             case 'Localities':
                 return renderMultiSelect('areas', 'Localities', ['Indiranagar', 'Koramangala', 'Whitefield', 'HSR Layout', 'Electronic City', 'Marathahalli', 'Jayanagar', 'JP Nagar', 'Bellandur']);
-            case 'Builders':
-                return renderMultiSelect('amenities', 'Builders', ['Prestige Group', 'Sobha Limited', 'Brigade Group', 'Puravankara', 'Godrej Properties', 'Lodha Group']);
+            case 'Builders': {
+                const current = Array.isArray(filters['builder']) ? filters['builder'] : [];
+                return (
+                    <div className="flex flex-col h-full">
+                        <div className="p-4 pb-2 flex items-center justify-between bg-white sticky top-0 border-b border-gray-100">
+                            <span className="text-sm font-bold text-gray-900">Builders</span>
+                            <button 
+                                onClick={() => {
+                                    if (current.length > 0) {
+                                        updateFilter('builder', []);
+                                    } else {
+                                        updateFilter('builder', builders.map(b => b._id));
+                                    }
+                                }}
+                                className="text-sm font-semibold text-surface"
+                            >
+                                {current.length > 0 ? 'Clear all' : 'Select all'}
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-4 overflow-y-auto">
+                            {builders.length > 0 ? builders.map(b => (
+                                <label key={b._id} className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={current.includes(b._id)}
+                                        onChange={() => {
+                                            if (current.includes(b._id)) {
+                                                updateFilter('builder', current.filter(id => id !== b._id));
+                                            } else {
+                                                updateFilter('builder', [...current, b._id]);
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded border-gray-300 text-surface focus:ring-surface"
+                                    />
+                                    <span className="text-sm text-gray-700">{b.name}</span>
+                                </label>
+                            )) : (
+                                <div className="text-sm text-gray-500">No builders found.</div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
             case 'Projects':
                 return renderMultiSelect('amenities', 'Projects', ['Prestige Shantiniketan', 'Sobha City', 'Brigade Gateway', 'Godrej Woodsman Estate']);
             case 'Floor Preference':
@@ -232,6 +274,7 @@ const AdvancedFilterModal = ({
         if (filters.postedBy) count++;
         if (filters.purchaseType) count++;
         if (filters.areas && filters.areas.length > 0) count += filters.areas.length;
+        if (filters.builder && Array.isArray(filters.builder) && filters.builder.length > 0) count += filters.builder.length;
         return count;
     })();
 
@@ -251,6 +294,12 @@ const AdvancedFilterModal = ({
     if (Array.isArray(filters.amenities)) {
         filters.amenities.forEach(a => activeChips.push({ key: `am-${a}`, label: a }));
     }
+    if (Array.isArray(filters.builder) && builders.length > 0) {
+        filters.builder.forEach(bId => {
+            const b = builders.find(builder => builder._id === bId);
+            if (b) activeChips.push({ key: `bd-${b._id}`, label: b.name });
+        });
+    }
 
     const removeChip = (chipKey) => {
         if (chipKey === 'price') {
@@ -263,6 +312,9 @@ const AdvancedFilterModal = ({
             toggleArrayFilter('propertyTypes', chipKey.replace('pt-', ''));
         } else if (chipKey.startsWith('am-')) {
             toggleArrayFilter('amenities', chipKey.replace('am-', ''));
+        } else if (chipKey.startsWith('bd-')) {
+            const currentBuilders = Array.isArray(filters.builder) ? filters.builder : [];
+            updateFilter('builder', currentBuilders.filter(id => id !== chipKey.replace('bd-', '')));
         }
     };
 

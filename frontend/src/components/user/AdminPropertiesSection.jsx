@@ -379,26 +379,7 @@ const AdminPropertiesSection = ({ searchCity }) => {
         );
     });
 
-    const displayProperties = filteredProperties.length > 0
-        ? filteredProperties
-        : (!localQuery) // Always show dummy property if empty, to demo the Handpicked feature
-            ? [
-                {
-                    _id: 'dummy-satellite-aristia',
-                    propertyName: 'Satellite Aristia',
-                    coverImage: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80',
-                    logo: '', // Empty logo to test coverImage fallback logo behavior!
-                    propertyType: 'buy',
-                    bhk: '1,2',
-                    address: {
-                        area: 'Andheri East',
-                        city: 'Mumbai'
-                    },
-                    dynamicPriceText: '₹ 1.28 - 2.48 Cr',
-                    isDummy: true
-                }
-              ]
-            : [];
+    const displayProperties = filteredProperties;
 
 
     // If no cities at all, don't render the section
