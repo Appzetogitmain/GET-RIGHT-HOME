@@ -63,21 +63,27 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
   parts.forEach(p => {
     const qty = parseFloat(p.quantity) || 1;
     partsBase += ((parseFloat(p.price) || 0) * qty);
-    partsGST += (parseFloat(p.gstAmount) || 0);
   });
 
   customItems.forEach(c => {
     const qty = parseFloat(c.quantity) || 1;
     partsBase += ((parseFloat(c.price) || 0) * qty);
-    partsGST += (parseFloat(c.gstAmount) || 0);
   });
 
   // Tax Logic
-  const originalGST = bill ? (bill.originalGST || 0) : (originalBase * 0.18);
+  let originalGST = 0;
+  if (bill) {
+    originalGST = (bill.totalServiceGST || 0) - extraServiceGST;
+    if (originalGST < 0) originalGST = 0;
+  } else {
+    originalGST = booking.tax || 0;
+  }
   const totalGST = originalGST + extraServiceGST + partsGST;
 
-  // Final Total
-  const finalTotal = bill?.grandTotal || (booking.finalAmount || 0);
+  // Final Totals
+  const onlineTotal = bill?.finalOnlineAmount || booking.finalOnlineAmount || bill?.grandTotal || booking.finalAmount || 0;
+  const cashTotal = bill?.finalCashAmount || booking.finalCashAmount || (booking.finalAmount ? booking.finalAmount + (bill?.cashCollectionFee ?? 20) : null) || bill?.grandTotal || booking.finalAmount || 0;
+  const isDualPricing = onlineTotal !== cashTotal;
 
   // --- 2. Identity Helpers ---
   const categoryName = booking.serviceCategory || 'General';
@@ -110,17 +116,15 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
             </button>
 
             <div className="flex flex-col items-center text-center mt-2">
-              <div className="w-14 h-14 bg-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/30 mb-3 text-white overflow-hidden border-2 border-slate-800">
+              <div className="w-14 h-14 bg-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/30 mb-1 text-white overflow-hidden border-2 border-slate-800">
                 {CategoryIcon}
               </div>
-              <h3 className="text-white font-bold text-lg">Payment Verification</h3>
-              <p className="text-slate-400 text-xs mt-1">Review bill and complete payment</p>
             </div>
           </div>
 
-          <div className="p-5 overflow-y-auto custom-scrollbar flex-1">
+          <div className="px-5 pb-5 pt-3 overflow-y-auto custom-scrollbar flex-1">
             {/* Booking Identity Card */}
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-5 relative overflow-hidden">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-3 relative overflow-hidden">
               <div className="flex flex-col gap-1 relative z-10">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
@@ -135,59 +139,73 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                     </div>
                   )}
                 </div>
-                <h4 className="text-lg font-bold text-slate-800 leading-tight">
-                  {serviceName}
-                </h4>
-                <p className="text-xs text-slate-400 font-mono mt-1">
-                  ID: #{booking.bookingNumber || booking._id?.slice(-8).toUpperCase()}
-                </p>
+                <div className="flex justify-between items-center w-full mt-0.5 gap-2">
+                  <h4 className="text-lg font-bold text-slate-800 leading-tight truncate">
+                    {serviceName}
+                  </h4>
+                  <p className="text-[10px] text-slate-500 font-mono bg-slate-200/50 px-2 py-0.5 rounded-md shrink-0">
+                    #{booking.bookingNumber || booking._id?.slice(-8).toUpperCase()}
+                  </p>
+                </div>
               </div>
               <FiPackage className="absolute -bottom-2 -right-2 w-16 h-16 text-slate-100 rotate-[-15deg] z-0" />
             </div>
 
             {/* Bill Details */}
             <div className="space-y-4">
-              <div className="flex justify-between items-end border-b border-slate-100 pb-2">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">Total Amount</p>
-                <p className="text-3xl font-black text-slate-900">
-                  ₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </p>
+              <div className="flex flex-col gap-2 border-b border-slate-100 pb-3">
+                <div className="flex justify-between items-center">
+                  <p className="text-sm font-bold text-slate-400 uppercase tracking-wide">Online Pay Amount</p>
+                  <p className="text-2xl font-black text-slate-900">
+                    ₹{onlineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                {isDualPricing && (
+                  <div className="flex justify-between items-end bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-2">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Cash Pay Amount</p>
+                    <p className="text-xl font-bold text-slate-600">
+                      ₹{cashTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* 1. Services */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <FiCheckCircle className="w-3.5 h-3.5 text-teal-500" />
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Services</span>
+                  <FiCheckCircle className="w-4 h-4 text-teal-500" />
+                  <span className="text-sm font-bold text-slate-500 uppercase tracking-wide">Services</span>
                 </div>
                 <div className="space-y-2 pl-1">
-                  <div className="flex justify-between text-xs text-slate-600">
+                  <div className="flex justify-between text-sm text-slate-600">
                     <span>{originalServiceFromBill?.name || booking.serviceName || 'Service'}</span>
                     {isPlanBenefit ? (
                       <div className="flex items-center gap-1.5">
                         <span className="line-through text-slate-400">₹{originalBase.toFixed(2)}</span>
-                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 rounded">FREE</span>
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 rounded">FREE</span>
                       </div>
                     ) : (
                       <span className="font-medium font-mono">₹{originalBase.toFixed(2)}</span>
                     )}
                   </div>
                   {services.map((s, idx) => (
-                    <div key={`s-${idx}`} className="flex justify-between text-xs text-slate-600">
+                    <div key={`s-${idx}`} className="flex justify-between text-sm text-slate-600">
                       <span>{s.name} <span className="text-slate-400">x{s.quantity}</span></span>
                       <span className="font-medium font-mono">₹{((parseFloat(s.price) || 0) * (parseFloat(s.quantity) || 1)).toFixed(2)}</span>
                     </div>
                   ))}
                   {(originalGST + extraServiceGST) > 0 && (
-                    <div className="flex justify-between text-xs text-slate-500 border-t border-dashed border-slate-100 pt-1 mt-1">
+                    <div className="flex justify-between text-sm text-slate-500 border-t border-dashed border-slate-100 pt-2 mt-2">
                       <span>GST (18%)</span>
                       <span className="font-mono">₹{(originalGST + extraServiceGST).toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-xs font-bold text-slate-800 pt-1">
-                    <span>Total Service</span>
-                    <span>₹{(totalServiceBase + originalGST + extraServiceGST).toFixed(2)}</span>
-                  </div>
+                  {(services.length > 0 || (originalGST + extraServiceGST) > 0) && (
+                    <div className="flex justify-between text-base font-bold text-slate-800 pt-2 border-t border-slate-100 mt-2">
+                      <span>Total Service</span>
+                      <span>₹{(totalServiceBase + originalGST + extraServiceGST).toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -195,29 +213,29 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
               {(parts.length > 0 || customItems.length > 0) && (
                 <div>
                   <div className="flex items-center gap-2 mb-2 mt-4">
-                    <FiPackage className="w-3.5 h-3.5 text-orange-500" />
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Parts & Materials</span>
+                    <FiPackage className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-bold text-slate-500 uppercase tracking-wide">Parts & Materials</span>
                   </div>
                   <div className="space-y-2 pl-1">
                     {parts.map((p, idx) => (
-                      <div key={`p-${idx}`} className="flex justify-between text-xs text-slate-600">
+                      <div key={`p-${idx}`} className="flex justify-between text-sm text-slate-600">
                         <span>{p.name} <span className="text-slate-400">x{p.quantity}</span></span>
                         <span className="font-medium font-mono">₹{(p.price * p.quantity).toFixed(2)}</span>
                       </div>
                     ))}
                     {customItems.map((c, idx) => (
-                      <div key={`c-${idx}`} className="flex justify-between text-xs text-slate-600">
+                      <div key={`c-${idx}`} className="flex justify-between text-sm text-slate-600">
                         <span>{c.name} <span className="text-slate-400">x{c.quantity}</span></span>
                         <span className="font-medium font-mono">₹{(c.price * c.quantity).toFixed(2)}</span>
                       </div>
                     ))}
                     {partsGST > 0 && (
-                      <div className="flex justify-between text-xs text-slate-500 border-t border-dashed border-slate-100 pt-1 mt-1">
+                      <div className="flex justify-between text-sm text-slate-500 border-t border-dashed border-slate-100 pt-2 mt-2">
                         <span>GST (18%)</span>
                         <span className="font-mono">₹{partsGST.toFixed(2)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-xs font-bold text-slate-800 pt-1">
+                    <div className="flex justify-between text-base font-bold text-slate-800 pt-2">
                       <span>Total Parts</span>
                       <span>₹{(partsBase + partsGST).toFixed(2)}</span>
                     </div>
@@ -228,9 +246,9 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
               {/* 3. Visiting Charges */}
               {(booking.visitingCharges > 0 || bill?.visitingCharges > 0) && (
                 <div className="mt-4 pt-2 border-t border-slate-100">
-                  <div className="flex justify-between text-xs font-bold text-slate-600">
+                  <div className="flex justify-between text-sm font-bold text-slate-600">
                     <span className="flex items-center gap-2 uppercase tracking-wide">
-                      <FiInfo className="w-3.5 h-3.5 text-blue-400" /> Visiting Charges
+                      <FiInfo className="w-4 h-4 text-blue-400" /> Visiting Charges
                     </span>
                     <span className="font-mono">₹{(bill?.visitingCharges || booking.visitingCharges || 0).toFixed(2)}</span>
                   </div>
@@ -251,7 +269,7 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
             </div>
 
             {/* Actions */}
-            <div className="mt-8 space-y-3">
+            <div className="mt-5 space-y-2">
               {booking.paymentStatus === 'success' ? (
                 <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-3">
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-emerald-500 shadow-sm shrink-0">
@@ -270,7 +288,7 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                       onClick={onPayOnline}
                       className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
                     >
-                      Pay Online Securely
+                      Pay ₹{onlineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} Online
                     </button>
                   ) : (
                     !configLoading && (
@@ -283,26 +301,28 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                     )
                   )}
 
-                  <div className="relative py-2 text-center">
+                  <div className="relative py-1 text-center">
                     <span className="bg-white px-2 text-[10px] font-bold text-slate-400 relative z-10 uppercase tracking-wider">OR</span>
                     <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-100 z-0"></div>
                   </div>
 
-                  {/* Cash Code */}
-                  {(booking.customerConfirmationOTP || booking.paymentOtp) && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
-                      <p className="text-xs font-bold text-slate-700 mb-2">Paying Cash? Share Code</p>
-                      <div className="bg-white border-2 border-dashed border-slate-300 rounded-lg py-2 px-4 inline-block mb-1">
-                        <span className="text-2xl font-black font-mono text-slate-900 tracking-[0.2em]">
-                          {booking.customerConfirmationOTP || booking.paymentOtp || '....'}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 mt-1">Share with professional to confirm cash payment</p>
+                  {/* Cash Code (Always rendered to prevent layout jumping) */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                    <p className="text-xs font-bold text-slate-700 mb-2">
+                      Paying ₹{cashTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} Cash?
+                    </p>
+                    <div className="bg-white border-2 border-dashed border-slate-300 rounded-lg py-2 px-4 inline-block mb-1">
+                      <span className="text-2xl font-black font-mono text-slate-900 tracking-[0.2em]">
+                        {booking.customerConfirmationOTP || booking.paymentOtp || '....'}
+                      </span>
                     </div>
-                  )}
+                    <p className="text-[10px] text-slate-400 mt-1">Share with professional to confirm cash payment</p>
+                  </div>
                 </>
               )}
             </div>
+            {/* Bottom spacer to prevent scroll collapse */}
+            <div className="h-2 w-full shrink-0"></div>
           </div>
         </motion.div>
       </div>

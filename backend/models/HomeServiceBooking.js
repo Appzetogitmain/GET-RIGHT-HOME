@@ -174,6 +174,14 @@ const bookingSchema = new mongoose.Schema({
     required: [true, 'Final amount is required'],
     min: 0
   },
+  finalOnlineAmount: {
+    type: Number,
+    default: 0
+  },
+  finalCashAmount: {
+    type: Number,
+    default: 0
+  },
   // Amount specifically payable by the user (might differ from finalAmount in plan cases)
   userPayableAmount: {
     type: Number,
@@ -216,6 +224,14 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     default: null,
     index: true
+  },
+  paymentOtp: {
+    type: String,
+    select: false // Hide by default for security
+  },
+  customerConfirmationOTP: {
+    type: String,
+    select: false // Used interchangeably with paymentOtp
   },
   // Cash Collection Details
   cashCollected: {

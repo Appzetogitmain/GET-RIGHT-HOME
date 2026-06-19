@@ -21,6 +21,8 @@ const AdminSettings = () => {
     cancellationPenalty: 49,
     tdsPercentage: 1,
     platformFeePercentage: 1,
+    platformFlatFee: 20,
+    cashCollectionFee: 20,
     maxSearchTime: 5,
     waveDuration: 60,
     searchRadius: 10,
@@ -118,6 +120,8 @@ const AdminSettings = () => {
             partsPayoutPercentage: res.settings.partsPayoutPercentage ?? 100,
             tdsPercentage: res.settings.tdsPercentage || 1,
             platformFeePercentage: res.settings.platformFeePercentage || 1,
+            platformFlatFee: res.settings.platformFlatFee || 20,
+            cashCollectionFee: res.settings.cashCollectionFee || 20,
             vendorCashLimit: res.settings.vendorCashLimit || 10000,
             cancellationPenalty: res.settings.cancellationPenalty !== undefined ? res.settings.cancellationPenalty : 49,
             searchRadius: res.settings.searchRadius || 10,
@@ -199,7 +203,7 @@ const AdminSettings = () => {
     const { name, value } = e.target;
     setFinancialSettings(prev => ({
       ...prev,
-      [name]: Number(value)
+      [name]: typeof value === 'boolean' ? value : Number(value)
     }));
   };
 
@@ -433,17 +437,15 @@ const AdminSettings = () => {
         <p className="text-sm text-gray-500">Manage your personal account details and password</p>
       </div>
 
-      {/* Financial Settings Card - Super Admin Only */}
-      {isSuperAdmin && (
-        <div onClick={() => setActiveView('financial')}
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group">
-          <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
-            <FiDollarSign className="w-6 h-6 text-green-600" />
-          </div>
-          <h3 className="text-lg font-bold text-gray-800 mb-2">Financial Info</h3>
-          <p className="text-sm text-gray-500">Configure charges, commissions, and billing details</p>
+      {/* Fees & Taxes Settings Card */}
+      <div onClick={() => setActiveView('financial')}
+        className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group">
+        <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
+          <FiDollarSign className="w-6 h-6 text-green-600" />
         </div>
-      )}
+        <h3 className="text-lg font-bold text-gray-800 mb-2">Fees & Taxes</h3>
+        <p className="text-sm text-gray-500">Configure GST, platform fees, and cash collection charges</p>
+      </div>
 
       {/* System Settings Card - Super Admin Only */}
       {isSuperAdmin && (
@@ -575,20 +577,27 @@ const AdminSettings = () => {
                   <div className="p-2 bg-green-100 rounded-lg">
                     <FiDollarSign className="w-5 h-5 text-green-600" />
                   </div>
-                  <h2 className="text-lg font-bold text-gray-800">Financial Configuration</h2>
+                  <h2 className="text-lg font-bold text-gray-800">Fees & Taxes Configuration</h2>
                 </div>
 
                 <form onSubmit={handleFinancialSave} className="space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Visit Charges (₹)</label>
-                      <input type="number" name="visitedCharges" value={financialSettings.visitedCharges} onChange={handleFinancialChange}
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                    </div>
+
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Vendor Cash Limit (₹)</label>
                       <input type="number" name="vendorCashLimit" value={financialSettings.vendorCashLimit} onChange={handleFinancialChange}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
+                    </div>
+                    <div className="col-span-1 md:col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-800">Apply GST</label>
+                          <p className="text-[10px] text-gray-500 mt-0.5">Toggle to apply GST on bookings and bills</p>
+                        </div>
+                        <button type="button" onClick={() => handleFinancialChange({ target: { name: 'applyGst', value: !financialSettings.applyGst }})} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${financialSettings.applyGst ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${financialSettings.applyGst ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Service GST (%)</label>
@@ -597,43 +606,25 @@ const AdminSettings = () => {
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
                       <p className="text-[10px] text-gray-400 mt-1">GST rate applied to services</p>
                     </div>
+
+
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Parts GST (%)</label>
-                      <input type="number" name="partsGstPercentage" value={financialSettings.partsGstPercentage} onChange={handleFinancialChange}
-                        min="0" max="100"
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Platform Flat Fee (₹)</label>
+                      <input type="number" name="platformFlatFee" value={financialSettings.platformFlatFee} onChange={handleFinancialChange}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">GST rate applied to parts &amp; materials</p>
+                      <p className="text-[10px] text-gray-400 mt-1">Flat commission per booking</p>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Service Payout (%)</label>
-                      <input type="number" name="servicePayoutPercentage" value={financialSettings.servicePayoutPercentage} onChange={handleFinancialChange}
-                        min="0" max="100"
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Cash Collection Fee (₹)</label>
+                      <input type="number" name="cashCollectionFee" value={financialSettings.cashCollectionFee} onChange={handleFinancialChange}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">Vendor keeps this % of service charges</p>
+                      <p className="text-[10px] text-gray-400 mt-1">Fee for cash payments</p>
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Parts Payout (%)</label>
-                      <input type="number" name="partsPayoutPercentage" value={financialSettings.partsPayoutPercentage} onChange={handleFinancialChange}
-                        min="0" max="100"
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">Vendor keeps this % of parts charges</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">TDS Percentage (%)</label>
-                      <input type="number" name="tdsPercentage" value={financialSettings.tdsPercentage} onChange={handleFinancialChange}
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Platform Fee (%)</label>
-                      <input type="number" name="platformFeePercentage" value={financialSettings.platformFeePercentage} onChange={handleFinancialChange}
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">Fee charged on vendor withdrawals</p>
-                    </div>
-                    <div>
+                    {/* <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Cancellation Penalty (₹)</label>
                       <input type="number" name="cancellationPenalty" value={financialSettings.cancellationPenalty} onChange={handleFinancialChange}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                    </div>
+                    </div> */}
                     <div className="pt-4 border-t border-gray-100 md:col-span-2">
                       <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">Booking Timing & Waves</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

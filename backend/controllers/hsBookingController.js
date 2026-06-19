@@ -11,6 +11,7 @@ import BookingRequest from '../models/HomeServiceBookingRequest.js';
 import VendorBill from '../models/VendorBill.js';
 import Plan from '../models/Plan.js';
 import Settings from '../models/Settings.js';
+import PlatformSettings from '../models/PlatformSettings.js';
 import Transaction from '../models/Transaction.js';
 import Review from '../models/Review.js';
 import { validationResult } from 'express-validator';
@@ -244,7 +245,7 @@ const createBooking = async (req, res) => {
           discount = reqDiscount || 0;
           const currentPromoDiscount = reqPromoDiscount || 0;
           tax = reqTax;
-          visitingCharges = (reqVisitingCharges !== undefined) ? reqVisitingCharges : (visitingCharges || 49);
+          visitingCharges = (reqVisitingCharges !== undefined) ? reqVisitingCharges : (visitingCharges || 0);
           finalAmount = Math.max(0, (basePrice - discount - currentPromoDiscount + tax + visitingCharges) + pendingPenalty);
         } else {
           // Backward compatibility: Reverse calculate
@@ -449,6 +450,12 @@ const createBooking = async (req, res) => {
         bookingForBackground.notifiedPartners = wave1Partners.map(v => v._id);
         await bookingForBackground.save();
 
+        // Fetch Platform Settings for Dynamic Worker Price
+        const platformSettings = await PlatformSettings.getSettings();
+        const platformFlatFee = platformSettings.platformFlatFee || 0;
+        const workerAmount = Math.max(0, (bookingForBackground.basePrice || 0) - platformFlatFee);
+        console.log(`[WorkerAmount Calc] basePrice: ${bookingForBackground.basePrice}, platformFlatFee: ${platformFlatFee}, workerAmount: ${workerAmount}`);
+
         if (wave1Partners.length > 0) {
           console.log(`[CreateBooking] Wave 1: Alerting ${wave1Partners.length} closest ${bookingModel}s (of ${sortedPartners.length} total)`);
 
@@ -475,7 +482,7 @@ const createBooking = async (req, res) => {
                 workerId: bookingModel === 'worker' ? partner._id : null,
                 type: 'new_job_available',
                 title: 'New Job Available!',
-                message: `A new ${bookingForBackground.serviceName} job is available near you. Earn ₹${bookingForBackground.finalAmount}!`,
+                message: `A new ${bookingForBackground.serviceName} job is available near you. Earn ₹${workerAmount}!`,
                 relatedId: bookingForBackground._id,
                 relatedType: 'booking',
                 priority: 'high',
@@ -534,7 +541,7 @@ const createBooking = async (req, res) => {
               customerPhone: userForBackground.phone,
               scheduledDate: scheduledDate,
               scheduledTime: scheduledTime,
-              price: finalAmount,
+              price: workerAmount,
               address: address,
               distance: partner.distance,
               serviceCategory: bookingForBackground.serviceCategory,
@@ -570,7 +577,7 @@ const createBooking = async (req, res) => {
                 scheduledDate: scheduledDate,
                 scheduledTime: scheduledTime,
                 location: address,
-                price: finalAmount,
+                price: workerAmount,
                 distance: partner.distance
               },
               pushData: {
@@ -647,12 +654,16 @@ const getUserBookings = async (req, res) => {
     const query = { userId };
     if (status) {
       if (status.includes(',')) {
-        query.status = { $in: status.split(',') };
+        // Handle comma-separated statuses from filter tabs (e.g. "pending,assigned,confirmed")
+        query.status = { $in: status.split(',').map(s => s.trim()) };
       } else {
         query.status = status;
       }
     } else {
-      // Default: Fetch all, including SEARCHING. Frontend will filter for active.
+      // "All Bookings": exclude only searching/no_vendors/no_workers (internal dispatch statuses)
+      query.status = { 
+        $nin: ['searching', 'SEARCHING', 'no_vendors', 'no_workers'] 
+      };
     }
     if (startDate || endDate) {
       query.scheduledDate = {};
@@ -705,7 +716,7 @@ const getBookingById = async (req, res) => {
     const { id } = req.params;
 
     const booking = await HomeServiceBooking.findOne({ _id: id, userId })
-      .select('+visitOtp +paymentOtp') // Include secure OTPs for the user
+      .select('+visitOtp +paymentOtp +customerConfirmationOTP') // Include secure OTPs for the user
       .populate('userId', 'name phone email')
       .populate('vendorId', 'name businessName phone email address profilePhoto')
       .populate('serviceId', 'title description iconUrl images')

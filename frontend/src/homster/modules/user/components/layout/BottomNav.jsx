@@ -49,8 +49,10 @@ const BottomNav = React.memo(() => {
   ], []);
 
   const getActiveTab = () => {
-    if (location.pathname === '/' || location.pathname.includes('/home-services')) return 'home';
+    // IMPORTANT: Check bookings BEFORE home-services, because
+    // /user/home-services/bookings also contains /home-services
     if (location.pathname.includes('/bookings')) return 'bookings';
+    if (location.pathname === '/' || location.pathname.includes('/home-services')) return 'home';
     if (location.pathname.includes('/user/cart')) return 'cart';
     if (location.pathname.includes('/profile') || location.pathname.includes('/account')) return 'account';
     return 'home';

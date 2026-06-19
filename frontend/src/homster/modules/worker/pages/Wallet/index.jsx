@@ -224,39 +224,7 @@ const Wallet = () => {
           </div>
         </div>
 
-        {/* Pending Payouts List */}
-        {wallet.pendingBookings?.length > 0 && (
-          <div className="mb-8">
-            <h3 className="font-bold text-gray-800 mb-4 px-1">Pending Payments</h3>
-            <div className="space-y-3">
-              {wallet.pendingBookings.map(booking => (
-                <div key={booking._id} className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 flex justify-between items-center">
-                  <div className="min-w-0">
-                    <p className="font-bold text-gray-900 text-sm mb-0.5">{booking.serviceName}</p>
-                    <p className="text-xs text-gray-500 font-medium mb-1">Booking #{booking.bookingNumber}</p>
-                    <p className="text-[10px] text-gray-400">
-                      Completed: {new Date(booking.completedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleRequestPayout(booking._id)}
-                    disabled={payoutLoading === booking._id}
-                    className="flex-shrink-0 px-3 py-2 bg-orange-50 text-orange-600 border border-orange-200 text-xs font-bold rounded-xl active:scale-95 transition-all flex items-center gap-1.5 hover:bg-orange-100"
-                  >
-                    {payoutLoading === booking._id ? (
-                      <span className="w-3 h-3 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin"></span>
-                    ) : (
-                      <>
-                        <FiBell className="w-3.5 h-3.5" />
-                        Request Payment
-                      </>
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Pending Payouts List Removed */}
 
         {/* Filter Buttons */}
         <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">

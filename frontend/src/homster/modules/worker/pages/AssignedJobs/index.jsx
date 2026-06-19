@@ -36,7 +36,7 @@ const AssignedJobs = () => {
       setLoading(true);
       setError(null);
 
-      const response = await workerService.getAssignedJobs();
+      const response = await workerService.getAssignedJobs({ limit: 100 });
       if (response.success) {
         setJobs(response.data);
       }

@@ -61,6 +61,8 @@ const AdminSettings = () => {
     const [taxRate, setTaxRate] = useState(12);
     const [freeTrialListingLimit, setFreeTrialListingLimit] = useState(10);
     const [freeTrialDurationDays, setFreeTrialDurationDays] = useState(30);
+    const [platformFlatFee, setPlatformFlatFee] = useState(20);
+    const [cashCollectionFee, setCashCollectionFee] = useState(20);
 
     const [loadingSettings, setLoadingSettings] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
@@ -92,6 +94,8 @@ const AdminSettings = () => {
                     setTaxRate(res.settings.taxRate || 12);
                     setFreeTrialListingLimit(res.settings.freeTrialListingLimit ?? 10);
                     setFreeTrialDurationDays(res.settings.freeTrialDurationDays ?? 30);
+                    setPlatformFlatFee(res.settings.platformFlatFee ?? 20);
+                    setCashCollectionFee(res.settings.cashCollectionFee ?? 20);
                 }
             } catch (error) {
                 toast.error('Failed to load platform settings');
@@ -142,7 +146,9 @@ const AdminSettings = () => {
                 defaultCommission: Number(commission),
                 taxRate: Number(taxRate),
                 freeTrialListingLimit: Number(freeTrialListingLimit),
-                freeTrialDurationDays: Number(freeTrialDurationDays)
+                freeTrialDurationDays: Number(freeTrialDurationDays),
+                platformFlatFee: Number(platformFlatFee),
+                cashCollectionFee: Number(cashCollectionFee)
             });
             toast.success('Platform settings updated successfully');
         } catch (error) {
@@ -334,6 +340,26 @@ const AdminSettings = () => {
                                         type="number"
                                         value={taxRate}
                                         onChange={(e) => setTaxRate(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Platform Flat Commission (₹)</label>
+                                    <input
+                                        type="number"
+                                        value={platformFlatFee}
+                                        onChange={(e) => setPlatformFlatFee(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Cash Extra Fee (₹)</label>
+                                    <input
+                                        type="number"
+                                        value={cashCollectionFee}
+                                        onChange={(e) => setCashCollectionFee(e.target.value)}
                                         className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
                                     />
                                 </div>

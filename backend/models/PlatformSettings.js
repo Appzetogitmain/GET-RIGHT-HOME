@@ -26,9 +26,21 @@ const platformSettingsSchema = new mongoose.Schema(
       type: Number,
       default: 10 // Percentage
     },
+    platformFlatFee: {
+      type: Number,
+      default: 20 // Flat platform fee
+    },
+    cashCollectionFee: {
+      type: Number,
+      default: 20 // Flat extra fee for cash collection
+    },
     taxRate: {
       type: Number,
       default: 12 // Percentage (GST)
+    },
+    applyGst: {
+      type: Boolean,
+      default: false // Whether to apply GST on service/parts bills
     },
     reelCouponTarget: {
       type: Number,

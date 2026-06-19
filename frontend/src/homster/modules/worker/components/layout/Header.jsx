@@ -146,7 +146,7 @@ const Header = ({
               <FiSearch className="w-5 h-5" style={{ color: themeColors.button }} />
             </button>
           )}
-          {showNotifications && (
+          {/* showNotifications && (
             <div
               ref={bellButtonRef}
               className="relative rounded-full cursor-pointer group active:scale-95 transition-transform duration-300"
@@ -218,7 +218,6 @@ const Header = ({
                 }
               }}
             >
-              {/* 1. Animated Running Border */}
               <div
                 className="absolute inset-[-2px] rounded-full z-0"
                 style={{
@@ -228,10 +227,8 @@ const Header = ({
                 }}
               />
 
-              {/* 2. White Mask (to hide center of conic gradient) */}
               <div className="absolute inset-[1px] rounded-full bg-white z-0" />
 
-              {/* 3. Inner Button */}
               <button
                 onClick={handleNotifications}
                 className="relative z-10 w-full h-full rounded-full flex items-center justify-center overflow-hidden"
@@ -244,7 +241,6 @@ const Header = ({
                     : '0 2px 6px rgba(52, 121, 137, 0.15)',
                 }}
               >
-                {/* Define Gradient for Icon */}
                 <svg width="0" height="0" className="absolute">
                   <linearGradient id="Truliq-bell-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor={themeColors.brand.teal} />
@@ -266,7 +262,6 @@ const Header = ({
                   }}
                 />
               </button>
-              {/* 4. Active Badge (Moved outside for robustness and to prevent clipping) */}
               {count > 0 && (
                 <span
                   className="absolute -top-1.5 -right-1.5 bg-gradient-to-br from-red-500 to-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center z-20"
@@ -281,7 +276,7 @@ const Header = ({
                 </span>
               )}
             </div>
-          )}
+          )} */}
         </div>
       </div>
     </header>
