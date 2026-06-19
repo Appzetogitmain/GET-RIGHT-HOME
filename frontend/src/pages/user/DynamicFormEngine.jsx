@@ -80,8 +80,13 @@ const DynamicFormEngine = () => {
 
     const fetchTemplate = async () => {
       try {
-        const res = await api.get(`/property-forms/template`, {
-          params: { transactionType, category, propertyType: displayPropertyType }
+        const endpoint = user?.role === 'builder' ? `/builder-forms/template` : `/property-forms/template`;
+        const res = await api.get(endpoint, {
+          params: { 
+            transactionType, 
+            category, 
+            propertyType: displayPropertyType
+          }
         });
         if (res.data.success) {
           // Sort steps
@@ -864,6 +869,108 @@ const DynamicFormEngine = () => {
               </div>
             </div>
             {errors[field.name] && <p className="text-red-500 text-[10px] mt-2 ml-1">{errors[field.name]}</p>}
+          </div>
+        );
+
+      case 'repeater':
+        const repeaterItems = Array.isArray(formData[field.name]) ? formData[field.name] : [];
+        return (
+          <div key={field.name} id={`field-${field.name}`} className="mb-8 p-5 bg-slate-50 border border-slate-200 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <label className="block text-[15px] font-bold text-slate-800">
+                {field.label} {field.required && <span className="text-red-500">*</span>}
+              </label>
+            </div>
+            
+            <div className="space-y-4">
+              {repeaterItems.map((item, index) => (
+                <div key={index} className="p-4 bg-white border border-slate-200 rounded-xl relative shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = [...repeaterItems];
+                      next.splice(index, 1);
+                      handleChange(field.name, next);
+                    }}
+                    className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 rounded-full transition-colors font-bold z-10"
+                  >
+                    ×
+                  </button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    {field.subFields?.map(subF => {
+                      if (subF.type === 'file') {
+                         return (
+                           <div key={subF.name} className="flex flex-col">
+                             <label className="text-[12px] font-semibold text-slate-600 mb-1">{subF.label}</label>
+                             <div className="flex gap-2">
+                               <input type="text" placeholder="Image URL..." 
+                                 className="border rounded-lg px-3 py-2 text-[13px] flex-1 outline-none focus:border-blue-500"
+                                 value={item[subF.name] || ''}
+                                 onChange={(e) => {
+                                    const next = [...repeaterItems];
+                                    next[index] = { ...next[index], [subF.name]: e.target.value };
+                                    handleChange(field.name, next);
+                                 }}
+                               />
+                               <label className="bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer whitespace-nowrap flex items-center transition-colors">
+                                 Upload
+                                 <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                                    const file = e.target.files[0];
+                                    if (!file) return;
+                                    const fd = new FormData();
+                                    fd.append('images', file);
+                                    const toastId = toast.loading('Uploading...');
+                                    try {
+                                      const res = await hotelService.uploadImages(fd);
+                                      if (res?.urls?.[0]) {
+                                        const next = [...repeaterItems];
+                                        next[index] = { ...next[index], [subF.name]: res.urls[0] };
+                                        handleChange(field.name, next);
+                                        toast.success('Uploaded', { id: toastId });
+                                      }
+                                    } catch (err) {
+                                      toast.error('Upload failed', { id: toastId });
+                                    }
+                                 }} />
+                               </label>
+                             </div>
+                             {item[subF.name] && <img src={item[subF.name]} alt="preview" className="h-12 w-auto mt-2 rounded border" />}
+                           </div>
+                         );
+                      }
+                      return (
+                        <div key={subF.name} className="flex flex-col">
+                          <label className="text-[12px] font-semibold text-slate-600 mb-1">{subF.label}</label>
+                          <input 
+                            type={subF.type === 'number' ? 'number' : 'text'}
+                            className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
+                            placeholder={subF.placeholder || ''}
+                            value={item[subF.name] || ''}
+                            onChange={(e) => {
+                              const next = [...repeaterItems];
+                              next[index] = { ...next[index], [subF.name]: e.target.value };
+                              handleChange(field.name, next);
+                            }}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => {
+                const newItem = {};
+                handleChange(field.name, [...repeaterItems, newItem]);
+              }}
+              className="mt-4 px-4 py-2.5 bg-blue-50 text-blue-600 font-bold text-[13px] rounded-xl hover:bg-blue-100 transition-colors flex items-center gap-2"
+            >
+              <span>+ Add {field.label} Item</span>
+            </button>
+            {errors[field.name] && <p className="text-red-500 text-[10px] mt-2">{errors[field.name]}</p>}
           </div>
         );
 

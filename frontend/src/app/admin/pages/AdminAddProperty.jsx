@@ -61,18 +61,24 @@ const AdminAddProperty = () => {
   const [modalFrequency, setModalFrequency] = useState('Monthly');
   const [modalBooking, setModalBooking] = useState('');
 
+  const [isBuilderProject, setIsBuilderProject] = useState(false);
+
   // Fetch Category combinations and Builders on load
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const configsEndpoint = isBuilderProject ? '/builder-forms/configs' : '/property-forms/configs';
         const [configsRes, buildersRes] = await Promise.all([
-          api.get('/property-forms/configs'),
+          api.get(configsEndpoint),
           adminService.getBuilders()
         ]);
         
         if (configsRes.data.success) {
           setConfigs(configsRes.data.configs);
+          setSelectedTxn('');
+          setSelectedCat('');
+          setSelectedPropType('');
         }
         if (buildersRes.success) {
           setBuilders(buildersRes.builders || []);
@@ -84,7 +90,7 @@ const AdminAddProperty = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [isBuilderProject]);
 
   // Fetch Template when all 3 selections are made
   useEffect(() => {
@@ -96,7 +102,8 @@ const AdminAddProperty = () => {
     const fetchTemplate = async () => {
       try {
         setLoading(true);
-        const res = await api.get(`/property-forms/template`, {
+        const endpoint = isBuilderProject ? `/builder-forms/template` : `/property-forms/template`;
+        const res = await api.get(endpoint, {
           params: { transactionType: selectedTxn, category: selectedCat, propertyType: selectedPropType }
         });
         if (res.data.success) {
@@ -113,7 +120,7 @@ const AdminAddProperty = () => {
       }
     };
     fetchTemplate();
-  }, [selectedTxn, selectedCat, selectedPropType]);
+  }, [selectedTxn, selectedCat, selectedPropType, isBuilderProject]);
 
   // Handle inputs
   const handleChange = (name, value) => {
@@ -678,10 +685,35 @@ const AdminAddProperty = () => {
       </div>
 
       {/* Grid selector for category combination */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-        <h3 className="text-sm font-black text-slate-800 uppercase flex items-center gap-2 border-b border-slate-50 pb-3">
-          <Layers size={16} className="text-[#004F4D]" /> Select Property Category
-        </h3>
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-50 pb-3">
+          <h3 className="text-sm font-black text-slate-800 uppercase flex items-center gap-2">
+            <Layers size={16} className="text-[#004F4D]" /> Select Property Category
+          </h3>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-500 uppercase">Listing Type:</span>
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setIsBuilderProject(false)}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  !isBuilderProject ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Standard Property
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsBuilderProject(true)}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  isBuilderProject ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Builder Project
+              </button>
+            </div>
+          </div>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           

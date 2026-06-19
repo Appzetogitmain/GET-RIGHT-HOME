@@ -119,6 +119,7 @@ import hsSubCategoryRoutes from './routes/hsSubCategoryRoutes.js';
 import hsServiceRoutes from './routes/hsServiceRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import propertyFormRoutes from './routes/propertyFormRoutes.js';
+import builderFormRoutes from './routes/builderFormRoutes.js';
 import { seedOnStartup } from './controllers/propertyFormController.js';
 import locationRoutes from './routes/locationRoutes.js';
 import enquiryRoutes from './routes/enquiryRoutes.js';
@@ -211,6 +212,7 @@ app.get('/api/public/home-data', async (req, res) => {
 });
 app.use('/api/upload', uploadRoutes);
 app.use('/api/property-forms', propertyFormRoutes);
+app.use('/api/builder-forms', builderFormRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/enquiries', enquiryRoutes);
 app.use('/api/locality-reviews', localityReviewRoutes);
