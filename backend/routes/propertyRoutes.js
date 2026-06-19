@@ -31,7 +31,7 @@ router.get('/admin-cities', getAdminPropertyCities);
 router.get('/partner-public-details/:id', getPartnerPublicDetails);
 
 // User & Partner can manage their own properties
-const ownerRoles = authorizedRoles('partner', 'admin', 'user', 'superadmin', 'owner', 'broker');
+const ownerRoles = authorizedRoles('partner', 'admin', 'user', 'superadmin', 'owner', 'broker', 'builder');
 
 router.get('/my', protect, ownerRoles, getMyProperties);
 router.get('/:id/reveal-contact', revealContact);

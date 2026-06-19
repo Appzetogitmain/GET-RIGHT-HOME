@@ -259,7 +259,7 @@ const GRHPropertyCard = ({ property, data }) => {
       <>
         <div
           onClick={handleCardClick}
-          className="flex-shrink-0 w-[280px] h-[360px] bg-[#F4F5F7] rounded-[1.25rem] overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 flex flex-col group relative"
+          className={`flex-shrink-0 w-[280px] h-[360px] rounded-[1.25rem] overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group relative bg-[#F4F5F7] shadow-sm hover:shadow-md`}
         >
           {/* Cover Image Container */}
           <div className="relative h-[180px] w-full overflow-hidden bg-gray-100 flex-shrink-0">
@@ -421,7 +421,7 @@ const GRHPropertyCard = ({ property, data }) => {
       <>
         <div
           onClick={handleCardClick}
-          className="flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] border border-gray-100 overflow-hidden cursor-pointer shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(79,70,229,0.12)] hover:border-indigo-500/30 transition-all duration-500 flex flex-col group relative h-[360px]"
+          className={`flex-shrink-0 w-[280px] h-[360px] rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-500 flex flex-col group relative bg-white border border-gray-100 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(79,70,229,0.12)] hover:border-indigo-500/30`}
         >
           {/* Cover Image Container */}
           <div className="relative h-[180px] w-full overflow-hidden bg-gray-100 flex-shrink-0">
@@ -563,7 +563,7 @@ const GRHPropertyCard = ({ property, data }) => {
       <>
         <div
           onClick={handleCardClick}
-          className="flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] border border-gray-150 overflow-hidden cursor-pointer shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(249,115,22,0.12)] hover:border-orange-500/30 transition-all duration-500 flex flex-col group relative h-[360px]"
+          className={`flex-shrink-0 w-[280px] h-[360px] rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-500 flex flex-col group relative bg-white border border-gray-150 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(249,115,22,0.12)] hover:border-orange-500/30`}
         >
           {/* Cover Image Container */}
           <div className="relative h-[180px] w-full overflow-hidden bg-gray-100 flex-shrink-0">
@@ -707,7 +707,7 @@ const GRHPropertyCard = ({ property, data }) => {
     <>
       <div
         onClick={handleCardClick}
-        className="flex-shrink-0 w-[280px] bg-white rounded-[1.25rem] border border-gray-100 overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 flex flex-col group relative h-[360px]"
+        className={`flex-shrink-0 w-[280px] h-[360px] rounded-[1.25rem] overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group relative bg-white border border-gray-100 shadow-sm hover:shadow-md`}
       >
         {/* Cover Image Container */}
         <div className="relative h-[180px] w-full overflow-hidden bg-gray-100">

@@ -196,7 +196,7 @@ const UserSignup = () => {
                                             I am an
                                         </label>
                                         <div className="flex gap-3">
-                                            {['owner', 'broker'].map((r) => (
+                                            {['owner', 'broker', 'builder'].map((r) => (
                                                 <button
                                                     key={r}
                                                     type="button"

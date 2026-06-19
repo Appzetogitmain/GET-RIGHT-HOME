@@ -98,6 +98,18 @@ const userSchema = new mongoose.Schema({
     pauseStartDate: { type: Date }
   },
 
+  // Builder Profile Details
+  builderProfile: {
+    companyName: { type: String, trim: true },
+    brandLogo: { type: String }, // URL to logo
+    reraRegistrationNumber: { type: String, trim: true },
+    gstNumber: { type: String, trim: true },
+    description: { type: String, trim: true },
+    establishedYear: { type: Number },
+    activeProjects: { type: Number, default: 0 },
+    completedProjects: { type: Number, default: 0 }
+  },
+
   // Status tracking
   registrationStep: {
     type: Number,

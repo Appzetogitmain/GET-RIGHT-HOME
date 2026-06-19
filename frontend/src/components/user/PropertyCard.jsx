@@ -492,7 +492,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
         <div 
           ref={containerRef}
           onClick={() => navigate(`/property/${_id}`)}
-          className={`w-full bg-white rounded-[20px] border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col cursor-pointer relative ${className}`}
+          className={`w-full bg-white rounded-[20px] border border-gray-200 shadow-sm hover:shadow-md overflow-hidden transition-all duration-300 flex flex-col cursor-pointer relative ${className}`}
         >
           {/* Image Container with Slider */}
           <div className="relative h-[200px] w-full bg-gray-100 group/slider overflow-hidden flex-shrink-0">
@@ -859,7 +859,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
         >
           <div
             onClick={() => navigate(`/hotel/${_id}`)}
-            className="w-full h-full bg-[#F4F5F7] rounded-[1.5rem] border border-gray-200/50 overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 flex flex-col group relative"
+            className={`w-full h-full bg-[#F4F5F7] rounded-[1.5rem] border border-gray-200/50 shadow-sm hover:shadow-md overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group relative`}
           >
           {/* Cover Image Section */}
           <div className="relative h-[180px] w-full overflow-hidden bg-slate-100 flex-shrink-0">
@@ -982,10 +982,23 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       <>
         <div
           onClick={() => navigate(`/hotel/${_id}`)}
-          className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] border border-gray-150 overflow-hidden cursor-pointer shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.12)] hover:border-emerald-500/30 transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
+          className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-white to-amber-50/10' : 'border border-gray-150 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.12)] hover:border-emerald-500/30'} transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
         >
           {/* Cover Image Container */}
           <div className="relative h-[190px] w-full overflow-hidden bg-gray-100 flex-shrink-0">
+            {item.logo && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg border border-amber-200 flex flex-col items-center justify-center max-w-[65%] transform transition-transform duration-300 group-hover:scale-105">
+                  <img 
+                    src={item.logo} 
+                    alt="Brand Logo" 
+                    className="h-10 max-h-12 w-auto object-contain" 
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest mt-1">Premium Partner</span>
+                </div>
+              </div>
+            )}
             <img
               src={imageSrc}
               alt={displayName}
@@ -1115,10 +1128,23 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       <>
         <div
           onClick={() => navigate(`/hotel/${_id}`)}
-          className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] border border-gray-150 overflow-hidden cursor-pointer shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(217,119,6,0.15)] hover:border-amber-500/30 transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
+          className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-white to-amber-50/10' : 'border border-gray-150 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(217,119,6,0.15)] hover:border-amber-500/30'} transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
         >
           {/* Cover Image Container */}
           <div className="relative h-[190px] w-full overflow-hidden bg-gray-100 flex-shrink-0">
+            {item.logo && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg border border-amber-200 flex flex-col items-center justify-center max-w-[65%] transform transition-transform duration-300 group-hover:scale-105">
+                  <img 
+                    src={item.logo} 
+                    alt="Brand Logo" 
+                    className="h-10 max-h-12 w-auto object-contain" 
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest mt-1">Premium Partner</span>
+                </div>
+              </div>
+            )}
             <img
               src={imageSrc}
               alt={displayName}
@@ -1232,8 +1258,21 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
   return (
     <div
       onClick={() => navigate(`/hotel/${_id}`)}
-      className={`relative h-[270px] md:h-[340px] w-full bg-gray-100 rounded-[1.25rem] md:rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 hover:-translate-y-1 group ${className}`}
+      className={`relative h-[270px] md:h-[340px] w-full bg-gray-100 rounded-[1.25rem] md:rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-slate-100 to-amber-50/10' : 'border border-gray-100 hover:-translate-y-1'} group ${className}`}
     >
+      {item.logo && (
+        <div className="absolute inset-x-0 top-0 bottom-[100px] flex items-center justify-center pointer-events-none z-10">
+          <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg border border-amber-200 flex flex-col items-center justify-center max-w-[65%] transform transition-transform duration-300 group-hover:scale-105">
+            <img 
+              src={item.logo} 
+              alt="Brand Logo" 
+              className="h-10 max-h-12 w-auto object-contain" 
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest mt-1">Premium Partner</span>
+          </div>
+        </div>
+      )}
       <img
         src={imageSrc}
         alt={displayName}

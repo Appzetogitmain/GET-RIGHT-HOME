@@ -173,9 +173,9 @@ const Home = () => {
             <ExclusiveOffers />
 
             {/* Admin Curated Properties - Location Based */}
-            {/* <div className="max-w-7xl mx-auto">
+            <div className="max-w-7xl mx-auto">
                 <AdminPropertiesSection searchCity={homeSearchCity} />
-            </div> */}
+            </div>
 
 
 

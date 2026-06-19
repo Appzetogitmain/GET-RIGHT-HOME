@@ -203,7 +203,7 @@ const ListPropertyWizard = () => {
           const uStr = localStorage.getItem('user');
           const u = uStr ? JSON.parse(uStr) : null;
           
-          if (u && (u.role === 'owner' || u.role === 'broker')) {
+          if (u && (u.role === 'owner' || u.role === 'broker' || u.role === 'builder')) {
             proceedToWizard();
           } else {
             setShowRoleSheet(true);
@@ -220,7 +220,7 @@ const ListPropertyWizard = () => {
     }
 
     // Check if user already has a role
-    if (user && (user.role === 'owner' || user.role === 'broker')) {
+    if (user && (user.role === 'owner' || user.role === 'broker' || user.role === 'builder')) {
       proceedToWizard();
     } else {
       setShowRoleSheet(true);
@@ -390,9 +390,9 @@ const ListPropertyWizard = () => {
                 Change Account
               </button>
             </div>
-            {user.role !== 'owner' && user.role !== 'broker' && (
+            {user.role !== 'owner' && user.role !== 'broker' && user.role !== 'builder' && (
               <p className="mt-3 text-[11px] text-slate-500 font-medium">
-                Note: You'll be asked to choose your posting role (Owner/Broker) next.
+                Note: You'll be asked to choose your posting role (Owner/Broker/Builder) next.
               </p>
             )}
           </section>
@@ -461,8 +461,8 @@ const ListPropertyWizard = () => {
             {/* Role selection */}
             <div className="space-y-2">
               <label className="text-[11px] text-slate-400 font-bold uppercase tracking-wider block">Select Posting Role</label>
-              <div className="flex gap-4">
-                <label className={`flex-1 flex items-center justify-between p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${listingForm.role === 'owner' ? 'border-[#0073E6] bg-blue-50/20' : 'border-slate-200'}`}>
+              <div className="flex flex-wrap gap-2.5">
+                <label className={`flex-1 min-w-[140px] flex items-center justify-between p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${listingForm.role === 'owner' ? 'border-[#0073E6] bg-blue-50/20' : 'border-slate-200'}`}>
                   <div className="flex items-center gap-2">
                     <input
                       type="radio"
@@ -475,7 +475,7 @@ const ListPropertyWizard = () => {
                   </div>
                 </label>
                 
-                <label className={`flex-1 flex items-center justify-between p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${listingForm.role === 'broker' ? 'border-[#0073E6] bg-blue-50/20' : 'border-slate-200'}`}>
+                <label className={`flex-1 min-w-[140px] flex items-center justify-between p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${listingForm.role === 'broker' ? 'border-[#0073E6] bg-blue-50/20' : 'border-slate-200'}`}>
                   <div className="flex items-center gap-2">
                     <input
                       type="radio"
@@ -485,6 +485,19 @@ const ListPropertyWizard = () => {
                       className="accent-[#0073E6]"
                     />
                     <span className="text-[12px] font-bold text-slate-700">Broker / Agent</span>
+                  </div>
+                </label>
+
+                <label className={`flex-1 min-w-[140px] flex items-center justify-between p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${listingForm.role === 'builder' ? 'border-[#0073E6] bg-blue-50/20' : 'border-slate-200'}`}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="listingRole"
+                      checked={listingForm.role === 'builder'}
+                      onChange={() => setListingForm({ ...listingForm, role: 'builder' })}
+                      className="accent-[#0073E6]"
+                    />
+                    <span className="text-[12px] font-bold text-slate-700">Builder Partner</span>
                   </div>
                 </label>
               </div>

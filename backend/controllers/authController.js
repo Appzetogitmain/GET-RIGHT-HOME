@@ -288,7 +288,7 @@ export const verifyOtp = async (req, res) => {
       }
 
       // Determine registration role
-      const finalRole = ['owner', 'broker'].includes(role) ? role : 'user';
+      const finalRole = ['owner', 'broker', 'builder'].includes(role) ? role : 'user';
 
       user = new User({
         name,
@@ -952,7 +952,7 @@ export const lazyListingLoginRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Phone, OTP and Role are required' });
     }
 
-    if (!['owner', 'broker'].includes(role)) {
+    if (!['owner', 'broker', 'builder'].includes(role)) {
       return res.status(400).json({ success: false, message: 'Invalid role' });
     }
 
