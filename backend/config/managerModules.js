@@ -29,6 +29,12 @@ export const MANAGER_MODULES = [
     actions: ['view', 'edit', 'approve', 'delete'],
   },
   {
+    key: 'builders',
+    label: 'Builder Management',
+    group: 'MANAGEMENT',
+    actions: ['view', 'add', 'edit', 'delete'],
+  },
+  {
     key: 'subscriptions',
     label: 'Subscriptions',
     group: 'MANAGEMENT',
