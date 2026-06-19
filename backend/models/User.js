@@ -67,6 +67,9 @@ const userSchema = new mongoose.Schema({
     state: { type: String, trim: true },
     zipCode: { type: String, trim: true },
     country: { type: String, default: 'India', trim: true },
+    area: { type: String, trim: true },
+    houseNo: { type: String, trim: true },
+    landmark: { type: String, trim: true },
     coordinates: {
       lat: { type: Number },
       lng: { type: Number }

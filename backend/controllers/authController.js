@@ -612,11 +612,14 @@ export const updateProfile = async (req, res) => {
 
     if (address) {
       user.address = {
-        street: address.street || user.address?.street || '',
-        city: address.city || user.address?.city || '',
-        state: address.state || user.address?.state || '',
-        zipCode: address.zipCode || user.address?.zipCode || '',
-        country: address.country || user.address?.country || 'India',
+        street: address.street !== undefined ? address.street : (user.address?.street || ''),
+        city: address.city !== undefined ? address.city : (user.address?.city || ''),
+        state: address.state !== undefined ? address.state : (user.address?.state || ''),
+        zipCode: address.zipCode !== undefined ? address.zipCode : (user.address?.zipCode || ''),
+        country: address.country !== undefined ? address.country : (user.address?.country || 'India'),
+        area: address.area !== undefined ? address.area : (user.address?.area || ''),
+        houseNo: address.houseNo !== undefined ? address.houseNo : (user.address?.houseNo || ''),
+        landmark: address.landmark !== undefined ? address.landmark : (user.address?.landmark || ''),
         coordinates: {
           lat: address.coordinates?.lat || user.address?.coordinates?.lat,
           lng: address.coordinates?.lng || user.address?.coordinates?.lng
