@@ -34,6 +34,7 @@ import RatingModal from '../../components/booking/RatingModal';
 import PaymentVerificationModal from '../../components/booking/PaymentVerificationModal';
 import { ConfirmDialog } from '../../../../components/common';
 import ReviewCard from '../../components/booking/ReviewCard';
+import WorkerArrivalModal from '../../components/booking/WorkerArrivalModal';
 import NotificationBell from '../../components/common/NotificationBell';
 import api from '../../../../services/api';
 
@@ -53,6 +54,7 @@ const BookingDetails = () => {
   const [loading, setLoading] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showArrivalModal, setShowArrivalModal] = useState(false);
   const [paying, setPaying] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -98,6 +100,22 @@ const BookingDetails = () => {
       const response = await bookingService.getById(id);
       if (response.success) {
         const data = { ...response.data };
+        // DEBUG: Log billing fields
+        console.log('[BookingDetails] API Response:', {
+          finalAmount: data.finalAmount,
+          finalOnlineAmount: data.finalOnlineAmount,
+          finalCashAmount: data.finalCashAmount,
+          basePrice: data.basePrice,
+          bill: data.bill ? {
+            finalOnlineAmount: data.bill.finalOnlineAmount,
+            finalCashAmount: data.bill.finalCashAmount,
+            grandTotal: data.bill.grandTotal,
+            originalServiceBase: data.bill.originalServiceBase,
+            totalServiceValue: data.bill.totalServiceValue,
+            adminCommission: data.bill.adminCommission,
+            cashCollectionFee: data.bill.cashCollectionFee,
+          } : 'NO BILL'
+        });
         // Calculate notional display values for plan_benefit
         if (data.paymentMethod === 'plan_benefit') {
           if (!data.tax) data.tax = 0;
@@ -121,6 +139,50 @@ const BookingDetails = () => {
       loadBooking();
     }
   }, [id, navigate]);
+
+  useEffect(() => {
+    if (!socket || !id) return;
+
+    const handleSocketEvent = (data) => {
+      // Handle different formats from different event types
+      const incomingId = String(data.bookingId || data.relatedId || data.data?.bookingId || '');
+      if (incomingId !== String(id)) return;
+
+      // Update basic fields optimistically
+      setBooking(prev => {
+        if (!prev) return prev;
+        const newData = { ...prev, ...(data.data || data) };
+        if (data.visitOtp) newData.visitOtp = data.visitOtp;
+        return newData;
+      });
+
+      // Show specific modal for worker arrival
+      if (data.type === 'worker_reached' || data.type === 'vendor_reached') {
+        toast.success('Professional has arrived! Please check the OTP.', { id: 'worker_arrived_toast' });
+        setShowArrivalModal(true);
+      } else if (data.status === 'JOURNEY_STARTED' || data.status === 'journey_started') {
+        // Only toast if it's explicitly journey started (not worker reached)
+        toast.success('Professional has started their journey!');
+      } else if (data.status === 'IN_PROGRESS' || data.status === 'in_progress') {
+        toast.success('Work has started!');
+      } else if (data.message) {
+        toast(data.message, { icon: '🔔', id: `toast_${Date.now()}` });
+      }
+
+      // Always reload fresh data
+      loadBooking();
+    };
+
+    socket.on('booking_updated', handleSocketEvent);
+    socket.on('worker_reached', handleSocketEvent);
+    socket.on('notification', handleSocketEvent);
+
+    return () => {
+      socket.off('booking_updated', handleSocketEvent);
+      socket.off('worker_reached', handleSocketEvent);
+      socket.off('notification', handleSocketEvent);
+    };
+  }, [socket, id]);
 
   // Auto-show rating modal ONLY when booking is fully completed AND paid
   useEffect(() => {
@@ -169,46 +231,7 @@ const BookingDetails = () => {
     }
   }, [booking]);
 
-  // Socket Listener for Real-time Updates
-  useEffect(() => {
-    if (socket && id) {
-      // Handler for booking updates
-      const handleUpdate = (data) => {
-        // Check if update relates to this booking — use String comparison to handle ObjectId vs string
-        const incomingId = String(data.bookingId || data.relatedId || data.data?.bookingId || '');
-        const currentId = String(id);
-        if (incomingId !== currentId) return;
-
-        // Instant UI update for critical fields (status, OTPs, amounts)
-        setBooking(prev => {
-          if (!prev) return prev;
-          const newData = { ...prev, ...(data.data || data) };
-
-          // Calculate notional display values for plan_benefit
-          if (newData.paymentMethod === 'plan_benefit') {
-            if (!newData.tax) newData.tax = 0;
-            if (!newData.visitingCharges && !newData.visitationFee) newData.visitingCharges = 0;
-          }
-          return newData;
-        });
-
-        // Fetch full data to ensure consistency
-        loadBooking();
-
-        if (data.message) {
-          toast(data.message, { icon: '🔔' });
-        }
-      };
-
-      socket.on('booking_updated', handleUpdate);
-      socket.on('notification', handleUpdate);
-
-      return () => {
-        socket.off('booking_updated', handleUpdate);
-        socket.off('notification', handleUpdate);
-      };
-    }
-  }, [socket, id]);
+  // (Combined into the single socket listener above)
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -317,14 +340,15 @@ const BookingDetails = () => {
         amount: Math.round((booking.finalAmount || 0) * 100),
         currency: 'INR',
         order_id: booking.razorpayOrderId,
-        name: 'Truliq',
+        name: 'GetRight Home',
         description: `Payment for ${booking.serviceName}`,
         handler: async function (response) {
           toast.loading('Verifying payment...');
           const verifyResponse = await paymentService.verifyPayment({
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature
+            razorpay_signature: response.razorpay_signature,
+            bookingId: booking._id || booking.id
           });
           toast.dismiss();
 
@@ -364,17 +388,18 @@ const BookingDetails = () => {
 
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: Math.round(orderResponse.data.amount * 100),
-        currency: orderResponse.data.currency || 'INR',
-        order_id: orderResponse.data.orderId,
-        name: 'Truliq',
+        amount: orderResponse.order.amount,
+        currency: orderResponse.order.currency || 'INR',
+        order_id: orderResponse.order.id,
+        name: 'GetRight Home',
         description: `Payment for ${booking.serviceName}`,
         handler: async function (response) {
           toast.loading('Verifying payment...');
           const verifyResponse = await paymentService.verifyPayment({
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature
+            razorpay_signature: response.razorpay_signature,
+            bookingId: booking._id || booking.id
           });
           toast.dismiss();
 
@@ -987,9 +1012,28 @@ const BookingDetails = () => {
                             ? <p className="font-medium">Covered by your Membership Plan</p>
                             : <p className="font-medium">Booking completed successfully. Thank you for choosing us!</p>
                         )
-                        : <p className="font-medium">Total Amount: <span className="text-lg font-black ml-1">₹{(booking.finalAmount || booking.totalAmount || 0).toLocaleString('en-IN')}</span></p>
+                        : (
+                          <div className="flex flex-col gap-1 w-full">
+                            <div className="flex justify-between items-center bg-white/10 rounded-lg px-3 py-2">
+                              <span className="text-xs font-bold text-orange-100">Pay Online:</span>
+                              <span className="text-lg font-black">₹{(
+                                (booking.bill?.finalOnlineAmount > 0 ? booking.bill.finalOnlineAmount : null) ||
+                                booking.finalOnlineAmount ||
+                                booking.finalAmount ||
+                                0
+                              ).toLocaleString('en-IN')}</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-white/5 rounded-lg px-3 py-2">
+                              <span className="text-xs font-medium text-orange-200">Pay Cash:</span>
+                              <span className="text-sm font-bold text-orange-50">₹{(
+                                (booking.bill?.finalCashAmount > 0 ? booking.bill.finalCashAmount : null) ||
+                                booking.finalCashAmount ||
+                                0
+                              ).toLocaleString('en-IN')}</span>
+                            </div>
+                          </div>
+                        )
                       }
-                      {booking.paymentStatus !== 'success' && <p className="text-[10px] text-orange-100 mt-0.5 opacity-80">Pay online above or prepare cash for the professional.</p>}
                     </div>
                   </div>
                 </div>
@@ -1088,15 +1132,26 @@ const BookingDetails = () => {
             </div>
           </section>
 
-          {/* Service Details */}
+          {/* Payment Summary - Always visible, serves as Order Summary too */}
           <section className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50">
-              <h3 className="font-bold text-gray-900">Order Summary</h3>
-            </div>
+            <div className="p-5">
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100">
+                <div className={`p-2 rounded-lg ${booking.paymentMethod === 'plan_benefit' ? 'bg-amber-100' : 'bg-green-50'}`}>
+                  {booking.paymentMethod === 'plan_benefit' ? (
+                    <FiAward className="w-5 h-5 text-amber-600" />
+                  ) : (
+                    <FiDollarSign className="w-5 h-5 text-green-600" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900">
+                    {booking.paymentMethod === 'plan_benefit' ? 'Membership Benefit' : 'Payment Summary'}
+                  </h3>
+                </div>
+              </div>
 
-            <div className="p-5 space-y-4">
-              {/* 1. Service Category */}
-              <div className="flex items-center gap-3">
+              {/* Service Category */}
+              <div className="flex items-center gap-3 mb-4 pb-3 border-b border-dashed border-gray-100">
                 <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0 border border-teal-100 overflow-hidden">
                   {booking.categoryIcon ? (
                     <img src={booking.categoryIcon} alt="" className="w-6 h-6 object-contain" />
@@ -1110,260 +1165,130 @@ const BookingDetails = () => {
                 </div>
               </div>
 
-              {/* 2. Brand */}
-              {(() => {
-                const brandName = booking.brandName || booking.bookedItems?.[0]?.brandName;
-                const brandIcon = booking.brandIcon || booking.bookedItems?.[0]?.brandIcon;
-                if (!brandName) return null;
-                return (
-                  <div className="flex items-center gap-3 pt-3 border-t border-dashed border-gray-100">
-                    <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 overflow-hidden">
-                      {brandIcon ? (
-                        <img src={brandIcon} alt={brandName} className="w-7 h-7 object-contain" />
-                      ) : (
-                        <span className="text-lg font-black text-slate-400">{brandName.charAt(0)}</span>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Brand</p>
-                      <p className="text-sm font-bold text-gray-800">{brandName}</p>
-                    </div>
-                  </div>
-                );
-              })()}
+              <div className="space-y-3">
+                      <div className="space-y-2 text-sm pl-2">
+                        {(() => {
+                          // Extract values
+                          const mainServiceTitle = booking.serviceName || booking.serviceCategory || 'Service';
+                          const platformFlatFee = bill?.adminCommission ?? 20;
+                          const cashFee = bill?.cashCollectionFee ?? 20;
+                          
+                          // Use bill.originalServiceBase (correct field) or fallback to booking.basePrice
+                          const rawBase = bill?.originalServiceBase || parseFloat(booking.basePrice) || 0;
+                          // Don't subtract platformFlatFee from service display — show actual service price
+                          const basePriceToDisplay = rawBase;
+                          
+                          const allPartsAndCustom = [...parts, ...customItems, ...(booking.extraCharges || [])];
 
-              {/* 3. Service Cards */}
-              {booking.bookedItems && booking.bookedItems.length > 0 && (
-                <div className="pt-3 border-t border-dashed border-gray-100 space-y-2">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Services Booked</p>
-                  {booking.bookedItems.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start bg-gray-50 rounded-xl p-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-100">×{item.quantity}</span>
-                          <span className="text-sm font-semibold text-gray-900 truncate">{item.card?.title || 'Service'}</span>
-                        </div>
-                        {item.card?.subtitle && <p className="text-xs text-gray-400 mt-0.5 ml-8 line-clamp-1">{item.card.subtitle}</p>}
-                        {item.card?.duration && <p className="text-xs text-gray-400 mt-0.5 ml-8">⏱ {item.card.duration}</p>}
-                      </div>
-                      <span className="text-sm font-bold text-gray-900 ml-3 shrink-0">₹{((item.card?.price || 0) * (item.quantity || 1)).toLocaleString('en-IN')}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
+                          // Correct total calculation using bill fields
+                          // Use ?? (nullish coalescing) so 0 is still valid; fall through only on null/undefined
+                          // Priority: bill.finalOnlineAmount > bill.grandTotal > booking.finalOnlineAmount > booking.finalAmount > manual calc
+                          const billFinalOnline = bill?.finalOnlineAmount ?? null;
+                          const billGrandTotal = bill?.grandTotal ?? null;
+                          const bookingFinalOnline = booking.finalOnlineAmount || null;
+                          const bookingFinalAmount = booking.finalAmount || null;
+                          
+                          // Manual calculation from bill line items as last resort
+                          // NOTE: adminCommission is NOT added here because originalServiceBase already includes it
+                          const manualTotal = hasBill
+                            ? (bill.originalServiceBase || 0) + (bill.originalGST || 0) +
+                              (bill.totalServiceValue || 0) + (bill.totalServiceGST || 0) +
+                              (bill.totalPartsValue || 0) + (bill.totalPartsGST || 0) +
+                              (bill.transportCharges || 0)
+                            : 0;
+                          
+                          // bill.grandTotal = originalBase + transport = finalOnlineAmount (platform fee is baked into originalBase)
+                          // Do NOT add adminCommission to grandTotal — it would double-count
+                          const totalOnline = (billFinalOnline != null && billFinalOnline > 0)
+                            ? billFinalOnline
+                            : (billGrandTotal != null && billGrandTotal > 0)
+                              ? billGrandTotal
+                              : (bookingFinalOnline || bookingFinalAmount || manualTotal || 0);
+                          
+                          const billFinalCash = bill?.finalCashAmount ?? null;
+                          const bookingFinalCash = booking.finalCashAmount || null;
+                          const totalCash = (billFinalCash != null && billFinalCash > 0)
+                            ? billFinalCash
+                            : (bookingFinalCash || (totalOnline > 0 ? totalOnline + cashFee : 0) || 0);
 
-          {/* Payment Summary - Only show if payment is completed/collected OR if a payment request is active (Work Done) */}
-          {(['work_done', 'completed'].includes(booking.status?.toLowerCase()) || booking.paymentStatus === 'success' || booking.cashCollected) && (
-            <section className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 overflow-hidden">
-              <div className="p-5">
-                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100">
-                  <div className={`p-2 rounded-lg ${booking.paymentMethod === 'plan_benefit' ? 'bg-amber-100' : 'bg-green-50'}`}>
-                    {booking.paymentMethod === 'plan_benefit' ? (
-                      <FiAward className="w-5 h-5 text-amber-600" />
-                    ) : (
-                      <FiDollarSign className="w-5 h-5 text-green-600" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-900">
-                      {booking.paymentMethod === 'plan_benefit' ? 'Membership Benefit' : 'Payment Summary'}
-                    </h3>
-                  </div>
-                </div>
-
-                <div className="space-y-3 text-sm">
-                  {hasBill ? (
-                    // NEW DETAILED BREAKDOWN
-                    <div className="space-y-4">
-                      {/* Services Section */}
-                      <div>
-                        <h4 className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-                          <FiCheckCircle className="w-3.5 h-3.5" /> Services
-                        </h4>
-                        <div className="space-y-2 pl-1">
-                          {/* Original Base */}
-                          <div className="flex justify-between items-center text-gray-600">
-                            <span>Original Booking : {originalServiceFromBill?.name || booking.serviceName || 'Service'}</span>
-                            {isPlanBenefit ? (
-                              <div className="flex items-center gap-2">
-                                <span className="line-through text-gray-400 text-xs">₹{originalBase.toLocaleString('en-IN')}</span>
-                                <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">FREE</span>
+                          return (
+                            <>
+                              <div className="flex justify-between font-bold text-gray-800 pt-1">
+                                <span>{mainServiceTitle}</span>
+                                {isPlanBenefit ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="line-through text-gray-400 text-xs">₹{basePriceToDisplay.toFixed(2)}</span>
+                                    <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">FREE</span>
+                                  </div>
+                                ) : (
+                                  <span>₹{basePriceToDisplay.toFixed(2)}</span>
+                                )}
                               </div>
-                            ) : (
-                              <span className="font-medium text-gray-900">₹{originalBase.toLocaleString('en-IN')}</span>
-                            )}
-                          </div>
-
-                          {/* Extra Services */}
-                          {services.map((s, i) => (
-                            <div key={i} className="flex justify-between items-center text-gray-600">
-                              <span>{s.name} <span className="text-gray-400 text-xs">x{s.quantity}</span></span>
-                              <span className="font-mono text-xs">₹{((parseFloat(s.price) || 0) * (parseFloat(s.quantity) || 1)).toFixed(2)}</span>
-                            </div>
-                          ))}
-
-
-
-                          {/* Service Subtotal */}
-                          <div className="flex justify-between font-bold text-gray-800 pt-1">
-                            <span>Total Service</span>
-                            <span>₹{(originalBase + extraServiceBase).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Parts Section */}
-                      {(parts.length > 0 || customItems.length > 0) && (
-                        <div>
-                          <h4 className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 mt-4">
-                            <FiPackage className="w-3.5 h-3.5 text-orange-500" /> Parts & Material
-                          </h4>
-                          <div className="space-y-2 pl-1">
-                            {parts.map((p, i) => (
-                              <div key={`p-${i}`} className="flex justify-between items-center text-gray-600">
-                                <span>{p.name} <span className="text-gray-400 text-xs">x{p.quantity}</span></span>
-                                <span className="font-mono text-xs">₹{(p.price * p.quantity).toFixed(2)}</span>
-                              </div>
-                            ))}
-                            {customItems.map((c, i) => (
-                              <div key={`c-${i}`} className="flex justify-between items-center text-gray-600">
-                                <div>
-                                  <span>{c.name} <span className="text-gray-400 text-xs">x{c.quantity}</span></span>
-                                  {c.hsnCode && <span className="block text-[9px] text-gray-400">HSN: {c.hsnCode}</span>}
+                              
+                              {services.map((s, i) => (
+                                <div key={`s-${i}`} className="flex justify-between text-gray-600 text-xs">
+                                  <span>{s.name}</span>
+                                  <span>₹{(parseFloat(s.price) || parseFloat(s.basePrice) || 0).toFixed(2)}</span>
                                 </div>
-                                <span className="font-mono text-xs">₹{(c.price * c.quantity).toFixed(2)}</span>
+                              ))}
+
+                              {allPartsAndCustom.map((p, i) => (
+                                <div key={`p-${i}`} className="flex justify-between text-gray-600 text-xs">
+                                  <span>{p.name} {p.quantity > 1 ? `(x${p.quantity})` : ''}</span>
+                                  <span>₹{((parseFloat(p.price) || parseFloat(p.total) || 0) * (p.quantity || 1)).toFixed(2)}</span>
+                                </div>
+                              ))}
+
+                              {bill?.transportCharges > 0 && (
+                                <div className="flex justify-between text-gray-600 text-xs">
+                                  <span>Transport Charges</span>
+                                  <span>₹{bill.transportCharges.toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              {(bill?.visitingCharges > 0 || booking?.visitingCharges > 0) && (
+                                <div className="flex justify-between text-gray-600 text-xs">
+                                  <span>Visiting Charges</span>
+                                  <span>₹{(bill?.visitingCharges || booking?.visitingCharges || 0).toFixed(2)}</span>
+                                </div>
+                              )}
+                              
+                              {booking.promoDiscount > 0 && (
+                                <div className="flex justify-between text-green-600 text-xs">
+                                  <span>Promo ({booking.promoCode})</span>
+                                  <span>-₹{booking.promoDiscount.toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              {platformFlatFee > 0 && (
+                                <div className="flex justify-between text-blue-600 text-sm font-medium mt-2 pt-2 border-t border-gray-100">
+                                  <span>Base Platform Fee</span>
+                                  <span>+₹{platformFlatFee}</span>
+                                </div>
+                              )}
+                              
+                              {cashFee > 0 && (
+                                <div className="flex justify-between text-emerald-600 text-sm font-medium">
+                                  <span>Cash Collection Fee (If cash paid)</span>
+                                  <span>+₹{cashFee}</span>
+                                </div>
+                              )}
+
+                              <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
+                                <div className="flex justify-between font-black text-gray-900">
+                                  <span>Total Online Bill</span>
+                                  <span>₹{totalOnline.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between font-black text-emerald-600">
+                                  <span>Total Cash Bill</span>
+                                  <span>₹{totalCash.toFixed(2)}</span>
+                                </div>
                               </div>
-                            ))}
-
-
-
-                            {/* Parts Subtotal */}
-                            <div className="flex justify-between font-bold text-gray-800 pt-1">
-                              <span>Total Parts</span>
-                              <span>₹{(partsBase).toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-
-
-                      {/* Transport Charges */}
-                      {bill?.transportCharges > 0 && (
-                        <div className="mt-2 pt-2 border-t border-gray-100">
-                          <div className="flex justify-between text-xs font-bold text-gray-600">
-                            <span className="flex items-center gap-2 uppercase tracking-wide">
-                              <FiPackage className="w-3.5 h-3.5 text-blue-400" /> Transport Charges
-                            </span>
-                            <span className="font-mono">₹{(bill.transportCharges).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Promo Discount */}
-                      {booking.promoDiscount > 0 && (
-                        <div className="mt-2 pt-2 border-t border-gray-100">
-                          <div className="flex justify-between text-xs font-bold text-green-600">
-                            <span className="flex items-center gap-2 uppercase tracking-wide">
-                              Promo ({booking.promoCode})
-                            </span>
-                            <span className="font-mono">-₹{(booking.promoDiscount).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {(booking.paymentMethod || booking.paymentStatus === 'success') && (
-                        <div className="mt-2 pt-2 border-t border-gray-100">
-                          <div className="flex justify-between text-xs font-bold text-gray-600">
-                            <span className="flex items-center gap-2 uppercase tracking-wide">
-                              {booking.paymentMethod === 'cash collected' ? <FiDollarSign className="text-emerald-500" /> : <MdQrCode className="text-blue-500" />}
-                              Payment Method
-                            </span>
-                            <span className={`${booking.paymentMethod === 'cash collected' ? 'text-emerald-600' : 'text-blue-600'} uppercase`}>
-                              {booking.paymentMethod === 'cash collected' ? 'Cash Collected' :
-                                booking.paymentMethod === 'Qr online' ? 'QR Online' :
-                                  booking.paymentMethod === 'online' ? 'Online Paid' :
-                                    booking.paymentMethod === 'plan_benefit' ? 'Plan Benefit' :
-                                      booking.paymentMethod || 'Online'}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="pt-4 mt-2 border-t-2 border-gray-100 flex justify-between items-center">
-                        <span className="font-bold text-gray-900 text-lg">Grand Total</span>
-                        <span className="font-black text-teal-700 text-2xl">
-                          ₹{(originalBase + extraServiceBase + partsBase + (bill?.transportCharges || 0) - (booking.promoDiscount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
-                  ) : (
-                    // OLD SIMPLE BREAKDOWN (Fallback)
-                    <>
-                      {/* Base Items */}
-                      <div className="flex justify-between items-center text-gray-600">
-                        <span>Base Price</span>
-                        {booking.paymentMethod === 'plan_benefit' ? (
-                          <div className="flex items-center gap-2">
-                            <span className="line-through text-gray-400 text-xs">₹{(booking.basePrice || 0).toLocaleString('en-IN')}</span>
-                            <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
-                          </div>
-                        ) : (
-                          <span className="font-medium text-gray-900">₹{(booking.basePrice || 0).toLocaleString('en-IN')}</span>
-                        )}
-                      </div>
-
-
-
-                      {booking.paymentMethod !== 'plan_benefit' && booking.discount > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-green-600">Discount</span>
-                          <span className="font-medium text-green-600">-₹{booking.discount.toLocaleString('en-IN')}</span>
-                        </div>
-                      )}
-
-                      {booking.paymentMethod !== 'plan_benefit' && booking.promoDiscount > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-green-600">Promo ({booking.promoCode})</span>
-                          <span className="font-medium text-green-600">-₹{booking.promoDiscount.toLocaleString('en-IN')}</span>
-                        </div>
-                      )}
-
-                      {/* Extra Charges Section */}
-                      {booking.extraCharges && booking.extraCharges.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Extra Charges</p>
-                          <div className="bg-gray-50 rounded-lg p-3 space-y-2 border border-gray-100">
-                            {booking.extraCharges.map((item, idx) => (
-                              <div key={idx} className="flex justify-between text-gray-700 text-sm">
-                                <span className="flex items-center gap-2">
-                                  <span className="text-xs font-bold bg-white border px-1.5 rounded text-gray-500">x{item.quantity || 1}</span>
-                                  <span>{item.name}</span>
-                                </span>
-                                <span className="font-medium">+₹{(item.total || item.price || 0).toLocaleString('en-IN')}</span>
-                              </div>
-                            ))}
-                            <div className="flex justify-between font-bold text-blue-600 pt-2 mt-2 border-t border-gray-200">
-                              <span>Total Extras</span>
-                              <span>+₹{(booking.extraChargesTotal || 0).toLocaleString('en-IN')}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="pt-4 mt-2 border-t border-gray-100 flex justify-between items-center">
-                        <span className="font-bold text-gray-900 text-lg">Total Payable</span>
-                        <span className="font-black text-gray-900 text-xl">
-                          ₹{(booking.basePrice || 0).toLocaleString('en-IN')}
-                        </span>
-
-                      </div>
-                    </>
-                  )}
-                </div>
               </div>
 
               {/* Payment Status Footer */}
@@ -1378,7 +1303,6 @@ const BookingDetails = () => {
                 </span>
               </div>
             </section>
-          )}
 
           {/* Action Card for Awaiting Payment */}
           {booking.status === 'awaiting_payment' && (
@@ -1453,6 +1377,13 @@ const BookingDetails = () => {
           onClose={() => setShowPaymentModal(false)}
           booking={booking}
           onPayOnline={handleOnlinePayment}
+        />
+
+        {/* Worker Arrival Modal */}
+        <WorkerArrivalModal
+          isOpen={showArrivalModal}
+          onClose={() => setShowArrivalModal(false)}
+          booking={booking}
         />
 
         <ConfirmDialog

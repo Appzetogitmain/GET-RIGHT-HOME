@@ -4,17 +4,22 @@ const transactionSchema = new mongoose.Schema({
   walletId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Wallet',
-    required: true
+    required: false // Optional to support embedded wallets like Worker
+  },
+  workerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Worker',
+    required: false
   },
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
+    required: false,
     refPath: 'modelType'
   },
   modelType: {
     type: String,
-    required: true,
-    enum: ['User', 'Partner', 'Admin'],
+    required: false,
+    enum: ['User', 'Partner', 'Admin', 'Worker'],
     default: 'User'
   },
   type: {

@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import PaymentVerificationModal from '../../components/booking/PaymentVerificationModal';
+import WorkerArrivalModal from '../../components/booking/WorkerArrivalModal';
 
 
 const toAssetUrl = (url) => {
@@ -63,6 +64,7 @@ const BookingTrack = () => {
   const [paying, setPaying] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showArrivalModal, setShowArrivalModal] = useState(false);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -289,13 +291,26 @@ const BookingTrack = () => {
         }
       };
 
+      const handleWorkerReached = (data) => {
+        if (data.bookingId === id || data.relatedId === id || data.data?.bookingId === id) {
+          setBooking(prev => {
+            if (!prev) return prev;
+            return { ...prev, visitOtp: data.visitOtp || data.data?.visitOtp };
+          });
+          setShowArrivalModal(true);
+          toast.success('Professional has arrived! Please check the OTP.');
+        }
+      };
+
       socket.on('live_location_update', handleLocationUpdate);
       socket.on('booking_updated', handleBookingUpdate);
+      socket.on('worker_reached', handleWorkerReached);
       socket.on('notification', handleBookingUpdate);
 
       return () => {
         socket.off('live_location_update', handleLocationUpdate);
         socket.off('booking_updated', handleBookingUpdate);
+        socket.off('worker_reached', handleWorkerReached);
         socket.off('notification', handleBookingUpdate);
       };
     }
@@ -965,9 +980,15 @@ const BookingTrack = () => {
         booking={booking}
         onPayOnline={handleOnlinePayment}
       />
+      
+      {/* Worker Arrival Modal */}
+      <WorkerArrivalModal
+        isOpen={showArrivalModal}
+        onClose={() => setShowArrivalModal(false)}
+        booking={booking}
+      />
     </div>
   );
 };
 
-export default BookingTrack;
 

@@ -6,8 +6,11 @@ import Worker from '../../models/Worker.js';
 import Vendor from '../../models/Partner.js';
 import Transaction from '../../models/Transaction.js';
 import BookingRequest from '../../models/HomeServiceBookingRequest.js';
-import VendorBill from '../../models/VendorBill.js';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+import PlatformSettings from '../../models/PlatformSettings.js';
 import Settings from '../../models/Settings.js';
+import VendorBill from '../../models/VendorBill.js';
 
 /**
  * Get assigned jobs for worker
@@ -15,7 +18,7 @@ import Settings from '../../models/Settings.js';
 const getAssignedJobs = async (req, res) => {
   try {
     const workerId = req.user.id;
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, page = 1, limit = 100 } = req.query;
 
     // Build query
     const query = { workerId };
@@ -32,7 +35,7 @@ const getAssignedJobs = async (req, res) => {
       .populate('vendorId', 'name businessName phone')
       .populate('serviceId', 'title iconUrl')
       .populate('categoryId', 'title slug')
-      .sort({ scheduledDate: 1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
@@ -336,6 +339,24 @@ const workerReachedLocation = async (req, res) => {
       }
     });
 
+    // Explicitly emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${String(booking.userId)}`).emit('worker_reached', {
+        bookingId: String(booking._id),
+        status: booking.status,
+        visitOtp: otp,
+        type: 'worker_reached',
+        message: 'Professional has reached your location. Please share the OTP.'
+      });
+      // Also emit general update
+      io.to(`user_${String(booking.userId)}`).emit('booking_updated', {
+        bookingId: String(booking._id),
+        status: booking.status,
+        visitOtp: otp
+      });
+    }
+
     res.status(200).json({ success: true, message: 'User notified that professional reached' });
   } catch (error) {
     console.error('Worker reached location error:', error);
@@ -448,11 +469,6 @@ const completeJob = async (req, res) => {
     // Update booking
     booking.status = BOOKING_STATUS.WORK_DONE;
 
-    // Reuse existing Payment OTP or generate new one
-    const payOtp = booking.paymentOtp || Math.floor(1000 + Math.random() * 9000).toString();
-    booking.paymentOtp = payOtp;
-    booking.customerConfirmationOTP = payOtp;
-
     if (workPhotos && Array.isArray(workPhotos)) {
       booking.workPhotos = workPhotos;
     }
@@ -462,37 +478,18 @@ const completeJob = async (req, res) => {
 
     await booking.save();
 
-    // Notify user
-
     // 1. Notify user that work is completed and billing is being prepared
     await createNotification({
       userId: booking.userId,
       type: 'work_completed',
       title: 'Work Completed',
-      message: `Work finished!  Please wait for the bill expert is preparing !`,
+      message: `Work finished! Please wait while the professional prepares the final bill.`,
       relatedId: booking._id,
       relatedType: 'booking',
       priority: 'high',
       pushData: {
         type: 'work_completed',
         bookingId: booking._id.toString(),
-        link: `/user/booking/${booking._id}`
-      }
-    });
-
-    // 2. Notify user with Final Bill and OTP
-    await createNotification({
-      userId: booking.userId,
-      type: 'work_done',
-      title: 'Billing Ready',
-      message: `Bill Generated: ₹${booking.finalAmount}. Your verification OTP is ${payOtp}. Please verify and share OTP to complete.`,
-      relatedId: booking._id,
-      relatedType: 'booking',
-      priority: 'high',
-      pushData: {
-        type: 'work_done',
-        bookingId: booking._id.toString(),
-        paymentOtp: payOtp,
         link: `/user/booking/${booking._id}`
       }
     });
@@ -516,9 +513,7 @@ const completeJob = async (req, res) => {
     if (io) {
       io.to(`user_${String(booking.userId)}`).emit('booking_updated', {
         bookingId: String(booking._id),
-        status: BOOKING_STATUS.WORK_DONE,
-        customerConfirmationOTP: payOtp,
-        paymentOtp: payOtp
+        status: BOOKING_STATUS.WORK_DONE
       });
     }
 
@@ -551,7 +546,10 @@ const getBill = async (req, res) => {
 
     const bill = await VendorBill.findOne({ bookingId: booking._id });
     
-    res.status(200).json({ success: true, bill });
+    // Fetch Platform Settings
+    const platformSettings = await PlatformSettings.getSettings();
+
+    res.status(200).json({ success: true, bill, platformSettings });
   } catch (error) {
     console.error('Get bill error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch bill' });
@@ -578,43 +576,64 @@ const createBill = async (req, res) => {
     let totalServiceGST = 0;
     let totalPartsGST = 0;
 
-    // Default GST Rates
-    const financialSettings = await Settings.findOne({ type: 'global' });
+    const [financialSettings, platformSettings] = await Promise.all([
+      Settings.findOne({ type: 'global' }),
+      PlatformSettings.getSettings()
+    ]);
     const serviceGstPct = financialSettings?.serviceGstPercentage || 0;
     const partsGstPct = financialSettings?.partsGstPercentage || 0;
+    const globalApplyGst = platformSettings?.applyGst || false;
 
     if (services) {
       services.forEach(s => {
-        const val = Number(s.total) || 0;
+        const val = (Number(s.price) || 0) * (Number(s.quantity) || 1);
         totalServiceValue += val;
-        totalServiceGST += (val * serviceGstPct) / 100;
+        totalServiceGST += globalApplyGst ? (val * serviceGstPct) / 100 : 0;
       });
     }
 
     if (parts) {
       parts.forEach(p => {
-        const val = Number(p.total) || 0;
+        const val = (Number(p.price) || 0) * (Number(p.quantity) || 1);
         totalPartsValue += val;
-        if (applyPartsGST) totalPartsGST += (val * partsGstPct) / 100;
+        if (applyPartsGST && globalApplyGst) totalPartsGST += (val * partsGstPct) / 100;
       });
     }
 
     if (customItems) {
       customItems.forEach(c => {
-        const val = Number(c.total) || 0;
+        const val = (Number(c.price) || 0) * (Number(c.quantity) || 1);
         if (c.type === 'service') {
           totalServiceValue += val;
-          totalServiceGST += (val * serviceGstPct) / 100;
+          totalServiceGST += globalApplyGst ? (val * serviceGstPct) / 100 : 0;
         } else {
           totalPartsValue += val;
-          if (applyPartsGST) totalPartsGST += (val * partsGstPct) / 100;
+          if (applyPartsGST && globalApplyGst) totalPartsGST += (val * partsGstPct) / 100;
         }
       });
     }
 
     const visitingCharges = 0;
     const transport = Number(transportCharges) || 0;
-    const grandTotal = totalServiceValue + totalServiceGST + totalPartsValue + totalPartsGST + transport;
+    
+    // IMPORTANT: booking.basePrice = FULL original service price (e.g. 100)
+    // booking.discount / booking.promoDiscount = discount amount (e.g. 10)
+    // Discount applies ONLY to platform fee — NOT to the worker's cut.
+    const trueOriginalServiceBase = booking.basePrice || booking.totalAmount || 0;
+    const baseDiscount = booking.discount || 0;
+    const promoDiscount = booking.promoDiscount || 0;
+    const totalDiscount = baseDiscount + promoDiscount;
+    
+    // Fetch Platform Settings
+    const platformFlatFee = platformSettings?.platformFlatFee ?? 20;
+    const cashExtraFee = platformSettings?.cashCollectionFee ?? 20;
+
+    // Worker sees: basePrice - platformFee = 100 - 20 = 80
+    const originalServiceBase = Math.max(0, trueOriginalServiceBase - platformFlatFee);
+    const originalServiceGST = booking.tax || 0;
+    
+    // Grand total = worker's cut + extras + parts
+    const grandTotal = originalServiceBase + originalServiceGST + totalServiceValue + totalServiceGST + totalPartsValue + totalPartsGST + transport;
 
     // Save Bill
     let bill = await VendorBill.findOne({ bookingId: booking._id });
@@ -622,7 +641,7 @@ const createBill = async (req, res) => {
       bill = new VendorBill({
         bookingId: booking._id,
         workerId: workerId,
-        vendorId: booking.vendorId, // Null if direct worker
+        vendorId: booking.vendorId,
         bookingNumber: booking.bookingNumber
       });
     }
@@ -632,6 +651,10 @@ const createBill = async (req, res) => {
     bill.customItems = customItems || [];
     bill.transportCharges = transport;
     bill.applyPartsGST = applyPartsGST;
+    
+    bill.originalServiceBase = originalServiceBase;
+    bill.originalGST = originalServiceGST;
+    
     bill.totalServiceValue = totalServiceValue;
     bill.totalPartsValue = totalPartsValue;
     bill.totalServiceGST = totalServiceGST;
@@ -639,10 +662,21 @@ const createBill = async (req, res) => {
     bill.visitingCharges = visitingCharges;
     bill.grandTotal = grandTotal;
     
-    // Note: Vendor Earnings and Admin Commission are not fully calculated here for direct workers,
-    // they are simple 100% payout for workers, but we just need the bill document for collectCash.
-    bill.vendorTotalEarning = grandTotal;
-    bill.adminCommission = 0;
+    // Discount reduces platform fee only: 20 - 10 = 10
+    const adjustedPlatformFee = Math.max(0, platformFlatFee - totalDiscount);
+
+    // Final online = worker's earnings + adjusted platform fee = 80 + 10 = 90
+    const finalOnlineAmount = parseFloat((grandTotal + adjustedPlatformFee).toFixed(2));
+    const finalCashAmount = parseFloat((finalOnlineAmount + cashExtraFee).toFixed(2));
+    
+    // Worker earning = grand total (their service cut)
+    const workerEarning = grandTotal;
+
+    bill.vendorTotalEarning = workerEarning;
+    bill.adminCommission = adjustedPlatformFee;
+    bill.cashCollectionFee = cashExtraFee;
+    bill.finalOnlineAmount = finalOnlineAmount;
+    bill.finalCashAmount = finalCashAmount;
 
     await bill.save();
 
@@ -651,8 +685,10 @@ const createBill = async (req, res) => {
     booking.paymentOtp = payOtp;
     booking.customerConfirmationOTP = payOtp;
 
-    // Set status to WORK_DONE and update finalAmount on booking
-    booking.finalAmount = grandTotal;
+    // Set status to WORK_DONE and update final amounts on booking
+    booking.finalAmount = finalOnlineAmount; // Default to online
+    booking.finalOnlineAmount = finalOnlineAmount;
+    booking.finalCashAmount = finalCashAmount;
     booking.status = BOOKING_STATUS.WORK_DONE;
     await booking.save();
 
@@ -763,11 +799,13 @@ const collectCash = async (req, res) => {
     if (booking.bookingModel === 'worker') {
       const workerDoc = await Worker.findById(workerId);
       if (workerDoc) {
-        // In Direct Worker Model, Worker keeps 100% of cash.
-        // We only track it for reporting.
-        workerDoc.wallet.totalCashCollected = (workerDoc.wallet.totalCashCollected || 0) + grandTotal;
-        workerDoc.wallet.earnings = (workerDoc.wallet.earnings || 0) + grandTotal;
-        // No 'balance' update for cash because worker ALREADY has the cash.
+        const cashCollected = bill.finalCashAmount || grandTotal;
+        const workerEarning = bill.vendorTotalEarning || grandTotal;
+        const platformFees = (bill.adminCommission || 0) + (bill.cashCollectionFee || 0);
+
+        workerDoc.wallet.totalCashCollected = (workerDoc.wallet.totalCashCollected || 0) + cashCollected;
+        workerDoc.wallet.earnings = (workerDoc.wallet.earnings || 0) + workerEarning;
+        workerDoc.wallet.dues = (workerDoc.wallet.dues || 0) + platformFees;
         await workerDoc.save();
 
         // Transaction tracking for cash collection is currently unsupported by the Transaction schema
@@ -1157,6 +1195,23 @@ const confirmManualOnlineCollection = async (req, res) => {
     bill.status = 'paid';
     bill.paidAt = new Date();
     await bill.save();
+
+    // Update Wallet based on Booking Model
+    if (booking.bookingModel === 'worker') {
+      const workerDoc = await Worker.findById(booking.workerId);
+      if (workerDoc) {
+        workerDoc.wallet.balance = (workerDoc.wallet.balance || 0) + vendorEarning;
+        workerDoc.wallet.earnings = (workerDoc.wallet.earnings || 0) + vendorEarning;
+        await workerDoc.save();
+      }
+    } else if (booking.vendorId) {
+      const vendorDoc = await Vendor.findById(booking.vendorId);
+      if (vendorDoc) {
+        vendorDoc.wallet.balance = (vendorDoc.wallet.balance || 0) + vendorEarning;
+        vendorDoc.wallet.earnings = (vendorDoc.wallet.earnings || 0) + vendorEarning;
+        await vendorDoc.save();
+      }
+    }
 
     const io = req.app.get('io');
     if (io) {

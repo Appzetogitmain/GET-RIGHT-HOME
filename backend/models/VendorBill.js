@@ -130,6 +130,12 @@ const vendorBillSchema = new mongoose.Schema({
   /** Company revenue */
   companyRevenue: { type: Number, default: 0 },  // grandTotal − vendorTotalEarning
 
+  // Dynamic Platform Fees for direct workers
+  adminCommission: { type: Number, default: 0 }, // Flat platform fee
+  cashCollectionFee: { type: Number, default: 0 }, // Extra fee for cash collection
+  finalOnlineAmount: { type: Number, default: 0 }, // grandTotal
+  finalCashAmount: { type: Number, default: 0 }, // grandTotal + cashCollectionFee
+
   // ==========================================
   // 5. STATUS & META
   // ==========================================

@@ -981,7 +981,9 @@ export const updatePlatformSettings = async (req, res) => {
       reelCouponTarget,
       reelCouponDiscount,
       freeTrialListingLimit,
-      freeTrialDurationDays
+      freeTrialDurationDays,
+      platformFlatFee,
+      cashCollectionFee
     } = req.body;
 
     const settings = await PlatformSettings.getSettings();
@@ -998,6 +1000,8 @@ export const updatePlatformSettings = async (req, res) => {
     if (reelCouponDiscount !== undefined) settings.reelCouponDiscount = Number(reelCouponDiscount);
     if (freeTrialListingLimit !== undefined) settings.freeTrialListingLimit = Number(freeTrialListingLimit);
     if (freeTrialDurationDays !== undefined) settings.freeTrialDurationDays = Number(freeTrialDurationDays);
+    if (platformFlatFee !== undefined) settings.platformFlatFee = Number(platformFlatFee);
+    if (cashCollectionFee !== undefined) settings.cashCollectionFee = Number(cashCollectionFee);
 
     await settings.save();
     res.status(200).json({ success: true, settings });

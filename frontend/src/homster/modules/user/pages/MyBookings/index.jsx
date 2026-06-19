@@ -17,23 +17,35 @@ const MyBookings = () => {
 
   useEffect(() => {
     const loadBookings = async () => {
+      // Safety timeout: if API hangs, stop showing skeleton after 10s
+      const timeout = setTimeout(() => {
+        setLoading(false);
+        setBookings([]);
+      }, 10000);
+
       try {
         setLoading(true);
         const params = {};
         if (filter !== 'all') {
+          // Each filter maps to real DB status values
           params.status = filter;
         }
         const response = await bookingService.getUserBookings(params);
+        clearTimeout(timeout);
         if (response.success) {
           setBookings(response.data || []);
         } else {
+          console.error('[MyBookings] API returned failure:', response.message);
           toast.error(response.message || 'Failed to load bookings');
           setBookings([]);
         }
       } catch (error) {
+        clearTimeout(timeout);
+        console.error('[MyBookings] Error:', error?.response?.status, error?.response?.data || error.message);
         toast.error('Failed to load bookings. Please try again.');
         setBookings([]);
       } finally {
+        clearTimeout(timeout);
         setLoading(false);
       }
     };
@@ -51,9 +63,14 @@ const MyBookings = () => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'confirmed':
+      case 'accepted':
+      case 'assigned':
         return <FiCheckCircle className="w-3.5 h-3.5" />;
+      case 'pending':
+        return <FiClock className="w-3.5 h-3.5" />;
       case 'in_progress':
       case 'in-progress':
+      case 'work_done':
         return <FiLoader className="w-3.5 h-3.5 animate-spin" />;
       case 'journey_started':
       case 'visited':
@@ -71,11 +88,17 @@ const MyBookings = () => {
 
   const getStatusBorderColor = (status) => {
     switch (status) {
-      case 'confirmed': return '!border-l-emerald-500';
+      case 'confirmed':
+      case 'accepted':
+      case 'assigned':
+        return '!border-l-emerald-500';
+      case 'pending':
+        return '!border-l-yellow-500';
       case 'in_progress':
       case 'in-progress':
       case 'journey_started':
       case 'visited':
+      case 'work_done':
         return '!border-l-blue-500';
       case 'completed': return '!border-l-violet-500';
       case 'cancelled':
@@ -88,11 +111,16 @@ const MyBookings = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed':
+      case 'accepted':
+      case 'assigned':
         return 'bg-emerald-500 text-white border-emerald-600 ring-emerald-500';
+      case 'pending':
+        return 'bg-yellow-500 text-white border-yellow-600 ring-yellow-500';
       case 'in_progress':
       case 'in-progress':
       case 'journey_started':
       case 'visited':
+      case 'work_done':
         return 'bg-blue-500 text-white border-blue-600 ring-blue-500';
       case 'completed':
         return 'bg-violet-500 text-white border-violet-600 ring-violet-500';
@@ -116,6 +144,10 @@ const MyBookings = () => {
       case 'visited': return 'Arrived';
       case 'awaiting_payment': return 'Request Accepted';
       case 'work_done': return 'Work Completed';
+      case 'assigned':
+      case 'accepted':
+      case 'confirmed':
+        return 'Confirmed';
       default: return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
     }
   };
@@ -199,8 +231,8 @@ const MyBookings = () => {
           <div className="flex overflow-x-auto px-4 py-3 gap-2.5 no-scrollbar scroll-smooth">
             {[
               { id: 'all', label: 'All Bookings' },
-              { id: 'confirmed', label: 'Confirmed' },
-              { id: 'in-progress', label: 'In Progress' },
+              { id: 'pending,assigned,confirmed,accepted', label: 'Confirmed' },
+              { id: 'journey_started,visited,in_progress,work_done', label: 'In Progress' },
               { id: 'completed', label: 'Completed' },
               { id: 'cancelled', label: 'Cancelled' },
             ].map((tab) => (

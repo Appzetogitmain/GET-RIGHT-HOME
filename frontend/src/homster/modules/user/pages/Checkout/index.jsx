@@ -874,7 +874,7 @@ const Checkout = () => {
         amount: orderResponse.data.amount * 100,
         currency: orderResponse.data.currency || 'INR',
         order_id: orderResponse.data.orderId,
-        name: 'Truliq',
+        name: 'GetRight Home',
         description: `Payment for ${bookingRequest.serviceName || 'service'}`,
         handler: async function (response) {
           try {
@@ -962,7 +962,7 @@ const Checkout = () => {
         amount: orderResponse.data.amount * 100,
         currency: orderResponse.data.currency || 'INR',
         order_id: orderResponse.data.orderId,
-        name: 'Truliq',
+        name: 'GetRight Home',
         description: `Payment for ${booking.serviceName || 'Service'}`,
         handler: async function (response) {
           try {
@@ -1191,7 +1191,7 @@ const Checkout = () => {
           key,
           amount: amount * 100,
           currency: 'INR',
-          name: 'Truliq',
+          name: 'GetRight Home',
           description: `Payment for ${plan.name} ${isUpgrade ? '(Upgrade)' : ''}`,
           order_id: orderId,
           handler: async (response) => {
