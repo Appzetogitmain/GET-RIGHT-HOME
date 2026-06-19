@@ -19,9 +19,9 @@ router.get('/my', protect, getMyEnquiries);
 
 // ── Owner routes ──────────────────────────────────────────────────────────────
 // View enquiries received on my properties (owner)
-router.get('/received', protect, authorizedRoles('user', 'owner', 'broker', 'partner', 'admin', 'superadmin'), getReceivedEnquiries);
+router.get('/received', protect, authorizedRoles('user', 'owner', 'broker', 'builder', 'partner', 'admin', 'superadmin'), getReceivedEnquiries);
 
 // Update status of an enquiry on my property
-router.put('/:id/status', protect, authorizedRoles('user', 'owner', 'broker', 'partner', 'admin', 'superadmin'), updateEnquiryStatus);
+router.put('/:id/status', protect, authorizedRoles('user', 'owner', 'broker', 'builder', 'partner', 'admin', 'superadmin'), updateEnquiryStatus);
 
 export default router;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
     MapPin, Building2, Star, Navigation,
     IndianRupee, ArrowRight, Loader2, ChevronLeft, ChevronRight
@@ -17,7 +17,10 @@ const PROPERTY_TYPE_ICONS = {
 /* ─── Property Card ─── */
 const AdminPropertyCard = ({ property, index }) => {
     const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
     const typeIcon = PROPERTY_TYPE_ICONS[property.propertyType] || '🏠';
+    
+    // Resolve price and format it to Cr/Lac
     const rawPrice = property.rentDetails?.monthlyRent
         || property.buyDetails?.expectedPrice
         || property.plotDetails?.expectedPrice
@@ -26,8 +29,46 @@ const AdminPropertyCard = ({ property, index }) => {
         || property.dynamicData?.expectedRent
         || property.dynamicData?.price
         || null;
-    const parsedPrice = rawPrice ? Number(rawPrice.toString().replace(/,/g, '')) : null;
-    const price = parsedPrice && !isNaN(parsedPrice) && parsedPrice > 0 ? parsedPrice : null;
+
+    const formatPriceValue = (val) => {
+        if (!val) return 'Contact for Price';
+        const num = Number(val.toString().replace(/,/g, ''));
+        if (isNaN(num) || num <= 0) return val; // fallback
+        if (num >= 10000000) {
+            return `₹ ${(num / 10000000).toFixed(2).replace(/\.00$/, '')} Cr`;
+        }
+        if (num >= 100000) {
+            return `₹ ${(num / 100000).toFixed(2).replace(/\.00$/, '')} Lac`;
+        }
+        return `₹ ${num.toLocaleString('en-IN')}`;
+    };
+
+    const priceText = property.dynamicPriceText || formatPriceValue(rawPrice);
+
+    // Resolve BHK and location details
+    const getBhkText = () => {
+        if (property.bhk) return `${property.bhk} BHK`;
+        if (property.rentDetails?.type) return property.rentDetails.type;
+        if (property.buyDetails?.type) return property.buyDetails.type;
+        if (property.propertyType) {
+            return property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1);
+        }
+        return 'Apartment';
+    };
+
+    const bhkText = getBhkText();
+    const areaText = property.address?.area || property.address?.city || '';
+    const detailsText = areaText ? `${bhkText}, ${areaText}` : bhkText;
+
+    // Brand logo fallback to first image (coverImage)
+    const displayLogo = property.logo || property.coverImage || '/src/assets/grh-logo.png';
+    const logoIsCover = !property.logo && property.coverImage;
+
+    const handleToggleSave = (e) => {
+        e.stopPropagation();
+        setIsSaved(!isSaved);
+        toast.success(isSaved ? "Removed from saved properties" : "Property saved successfully!");
+    };
 
     return (
         <motion.div
@@ -35,10 +76,16 @@ const AdminPropertyCard = ({ property, index }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.35, ease: 'easeOut' }}
         >
-            <div onClick={() => setIsQuickViewOpen(true)} className="block group cursor-pointer">
-                <div className="relative rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-100/80 transition-all duration-300 hover:-translate-y-1">
-                    {/* Image */}
-                    <div className="relative h-44 overflow-hidden bg-gray-50">
+            <div onClick={() => {
+                if (property.isDummy) {
+                    toast.success("This is a demo property card showcasing the layout!");
+                    return;
+                }
+                setIsQuickViewOpen(true);
+            }} className="block group cursor-pointer relative">
+                <div className="relative rounded-3xl overflow-hidden bg-white border border-gray-100 shadow-md hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 h-[340px] w-full flex flex-col">
+                    {/* Full Card Background Image */}
+                    <div className="absolute inset-0 w-full h-full overflow-hidden bg-gray-50">
                         {property.coverImage ? (
                             <img
                                 src={property.coverImage}
@@ -50,52 +97,64 @@ const AdminPropertyCard = ({ property, index }) => {
                                 <Building2 size={36} className="text-gray-200" />
                             </div>
                         )}
-                        <div className="absolute top-3 left-3">
-                            <span className="flex items-center gap-1 px-2.5 py-1 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase shadow-sm">
-                                <span>{typeIcon}</span>{property.propertyType}
-                            </span>
-                        </div>
-                        <div className="absolute top-3 right-3">
-                            <span className="px-2 py-1 bg-emerald-600 text-white rounded-full text-[9px] font-black uppercase tracking-wider shadow-lg">
-                                ✓ Verified
-                            </span>
-                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
                     </div>
 
-                    {/* Content */}
-                    <div className="p-4">
-                        <h3 className="font-black text-sm text-gray-900 truncate mb-1 group-hover:text-emerald-700 transition-colors">
+                    {/* Featured Badge (Top Left) */}
+                    <div className="absolute top-4 left-4 z-10">
+                        <span className="px-2.5 py-1 bg-[#a21caf] text-white rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm">
+                            Featured
+                        </span>
+                    </div>
+
+                    {/* Heart Button (Top Right) */}
+                    <div className="absolute top-4 right-4 z-10">
+                        <button
+                            onClick={handleToggleSave}
+                            className="w-8 h-8 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center text-gray-600 hover:text-red-500 transition-colors shadow-sm active:scale-95"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill={isSaved ? "currentColor" : "none"}
+                                viewBox="0 0 24 24"
+                                strokeWidth={2}
+                                stroke="currentColor"
+                                className={`w-4 h-4 ${isSaved ? 'text-red-500' : 'text-gray-600'}`}
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {/* White Floating Content Box */}
+                    <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md rounded-2xl p-4 pt-7 shadow-lg flex flex-col items-center border border-gray-100/50">
+                        {/* Circular Brand Logo Badge */}
+                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-white border-2 border-gray-100 shadow-md flex items-center justify-center p-1.5 overflow-hidden z-20">
+                            <img
+                                src={displayLogo}
+                                alt="Brand Logo"
+                                className={`w-full h-full rounded-full ${logoIsCover ? 'object-cover' : 'object-contain'}`}
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = 'https://via.placeholder.com/150?text=GRH';
+                                }}
+                            />
+                        </div>
+
+                        {/* Title */}
+                        <h3 className="font-black text-sm text-gray-900 text-center line-clamp-1 mb-1 group-hover:text-emerald-700 transition-colors duration-300">
                             {property.propertyName}
                         </h3>
-                        <div className="flex items-center gap-1 text-gray-500 mb-3">
-                            <MapPin size={11} className="shrink-0 text-emerald-500" />
-                            <span className="text-[11px] font-medium truncate">
-                                {property.address?.area ? `${property.address.area}, ` : ''}{property.address?.city}
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            {price ? (
-                                <div className="flex items-center gap-0.5">
-                                    <IndianRupee size={12} className="text-emerald-600" />
-                                    <span className="font-black text-gray-900 text-sm">{price.toLocaleString('en-IN')}</span>
-                                    {property.propertyType === 'rent' && <span className="text-[10px] text-gray-400 ml-0.5">/mo</span>}
-                                </div>
-                            ) : (
-                                <span className="text-[11px] text-emerald-600 font-bold">Contact for Price</span>
-                            )}
-                            {property.totalReviews > 0 ? (
-                                <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
-                                    <Star size={10} className="fill-amber-400 text-amber-400" />
-                                    <span className="text-[10px] font-black text-amber-700">
-                                        {property.avgRating?.toFixed(1)}
-                                    </span>
-                                </div>
-                            ) : (
-                                <div className="text-[10px] font-black text-gray-500 bg-gray-50 px-2 py-1 rounded-full border border-gray-100">
-                                    New
-                                </div>
-                            )}
-                        </div>
+
+                        {/* BHK & Area Details */}
+                        <span className="text-[10px] text-gray-400 text-center truncate mb-2 max-w-full">
+                            {detailsText}
+                        </span>
+
+                        {/* Price */}
+                        <span className="font-black text-gray-900 text-sm text-center">
+                            {priceText}{property.propertyType === 'rent' ? '/mo' : ''}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -123,6 +182,7 @@ const SkeletonCard = () => (
 
 /* ─── Main Component ─── */
 const AdminPropertiesSection = ({ searchCity }) => {
+    const navigate = useNavigate();
     const [availableCities, setAvailableCities] = useState([]);
     const [selectedCity, setSelectedCity] = useState(null); // null = no city selected yet
     const [properties, setProperties] = useState([]);
@@ -168,7 +228,13 @@ const AdminPropertiesSection = ({ searchCity }) => {
             setCitiesLoading(true);
             try {
                 const res = await propertyService.getAdminPropertyCities();
-                const cities = res?.cities || [];
+                let cities = res?.cities || [];
+                
+                // Inject dummy city if empty so the Handpicked section is visible for demo
+                if (cities.length === 0) {
+                    cities = [{ city: 'Bengaluru', count: 1 }];
+                }
+
                 setAvailableCities(cities);
 
                 if (cities.length > 0) {
@@ -313,6 +379,28 @@ const AdminPropertiesSection = ({ searchCity }) => {
         );
     });
 
+    const displayProperties = filteredProperties.length > 0
+        ? filteredProperties
+        : (!localQuery) // Always show dummy property if empty, to demo the Handpicked feature
+            ? [
+                {
+                    _id: 'dummy-satellite-aristia',
+                    propertyName: 'Satellite Aristia',
+                    coverImage: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80',
+                    logo: '', // Empty logo to test coverImage fallback logo behavior!
+                    propertyType: 'buy',
+                    bhk: '1,2',
+                    address: {
+                        area: 'Andheri East',
+                        city: 'Mumbai'
+                    },
+                    dynamicPriceText: '₹ 1.28 - 2.48 Cr',
+                    isDummy: true
+                }
+              ]
+            : [];
+
+
     // If no cities at all, don't render the section
     if (!citiesLoading && availableCities.length === 0) return null;
 
@@ -321,43 +409,33 @@ const AdminPropertiesSection = ({ searchCity }) => {
 
             {/* Header */}
             <div className="px-5 md:px-0 mb-5">
-                <div className="flex items-center justify-between">
+                <div className="flex justify-between items-end mb-2">
                     <div>
                         <div className="flex items-center gap-2 mb-0.5">
                             <div className="w-1 h-5 bg-emerald-500 rounded-full" />
                             <h2 className="text-xl md:text-2xl font-black text-gray-900">
-                                Properties in{' '}
-                                {selectedCity ? (
-                                    <span className="text-emerald-600">{selectedCity}</span>
-                                ) : (
-                                    <span className="text-gray-400">your city</span>
-                                )}
+                                Handpicked Projects
                             </h2>
                         </div>
-                        <p className="text-sm text-gray-400 ml-3">
-                            Handpicked listings by the GRH team — Select your city below
+                        <p className="text-sm text-gray-500 mt-1 ml-3">
+                            Featured projects in {selectedCity || 'your city'}
                         </p>
                     </div>
-
-                    {/* Detect Location Button */}
-                    <button
-                        onClick={handleDetectLocation}
-                        disabled={detectingLocation}
-                        className="flex items-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 rounded-xl text-[11px] font-black text-emerald-700 transition-all shrink-0"
-                        title="Auto-detect my city"
-                    >
-                        {detectingLocation
-                            ? <Loader2 size={14} className="animate-spin" />
-                            : <Navigation size={14} />
-                        }
-                        <span className="hidden sm:inline">
-                            {detectingLocation ? 'Detecting...' : 'My Location'}
-                        </span>
-                    </button>
+                    {displayProperties.length > 0 && (
+                        <button
+                            onClick={() => {
+                                navigate('/properties');
+                                window.scrollTo(0, 0);
+                            }}
+                            className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+                        >
+                            View All
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* City Chips — Horizontal Scroll */}
+            {/* City Chips — Horizontal Scroll (Commented out as per user request)
             <div className="relative mb-6 px-5 md:px-0">
 
                 {citiesLoading ? (
@@ -404,6 +482,7 @@ const AdminPropertiesSection = ({ searchCity }) => {
                 )}
 
             </div>
+            */}
 
             {/* Properties Grid */}
             <div className="px-5 md:px-0">
@@ -418,7 +497,7 @@ const AdminPropertiesSection = ({ searchCity }) => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
                     </div>
-                ) : (filteredProperties.length === 0 || (selectedCity !== 'Bengaluru' && !localQuery)) ? (
+                ) : (displayProperties.length === 0) ? (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -460,30 +539,14 @@ const AdminPropertiesSection = ({ searchCity }) => {
                             transition={{ duration: 0.2 }}
                             className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
                         >
-                            {filteredProperties.slice(0, 8).map((property, index) => (
+                            {displayProperties.slice(0, 8).map((property, index) => (
                                 <AdminPropertyCard key={property._id} property={property} index={index} />
                             ))}
                         </motion.div>
                     </AnimatePresence>
                 )}
 
-                {/* View All */}
-                {filteredProperties.length > 0 && (selectedCity === 'Bengaluru' || localQuery) && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                        className="flex justify-center mt-8"
-                    >
-                        <Link
-                            to={`/search?search=${encodeURIComponent(selectedCity + (localQuery ? ' ' + localQuery : ''))}`}
-                            className="flex items-center gap-2 px-6 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-full font-bold text-sm transition-all border border-emerald-100 hover:border-emerald-200 group"
-                        >
-                            View All in {selectedCity}
-                            <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                        </Link>
-                    </motion.div>
-                )}
+
             </div>
         </section>
     );

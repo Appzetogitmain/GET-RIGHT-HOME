@@ -37,7 +37,7 @@ const RoleSelectionSheet = ({ isOpen, onClose, onSelect, loading }) => {
                 {/* Owner Pill */}
                 <button
                   onClick={() => setSelected('owner')}
-                  className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all border ${
+                  className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all border ${
                     selected === 'owner' 
                       ? 'bg-blue-50 text-blue-600 border-blue-200' 
                       : 'bg-white text-slate-500 border-slate-200'
@@ -49,13 +49,25 @@ const RoleSelectionSheet = ({ isOpen, onClose, onSelect, loading }) => {
                 {/* Broker Pill */}
                 <button
                   onClick={() => setSelected('broker')}
-                  className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all border ${
+                  className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all border ${
                     selected === 'broker' 
                       ? 'bg-blue-50 text-blue-600 border-blue-200' 
                       : 'bg-white text-slate-500 border-slate-200'
                   }`}
                 >
                   Broker
+                </button>
+
+                {/* Builder Pill */}
+                <button
+                  onClick={() => setSelected('builder')}
+                  className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all border ${
+                    selected === 'builder' 
+                      ? 'bg-blue-50 text-blue-600 border-blue-200' 
+                      : 'bg-white text-slate-500 border-slate-200'
+                  }`}
+                >
+                  Builder
                 </button>
               </div>
 

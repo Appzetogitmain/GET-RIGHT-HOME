@@ -434,8 +434,8 @@ export const markAllNotificationsRead = async (req, res) => {
 export const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-    if (!['owner', 'broker'].includes(role)) {
-      return res.status(400).json({ message: 'Invalid role. Must be owner or broker.' });
+    if (!['owner', 'broker', 'builder'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be owner, broker or builder.' });
     }
 
     const user = await User.findById(req.user._id);

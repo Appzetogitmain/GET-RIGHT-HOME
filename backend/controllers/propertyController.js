@@ -25,7 +25,7 @@ const notifyAdminOfNewProperty = async (property) => {
 export const createProperty = async (req, res) => {
   try {
     const isPartner = req.user.role === 'partner';
-    const isUser = ['user', 'owner', 'broker'].includes(req.user.role);
+    const isUser = ['user', 'owner', 'broker', 'builder'].includes(req.user.role);
     const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
 
     let partner = null;
@@ -37,7 +37,7 @@ export const createProperty = async (req, res) => {
       isSubscriptionRequired = true;
       partner = await Partner.findById(req.user._id).populate('subscription.planId');
       if (!partner) return res.status(404).json({ message: 'Partner not found' });
-    } else if (['owner', 'broker'].includes(req.user.role)) {
+    } else if (['owner', 'broker', 'builder'].includes(req.user.role)) {
       isSubscriptionRequired = true;
       uDoc = await User.findById(req.user._id).populate('subscription.planId');
       if (!uDoc) return res.status(404).json({ message: 'User not found' });
@@ -263,7 +263,7 @@ export const createProperty = async (req, res) => {
     } else if (req.user && req.user._id) {
       const activeUser = uDoc || await User.findById(req.user._id);
       if (activeUser) {
-        if (['owner', 'broker'].includes(activeUser.role)) {
+        if (['owner', 'broker', 'builder'].includes(activeUser.role)) {
           if (!activeUser.subscription) {
             activeUser.subscription = {};
           }
@@ -1563,7 +1563,7 @@ export const revealContact = async (req, res) => {
     let partner = property.partnerId;
     if (!partner && property.userId) {
       const userDoc = await User.findById(property.userId).populate('subscription.planId');
-      if (userDoc && ['owner', 'broker'].includes(userDoc.role)) {
+      if (userDoc && ['owner', 'broker', 'builder'].includes(userDoc.role)) {
         partner = userDoc;
       }
     }
@@ -1709,10 +1709,18 @@ export const getRecommendedSellers = async (req, res) => {
 export const getAdminPropertiesByLocation = async (req, res) => {
   try {
     const { city, state } = req.query;
+    
+    // Find all users who are builders
+    const builders = await User.find({ role: 'builder' }).select('_id');
+    const builderIds = builders.map(b => b._id);
+
     const query = {
-      isAddedByAdmin: true,
       status: 'approved',
-      isLive: true
+      isLive: true,
+      $or: [
+        { isAddedByAdmin: true },
+        { userId: { $in: builderIds } }
+      ]
     };
 
     if (city) {
@@ -1733,13 +1741,21 @@ export const getAdminPropertiesByLocation = async (req, res) => {
 // Returns all distinct cities (with districts) where admin has added live properties
 export const getAdminPropertyCities = async (req, res) => {
   try {
+    // Find all users who are builders
+    const builders = await User.find({ role: 'builder' }).select('_id');
+    const builderIds = builders.map(b => b._id);
+
     // Step 1: Aggregate all properties to get cities with count
     const result = await Property.aggregate([
       {
         $match: {
           status: 'approved',
           isLive: true,
-          'address.city': { $exists: true, $ne: '' }
+          'address.city': { $exists: true, $ne: '' },
+          $or: [
+            { isAddedByAdmin: true },
+            { userId: { $in: builderIds } }
+          ]
         }
       },
       {
@@ -1893,7 +1909,7 @@ export const getPartnerPublicDetails = async (req, res) => {
       const user = await User.findById(id)
         .select('name email phone businessName partnerSince profileImage subscription role')
         .populate('subscription.planId');
-      if (user && ['owner', 'broker'].includes(user.role)) {
+      if (user && ['owner', 'broker', 'builder'].includes(user.role)) {
         partner = user;
       }
     }

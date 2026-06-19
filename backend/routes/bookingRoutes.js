@@ -36,13 +36,13 @@ router.post('/cash/:id/confirm', protect, collectCash);
 router.post('/cash/:id/confirm-manual-online', protect, confirmManualOnlineCollection);
 
 // Property Owner (user or partner) - view bookings on their listed properties
-router.get('/received', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), getReceivedBookings);
-router.post('/:id/confirm', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), confirmBookingByOwner);
-router.post('/:id/decline', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), declineBookingByOwner);
+router.get('/received', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker', 'builder'), getReceivedBookings);
+router.post('/:id/confirm', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker', 'builder'), confirmBookingByOwner);
+router.post('/:id/decline', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker', 'builder'), declineBookingByOwner);
 
 // Enquiries received by property owner
-router.get('/received-enquiries', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), getReceivedEnquiries);
-router.put('/received-enquiries/:id/status', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker'), updateReceivedEnquiryStatus);
+router.get('/received-enquiries', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker', 'builder'), getReceivedEnquiries);
+router.put('/received-enquiries/:id/status', protect, authorizedRoles('user', 'partner', 'admin', 'superadmin', 'owner', 'broker', 'builder'), updateReceivedEnquiryStatus);
 
 
 // User (guest) - book & view own bookings
