@@ -25,14 +25,17 @@ cloudinary.config({
  */
 export const uploadToCloudinary = async (filePath, folder = 'general', publicId = null) => {
   try {
+    const isVideo = filePath.match(/\.(mp4|webm|mov|avi)$/i);
     const uploadOptions = {
       folder: `rukkoin/${folder}`,
       resource_type: 'auto',
-      transformation: [
-        { width: 1920, height: 1920, crop: 'limit' },
-        { quality: 'auto' },
-        { fetch_format: 'auto' }
-      ]
+      ...(isVideo ? {} : {
+        transformation: [
+          { width: 1920, height: 1920, crop: 'limit' },
+          { quality: 'auto' },
+          { fetch_format: 'auto' }
+        ]
+      })
     };
 
     if (publicId) {

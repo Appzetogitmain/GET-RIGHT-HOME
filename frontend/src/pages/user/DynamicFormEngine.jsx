@@ -652,6 +652,44 @@ const DynamicFormEngine = () => {
                 style={{ position: 'relative', marginTop: '-80px', height: '100px' }}
               />
             </div>
+
+            {/* URL Input Option */}
+            <div className="mt-3 flex gap-2">
+              <input
+                type="url"
+                placeholder="Or paste video/image URL here (e.g. YouTube link)..."
+                id={`url-input-${field.name}`}
+                className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-[13px] outline-none focus:border-blue-500 transition-colors"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.target.value.trim();
+                    if (val) {
+                      const currentImages = formData[field.name] || [];
+                      handleChange(field.name, [...currentImages, val]);
+                      e.target.value = '';
+                    }
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const inputEl = document.getElementById(`url-input-${field.name}`);
+                  if (inputEl) {
+                    const val = inputEl.value.trim();
+                    if (val) {
+                      const currentImages = formData[field.name] || [];
+                      handleChange(field.name, [...currentImages, val]);
+                      inputEl.value = '';
+                    }
+                  }
+                }}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[13px] font-bold rounded-xl transition-colors"
+              >
+                Add URL
+              </button>
+            </div>
             
             {/* Display selected files */}
             {formData[field.name] && Array.isArray(formData[field.name]) && formData[field.name].length > 0 && (

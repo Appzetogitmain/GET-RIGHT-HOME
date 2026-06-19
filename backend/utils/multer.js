@@ -26,13 +26,13 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter for images
-const imageFilter = (req, file, cb) => {
-  // Accept only images
-  if (file.mimetype.startsWith('image/')) {
+// File filter for images and videos
+const mediaFilter = (req, file, cb) => {
+  // Accept images and videos
+  if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed'), false);
+    cb(new Error('Only image and video files are allowed'), false);
   }
 };
 
@@ -59,7 +59,7 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB limit
   },
-  fileFilter: imageFilter
+  fileFilter: mediaFilter
 });
 
 // Configure multer for documents (Aadhaar, PAN, etc.)
