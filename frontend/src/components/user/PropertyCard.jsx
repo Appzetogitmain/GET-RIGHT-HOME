@@ -392,7 +392,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       images.gallery.forEach(img => addClean(img));
     }
 
-    return list.length > 0 ? list : ['https://via.placeholder.com/400x300?text=No+Image'];
+    return list.length > 0 ? list : ['/src/assets/grh-logo.png'];
   })();
 
   useEffect(() => {
@@ -421,7 +421,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     images?.cover ||
     cleanImageUrl(item.coverImage) ||
     cleanImageUrl(Array.isArray(item.propertyImages) ? item.propertyImages[0] : '') ||
-    'https://via.placeholder.com/400x300?text=No+Image';
+    '/src/assets/grh-logo.png';
 
   const areaValue = item.carpetArea || item.superArea || item.plotDetails?.plotArea || item.dynamicData?.plotArea || item.dynamicData?.carpetArea || '';
   const areaUnit = item.carpetAreaUnit || item.areaUnit || item.dynamicData?.carpetAreaUnit || 'sqft';

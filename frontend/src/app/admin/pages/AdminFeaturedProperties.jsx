@@ -92,7 +92,7 @@ const AdminFeaturedProperties = () => {
   // --- Property Manage Feature Handlers ---
   const handleOpenPropModal = (property) => {
     setSelectedProperty(property);
-    setSelectedPlanId(property.featuredDetails?.planId?._id || property.featuredDetails?.planId || 'None');
+    setSelectedPlanId(property.featuredDetails?.planId?._id || property.featuredDetails?.planId || (property.featuredDetails?.isFeatured ? 'Standard' : 'None'));
     setDurationDays(property.featuredDetails?.durationDays || '');
     setAdminNotes(property.featuredDetails?.adminNotes || '');
     setIsPropModalOpen(true);
@@ -102,7 +102,7 @@ const AdminFeaturedProperties = () => {
     try {
       const payload = {
         isFeatured: selectedPlanId !== 'None',
-        planId: selectedPlanId !== 'None' ? selectedPlanId : null,
+        planId: (selectedPlanId !== 'None' && selectedPlanId !== 'Standard') ? selectedPlanId : null,
         durationDays: durationDays ? parseInt(durationDays) : null,
         adminNotes: adminNotes
       };
@@ -334,6 +334,12 @@ const AdminFeaturedProperties = () => {
                     className={`p-3 rounded-xl border-2 text-left ${selectedPlanId === 'None' ? 'border-red-500 bg-red-50' : 'border-slate-100'}`}
                   >
                     <div className="font-bold text-sm">Remove Tag</div>
+                  </button>
+                  <button
+                    onClick={() => { setSelectedPlanId('Standard'); setDurationDays(''); }}
+                    className={`p-3 rounded-xl border-2 text-left ${selectedPlanId === 'Standard' ? 'border-blue-500 bg-blue-50' : 'border-slate-100'}`}
+                  >
+                    <div className="font-bold text-sm">Standard (No Plan)</div>
                   </button>
                   {plans.map(plan => (
                     <button

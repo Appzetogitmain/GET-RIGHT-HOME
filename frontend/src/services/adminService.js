@@ -256,6 +256,10 @@ const adminService = {
     const response = await axiosInstance.post('/admin/properties', data);
     return response.data;
   },
+  updateProperty: async (id, data) => {
+    const response = await axiosInstance.put(`/admin/properties/${id}`, data);
+    return response.data;
+  },
   getEnquiries: async (params) => {
     const response = await axiosInstance.get('/admin/enquiries', { params });
     return response.data;

@@ -130,6 +130,14 @@ const AdminBuilders = () => {
 
     const handleSaveBuilder = async (e) => {
         e.preventDefault();
+        
+        // Phone validation
+        const phoneRegex = /^[6-9]\d{9}$/;
+        if (!phoneRegex.test(formData.phone)) {
+            toast.error('Please enter a valid 10-digit Indian mobile number');
+            return;
+        }
+
         try {
             const payload = {
                 name: formData.name,

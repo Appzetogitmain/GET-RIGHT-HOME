@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     Building2, Search, Filter, MoreVertical, MapPin,
     CheckCircle, XCircle, Clock, Star, ShieldAlert, Trash2, Edit, Eye, Loader2,
@@ -39,6 +39,7 @@ const PropertyStatusBadge = ({ status }) => {
 
 const AdminProperties = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
     const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -381,6 +382,11 @@ const AdminProperties = () => {
                                                             <Link to={`${basePath}/properties/${property._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
+                                                            {property.isAddedByAdmin && property.dynamicCategory && (
+                                                                <button onClick={() => navigate(`${basePath}/properties/add`, { state: { existingProperty: property } })} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
+                                                                    <Edit size={14} /> Edit Property
+                                                                </button>
+                                                            )}
                                                             {property.status === 'pending' && (
                                                                 <>
                                                                     <button onClick={() => handleAction('approve', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-green-50 text-[10px] font-bold uppercase text-green-700">

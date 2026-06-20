@@ -381,7 +381,7 @@ export const createAdminProperty = async (req, res) => {
     propertyData.status = 'approved';
     propertyData.isLive = true;
     propertyData.isAddedByAdmin = true;
-    // partnerId is optional ΓÇö null for admin-added properties
+    // partnerId is optional
     propertyData.partnerId = null;
 
     if (!propertyData.propertyName || !propertyData.propertyType) {
@@ -401,6 +401,34 @@ export const createAdminProperty = async (req, res) => {
   } catch (error) {
     console.error('Create Admin Property Error:', error);
     res.status(500).json({ success: false, message: error.message || 'Server error creating property' });
+  }
+};
+
+export const updateAdminProperty = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const propertyData = req.body;
+
+    if (!propertyData.propertyName || !propertyData.propertyType) {
+      return res.status(400).json({ success: false, message: 'Property name and type are required' });
+    }
+
+    if (!propertyData.location || !propertyData.location.coordinates) {
+      propertyData.location = {
+        type: 'Point',
+        coordinates: [0, 0]
+      };
+    }
+
+    const updatedProperty = await Property.findByIdAndUpdate(id, propertyData, { new: true });
+    if (!updatedProperty) {
+      return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    res.status(200).json({ success: true, property: updatedProperty });
+  } catch (error) {
+    console.error('Update Admin Property Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Server error updating property' });
   }
 };
 

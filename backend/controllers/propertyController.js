@@ -1758,11 +1758,7 @@ export const getAdminPropertiesByLocation = async (req, res) => {
     const query = {
       status: 'approved',
       isLive: true,
-      $or: [
-        { isAddedByAdmin: true },
-        { userId: { $in: builderIds } },
-        { 'featuredDetails.isFeatured': true }
-      ]
+      'featuredDetails.isFeatured': true
     };
 
     if (city) {
@@ -1819,10 +1815,7 @@ export const getAdminPropertyCities = async (req, res) => {
           status: 'approved',
           isLive: true,
           'address.city': { $exists: true, $ne: '' },
-          $or: [
-            { isAddedByAdmin: true },
-            { userId: { $in: builderIds } }
-          ]
+          'featuredDetails.isFeatured': true
         }
       },
       {

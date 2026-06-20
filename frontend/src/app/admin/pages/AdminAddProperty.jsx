@@ -31,37 +31,65 @@ const AdminAddProperty = () => {
   const location = useLocation();
   const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
   const navigate = useNavigate();
+  const existingProperty = location.state?.existingProperty;
+  const isEditing = !!existingProperty;
+
   const [loading, setLoading] = useState(false);
   const [configs, setConfigs] = useState([]);
   
   // Selection states
-  const [selectedTxn, setSelectedTxn] = useState('');
-  const [selectedCat, setSelectedCat] = useState('');
-  const [selectedPropType, setSelectedPropType] = useState('');
+  const [selectedTxn, setSelectedTxn] = useState(() => existingProperty?.transactionType || sessionStorage.getItem('adminPropTxn') || '');
+  const [selectedCat, setSelectedCat] = useState(() => existingProperty?.propertyCategory || sessionStorage.getItem('adminPropCat') || '');
+  const [selectedPropType, setSelectedPropType] = useState(() => existingProperty?.propertyType || sessionStorage.getItem('adminPropType') || '');
   
   const [builders, setBuilders] = useState([]);
-  const [selectedBuilder, setSelectedBuilder] = useState('');
+  const [selectedBuilder, setSelectedBuilder] = useState(() => existingProperty?.userId || sessionStorage.getItem('adminPropBuilder') || '');
   
   const [template, setTemplate] = useState(null);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [currentStepIndex, setCurrentStepIndex] = useState(() => {
+    if (isEditing) return 0;
+    const saved = sessionStorage.getItem('adminPropStep');
+    return saved ? parseInt(saved) : 0;
+  });
   const [errors, setErrors] = useState({});
-  const [formData, setFormData] = useState({
-    country: 'India',
-    state: '',
-    district: '',
-    city: '',
-    locality: '',
-    houseNumber: '',
-    pincode: ''
+  const [formData, setFormData] = useState(() => {
+    if (isEditing) {
+      return {
+        ...existingProperty.dynamicData,
+        ...existingProperty.address,
+        propertyName: existingProperty.propertyName
+      };
+    }
+    const saved = sessionStorage.getItem('adminPropDraft');
+    if (saved) return JSON.parse(saved);
+    return {
+      country: 'India', state: '', district: '', city: '', locality: '', houseNumber: '', pincode: ''
+    };
   });
 
-  // Modal states for pricing details
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [modalMaintenance, setModalMaintenance] = useState('');
   const [modalFrequency, setModalFrequency] = useState('Monthly');
   const [modalBooking, setModalBooking] = useState('');
 
-  const [isBuilderProject, setIsBuilderProject] = useState(false);
+  const [isBuilderProject, setIsBuilderProject] = useState(() => existingProperty?.builderProject || sessionStorage.getItem('adminPropIsBuilder') === 'true');
+
+  useEffect(() => {
+    if (!isEditing) {
+      sessionStorage.setItem('adminPropDraft', JSON.stringify(formData));
+    }
+  }, [formData, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      sessionStorage.setItem('adminPropTxn', selectedTxn);
+      sessionStorage.setItem('adminPropCat', selectedCat);
+      sessionStorage.setItem('adminPropType', selectedPropType);
+      sessionStorage.setItem('adminPropBuilder', selectedBuilder);
+      sessionStorage.setItem('adminPropStep', currentStepIndex.toString());
+      sessionStorage.setItem('adminPropIsBuilder', isBuilderProject.toString());
+    }
+  }, [selectedTxn, selectedCat, selectedPropType, selectedBuilder, currentStepIndex, isBuilderProject, isEditing]);
 
   // Fetch Category combinations and Builders on load
   useEffect(() => {
@@ -171,6 +199,10 @@ const AdminAddProperty = () => {
       if (!formData.state) newErrors['state'] = 'State is required';
       if (!formData.district) newErrors['district'] = 'District is required';
       if (!formData.city) newErrors['city'] = 'City is required';
+      if (formData.pincode && !/^\d{6}$/.test(formData.pincode)) {
+        newErrors['pincode'] = 'Pincode must be exactly 6 digits';
+        if (!firstErrorField) firstErrorField = 'pincode';
+      }
     }
 
     currentStep.fields.forEach(field => {
@@ -272,6 +304,18 @@ const AdminAddProperty = () => {
   const submitForm = async () => {
     try {
       setLoading(true);
+      // Extract common fields from dynamic data for top-level schema mapping
+      const imagesArray = formData.photos || formData.images || formData.propertyImages || [];
+      const coverImg = imagesArray.length > 0 ? imagesArray[0] : '';
+      const otherImages = imagesArray.length > 1 ? imagesArray.slice(1) : [];
+
+      const descriptionText = formData.description || formData.details || formData.propertyDescription || '';
+
+      // Fallback price logic for cards
+      const rentAmt = formData.monthlyRent || formData.rentAmount || formData.rent;
+      const buyAmt = formData.expectedPrice || formData.price || formData.totalPrice;
+      const parsedPrice = selectedTxn === 'rent' ? rentAmt : buyAmt;
+
       const payload = {
         propertyName: formData.propertyName || `${selectedCat} ${selectedPropType} for ${selectedTxn}`,
         transactionType: selectedTxn,
@@ -288,18 +332,51 @@ const AdminAddProperty = () => {
           fullAddress: formData.houseNumber || '',
           pincode: formData.pincode || ''
         },
+        coverImage: coverImg,
+        propertyImages: imagesArray,
+        description: descriptionText,
         status: 'approved',
         isLive: true,
         isAddedByAdmin: true
       };
 
+      // Add appropriate details block based on transaction type for legacy fallback (so cards work seamlessly)
+      if (selectedTxn === 'rent') {
+        payload.rentDetails = {
+          monthlyRent: Number(parsedPrice) || 0
+        };
+      } else if (selectedTxn === 'buy' || selectedTxn === 'sale') {
+        if (selectedCat === 'Plot / Land') {
+          payload.plotDetails = {
+            expectedPrice: Number(parsedPrice) || 0
+          };
+        } else {
+          payload.buyDetails = {
+            expectedPrice: Number(parsedPrice) || 0
+          };
+        }
+      }
+
       if (selectedBuilder) {
         payload.userId = selectedBuilder;
       }
 
-      const res = await adminService.createProperty(payload);
+      let res;
+      if (isEditing) {
+        res = await adminService.updateProperty(existingProperty._id, payload);
+      } else {
+        res = await adminService.createProperty(payload);
+      }
+
       if (res.success) {
-        toast.success('Admin property published successfully!');
+        sessionStorage.removeItem('adminPropDraft');
+        sessionStorage.removeItem('adminPropTxn');
+        sessionStorage.removeItem('adminPropCat');
+        sessionStorage.removeItem('adminPropType');
+        sessionStorage.removeItem('adminPropBuilder');
+        sessionStorage.removeItem('adminPropStep');
+        sessionStorage.removeItem('adminPropIsBuilder');
+        toast.success(isEditing ? 'Property updated successfully!' : 'Admin property published successfully!');
         navigate(`${basePath}/properties`);
       }
     } catch (err) {
@@ -311,6 +388,18 @@ const AdminAddProperty = () => {
 
   // Dynamic input renders
   const renderField = (field) => {
+    // Skip rendering unit fields as standalone because they are attached to their parent number fields
+    if (Object.values(unitFieldMapping).includes(field.name)) {
+      return null;
+    }
+
+    // Skip duplicate location fields in the location step
+    const currentStep = template.steps[currentStepIndex];
+    const isLocationStep = currentStep?.title?.toLowerCase().includes('location');
+    if (isLocationStep && ['country', 'state', 'district', 'city', 'locality', 'houseNumber', 'pincode'].includes(field.name)) {
+      return null;
+    }
+
     if (field.dependsOn?.field) {
       if (formData[field.dependsOn.field] !== field.dependsOn.value) {
         return null;
@@ -318,7 +407,6 @@ const AdminAddProperty = () => {
     }
 
     const unitFieldName = unitFieldMapping[field.name];
-    const currentStep = template.steps[currentStepIndex];
     const unitField = unitFieldName ? currentStep.fields.find(f => f.name === unitFieldName) : null;
 
     if (unitField) {
@@ -695,19 +783,21 @@ const AdminAddProperty = () => {
             <div className="flex bg-slate-100 p-1 rounded-lg">
               <button
                 type="button"
-                onClick={() => setIsBuilderProject(false)}
+                onClick={() => !isEditing && currentStepIndex === 0 && setIsBuilderProject(false)}
                 className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
                   !isBuilderProject ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
+                } ${(isEditing || currentStepIndex > 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isEditing || currentStepIndex > 0}
               >
                 Standard Property
               </button>
               <button
                 type="button"
-                onClick={() => setIsBuilderProject(true)}
+                onClick={() => !isEditing && currentStepIndex === 0 && setIsBuilderProject(true)}
                 className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
                   isBuilderProject ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
+                } ${(isEditing || currentStepIndex > 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isEditing || currentStepIndex > 0}
               >
                 Builder Project
               </button>
@@ -727,7 +817,8 @@ const AdminAddProperty = () => {
                 setSelectedCat('');
                 setSelectedPropType('');
               }}
-              className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all"
+              disabled={isEditing || currentStepIndex > 0}
+              className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               <option value="">Select Category</option>
               {configs.map(c => <option key={c.transactionType} value={c.transactionType}>{c.transactionType}</option>)}
@@ -744,7 +835,8 @@ const AdminAddProperty = () => {
                   setSelectedCat(e.target.value);
                   setSelectedPropType('');
                 }}
-                className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all"
+                disabled={isEditing || currentStepIndex > 0}
+                className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 <option value="">Select Sub-category</option>
                 {getCategories().map(c => <option key={c.category} value={c.category}>{c.category}</option>)}
@@ -759,7 +851,8 @@ const AdminAddProperty = () => {
               <select
                 value={selectedPropType}
                 onChange={(e) => setSelectedPropType(e.target.value)}
-                className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all"
+                disabled={isEditing || currentStepIndex > 0}
+                className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 <option value="">Select Property Type</option>
                 {getPropTypes().map(p => <option key={p} value={p}>{p}</option>)}
@@ -767,15 +860,16 @@ const AdminAddProperty = () => {
             </div>
           )}
 
-          {/* Builder Dropdown (Optional) */}
+          {/* Builder Dropdown */}
           <div className="space-y-1">
             <label className="block text-[10px] font-bold text-slate-400 uppercase">Associate Builder</label>
             <select
               value={selectedBuilder}
               onChange={(e) => setSelectedBuilder(e.target.value)}
-              className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all"
+              disabled={isEditing || currentStepIndex > 0}
+              className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
-              <option value="">None (Optional)</option>
+              <option value="">Admin/Manager (Self)</option>
               {builders.map(b => (
                 <option key={b._id} value={b._id}>{b.builderProfile?.companyName || b.name}</option>
               ))}
@@ -847,7 +941,7 @@ const AdminAddProperty = () => {
                       <input
                         type="text"
                         value={formData.pincode || ''}
-                        onChange={(e) => handleChange('pincode', e.target.value)}
+                        onChange={(e) => handleChange('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
                         placeholder="e.g. 560038"
                         className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all"
                       />

@@ -37,7 +37,8 @@ import {
   deleteAdminNotifications,
   getFinanceStats,
   getReelAnalysis,
-  createAdminProperty
+  createAdminProperty,
+  updateAdminProperty
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import {
@@ -94,6 +95,7 @@ router.get('/users', checkManagerPermission('users', 'view'), getAllUsers);
 router.get('/partners', checkManagerPermission('partners', 'view'), getAllPartners);
 router.get('/hotels', checkManagerPermission('properties', 'view'), getAllHotels);
 router.post('/properties', checkManagerPermission('properties', 'add'), createAdminProperty);
+router.put('/properties/:id', checkManagerPermission('properties', 'edit'), updateAdminProperty);
 router.get('/bookings', checkManagerPermission('bookings', 'view'), getAllBookings);
 
 router.get('/property-requests', checkManagerPermission('properties', 'view'), getPropertyRequests);

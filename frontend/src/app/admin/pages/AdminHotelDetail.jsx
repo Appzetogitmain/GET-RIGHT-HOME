@@ -44,34 +44,38 @@ const OverviewTab = ({ hotel }) => {
                             <span className="text-gray-500 font-bold uppercase text-[10px]">Joined Date</span>
                             <span className="font-bold text-gray-900">{hotel.createdAt ? new Date(hotel.createdAt).toLocaleDateString() : 'N/A'}</span>
                         </div>
-                        {hotel.propertyType === 'plot' ? (
-                            <>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500 font-bold uppercase text-[10px]">Plot Area</span>
-                                    <span className="font-bold text-gray-900">{hotel.plotDetails?.plotArea || 'N/A'} {hotel.plotDetails?.unit || 'sqyrd'}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500 font-bold uppercase text-[10px]">Expected Price</span>
-                                    <span className="font-bold text-gray-900">₹{hotel.plotDetails?.expectedPrice?.toLocaleString() || 'N/A'}</span>
-                                </div>
-                            </>
-                        ) : hotel.propertyType === 'buy' ? (
-                            <>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500 font-bold uppercase text-[10px]">Property Type</span>
-                                    <span className="font-bold text-gray-900">{hotel.buyDetails?.type || 'N/A'}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500 font-bold uppercase text-[10px]">Expected Price</span>
-                                    <span className="font-bold text-gray-900">₹{hotel.buyDetails?.expectedPrice?.toLocaleString() || 'N/A'}</span>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="flex justify-between">
-                                <span className="text-gray-500 font-bold uppercase text-[10px]">{hotel.propertyType === 'tent' ? 'Total Tent Types' : 'Total Room Types'}</span>
-                                <span className="font-bold text-gray-900">{hotel.rooms?.length || 0}</span>
-                            </div>
-                        )}
+                        {(() => {
+                            const rawPrice = hotel.startingPrice || hotel.rentDetails?.monthlyRent || hotel.pgDetails?.monthlyRent || hotel.buyDetails?.expectedPrice || hotel.plotDetails?.expectedPrice || hotel.dynamicData?.expectedPrice || hotel.dynamicData?.monthlyRent || hotel.dynamicData?.expectedRent || hotel.dynamicData?.price || hotel.minPrice || hotel.price;
+                            const formattedPrice = rawPrice ? `₹${Number(rawPrice.toString().replace(/,/g, '')).toLocaleString('en-IN')}` : 'N/A';
+                            
+                            const isRoomBased = ['hotel', 'resort', 'homestay', 'tent'].includes((hotel.propertyType || '').toLowerCase());
+                            const area = hotel.carpetArea || hotel.superArea || hotel.plotDetails?.plotArea || hotel.buyDetails?.area?.superBuiltUp || hotel.dynamicData?.plotArea || hotel.dynamicData?.carpetArea;
+                            const areaUnit = hotel.carpetAreaUnit || hotel.areaUnit || hotel.plotDetails?.unit || hotel.buyDetails?.area?.unit || 'sqft';
+
+                            return (
+                                <>
+                                    {isRoomBased ? (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500 font-bold uppercase text-[10px]">{hotel.propertyType === 'tent' ? 'Total Tent Types' : 'Total Room Types'}</span>
+                                            <span className="font-bold text-gray-900">{hotel.rooms?.length || 0}</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-500 font-bold uppercase text-[10px]">{hotel.propertyType === 'rent' || hotel.propertyType === 'pg' ? 'Monthly Rent' : 'Expected Price'}</span>
+                                                <span className="font-bold text-gray-900">{formattedPrice}</span>
+                                            </div>
+                                            {area && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-500 font-bold uppercase text-[10px]">Area</span>
+                                                    <span className="font-bold text-gray-900">{area} {areaUnit}</span>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </>
+                            );
+                        })()}
                         <div className="flex justify-between">
                             <span className="text-gray-500 font-bold uppercase text-[10px]">Live On Platform</span>
                             <span className="font-bold text-gray-900 flex items-center gap-1">
@@ -359,30 +363,44 @@ const OverviewTab = ({ hotel }) => {
     );
 };
 
-const GalleryTab = ({ hotel }) => (
-    <div className="space-y-10">
-        {/* Section: Property Wide Images */}
-        <div>
-            <div className="flex items-center gap-2 mb-4">
-                <Building2 size={20} className="text-blue-600" />
-                <h3 className="text-lg font-bold text-gray-900 uppercase">General Property Photos</h3>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {hotel.propertyImages && hotel.propertyImages.length > 0 ? (
-                    hotel.propertyImages.map((img, i) => (
-                        <div key={i} className="aspect-square bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md">
-                            <img src={img.url || img} alt={`Property ${i}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+const GalleryTab = ({ hotel }) => {
+    const allImages = [];
+    if (hotel.coverImage) allImages.push(hotel.coverImage);
+    if (hotel.images?.cover) allImages.push(hotel.images.cover);
+    if (Array.isArray(hotel.propertyImages)) allImages.push(...hotel.propertyImages);
+    if (Array.isArray(hotel.images?.gallery)) allImages.push(...hotel.images.gallery);
+    
+    const dynImages = hotel.dynamicData?.photos || hotel.dynamicData?.images || hotel.dynamicData?.propertyImages || [];
+    if (Array.isArray(dynImages)) allImages.push(...dynImages);
+
+    // Remove duplicates
+    const uniqueImages = [...new Set(allImages.map(img => typeof img === 'string' ? img : img?.url).filter(Boolean))];
+
+    return (
+        <div className="space-y-10">
+            {/* Section: Property Wide Images */}
+            <div>
+                <div className="flex items-center gap-2 mb-4">
+                    <Building2 size={20} className="text-blue-600" />
+                    <h3 className="text-lg font-bold text-gray-900 uppercase">General Property Photos</h3>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {uniqueImages.length > 0 ? (
+                        uniqueImages.map((img, i) => (
+                            <div key={i} className="aspect-square bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md">
+                                <img src={img} alt={`Property ${i}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full py-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                            <p className="text-gray-400 font-bold uppercase text-xs">No General Photos</p>
                         </div>
-                    ))
-                ) : (
-                    <div className="col-span-full py-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                        <p className="text-gray-400 font-bold uppercase text-xs">No General Photos</p>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
     const [remark, setRemark] = useState('');
