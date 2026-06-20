@@ -85,6 +85,7 @@ const AdminLayout = () => {
                 { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
                 { icon: Home, label: 'Property Management', path: '/admin/properties' },
                 { icon: LayoutGrid, label: 'Categories', path: '/admin/categories' },
+                { icon: Star, label: 'Featured Properties', path: '/admin/featured-properties' },
                 { icon: FileText, label: 'Property Form CMS', path: '/admin/property-forms' },
                 { icon: MapPin, label: 'Location Manager', path: '/admin/locations' },
                 { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' },

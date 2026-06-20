@@ -95,6 +95,7 @@ const AdminContactMessages = React.lazy(() => import('./app/admin/pages/AdminCon
 const AdminNotifications = React.lazy(() => import('./app/admin/pages/AdminNotifications'));
 const AdminFaqs = React.lazy(() => import('./app/admin/pages/AdminFaqs'));
 const AdminCategories = React.lazy(() => import('./app/admin/pages/AdminCategories'));
+const AdminFeaturedProperties = React.lazy(() => import('./app/admin/pages/AdminFeaturedProperties'));
 const AdminSubscriptions = React.lazy(() => import('./app/admin/pages/AdminSubscriptions'));
 const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAnalysis'));
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
@@ -579,6 +580,7 @@ function App() {
                 <Route path="notifications" element={<AdminNotifications />} />
                 <Route path="faqs" element={<AdminFaqs />} />
                 <Route path="categories" element={<AdminCategories />} />
+                <Route path="featured-properties" element={<AdminFeaturedProperties />} />
                 <Route path="subscriptions" element={<AdminSubscriptions />} />
                 <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                 <Route path="banners" element={<AdminBanners />} />
@@ -618,6 +620,7 @@ function App() {
 
                 {/* Content & Catalog */}
                 <Route path="categories" element={<AdminCategories />} />
+                <Route path="featured-properties" element={<AdminFeaturedProperties />} />
                 <Route path="banners" element={<AdminBanners />} />
                 <Route path="property-forms" element={<AdminPropertyFormManager />} />
                 <Route path="locations" element={<AdminLocationsPage />} />

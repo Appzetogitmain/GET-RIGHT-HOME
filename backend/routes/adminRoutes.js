@@ -62,6 +62,11 @@ router.get('/enquiries', checkManagerPermission('enquiries', 'view'), adminGetAl
 router.put('/enquiries/:id', checkManagerPermission('enquiries', 'edit'), adminUpdateEnquiry);
 router.delete('/enquiries/:id', checkManagerPermission('enquiries', 'delete'), adminDeleteEnquiry);
 
+// Featured Properties Management
+import { getAdminFeaturedProperties, updateFeaturedProperty } from '../controllers/adminPropertyController.js';
+router.get('/featured-properties', checkManagerPermission('properties', 'view'), getAdminFeaturedProperties);
+router.put('/featured-properties/:id', checkManagerPermission('properties', 'edit'), updateFeaturedProperty);
+
 // Notifications
 router.get('/notifications', checkManagerPermission('notifications', 'view'), getAdminNotifications);
 router.post('/notifications/send', checkManagerPermission('notifications', 'add'), createBroadcastNotification);

@@ -215,7 +215,18 @@ const propertySchema = new mongoose.Schema({
   // Universal / Pro Fields
   videoUrl: String,
   isVerified: { type: Boolean, default: false },
+  
+  // Featured Details
   isFeatured: { type: Boolean, default: false },
+  featuredDetails: {
+    planType: { type: String, enum: ['Silver', 'Gold', 'Pro', 'Elite', 'None'], default: 'None' },
+    startDate: { type: Date },
+    endDate: { type: Date },
+    durationDays: { type: Number },
+    status: { type: String, enum: ['active', 'paused', 'expired'], default: 'active' },
+    pausedAt: { type: Date },
+    adminNotes: { type: String }
+  },
   isUrgent: { type: Boolean, default: false },
   isNegotiable: { type: Boolean, default: false },
   virtualTourLink: String,
