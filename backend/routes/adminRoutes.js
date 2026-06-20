@@ -63,9 +63,22 @@ router.put('/enquiries/:id', checkManagerPermission('enquiries', 'edit'), adminU
 router.delete('/enquiries/:id', checkManagerPermission('enquiries', 'delete'), adminDeleteEnquiry);
 
 // Featured Properties Management
-import { getAdminFeaturedProperties, updateFeaturedProperty } from '../controllers/adminPropertyController.js';
+import { 
+  getAdminFeaturedProperties, 
+  updateFeaturedProperty,
+  getFeaturedPlans,
+  createFeaturedPlan,
+  updateFeaturedPlan,
+  deleteFeaturedPlan 
+} from '../controllers/adminPropertyController.js';
+
 router.get('/featured-properties', checkManagerPermission('properties', 'view'), getAdminFeaturedProperties);
 router.put('/featured-properties/:id', checkManagerPermission('properties', 'edit'), updateFeaturedProperty);
+
+router.get('/featured-plans', checkManagerPermission('properties', 'view'), getFeaturedPlans);
+router.post('/featured-plans', checkManagerPermission('properties', 'edit'), createFeaturedPlan);
+router.put('/featured-plans/:id', checkManagerPermission('properties', 'edit'), updateFeaturedPlan);
+router.delete('/featured-plans/:id', checkManagerPermission('properties', 'delete'), deleteFeaturedPlan);
 
 // Notifications
 router.get('/notifications', checkManagerPermission('notifications', 'view'), getAdminNotifications);

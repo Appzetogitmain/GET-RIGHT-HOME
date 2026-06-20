@@ -219,7 +219,9 @@ const propertySchema = new mongoose.Schema({
   // Featured Details
   isFeatured: { type: Boolean, default: false },
   featuredDetails: {
-    planType: { type: String, enum: ['Silver', 'Gold', 'Pro', 'Elite', 'None'], default: 'None' },
+    isFeatured: { type: Boolean, default: false },
+    planId: { type: mongoose.Schema.Types.ObjectId, ref: 'FeaturedPlan' },
+    planName: { type: String, default: 'None' }, // Used for quick querying/fallback
     startDate: { type: Date },
     endDate: { type: Date },
     durationDays: { type: Number },
