@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 
 const RoleSelectionSheet = ({ isOpen, onClose, onSelect, loading }) => {
   const [selected, setSelected] = useState('owner');
+  const [errors, setErrors] = useState({});
 
   return (
     <AnimatePresence>
@@ -71,14 +72,78 @@ const RoleSelectionSheet = ({ isOpen, onClose, onSelect, loading }) => {
                 </button>
               </div>
 
-              <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+              <p className="text-[10px] text-slate-400 font-medium leading-relaxed mb-4">
                 Please choose accurately. You won't be able to change this in the future.
               </p>
+
+              <AnimatePresence>
+                {selected === 'builder' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3 mb-6"
+                  >
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Company Name *</label>
+                      <input 
+                        type="text" 
+                        value={errors.companyNameVal || ''}
+                        onChange={(e) => {
+                          setErrors(prev => ({ ...prev, companyNameVal: e.target.value, companyName: '' }));
+                        }}
+                        placeholder="e.g. Prestige Estates"
+                        className={`w-full border ${errors.companyName ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-blue-500'} rounded-lg px-3 py-2.5 text-sm font-semibold outline-none`}
+                      />
+                      {errors.companyName && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.companyName}</p>}
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1">RERA No.</label>
+                        <input 
+                          type="text" 
+                          value={errors.reraVal || ''}
+                          onChange={(e) => setErrors(prev => ({ ...prev, reraVal: e.target.value }))}
+                          placeholder="Optional"
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1">GST No.</label>
+                        <input 
+                          type="text" 
+                          value={errors.gstVal || ''}
+                          onChange={(e) => setErrors(prev => ({ ...prev, gstVal: e.target.value }))}
+                          placeholder="Optional"
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <button
               disabled={loading}
-              onClick={() => onSelect(selected)}
+              onClick={() => {
+                const companyName = errors.companyNameVal || '';
+                const rera = errors.reraVal || '';
+                const gst = errors.gstVal || '';
+                
+                const builderData = selected === 'builder' ? {
+                  companyName,
+                  reraRegistrationNumber: rera,
+                  gstNumber: gst
+                } : null;
+                
+                if (selected === 'builder' && !companyName.trim()) {
+                  setErrors(prev => ({ ...prev, companyName: 'Company Name is required' }));
+                  return;
+                }
+                
+                onSelect(selected, builderData);
+              }}
               className="w-full bg-[#0078DB] text-white font-bold py-4 rounded-xl shadow-sm active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center text-[15px]"
             >
               {loading ? (

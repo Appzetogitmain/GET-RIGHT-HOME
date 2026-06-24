@@ -67,6 +67,9 @@ const userSchema = new mongoose.Schema({
     state: { type: String, trim: true },
     zipCode: { type: String, trim: true },
     country: { type: String, default: 'India', trim: true },
+    area: { type: String, trim: true },
+    houseNo: { type: String, trim: true },
+    landmark: { type: String, trim: true },
     coordinates: {
       lat: { type: Number },
       lng: { type: Number }
@@ -107,7 +110,8 @@ const userSchema = new mongoose.Schema({
     description: { type: String, trim: true },
     establishedYear: { type: Number },
     activeProjects: { type: Number, default: 0 },
-    completedProjects: { type: Number, default: 0 }
+    completedProjects: { type: Number, default: 0 },
+    awards: [{ type: String }] // Added awards array
   },
 
   // Status tracking

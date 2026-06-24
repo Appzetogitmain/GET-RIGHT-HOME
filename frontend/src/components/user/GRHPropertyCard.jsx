@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import PropertyQuickViewModal from './PropertyQuickViewModal';
 
+const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
+
+
 const GRHPropertyCard = ({ property, data }) => {
   const navigate = useNavigate();
   const item = property || data;
@@ -35,7 +38,7 @@ const GRHPropertyCard = ({ property, data }) => {
     cleanImageUrl(
       Array.isArray(item.propertyImages) ? item.propertyImages[0] : ''
     ) ||
-    'https://via.placeholder.com/400x300?text=No+Image';
+    NO_IMAGE_PLACEHOLDER;
 
   // Format Price in Lakhs/Crores
   const formatPriceLakhCrore = (price) => {
@@ -134,6 +137,20 @@ const GRHPropertyCard = ({ property, data }) => {
     (item.propertyCategory || '').toLowerCase().includes('paying guest') ||
     (item.propertyCategory || '').toLowerCase().includes('pg');
 
+  const builderName = item.buyDetails?.builderName || 
+                      (item.user?.role === 'builder' ? (item.user.builderProfile?.companyName || item.user.name) : null) ||
+                      (item.userId?.role === 'builder' ? (item.userId.builderProfile?.companyName || item.userId.name) : null);
+
+  const dynamicCatName = item.dynamicCategory?.displayName || item.dynamicCategory?.name;
+  const typeRawVal = (propertyType || item.propertyType || '').toString();
+  const normalizedTypeVal = typeRawVal
+    ? typeRawVal.toLowerCase() === 'pg'
+      ? 'PG'
+      : typeRawVal.charAt(0).toUpperCase() + typeRawVal.slice(1).toLowerCase()
+    : '';
+  const displayTypeBadge = (dynamicCatName || normalizedTypeVal || 'Property').toUpperCase();
+
+
   const pgRoomDetails = (() => {
     if (!isPG) return '';
     // 1. Check if roomTypes array is present
@@ -213,7 +230,7 @@ const GRHPropertyCard = ({ property, data }) => {
       images.gallery.forEach(img => addClean(img));
     }
 
-    return list.length > 0 ? list : ['https://via.placeholder.com/400x300?text=No+Image'];
+    return list.length > 0 ? list : [NO_IMAGE_PLACEHOLDER];
   })();
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -269,7 +286,7 @@ const GRHPropertyCard = ({ property, data }) => {
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
 
@@ -312,7 +329,7 @@ const GRHPropertyCard = ({ property, data }) => {
 
             {/* Floating Property Type Badge (Centered) */}
             <span className="absolute top-3 left-1/2 -translate-x-1/2 bg-[#3B82F6]/95 backdrop-blur-sm text-white text-[9px] font-black px-2.5 py-1 rounded-[6px] shadow-sm uppercase tracking-wider z-20 whitespace-nowrap">
-              {propertyType || 'PROPERTY'}
+              {displayTypeBadge}
             </span>
 
             {/* Area Display (Centered at bottom of image) */}
@@ -332,9 +349,16 @@ const GRHPropertyCard = ({ property, data }) => {
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100">
                   <Building size={16} className="text-emerald-600" />
                 </div>
-                <h3 className="text-xs font-bold text-slate-800 line-clamp-1 group-hover:text-emerald-600 transition-colors">
-                  {displayName}
-                </h3>
+                <div className="flex flex-col">
+                  <h3 className="text-xs font-bold text-slate-800 line-clamp-1 group-hover:text-emerald-600 transition-colors">
+                    {displayName}
+                  </h3>
+                  {builderName && (
+                    <span className="text-[9px] text-gray-500 font-semibold uppercase tracking-tight line-clamp-1">
+                      By {builderName}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Grid: Left (Price & Location) | Right (BHK & Type Details) */}
@@ -438,7 +462,7 @@ const GRHPropertyCard = ({ property, data }) => {
                   className="w-full h-[180px] object-cover shrink-0"
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                    e.target.src = NO_IMAGE_PLACEHOLDER;
                   }}
                 />
               ))}
@@ -468,7 +492,7 @@ const GRHPropertyCard = ({ property, data }) => {
 
             {/* Floating Transaction Badge */}
             <span className="absolute bottom-3 right-3 bg-indigo-600 text-white text-[9px] font-black px-2.5 py-0.5 rounded shadow-sm uppercase tracking-wider z-20">
-              PRE LAUNCH
+              {displayTypeBadge}
             </span>
           </div>
 
@@ -476,9 +500,16 @@ const GRHPropertyCard = ({ property, data }) => {
           <div className="p-4 flex flex-col flex-1 justify-between">
             <div>
               {/* Title with sleek typography */}
-              <h3 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">
-                {displayName}
-              </h3>
+              <div className="flex flex-col">
+                <h3 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                  {displayName}
+                </h3>
+                {builderName && (
+                  <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-tight line-clamp-1">
+                    By {builderName}
+                  </span>
+                )}
+              </div>
 
               {/* Thin light separator line */}
               <div className="border-b border-indigo-50/80 my-2" />
@@ -582,7 +613,7 @@ const GRHPropertyCard = ({ property, data }) => {
                   className="w-full h-[180px] object-cover shrink-0"
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                    e.target.src = NO_IMAGE_PLACEHOLDER;
                   }}
                 />
               ))}
@@ -612,7 +643,7 @@ const GRHPropertyCard = ({ property, data }) => {
 
             {/* Floating Transaction Badge */}
             <span className="absolute bottom-3 right-3 bg-orange-600 text-white text-[9px] font-black px-2.5 py-0.5 rounded shadow-sm uppercase tracking-wider z-20">
-              UNDER CONSTRUCTION
+              {displayTypeBadge}
             </span>
           </div>
 
@@ -620,9 +651,16 @@ const GRHPropertyCard = ({ property, data }) => {
           <div className="p-4 flex flex-col flex-1 justify-between">
             <div>
               {/* Title with orange hover color */}
-              <h3 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-orange-600 transition-colors">
-                {displayName}
-              </h3>
+              <div className="flex flex-col">
+                <h3 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-orange-600 transition-colors">
+                  {displayName}
+                </h3>
+                {builderName && (
+                  <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-tight line-clamp-1">
+                    By {builderName}
+                  </span>
+                )}
+              </div>
 
               {/* Separator line */}
               <div className="border-b border-orange-50/80 my-2" />
@@ -727,7 +765,7 @@ const GRHPropertyCard = ({ property, data }) => {
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                      e.target.src = NO_IMAGE_PLACEHOLDER;
                     }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-violet-900/40 via-transparent to-transparent opacity-60 pointer-events-none" />
@@ -741,7 +779,7 @@ const GRHPropertyCard = ({ property, data }) => {
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
           )}
@@ -766,7 +804,7 @@ const GRHPropertyCard = ({ property, data }) => {
 
           {/* Floating Transaction Badge */}
           <span className={`absolute bottom-3 right-3 text-white text-[10px] font-black px-2.5 py-0.5 rounded shadow-sm uppercase tracking-wider z-20 ${isPG ? 'bg-violet-600' : 'bg-blue-600'}`}>
-            {transactionType === 'Rent / Lease' ? 'RENT' : transactionType === 'Paying Guest' ? 'PG' : 'BUY'}
+            {displayTypeBadge}
           </span>
         </div>
 
@@ -782,9 +820,16 @@ const GRHPropertyCard = ({ property, data }) => {
             {isPG ? (
               <>
                 {/* Title */}
-                <h3 className="text-sm font-medium text-gray-900 line-clamp-1 group-hover:text-violet-600 transition-colors mt-1.5">
-                  {displayName}
-                </h3>
+                <div className="flex flex-col mt-1.5">
+                  <h3 className="text-sm font-medium text-gray-900 line-clamp-1 group-hover:text-violet-600 transition-colors">
+                    {displayName}
+                  </h3>
+                  {builderName && (
+                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-tight line-clamp-1 mt-0.5">
+                      By {builderName}
+                    </span>
+                  )}
+                </div>
                 {/* Location left, Room details right */}
                 <div className="mt-2 flex items-center justify-between text-xs text-gray-500 font-semibold gap-1">
                   <div className="flex items-center gap-0.5 min-w-0 flex-1">
@@ -806,9 +851,16 @@ const GRHPropertyCard = ({ property, data }) => {
                 </div>
 
                 {/* Title */}
-                <h3 className="text-sm font-medium text-gray-700 line-clamp-1 group-hover:text-blue-600 transition-colors mt-0.5">
-                  {displayName}
-                </h3>
+                <div className="flex flex-col mt-0.5">
+                  <h3 className="text-sm font-medium text-gray-700 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                    {displayName}
+                  </h3>
+                  {builderName && (
+                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-tight line-clamp-1 mt-0.5">
+                      By {builderName}
+                    </span>
+                  )}
+                </div>
 
                 {/* Location */}
                 <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">

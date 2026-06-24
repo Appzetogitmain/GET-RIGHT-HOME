@@ -62,6 +62,7 @@ const UserPropertyDashboard = React.lazy(() => import('./pages/user/UserProperty
 const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPage'));
 const ListPropertyWizard = React.lazy(() => import('./pages/user/ListPropertyWizard'));
 const DynamicFormEngine = React.lazy(() => import('./pages/user/DynamicFormEngine'));
+const BuilderProfilePage = React.lazy(() => import('./pages/user/BuilderProfilePage'));
 const CartPage = React.lazy(() => import('./homster/modules/user/pages/Cart'));
 const HomeServiceCheckoutPage = React.lazy(() => import('./homster/modules/user/pages/Checkout'));
 const HomeServiceBookingsPage = React.lazy(() => import('./homster/modules/user/pages/MyBookings'));
@@ -96,12 +97,14 @@ const AdminContactMessages = React.lazy(() => import('./app/admin/pages/AdminCon
 const AdminNotifications = React.lazy(() => import('./app/admin/pages/AdminNotifications'));
 const AdminFaqs = React.lazy(() => import('./app/admin/pages/AdminFaqs'));
 const AdminCategories = React.lazy(() => import('./app/admin/pages/AdminCategories'));
+const AdminFeaturedProperties = React.lazy(() => import('./app/admin/pages/AdminFeaturedProperties'));
 const AdminSubscriptions = React.lazy(() => import('./app/admin/pages/AdminSubscriptions'));
 const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAnalysis'));
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
 const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/PropertyFormManager'));
 const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocationsPage'));
 const AdminManagers = React.lazy(() => import('./app/admin/pages/AdminManagers'));
+const AdminBuilders = React.lazy(() => import('./app/admin/pages/AdminBuilders'));
 
 // Lazy Imports - Manager Panel
 const ManagerLogin = React.lazy(() => import('./app/manager/pages/ManagerLogin'));
@@ -473,11 +476,16 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/reels" element={<ReelsPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/rent" element={<SearchPage />} />
+            <Route path="/plot" element={<SearchPage />} />
+            <Route path="/pg-coliving" element={<SearchPage />} />
+            <Route path="/buy" element={<SearchPage />} />
             <Route path="/compare" element={<PropertyComparePage />} />
             <Route path="/listings" element={<Navigate to="/search" replace />} />
             <Route path="/partner-landing" element={<PartnerLandingPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
+            <Route path="/builder/:id" element={<BuilderProfilePage />} />
 
             {/* Unified Property Details (C2C & Hotel) - Public */}
             <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
@@ -566,6 +574,7 @@ function App() {
                 <Route path="enquiries" element={<AdminEnquiries />} />
                 <Route path="partners" element={<AdminPartners />} />
                 <Route path="partners/:id" element={<AdminPartnerDetail />} />
+                <Route path="builders" element={<AdminBuilders />} />
                 <Route path="reviews" element={<AdminReviews />} />
                 <Route path="finance" element={<AdminFinance />} />
                 <Route path="legal" element={<AdminLegalPages />} />
@@ -579,6 +588,7 @@ function App() {
                 <Route path="notifications" element={<AdminNotifications />} />
                 <Route path="faqs" element={<AdminFaqs />} />
                 <Route path="categories" element={<AdminCategories />} />
+                <Route path="featured-properties" element={<AdminFeaturedProperties />} />
                 <Route path="subscriptions" element={<AdminSubscriptions />} />
                 <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                 <Route path="banners" element={<AdminBanners />} />
@@ -604,6 +614,7 @@ function App() {
                 {/* Partner Management */}
                 <Route path="partners" element={<AdminPartners />} />
                 <Route path="partners/:id" element={<AdminPartnerDetail />} />
+                <Route path="builders" element={<AdminBuilders />} />
 
                 {/* Property Management */}
                 <Route path="properties" element={<AdminProperties />} />
@@ -617,6 +628,7 @@ function App() {
 
                 {/* Content & Catalog */}
                 <Route path="categories" element={<AdminCategories />} />
+                <Route path="featured-properties" element={<AdminFeaturedProperties />} />
                 <Route path="banners" element={<AdminBanners />} />
                 <Route path="property-forms" element={<AdminPropertyFormManager />} />
                 <Route path="locations" element={<AdminLocationsPage />} />

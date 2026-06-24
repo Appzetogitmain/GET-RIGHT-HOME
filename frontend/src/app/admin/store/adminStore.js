@@ -8,6 +8,15 @@ const axiosInstance = axios.create({
   withCredentials: true
 });
 
+// Interceptor to add Token
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem('adminToken') || localStorage.getItem('adminAccessToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => Promise.reject(error));
+
 const useAdminStore = create((set, get) => ({
   admin: null,
   isAuthenticated: false,

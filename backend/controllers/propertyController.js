@@ -22,6 +22,15 @@ const notifyAdminOfNewProperty = async (property) => {
   }
 };
 
+export const getPublicBuilders = async (req, res) => {
+  try {
+    const builders = await User.find({ role: 'builder' }).select('name builderProfile').sort({ createdAt: -1 });
+    res.json({ success: true, builders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching builders' });
+  }
+};
+
 export const createProperty = async (req, res) => {
   try {
     const isPartner = req.user.role === 'partner';
@@ -708,7 +717,9 @@ export const getPublicProperties = async (req, res) => {
       purchaseType,
       propertyCategory,
       transactionType,
-      areas
+      areas,
+      builder,
+      excludeAvailability
     } = req.query;
 
     const pipeline = [];
@@ -1054,6 +1065,29 @@ export const getPublicProperties = async (req, res) => {
       }
     }
 
+    if (excludeAvailability) {
+      const excludeList = excludeAvailability.split(',').map(a => a.trim()).filter(Boolean);
+      if (excludeList.length > 0) {
+        const excludeRegexes = excludeList.map(a => new RegExp('^' + a.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+        const excludeMatch = {
+          $and: [
+            { 'dynamicData.availability': { $not: { $in: excludeRegexes } } },
+            { 'dynamicData.availabilityStatus': { $not: { $in: excludeRegexes } } }
+          ]
+        };
+
+        if (matchConditions.$and) {
+          matchConditions.$and.push(excludeMatch);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, excludeMatch];
+        } else {
+          matchConditions.$and = [excludeMatch];
+        }
+      }
+    }
+
     if (city) {
       const cityRegex = new RegExp('^' + city.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
       const cityMatch = {
@@ -1218,6 +1252,13 @@ export const getPublicProperties = async (req, res) => {
         } else {
           matchConditions.$or = purchaseMatch.$or;
         }
+      }
+    }
+
+    if (builder) {
+      const builderIds = builder.split(',').map(id => id.trim()).filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (builderIds.length > 0) {
+        matchConditions.userId = { $in: builderIds.map(id => new mongoose.Types.ObjectId(id)) };
       }
     }
 
@@ -1717,10 +1758,7 @@ export const getAdminPropertiesByLocation = async (req, res) => {
     const query = {
       status: 'approved',
       isLive: true,
-      $or: [
-        { isAddedByAdmin: true },
-        { userId: { $in: builderIds } }
-      ]
+      'featuredDetails.isFeatured': true
     };
 
     if (city) {
@@ -1730,8 +1768,33 @@ export const getAdminPropertiesByLocation = async (req, res) => {
       query['address.state'] = { $regex: new RegExp(state, 'i') };
     }
 
-    const properties = await Property.find(query).sort({ createdAt: -1 });
-    res.status(200).json({ success: true, properties });
+    const properties = await Property.find(query)
+      .populate('featuredDetails.planId')
+      .populate('userId', 'role')
+      .populate('partnerId', 'role')
+      .lean();
+
+    // Sort: 1. Featured Plan Weight -> 2. Hierarchy (Admin > Builder > Broker/Owner) -> 3. Date
+    const sortedProperties = properties.sort((a, b) => {
+      const getPlanWeight = (p) => (p.featuredDetails?.isFeatured && p.featuredDetails?.planId) ? (p.featuredDetails.planId.weight || 0) : 0;
+      const getRoleWeight = (p) => {
+         if (p.isAddedByAdmin && !p.userId && !p.partnerId) return 4; // Admin pure
+         const role = p.userId?.role || p.partnerId?.role;
+         if (role === 'builder') return 3;
+         if (role === 'broker' || role === 'owner') return 2;
+         return 1;
+      };
+
+      const planDiff = getPlanWeight(b) - getPlanWeight(a);
+      if (planDiff !== 0) return planDiff;
+      
+      const roleDiff = getRoleWeight(b) - getRoleWeight(a);
+      if (roleDiff !== 0) return roleDiff;
+
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    res.status(200).json({ success: true, properties: sortedProperties });
   } catch (error) {
     console.error('Get Admin Properties By Location Error:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -1752,10 +1815,7 @@ export const getAdminPropertyCities = async (req, res) => {
           status: 'approved',
           isLive: true,
           'address.city': { $exists: true, $ne: '' },
-          $or: [
-            { isAddedByAdmin: true },
-            { userId: { $in: builderIds } }
-          ]
+          'featuredDetails.isFeatured': true
         }
       },
       {

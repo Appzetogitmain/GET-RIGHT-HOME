@@ -123,6 +123,7 @@ import hsSubCategoryRoutes from './routes/hsSubCategoryRoutes.js';
 import hsServiceRoutes from './routes/hsServiceRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import propertyFormRoutes from './routes/propertyFormRoutes.js';
+import builderFormRoutes from './routes/builderFormRoutes.js';
 import { seedOnStartup } from './controllers/propertyFormController.js';
 import locationRoutes from './routes/locationRoutes.js';
 import enquiryRoutes from './routes/enquiryRoutes.js';
@@ -133,6 +134,7 @@ import managerRoutes from './routes/managerRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
+import { getPublicBuilderDetails, getPublicBuilders } from './controllers/builderController.js';
 
 
 
@@ -168,6 +170,8 @@ app.get('/api/public/categories', getPublicCategories);
 app.get('/api/public/sub-categories', getPublicSubCategories);
 app.get('/api/public/services', getPublicServices);
 app.get('/api/public/cities', getActiveCities);
+app.get('/api/public/builders', getPublicBuilders);
+app.get('/api/public/builders/:id', getPublicBuilderDetails);
 // Plans public endpoint (returns empty list if no plans configured)
 app.get('/api/public/plans', (req, res) => {
   res.json({ success: true, data: [] });
@@ -216,6 +220,7 @@ app.get('/api/public/home-data', async (req, res) => {
 });
 app.use('/api/upload', uploadRoutes);
 app.use('/api/property-forms', propertyFormRoutes);
+app.use('/api/builder-forms', builderFormRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/enquiries', enquiryRoutes);
 app.use('/api/locality-reviews', localityReviewRoutes);

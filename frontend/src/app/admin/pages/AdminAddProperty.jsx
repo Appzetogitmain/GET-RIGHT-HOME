@@ -31,50 +31,94 @@ const AdminAddProperty = () => {
   const location = useLocation();
   const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
   const navigate = useNavigate();
+  const existingProperty = location.state?.existingProperty;
+  const isEditing = !!existingProperty;
+
   const [loading, setLoading] = useState(false);
   const [configs, setConfigs] = useState([]);
   
   // Selection states
-  const [selectedTxn, setSelectedTxn] = useState('');
-  const [selectedCat, setSelectedCat] = useState('');
-  const [selectedPropType, setSelectedPropType] = useState('');
+  const [selectedTxn, setSelectedTxn] = useState(() => existingProperty?.transactionType || sessionStorage.getItem('adminPropTxn') || '');
+  const [selectedCat, setSelectedCat] = useState(() => existingProperty?.propertyCategory || sessionStorage.getItem('adminPropCat') || '');
+  const [selectedPropType, setSelectedPropType] = useState(() => existingProperty?.propertyType || sessionStorage.getItem('adminPropType') || '');
+  
+  const [builders, setBuilders] = useState([]);
+  const [selectedBuilder, setSelectedBuilder] = useState(() => existingProperty?.userId || sessionStorage.getItem('adminPropBuilder') || '');
   
   const [template, setTemplate] = useState(null);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [currentStepIndex, setCurrentStepIndex] = useState(() => {
+    if (isEditing) return 0;
+    const saved = sessionStorage.getItem('adminPropStep');
+    return saved ? parseInt(saved) : 0;
+  });
   const [errors, setErrors] = useState({});
-  const [formData, setFormData] = useState({
-    country: 'India',
-    state: '',
-    district: '',
-    city: '',
-    locality: '',
-    houseNumber: '',
-    pincode: ''
+  const [formData, setFormData] = useState(() => {
+    if (isEditing) {
+      return {
+        ...existingProperty.dynamicData,
+        ...existingProperty.address,
+        propertyName: existingProperty.propertyName
+      };
+    }
+    const saved = sessionStorage.getItem('adminPropDraft');
+    if (saved) return JSON.parse(saved);
+    return {
+      country: 'India', state: '', district: '', city: '', locality: '', houseNumber: '', pincode: ''
+    };
   });
 
-  // Modal states for pricing details
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [modalMaintenance, setModalMaintenance] = useState('');
   const [modalFrequency, setModalFrequency] = useState('Monthly');
   const [modalBooking, setModalBooking] = useState('');
 
-  // Fetch Category combinations on load
+  const [isBuilderProject, setIsBuilderProject] = useState(() => existingProperty?.builderProject || sessionStorage.getItem('adminPropIsBuilder') === 'true');
+
   useEffect(() => {
-    const fetchConfigs = async () => {
+    if (!isEditing) {
+      sessionStorage.setItem('adminPropDraft', JSON.stringify(formData));
+    }
+  }, [formData, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      sessionStorage.setItem('adminPropTxn', selectedTxn);
+      sessionStorage.setItem('adminPropCat', selectedCat);
+      sessionStorage.setItem('adminPropType', selectedPropType);
+      sessionStorage.setItem('adminPropBuilder', selectedBuilder);
+      sessionStorage.setItem('adminPropStep', currentStepIndex.toString());
+      sessionStorage.setItem('adminPropIsBuilder', isBuilderProject.toString());
+    }
+  }, [selectedTxn, selectedCat, selectedPropType, selectedBuilder, currentStepIndex, isBuilderProject, isEditing]);
+
+  // Fetch Category combinations and Builders on load
+  useEffect(() => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/property-forms/configs');
-        if (res.data.success) {
-          setConfigs(res.data.configs);
+        const configsEndpoint = isBuilderProject ? '/builder-forms/configs' : '/property-forms/configs';
+        const [configsRes, buildersRes] = await Promise.all([
+          api.get(configsEndpoint),
+          adminService.getBuilders()
+        ]);
+        
+        if (configsRes.data.success) {
+          setConfigs(configsRes.data.configs);
+          setSelectedTxn('');
+          setSelectedCat('');
+          setSelectedPropType('');
+        }
+        if (buildersRes.success) {
+          setBuilders(buildersRes.builders || []);
         }
       } catch (err) {
-        toast.error('Failed to load category configurations');
+        toast.error('Failed to load initial data');
       } finally {
         setLoading(false);
       }
     };
-    fetchConfigs();
-  }, []);
+    fetchData();
+  }, [isBuilderProject]);
 
   // Fetch Template when all 3 selections are made
   useEffect(() => {
@@ -86,7 +130,8 @@ const AdminAddProperty = () => {
     const fetchTemplate = async () => {
       try {
         setLoading(true);
-        const res = await api.get(`/property-forms/template`, {
+        const endpoint = isBuilderProject ? `/builder-forms/template` : `/property-forms/template`;
+        const res = await api.get(endpoint, {
           params: { transactionType: selectedTxn, category: selectedCat, propertyType: selectedPropType }
         });
         if (res.data.success) {
@@ -103,7 +148,7 @@ const AdminAddProperty = () => {
       }
     };
     fetchTemplate();
-  }, [selectedTxn, selectedCat, selectedPropType]);
+  }, [selectedTxn, selectedCat, selectedPropType, isBuilderProject]);
 
   // Handle inputs
   const handleChange = (name, value) => {
@@ -154,6 +199,10 @@ const AdminAddProperty = () => {
       if (!formData.state) newErrors['state'] = 'State is required';
       if (!formData.district) newErrors['district'] = 'District is required';
       if (!formData.city) newErrors['city'] = 'City is required';
+      if (formData.pincode && !/^\d{6}$/.test(formData.pincode)) {
+        newErrors['pincode'] = 'Pincode must be exactly 6 digits';
+        if (!firstErrorField) firstErrorField = 'pincode';
+      }
     }
 
     currentStep.fields.forEach(field => {
@@ -255,6 +304,18 @@ const AdminAddProperty = () => {
   const submitForm = async () => {
     try {
       setLoading(true);
+      // Extract common fields from dynamic data for top-level schema mapping
+      const imagesArray = formData.photos || formData.images || formData.propertyImages || [];
+      const coverImg = imagesArray.length > 0 ? imagesArray[0] : '';
+      const otherImages = imagesArray.length > 1 ? imagesArray.slice(1) : [];
+
+      const descriptionText = formData.description || formData.details || formData.propertyDescription || '';
+
+      // Fallback price logic for cards
+      const rentAmt = formData.monthlyRent || formData.rentAmount || formData.rent;
+      const buyAmt = formData.expectedPrice || formData.price || formData.totalPrice;
+      const parsedPrice = selectedTxn === 'rent' ? rentAmt : buyAmt;
+
       const payload = {
         propertyName: formData.propertyName || `${selectedCat} ${selectedPropType} for ${selectedTxn}`,
         transactionType: selectedTxn,
@@ -271,14 +332,66 @@ const AdminAddProperty = () => {
           fullAddress: formData.houseNumber || '',
           pincode: formData.pincode || ''
         },
+        coverImage: coverImg,
+        propertyImages: imagesArray,
+        description: descriptionText,
         status: 'approved',
         isLive: true,
         isAddedByAdmin: true
       };
 
-      const res = await adminService.createProperty(payload);
+      // Add appropriate details block based on transaction type for legacy fallback (so cards work seamlessly)
+      if (selectedTxn === 'rent') {
+        payload.rentDetails = {
+          monthlyRent: Number(parsedPrice) || 0
+        };
+      } else if (selectedTxn === 'buy' || selectedTxn === 'sale') {
+        if (selectedCat === 'Plot / Land') {
+          payload.plotDetails = {
+            expectedPrice: Number(parsedPrice) || 0
+          };
+        } else {
+          payload.buyDetails = {
+            expectedPrice: Number(parsedPrice) || 0
+          };
+        }
+      }
+
+      if (selectedBuilder) {
+        payload.userId = selectedBuilder;
+      }
+
+      if (isBuilderProject) {
+        payload.builderProjectDetails = {
+          possessionStatus: formData.bpd_possessionStatus || 'Ongoing',
+          possessionYear: Number(formData.bpd_possessionYear) || null,
+          ratings: {
+            constructionQuality: Number(formData.bpd_constructionQuality) || 0,
+            aiSummary: formData.bpd_aiSummary || ''
+          },
+          priceHistory: {
+            currentPricePerSqft: Number(formData.bpd_currentPricePerSqft) || 0,
+            appreciationLast3Years: Number(formData.bpd_appreciationLast3Years) || 0
+          }
+        };
+      }
+
+      let res;
+      if (isEditing) {
+        res = await adminService.updateProperty(existingProperty._id, payload);
+      } else {
+        res = await adminService.createProperty(payload);
+      }
+
       if (res.success) {
-        toast.success('Admin property published successfully!');
+        sessionStorage.removeItem('adminPropDraft');
+        sessionStorage.removeItem('adminPropTxn');
+        sessionStorage.removeItem('adminPropCat');
+        sessionStorage.removeItem('adminPropType');
+        sessionStorage.removeItem('adminPropBuilder');
+        sessionStorage.removeItem('adminPropStep');
+        sessionStorage.removeItem('adminPropIsBuilder');
+        toast.success(isEditing ? 'Property updated successfully!' : 'Admin property published successfully!');
         navigate(`${basePath}/properties`);
       }
     } catch (err) {
@@ -290,6 +403,18 @@ const AdminAddProperty = () => {
 
   // Dynamic input renders
   const renderField = (field) => {
+    // Skip rendering unit fields as standalone because they are attached to their parent number fields
+    if (Object.values(unitFieldMapping).includes(field.name)) {
+      return null;
+    }
+
+    // Skip duplicate location fields in the location step
+    const currentStep = template.steps[currentStepIndex];
+    const isLocationStep = currentStep?.title?.toLowerCase().includes('location');
+    if (isLocationStep && ['country', 'state', 'district', 'city', 'locality', 'houseNumber', 'pincode'].includes(field.name)) {
+      return null;
+    }
+
     if (field.dependsOn?.field) {
       if (formData[field.dependsOn.field] !== field.dependsOn.value) {
         return null;
@@ -297,7 +422,6 @@ const AdminAddProperty = () => {
     }
 
     const unitFieldName = unitFieldMapping[field.name];
-    const currentStep = template.steps[currentStepIndex];
     const unitField = unitFieldName ? currentStep.fields.find(f => f.name === unitFieldName) : null;
 
     if (unitField) {
@@ -664,12 +788,39 @@ const AdminAddProperty = () => {
       </div>
 
       {/* Grid selector for category combination */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-        <h3 className="text-sm font-black text-slate-800 uppercase flex items-center gap-2 border-b border-slate-50 pb-3">
-          <Layers size={16} className="text-[#004F4D]" /> Select Property Category
-        </h3>
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-50 pb-3">
+          <h3 className="text-sm font-black text-slate-800 uppercase flex items-center gap-2">
+            <Layers size={16} className="text-[#004F4D]" /> Select Property Category
+          </h3>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-500 uppercase">Listing Type:</span>
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+              <button
+                type="button"
+                onClick={() => !isEditing && currentStepIndex === 0 && setIsBuilderProject(false)}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  !isBuilderProject ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                } ${(isEditing || currentStepIndex > 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isEditing || currentStepIndex > 0}
+              >
+                Standard Property
+              </button>
+              <button
+                type="button"
+                onClick={() => !isEditing && currentStepIndex === 0 && setIsBuilderProject(true)}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  isBuilderProject ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                } ${(isEditing || currentStepIndex > 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isEditing || currentStepIndex > 0}
+              >
+                Builder Project
+              </button>
+            </div>
+          </div>
+        </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           
           {/* Level 1 selector */}
           <div className="space-y-1">
@@ -681,7 +832,8 @@ const AdminAddProperty = () => {
                 setSelectedCat('');
                 setSelectedPropType('');
               }}
-              className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all"
+              disabled={isEditing || currentStepIndex > 0}
+              className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               <option value="">Select Category</option>
               {configs.map(c => <option key={c.transactionType} value={c.transactionType}>{c.transactionType}</option>)}
@@ -698,7 +850,8 @@ const AdminAddProperty = () => {
                   setSelectedCat(e.target.value);
                   setSelectedPropType('');
                 }}
-                className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all"
+                disabled={isEditing || currentStepIndex > 0}
+                className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 <option value="">Select Sub-category</option>
                 {getCategories().map(c => <option key={c.category} value={c.category}>{c.category}</option>)}
@@ -713,13 +866,30 @@ const AdminAddProperty = () => {
               <select
                 value={selectedPropType}
                 onChange={(e) => setSelectedPropType(e.target.value)}
-                className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all"
+                disabled={isEditing || currentStepIndex > 0}
+                className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 <option value="">Select Property Type</option>
                 {getPropTypes().map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
           )}
+
+          {/* Builder Dropdown */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase">Associate Builder</label>
+            <select
+              value={selectedBuilder}
+              onChange={(e) => setSelectedBuilder(e.target.value)}
+              disabled={isEditing || currentStepIndex > 0}
+              className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''}`}
+            >
+              <option value="">Admin/Manager (Self)</option>
+              {builders.map(b => (
+                <option key={b._id} value={b._id}>{b.builderProfile?.companyName || b.name}</option>
+              ))}
+            </select>
+          </div>
 
         </div>
       </div>
@@ -786,7 +956,7 @@ const AdminAddProperty = () => {
                       <input
                         type="text"
                         value={formData.pincode || ''}
-                        onChange={(e) => handleChange('pincode', e.target.value)}
+                        onChange={(e) => handleChange('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
                         placeholder="e.g. 560038"
                         className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all"
                       />

@@ -39,7 +39,8 @@ import {
   getReelAnalysis,
   createAdminProperty,
   getAbandonedCarts,
-  sendTargetedNotification
+  sendTargetedNotification,
+  updateAdminProperty
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import {
@@ -55,15 +56,37 @@ import {
 } from '../controllers/adminWorkerController.js';
 import { checkManagerPermission, requireAdminOrManager } from '../middlewares/managerPermission.js';
 
+import builderRoutes from './builderRoutes.js';
+
 const router = express.Router();
 
 router.use(protect);
 router.use(authorizedRoles('admin', 'superadmin', 'manager'));
 
+router.use('/builders', builderRoutes);
+
 // Enquiries (dedicated Enquiry collection — not Booking)
 router.get('/enquiries', checkManagerPermission('enquiries', 'view'), adminGetAllEnquiries);
 router.put('/enquiries/:id', checkManagerPermission('enquiries', 'edit'), adminUpdateEnquiry);
 router.delete('/enquiries/:id', checkManagerPermission('enquiries', 'delete'), adminDeleteEnquiry);
+
+// Featured Properties Management
+import { 
+  getAdminFeaturedProperties, 
+  updateFeaturedProperty,
+  getFeaturedPlans,
+  createFeaturedPlan,
+  updateFeaturedPlan,
+  deleteFeaturedPlan 
+} from '../controllers/adminPropertyController.js';
+
+router.get('/featured-properties', checkManagerPermission('properties', 'view'), getAdminFeaturedProperties);
+router.put('/featured-properties/:id', checkManagerPermission('properties', 'edit'), updateFeaturedProperty);
+
+router.get('/featured-plans', checkManagerPermission('properties', 'view'), getFeaturedPlans);
+router.post('/featured-plans', checkManagerPermission('properties', 'edit'), createFeaturedPlan);
+router.put('/featured-plans/:id', checkManagerPermission('properties', 'edit'), updateFeaturedPlan);
+router.delete('/featured-plans/:id', checkManagerPermission('properties', 'delete'), deleteFeaturedPlan);
 
 // Notifications
 router.get('/notifications', checkManagerPermission('notifications', 'view'), getAdminNotifications);
@@ -81,6 +104,7 @@ router.get('/users', checkManagerPermission('users', 'view'), getAllUsers);
 router.get('/partners', checkManagerPermission('partners', 'view'), getAllPartners);
 router.get('/hotels', checkManagerPermission('properties', 'view'), getAllHotels);
 router.post('/properties', checkManagerPermission('properties', 'add'), createAdminProperty);
+router.put('/properties/:id', checkManagerPermission('properties', 'edit'), updateAdminProperty);
 router.get('/bookings', checkManagerPermission('bookings', 'view'), getAllBookings);
 
 router.get('/property-requests', checkManagerPermission('properties', 'view'), getPropertyRequests);

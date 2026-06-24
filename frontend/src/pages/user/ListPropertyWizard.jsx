@@ -227,13 +227,20 @@ const ListPropertyWizard = () => {
     }
   };
 
-  const handleRoleSelect = async (role) => {
+  const handleRoleSelect = async (role, builderData = null) => {
     setRoleLoading(true);
     try {
-      const res = await api.put('/users/role', { role });
+      const payload = { role };
+      if (builderData) {
+        payload.builderData = builderData;
+      }
+      const res = await api.put('/users/role', payload);
       if (res.data.success) {
         // Update local user
         const updatedUser = { ...user, role: res.data.user.role };
+        if (res.data.user.builderProfile) {
+          updatedUser.builderProfile = res.data.user.builderProfile;
+        }
         localStorage.setItem('user', JSON.stringify(updatedUser));
         toast.success(`Welcome ${role}!`);
         setShowRoleSheet(false);

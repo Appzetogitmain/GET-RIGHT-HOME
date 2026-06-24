@@ -212,10 +212,37 @@ const propertySchema = new mongoose.Schema({
     nearbyLandmark: String
   },
 
+  // --- BUILDER PROJECT DETAILS ---
+  builderProjectDetails: {
+    possessionStatus: { type: String, enum: ['Ongoing', 'Ready To Move', 'New Launch'] },
+    possessionYear: { type: Number },
+    ratings: {
+      constructionQuality: { type: Number, min: 1, max: 5 },
+      aiSummary: { type: String }
+    },
+    priceHistory: {
+      currentPricePerSqft: { type: Number },
+      appreciationLast3Years: { type: Number } // in percentage
+    }
+  },
+
   // Universal / Pro Fields
   videoUrl: String,
   isVerified: { type: Boolean, default: false },
+  
+  // Featured Details
   isFeatured: { type: Boolean, default: false },
+  featuredDetails: {
+    isFeatured: { type: Boolean, default: false },
+    planId: { type: mongoose.Schema.Types.ObjectId, ref: 'FeaturedPlan' },
+    planName: { type: String, default: 'None' }, // Used for quick querying/fallback
+    startDate: { type: Date },
+    endDate: { type: Date },
+    durationDays: { type: Number },
+    status: { type: String, enum: ['active', 'paused', 'expired'], default: 'active' },
+    pausedAt: { type: Date },
+    adminNotes: { type: String }
+  },
   isUrgent: { type: Boolean, default: false },
   isNegotiable: { type: Boolean, default: false },
   virtualTourLink: String,

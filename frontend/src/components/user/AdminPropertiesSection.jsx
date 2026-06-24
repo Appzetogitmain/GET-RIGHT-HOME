@@ -21,19 +21,23 @@ const AdminPropertyCard = ({ property, index }) => {
     const typeIcon = PROPERTY_TYPE_ICONS[property.propertyType] || '🏠';
     
     // Resolve price and format it to Cr/Lac
-    const rawPrice = property.rentDetails?.monthlyRent
+    const rawPrice = property.startingPrice
+        || property.rentDetails?.monthlyRent
+        || property.pgDetails?.monthlyRent
         || property.buyDetails?.expectedPrice
         || property.plotDetails?.expectedPrice
         || property.dynamicData?.expectedPrice
         || property.dynamicData?.monthlyRent
         || property.dynamicData?.expectedRent
         || property.dynamicData?.price
+        || property.minPrice
+        || property.price
         || null;
 
     const formatPriceValue = (val) => {
         if (!val) return 'Contact for Price';
         const num = Number(val.toString().replace(/,/g, ''));
-        if (isNaN(num) || num <= 0) return val; // fallback
+        if (isNaN(num) || num <= 0) return val; // fallback for string ranges like "2.91 - 4.42 Cr"
         if (num >= 10000000) {
             return `₹ ${(num / 10000000).toFixed(2).replace(/\.00$/, '')} Cr`;
         }
@@ -47,18 +51,25 @@ const AdminPropertyCard = ({ property, index }) => {
 
     // Resolve BHK and location details
     const getBhkText = () => {
-        if (property.bhk) return `${property.bhk} BHK`;
-        if (property.rentDetails?.type) return property.rentDetails.type;
-        if (property.buyDetails?.type) return property.buyDetails.type;
-        if (property.propertyType) {
-            return property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1);
+        const bhk = property.bhk || property.dynamicData?.bedrooms || property.dynamicData?.bhk;
+        if (bhk) return `${bhk} BHK`;
+        
+        const type = property.rentDetails?.type || property.buyDetails?.type;
+        if (type) return type.includes('BHK') ? type : `${type} BHK`;
+
+        const pt = property.propertyType || property.dynamicCategory?.displayName || property.dynamicCategory?.name;
+        if (pt) {
+            return pt.charAt(0).toUpperCase() + pt.slice(1);
         }
-        return 'Apartment';
+        return 'Property';
     };
 
     const bhkText = getBhkText();
-    const areaText = property.address?.area || property.address?.city || '';
-    const detailsText = areaText ? `${bhkText}, ${areaText}` : bhkText;
+    const loc = property.address?.area || property.address?.locality || property.dynamicData?.locality || property.address?.city || property.dynamicData?.city || '';
+    const detailsText = loc ? (bhkText ? `${bhkText}, ${loc}` : loc) : bhkText;
+    
+    // Fallback Property Name
+    const displayName = property.propertyName || property.dynamicData?.propertyName || 'Untitled Property';
 
     // Brand logo fallback to first image (coverImage)
     const displayLogo = property.logo || property.coverImage || '/src/assets/grh-logo.png';
@@ -75,6 +86,7 @@ const AdminPropertyCard = ({ property, index }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.35, ease: 'easeOut' }}
+            className="min-w-[280px] md:min-w-[320px] max-w-[320px] snap-center shrink-0"
         >
             <div onClick={() => {
                 if (property.isDummy) {
@@ -86,26 +98,45 @@ const AdminPropertyCard = ({ property, index }) => {
                 <div className="relative rounded-3xl overflow-hidden bg-white border border-gray-100 shadow-md hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 h-[340px] w-full flex flex-col">
                     {/* Full Card Background Image */}
                     <div className="absolute inset-0 w-full h-full overflow-hidden bg-gray-50">
-                        {property.coverImage ? (
-                            <img
-                                src={property.coverImage}
-                                alt={property.propertyName}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                                <Building2 size={36} className="text-gray-200" />
-                            </div>
-                        )}
+                        {(() => {
+                            const dynImages = property.dynamicData?.photos || property.dynamicData?.images || property.dynamicData?.propertyImages || [];
+                            const extractedImage = property.coverImage || property.images?.[0] || property.propertyImages?.[0] || dynImages[0] || null;
+                            if (extractedImage) {
+                                return (
+                                    <img
+                                        src={extractedImage}
+                                        alt={property.propertyName}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = '/src/assets/grh-logo.png';
+                                        }}
+                                    />
+                                );
+                            } else {
+                                return (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <Building2 size={36} className="text-gray-200" />
+                                    </div>
+                                );
+                            }
+                        })()}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
                     </div>
 
                     {/* Featured Badge (Top Left) */}
-                    <div className="absolute top-4 left-4 z-10">
-                        <span className="px-2.5 py-1 bg-[#a21caf] text-white rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm">
-                            Featured
-                        </span>
-                    </div>
+                    {property.featuredDetails?.isFeatured && (
+                        <div className="absolute top-4 left-4 z-10">
+                            <span className={`px-2.5 py-1 text-white rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm ${
+                                property.featuredDetails.planName === 'Pro' ? 'bg-purple-600' :
+                                property.featuredDetails.planName === 'Gold' ? 'bg-amber-500' :
+                                property.featuredDetails.planName === 'Silver' ? 'bg-slate-500' :
+                                'bg-[#a21caf]'
+                            }`}>
+                                {property.featuredDetails.planName && property.featuredDetails.planName !== 'None' ? `${property.featuredDetails.planName} Featured` : 'Featured'}
+                            </span>
+                        </div>
+                    )}
 
                     {/* Heart Button (Top Right) */}
                     <div className="absolute top-4 right-4 z-10">
@@ -136,14 +167,14 @@ const AdminPropertyCard = ({ property, index }) => {
                                 className={`w-full h-full rounded-full ${logoIsCover ? 'object-cover' : 'object-contain'}`}
                                 onError={(e) => {
                                     e.target.onerror = null;
-                                    e.target.src = 'https://via.placeholder.com/150?text=GRH';
+                                    e.target.src = '/src/assets/grh-logo.png';
                                 }}
                             />
                         </div>
 
                         {/* Title */}
                         <h3 className="font-black text-sm text-gray-900 text-center line-clamp-1 mb-1 group-hover:text-emerald-700 transition-colors duration-300">
-                            {property.propertyName}
+                            {displayName}
                         </h3>
 
                         {/* BHK & Area Details */}
@@ -379,26 +410,7 @@ const AdminPropertiesSection = ({ searchCity }) => {
         );
     });
 
-    const displayProperties = filteredProperties.length > 0
-        ? filteredProperties
-        : (!localQuery) // Always show dummy property if empty, to demo the Handpicked feature
-            ? [
-                {
-                    _id: 'dummy-satellite-aristia',
-                    propertyName: 'Satellite Aristia',
-                    coverImage: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80',
-                    logo: '', // Empty logo to test coverImage fallback logo behavior!
-                    propertyType: 'buy',
-                    bhk: '1,2',
-                    address: {
-                        area: 'Andheri East',
-                        city: 'Mumbai'
-                    },
-                    dynamicPriceText: '₹ 1.28 - 2.48 Cr',
-                    isDummy: true
-                }
-              ]
-            : [];
+    const displayProperties = filteredProperties;
 
 
     // If no cities at all, don't render the section
@@ -537,7 +549,8 @@ const AdminPropertiesSection = ({ searchCity }) => {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                            className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 scrollbar-hide"
+                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                         >
                             {displayProperties.slice(0, 8).map((property, index) => (
                                 <AdminPropertyCard key={property._id} property={property} index={index} />

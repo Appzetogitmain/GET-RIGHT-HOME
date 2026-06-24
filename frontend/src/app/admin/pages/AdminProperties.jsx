@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     Building2, Search, Filter, MoreVertical, MapPin,
     CheckCircle, XCircle, Clock, Star, ShieldAlert, Trash2, Edit, Eye, Loader2,
@@ -39,6 +39,7 @@ const PropertyStatusBadge = ({ status }) => {
 
 const AdminProperties = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
     const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -50,10 +51,13 @@ const AdminProperties = () => {
     const [filters, setFilters] = useState({
         search: '',
         status: '',
-        type: ''
+        type: '',
+        builder: ''
     });
 
     const [dynamicCategories, setDynamicCategories] = useState([]);
+
+    const [builders, setBuilders] = useState([]);
 
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
@@ -67,7 +71,18 @@ const AdminProperties = () => {
                 console.error("Failed to fetch categories:", err);
             }
         };
+        const fetchBuilders = async () => {
+            try {
+                const res = await adminService.getBuilders();
+                if (res.success) {
+                    setBuilders(res.builders || []);
+                }
+            } catch (err) {
+                console.error("Failed to fetch builders:", err);
+            }
+        };
         fetchCategories();
+        fetchBuilders();
     }, []);
 
     const fetchProperties = useCallback(async (page, currentFilters) => {
@@ -81,7 +96,8 @@ const AdminProperties = () => {
                 limit,
                 search: currentFilters.search,
                 status: currentFilters.status,
-                type: currentFilters.type || undefined
+                type: currentFilters.type || undefined,
+                builder: currentFilters.builder || undefined
             };
             const data = await adminService.getHotels(params);
             if (data.success) {
@@ -264,6 +280,18 @@ const AdminProperties = () => {
                             <option key={cat._id} value={cat._id}>{cat.displayName}</option>
                         ))}
                     </select>
+                    <select
+                        value={filters.builder}
+                        onChange={(e) => handleFilterChange('builder', e.target.value)}
+                        className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
+                    >
+                        <option value="">All Builders</option>
+                        {builders.map(b => (
+                            <option key={b._id} value={b._id}>
+                                {b.builderProfile?.companyName || b.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
@@ -354,6 +382,11 @@ const AdminProperties = () => {
                                                             <Link to={`${basePath}/properties/${property._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
+                                                            {property.isAddedByAdmin && property.dynamicCategory && (
+                                                                <button onClick={() => navigate(`${basePath}/properties/add`, { state: { existingProperty: property } })} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
+                                                                    <Edit size={14} /> Edit Property
+                                                                </button>
+                                                            )}
                                                             {property.status === 'pending' && (
                                                                 <>
                                                                     <button onClick={() => handleAction('approve', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-green-50 text-[10px] font-bold uppercase text-green-700">

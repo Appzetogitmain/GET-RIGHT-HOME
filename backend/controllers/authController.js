@@ -290,14 +290,27 @@ export const verifyOtp = async (req, res) => {
       // Determine registration role
       const finalRole = ['owner', 'broker', 'builder'].includes(role) ? role : 'user';
 
-      user = new User({
+      const newUserObj = {
         name,
         phone,
         email,
         role: finalRole,
         isVerified: true,
         password: await bcrypt.hash(Math.random().toString(36), 10)
-      });
+      };
+
+      if (finalRole === 'builder') {
+        newUserObj.builderProfile = {
+          companyName: req.body.companyName || '',
+          reraRegistrationNumber: req.body.reraRegistrationNumber || '',
+          gstNumber: req.body.gstNumber || '',
+          description: req.body.description || '',
+          establishedYear: req.body.establishedYear || null,
+          awards: req.body.awards || []
+        };
+      }
+
+      user = new User(newUserObj);
       isRegistration = true;
       await Otp.deleteOne({ phone });
     }
@@ -359,7 +372,8 @@ export const verifyOtp = async (req, res) => {
         partnerApprovalStatus: user.partnerApprovalStatus,
         profileImage: user.profileImage,
         isVip: user.isVip || false,
-        vipExpiry: user.vipExpiry || null
+        vipExpiry: user.vipExpiry || null,
+        builderProfile: user.builderProfile
       }
     });
 
@@ -545,7 +559,8 @@ export const getMe = async (req, res) => {
         partnerSince: user.partnerSince,
         createdAt: user.createdAt,
         isVip: user.isVip || false,
-        vipExpiry: user.vipExpiry || null
+        vipExpiry: user.vipExpiry || null,
+        builderProfile: user.builderProfile
       }
     });
   } catch (error) {
@@ -602,11 +617,14 @@ export const updateProfile = async (req, res) => {
 
     if (address) {
       user.address = {
-        street: address.street || user.address?.street || '',
-        city: address.city || user.address?.city || '',
-        state: address.state || user.address?.state || '',
-        zipCode: address.zipCode || user.address?.zipCode || '',
-        country: address.country || user.address?.country || 'India',
+        street: address.street !== undefined ? address.street : (user.address?.street || ''),
+        city: address.city !== undefined ? address.city : (user.address?.city || ''),
+        state: address.state !== undefined ? address.state : (user.address?.state || ''),
+        zipCode: address.zipCode !== undefined ? address.zipCode : (user.address?.zipCode || ''),
+        country: address.country !== undefined ? address.country : (user.address?.country || 'India'),
+        area: address.area !== undefined ? address.area : (user.address?.area || ''),
+        houseNo: address.houseNo !== undefined ? address.houseNo : (user.address?.houseNo || ''),
+        landmark: address.landmark !== undefined ? address.landmark : (user.address?.landmark || ''),
         coordinates: {
           lat: address.coordinates?.lat || user.address?.coordinates?.lat,
           lng: address.coordinates?.lng || user.address?.coordinates?.lng
@@ -619,6 +637,13 @@ export const updateProfile = async (req, res) => {
 
     if (req.body.isVip !== undefined) user.isVip = req.body.isVip;
     if (req.body.vipExpiry !== undefined) user.vipExpiry = req.body.vipExpiry;
+
+    if (req.body.builderProfile && user.role === 'builder') {
+      user.builderProfile = {
+        ...(user.builderProfile ? user.builderProfile.toObject() : {}),
+        ...req.body.builderProfile
+      };
+    }
 
     await user.save();
 
@@ -637,7 +662,8 @@ export const updateProfile = async (req, res) => {
         partnerSince: user.partnerSince,
         createdAt: user.createdAt,
         isVip: user.isVip || false,
-        vipExpiry: user.vipExpiry || null
+        vipExpiry: user.vipExpiry || null,
+        builderProfile: user.builderProfile
       }
     });
 

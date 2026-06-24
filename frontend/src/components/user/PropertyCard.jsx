@@ -6,6 +6,10 @@ import toast from 'react-hot-toast';
 import PropertyQuickViewModal from './PropertyQuickViewModal';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
+const LOGO_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'><rect width='100%' height='100%' fill='%23E2E8F0'/><text x='50%' y='50%' font-family='sans-serif' font-size='14' font-weight='bold' fill='%2364748B' dominant-baseline='middle' text-anchor='middle'>GRH</text></svg>";
+
+
 const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved, isSearchPage = false }) => {
   const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
@@ -392,7 +396,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       images.gallery.forEach(img => addClean(img));
     }
 
-    return list.length > 0 ? list : ['https://via.placeholder.com/400x300?text=No+Image'];
+    return list.length > 0 ? list : ['/src/assets/grh-logo.png'];
   })();
 
   useEffect(() => {
@@ -421,7 +425,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     images?.cover ||
     cleanImageUrl(item.coverImage) ||
     cleanImageUrl(Array.isArray(item.propertyImages) ? item.propertyImages[0] : '') ||
-    'https://via.placeholder.com/400x300?text=No+Image';
+    '/src/assets/grh-logo.png';
 
   const areaValue = item.carpetArea || item.superArea || item.plotDetails?.plotArea || item.dynamicData?.plotArea || item.dynamicData?.carpetArea || '';
   const areaUnit = item.carpetAreaUnit || item.areaUnit || item.dynamicData?.carpetAreaUnit || 'sqft';
@@ -438,6 +442,8 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     };
 
     const postedByName = item.buyDetails?.builderName || 
+                         (item.user?.role === 'builder' && item.user?.builderProfile?.companyName) ||
+                         (item.userId?.role === 'builder' && item.userId?.builderProfile?.companyName) ||
                          item.partner?.name || 
                          item.partnerId?.name || 
                          item.user?.name || 
@@ -495,14 +501,14 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
           className={`w-full bg-white rounded-[20px] border border-gray-200 shadow-sm hover:shadow-md overflow-hidden transition-all duration-300 flex flex-col cursor-pointer relative ${className}`}
         >
           {/* Image Container with Slider */}
-          <div className="relative h-[200px] w-full bg-gray-100 group/slider overflow-hidden flex-shrink-0">
+          <div className="relative h-[200px] w-full bg-gray-100 group/slider rounded-t-[20px] overflow-hidden flex-shrink-0">
             <img 
               src={imageList[currentImageIndex]} 
               alt={displayName} 
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-t-[20px]"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
             
@@ -862,14 +868,14 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
             className={`w-full h-full bg-[#F4F5F7] rounded-[1.5rem] border border-gray-200/50 shadow-sm hover:shadow-md overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group relative`}
           >
           {/* Cover Image Section */}
-          <div className="relative h-[180px] w-full overflow-hidden bg-slate-100 flex-shrink-0">
+          <div className="relative h-[180px] w-full rounded-t-[1.5rem] overflow-hidden bg-slate-100 flex-shrink-0">
             <img
               src={activeImageSrc}
               alt={displayName}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              className="w-full h-full object-cover rounded-t-[1.5rem] transition-transform duration-700 group-hover:scale-105"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
 
@@ -985,27 +991,14 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
           className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-white to-amber-50/10' : 'border border-gray-150 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.12)] hover:border-emerald-500/30'} transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
         >
           {/* Cover Image Container */}
-          <div className="relative h-[190px] w-full overflow-hidden bg-gray-100 flex-shrink-0">
-            {item.logo && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg border border-amber-200 flex flex-col items-center justify-center max-w-[65%] transform transition-transform duration-300 group-hover:scale-105">
-                  <img 
-                    src={item.logo} 
-                    alt="Brand Logo" 
-                    className="h-10 max-h-12 w-auto object-contain" 
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                  <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest mt-1">Premium Partner</span>
-                </div>
-              </div>
-            )}
+          <div className="relative h-[190px] w-full rounded-t-[1.5rem] overflow-hidden bg-gray-100 flex-shrink-0">
             <img
               src={imageSrc}
               alt={displayName}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className="w-full h-full object-cover rounded-t-[1.5rem] transition-transform duration-700 group-hover:scale-110"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
 
@@ -1025,7 +1018,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
 
             {/* Premium Glassmorphic Transaction Badge */}
             <span className="absolute top-3 left-3 bg-emerald-500/90 text-white text-[9px] font-black px-3 py-1 rounded-md backdrop-blur-md shadow-md uppercase tracking-wider z-20 border border-white/10">
-              RENTAL
+              {typeLabel}
             </span>
 
             {/* Floating Embedded Price Tag inside Image */}
@@ -1131,27 +1124,14 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
           className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-white to-amber-50/10' : 'border border-gray-150 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(217,119,6,0.15)] hover:border-amber-500/30'} transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
         >
           {/* Cover Image Container */}
-          <div className="relative h-[190px] w-full overflow-hidden bg-gray-100 flex-shrink-0">
-            {item.logo && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg border border-amber-200 flex flex-col items-center justify-center max-w-[65%] transform transition-transform duration-300 group-hover:scale-105">
-                  <img 
-                    src={item.logo} 
-                    alt="Brand Logo" 
-                    className="h-10 max-h-12 w-auto object-contain" 
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                  <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest mt-1">Premium Partner</span>
-                </div>
-              </div>
-            )}
+          <div className="relative h-[190px] w-full rounded-t-[1.5rem] overflow-hidden bg-gray-100 flex-shrink-0">
             <img
               src={imageSrc}
               alt={displayName}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className="w-full h-full object-cover rounded-t-[1.5rem] transition-transform duration-700 group-hover:scale-110"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
 
@@ -1176,7 +1156,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
 
             {/* Translucent Transaction Type Badge on Bottom-Left */}
             <span className="absolute bottom-3 left-3 bg-amber-500/90 text-white text-[9px] font-black px-3 py-1 rounded-md backdrop-blur-md shadow-md uppercase tracking-wider z-20 border border-white/10">
-              FOR SALE
+              {typeLabel}
             </span>
           </div>
 
@@ -1260,26 +1240,13 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       onClick={() => navigate(`/hotel/${_id}`)}
       className={`relative h-[270px] md:h-[340px] w-full bg-gray-100 rounded-[1.25rem] md:rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-slate-100 to-amber-50/10' : 'border border-gray-100 hover:-translate-y-1'} group ${className}`}
     >
-      {item.logo && (
-        <div className="absolute inset-x-0 top-0 bottom-[100px] flex items-center justify-center pointer-events-none z-10">
-          <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg border border-amber-200 flex flex-col items-center justify-center max-w-[65%] transform transition-transform duration-300 group-hover:scale-105">
-            <img 
-              src={item.logo} 
-              alt="Brand Logo" 
-              className="h-10 max-h-12 w-auto object-contain" 
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-            <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest mt-1">Premium Partner</span>
-          </div>
-        </div>
-      )}
       <img
         src={imageSrc}
         alt={displayName}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        className="absolute inset-0 w-full h-full object-cover rounded-[1.25rem] md:rounded-[1.5rem] transition-transform duration-700 group-hover:scale-105"
         onError={(e) => {
           e.target.onerror = null;
-          e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+          e.target.src = NO_IMAGE_PLACEHOLDER;
         }}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
@@ -1319,31 +1286,20 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       </div>
 
       {/* White content box */}
-      <div className="absolute bottom-2 left-2 right-2 md:bottom-3 md:left-3 md:right-3 bg-white rounded-xl md:rounded-2xl p-2.5 md:p-4 pt-5 md:pt-8 shadow-xl z-10">
-        <div className="absolute -top-4 md:-top-7 left-1/2 -translate-x-1/2 w-9 h-9 md:w-14 md:h-14 rounded-full border-2 md:border-[3px] border-white overflow-hidden bg-white shadow-sm flex items-center justify-center">
-          <img
-            src={item.logo || imageSrc}
-            alt="Logo"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = 'https://via.placeholder.com/150?text=Logo';
-            }}
-          />
-        </div>
+      <div className="absolute bottom-2 left-2 right-2 md:bottom-3 md:left-3 md:right-3 bg-white rounded-xl md:rounded-2xl p-2.5 md:p-4 shadow-xl z-10">
 
         {isPG ? (
           <div className="text-left w-full">
-            <h3 className="font-black text-xs md:text-sm text-gray-900 line-clamp-1 group-hover:text-violet-600 transition-colors">
+            <h3 className="font-black text-xs md:text-sm text-gray-900 line-clamp-1 group-hover:text-blue-500 transition-colors">
               {displayName}
             </h3>
             <div className="mt-1 flex items-center justify-between text-[8px] md:text-[10px] text-gray-500 font-semibold gap-1">
               <div className="flex items-center gap-0.5 min-w-0 flex-1">
-                <MapPin size={11} className="text-violet-500 shrink-0" />
+                <MapPin size={11} className="text-blue-400 shrink-0" />
                 <span className="truncate">{locationText}</span>
               </div>
               {pgRoomDetails && (
-                <div className="bg-violet-50 text-violet-600 px-2.5 py-1 rounded-full text-[8px] md:text-[9px] font-black tracking-wide shrink-0 ml-1.5 uppercase border border-violet-100">
+                <div className="bg-blue-50 text-blue-500 px-2.5 py-1 rounded-full text-[8px] md:text-[9px] font-black tracking-wide shrink-0 ml-1.5 uppercase border border-blue-100">
                   {pgRoomDetails}
                 </div>
               )}
@@ -1363,7 +1319,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
         <div className="mt-2 pt-2 md:mt-3 md:pt-3 border-t border-gray-100 flex items-center justify-between">
           <div className="flex flex-col items-start">
             {isPG ? (
-              <span className="text-xs md:text-base font-extrabold text-violet-600 flex items-baseline gap-0.5">
+              <span className="text-xs md:text-base font-extrabold text-blue-500 flex items-baseline gap-0.5">
                 ₹ {formattedPrice}
                 {displayPrice && (
                   <span className="text-[8px] md:text-[10px] text-gray-500 font-semibold ml-0.5">
@@ -1389,14 +1345,14 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                 {(item.contactNumber || item.phoneNumber) && (
                   <a
                     href={`tel:${item.contactNumber || item.phoneNumber}`}
-                    className="w-8 h-8 md:w-9 md:h-9 bg-violet-50 text-violet-600 rounded-full hover:bg-violet-600 hover:text-white border border-violet-100 hover:border-violet-600 transition-all duration-300 shadow-sm flex items-center justify-center active:scale-95 shrink-0"
+                    className="w-8 h-8 md:w-9 md:h-9 bg-blue-50 text-blue-500 rounded-full hover:bg-blue-500 hover:text-white border border-blue-100 hover:border-blue-500 transition-all duration-300 shadow-sm flex items-center justify-center active:scale-95 shrink-0"
                     onClick={(e) => e.stopPropagation()}
                     title="Call Now"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
                   </a>
                 )}
-                <button className="text-[9px] md:text-[10px] font-black text-white bg-violet-600 hover:bg-violet-700 px-3 md:px-4 py-2 md:py-2.5 rounded-full transition-all duration-300 flex items-center gap-1 shadow-md shadow-violet-600/10 hover:shadow-violet-600/20 active:scale-95">
+                <button className="text-[9px] md:text-[10px] font-black text-white bg-blue-500 hover:bg-blue-600 px-3 md:px-4 py-2 md:py-2.5 rounded-full transition-all duration-300 flex items-center gap-1 shadow-md shadow-blue-500/10 hover:shadow-blue-500/20 active:scale-95">
                   View
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[9px] h-[9px] md:w-[11px] md:h-[11px]"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
                 </button>
