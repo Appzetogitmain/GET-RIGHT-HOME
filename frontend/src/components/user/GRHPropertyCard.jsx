@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import PropertyQuickViewModal from './PropertyQuickViewModal';
 
+const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
+
+
 const GRHPropertyCard = ({ property, data }) => {
   const navigate = useNavigate();
   const item = property || data;
@@ -35,7 +38,7 @@ const GRHPropertyCard = ({ property, data }) => {
     cleanImageUrl(
       Array.isArray(item.propertyImages) ? item.propertyImages[0] : ''
     ) ||
-    'https://via.placeholder.com/400x300?text=No+Image';
+    NO_IMAGE_PLACEHOLDER;
 
   // Format Price in Lakhs/Crores
   const formatPriceLakhCrore = (price) => {
@@ -227,7 +230,7 @@ const GRHPropertyCard = ({ property, data }) => {
       images.gallery.forEach(img => addClean(img));
     }
 
-    return list.length > 0 ? list : ['https://via.placeholder.com/400x300?text=No+Image'];
+    return list.length > 0 ? list : [NO_IMAGE_PLACEHOLDER];
   })();
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -283,7 +286,7 @@ const GRHPropertyCard = ({ property, data }) => {
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
 
@@ -459,7 +462,7 @@ const GRHPropertyCard = ({ property, data }) => {
                   className="w-full h-[180px] object-cover shrink-0"
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                    e.target.src = NO_IMAGE_PLACEHOLDER;
                   }}
                 />
               ))}
@@ -610,7 +613,7 @@ const GRHPropertyCard = ({ property, data }) => {
                   className="w-full h-[180px] object-cover shrink-0"
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                    e.target.src = NO_IMAGE_PLACEHOLDER;
                   }}
                 />
               ))}
@@ -762,7 +765,7 @@ const GRHPropertyCard = ({ property, data }) => {
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                      e.target.src = NO_IMAGE_PLACEHOLDER;
                     }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-violet-900/40 via-transparent to-transparent opacity-60 pointer-events-none" />
@@ -776,7 +779,7 @@ const GRHPropertyCard = ({ property, data }) => {
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
           )}

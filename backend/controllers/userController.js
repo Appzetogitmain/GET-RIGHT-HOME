@@ -21,7 +21,8 @@ export const getUserProfile = async (req, res) => {
         createdAt: user.createdAt,
         partnerSince: user.partnerSince,
         isVip: user.isVip || false,
-        vipExpiry: user.vipExpiry || null
+        vipExpiry: user.vipExpiry || null,
+        builderProfile: user.builderProfile
       };
       res.json({
         success: true,
@@ -122,6 +123,13 @@ export const updateUserProfile = async (req, res) => {
       if (req.body.isVip !== undefined) user.isVip = req.body.isVip;
       if (req.body.vipExpiry !== undefined) user.vipExpiry = req.body.vipExpiry;
 
+      if (req.body.builderProfile && user.role === 'builder') {
+        user.builderProfile = {
+          ...(user.builderProfile ? user.builderProfile.toObject() : {}),
+          ...req.body.builderProfile
+        };
+      }
+
       const updatedUser = await user.save();
 
       res.json({
@@ -136,6 +144,7 @@ export const updateUserProfile = async (req, res) => {
         partnerSince: updatedUser.partnerSince,
         isVip: updatedUser.isVip || false,
         vipExpiry: updatedUser.vipExpiry || null,
+        builderProfile: updatedUser.builderProfile,
         token: req.headers.authorization.split(' ')[1] // Keep existing token
       });
     } else {

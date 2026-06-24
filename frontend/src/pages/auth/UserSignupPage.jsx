@@ -13,9 +13,17 @@ const UserSignupPage = () => {
         email: '',
         phone: ''
     });
+    const [isBuilder, setIsBuilder] = useState(false);
+    const [builderData, setBuilderData] = useState({
+        companyName: '',
+        reraRegistrationNumber: '',
+        description: '',
+        establishedYear: ''
+    });
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [errors, setErrors] = useState({});
     const [resendTimer, setResendTimer] = useState(120); // 2 minutes = 120 seconds
     const [canResend, setCanResend] = useState(false);
 
@@ -39,32 +47,83 @@ const UserSignupPage = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+        let finalVal = value;
         if (name === 'phone') {
-            setFormData({ ...formData, [name]: value.replace(/\D/g, '').slice(0, 10) });
-        } else {
-            setFormData({ ...formData, [name]: value });
+            finalVal = value.replace(/\D/g, '').slice(0, 10);
+        } else if (name === 'name') {
+            finalVal = value.replace(/[^a-zA-Z\s]/g, '');
+        }
+        setFormData(prev => ({ ...prev, [name]: finalVal }));
+        if (errors[name]) {
+            setErrors(prev => {
+                const clone = { ...prev };
+                delete clone[name];
+                return clone;
+            });
+        }
+    };
+
+    const handleBuilderChange = (e) => {
+        const { name, value } = e.target;
+        let finalVal = value;
+        if (name === 'establishedYear') {
+            finalVal = Math.max(0, parseInt(value) || '');
+        }
+        setBuilderData(prev => ({ ...prev, [name]: finalVal }));
+        if (errors[name]) {
+            setErrors(prev => {
+                const clone = { ...prev };
+                delete clone[name];
+                return clone;
+            });
         }
     };
 
     const handleSendOtp = async (e) => {
         e.preventDefault();
         console.log("Attempting to send OTP...", { formData, signupMethod });
-
-        // Validation
-        if (!formData.name.trim()) {
-            setError('Please enter your full name');
-            return;
-        }
-        if (signupMethod === 'phone' && formData.phone.length !== 10) {
-            setError('Please enter a valid 10-digit phone number');
-            return;
-        }
-        if (signupMethod === 'email' && !formData.email.includes('@')) {
-            setError('Please enter a valid email address');
-            return;
-        }
-
         setError('');
+        setErrors({});
+
+        const tempErrors = {};
+        const nameRegex = /^[a-zA-Z\s]+$/;
+
+        if (!formData.name.trim()) {
+            tempErrors.name = 'Full Name is required';
+        } else if (!nameRegex.test(formData.name)) {
+            tempErrors.name = 'Full Name must contain only alphabets';
+        } else if (formData.name.trim().length < 3) {
+            tempErrors.name = 'Full Name must be at least 3 characters';
+        }
+
+        const phoneRegex = /^[6-9]\d{9}$/;
+        if (signupMethod === 'phone') {
+            if (!formData.phone) {
+                tempErrors.phone = 'Phone Number is required';
+            } else if (!phoneRegex.test(formData.phone)) {
+                tempErrors.phone = 'Please enter a valid 10-digit Indian phone number starting with 6-9';
+            }
+        }
+
+        if (signupMethod === 'email') {
+            if (!formData.email) {
+                tempErrors.email = 'Email Address is required';
+            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+                tempErrors.email = 'Please enter a valid email address';
+            }
+        }
+
+        if (isBuilder) {
+            if (!builderData.companyName || builderData.companyName.trim().length < 2) {
+                tempErrors.companyName = 'Company Name is required';
+            }
+        }
+
+        if (Object.keys(tempErrors).length > 0) {
+            setErrors(tempErrors);
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -75,7 +134,7 @@ const UserSignupPage = () => {
 
             console.log("Calling authService.sendOtp with:", formData.phone);
             // Pass 'register' type to backend for signup flow
-            await authService.sendOtp(formData.phone, 'register', 'user');
+            await authService.sendOtp(formData.phone, 'register', isBuilder ? 'builder' : 'user');
             console.log("OTP sent successfully");
             setResendTimer(120); // Reset timer to 2 minutes
             setCanResend(false); // Disable resend button
@@ -109,12 +168,19 @@ const UserSignupPage = () => {
         setLoading(true);
 
         try {
-            await authService.verifyOtp({
+            const payload = {
                 phone: formData.phone,
                 otp: otpValue,
                 name: formData.name,
-                email: formData.email // Optional if collected
-            });
+                email: formData.email,
+                role: isBuilder ? 'builder' : 'user'
+            };
+            
+            if (isBuilder) {
+                Object.assign(payload, builderData);
+            }
+
+            await authService.verifyOtp(payload);
             navigate('/');
         } catch (err) {
             setError(err.message || 'Invalid OTP');
@@ -137,7 +203,7 @@ const UserSignupPage = () => {
 
         try {
             // Pass 'register' type to backend for signup flow
-            await authService.sendOtp(formData.phone, 'register', 'user');
+            await authService.sendOtp(formData.phone, 'register', isBuilder ? 'builder' : 'user');
             setResendTimer(120);
             setCanResend(false);
             setOtp(['', '', '', '', '', '']); // Clear OTP inputs
@@ -169,24 +235,35 @@ const UserSignupPage = () => {
                         <>
                             <h2 className="text-xl font-bold text-gray-900 mb-6">Sign Up</h2>
 
-                            <form onSubmit={handleSendOtp}>
+                            <form onSubmit={handleSendOtp} noValidate>
                                 {/* Full Name */}
                                 <div className="mb-6">
                                     <label className="block text-sm font-bold text-gray-700 mb-2">
                                         Full Name
                                     </label>
-                                    <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-amber-500 focus-within:border-amber-500 transition-all bg-white">
+                                    <div className={`flex items-center border ${errors.name ? 'border-red-500 focus-within:ring-red-200' : 'border-gray-200 focus-within:ring-2 focus-within:ring-amber-500 focus-within:border-amber-500'} rounded-xl px-4 py-3 transition-all bg-white`}>
                                         <User className="text-gray-400 mr-3" size={20} />
                                         <input
                                             type="text"
                                             name="name"
                                             value={formData.name}
-                                            onChange={handleChange}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                                                setFormData({ ...formData, name: val });
+                                                if (errors.name) {
+                                                    setErrors(prev => {
+                                                        const clone = { ...prev };
+                                                        delete clone.name;
+                                                        return clone;
+                                                    });
+                                                }
+                                            }}
                                             placeholder="John Doe"
                                             className="flex-1 outline-none text-gray-900 font-medium placeholder:text-gray-300"
                                             autoFocus
                                         />
                                     </div>
+                                    {errors.name && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.name}</p>}
                                 </div>
 
                                 {/* Tabs */}
@@ -212,35 +289,111 @@ const UserSignupPage = () => {
                                     <label className="block text-sm font-bold text-gray-700 mb-2">
                                         {signupMethod === 'phone' ? 'Phone Number' : 'Email Address'}
                                     </label>
-                                    <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-amber-500 focus-within:border-amber-500 transition-all bg-white">
+                                    <div className={`flex items-center border ${((signupMethod === 'phone' && errors.phone) || (signupMethod === 'email' && errors.email)) ? 'border-red-500 focus-within:ring-red-200' : 'border-gray-200 focus-within:ring-2 focus-within:ring-amber-500 focus-within:border-amber-500'} rounded-xl transition-all bg-white overflow-hidden`}>
                                         {signupMethod === 'phone' ? (
                                             <>
-                                                <Phone className="text-gray-400 mr-3" size={20} />
+                                                <div className="flex items-center gap-1 bg-gray-50 border-r border-gray-200 px-3 py-3 text-sm font-bold text-gray-500 select-none">
+                                                    <Phone size={16} className="text-gray-400" />
+                                                    <span>+91</span>
+                                                </div>
                                                 <input
                                                     type="tel"
                                                     name="phone"
                                                     value={formData.phone}
                                                     onChange={handleChange}
                                                     placeholder="9876543210"
-                                                    className="flex-1 outline-none text-gray-900 font-medium placeholder:text-gray-300"
+                                                    maxLength={10}
+                                                    className="flex-1 outline-none text-gray-900 font-medium placeholder:text-gray-300 px-3"
                                                 />
                                             </>
                                         ) : (
                                             <>
-                                                <Mail className="text-gray-400 mr-3" size={20} />
+                                                <div className="flex items-center px-3 py-3 border-r border-gray-200 bg-gray-50">
+                                                    <Mail className="text-gray-400" size={16} />
+                                                </div>
                                                 <input
                                                     type="email"
                                                     name="email"
                                                     value={formData.email}
                                                     onChange={handleChange}
                                                     placeholder="john@example.com"
-                                                    className="flex-1 outline-none text-gray-900 font-medium placeholder:text-gray-300"
+                                                    className="flex-1 outline-none text-gray-900 font-medium placeholder:text-gray-300 px-3"
                                                 />
                                             </>
                                         )}
                                     </div>
+                                    {signupMethod === 'phone' && errors.phone && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.phone}</p>}
+                                    {signupMethod === 'email' && errors.email && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.email}</p>}
                                     {error && <p className="text-red-500 text-xs mt-2 font-medium">{error}</p>}
                                 </div>
+
+                                {/* Builder Toggle */}
+                                <div className="mb-6 flex items-center">
+                                    <input 
+                                        type="checkbox" 
+                                        id="isBuilder"
+                                        checked={isBuilder}
+                                        onChange={(e) => setIsBuilder(e.target.checked)}
+                                        className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                                    />
+                                    <label htmlFor="isBuilder" className="ml-2 block text-sm text-gray-900 font-bold">
+                                        Register as a Builder
+                                    </label>
+                                </div>
+
+                                {/* Builder Fields */}
+                                {isBuilder && (
+                                    <div className="space-y-4 mb-6 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 mb-1">Company Name</label>
+                                            <input
+                                                type="text"
+                                                name="companyName"
+                                                value={builderData.companyName}
+                                                onChange={handleBuilderChange}
+                                                placeholder="e.g. Prestige Group"
+                                                className={`w-full border ${errors.companyName ? 'border-red-500 focus:ring-red-200' : 'border-gray-200 focus:ring-amber-500'} rounded-lg px-3 py-2 text-sm outline-none`}
+                                            />
+                                            {errors.companyName && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.companyName}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 mb-1">RERA Registration No.</label>
+                                            <input
+                                                type="text"
+                                                name="reraRegistrationNumber"
+                                                value={builderData.reraRegistrationNumber}
+                                                onChange={handleBuilderChange}
+                                                placeholder="PR/KN/..."
+                                                required
+                                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                                            />
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <div className="flex-1">
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">Established Year</label>
+                                                <input
+                                                    type="number"
+                                                    name="establishedYear"
+                                                    value={builderData.establishedYear}
+                                                    onChange={handleBuilderChange}
+                                                    placeholder="e.g. 1995"
+                                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 mb-1">Brief Description</label>
+                                            <textarea
+                                                name="description"
+                                                value={builderData.description}
+                                                onChange={handleBuilderChange}
+                                                placeholder="About your company..."
+                                                rows="2"
+                                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                                            ></textarea>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <button
                                     type="submit"

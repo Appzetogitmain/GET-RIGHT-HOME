@@ -19,6 +19,7 @@ const AdminBuilders = () => {
     const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentBuilderId, setCurrentBuilderId] = useState(null);
+    const [errors, setErrors] = useState({});
 
     const [formData, setFormData] = useState({
         name: '',
@@ -70,6 +71,7 @@ const AdminBuilders = () => {
                 completedProjects: builder.builderProfile?.completedProjects || 0,
                 brandLogo: builder.builderProfile?.brandLogo || ''
             });
+            setErrors({});
             setCurrentBuilderId(builder._id);
             setIsEditing(true);
             setIsAddEditModalOpen(true);
@@ -91,6 +93,17 @@ const AdminBuilders = () => {
                         toast.error('Failed to delete builder');
                     }
                 }
+            });
+        }
+    };
+
+    const handleInputChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        if (errors[field]) {
+            setErrors(prev => {
+                const clone = { ...prev };
+                delete clone[field];
+                return clone;
             });
         }
     };
@@ -131,12 +144,58 @@ const AdminBuilders = () => {
     const handleSaveBuilder = async (e) => {
         e.preventDefault();
         
+        const tempErrors = {};
+        
+        // Name validation
+        const nameRegex = /^[a-zA-Z\s]+$/;
+        if (!formData.name) {
+            tempErrors.name = 'Full Name is required';
+        } else if (!nameRegex.test(formData.name)) {
+            tempErrors.name = 'Name must contain only alphabets';
+        } else if (formData.name.trim().length < 3) {
+            tempErrors.name = 'Name must be at least 3 characters';
+        }
+
         // Phone validation
         const phoneRegex = /^[6-9]\d{9}$/;
-        if (!phoneRegex.test(formData.phone)) {
-            toast.error('Please enter a valid 10-digit Indian mobile number');
+        if (!formData.phone) {
+            tempErrors.phone = 'Phone Number is required';
+        } else if (!phoneRegex.test(formData.phone)) {
+            tempErrors.phone = 'Please enter a valid 10-digit Indian phone number starting with 6-9';
+        }
+
+        // Email validation
+        if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            tempErrors.email = 'Please enter a valid email address';
+        }
+
+        // Company Name validation
+        if (!formData.companyName || !formData.companyName.trim()) {
+            tempErrors.companyName = 'Company Name is required';
+        }
+
+        // Established Year
+        if (formData.establishedYear) {
+            const year = parseInt(formData.establishedYear);
+            const currentYear = new Date().getFullYear();
+            if (year < 1800 || year > currentYear) {
+                tempErrors.establishedYear = `Established year must be between 1800 and ${currentYear}`;
+            }
+        }
+
+        // Projects
+        if (formData.activeProjects < 0) {
+            tempErrors.activeProjects = 'Active projects must be a positive number';
+        }
+        if (formData.completedProjects < 0) {
+            tempErrors.completedProjects = 'Completed projects must be a positive number';
+        }
+
+        if (Object.keys(tempErrors).length > 0) {
+            setErrors(tempErrors);
             return;
         }
+        setErrors({});
 
         try {
             const payload = {
@@ -183,6 +242,7 @@ const AdminBuilders = () => {
             completedProjects: 0,
             brandLogo: ''
         });
+        setErrors({});
         setIsEditing(false);
         setCurrentBuilderId(null);
         setIsAddEditModalOpen(true);
@@ -342,9 +402,9 @@ const AdminBuilders = () => {
                             initial={{ scale: 0.95, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl my-8"
+                            className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl my-8 flex flex-col max-h-[85vh]"
                         >
-                            <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-md z-10">
+                            <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
                                 <div>
                                     <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">{isEditing ? 'Edit Builder' : 'Add New Builder'}</h3>
                                     <p className="text-xs text-gray-500 font-bold tracking-tight">Fill in the details below to save the builder profile.</p>
@@ -354,87 +414,101 @@ const AdminBuilders = () => {
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSaveBuilder} className="p-6 space-y-6">
-                                {/* Basic Info */}
-                                <div>
-                                    <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4 border-b pb-2">Representative Contact</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Full Name</label>
-                                            <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium" placeholder="John Doe" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Phone Number</label>
-                                            <input type="tel" required value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium" placeholder="+91 9876543210" />
-                                        </div>
-                                        <div className="space-y-1 md:col-span-2">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Email Address</label>
-                                            <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium" placeholder="contact@builder.com" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Builder Profile */}
-                                <div>
-                                    <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4 border-b pb-2">Company Profile</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-1 md:col-span-2">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Company Name</label>
-                                            <input type="text" required value={formData.companyName} onChange={e => setFormData({ ...formData, companyName: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium" placeholder="XYZ Developers Ltd." />
-                                        </div>
-                                        
-                                        <div className="space-y-1 md:col-span-2">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Brand Logo (Max 2MB)</label>
-                                            <div className="flex items-center gap-4">
-                                                {formData.brandLogo && (
-                                                    <div className="w-16 h-16 rounded-xl border border-gray-200 p-1 shrink-0 overflow-hidden bg-gray-50">
-                                                        <img src={formData.brandLogo} alt="Logo preview" className="w-full h-full object-contain" />
-                                                    </div>
-                                                )}
-                                                <label className="flex-1 flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors relative">
-                                                    {uploadingLogo ? (
-                                                        <span className="text-xs font-bold text-gray-500">Uploading...</span>
-                                                    ) : (
-                                                        <>
-                                                            <UploadCloud size={20} className="text-gray-400 mb-1" />
-                                                            <span className="text-[10px] font-bold text-gray-600 uppercase">Click to upload logo</span>
-                                                        </>
-                                                    )}
-                                                    <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={uploadingLogo} />
-                                                </label>
+                            <form onSubmit={handleSaveBuilder} className="flex flex-col flex-1 overflow-hidden">
+                                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                                    {/* Basic Info */}
+                                    <div>
+                                        <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4 border-b pb-2">Representative Contact</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Full Name</label>
+                                                <input type="text" required value={formData.name} onChange={e => handleInputChange('name', e.target.value.replace(/[^a-zA-Z\s]/g, ''))} className={`w-full px-4 py-3 bg-gray-50 border ${errors.name ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-xl text-sm outline-none font-medium`} placeholder="John Doe" />
+                                                {errors.name && <p className="text-red-500 text-[11px] font-bold ml-1">{errors.name}</p>}
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Phone Number</label>
+                                                <div className="flex">
+                                                    <span className={`flex items-center bg-gray-100 border ${errors.phone ? 'border-red-500' : 'border-gray-200'} border-r-0 rounded-l-xl px-3 text-sm font-bold text-gray-500 select-none`}>
+                                                        +91
+                                                    </span>
+                                                    <input type="tel" required value={formData.phone} onChange={e => handleInputChange('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} className={`w-full px-4 py-3 bg-gray-50 border ${errors.phone ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-r-xl text-sm outline-none font-medium`} placeholder="9876543210" />
+                                                </div>
+                                                {errors.phone && <p className="text-red-500 text-[11px] font-bold ml-1">{errors.phone}</p>}
+                                            </div>
+                                            <div className="space-y-1 md:col-span-2">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Email Address</label>
+                                                <input type="email" value={formData.email} onChange={e => handleInputChange('email', e.target.value)} className={`w-full px-4 py-3 bg-gray-50 border ${errors.email ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-xl text-sm outline-none font-medium`} placeholder="contact@builder.com" />
+                                                {errors.email && <p className="text-red-500 text-[11px] font-bold ml-1">{errors.email}</p>}
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">RERA Number</label>
-                                            <input type="text" value={formData.reraRegistrationNumber} onChange={e => setFormData({ ...formData, reraRegistrationNumber: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium uppercase" placeholder="PR/GJ/..." />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">GST Number</label>
-                                            <input type="text" value={formData.gstNumber} onChange={e => setFormData({ ...formData, gstNumber: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium uppercase" placeholder="22AAAAA0000A1Z5" />
-                                        </div>
+                                    {/* Builder Profile */}
+                                    <div>
+                                        <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4 border-b pb-2">Company Profile</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-1 md:col-span-2">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Company Name</label>
+                                                <input type="text" required value={formData.companyName} onChange={e => handleInputChange('companyName', e.target.value)} className={`w-full px-4 py-3 bg-gray-50 border ${errors.companyName ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-xl text-sm outline-none font-medium`} placeholder="XYZ Developers Ltd." />
+                                                {errors.companyName && <p className="text-red-500 text-[11px] font-bold ml-1">{errors.companyName}</p>}
+                                            </div>
+                                            
+                                            <div className="space-y-1 md:col-span-2">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Brand Logo (Max 2MB)</label>
+                                                <div className="flex items-center gap-4">
+                                                    {formData.brandLogo && (
+                                                        <div className="w-16 h-16 rounded-xl border border-gray-200 p-1 shrink-0 overflow-hidden bg-gray-50">
+                                                            <img src={formData.brandLogo} alt="Logo preview" className="w-full h-full object-contain" />
+                                                        </div>
+                                                    )}
+                                                    <label className="flex-1 flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors relative">
+                                                        {uploadingLogo ? (
+                                                            <span className="text-xs font-bold text-gray-500">Uploading...</span>
+                                                        ) : (
+                                                            <>
+                                                                <UploadCloud size={20} className="text-gray-400 mb-1" />
+                                                                <span className="text-[10px] font-bold text-gray-600 uppercase">Click to upload logo</span>
+                                                            </>
+                                                        )}
+                                                        <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                                                    </label>
+                                                </div>
+                                            </div>
 
-                                        <div className="space-y-1 md:col-span-2">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">About Company</label>
-                                            <textarea rows="3" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium resize-none" placeholder="Brief description about the builder's history and reputation..." />
-                                        </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">RERA Number</label>
+                                                <input type="text" value={formData.reraRegistrationNumber} onChange={e => handleInputChange('reraRegistrationNumber', e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium uppercase" placeholder="PR/GJ/..." />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">GST Number</label>
+                                                <input type="text" value={formData.gstNumber} onChange={e => handleInputChange('gstNumber', e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium uppercase" placeholder="22AAAAA0000A1Z5" />
+                                            </div>
 
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Established Year</label>
-                                            <input type="number" min="1800" max={new Date().getFullYear()} value={formData.establishedYear} onChange={e => setFormData({ ...formData, establishedYear: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium" placeholder="1995" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Active Projects</label>
-                                            <input type="number" min="0" value={formData.activeProjects} onChange={e => setFormData({ ...formData, activeProjects: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Completed Projects</label>
-                                            <input type="number" min="0" value={formData.completedProjects} onChange={e => setFormData({ ...formData, completedProjects: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium" />
+                                            <div className="space-y-1 md:col-span-2">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">About Company</label>
+                                                <textarea rows="3" value={formData.description} onChange={e => handleInputChange('description', e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium resize-none" placeholder="Brief description about the builder's history and reputation..." />
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Established Year</label>
+                                                <input type="number" min="1800" max={new Date().getFullYear()} value={formData.establishedYear} onChange={e => handleInputChange('establishedYear', Math.max(0, parseInt(e.target.value) || ''))} className={`w-full px-4 py-3 bg-gray-50 border ${errors.establishedYear ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-xl text-sm outline-none font-medium`} placeholder="1995" />
+                                                {errors.establishedYear && <p className="text-red-500 text-[11px] font-bold ml-1">{errors.establishedYear}</p>}
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Active Projects</label>
+                                                <input type="number" min="0" value={formData.activeProjects} onChange={e => handleInputChange('activeProjects', Math.max(0, parseInt(e.target.value) || 0))} className={`w-full px-4 py-3 bg-gray-50 border ${errors.activeProjects ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-xl text-sm outline-none font-medium`} />
+                                                {errors.activeProjects && <p className="text-red-500 text-[11px] font-bold ml-1">{errors.activeProjects}</p>}
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Completed Projects</label>
+                                                <input type="number" min="0" value={formData.completedProjects} onChange={e => handleInputChange('completedProjects', Math.max(0, parseInt(e.target.value) || 0))} className={`w-full px-4 py-3 bg-gray-50 border ${errors.completedProjects ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-xl text-sm outline-none font-medium`} />
+                                                {errors.completedProjects && <p className="text-red-500 text-[11px] font-bold ml-1">{errors.completedProjects}</p>}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="pt-4 border-t border-gray-100 flex justify-end gap-3 sticky bottom-0 bg-white py-4 z-10">
+                                <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 shrink-0">
                                     <button type="button" onClick={() => setIsAddEditModalOpen(false)} className="px-6 py-3 rounded-xl font-bold text-gray-600 hover:bg-gray-100 transition-colors uppercase text-xs">
                                         Cancel
                                     </button>

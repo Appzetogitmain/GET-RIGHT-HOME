@@ -8,6 +8,9 @@ import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
 import { bookingService } from '../../services/apiService';
 
+const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='12' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>";
+
+
 const BookingConfirmationPage = () => {
     const { id } = useParams();
     const location = useLocation();
@@ -158,7 +161,7 @@ const BookingConfirmationPage = () => {
                             <div className="flex flex-col sm:flex-row gap-5">
                                 <div className="w-full sm:w-32 h-32 bg-gray-200 rounded-2xl overflow-hidden shrink-0">
                                     <img
-                                        src={!imgError ? (property.propertyImages?.[0] || property.images?.[0]?.url || property.images?.[0] || property.coverImage || property.propertyId?.coverImage || "https://via.placeholder.com/150") : "https://via.placeholder.com/150"}
+                                        src={!imgError ? (property.propertyImages?.[0] || property.images?.[0]?.url || property.images?.[0] || property.coverImage || property.propertyId?.coverImage || NO_IMAGE_PLACEHOLDER) : NO_IMAGE_PLACEHOLDER}
                                         alt={property.propertyName || property.name || "Property"}
                                         className="w-full h-full object-cover"
                                         onError={() => setImgError(true)}

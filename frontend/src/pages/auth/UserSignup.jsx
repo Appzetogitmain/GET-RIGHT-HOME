@@ -22,6 +22,7 @@ const UserSignup = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [errors, setErrors] = useState({});
     const [resendTimer, setResendTimer] = useState(120);
     const [canResend, setCanResend] = useState(false);
 
@@ -48,19 +49,40 @@ const UserSignup = () => {
     const handleSendOTP = async (e) => {
         e.preventDefault();
         setError('');
+        setErrors({});
 
-        if (!formData.name || formData.name.length < 3) {
-            setError('Please enter your full name');
-            return;
+        const tempErrors = {};
+        const nameRegex = /^[a-zA-Z\s]+$/;
+
+        if (!formData.name) {
+            tempErrors.name = 'Full Name is required';
+        } else if (!nameRegex.test(formData.name)) {
+            tempErrors.name = 'Full Name must contain only alphabets';
+        } else if (formData.name.trim().length < 3) {
+            tempErrors.name = 'Full Name must be at least 3 characters';
         }
 
-        if (formData.phone.length !== 10) {
-            setError('Please enter a valid 10-digit phone number');
-            return;
+        const phoneRegex = /^[6-9]\d{9}$/;
+        if (!formData.phone) {
+            tempErrors.phone = 'Phone Number is required';
+        } else if (!phoneRegex.test(formData.phone)) {
+            tempErrors.phone = 'Please enter a valid 10-digit Indian phone number starting with 6-9';
         }
 
-        if (formData.role === 'builder' && (!formData.companyName || formData.companyName.trim().length < 2)) {
-            setError('Please enter your Company Name');
+        if (formData.email) {
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+                tempErrors.email = 'Please enter a valid email address';
+            }
+        }
+
+        if (formData.role === 'builder') {
+            if (!formData.companyName || formData.companyName.trim().length < 2) {
+                tempErrors.companyName = 'Company Name is required';
+            }
+        }
+
+        if (Object.keys(tempErrors).length > 0) {
+            setErrors(tempErrors);
             return;
         }
 
@@ -196,7 +218,7 @@ const UserSignup = () => {
                             >
                                 <h2 className="text-xl font-bold text-gray-900 mb-6">Sign Up</h2>
 
-                                <form onSubmit={handleSendOTP} className="space-y-5">
+                                <form onSubmit={handleSendOTP} noValidate className="space-y-5">
                                     {/* User Type Selection */}
                                     <div className="mb-6">
                                         <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
@@ -229,12 +251,21 @@ const UserSignup = () => {
                                             <input
                                                 type="text"
                                                 value={formData.name}
-                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, name: e.target.value.replace(/[^a-zA-Z\s]/g, '') });
+                                                    if (errors.name) {
+                                                        setErrors(prev => {
+                                                            const clone = { ...prev };
+                                                            delete clone.name;
+                                                            return clone;
+                                                        });
+                                                    }
+                                                }}
                                                 placeholder="John Doe"
-                                                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
-                                                required
+                                                className={`w-full pl-12 pr-4 py-3 border ${errors.name ? 'border-red-500 focus:ring-red-200' : 'border-gray-200 focus:ring-amber-500'} rounded-xl focus:ring-2 focus:border-transparent outline-none transition-all`}
                                             />
                                         </div>
+                                        {errors.name && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.name}</p>}
                                     </div>
 
                                     {/* Phone */}
@@ -242,18 +273,30 @@ const UserSignup = () => {
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Phone Number <span className="text-red-500">*</span>
                                         </label>
-                                        <div className="relative">
-                                            <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                        <div className="relative flex">
+                                            <div className={`flex items-center gap-1 bg-gray-50 border ${errors.phone ? 'border-red-500' : 'border-gray-200'} border-r-0 rounded-l-xl px-3 text-sm font-bold text-gray-500 select-none`}>
+                                                <Phone size={16} className="text-gray-400" />
+                                                <span>+91</span>
+                                            </div>
                                             <input
                                                 type="tel"
                                                 value={formData.phone}
-                                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') });
+                                                    if (errors.phone) {
+                                                        setErrors(prev => {
+                                                            const clone = { ...prev };
+                                                            delete clone.phone;
+                                                            return clone;
+                                                        });
+                                                    }
+                                                }}
                                                 placeholder="9876543210"
                                                 maxLength={10}
-                                                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
-                                                required
+                                                className={`w-full px-4 py-3 border ${errors.phone ? 'border-red-500 focus:ring-red-200' : 'border-gray-200 focus:ring-amber-500'} rounded-r-xl focus:ring-2 focus:border-transparent outline-none transition-all font-medium`}
                                             />
                                         </div>
+                                        {errors.phone && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.phone}</p>}
                                     </div>
 
                                     {/* Email (Optional) */}
@@ -266,11 +309,21 @@ const UserSignup = () => {
                                             <input
                                                 type="email"
                                                 value={formData.email}
-                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, email: e.target.value });
+                                                    if (errors.email) {
+                                                        setErrors(prev => {
+                                                            const clone = { ...prev };
+                                                            delete clone.email;
+                                                            return clone;
+                                                        });
+                                                    }
+                                                }}
                                                 placeholder="you@example.com"
-                                                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
+                                                className={`w-full pl-12 pr-4 py-3 border ${errors.email ? 'border-red-500 focus:ring-red-200' : 'border-gray-200 focus:ring-amber-500'} rounded-xl focus:ring-2 focus:border-transparent outline-none transition-all`}
                                             />
                                         </div>
+                                        {errors.email && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.email}</p>}
                                     </div>
 
                                     {/* Builder Specific Fields */}
@@ -290,10 +343,20 @@ const UserSignup = () => {
                                                 <input
                                                     type="text"
                                                     value={formData.companyName || ''}
-                                                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                                                    onChange={(e) => {
+                                                        setFormData({ ...formData, companyName: e.target.value });
+                                                        if (errors.companyName) {
+                                                            setErrors(prev => {
+                                                                const clone = { ...prev };
+                                                                delete clone.companyName;
+                                                                return clone;
+                                                            });
+                                                        }
+                                                    }}
                                                     placeholder="e.g. Prestige Estates"
-                                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
+                                                    className={`w-full px-4 py-3 border ${errors.companyName ? 'border-red-500 focus:ring-red-200' : 'border-gray-200 focus:ring-amber-500'} rounded-xl focus:ring-2 focus:border-transparent outline-none transition-all`}
                                                 />
+                                                {errors.companyName && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.companyName}</p>}
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-4">

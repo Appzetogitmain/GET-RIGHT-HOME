@@ -130,6 +130,7 @@ import managerRoutes from './routes/managerRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
+import { getPublicBuilderDetails, getPublicBuilders } from './controllers/builderController.js';
 
 
 
@@ -164,6 +165,8 @@ app.get('/api/public/categories', getPublicCategories);
 app.get('/api/public/sub-categories', getPublicSubCategories);
 app.get('/api/public/services', getPublicServices);
 app.get('/api/public/cities', getActiveCities);
+app.get('/api/public/builders', getPublicBuilders);
+app.get('/api/public/builders/:id', getPublicBuilderDetails);
 // Plans public endpoint (returns empty list if no plans configured)
 app.get('/api/public/plans', (req, res) => {
   res.json({ success: true, data: [] });

@@ -303,7 +303,10 @@ export const verifyOtp = async (req, res) => {
         newUserObj.builderProfile = {
           companyName: req.body.companyName || '',
           reraRegistrationNumber: req.body.reraRegistrationNumber || '',
-          gstNumber: req.body.gstNumber || ''
+          gstNumber: req.body.gstNumber || '',
+          description: req.body.description || '',
+          establishedYear: req.body.establishedYear || null,
+          awards: req.body.awards || []
         };
       }
 
@@ -369,7 +372,8 @@ export const verifyOtp = async (req, res) => {
         partnerApprovalStatus: user.partnerApprovalStatus,
         profileImage: user.profileImage,
         isVip: user.isVip || false,
-        vipExpiry: user.vipExpiry || null
+        vipExpiry: user.vipExpiry || null,
+        builderProfile: user.builderProfile
       }
     });
 
@@ -555,7 +559,8 @@ export const getMe = async (req, res) => {
         partnerSince: user.partnerSince,
         createdAt: user.createdAt,
         isVip: user.isVip || false,
-        vipExpiry: user.vipExpiry || null
+        vipExpiry: user.vipExpiry || null,
+        builderProfile: user.builderProfile
       }
     });
   } catch (error) {
@@ -633,6 +638,13 @@ export const updateProfile = async (req, res) => {
     if (req.body.isVip !== undefined) user.isVip = req.body.isVip;
     if (req.body.vipExpiry !== undefined) user.vipExpiry = req.body.vipExpiry;
 
+    if (req.body.builderProfile && user.role === 'builder') {
+      user.builderProfile = {
+        ...(user.builderProfile ? user.builderProfile.toObject() : {}),
+        ...req.body.builderProfile
+      };
+    }
+
     await user.save();
 
     res.status(200).json({
@@ -650,7 +662,8 @@ export const updateProfile = async (req, res) => {
         partnerSince: user.partnerSince,
         createdAt: user.createdAt,
         isVip: user.isVip || false,
-        vipExpiry: user.vipExpiry || null
+        vipExpiry: user.vipExpiry || null,
+        builderProfile: user.builderProfile
       }
     });
 

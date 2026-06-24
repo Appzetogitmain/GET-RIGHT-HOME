@@ -40,6 +40,7 @@ const AdminManagers = () => {
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [panelMode, setPanelMode] = useState('add'); // 'add' | 'edit' | 'permissions'
     const [selectedManager, setSelectedManager] = useState(null);
+    const [errors, setErrors] = useState({});
 
     // Form states
     const [formData, setFormData] = useState({
@@ -136,6 +137,7 @@ const AdminManagers = () => {
             isActive: true,
             permissions: []
         });
+        setErrors({});
         setPanelMode('add');
         setIsPanelOpen(true);
     };
@@ -151,6 +153,7 @@ const AdminManagers = () => {
             isActive: manager.isActive,
             permissions: manager.permissions || []
         });
+        setErrors({});
         setPanelMode('edit');
         setIsPanelOpen(true);
     };
@@ -166,6 +169,7 @@ const AdminManagers = () => {
             isActive: manager.isActive,
             permissions: manager.permissions || []
         });
+        setErrors({});
         setPanelMode('permissions');
         setIsPanelOpen(true);
     };
@@ -235,6 +239,53 @@ const AdminManagers = () => {
 
     const handleFormSubmit = async (e) => {
         e.preventDefault();
+        
+        if (panelMode === 'add' || panelMode === 'edit') {
+            const tempErrors = {};
+            const nameRegex = /^[a-zA-Z\s]+$/;
+
+            if (!formData.name) {
+                tempErrors.name = 'Full Name is required';
+            } else if (!nameRegex.test(formData.name)) {
+                tempErrors.name = 'Full Name must contain only alphabets';
+            } else if (formData.name.trim().length < 3) {
+                tempErrors.name = 'Full Name must be at least 3 characters';
+            }
+
+            if (!formData.email) {
+                tempErrors.email = 'Email Address is required';
+            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+                tempErrors.email = 'Please enter a valid email address';
+            }
+
+            if (!formData.phone) {
+                tempErrors.phone = 'Phone Number is required';
+            } else {
+                const phoneRegex = /^[6-9]\d{9}$/;
+                if (!phoneRegex.test(formData.phone)) {
+                    tempErrors.phone = 'Please enter a valid 10-digit Indian phone number starting with 6-9';
+                }
+            }
+
+            if (panelMode === 'add') {
+                if (!formData.password) {
+                    tempErrors.password = 'Password is required';
+                } else if (formData.password.length < 6) {
+                    tempErrors.password = 'Password must be at least 6 characters';
+                }
+            } else if (panelMode === 'edit' && formData.password) {
+                if (formData.password.length < 6) {
+                    tempErrors.password = 'Password must be at least 6 characters';
+                }
+            }
+
+            if (Object.keys(tempErrors).length > 0) {
+                setErrors(tempErrors);
+                return;
+            }
+            setErrors({});
+        }
+
         try {
             if (panelMode === 'add') {
                 const res = await adminService.createManager(formData);
@@ -594,7 +645,7 @@ const AdminManagers = () => {
                             </div>
 
                             {/* Panel Scrollable Content */}
-                            <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+                            <form onSubmit={handleFormSubmit} noValidate className="flex-1 overflow-y-auto p-6 space-y-6">
                                 {panelMode !== 'permissions' && (
                                     <div className="space-y-4">
                                         <h4 className="text-xs font-bold uppercase text-gray-800 tracking-wider flex items-center gap-1.5 border-b border-gray-100 pb-2">
@@ -605,11 +656,20 @@ const AdminManagers = () => {
                                                 <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Full Name *</label>
                                                 <input
                                                     type="text"
-                                                    required
                                                     value={formData.name}
-                                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold uppercase focus:border-black outline-none transition-colors"
+                                                    onChange={(e) => {
+                                                        setFormData({ ...formData, name: e.target.value.replace(/[^a-zA-Z\s]/g, '') });
+                                                        if (errors.name) {
+                                                            setErrors(prev => {
+                                                                const clone = { ...prev };
+                                                                delete clone.name;
+                                                                return clone;
+                                                            });
+                                                        }
+                                                    }}
+                                                    className={`w-full px-4 py-2 border ${errors.name ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-xl text-xs font-bold uppercase outline-none transition-colors`}
                                                 />
+                                                {errors.name && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase tracking-tight">{errors.name}</p>}
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Branch City (Scoping)</label>
@@ -625,20 +685,45 @@ const AdminManagers = () => {
                                                 <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Email Address *</label>
                                                 <input
                                                     type="email"
-                                                    required
                                                     value={formData.email}
-                                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
+                                                    onChange={(e) => {
+                                                        setFormData({ ...formData, email: e.target.value.toLowerCase() });
+                                                        if (errors.email) {
+                                                            setErrors(prev => {
+                                                                const clone = { ...prev };
+                                                                delete clone.email;
+                                                                return clone;
+                                                            });
+                                                        }
+                                                    }}
+                                                    className={`w-full px-4 py-2 border ${errors.email ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-xl text-xs font-bold outline-none transition-colors`}
                                                 />
+                                                {errors.email && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase tracking-tight">{errors.email}</p>}
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Phone Number</label>
-                                                <input
-                                                    type="tel"
-                                                    value={formData.phone}
-                                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold uppercase focus:border-black outline-none transition-colors"
-                                                />
+                                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Phone Number *</label>
+                                                <div className="flex">
+                                                    <span className={`flex items-center bg-gray-100 border ${errors.phone ? 'border-red-500' : 'border-gray-200'} border-r-0 rounded-l-xl px-3 text-xs font-bold text-gray-500 select-none`}>
+                                                        +91
+                                                    </span>
+                                                    <input
+                                                        type="tel"
+                                                        value={formData.phone}
+                                                        onChange={(e) => {
+                                                            setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) });
+                                                            if (errors.phone) {
+                                                                setErrors(prev => {
+                                                                    const clone = { ...prev };
+                                                                    delete clone.phone;
+                                                                    return clone;
+                                                                });
+                                                            }
+                                                        }}
+                                                        className={`w-full px-4 py-2 border ${errors.phone ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-r-xl text-xs font-bold uppercase outline-none transition-colors`}
+                                                        placeholder="9876543210"
+                                                    />
+                                                </div>
+                                                {errors.phone && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase tracking-tight">{errors.phone}</p>}
                                             </div>
                                             <div className="md:col-span-2">
                                                 <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">
@@ -646,16 +731,25 @@ const AdminManagers = () => {
                                                 </label>
                                                 <input
                                                     type="password"
-                                                    required={panelMode === 'add'}
                                                     placeholder={panelMode === 'add' ? 'Password' : '••••••••'}
                                                     value={formData.password}
-                                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
-                                                />
+                                                    onChange={(e) => {
+                                                        setFormData({ ...formData, password: e.target.value });
+                                                        if (errors.password) {
+                                                            setErrors(prev => {
+                                                                const clone = { ...prev };
+                                                                delete clone.password;
+                                                                return clone;
+                                                                });
+                                                            }
+                                                        }}
+                                                        className={`w-full px-4 py-2 border ${errors.password ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-black'} rounded-xl text-xs font-bold outline-none transition-colors`}
+                                                    />
+                                                    {errors.password && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase tracking-tight">{errors.password}</p>}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
                                 {(panelMode === 'permissions' || panelMode === 'add' || panelMode === 'edit') && (
                                     <div className="space-y-4">

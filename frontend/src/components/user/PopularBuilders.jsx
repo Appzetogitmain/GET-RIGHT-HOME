@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Award, Briefcase, Calendar, Star, Phone, Globe, MapPin } from 'lucide-react';
+import api from '../../services/apiService';
 
 const BUILDERS_DATA = [
     {
@@ -165,15 +167,38 @@ const BUILDERS_DATA = [
     }
 ];
 
+
 const PopularBuilders = () => {
-    const [selectedBuilder, setSelectedBuilder] = useState(null);
+    const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
     const autoScrollTimer = useRef(null);
     const [isHovered, setIsHovered] = useState(false);
+    const [builders, setBuilders] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch popular builders dynamically from API
+    useEffect(() => {
+        const fetchBuilders = async () => {
+            try {
+                const res = await api.get('/public/builders');
+                if (res.data.success && res.data.builders && res.data.builders.length > 0) {
+                    setBuilders(res.data.builders);
+                } else {
+                    setBuilders(BUILDERS_DATA);
+                }
+            } catch (err) {
+                console.error("Error fetching popular builders:", err);
+                setBuilders(BUILDERS_DATA);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchBuilders();
+    }, []);
 
     // Auto-scroll loop
     useEffect(() => {
-        if (isHovered) {
+        if (isHovered || loading || builders.length === 0) {
             if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
             return;
         }
@@ -195,7 +220,28 @@ const PopularBuilders = () => {
         return () => {
             if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
         };
-    }, [isHovered]);
+    }, [isHovered, loading, builders]);
+
+    if (loading) {
+        return (
+            <div className="py-10 bg-white">
+                <div className="max-w-7xl mx-auto px-4">
+                    <div className="animate-pulse space-y-4">
+                        <div className="h-6 w-48 bg-gray-200 rounded"></div>
+                        <div className="flex gap-6 overflow-x-auto py-2">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                                <div key={i} className="flex-shrink-0 w-[160px] flex flex-col items-center">
+                                    <div className="w-28 h-28 rounded-full bg-gray-200 mb-4"></div>
+                                    <div className="h-4 w-24 bg-gray-200 rounded mb-2"></div>
+                                    <div className="h-3 w-16 bg-gray-200 rounded"></div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <section 
@@ -224,23 +270,37 @@ const PopularBuilders = () => {
                     className="flex gap-6 overflow-x-auto scrollbar-hide py-2 px-1 scroll-smooth snap-x"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
-                    {BUILDERS_DATA.map((builder) => (
+                    {builders.map((builder) => (
                         <div
-                            key={builder.id}
-                            onClick={() => setSelectedBuilder(builder)}
+                            key={builder._id || builder.id}
+                            onClick={() => navigate(`/builder/${builder._id || builder.id}`)}
                             className="flex-shrink-0 w-[160px] flex flex-col items-center text-center cursor-pointer group snap-center"
                         >
                             {/* Circular Logo Card */}
                             <div className="relative w-28 h-28 rounded-full border border-gray-100 bg-white shadow-sm flex items-center justify-center p-3 transition-all duration-300 group-hover:scale-105 group-hover:shadow-md group-hover:border-indigo-100 mb-4 overflow-hidden">
-                                <div 
-                                    className={`w-full h-full rounded-full flex items-center justify-center text-[13px] text-center select-none shadow-inner border border-black/5 ${builder.logoFont}`}
-                                    style={{ 
-                                        background: builder.logoBg,
-                                        color: builder.logoColor
-                                    }}
-                                >
-                                    {builder.logoText}
-                                </div>
+                                {builder.profile?.brandLogo ? (
+                                    <img 
+                                        src={builder.profile.brandLogo} 
+                                        alt={builder.name} 
+                                        className="w-full h-full rounded-full object-cover" 
+                                    />
+                                ) : builder.brandLogo ? (
+                                    <img 
+                                        src={builder.brandLogo} 
+                                        alt={builder.name} 
+                                        className="w-full h-full rounded-full object-cover" 
+                                    />
+                                ) : (
+                                    <div 
+                                        className={`w-full h-full rounded-full flex items-center justify-center text-[13px] text-center select-none shadow-inner border border-black/5 ${builder.logoFont || 'font-sans font-black uppercase tracking-wider'}`}
+                                        style={{ 
+                                            background: builder.logoBg || 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                                            color: builder.logoColor || '#ffffff'
+                                        }}
+                                    >
+                                        {builder.logoText || builder.name?.slice(0, 2)}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Details */}
@@ -248,148 +308,19 @@ const PopularBuilders = () => {
                                 {builder.name}
                             </h3>
                             <p className="text-[11px] text-gray-400 font-bold leading-tight">
-                                {builder.totalProjects} Total Projects
+                                {builder.stats?.totalProjects !== undefined ? builder.stats.totalProjects : builder.totalProjects} Total Projects
                             </p>
                             <p className="text-[10px] text-indigo-500 font-black mt-0.5 uppercase tracking-wide">
-                                {builder.cityProjects} in this city
+                                {builder.stats?.cities !== undefined 
+                                    ? `${builder.stats.cities} Cities` 
+                                    : `${builder.cityProjects} in this city`
+                                }
                             </p>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* Popup Modal */}
-            <AnimatePresence>
-                {selectedBuilder && (
-                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        {/* Backdrop overlay clickable to close */}
-                        <div className="absolute inset-0" onClick={() => setSelectedBuilder(null)} />
-                        
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            transition={{ duration: 0.25, ease: 'easeOut' }}
-                            className="relative w-full max-w-lg bg-white rounded-3xl overflow-hidden shadow-2xl z-10 flex flex-col"
-                        >
-                            {/* Top Hero Banner */}
-                            <div className="h-28 bg-gradient-to-r from-indigo-600 to-indigo-900 p-6 flex items-end relative shrink-0">
-                                <button
-                                    onClick={() => setSelectedBuilder(null)}
-                                    className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-                                >
-                                    <X size={18} />
-                                </button>
-                                
-                                <div className="absolute -bottom-10 left-6">
-                                    <div className="w-20 h-20 rounded-2xl border-4 border-white bg-white shadow-md flex items-center justify-center p-2 overflow-hidden">
-                                        <div 
-                                            className={`w-full h-full rounded-xl flex items-center justify-center text-[10px] text-center select-none ${selectedBuilder.logoFont}`}
-                                            style={{ 
-                                                background: selectedBuilder.logoBg,
-                                                color: selectedBuilder.logoColor
-                                            }}
-                                        >
-                                            {selectedBuilder.logoText}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Modal Content */}
-                            <div className="pt-14 p-6 overflow-y-auto max-h-[70vh] space-y-5">
-                                {/* Title and Stats */}
-                                <div>
-                                    <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                                        {selectedBuilder.name}
-                                        <span className="flex items-center gap-0.5 px-2 py-0.5 bg-amber-50 border border-amber-100 rounded-full text-[10px] font-black text-amber-700">
-                                            <Star size={10} className="fill-amber-400 text-amber-400" />
-                                            {selectedBuilder.rating}
-                                        </span>
-                                    </h3>
-                                    <div className="flex items-center gap-1 text-[11px] text-gray-400 font-bold mt-1">
-                                        <MapPin size={11} className="text-indigo-500" />
-                                        <span>HQ: {selectedBuilder.headquarters}</span>
-                                    </div>
-                                </div>
-
-                                {/* Main Description */}
-                                <p className="text-xs text-gray-500 leading-relaxed font-medium">
-                                    {selectedBuilder.description}
-                                </p>
-
-                                {/* Key Metrics Grid */}
-                                <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                    <div className="text-center">
-                                        <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-1.5">
-                                            <Briefcase size={14} />
-                                        </div>
-                                        <p className="text-[16px] font-black text-indigo-950 leading-tight">
-                                            {selectedBuilder.totalProjects}
-                                        </p>
-                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                            Total Projects
-                                        </p>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-1.5">
-                                            <Award size={14} />
-                                        </div>
-                                        <p className="text-[16px] font-black text-emerald-950 leading-tight">
-                                            {selectedBuilder.cityProjects}
-                                        </p>
-                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                            Active here
-                                        </p>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-1.5">
-                                            <Calendar size={14} />
-                                        </div>
-                                        <p className="text-[16px] font-black text-amber-950 leading-tight">
-                                            {selectedBuilder.est}
-                                        </p>
-                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                            Established
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Notable Projects */}
-                                <div>
-                                    <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2.5">
-                                        Notable Projects
-                                    </h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedBuilder.notableProjects.map((proj, idx) => (
-                                            <span 
-                                                key={idx}
-                                                className="px-3 py-1.5 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-700 shadow-sm"
-                                            >
-                                                {proj}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Quick Details Info list */}
-                                <div className="space-y-2.5 pt-2 border-t border-gray-100 text-xs">
-                                    <div className="flex justify-between font-medium">
-                                        <span className="text-gray-400">Founder / Promoter:</span>
-                                        <span className="text-gray-900 font-bold">{selectedBuilder.founder}</span>
-                                    </div>
-                                    <div className="flex justify-between font-medium">
-                                        <span className="text-gray-400">Builder Website:</span>
-                                        <span className="text-indigo-600 font-black cursor-pointer flex items-center gap-1 hover:underline">
-                                            <Globe size={11} /> Visit Website
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </section>
     );
 };

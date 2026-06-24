@@ -55,6 +55,33 @@ const THEME_MAP = {
     }
 };
 
+const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onTypeSelect }) => (
+    <div className="py-4 border-b border-gray-100 last:border-0 relative">
+        <div className="flex justify-between items-end px-5 md:px-0 mb-2">
+            <div>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{title}</h2>
+                {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+            </div>
+            <button
+                onClick={() => {
+                    const labelMap = {
+                        [sectionIds.pg]: 'PG/Co-Living',
+                        [sectionIds.rent]: 'Rent',
+                        [sectionIds.buy]: 'Buy',
+                        [sectionIds.plot]: 'Plot'
+                    };
+                    onTypeSelect(typeId, labelMap[typeId] || 'All');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+            >
+                View All
+            </button>
+        </div>
+        <PropertyFeed selectedType={typeId} viewMode="carousel" limit={8} extraFilters={extraFilters} />
+    </div>
+);
+
 const Home = () => {
     const navigate = useNavigate();
     const [selectedType, setSelectedType] = useState({ id: null, label: 'All' });
@@ -108,36 +135,6 @@ const Home = () => {
 
     const pageBg = '#FFFFFF';
 
-    // Section Component
-    const HomeSection = ({ title, typeId, subtitle, extraFilters }) => (
-        <div className="py-4 border-b border-gray-100 last:border-0 relative">
-            <div className="flex justify-between items-end px-5 md:px-0 mb-2">
-                <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">{title}</h2>
-                    {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
-                </div>
-                <button
-                    onClick={() => {
-                        const labelMap = {
-                            [sectionIds.pg]: 'PG/Co-Living',
-                            [sectionIds.rent]: 'Rent',
-                            [sectionIds.buy]: 'Buy',
-                            [sectionIds.plot]: 'Plot'
-                        };
-                        handleTypeSelect(typeId, labelMap[typeId] || 'All');
-                        // Scroll to top or handle navigation if needed, 
-                        // dependent on standard behavior (here state update triggers re-render to grid view)
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
-                >
-                    View All
-                </button>
-            </div>
-            <PropertyFeed selectedType={typeId} viewMode="carousel" limit={8} extraFilters={extraFilters} />
-        </div>
-    );
-
     return (
         <main className="min-h-screen pb-24 transition-colors duration-700" style={{ backgroundColor: pageBg }}>
             {/* Hero: dark background only (no images), changes per category */}
@@ -188,6 +185,8 @@ const Home = () => {
                                 title="Scholar & Professional Stays"
                                 subtitle="Top rated PGs and Hostels near you"
                                 typeId={sectionIds.pg}
+                                sectionIds={sectionIds}
+                                onTypeSelect={handleTypeSelect}
                             />
                         )}
 
@@ -206,6 +205,8 @@ const Home = () => {
                                 subtitle="Apartments, Homes, and Villas for Rent"
                                 typeId={sectionIds.rent}
                                 extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
+                                sectionIds={sectionIds}
+                                onTypeSelect={handleTypeSelect}
                             />
                         )}
                         {sectionIds.buy && (
@@ -214,6 +215,8 @@ const Home = () => {
                                 subtitle="Buy your perfect home today"
                                 typeId={sectionIds.buy}
                                 extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
+                                sectionIds={sectionIds}
+                                onTypeSelect={handleTypeSelect}
                             />
                         )}
                         {sectionIds.plot && (
@@ -221,6 +224,8 @@ const Home = () => {
                                 title="Premium Plots & Land"
                                 subtitle="Invest in the best locations"
                                 typeId={sectionIds.plot}
+                                sectionIds={sectionIds}
+                                onTypeSelect={handleTypeSelect}
                             />
                         )}
 

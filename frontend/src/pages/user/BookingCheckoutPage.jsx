@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { bookingService, paymentService } from '../../services/apiService';
+
+const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='12' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>";
+
 import walletService from '../../services/walletService';
 
 const loadRazorpay = () => {
@@ -237,7 +240,7 @@ const BookingCheckoutPage = () => {
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex gap-4">
           <div className="w-24 h-24 bg-gray-200 rounded-xl overflow-hidden shrink-0">
             <img
-              src={property.images?.cover || property.coverImage || "https://via.placeholder.com/150"}
+              src={property.images?.cover || property.coverImage || NO_IMAGE_PLACEHOLDER}
               alt={property.name}
               className="w-full h-full object-cover"
             />

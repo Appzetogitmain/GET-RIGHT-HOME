@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 
 const RoleSelectionSheet = ({ isOpen, onClose, onSelect, loading }) => {
   const [selected, setSelected] = useState('owner');
+  const [errors, setErrors] = useState({});
 
   return (
     <AnimatePresence>
@@ -87,17 +88,22 @@ const RoleSelectionSheet = ({ isOpen, onClose, onSelect, loading }) => {
                       <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Company Name *</label>
                       <input 
                         type="text" 
-                        id="builderCompanyName"
+                        value={errors.companyNameVal || ''}
+                        onChange={(e) => {
+                          setErrors(prev => ({ ...prev, companyNameVal: e.target.value, companyName: '' }));
+                        }}
                         placeholder="e.g. Prestige Estates"
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        className={`w-full border ${errors.companyName ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-blue-500'} rounded-lg px-3 py-2.5 text-sm font-semibold outline-none`}
                       />
+                      {errors.companyName && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.companyName}</p>}
                     </div>
                     <div className="flex gap-3">
                       <div className="flex-1">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1">RERA No.</label>
                         <input 
                           type="text" 
-                          id="builderRera"
+                          value={errors.reraVal || ''}
+                          onChange={(e) => setErrors(prev => ({ ...prev, reraVal: e.target.value }))}
                           placeholder="Optional"
                           className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
                         />
@@ -106,7 +112,8 @@ const RoleSelectionSheet = ({ isOpen, onClose, onSelect, loading }) => {
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1">GST No.</label>
                         <input 
                           type="text" 
-                          id="builderGst"
+                          value={errors.gstVal || ''}
+                          onChange={(e) => setErrors(prev => ({ ...prev, gstVal: e.target.value }))}
                           placeholder="Optional"
                           className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
                         />
@@ -120,14 +127,18 @@ const RoleSelectionSheet = ({ isOpen, onClose, onSelect, loading }) => {
             <button
               disabled={loading}
               onClick={() => {
+                const companyName = errors.companyNameVal || '';
+                const rera = errors.reraVal || '';
+                const gst = errors.gstVal || '';
+                
                 const builderData = selected === 'builder' ? {
-                  companyName: document.getElementById('builderCompanyName')?.value || '',
-                  reraRegistrationNumber: document.getElementById('builderRera')?.value || '',
-                  gstNumber: document.getElementById('builderGst')?.value || ''
+                  companyName,
+                  reraRegistrationNumber: rera,
+                  gstNumber: gst
                 } : null;
                 
-                if (selected === 'builder' && !builderData.companyName.trim()) {
-                  alert('Please enter your Company Name');
+                if (selected === 'builder' && !companyName.trim()) {
+                  setErrors(prev => ({ ...prev, companyName: 'Company Name is required' }));
                   return;
                 }
                 

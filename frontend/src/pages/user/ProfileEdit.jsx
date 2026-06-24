@@ -50,9 +50,11 @@ const stateCitiesData = {
 const ProfileEdit = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const { updateUser, logout } = useAuth();
+  const logoInputRef = useRef(null);
+  const { user, updateUser, logout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -71,6 +73,17 @@ const ProfileEdit = () => {
       houseNo: '',
       landmark: '',
       coordinates: { lat: null, lng: null }
+    },
+    builderProfile: {
+      companyName: '',
+      brandLogo: '',
+      reraRegistrationNumber: '',
+      gstNumber: '',
+      description: '',
+      establishedYear: '',
+      activeProjects: 0,
+      completedProjects: 0,
+      awards: []
     }
   });
 
@@ -102,6 +115,17 @@ const ProfileEdit = () => {
             houseNo: user.address?.houseNo || '',
             landmark: user.address?.landmark || '',
             coordinates: user.address?.coordinates || { lat: null, lng: null }
+          },
+          builderProfile: {
+            companyName: user.builderProfile?.companyName || '',
+            brandLogo: user.builderProfile?.brandLogo || '',
+            reraRegistrationNumber: user.builderProfile?.reraRegistrationNumber || '',
+            gstNumber: user.builderProfile?.gstNumber || '',
+            description: user.builderProfile?.description || '',
+            establishedYear: user.builderProfile?.establishedYear || '',
+            activeProjects: user.builderProfile?.activeProjects || 0,
+            completedProjects: user.builderProfile?.completedProjects || 0,
+            awards: user.builderProfile?.awards || []
           }
         });
       } catch (error) {
@@ -355,8 +379,26 @@ const ProfileEdit = () => {
     const isPhoneValid = validateField('phone', formData.phone);
 
     if (!isNameValid || !isEmailValid || !isPhoneValid) {
-      toast.error('Please resolve validation errors first');
       return;
+    }
+
+    if (user?.role === 'builder') {
+      if (formData.builderProfile?.establishedYear) {
+        const year = parseInt(formData.builderProfile.establishedYear);
+        const currentYear = new Date().getFullYear();
+        if (year < 1800 || year > currentYear) {
+          toast.error(`Established year must be between 1800 and ${currentYear}`);
+          return;
+        }
+      }
+      if (formData.builderProfile?.activeProjects < 0) {
+        toast.error('Active projects must be a positive number');
+        return;
+      }
+      if (formData.builderProfile?.completedProjects < 0) {
+        toast.error('Completed projects must be a positive number');
+        return;
+      }
     }
 
     try {
@@ -386,6 +428,62 @@ const ProfileEdit = () => {
       ...prev,
       address: { ...prev.address, [field]: value }
     }));
+  };
+
+  const handleBuilderProfileChange = (field, value) => {
+    let sanitizedValue = value;
+    if (['establishedYear', 'activeProjects', 'completedProjects'].includes(field)) {
+      sanitizedValue = Math.max(0, parseInt(value) || 0);
+      if (value === '') sanitizedValue = '';
+    }
+    setFormData(prev => ({
+      ...prev,
+      builderProfile: {
+        ...prev.builderProfile,
+        [field]: sanitizedValue
+      }
+    }));
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo size must be less than 2MB');
+      return;
+    }
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Only JPG, PNG and WebP images supported');
+      return;
+    }
+
+    const uploadData = new FormData();
+    uploadData.append('files', file);
+
+    try {
+      setLogoUploading(true);
+      const response = await authService.uploadDocs(uploadData);
+
+      if (response && response.files && response.files.length > 0) {
+        const { url } = response.files[0];
+        setFormData(prev => ({
+          ...prev,
+          builderProfile: {
+            ...prev.builderProfile,
+            brandLogo: url
+          }
+        }));
+        toast.success('Brand logo uploaded successfully');
+      }
+    } catch (error) {
+      console.error('Logo upload failed:', error);
+      toast.error('Failed to upload logo');
+    } finally {
+      setLogoUploading(false);
+    }
   };
 
   const handleCameraClick = () => {
@@ -523,8 +621,9 @@ const ProfileEdit = () => {
                   type="text"
                   value={formData.name}
                   onChange={(e) => {
-                    setFormData({ ...formData, name: e.target.value });
-                    validateField('name', e.target.value);
+                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                    setFormData({ ...formData, name: val });
+                    validateField('name', val);
                   }}
                   className="flex-1 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
                   placeholder="Your Name"
@@ -559,8 +658,9 @@ const ProfileEdit = () => {
             {/* Phone */}
             <div>
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Phone Number</label>
-              <div className="flex items-center gap-3 border-b border-gray-200 pb-2 focus-within:border-emerald-600 transition-colors">
+              <div className="flex items-center gap-2 border-b border-gray-200 pb-2 focus-within:border-emerald-600 transition-colors">
                 <Phone size={16} className="text-slate-400" />
+                <span className="text-sm font-bold text-slate-500 select-none">+91</span>
                 <input
                   type="tel"
                   maxLength={10}
@@ -598,12 +698,12 @@ const ProfileEdit = () => {
 
             {/* Country */}
             <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Country</label>
-              <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">Country</label>
+              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
                 <select
                   value={formData.address.country}
                   onChange={(e) => handleAddressChange('country', e.target.value)}
-                  className="w-full py-2 text-sm font-semibold text-slate-900 outline-none bg-transparent cursor-pointer"
+                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none bg-transparent cursor-pointer"
                 >
                   <option value="India">India</option>
                 </select>
@@ -612,8 +712,8 @@ const ProfileEdit = () => {
 
             {/* State */}
             <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">State</label>
-              <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">State</label>
+              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
                 <select
                   value={formData.address.state}
                   onChange={(e) => {
@@ -623,7 +723,7 @@ const ProfileEdit = () => {
                     const firstCity = stateCitiesData[selectedState]?.[0] || '';
                     handleAddressChange('city', firstCity);
                   }}
-                  className="w-full py-2 text-sm font-semibold text-slate-900 outline-none bg-transparent cursor-pointer"
+                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none bg-transparent cursor-pointer"
                 >
                   <option value="" disabled>Select State</option>
                   {statesList.map((st) => (
@@ -635,12 +735,12 @@ const ProfileEdit = () => {
 
             {/* City */}
             <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">City</label>
-              <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">City</label>
+              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
                 <select
                   value={formData.address.city}
                   onChange={(e) => handleAddressChange('city', e.target.value)}
-                  className="w-full py-2 text-sm font-semibold text-slate-900 outline-none bg-transparent cursor-pointer"
+                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none bg-transparent cursor-pointer"
                   disabled={!formData.address.state}
                 >
                   <option value="" disabled>Select City</option>
@@ -653,13 +753,13 @@ const ProfileEdit = () => {
 
             {/* Area / Locality */}
             <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Area / Locality</label>
-              <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">Area / Locality</label>
+              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
                 <input
                   type="text"
                   value={formData.address.area}
                   onChange={(e) => handleAddressChange('area', e.target.value)}
-                  className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none placeholder:text-gray-400 bg-transparent"
                   placeholder="Area / Locality"
                 />
               </div>
@@ -667,13 +767,13 @@ const ProfileEdit = () => {
 
             {/* House No., Building Name */}
             <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">House No., Building Name</label>
-              <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">House No., Building Name</label>
+              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
                 <input
                   type="text"
                   value={formData.address.houseNo}
                   onChange={(e) => handleAddressChange('houseNo', e.target.value)}
-                  className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none placeholder:text-gray-400 bg-transparent"
                   placeholder="Flat/House No., Apartment/Building Name"
                 />
               </div>
@@ -681,13 +781,13 @@ const ProfileEdit = () => {
 
             {/* Street / Road */}
             <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Street / Road</label>
-              <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">Street / Road</label>
+              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
                 <input
                   type="text"
                   value={formData.address.street}
                   onChange={(e) => handleAddressChange('street', e.target.value)}
-                  className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none placeholder:text-gray-400 bg-transparent"
                   placeholder="Street / Road Name"
                 />
               </div>
@@ -695,13 +795,13 @@ const ProfileEdit = () => {
 
             {/* Landmark (optional) */}
             <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Landmark (optional)</label>
-              <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">Landmark (optional)</label>
+              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
                 <input
                   type="text"
                   value={formData.address.landmark}
                   onChange={(e) => handleAddressChange('landmark', e.target.value)}
-                  className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none placeholder:text-gray-400 bg-transparent"
                   placeholder="e.g. Near Apollo Hospital"
                 />
               </div>
@@ -709,20 +809,159 @@ const ProfileEdit = () => {
 
             {/* PIN Code */}
             <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">PIN Code</label>
-              <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">PIN Code</label>
+              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
                 <input
                   type="text"
                   inputMode="numeric"
                   maxLength={6}
                   value={formData.address.zipCode}
                   onChange={(e) => handleAddressChange('zipCode', e.target.value.replace(/\D/g, ''))}
-                  className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none placeholder:text-gray-400 bg-transparent"
                   placeholder="PIN Code"
                 />
               </div>
             </div>
           </div>
+
+          {/* Section: Builder Profile Information */}
+          {user?.role === 'builder' && (
+            <div className="space-y-5 pt-4">
+              <div className="border-b border-gray-100 pb-2">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Builder Profile Details</h3>
+              </div>
+
+              {/* Company Name */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Company Name</label>
+                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+                  <input
+                    type="text"
+                    value={formData.builderProfile?.companyName || ''}
+                    onChange={(e) => handleBuilderProfileChange('companyName', e.target.value)}
+                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                    placeholder="e.g. XYZ Developers Ltd."
+                  />
+                </div>
+              </div>
+
+              {/* Brand Logo */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Brand Logo</label>
+                <div className="flex items-center gap-4 py-2">
+                  {formData.builderProfile?.brandLogo && (
+                    <div className="w-16 h-16 rounded-xl border border-gray-200 p-1 shrink-0 overflow-hidden bg-gray-50 flex items-center justify-center">
+                      <img src={formData.builderProfile.brandLogo} alt="Logo preview" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploading}
+                    className="flex-1 flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors relative"
+                  >
+                    {logoUploading ? (
+                      <Loader2 size={20} className="animate-spin text-emerald-600" />
+                    ) : (
+                      <>
+                        <span className="text-[10px] font-bold text-emerald-600 uppercase">Click to upload logo</span>
+                      </>
+                    )}
+                  </button>
+                  <input
+                    type="file"
+                    ref={logoInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    disabled={logoUploading}
+                  />
+                </div>
+              </div>
+
+              {/* RERA Number */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">RERA Number</label>
+                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+                  <input
+                    type="text"
+                    value={formData.builderProfile?.reraRegistrationNumber || ''}
+                    onChange={(e) => handleBuilderProfileChange('reraRegistrationNumber', e.target.value)}
+                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent uppercase"
+                    placeholder="PR/GJ/..."
+                  />
+                </div>
+              </div>
+
+              {/* GST Number */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">GST Number</label>
+                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+                  <input
+                    type="text"
+                    value={formData.builderProfile?.gstNumber || ''}
+                    onChange={(e) => handleBuilderProfileChange('gstNumber', e.target.value)}
+                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent uppercase"
+                    placeholder="22AAAAA0000A1Z5"
+                  />
+                </div>
+              </div>
+
+              {/* Established Year */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Established Year</label>
+                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+                  <input
+                    type="number"
+                    value={formData.builderProfile?.establishedYear || ''}
+                    onChange={(e) => handleBuilderProfileChange('establishedYear', e.target.value)}
+                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                    placeholder="e.g. 1995"
+                  />
+                </div>
+              </div>
+
+              {/* Active Projects */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Active Projects</label>
+                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+                  <input
+                    type="number"
+                    value={formData.builderProfile?.activeProjects || 0}
+                    onChange={(e) => handleBuilderProfileChange('activeProjects', e.target.value)}
+                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Completed Projects */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Completed Projects</label>
+                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+                  <input
+                    type="number"
+                    value={formData.builderProfile?.completedProjects || 0}
+                    onChange={(e) => handleBuilderProfileChange('completedProjects', e.target.value)}
+                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* About Company */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">About Company</label>
+                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+                  <textarea
+                    rows={3}
+                    value={formData.builderProfile?.description || ''}
+                    onChange={(e) => handleBuilderProfileChange('description', e.target.value)}
+                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent resize-none"
+                    placeholder="Brief description about the builder's history..."
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"

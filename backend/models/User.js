@@ -110,7 +110,8 @@ const userSchema = new mongoose.Schema({
     description: { type: String, trim: true },
     establishedYear: { type: Number },
     activeProjects: { type: Number, default: 0 },
-    completedProjects: { type: Number, default: 0 }
+    completedProjects: { type: Number, default: 0 },
+    awards: [{ type: String }] // Added awards array
   },
 
   // Status tracking

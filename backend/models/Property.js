@@ -212,6 +212,20 @@ const propertySchema = new mongoose.Schema({
     nearbyLandmark: String
   },
 
+  // --- BUILDER PROJECT DETAILS ---
+  builderProjectDetails: {
+    possessionStatus: { type: String, enum: ['Ongoing', 'Ready To Move', 'New Launch'] },
+    possessionYear: { type: Number },
+    ratings: {
+      constructionQuality: { type: Number, min: 1, max: 5 },
+      aiSummary: { type: String }
+    },
+    priceHistory: {
+      currentPricePerSqft: { type: Number },
+      appreciationLast3Years: { type: Number } // in percentage
+    }
+  },
+
   // Universal / Pro Fields
   videoUrl: String,
   isVerified: { type: Boolean, default: false },

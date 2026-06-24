@@ -6,6 +6,10 @@ import toast from 'react-hot-toast';
 import PropertyQuickViewModal from './PropertyQuickViewModal';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
+const LOGO_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'><rect width='100%' height='100%' fill='%23E2E8F0'/><text x='50%' y='50%' font-family='sans-serif' font-size='14' font-weight='bold' fill='%2364748B' dominant-baseline='middle' text-anchor='middle'>GRH</text></svg>";
+
+
 const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved, isSearchPage = false }) => {
   const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
@@ -504,7 +508,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
               className="w-full h-full object-cover"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
             
@@ -871,7 +875,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
 
@@ -1007,7 +1011,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
 
@@ -1153,7 +1157,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                e.target.src = NO_IMAGE_PLACEHOLDER;
               }}
             />
 
@@ -1281,7 +1285,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
         className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         onError={(e) => {
           e.target.onerror = null;
-          e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+          e.target.src = NO_IMAGE_PLACEHOLDER;
         }}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
@@ -1329,7 +1333,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
             className="w-full h-full object-cover"
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = 'https://via.placeholder.com/150?text=Logo';
+              e.target.src = LOGO_PLACEHOLDER;
             }}
           />
         </div>

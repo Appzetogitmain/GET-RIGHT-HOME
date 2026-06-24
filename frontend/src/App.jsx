@@ -61,6 +61,7 @@ const UserPropertyDashboard = React.lazy(() => import('./pages/user/UserProperty
 const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPage'));
 const ListPropertyWizard = React.lazy(() => import('./pages/user/ListPropertyWizard'));
 const DynamicFormEngine = React.lazy(() => import('./pages/user/DynamicFormEngine'));
+const BuilderProfilePage = React.lazy(() => import('./pages/user/BuilderProfilePage'));
 const CartPage = React.lazy(() => import('./homster/modules/user/pages/Cart'));
 const HomeServiceCheckoutPage = React.lazy(() => import('./homster/modules/user/pages/Checkout'));
 const HomeServiceBookingsPage = React.lazy(() => import('./homster/modules/user/pages/MyBookings'));
@@ -478,6 +479,7 @@ function App() {
             <Route path="/partner-landing" element={<PartnerLandingPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
+            <Route path="/builder/:id" element={<BuilderProfilePage />} />
 
             {/* Unified Property Details (C2C & Hotel) - Public */}
             <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />

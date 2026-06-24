@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+
+const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='12' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>";
+
 import {
     MapPin, Clock,
     Star,
@@ -145,7 +148,7 @@ const BookingsPage = () => {
                                 const checkIn = checkInDate ? new Date(checkInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'N/A';
                                 const checkOut = checkOutDate ? new Date(checkOutDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'N/A';
 
-                                const propertyImage = hotel.propertyImages?.[0] || hotel.images?.[0]?.url || hotel.images?.[0] || hotel.coverImage || 'https://via.placeholder.com/150';
+                                const propertyImage = hotel.propertyImages?.[0] || hotel.images?.[0]?.url || hotel.images?.[0] || hotel.coverImage || NO_IMAGE_PLACEHOLDER;
 
                                 return (
                                     <motion.div

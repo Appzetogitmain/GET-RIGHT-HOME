@@ -184,6 +184,30 @@ export const createManager = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
     }
 
+    // Name validation (only alphabets, min 3 chars)
+    const nameRegex = /^[a-zA-Z\s]+$/;
+    if (!nameRegex.test(name) || name.trim().length < 3) {
+      return res.status(400).json({ success: false, message: 'Name must contain only alphabets (min 3 characters)' });
+    }
+
+    // Email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
+    }
+
+    // Phone validation (exactly 10 digits starting with 6-9)
+    if (phone) {
+      const phoneRegex = /^[6-9]\d{9}$/;
+      if (!phoneRegex.test(phone)) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit Indian phone number starting with 6-9' });
+      }
+    }
+
+    // Password validation (min 6 characters)
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
+    }
+
     // Check duplicate
     const existing = await Manager.findOne({ $or: [{ email }, ...(phone ? [{ phone }] : [])] });
     if (existing) {
@@ -248,8 +272,37 @@ export const updateManager = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Manager not found' });
     }
 
-    // Profile updates
-    if (name) manager.name = name;
+    // Name validation
+    if (name !== undefined) {
+      const nameRegex = /^[a-zA-Z\s]+$/;
+      if (!nameRegex.test(name) || name.trim().length < 3) {
+        return res.status(400).json({ success: false, message: 'Name must contain only alphabets (min 3 characters)' });
+      }
+      manager.name = name;
+    }
+
+    // Email validation
+    if (email !== undefined) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
+      }
+    }
+
+    // Phone validation
+    if (phone !== undefined && phone !== null && phone !== '') {
+      const phoneRegex = /^[6-9]\d{9}$/;
+      if (!phoneRegex.test(phone)) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit Indian phone number starting with 6-9' });
+      }
+    }
+
+    // Password validation
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
+      }
+    }
+
     if (branch !== undefined) manager.branch = branch;
     if (avatar !== undefined) manager.avatar = avatar;
     if (avatarPublicId !== undefined) manager.avatarPublicId = avatarPublicId;

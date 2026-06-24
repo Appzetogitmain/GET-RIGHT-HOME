@@ -4,6 +4,9 @@ import { X, Phone, MessageCircle, Share2, Heart, Mail, Eye, Calendar, ArrowLeft,
 import toast from 'react-hot-toast';
 import { enquiryService } from '../../services/apiService';
 
+const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
+
+
 const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry = false }) => {
   const navigate = useNavigate();
   const [showEnquiry, setShowEnquiry] = useState(initialShowEnquiry);
@@ -72,7 +75,7 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
     cleanImageUrl(
       Array.isArray(property.propertyImages) ? property.propertyImages[0] : ''
     ) ||
-    'https://via.placeholder.com/400x300?text=No+Image';
+    NO_IMAGE_PLACEHOLDER;
 
   // Format Price in Lakhs/Crores
   const formatPriceLakhCrore = (price) => {
@@ -216,7 +219,7 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
             className="w-full h-full object-cover"
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+              e.target.src = NO_IMAGE_PLACEHOLDER;
             }}
           />
 

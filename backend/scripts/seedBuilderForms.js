@@ -87,6 +87,19 @@ const createBuilderResidentialSteps = (isRent) => [
       { name: 'brochure', label: 'Upload e-Brochure (PDF)', type: 'file', required: false, order: 3 },
       { name: 'nearbyPlaces', label: 'Nearby Landmarks & Distance', type: 'nearby_places', required: false, order: 4 }
     ]
+  },
+  {
+    stepNumber: 5,
+    title: 'Project Insights & Metrics',
+    description: 'Builder performance and AI analysis metrics',
+    fields: [
+      { name: 'bpd_possessionStatus', label: 'Project Possession Status', type: 'pill', options: ['Ongoing', 'Ready To Move', 'New Launch'], required: false, order: 1 },
+      { name: 'bpd_possessionYear', label: 'Possession Year', type: 'number', placeholder: 'e.g. 2026', required: false, order: 2 },
+      { name: 'bpd_constructionQuality', label: 'Construction Quality Rating (1-5)', type: 'number', placeholder: 'e.g. 4.5', required: false, order: 3 },
+      { name: 'bpd_aiSummary', label: 'AI Quality Summary', type: 'textarea', placeholder: 'e.g. High quality materials used with modern architectural standards...', required: false, order: 4 },
+      { name: 'bpd_currentPricePerSqft', label: 'Current Price Per Sqft (₹)', type: 'number', placeholder: 'e.g. 6500', required: false, order: 5 },
+      { name: 'bpd_appreciationLast3Years', label: 'Appreciation Last 3 Years (%)', type: 'number', placeholder: 'e.g. 15', required: false, order: 6 }
+    ]
   }
 ];
 
@@ -170,6 +183,19 @@ const createBuilderPGSteps = () => [
       { name: 'propertyVideos', label: 'Project Walkthrough Videos', type: 'file', required: false, order: 2 },
       { name: 'brochure', label: 'Upload e-Brochure (PDF)', type: 'file', required: false, order: 3 },
       { name: 'nearbyPlaces', label: 'Nearby Landmarks & Distance', type: 'nearby_places', required: false, order: 4 }
+    ]
+  },
+  {
+    stepNumber: 5,
+    title: 'Project Insights & Metrics',
+    description: 'Builder performance and AI analysis metrics',
+    fields: [
+      { name: 'bpd_possessionStatus', label: 'Project Possession Status', type: 'pill', options: ['Ongoing', 'Ready To Move', 'New Launch'], required: false, order: 1 },
+      { name: 'bpd_possessionYear', label: 'Possession Year', type: 'number', placeholder: 'e.g. 2026', required: false, order: 2 },
+      { name: 'bpd_constructionQuality', label: 'Construction Quality Rating (1-5)', type: 'number', placeholder: 'e.g. 4.5', required: false, order: 3 },
+      { name: 'bpd_aiSummary', label: 'AI Quality Summary', type: 'textarea', placeholder: 'e.g. High quality materials used with modern architectural standards...', required: false, order: 4 },
+      { name: 'bpd_currentPricePerSqft', label: 'Current Price Per Sqft (₹)', type: 'number', placeholder: 'e.g. 6500', required: false, order: 5 },
+      { name: 'bpd_appreciationLast3Years', label: 'Appreciation Last 3 Years (%)', type: 'number', placeholder: 'e.g. 15', required: false, order: 6 }
     ]
   }
 ];

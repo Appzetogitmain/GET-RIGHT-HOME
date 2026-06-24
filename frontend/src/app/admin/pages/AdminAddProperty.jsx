@@ -361,6 +361,21 @@ const AdminAddProperty = () => {
         payload.userId = selectedBuilder;
       }
 
+      if (isBuilderProject) {
+        payload.builderProjectDetails = {
+          possessionStatus: formData.bpd_possessionStatus || 'Ongoing',
+          possessionYear: Number(formData.bpd_possessionYear) || null,
+          ratings: {
+            constructionQuality: Number(formData.bpd_constructionQuality) || 0,
+            aiSummary: formData.bpd_aiSummary || ''
+          },
+          priceHistory: {
+            currentPricePerSqft: Number(formData.bpd_currentPricePerSqft) || 0,
+            appreciationLast3Years: Number(formData.bpd_appreciationLast3Years) || 0
+          }
+        };
+      }
+
       let res;
       if (isEditing) {
         res = await adminService.updateProperty(existingProperty._id, payload);

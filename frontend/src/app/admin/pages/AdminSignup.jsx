@@ -32,7 +32,17 @@ const AdminSignup = () => {
                         </div>
                         <input
                             type="text"
-                            {...register('name', { required: 'Name is required' })}
+                            {...register('name', { 
+                                required: 'Name is required',
+                                pattern: {
+                                    value: /^[a-zA-Z\s]+$/,
+                                    message: 'Name must contain only alphabets'
+                                },
+                                minLength: {
+                                    value: 3,
+                                    message: 'Name must be at least 3 characters'
+                                }
+                            })}
                             className={`block w-full pl-9 pr-3 py-2.5 border ${errors.name ? 'border-red-500 focus:ring-red-200' : 'border-gray-200 focus:ring-black'} rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-sm`}
                             placeholder="John Doe"
                         />

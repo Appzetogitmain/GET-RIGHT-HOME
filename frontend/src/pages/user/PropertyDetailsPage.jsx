@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='24' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
+
+
 const PropertyDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -845,7 +848,7 @@ const PropertyDetailsPage = () => {
     if (images?.cover) list.push(images.cover);
     if (Array.isArray(images?.gallery)) list.push(...images.gallery);
     if (list.length > 0) return list;
-    return ['https://via.placeholder.com/800x600'];
+    return [NO_IMAGE_PLACEHOLDER];
   };
 
   const galleryImages = getGalleryImages();
