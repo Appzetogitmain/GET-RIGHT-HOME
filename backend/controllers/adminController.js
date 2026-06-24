@@ -19,6 +19,7 @@ import Reel from '../models/Reel.js';
 import Enquiry from '../models/Enquiry.js';
 import Worker from '../models/Worker.js';
 import HomeServiceService from '../models/HomeServiceService.js';
+import Cart from '../models/Cart.js';
 
 
 
@@ -1179,6 +1180,97 @@ export const createBroadcastNotification = async (req, res) => {
   } catch (error) {
     console.error('Create Broadcast Error:', error);
     res.status(500).json({ message: 'Server error sending broadcast' });
+  }
+};
+
+export const getAbandonedCarts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Find carts that have items
+    const query = { 'items.0': { $exists: true } };
+
+    const carts = await Cart.find(query)
+      .populate('userId', 'name email phone avatar fcmTokens')
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const total = await Cart.countDocuments(query);
+
+    // Filter out carts where userId might be null (if user was deleted)
+    const validCarts = carts.filter(c => c.userId);
+
+    res.status(200).json({
+      success: true,
+      carts: validCarts,
+      meta: {
+        total,
+        page,
+        limit
+      }
+    });
+  } catch (error) {
+    console.error('Get Abandoned Carts Error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching abandoned carts' });
+  }
+};
+
+export const sendTargetedNotification = async (req, res) => {
+  try {
+    const { userIds, title, body } = req.body;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: 'User IDs are required' });
+    }
+
+    if (!title || !body) {
+      return res.status(400).json({ message: 'Title and Body are required' });
+    }
+
+    let sentCount = 0;
+    const chunkSize = 50;
+
+    for (let i = 0; i < userIds.length; i += chunkSize) {
+      const chunk = userIds.slice(i, i + chunkSize);
+      await Promise.all(chunk.map(async (userId) => {
+        try {
+          await notificationService.sendToUser(
+            userId,
+            { title, body },
+            { type: 'targeted', action: 'abandoned_cart' },
+            'user'
+          );
+          sentCount++;
+        } catch (err) {
+          console.error(`Failed to send targeted notification to user ${userId}:`, err);
+        }
+      }));
+    }
+
+    // Log the notification for admin
+    await Notification.create({
+      userId: req.user._id,
+      userType: 'admin',
+      userModel: 'Admin',
+      title: `Targeted Notification Sent: ${title}`,
+      body: `Sent to ${sentCount} users. Content: ${body}`,
+      type: 'targeted_log',
+      isRead: true,
+      data: { originalTitle: title, originalBody: body, recipientCount: sentCount }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Notification sent to ${sentCount} users.`
+    });
+
+  } catch (error) {
+    console.error('Send Targeted Notification Error:', error);
+    res.status(500).json({ message: 'Server error sending targeted notification' });
   }
 };
 

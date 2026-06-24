@@ -13,7 +13,7 @@ const TopServices = ({ bookings = [], periodLabel = 'Top Services' }) => {
       const prev = map.get(name) || { name, bookings: 0, revenue: 0, completed: 0 };
       prev.bookings += 1;
       if ((b.status || '').toUpperCase() === 'COMPLETED') {
-        prev.revenue += Number(b.price || 0);
+        prev.revenue += Number(b.finalAmount || 0);
         prev.completed += 1;
       }
       map.set(name, prev);

@@ -111,8 +111,10 @@ export const SocketProvider = ({ children }) => {
     }
 
     const token = localStorage.getItem(tokenKey);
-    // If no token, we don't connect
-    if (!token) {
+    const hasUserAuth = userType === 'user' && (localStorage.getItem('user') || localStorage.getItem('userData'));
+    
+    // If no token and no user auth, we don't connect
+    if (!token && !hasUserAuth) {
       if (socket) {
         socket.disconnect();
         setSocket(null);
@@ -136,7 +138,7 @@ export const SocketProvider = ({ children }) => {
 
     const newSocket = io(socketBaseUrl, {
       auth: {
-        token: token
+        token: token || ''
       },
       transports: ['polling', 'websocket'], // Try polling first for reliability
       path: '/socket.io/',
@@ -196,13 +198,15 @@ export const SocketProvider = ({ children }) => {
       }
 
       if (userType === 'user') {
-        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        // Fallback to check both 'userData' and 'user' since different parts of the app use different keys
+        const storedUserData = localStorage.getItem('userData') || localStorage.getItem('user') || '{}';
+        const userData = JSON.parse(storedUserData);
         const userId = userData.id || userData._id;
         if (userId) {
           console.log(`[Socket] USER joining room: user_${userId}`);
           newSocket.emit('join_user_room', userId);
         } else {
-          console.warn('[Socket] ⚠️ USER: no userId found in localStorage. userData:', userData);
+          console.warn('[Socket] ⚠️ USER: no userId found in localStorage under "userData" or "user". userData:', userData);
         }
       }
     });

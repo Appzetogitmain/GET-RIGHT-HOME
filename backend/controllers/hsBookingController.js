@@ -534,7 +534,7 @@ const createBooking = async (req, res) => {
           console.log(`[CreateBooking] Emitting Socket.IO events to ${wave1Partners.length} ${bookingModel}s in Wave 1...`);
           wave1Partners.forEach(async (partner) => {
             const partnerRoom = `${bookingModel}_${partner._id.toString()}`;
-              io.to(partnerRoom).emit('new_booking_request', {
+            io.to(partnerRoom).emit('new_booking_request', {
               bookingId: bookingForBackground._id,
               serviceName: serviceForBackground.title,
               customerName: userForBackground.name,
@@ -646,23 +646,29 @@ const createBooking = async (req, res) => {
  * Get user bookings with filters
  */
 const getUserBookings = async (req, res) => {
-  try {
+  const MAX_RETRIES = 2;
+  console.log(`[getUserBookings] Request started for user: ${req.user.id}`);
+
+  const attempt = async () => {
     const userId = req.user.id;
     const { status, startDate, endDate, page = 1, limit = 10 } = req.query;
+
+    console.log(`[getUserBookings] Query params parsed: status=${status}, page=${page}, limit=${limit}`);
 
     // Build query
     const query = { userId };
     if (status) {
-      if (status.includes(',')) {
-        // Handle comma-separated statuses from filter tabs (e.g. "pending,assigned,confirmed")
+      if (Array.isArray(status)) {
+        query.status = { $in: status };
+      } else if (typeof status === 'string' && status.includes(',')) {
         query.status = { $in: status.split(',').map(s => s.trim()) };
       } else {
         query.status = status;
       }
     } else {
-      // "All Bookings": exclude only searching/no_vendors/no_workers (internal dispatch statuses)
-      query.status = { 
-        $nin: ['searching', 'SEARCHING', 'no_vendors', 'no_workers'] 
+      // "All Bookings": exclude internal dispatch statuses
+      query.status = {
+        $nin: ['searching', 'SEARCHING', 'no_vendors', 'no_workers']
       };
     }
     if (startDate || endDate) {
@@ -671,39 +677,78 @@ const getUserBookings = async (req, res) => {
       if (endDate) query.scheduledDate.$lte = new Date(endDate);
     }
 
-    // Pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
 
-    // Get bookings
+    console.log(`[getUserBookings] Executing MongoDB query:`, JSON.stringify(query));
+
+    console.log(`[getUserBookings] Executing countDocuments...`);
+    const total = await HomeServiceBooking.countDocuments(query).exec();
+    console.log(`[getUserBookings] countDocuments completed: total=${total}`);
+
+    console.log(`[getUserBookings] Executing find() without populate...`);
+    // Exclude potentially massive arrays (like base64 images) that cause network timeouts
     const bookings = await HomeServiceBooking.find(query)
-      .populate('vendorId', 'name businessName phone profilePhoto')
-      .populate('serviceId', 'title iconUrl')
-      .populate('categoryId', 'title slug')
-      .populate('workerId', 'name phone profilePhoto')
+      .select('-serviceImages -requirementImages -workPhotos -reviewImages')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit))
-      .lean();
+      .limit(limitNum)
+      .lean()
+      .exec();
+      
+    console.log(`[getUserBookings] find() completed. Now populating vendorId...`);
+    await HomeServiceBooking.populate(bookings, { path: 'vendorId', select: 'name businessName phone profilePhoto' });
+    
+    console.log(`[getUserBookings] Populating serviceId...`);
+    await HomeServiceBooking.populate(bookings, { path: 'serviceId', select: 'title iconUrl' });
+    
+    console.log(`[getUserBookings] Populating categoryId...`);
+    await HomeServiceBooking.populate(bookings, { path: 'categoryId', select: 'title slug' });
+    
+    console.log(`[getUserBookings] Populating workerId...`);
+    await HomeServiceBooking.populate(bookings, { path: 'workerId', select: 'name phone profilePhoto' });
+    
+    console.log(`[getUserBookings] All populates completed!`);
 
-    // Get total count
-    const total = await HomeServiceBooking.countDocuments(query);
+    return { bookings, total, pageNum, limitNum };
+  };
 
-    res.status(200).json({
-      success: true,
-      data: bookings,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    try {
+      console.log(`[getUserBookings] Attempt ${i + 1}`);
+      const { bookings, total, pageNum, limitNum } = await attempt();
+      console.log(`[getUserBookings] Sending success response...`);
+      return res.status(200).json({
+        success: true,
+        data: bookings,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum)
+        }
+      });
+    } catch (error) {
+      console.error(`[getUserBookings] Error on attempt ${i + 1}:`, error);
+      const isNetworkError = error.name === 'MongoNetworkTimeoutError' ||
+        error.name === 'MongoServerSelectionError' ||
+        error.message?.includes('timed out');
+
+      if (isNetworkError && i < MAX_RETRIES - 1) {
+        console.warn(`[getUserBookings] Network timeout on attempt ${i + 1}, retrying in 2s...`);
+        await new Promise(r => setTimeout(r, 2000));
+        continue; // retry
       }
-    });
-  } catch (error) {
-    console.error('Get user bookings error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch bookings. Please try again.'
-    });
+
+      console.error('Get user bookings error:', error);
+      return res.status(500).json({
+        success: false,
+        message: isNetworkError
+          ? 'Database connection is slow. Please try again in a moment.'
+          : 'Failed to fetch bookings. Please try again.'
+      });
+    }
   }
 };
 
@@ -1217,7 +1262,7 @@ const getUserRatings = async (req, res) => {
   }
 };
 
-export { 
+export {
   createBooking,
   getUserBookings,
   getBookingById,
@@ -1225,5 +1270,5 @@ export {
   rescheduleBooking,
   addReview,
   getUserRatings
- };
+};
 

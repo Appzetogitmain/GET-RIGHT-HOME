@@ -103,6 +103,30 @@ const adminWorkerService = {
   getWorkerPayments: async (params = {}) => {
     const response = await api.get('/admin/workers/payments', { params });
     return response.data;
+  },
+
+  /**
+   * Get all worker withdrawals
+   */
+  getWorkerWithdrawals: async (params = {}) => {
+    const response = await api.get('/admin/worker-withdrawals', { params });
+    return response.data;
+  },
+
+  /**
+   * Approve worker withdrawal
+   */
+  approveWorkerWithdrawal: async (id) => {
+    const response = await api.put(`/admin/worker-withdrawals/${id}/approve`);
+    return response.data;
+  },
+
+  /**
+   * Reject worker withdrawal
+   */
+  rejectWorkerWithdrawal: async (id, reason) => {
+    const response = await api.put(`/admin/worker-withdrawals/${id}/reject`, { reason });
+    return response.data;
   }
 };
 

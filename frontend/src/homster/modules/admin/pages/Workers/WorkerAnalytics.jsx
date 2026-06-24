@@ -58,7 +58,7 @@ const WorkerAnalytics = () => {
     <div className="space-y-4">
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <CardShell className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none p-3.5">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none p-4 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-[10px] font-medium uppercase tracking-wider">Total Active Workers</p>
@@ -70,9 +70,9 @@ const WorkerAnalytics = () => {
               <FiUsers size={18} />
             </div>
           </div>
-        </CardShell>
+        </div>
 
-        <CardShell className="bg-gradient-to-br from-green-500 to-green-600 text-white border-none p-3.5">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white border-none p-4 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-100 text-[10px] font-medium uppercase tracking-wider">Jobs Completed</p>
@@ -84,9 +84,9 @@ const WorkerAnalytics = () => {
               <FiCheckCircle size={18} />
             </div>
           </div>
-        </CardShell>
+        </div>
 
-        <CardShell className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-none p-3.5">
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-none p-4 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-amber-100 text-[10px] font-medium uppercase tracking-wider">Average Rating</p>
@@ -96,7 +96,7 @@ const WorkerAnalytics = () => {
               <FiStar size={18} />
             </div>
           </div>
-        </CardShell>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -1,13 +1,12 @@
+import './config/env.js'; // ⚠️ MUST be first — loads dotenv before any other module
 import express from 'express';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import cors from 'cors';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-dotenv.config({ path: join(__dirname, '.env') });
 import { initializeFirebase } from './config/firebase.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -15,6 +14,7 @@ import morgan from 'morgan';
 import workerRoutes from './routes/workerRoutes.js';
 import hsBookingRoutes from './routes/hsBookingRoutes.js';
 import adminWorkerRoutes from './routes/adminWorkerRoutes.js';
+import zoneRoutes from './routes/zoneRoutes.js';
 
 // Initialize Firebase
 initializeFirebase();
@@ -35,6 +35,8 @@ const io = new Server(server, {
       'http://127.0.0.1:5173',
       'https://homezoo.vercel.app',
       'homezoo.vercel.app',
+      'https://get-right-home.vercel.app',
+      'get-right-home.vercel.app'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
@@ -72,7 +74,9 @@ app.use(cors({
       'https://www.rukkoo.in',
       'https://rukkoo-project.vercel.app',
       'https://homezoo.vercel.app',
-      'https://homezoo.onrender.com'
+      'https://homezoo.onrender.com',
+      'https://get-right-home.vercel.app',
+      'https://get-right-home.onrender.com'
     ];
     // Add 172.16-31 range (often used by hotspots) and 10.x
     const isLocalNetwork =
@@ -136,6 +140,7 @@ import { getActiveCities } from './controllers/cityController.js';
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/zones', zoneRoutes);
 app.use('/api/offers', offerRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/info', infoRoutes);
@@ -199,11 +204,11 @@ app.get('/api/public/home-data', async (req, res) => {
     const { cityId } = req.query;
     const HomeContent = (await import('./models/HomeContent.js')).default;
     let homeContent = await HomeContent.findOne(cityId ? { cityId } : {});
-    
+
     if (!homeContent && cityId && cityId !== 'default') {
       homeContent = await HomeContent.findOne({ cityId: 'default' });
     }
-    
+
     res.json({ success: true, homeContent: homeContent || {} });
   } catch (e) {
     res.json({ success: true, homeContent: {} });
@@ -245,13 +250,16 @@ app.get('/', (req, res) => {
 
 // MongoDB Connection Options with retry logic
 const mongoOptions = {
-  serverSelectionTimeoutMS: 10000, // Timeout after 10s instead of 30s
-  socketTimeoutMS: 45000,
-  family: 4, // Use IPv4, skip trying IPv6
-  maxPoolSize: 10,
-  minPoolSize: 2,
+  serverSelectionTimeoutMS: 15000, // How long to try selecting a server
+  socketTimeoutMS: 20000,          // How long a send/receive can take
+  connectTimeoutMS: 15000,         // How long to wait for initial connection
+  family: 4,                       // Use IPv4, skip trying IPv6
+  maxPoolSize: 10,                 // Max simultaneous connections
+  minPoolSize: 2,                  // Keep minimum connections alive
   retryWrites: true,
   retryReads: true,
+  heartbeatFrequencyMS: 10000,     // Check connection health every 10s
+  maxIdleTimeMS: 30000,            // Close idle connections after 30s
 };
 
 // Seed admin user helper
@@ -261,7 +269,9 @@ const seedAdminOnStartup = async () => {
     const bcrypt = (await import('bcryptjs')).default;
     const email = 'hoomzoteam@gmail.com';
     const existingAdmin = await Admin.findOne({ email });
-    const hashedPassword = await bcrypt.hash('SumeeT@2020', 10);
+    const hashedPassword
+    
+    = await bcrypt.hash('SumeeT@2020', 10);
 
     if (existingAdmin) {
       existingAdmin.password = hashedPassword;
@@ -291,10 +301,10 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
     try {
       console.log(`🔄 Attempting MongoDB connection... (Attempt ${i + 1}/${retries})`);
 
-      await mongoose.connect(
-        process.env.MONGODB_URL || "mongodb+srv://rukkooin:rukkooin@cluster0.6mzfrnp.mongodb.net/?appName=Cluster0",
-        mongoOptions
-      );
+      if (!process.env.MONGODB_URL) {
+        throw new Error('MONGODB_URL is not set in .env! Check backend/.env file.');
+      }
+      await mongoose.connect(process.env.MONGODB_URL, mongoOptions);
 
       console.log('✅ MongoDB connected successfully');
 
@@ -309,18 +319,18 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
       try {
         const SubscriptionTier = (await import('./models/SubscriptionTier.js')).default;
         const defaultTiers = [
-            { name: "Silver", key: "silver" },
-            { name: "Gold Basic", key: "gold_basic" },
-            { name: "Gold", key: "gold" },
-            { name: "Platinum", key: "platinum" },
-            { name: "Diamond", key: "diamond" }
+          { name: "Silver", key: "silver" },
+          { name: "Gold Basic", key: "gold_basic" },
+          { name: "Gold", key: "gold" },
+          { name: "Platinum", key: "platinum" },
+          { name: "Diamond", key: "diamond" }
         ];
         for (const tier of defaultTiers) {
-            await SubscriptionTier.findOneAndUpdate(
-                { key: tier.key },
-                tier,
-                { upsert: true }
-            );
+          await SubscriptionTier.findOneAndUpdate(
+            { key: tier.key },
+            tier,
+            { upsert: true }
+          );
         }
         console.log('✅ Subscription Tiers verified on startup');
       } catch (tierErr) {
@@ -372,6 +382,12 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
 // Handle MongoDB connection events
 mongoose.connection.on('disconnected', () => {
   console.warn('⚠️ MongoDB disconnected. Attempting to reconnect...');
+  // Auto-reconnect after 5 seconds
+  setTimeout(() => {
+    mongoose.connect(process.env.MONGODB_URL, mongoOptions)
+      .then(() => console.log('✅ MongoDB reconnected after disconnect'))
+      .catch(err => console.error('❌ MongoDB reconnect failed:', err.message));
+  }, 5000);
 });
 
 mongoose.connection.on('error', (err) => {

@@ -14,8 +14,9 @@ export const getDashboardStats = async (params) => {
         pendingBookings: data.activeJobs,
         completedBookings: data.completedJobs,
         totalBookings: data.activeJobs + data.completedJobs,
-        totalRevenue: 0,
-      }
+        totalRevenue: data.totalRevenue || 0,
+      },
+      recentBookings: data.recentBookings || []
     };
   } catch (error) {
     console.error('API Error:', error.response?.data || error);

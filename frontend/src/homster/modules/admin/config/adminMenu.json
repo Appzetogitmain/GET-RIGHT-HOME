@@ -18,7 +18,8 @@
     "children": [
       "All Workers",
       "Worker Jobs",
-      "Worker Analytics"
+      "Worker Analytics",
+      "Withdrawals"
     ]
   },
   {
@@ -57,6 +58,27 @@
       "Manage Services",
       "Manage Membership"
     ]
+  },
+  {
+    "title": "Notifications",
+    "route": "/admin/home-service/notifications",
+    "allowedRoles": [
+      "super_admin",
+      "admin"
+    ],
+    "children": [
+      "Push Notifications",
+      "Abandoned Carts"
+    ]
+  },
+  {
+    "title": "Zone Setup",
+    "route": "/admin/home-service/zones",
+    "allowedRoles": [
+      "super_admin",
+      "admin"
+    ],
+    "children": []
   },
   {
     "title": "Settings",

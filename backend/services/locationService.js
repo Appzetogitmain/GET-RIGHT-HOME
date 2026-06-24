@@ -1,4 +1,5 @@
 import Worker from '../models/Worker.js';
+import Zone from '../models/Zone.js';
 
 export const findNearbyWorkers = async (location, radius, filters) => {
   try {
@@ -15,6 +16,40 @@ export const findNearbyWorkers = async (location, radius, filters) => {
       approvalStatus: 'approved',
       isActive: true
     };
+
+    // ZONE CHECK LOGIC
+    const totalZones = await Zone.countDocuments({ status: 'active' });
+
+    if (totalZones > 0) {
+      // Find if the user's location falls within any active zone
+      const activeZone = await Zone.findOne({
+        status: 'active',
+        area: {
+          $geoIntersects: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [lng, lat]
+            }
+          }
+        }
+      });
+
+      if (!activeZone) {
+        console.log(`[LocationService] User at [${lng}, ${lat}] is NOT in any active zone. Service unavailable.`);
+        return []; // Reject booking by returning no workers
+      }
+
+      console.log(`[LocationService] User is in zone: ${activeZone.name}`);
+
+      // Restrict workers to ONLY those inside the exact same zone polygon
+      baseQuery.location = {
+        $geoWithin: {
+          $geometry: activeZone.area
+        }
+      };
+    } else {
+      console.log(`[LocationService] No active zones found in DB. Falling back to global radius search.`);
+    }
 
     const workers = await Worker.aggregate([
       {

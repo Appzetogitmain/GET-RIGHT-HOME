@@ -14,7 +14,7 @@ const Notifications = () => {
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/notifications', {
+      const res = await api.get('/admin/notifications', {
         params: { limit: 50 }
       });
       if (res.data.success) {
@@ -41,7 +41,7 @@ const Notifications = () => {
 
   const markAsRead = async (id) => {
     try {
-      await api.put(`/notifications/${id}/read`);
+      await api.put(`/admin/notifications/${id}/read`);
       setNotifications(prev =>
         prev.map(n => n._id === id ? { ...n, isRead: true } : n)
       );
@@ -52,7 +52,7 @@ const Notifications = () => {
 
   const markAllAsRead = async () => {
     try {
-      await api.put('/notifications/read-all');
+      await api.put('/admin/notifications/read-all');
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       toast.success('All notifications marked as read');
     } catch (error) {
@@ -63,7 +63,7 @@ const Notifications = () => {
 
   const deleteNotification = async (id) => {
     try {
-      await api.delete(`/notifications/${id}`);
+      await api.delete(`/admin/notifications/${id}`);
       setNotifications(prev => prev.filter(n => n._id !== id));
       toast.success('Notification deleted');
     } catch (error) {
@@ -136,7 +136,7 @@ const Notifications = () => {
                 onClick={async () => {
                   if (window.confirm('Are you sure you want to delete all notifications?')) {
                     try {
-                      await api.delete('/notifications/delete-all');
+                      await api.delete('/admin/notifications/delete-all');
                       setNotifications([]);
                       toast.success('All notifications cleared');
                     } catch (error) {

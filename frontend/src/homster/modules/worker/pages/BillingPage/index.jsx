@@ -459,9 +459,6 @@ const BillingPage = () => {
         setOnlinePaymentData(res.data);
         setIsOtpSent(true);
         toast.success('Payment Request Sent to User!');
-        
-        setShowQrModal(true);
-        setPaymentMode('online');
       } else {
         toast.error(res.message || 'Failed to request payment');
       }

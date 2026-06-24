@@ -35,6 +35,24 @@ const workerWalletService = {
     } catch (error) {
       throw error.response?.data || error.message;
     }
+  },
+
+  payAdminDuesInitiate: async (amount) => {
+    try {
+      const response = await api.post('/workers/wallet/dues/pay', { amount });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  payAdminDuesVerify: async (paymentData) => {
+    try {
+      const response = await api.post('/workers/wallet/dues/verify', paymentData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
   }
 };
 

@@ -17,6 +17,7 @@ import {
   FiPackage,
   FiTrash2,
   FiStar,
+  FiMap,
 } from "react-icons/fi";
 import adminMenu from "../../config/adminMenu.json";
 import dashboardService from "../../services/dashboardService";
@@ -40,6 +41,7 @@ const iconMap = {
   Reviews: FiStar,
   Settlements: FiDollarSign,
   Settings: FiSettings,
+  "Zone Setup": FiMap,
   Plans: FiPackage,
   "Worker Plans": FiBriefcase,
 };
@@ -64,6 +66,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Worker Jobs": "/admin/home-service/workers/jobs",
       "Worker Analytics": "/admin/home-service/workers/analytics",
       "Worker Payments": "/admin/home-service/workers/payments",
+      "Withdrawals": "/admin/home-service/workers/withdrawals",
     },
     "/admin/home-service/bookings": {
       "All Bookings": "/admin/home-service/bookings",

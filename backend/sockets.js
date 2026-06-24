@@ -33,10 +33,17 @@ export const initIO = (io) => {
       console.log(`Vendor ${vendorId} joined room: ${room}`);
     });
 
-    // User emits location updates
+    // User/Worker emits location updates
     socket.on('update_location', (data) => {
-      const { room, location } = data;
-      socket.to(room).emit('live_location_update', location);
+      const room = data.room || data.bookingId;
+      const location = data.location || {
+        lat: data.lat,
+        lng: data.lng,
+        heading: data.heading
+      };
+      if (room && location.lat && location.lng) {
+        socket.to(room).emit('live_location_update', location);
+      }
     });
 
     socket.on('disconnect', () => {

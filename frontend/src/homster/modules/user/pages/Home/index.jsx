@@ -80,6 +80,8 @@ const Home = () => {
   const [houseNumber, setHouseNumber] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLocationSupported, setIsLocationSupported] = useState(true);
+  const [isZoneSupported, setIsZoneSupported] = useState(true);
+  const [zoneMessage, setZoneMessage] = useState('');
   const [detectedCityName, setDetectedCityName] = useState(localStorage.getItem('currentCity') || null);
 
 
@@ -152,6 +154,11 @@ const Home = () => {
       const newAddress = locationObj.address;
       setAddress(newAddress);
       localStorage.setItem('currentAddress', newAddress);
+      
+      if (locationObj.lat && locationObj.lng) {
+        localStorage.setItem('currentLat', locationObj.lat);
+        localStorage.setItem('currentLng', locationObj.lng);
+      }
 
       // Try to parse city from location object (Google Places)
       const components = locationObj.components || locationObj.address_components;
@@ -204,6 +211,8 @@ const Home = () => {
             async (position) => {
               try {
                 const { latitude, longitude } = position.coords;
+                localStorage.setItem('currentLat', latitude);
+                localStorage.setItem('currentLng', longitude);
                 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
                 const response = await fetch(
                   `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
@@ -264,6 +273,33 @@ const Home = () => {
     // Register FCM token for user to receive push notifications
     registerFCMToken('user', true).catch(err => {/* Silent fail */ });
   }, []);
+
+  // Check Zone Availability whenever Lat/Lng changes
+  useEffect(() => {
+    const lat = localStorage.getItem('currentLat');
+    const lng = localStorage.getItem('currentLng');
+    
+    if (lat && lng) {
+      const checkZone = async () => {
+        try {
+          // Temporarily use import axios from 'axios' inside effect if not imported at top
+          // Actually, we can use fetch here to keep it simple
+          const res = await fetch(`/api/zones/check-service?lat=${lat}&lng=${lng}`);
+          const data = await res.json();
+          if (data.success) {
+            setIsZoneSupported(data.isAvailable);
+            if (!data.isAvailable) {
+              setZoneMessage(data.message || 'Service is not available in your zone currently');
+            }
+          }
+        } catch (error) {
+          console.error("Zone check failed:", error);
+        }
+      };
+      checkZone();
+    }
+  }, [address]); // Re-run if address changes
+
 
   const [categories, setCategories] = useState([]);
   const [homeContent, setHomeContent] = useState(null);
@@ -675,6 +711,27 @@ const Home = () => {
               </h2>
               <p className="text-gray-500 max-w-xs mx-auto mb-8 font-medium">
                 Please fast! We are coming soon.
+              </p>
+              <button
+                onClick={() => setIsAddressModalOpen(true)}
+                className="px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold shadow-md hover:bg-primary-700 transition-all font-bold"
+                style={{ backgroundColor: '#2874f0' }}
+              >
+                Change Location
+              </button>
+            </div>
+          ) : !isZoneSupported ? (
+            <div className="flex flex-col items-center justify-center pt-20 pb-10 px-6 text-center min-h-[60vh]">
+              <div className="w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center mb-6">
+                <svg className="w-12 h-12 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                Out of Service Area
+              </h2>
+              <p className="text-gray-500 max-w-xs mx-auto mb-8 font-medium">
+                {zoneMessage || "Service is not available in your zone currently."}
               </p>
               <button
                 onClick={() => setIsAddressModalOpen(true)}

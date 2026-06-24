@@ -1,5 +1,5 @@
 import express from 'express';
-import { 
+import {
   createBooking,
   getUserBookings,
   getBookingById,

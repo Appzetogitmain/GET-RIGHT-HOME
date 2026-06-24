@@ -14,6 +14,7 @@ const TimePeriodFilter = ({ selectedPeriod, onPeriodChange, onExport, customDate
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {/* Left group: calendar + segmented control */}
         <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+          {/* 
           <button
             type="button"
             onClick={() => onPeriodChange(selectedPeriod === 'custom' ? 'month' : 'custom')}
@@ -26,6 +27,7 @@ const TimePeriodFilter = ({ selectedPeriod, onPeriodChange, onExport, customDate
           >
             <FiCalendar className="w-5 h-5" />
           </button>
+          */}
 
           <div className="flex items-center bg-gray-100/80 backdrop-blur-sm rounded-2xl p-1.5 shadow-inner">
             {periods.map((p) => {

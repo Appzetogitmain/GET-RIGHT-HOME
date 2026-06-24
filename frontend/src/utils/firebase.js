@@ -14,12 +14,21 @@ const firebaseConfig = {
 // VAPID KEY - Replace with yours from Firebase Console -> Cloud Messaging -> Web Configuration
 const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
-const app = initializeApp(firebaseConfig);
-
+let app = null;
 let messaging = null;
 
+try {
+  if (firebaseConfig.projectId) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    console.warn('⚠️ Firebase initialization skipped: Missing VITE_FIREBASE_PROJECT_ID in .env');
+  }
+} catch (error) {
+  console.error('❌ Firebase initialization failed:', error);
+}
+
 const getMessagingInstance = () => {
-  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  if (typeof window !== 'undefined' && 'serviceWorker' in navigator && app) {
     if (!messaging) {
       try {
         messaging = getMessaging(app);
