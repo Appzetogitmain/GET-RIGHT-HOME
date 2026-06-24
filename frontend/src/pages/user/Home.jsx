@@ -128,6 +128,22 @@ const Home = () => {
             navigate('/home-services');
             return;
         }
+        if (label === 'PG/Co-Living' || label === 'PG') {
+            navigate('/pg-coliving');
+            return;
+        }
+        if (label === 'Rent') {
+            navigate('/rent');
+            return;
+        }
+        if (label === 'Buy') {
+            navigate('/buy');
+            return;
+        }
+        if (label === 'Plot') {
+            navigate('/plot');
+            return;
+        }
         setSelectedType({ id, label });
         // Reset PG filters when switching tabs
         setPgFilters({ gender: undefined, occupancy: undefined, foodIncluded: undefined });

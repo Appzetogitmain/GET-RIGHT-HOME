@@ -107,6 +107,75 @@ const BuilderProfilePage = () => {
   const readyToMoveProjectsCount = stats?.readyToMoveProjects ?? projects.filter(p => p.builderProjectDetails?.possessionStatus === 'Ready To Move').length;
   const totalProjectsCount = ongoingProjectsCount + readyToMoveProjectsCount || projects.length;
 
+  // ── DYNAMIC CONSTRUCTION QUALITY (RATINGS) ──
+  const ratingCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  let totalQualityRatedCount = 0;
+  let sumQualityRatings = 0;
+  const projectsWithReviews = [];
+
+  projects.forEach(p => {
+    const qRating = p.builderProjectDetails?.ratings?.constructionQuality || p.avgRating || 0;
+    if (qRating > 0) {
+      const rounded = Math.round(qRating);
+      if (ratingCounts[rounded] !== undefined) {
+        ratingCounts[rounded] += 1;
+      }
+      sumQualityRatings += qRating;
+      totalQualityRatedCount += 1;
+    }
+
+    const aiSummary = p.builderProjectDetails?.ratings?.aiSummary || p.description || p.shortDescription || '';
+    if (aiSummary) {
+      projectsWithReviews.push({
+        project: p,
+        rating: qRating || 4.0,
+        summary: aiSummary,
+        totalReviewsCount: p.totalReviews || 1
+      });
+    }
+  });
+
+  const avgQualityScore = totalQualityRatedCount > 0 ? (sumQualityRatings / totalQualityRatedCount).toFixed(1) : null;
+
+  const distributionBars = [1, 2, 3, 4, 5].map(star => {
+    const count = ratingCounts[star];
+    const pct = totalQualityRatedCount > 0 ? Math.round((count / totalQualityRatedCount) * 100) : 0;
+    const label = count > 0 ? `${count} project${count > 1 ? 's' : ''}` : 'None';
+    return { star, label, pct };
+  });
+
+  // ── DYNAMIC PRICE APPRECIATION ──
+  const appreciationProjects = [];
+  let sumAppreciation = 0;
+  let totalAppreciationCount = 0;
+
+  projects.forEach(p => {
+    const pricePerSqft = p.builderProjectDetails?.priceHistory?.currentPricePerSqft || 
+      (p.buyDetails?.expectedPrice && p.buyDetails?.area?.superBuiltUp 
+        ? Math.round(p.buyDetails.expectedPrice / p.buyDetails.area.superBuiltUp) 
+        : (p.buyDetails?.expectedPrice && p.buyDetails?.area?.carpet 
+            ? Math.round(p.buyDetails.expectedPrice / p.buyDetails.area.carpet) 
+            : null));
+
+    const appreciation = p.builderProjectDetails?.priceHistory?.appreciationLast3Years || null;
+
+    if (pricePerSqft || appreciation) {
+      if (appreciation) {
+        sumAppreciation += appreciation;
+        totalAppreciationCount += 1;
+      }
+      appreciationProjects.push({
+        project: p,
+        pricePerSqft,
+        appreciation
+      });
+    }
+  });
+
+  const avgAppreciationVal = totalAppreciationCount > 0 
+    ? Math.round(sumAppreciation / totalAppreciationCount) 
+    : (stats?.averageAppreciation || null);
+
   const filteredProjects = projects.filter(p => {
     const cityMatch = selectedCity === 'All' || p.address?.city === selectedCity;
     const statusMatch = selectedStatus === 'All' || p.builderProjectDetails?.possessionStatus === selectedStatus;
@@ -302,7 +371,14 @@ const BuilderProfilePage = () => {
             {/* Construction Quality Section */}
             <section className="bg-white p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-black text-slate-900">Construction Quality</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-slate-900">Construction Quality</h3>
+                  {avgQualityScore && (
+                    <span className="flex items-center gap-0.5 bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] font-black">
+                      ★ {avgQualityScore}
+                    </span>
+                  )}
+                </div>
                 <button 
                   onClick={() => { setActiveTab('insights'); setSelectedStatus('Ready To Move'); }}
                   className="text-blue-600 font-bold text-xs flex items-center gap-0.5 hover:underline"
@@ -313,81 +389,90 @@ const BuilderProfilePage = () => {
 
               {/* Quality Distribution Card */}
               <div className="border border-slate-100 rounded-2xl bg-white p-4 shadow-sm mb-4">
-                <p className="text-xs font-bold text-slate-800">Residents rated {projects.length > 0 ? projects.length : 18} projects</p>
+                <p className="text-xs font-bold text-slate-800">
+                  Residents rated {totalQualityRatedCount} project{totalQualityRatedCount === 1 ? '' : 's'}
+                </p>
                 <p className="text-[10px] text-slate-400 font-semibold mt-0.5">for construction quality</p>
 
-                <div className="space-y-1.5 mt-3">
-                  {[
-                    { star: 1, label: 'None', pct: 0 },
-                    { star: 2, label: 'None', pct: 0 },
-                    { star: 3, label: '2 projects', pct: 15 },
-                    { star: 4, label: `${projects.length > 2 ? projects.length - 2 : 16} projects`, pct: 85 },
-                    { star: 5, label: 'None', pct: 0 }
-                  ].map(item => (
-                    <div key={item.star} className="flex items-center gap-3">
-                      <div className="flex items-center gap-0.5 w-6 shrink-0">
-                        <span className="font-bold text-[10px] text-slate-500">{item.star}</span>
-                        <Star size={9} className="fill-slate-400 text-slate-400" />
+                {totalQualityRatedCount > 0 ? (
+                  <div className="space-y-1.5 mt-3">
+                    {distributionBars.map(item => (
+                      <div key={item.star} className="flex items-center gap-3">
+                        <div className="flex items-center gap-0.5 w-6 shrink-0">
+                          <span className="font-bold text-[10px] text-slate-500">{item.star}</span>
+                          <Star size={9} className="fill-slate-400 text-slate-400" />
+                        </div>
+                        <div className="flex-1 h-1.5 bg-slate-50 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${item.pct}%` }} />
+                        </div>
+                        <span className="w-16 text-left text-[10px] font-bold text-slate-400 shrink-0">{item.label}</span>
                       </div>
-                      <div className="flex-1 h-1.5 bg-slate-50 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${item.pct}%` }} />
-                      </div>
-                      <span className="w-16 text-left text-[10px] font-bold text-slate-400 shrink-0">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400 font-medium mt-3 italic">
+                    No construction quality ratings submitted yet.
+                  </p>
+                )}
               </div>
 
               {/* Horizontal scroll of reviews */}
-              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
-                {projects.map((p, i) => {
-                  const price = p.buyDetails?.expectedPrice || p.rentDetails?.monthlyRent || p.plotDetails?.expectedPrice;
-                  const formatPrice = (v) => {
-                    if (!v) return 'Price on Request';
-                    if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)} Cr`;
-                    if (v >= 100000) return `₹${(v / 100000).toFixed(1)} L`;
-                    return `₹${v.toLocaleString()}`;
-                  };
-                  const bhkText = p.rentDetails?.type || p.buyDetails?.bhk || '2, 3 BHK';
+              {projectsWithReviews.length > 0 ? (
+                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
+                  {projectsWithReviews.map((item, i) => {
+                    const p = item.project;
+                    const price = p.buyDetails?.expectedPrice || p.rentDetails?.monthlyRent || p.plotDetails?.expectedPrice;
+                    const formatPrice = (v) => {
+                      if (!v) return 'Price on Request';
+                      if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)} Cr`;
+                      if (v >= 100000) return `₹${(v / 100000).toFixed(1)} L`;
+                      return `₹${v.toLocaleString()}`;
+                    };
+                    const bhkText = p.rentDetails?.type || p.buyDetails?.bhk || '2, 3 BHK';
 
-                  return (
-                    <div 
-                      key={p._id || i}
-                      className="flex-shrink-0 w-[290px] bg-white border border-slate-100 rounded-2xl p-3 flex flex-col gap-3 shadow-sm snap-start"
-                    >
-                      <div className="flex gap-3">
-                        <img 
-                          src={p.propertyImages?.[0] || p.coverImage || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80'} 
-                          alt={p.propertyName}
-                          className="w-14 h-14 rounded-xl object-cover bg-slate-50 shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-xs text-slate-900 truncate flex items-center justify-between gap-1">
-                            {p.propertyName} <ChevronRight size={12} className="text-slate-400 shrink-0" />
-                          </h4>
-                          <p className="text-[10px] text-slate-400 truncate">{[p.address?.area, p.address?.city].filter(Boolean).join(', ')}</p>
-                          <p className="text-[10px] text-slate-600 font-medium truncate mt-1">
-                            <span className="font-bold text-blue-600">{formatPrice(price)}</span> | {bhkText}
+                    return (
+                      <div 
+                        key={p._id || i}
+                        className="flex-shrink-0 w-[290px] bg-white border border-slate-100 rounded-2xl p-3 flex flex-col gap-3 shadow-sm snap-start"
+                      >
+                        <div className="flex gap-3">
+                          <img 
+                            src={p.propertyImages?.[0] || p.coverImage || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80'} 
+                            alt={p.propertyName}
+                            className="w-14 h-14 rounded-xl object-cover bg-slate-50 shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-xs text-slate-900 truncate flex items-center justify-between gap-1">
+                              {p.propertyName} <ChevronRight size={12} className="text-slate-400 shrink-0" />
+                            </h4>
+                            <p className="text-[10px] text-slate-400 truncate">{[p.address?.area, p.address?.city].filter(Boolean).join(', ')}</p>
+                            <p className="text-[10px] text-slate-600 font-medium truncate mt-1">
+                              <span className="font-bold text-blue-600">{formatPrice(price)}</span> | {bhkText}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* AI Summary Banner */}
+                        <div className="bg-slate-50 border border-slate-100/50 rounded-xl p-2.5 flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700">
+                            <span className="flex items-center gap-0.5 bg-blue-100/50 text-blue-700 px-1.5 py-0.5 rounded-md">
+                              <Wrench size={10} className="mr-0.5" /> {item.rating.toFixed(1)} <Star size={9} className="fill-blue-700 text-blue-700 ml-0.5" />
+                            </span>
+                            <span className="text-blue-600">AI Summary of {item.totalReviewsCount} review{item.totalReviewsCount === 1 ? '' : 's'}</span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2 mt-0.5">
+                            {item.summary}
                           </p>
                         </div>
                       </div>
-
-                      {/* AI Summary Banner */}
-                      <div className="bg-slate-50 border border-slate-100/50 rounded-xl p-2.5 flex flex-col gap-1">
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700">
-                          <span className="flex items-center gap-0.5 bg-blue-100/50 text-blue-700 px-1.5 py-0.5 rounded-md">
-                            <Wrench size={10} className="mr-0.5" /> 4.2 <Star size={9} className="fill-blue-700 text-blue-700 ml-0.5" />
-                          </span>
-                          <span className="text-blue-600">AI Summary of 12 reviews</span>
-                        </div>
-                        <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2 mt-0.5">
-                          The construction quality of the society seems good with attractive plaster build and well-designed flats. However, there are concerns about sanitation.
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="border border-dashed border-slate-200 rounded-2xl bg-white p-4 text-center">
+                  <p className="text-[10px] text-slate-400 font-medium">No projects with review summaries available.</p>
+                </div>
+              )}
             </section>
 
             {/* Price Appreciation Section */}
@@ -402,75 +487,88 @@ const BuilderProfilePage = () => {
                 </button>
               </div>
 
-              {/* Appreciation Summary Card */}
-              <div className="border border-slate-100 rounded-2xl bg-white p-4 shadow-sm flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
-                  <TrendingUp size={20} />
-                </div>
-                <div>
-                  <p className="text-base font-black text-emerald-600 flex items-center gap-1">
-                    ▲ {stats?.averageAppreciation || 25}% 
-                    <span className="text-[10px] font-bold text-slate-400">+ appreciation</span>
-                  </p>
-                  <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400 font-bold">
-                    <span>in {projects.length || 8} Projects</span>
-                    <span className="border-l border-slate-200 h-3"></span>
-                    <span>in Last 3 years</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Horizontal Scroll of appreciation projects */}
-              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
-                {projects.map((p, i) => {
-                  const price = p.buyDetails?.expectedPrice || p.rentDetails?.monthlyRent || p.plotDetails?.expectedPrice;
-                  const formatPrice = (v) => {
-                    if (!v) return 'Price on Request';
-                    if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)} Cr`;
-                    if (v >= 100000) return `₹${(v / 100000).toFixed(1)} L`;
-                    return `₹${v.toLocaleString()}`;
-                  };
-                  const bhkText = p.rentDetails?.type || p.buyDetails?.bhk || '2, 3 BHK';
-
-                  return (
-                    <div 
-                      key={p._id || i}
-                      className="flex-shrink-0 w-[290px] bg-white border border-slate-100 rounded-2xl p-3 flex flex-col gap-3 shadow-sm snap-start"
-                    >
-                      <div className="flex gap-3">
-                        <img 
-                          src={p.propertyImages?.[0] || p.coverImage || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80'} 
-                          alt={p.propertyName}
-                          className="w-14 h-14 rounded-xl object-cover bg-slate-50 shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-xs text-slate-900 truncate flex items-center justify-between gap-1">
-                            {p.propertyName} <ChevronRight size={12} className="text-slate-400 shrink-0" />
-                          </h4>
-                          <p className="text-[10px] text-slate-400 truncate">{[p.address?.area, p.address?.city].filter(Boolean).join(', ')}</p>
-                          <p className="text-[10px] text-slate-600 font-medium truncate mt-1">
-                            <span className="font-bold text-blue-600">{formatPrice(price)}</span> | {bhkText}
-                          </p>
-                        </div>
+              {appreciationProjects.length > 0 ? (
+                <>
+                  {/* Appreciation Summary Card */}
+                  {avgAppreciationVal && (
+                    <div className="border border-slate-100 rounded-2xl bg-white p-4 shadow-sm flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+                        <TrendingUp size={20} />
                       </div>
-
-                      {/* Pricing appreciation grid */}
-                      <div className="grid grid-cols-2 border border-slate-100 rounded-xl divide-x divide-slate-100 bg-slate-50/50">
-                        <div className="p-2 text-center">
-                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Current Price</p>
-                          <p className="text-[10px] font-bold text-slate-700 mt-0.5">₹ 40,250 /sq.ft</p>
-                        </div>
-                        <div className="p-2 text-center">
-                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Last 3 Years</p>
-                          <p className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center justify-center gap-0.5">
-                            ▲ 85.1%
-                          </p>
+                      <div>
+                        <p className="text-base font-black text-emerald-600 flex items-center gap-1">
+                          ▲ {avgAppreciationVal}% 
+                          <span className="text-[10px] font-bold text-slate-400">+ average appreciation</span>
+                        </p>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400 font-bold">
+                          <span>in {totalAppreciationCount} Project{totalAppreciationCount === 1 ? '' : 's'}</span>
+                          <span className="border-l border-slate-200 h-3"></span>
+                          <span>in Last 3 years</span>
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+
+                  {/* Horizontal Scroll of appreciation projects */}
+                  <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
+                    {appreciationProjects.map((item, i) => {
+                      const p = item.project;
+                      const price = p.buyDetails?.expectedPrice || p.rentDetails?.monthlyRent || p.plotDetails?.expectedPrice;
+                      const formatPrice = (v) => {
+                        if (!v) return 'Price on Request';
+                        if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)} Cr`;
+                        if (v >= 100000) return `₹${(v / 100000).toFixed(1)} L`;
+                        return `₹${v.toLocaleString()}`;
+                      };
+                      const bhkText = p.rentDetails?.type || p.buyDetails?.bhk || '2, 3 BHK';
+
+                      return (
+                        <div 
+                          key={p._id || i}
+                          className="flex-shrink-0 w-[290px] bg-white border border-slate-100 rounded-2xl p-3 flex flex-col gap-3 shadow-sm snap-start"
+                        >
+                          <div className="flex gap-3">
+                            <img 
+                              src={p.propertyImages?.[0] || p.coverImage || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80'} 
+                              alt={p.propertyName}
+                              className="w-14 h-14 rounded-xl object-cover bg-slate-50 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-bold text-xs text-slate-900 truncate flex items-center justify-between gap-1">
+                                {p.propertyName} <ChevronRight size={12} className="text-slate-400 shrink-0" />
+                              </h4>
+                              <p className="text-[10px] text-slate-400 truncate">{[p.address?.area, p.address?.city].filter(Boolean).join(', ')}</p>
+                              <p className="text-[10px] text-slate-600 font-medium truncate mt-1">
+                                <span className="font-bold text-blue-600">{formatPrice(price)}</span> | {bhkText}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Pricing appreciation grid */}
+                          <div className="grid grid-cols-2 border border-slate-100 rounded-xl divide-x divide-slate-100 bg-slate-50/50">
+                            <div className="p-2 text-center">
+                              <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Current Price</p>
+                              <p className="text-[10px] font-bold text-slate-700 mt-0.5">
+                                {item.pricePerSqft ? `₹ ${item.pricePerSqft.toLocaleString()} /sq.ft` : 'N/A'}
+                              </p>
+                            </div>
+                            <div className="p-2 text-center">
+                              <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Last 3 Years</p>
+                              <p className={`text-[10px] font-bold mt-0.5 flex items-center justify-center gap-0.5 ${item.appreciation ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                {item.appreciation ? `▲ ${item.appreciation}%` : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="border border-dashed border-slate-200 rounded-2xl bg-white p-4 text-center">
+                  <p className="text-[10px] text-slate-400 font-medium">No price appreciation details available.</p>
+                </div>
+              )}
             </section>
           </div>
         )}

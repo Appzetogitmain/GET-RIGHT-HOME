@@ -151,7 +151,16 @@ const SearchPage = () => {
         const transactionTypeVal = searchParams.get('transactionType') || '';
 
         let categoryTab = 'Sell';
-        if (transactionTypeVal) {
+        const pathName = window.location.pathname;
+        if (pathName === '/rent') {
+            categoryTab = 'Rent / Lease';
+        } else if (pathName === '/pg-coliving') {
+            categoryTab = 'Paying Guest';
+        } else if (pathName === '/plot') {
+            categoryTab = 'Sell';
+        } else if (pathName === '/buy') {
+            categoryTab = 'Sell';
+        } else if (transactionTypeVal) {
             categoryTab = transactionTypeVal;
         } else if (typeVal.toLowerCase().includes('pg') || typeVal.toLowerCase().includes('hostel')) {
             categoryTab = 'Paying Guest';
@@ -254,19 +263,30 @@ const SearchPage = () => {
 
                     setPropertyTypes(updatedTypes);
 
-                    // Check typeVal in URL and resolve categoryTab
-                    const typeVal = searchParams.get('type') || 'all';
-                    const transactionTypeVal = searchParams.get('transactionType') || '';
-                    if (typeVal !== 'all' && !transactionTypeVal) {
-                        let resolvedTab = 'Sell';
-                        if (typeVal === pgId || typeVal.toLowerCase().includes('pg') || typeVal.toLowerCase().includes('hostel')) {
-                            resolvedTab = 'Paying Guest';
-                        } else if (typeVal === rentId || typeVal.toLowerCase().includes('rent')) {
-                            resolvedTab = 'Rent / Lease';
-                        } else if (typeVal === buyId || typeVal === plotId) {
-                            resolvedTab = 'Sell';
+                    // Check pathname overrides or URL query params
+                    const pathName = window.location.pathname;
+                    if (pathName === '/rent') {
+                        setFilters(prev => ({ ...prev, categoryTab: 'Rent / Lease', type: rentId }));
+                    } else if (pathName === '/pg-coliving') {
+                        setFilters(prev => ({ ...prev, categoryTab: 'Paying Guest', type: pgId }));
+                    } else if (pathName === '/plot') {
+                        setFilters(prev => ({ ...prev, categoryTab: 'Sell', type: plotId }));
+                    } else if (pathName === '/buy') {
+                        setFilters(prev => ({ ...prev, categoryTab: 'Sell', type: buyId }));
+                    } else {
+                        const typeVal = searchParams.get('type') || 'all';
+                        const transactionTypeVal = searchParams.get('transactionType') || '';
+                        if (typeVal !== 'all' && !transactionTypeVal) {
+                            let resolvedTab = 'Sell';
+                            if (typeVal === pgId || typeVal.toLowerCase().includes('pg') || typeVal.toLowerCase().includes('hostel')) {
+                                resolvedTab = 'Paying Guest';
+                            } else if (typeVal === rentId || typeVal.toLowerCase().includes('rent')) {
+                                resolvedTab = 'Rent / Lease';
+                            } else if (typeVal === buyId || typeVal === plotId) {
+                                resolvedTab = 'Sell';
+                            }
+                            setFilters(prev => ({ ...prev, categoryTab: resolvedTab, type: typeVal }));
                         }
-                        setFilters(prev => ({ ...prev, categoryTab: resolvedTab }));
                     }
                 }
             } catch (err) {
@@ -329,6 +349,26 @@ const SearchPage = () => {
         setLoading(true);
         try {
             const params = Object.fromEntries([...searchParams]);
+
+            // Pathname overrides
+            const pathName = window.location.pathname;
+            if (pathName === '/rent') {
+                params.transactionType = 'Rent / Lease';
+                const rentIdObj = propertyTypes.find(t => t.label === 'Rent');
+                params.type = rentIdObj && rentIdObj.id !== 'rent' ? rentIdObj.id : 'rent';
+            } else if (pathName === '/pg-coliving') {
+                params.transactionType = 'Paying Guest';
+                const pgIdObj = propertyTypes.find(t => t.label === 'PG');
+                params.type = pgIdObj && pgIdObj.id !== 'pg' ? pgIdObj.id : 'pg';
+            } else if (pathName === '/plot') {
+                params.transactionType = 'Sell';
+                const plotIdObj = propertyTypes.find(t => t.label === 'Plot');
+                params.type = plotIdObj && plotIdObj.id !== 'plot' ? plotIdObj.id : 'plot';
+            } else if (pathName === '/buy') {
+                params.transactionType = 'Sell';
+                const buyIdObj = propertyTypes.find(t => t.label === 'Buy');
+                params.type = buyIdObj && buyIdObj.id !== 'buy' ? buyIdObj.id : 'buy';
+            }
 
             // Add location if present
             if (location) {
