@@ -38,6 +38,8 @@ import {
   getFinanceStats,
   getReelAnalysis,
   createAdminProperty,
+  getAbandonedCarts,
+  sendTargetedNotification,
   updateAdminProperty
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
@@ -46,7 +48,12 @@ import {
     adminUpdateEnquiry,
     adminDeleteEnquiry
 } from '../controllers/enquiryController.js';
-import { getWorkerAnalytics } from '../controllers/adminWorkerController.js';
+import { 
+  getWorkerAnalytics,
+  getWorkerWithdrawals,
+  approveWorkerWithdrawal,
+  rejectWorkerWithdrawal
+} from '../controllers/adminWorkerController.js';
 import { checkManagerPermission, requireAdminOrManager } from '../middlewares/managerPermission.js';
 
 import builderRoutes from './builderRoutes.js';
@@ -86,6 +93,8 @@ router.get('/notifications', checkManagerPermission('notifications', 'view'), ge
 router.post('/notifications/send', checkManagerPermission('notifications', 'add'), createBroadcastNotification);
 router.put('/notifications/read-all', checkManagerPermission('notifications', 'edit'), markAllAdminNotificationsRead);
 router.delete('/notifications', checkManagerPermission('notifications', 'delete'), deleteAdminNotifications);
+router.get('/abandoned-carts', checkManagerPermission('notifications', 'view'), getAbandonedCarts);
+router.post('/notifications/send-targeted', checkManagerPermission('notifications', 'add'), sendTargetedNotification);
 
 router.put('/fcm-token', requireAdminOrManager, updateFcmToken);
 router.get('/dashboard-stats', checkManagerPermission('dashboard', 'view'), getDashboardStats);
@@ -127,5 +136,10 @@ router.get('/platform-settings', checkManagerPermission('settings', 'view'), get
 router.put('/platform-settings', checkManagerPermission('settings', 'edit'), updatePlatformSettings);
 router.get('/reel-analysis', checkManagerPermission('reel_analysis', 'view'), getReelAnalysis);
 router.get('/reports/workers', checkManagerPermission('dashboard', 'view'), getWorkerAnalytics);
+
+// Worker Withdrawals
+router.get('/worker-withdrawals', checkManagerPermission('finance', 'view'), getWorkerWithdrawals);
+router.put('/worker-withdrawals/:id/approve', checkManagerPermission('finance', 'edit'), approveWorkerWithdrawal);
+router.put('/worker-withdrawals/:id/reject', checkManagerPermission('finance', 'edit'), rejectWorkerWithdrawal);
 
 export default router;

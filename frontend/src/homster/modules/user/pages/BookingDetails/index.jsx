@@ -97,31 +97,28 @@ const BookingDetails = () => {
   const loadBooking = async () => {
     try {
       // Don't set loading true on refresh to avoid flicker
-      const response = await bookingService.getById(id);
+      // Append a cache-buster timestamp to ensure fresh data
+      const response = await bookingService.getById(id + '?t=' + new Date().getTime());
       if (response.success) {
-        const data = { ...response.data };
-        // DEBUG: Log billing fields
-        console.log('[BookingDetails] API Response:', {
-          finalAmount: data.finalAmount,
-          finalOnlineAmount: data.finalOnlineAmount,
-          finalCashAmount: data.finalCashAmount,
-          basePrice: data.basePrice,
-          bill: data.bill ? {
-            finalOnlineAmount: data.bill.finalOnlineAmount,
-            finalCashAmount: data.bill.finalCashAmount,
-            grandTotal: data.bill.grandTotal,
-            originalServiceBase: data.bill.originalServiceBase,
-            totalServiceValue: data.bill.totalServiceValue,
-            adminCommission: data.bill.adminCommission,
-            cashCollectionFee: data.bill.cashCollectionFee,
-          } : 'NO BILL'
+        // Use a functional state update to preserve optimistic OTPs if API is stale
+        setBooking(prev => {
+          const data = { ...response.data };
+          if (prev) {
+            // Preserve visit OTP if it exists in previous state but not in the new fetch
+            // Only preserve if we are still in early stages
+            if (prev.visitOtp && !data.visitOtp && ['journey_started'].includes(data.status?.toLowerCase())) {
+              data.visitOtp = prev.visitOtp;
+              data.arrivalOTP = prev.arrivalOTP || prev.visitOtp;
+            }
+            // Preserve payment OTP if it exists in previous state but not in the new fetch
+            // Only preserve if we are still in work_done stage
+            if (prev.customerConfirmationOTP && !data.customerConfirmationOTP && ['work_done'].includes(data.status?.toLowerCase())) {
+              data.customerConfirmationOTP = prev.customerConfirmationOTP;
+              data.paymentOtp = prev.paymentOtp || prev.customerConfirmationOTP;
+            }
+          }
+          return data;
         });
-        // Calculate notional display values for plan_benefit
-        if (data.paymentMethod === 'plan_benefit') {
-          if (!data.tax) data.tax = 0;
-          if (!data.visitingCharges && !data.visitationFee) data.visitingCharges = 0;
-        }
-        setBooking(data);
       } else {
         toast.error(response.message || 'Booking not found');
         navigate('/user/home-services/bookings');
@@ -153,6 +150,8 @@ const BookingDetails = () => {
         if (!prev) return prev;
         const newData = { ...prev, ...(data.data || data) };
         if (data.visitOtp) newData.visitOtp = data.visitOtp;
+        if (data.customerConfirmationOTP) newData.customerConfirmationOTP = data.customerConfirmationOTP;
+        if (data.paymentOtp) newData.paymentOtp = data.paymentOtp;
         return newData;
       });
 
@@ -160,6 +159,9 @@ const BookingDetails = () => {
       if (data.type === 'worker_reached' || data.type === 'vendor_reached') {
         toast.success('Professional has arrived! Please check the OTP.', { id: 'worker_arrived_toast' });
         setShowArrivalModal(true);
+      } else if (data.type === 'visit_verified' || data.status === 'visited' || data.status === 'VISITED') {
+        toast.success('Worker reached your location!', { id: 'worker_reached_toast' });
+        setShowArrivalModal(false);
       } else if (data.status === 'JOURNEY_STARTED' || data.status === 'journey_started') {
         // Only toast if it's explicitly journey started (not worker reached)
         toast.success('Professional has started their journey!');
@@ -169,8 +171,10 @@ const BookingDetails = () => {
         toast(data.message, { icon: '🔔', id: `toast_${Date.now()}` });
       }
 
-      // Always reload fresh data
-      loadBooking();
+      // Delay fetching fresh data to avoid race conditions with DB replication overwriting optimistic updates
+      setTimeout(() => {
+        loadBooking();
+      }, 1500);
     };
 
     socket.on('booking_updated', handleSocketEvent);

@@ -1,6 +1,6 @@
 import HomeServiceBooking from '../../models/HomeServiceBooking.js';
 import Worker from '../../models/Worker.js';
-import {  BOOKING_STATUS  } from '../../utils/constants.js';
+import { BOOKING_STATUS } from '../../utils/constants.js';
 
 /**
  * Get worker dashboard statistics
@@ -77,6 +77,7 @@ const getDashboardStats = async (req, res) => {
 
     // 6. Get Recent Jobs
     const recentJobs = await HomeServiceBooking.find({ workerId: worker._id })
+      .select('-serviceImages -requirementImages -workPhotos -reviewImages')
       .sort({ createdAt: -1 })
       .limit(5)
       .populate('userId', 'name')
@@ -104,4 +105,4 @@ const getDashboardStats = async (req, res) => {
 
 export { 
   getDashboardStats
- };
+};

@@ -83,6 +83,12 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Token expired' });
     }
     console.error('🛡️ Auth Middleware Error:', error);
+    
+    // Check for MongoDB related errors to prevent accidental 401s which trigger false logouts
+    if (error.name && error.name.includes('Mongo')) {
+      return res.status(503).json({ message: 'Database connection failed, please try again' });
+    }
+    
     res.status(401).json({ message: 'Not authorized, token failed' });
   }
 };

@@ -225,14 +225,7 @@ const bookingSchema = new mongoose.Schema({
     default: null,
     index: true
   },
-  paymentOtp: {
-    type: String,
-    select: false // Hide by default for security
-  },
-  customerConfirmationOTP: {
-    type: String,
-    select: false // Used interchangeably with paymentOtp
-  },
+
   // Cash Collection Details
   cashCollected: {
     type: Boolean,
@@ -440,6 +433,8 @@ bookingSchema.index({ notifiedVendors: 1, status: 1 });
 bookingSchema.index({ 'potentialVendors.vendorId': 1 });
 // Dashboard: $or on { vendorId: null, serviceCategory: ..., status: ... }
 bookingSchema.index({ vendorId: 1, serviceCategory: 1, status: 1 });
+// Sort by createdAt
+bookingSchema.index({ createdAt: -1 });
 
 const HomeServiceBooking = mongoose.model('HomeServiceBooking', bookingSchema);
 

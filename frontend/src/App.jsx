@@ -19,6 +19,7 @@ import { requestNotificationPermission, onMessageListener } from './utils/fireba
 import logo from './assets/rokologin-removebg-preview.png';
 import { CityProvider } from './homster/context/CityContext';
 import { CartProvider } from './homster/context/CartContext';
+import { SocketProvider } from './homster/context/SocketContext';
 
 // Lazy Imports - User Pages
 const Home = React.lazy(() => import('./pages/user/Home'));
@@ -454,6 +455,7 @@ function App() {
           <Router>
             <ScrollToTop />
             <Toaster position="top-center" reverseOrder={false} />
+            <SocketProvider>
       <Layout>
         <Suspense fallback={<PageLoader />}>
           <Routes>
@@ -682,6 +684,7 @@ function App() {
           </Routes>
         </Suspense>
       </Layout>
+            </SocketProvider>
           </Router>
         </AuthProvider>
       </CartProvider>

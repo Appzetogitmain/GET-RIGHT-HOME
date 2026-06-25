@@ -7,6 +7,8 @@ import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
 
 // Login page (not lazy loaded for faster initial access)
 import Login from '../pages/login';
+import WorkerWithdrawals from '../pages/Workers/WorkerWithdrawals';
+import ZoneSetup from '../pages/ZoneSetup';
 
 // Lazy load admin pages for code splitting
 const Dashboard = lazy(() => import('../pages/Dashboard'));
@@ -21,6 +23,8 @@ const BookingNotifications = lazy(() => import('../pages/Bookings/BookingNotific
 const Payments = lazy(() => import('../pages/Payments'));
 const Reports = lazy(() => import('../pages/Reports'));
 const Notifications = lazy(() => import('../pages/Notifications'));
+const AbandonedCarts = lazy(() => import('../pages/Notifications/AbandonedCarts'));
+const PushNotifications = lazy(() => import('../pages/Notifications/PushNotifications'));
 
 const Plans = lazy(() => import('../pages/Plans/Plans'));
 const WorkerPlans = lazy(() => import('../pages/Plans/WorkerPlans'));
@@ -61,10 +65,14 @@ const AdminRoutes = () => {
           <Route path="user-categories/*" element={<UserCategories />} />
           <Route path="payments/*" element={<Payments />} />
           <Route path="reports/*" element={<Reports />} />
-          <Route path="notifications/*" element={<Notifications />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="notifications/abandoned-carts" element={<AbandonedCarts />} />
+          <Route path="notifications/push" element={<PushNotifications />} />
           <Route path="scrap" element={<Scrap />} />
           <Route path="plans" element={<Plans />} />
           <Route path="worker-plans" element={<WorkerPlans />} />
+          <Route path="home-service/workers/withdrawals" element={<WorkerWithdrawals />} />
+          <Route path="zones" element={<ZoneSetup />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="settlements/*" element={<Settlements />} />
           <Route path="settings/*" element={<Settings />} />

@@ -144,10 +144,16 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         console.error('RefreshToken failed:', refreshError);
-        // Refresh failed, logout
         processQueue(refreshError, null);
         isRefreshing = false;
-        handleLogout(role);
+        
+        // Only force logout if the refresh request failed with a client error (4xx)
+        // If it's a 5xx or network error, the server is just down.
+        const isServerError = !refreshError.response || refreshError.response.status >= 500;
+        if (!isServerError) {
+          handleLogout(role);
+        }
+        
         return Promise.reject(refreshError);
       }
     }

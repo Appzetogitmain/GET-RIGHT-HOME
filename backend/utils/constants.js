@@ -9,10 +9,12 @@ export const BOOKING_STATUS = {
   VISITED: 'visited',
   IN_PROGRESS: 'in_progress',
   WORK_DONE: 'work_done',
+  AWAITING_PAYMENT: 'awaiting_payment',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
   NO_VENDORS: 'no_vendors',
   NO_WORKERS: 'no_workers',
+  REJECTED: 'rejected',
 };
 
 export const PAYMENT_STATUS = {

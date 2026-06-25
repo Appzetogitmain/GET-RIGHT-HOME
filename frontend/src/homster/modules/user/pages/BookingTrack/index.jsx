@@ -280,7 +280,10 @@ const BookingTrack = () => {
             if (!prev) return prev;
             return { ...prev, ...(data.data || data) };
           });
-          if (data.qrPaymentInitiated) {
+          if (data.type === 'visit_verified' || data.status === 'visited' || data.status === 'VISITED') {
+            toast.success('Worker reached your location!', { id: 'worker_reached_toast' });
+            setShowArrivalModal(false);
+          } else if (data.qrPaymentInitiated) {
             setShowPaymentModal(true);
             toast.success('Professional has initiated payment!');
           } else if (data.customerConfirmationOTP) {

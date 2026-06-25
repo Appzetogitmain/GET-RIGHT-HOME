@@ -256,7 +256,20 @@ const LocationPicker = forwardRef(({ onLocationSelect, initialPosition = null },
             zoomControl: false
           }}
         >
-          {marker && <Marker position={marker} />}
+          {marker && (
+            <Marker 
+              position={marker} 
+              draggable={true}
+              onDragEnd={(e) => {
+                const newPos = {
+                  lat: e.latLng.lat(),
+                  lng: e.latLng.lng()
+                };
+                setMarker(newPos);
+                reverseGeocode(newPos);
+              }}
+            />
+          )}
         </GoogleMap>
 
         {/* Pin Instruction Overlay */}

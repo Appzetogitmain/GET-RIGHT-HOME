@@ -99,41 +99,80 @@ const BookingConfirmation = () => {
   const [isSearching, setIsSearching] = useState(!location.state?.noVendorsFound); // Respect passed state
   const [confirmDialog, setConfirmDialog] = useState(false);
 
-  useEffect(() => {
-    const loadBooking = async () => {
-      try {
-        setLoading(true);
-        const response = await bookingService.getById(id);
-        if (response.success) {
-          const data = { ...response.data };
-          // Calculate notional display values for plan_benefit
-          if (data.paymentMethod === 'plan_benefit') {
-            if (!data.tax) data.tax = 0;
-            if (!data.visitingCharges && !data.visitationFee) data.visitingCharges = 0;
-          }
-          setBooking(data);
-
-          // Check if vendor is already assigned
-          const currentStatus = data.status?.toLowerCase();
-          if (data.vendorId || (currentStatus !== 'requested' && currentStatus !== 'searching')) {
-            setIsSearching(false);
-          }
-        } else {
-          toast.error(response.message || 'Booking not found');
-          navigate('/user/home-services/bookings');
+  const loadBooking = async () => {
+    try {
+      setLoading(true);
+      const response = await bookingService.getById(id);
+      if (response.success) {
+        const data = { ...response.data };
+        // Calculate notional display values for plan_benefit
+        if (data.paymentMethod === 'plan_benefit') {
+          if (!data.tax) data.tax = 0;
+          if (!data.visitingCharges && !data.visitationFee) data.visitingCharges = 0;
         }
-      } catch (error) {
-        toast.error('Failed to load booking details');
-        navigate('/user/home-services/bookings');
-      } finally {
-        setLoading(false);
-      }
-    };
+        setBooking(data);
 
+        // Check if vendor or worker is already assigned
+        const currentStatus = data.status?.toLowerCase();
+        if (data.vendorId || data.workerId || (currentStatus !== 'requested' && currentStatus !== 'searching')) {
+          setIsSearching(false);
+        }
+      } else {
+        toast.error(response.message || 'Booking not found');
+        navigate('/user/home-services/bookings');
+      }
+    } catch (error) {
+      toast.error('Failed to load booking details');
+      navigate('/user/home-services/bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshBooking = async () => {
+    try {
+      const response = await bookingService.getById(id);
+      if (response.success) {
+        const data = { ...response.data };
+        if (data.paymentMethod === 'plan_benefit') {
+          if (!data.tax) data.tax = 0;
+          if (!data.visitingCharges && !data.visitationFee) data.visitingCharges = 0;
+        }
+        setBooking(data);
+
+        // Check if vendor or worker is already assigned
+        const currentStatus = data.status?.toLowerCase();
+        if (data.vendorId || data.workerId || (currentStatus !== 'requested' && currentStatus !== 'searching')) {
+          setIsSearching(false);
+        }
+      }
+    } catch (error) {
+      console.error('Refresh booking error:', error);
+    }
+  };
+
+  useEffect(() => {
     if (id) {
       loadBooking();
     }
   }, [id, navigate]);
+
+  useEffect(() => {
+    window.addEventListener('userBookingsUpdated', refreshBooking);
+    return () => {
+      window.removeEventListener('userBookingsUpdated', refreshBooking);
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (booking) {
+      const status = booking.status?.toLowerCase();
+      if (['journey_started', 'visited', 'in_progress'].includes(status)) {
+        toast.success('Professional has started their journey!');
+        navigate(`/user/booking/${booking._id || booking.id}`, { replace: true });
+      }
+    }
+  }, [booking, navigate]);
 
   // Poll for vendor acceptance
   useEffect(() => {

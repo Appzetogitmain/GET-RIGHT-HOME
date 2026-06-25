@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { FiDollarSign, FiArrowUp, FiArrowDown, FiClock, FiBell, FiX, FiImage, FiFileText, FiCreditCard, FiCalendar, FiInfo } from 'react-icons/fi';
+import { FiDollarSign, FiArrowUp, FiArrowDown, FiClock, FiBell, FiX, FiImage, FiFileText, FiCreditCard, FiCalendar, FiInfo, FiChevronRight } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
-import BottomNav from '../../components/layout/BottomNav';
 import workerWalletService from '../../../../services/workerWalletService';
 import { toast } from 'react-hot-toast';
 import LogoLoader from '../../../../components/common/LogoLoader';
@@ -11,6 +10,7 @@ import LogoLoader from '../../../../components/common/LogoLoader';
 const Wallet = () => {
   const [loading, setLoading] = useState(true);
   const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payingDues, setPayingDues] = useState(false);
   const [wallet, setWallet] = useState({
     balance: 0,
     pendingPayout: 0
@@ -91,50 +91,24 @@ const Wallet = () => {
     }
   };
 
-  const handleWithdrawalRequest = async (e) => {
-    e.preventDefault();
-    if (!withdrawAmount || Number(withdrawAmount) <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    if (Number(withdrawAmount) > wallet.balance) {
-      toast.error('Insufficient balance');
-      return;
-    }
 
-    try {
-      setPayoutLoading(true);
-      await workerWalletService.requestWithdrawal(withdrawAmount, withdrawForm);
-      toast.success('Withdrawal request submitted successfully!');
-      setWithdrawModalOpen(false);
-      loadWalletData(); // Refresh balance
-    } catch (error) {
-      toast.error(error.message || 'Failed to submit request');
-    } finally {
-      setPayoutLoading(false);
-    }
-  };
 
   const filteredTransactions = transactions.filter(txn => {
     if (filter === 'all') return true;
-    return txn.type === filter;
+    return txn.category === filter || txn.type === filter;
   });
 
   const getTransactionIcon = (type) => {
-    switch (type) {
-      case 'worker_payment':
-      case 'earnings_credit':
-        return <FiArrowDown className="w-5 h-5 text-green-500" />;
-      case 'cash_collected':
-      case 'withdrawal':
-        return <FiArrowUp className="w-5 h-5 text-red-500" />;
-      default:
-        return <FiDollarSign className="w-5 h-5 text-gray-500" />;
+    if (type === 'debit') {
+      return <FiArrowUp className="w-5 h-5 text-red-500" />;
+    } else if (type === 'credit') {
+      return <FiArrowDown className="w-5 h-5 text-green-500" />;
     }
+    return <FiDollarSign className="w-5 h-5 text-gray-500" />;
   };
 
-  const getTransactionLabel = (type) => {
-    switch (type) {
+  const getTransactionLabel = (category) => {
+    switch (category) {
       case 'worker_payment':
       case 'earnings_credit':
         return 'Earnings Received';
@@ -143,7 +117,7 @@ const Wallet = () => {
       case 'withdrawal':
         return 'Withdrawal Request';
       default:
-        return type.replace('_', ' ');
+        return category ? category.replace('_', ' ') : 'Transaction';
     }
   };
 
@@ -168,8 +142,8 @@ const Wallet = () => {
   };
 
   const handleTransactionClick = (txn) => {
-    // Only open details modal for worker_payment or earnings_credit transactions
-    if (txn.type === 'worker_payment' || txn.type === 'earnings_credit') {
+    // Only open details modal for withdrawal or cash_collected transactions
+    if (txn.category === 'withdrawal' || txn.category === 'cash_collected') {
       setSelectedTransaction(txn);
     }
   };
@@ -195,6 +169,138 @@ const Wallet = () => {
   if (loading) {
     return <LogoLoader />;
   }
+
+  const loadRazorpay = () => new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
+  const handlePayDues = async () => {
+    if (!wallet.dues || wallet.dues <= 0) return;
+    
+    try {
+      setPayingDues(true);
+      const isLoaded = await loadRazorpay();
+      if (!isLoaded || !window.Razorpay) {
+        toast.error('Razorpay SDK failed to load. Are you online?');
+        return;
+      }
+
+      // Initiate order
+      const initRes = await workerWalletService.payAdminDuesInitiate(wallet.dues);
+      
+      const options = {
+        key: initRes.order.key,
+        amount: initRes.order.amount,
+        currency: initRes.order.currency,
+        name: "Hoomzo",
+        description: "Clear Admin Dues",
+        order_id: initRes.order.id,
+        handler: async function (response) {
+          try {
+            const verifyRes = await workerWalletService.payAdminDuesVerify({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              amount: wallet.dues
+            });
+            if (verifyRes.success) {
+              toast.success('Dues cleared successfully!');
+              loadWalletData();
+            }
+          } catch (err) {
+            toast.error(err.message || 'Payment verification failed');
+          }
+        },
+        theme: {
+          color: "#0F766E"
+        }
+      };
+      
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        toast.error('Payment Failed: ' + response.error.description);
+      });
+      rzp.open();
+    } catch (err) {
+      toast.error(err.message || 'Failed to initiate payment');
+    } finally {
+      setPayingDues(false);
+    }
+  };
+
+  const handleWithdrawalRequest = async (e) => {
+    e.preventDefault();
+    if (!withdrawAmount || Number(withdrawAmount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    if (Number(withdrawAmount) > wallet.balance) {
+      toast.error('Insufficient balance');
+      return;
+    }
+
+    // Validation
+    const hasUpi = !!withdrawForm.upiId.trim();
+    const hasBank = !!withdrawForm.accountNumber.trim() || !!withdrawForm.ifscCode.trim() || !!withdrawForm.accountHolderName.trim();
+
+    if (!hasUpi && !hasBank) {
+      toast.error('Please provide either UPI ID or Bank Account details');
+      return;
+    }
+
+    // UPI Validation
+    if (hasUpi) {
+      const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+      if (!upiRegex.test(withdrawForm.upiId.trim())) {
+        toast.error('Please enter a valid UPI ID (e.g., name@bank)');
+        return;
+      }
+    }
+
+    // Bank Details Validation
+    if (hasBank) {
+      if (!withdrawForm.accountNumber.trim() || !withdrawForm.ifscCode.trim() || !withdrawForm.accountHolderName.trim()) {
+        toast.error('Please complete all bank details (Account Number, IFSC, and Name)');
+        return;
+      }
+
+      const accNumberRegex = /^\d{9,18}$/;
+      if (!accNumberRegex.test(withdrawForm.accountNumber.trim())) {
+        toast.error('Account number must contain 9 to 18 digits only');
+        return;
+      }
+
+      const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/i;
+      if (!ifscRegex.test(withdrawForm.ifscCode.trim())) {
+        toast.error('Please enter a valid 11-character IFSC code');
+        return;
+      }
+
+      const nameRegex = /^[a-zA-Z\s]+$/;
+      if (!nameRegex.test(withdrawForm.accountHolderName.trim())) {
+        toast.error('Account holder name can only contain alphabets and spaces');
+        return;
+      }
+    }
+
+    try {
+      setPayoutLoading(true);
+      await workerWalletService.requestWithdrawal(withdrawAmount, withdrawForm);
+      toast.success('Withdrawal request submitted successfully');
+      setWithdrawModalOpen(false);
+      setWithdrawAmount('');
+      loadWalletData(); // Refresh balance
+    } catch (error) {
+      toast.error(error.message || 'Failed to submit request');
+    } finally {
+      setPayoutLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen pb-24" style={{ background: themeColors.backgroundGradient }}>
@@ -224,13 +330,39 @@ const Wallet = () => {
           </div>
         </div>
 
+        {/* Admin Dues Card */}
+        <div className={`rounded-2xl p-5 shadow-lg relative overflow-hidden mb-6 bg-white border-l-4 ${wallet.dues > 0 ? 'border-red-500' : 'border-green-500'}`}>
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              <FiClock className={`${wallet.dues > 0 ? 'text-red-500' : 'text-green-500'} w-5 h-5`} />
+              <h3 className="font-semibold text-gray-800">Admin Commission Dues</h3>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">
+            This amount is pending from the cash payments you collected directly from customers.
+          </p>
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">To Pay</p>
+              <p className={`text-2xl font-bold ${wallet.dues > 0 ? 'text-red-600' : 'text-green-600'}`}>₹{wallet.dues?.toLocaleString() || 0}</p>
+            </div>
+            <button 
+              onClick={handlePayDues}
+              disabled={payingDues || !wallet.dues || wallet.dues <= 0}
+              className={`px-6 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${wallet.dues > 0 ? 'bg-red-500 hover:bg-red-600 text-white active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+            >
+              {payingDues ? 'Processing...' : (wallet.dues > 0 ? 'Pay Now' : 'All Cleared')}
+            </button>
+          </div>
+        </div>
+
         {/* Pending Payouts List Removed */}
 
         {/* Filter Buttons */}
         <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
           {[
             { id: 'all', label: 'All' },
-            { id: 'worker_payment', label: 'Payments' },
+            { id: 'withdrawal', label: 'Payments' },
             { id: 'cash_collected', label: 'Cash Collected' },
           ].map((filterOption) => (
             <button
@@ -267,20 +399,18 @@ const Wallet = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredTransactions.map((txn) => (
+              {filteredTransactions.map((txn, index) => (
                 <div
-                  key={txn._id}
+                  key={txn._id || index}
                   onClick={() => handleTransactionClick(txn)}
-                  className={`bg-white rounded-xl p-4 shadow-md border-l-4 ${txn.type === 'worker_payment' ? 'cursor-pointer hover:shadow-lg active:scale-[0.98] transition-all' : ''}`}
-                  style={{
-                    borderLeftColor: txn.type === 'cash_collected' ? '#DC2626' : '#10B981'
-                  }}
+                  className={`bg-white rounded-xl p-4 shadow-md border-l-4 ${txn.category === 'withdrawal' || txn.category === 'cash_collected' ? 'cursor-pointer hover:shadow-lg active:scale-[0.98] transition-all' : ''}`}
+                  style={{ borderLeftColor: txn.type === 'credit' ? '#10b981' : '#ef4444' }}
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
                       style={{
-                        background: txn.type === 'cash_collected' ? '#FEE2E2' : '#D1FAE5'
+                        background: txn.type === 'debit' ? '#FEE2E2' : '#D1FAE5'
                       }}
                     >
                       {getTransactionIcon(txn.type)}
@@ -289,11 +419,11 @@ const Wallet = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <p className="font-bold text-gray-900 text-sm">
-                          {getTransactionLabel(txn.type)}
+                          {getTransactionLabel(txn.category)}
                         </p>
-                        <p className={`text-lg font-bold ${txn.type === 'cash_collected' ? 'text-red-600' : 'text-green-600'
+                        <p className={`text-lg font-bold ${txn.type === 'debit' ? 'text-red-600' : 'text-green-600'
                           }`}>
-                          {txn.type === 'cash_collected' ? 'Collected' : '+'} ₹{Math.abs(txn.amount).toLocaleString()}
+                          {txn.type === 'debit' ? '-' : '+'} ₹{Math.abs(txn.amount).toLocaleString()}
                         </p>
                       </div>
 
@@ -306,8 +436,11 @@ const Wallet = () => {
                           }`}>
                           {txn.status}
                         </span>
-                        {txn.type === 'worker_payment' && (
-                          <span className="text-xs text-teal-600 font-medium">Tap for details →</span>
+                        {txn.category === 'withdrawal' && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-teal-600 font-medium">View details</span>
+                            <FiChevronRight className="w-3 h-3 text-teal-600" />
+                          </div>
                         )}
                       </div>
                     </div>
@@ -333,7 +466,7 @@ const Wallet = () => {
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-3xl shadow-2xl max-w-lg w-full mb-20 sm:mb-0 max-h-[80vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -511,7 +644,7 @@ const Wallet = () => {
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden mb-20 sm:mb-0 max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="bg-gradient-to-br from-teal-600 to-teal-700 text-white px-6 py-5 flex items-center justify-between">
@@ -543,6 +676,7 @@ const Wallet = () => {
                       type="number"
                       required
                       min="1"
+                      step="any"
                       max={wallet.balance}
                       value={withdrawAmount}
                       onChange={(e) => setWithdrawAmount(e.target.value)}
@@ -630,8 +764,7 @@ const Wallet = () => {
         )}
       </AnimatePresence>
 
-      {/* Hide BottomNav when modal is open */}
-      {!selectedTransaction && !imageModalOpen && !withdrawModalOpen && <BottomNav />}
+      {/* Removed duplicate BottomNav */}
     </div>
   );
 };

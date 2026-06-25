@@ -109,7 +109,7 @@ const WorkerJobs = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-bold text-gray-900">{job.serviceId?.title || 'General Service'}</h4>
+                          <h4 className="font-bold text-gray-900">{job.serviceName || job.serviceId?.title || 'General Service'}</h4>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusStyle(job.status)}`}>
                             {job.status.toUpperCase()}
                           </span>
@@ -125,18 +125,17 @@ const WorkerJobs = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             <FiCalendar className="w-4 h-4" />
-                            <span>Date: {new Date(job.bookingDate).toLocaleDateString()}</span>
+                            <span>Date: {job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'N/A'}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <FiClock className="w-4 h-4" />
-                            <span>Time: {job.bookingTime}</span>
+                            <span>Time: {job.scheduledTime || 'N/A'}</span>
                           </div>
                         </div>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <div className="text-lg font-bold text-gray-900">₹{job.finalAmount}</div>
-                      <button className="text-sm text-primary-600 font-semibold hover:underline">View Full Details</button>
                     </div>
                   </div>
                 </motion.div>

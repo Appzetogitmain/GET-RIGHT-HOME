@@ -1,6 +1,7 @@
 import Worker from '../models/Worker.js';
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import Transaction from '../models/Transaction.js';
+import Withdrawal from '../models/Withdrawal.js';
 
 export const getAllWorkers = async (req, res) => {
   try {
@@ -116,13 +117,24 @@ export const getWorkerJobs = async (req, res) => {
 
 export const getAllJobs = async (req, res) => {
   try {
-    const jobs = await HomeServiceBooking.find({})
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const total = await HomeServiceBooking.countDocuments({});
+
+    const jobs = await HomeServiceBooking.find({}, null, { allowDiskUse: true })
       .populate('userId', 'name email phone')
       .populate('workerId', 'name email phone')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: jobs });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    res.json({ success: true, data: jobs, total, page, limit });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("GET ALL JOBS ERROR:", error);
+    res.status(500).json({ success: false, message: error.message, stack: error.stack });
   }
 };
 
@@ -162,7 +174,9 @@ export const payWorker = async (req, res) => {
     await Transaction.create({
       workerId: worker._id,
       amount,
-      type: 'withdrawal',
+      type: 'debit',
+      category: 'withdrawal',
+      balanceAfter: worker.wallet.balance,
       status: 'completed',
       description: notes || 'Payout from Admin'
     });
@@ -175,15 +189,26 @@ export const payWorker = async (req, res) => {
 
 export const getWorkerAnalytics = async (req, res) => {
   try {
-    const totalWorkers = await Worker.countDocuments({});
-    const pendingWorkers = await Worker.countDocuments({ approvalStatus: 'pending' });
-    const approvedWorkers = await Worker.countDocuments({ approvalStatus: 'approved' });
-    const activeJobs = await HomeServiceBooking.countDocuments({ status: 'in_progress' });
-    const completedJobs = await HomeServiceBooking.countDocuments({ status: 'completed' });
+    const { startDate, endDate } = req.query;
+    let dateFilter = {};
+    if (startDate && endDate) {
+      dateFilter.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
 
-    // Top 5 workers by completed jobs
+    const totalWorkers = await Worker.countDocuments(dateFilter);
+    const pendingWorkers = await Worker.countDocuments({ ...dateFilter, approvalStatus: 'pending' });
+    const approvedWorkers = await Worker.countDocuments({ ...dateFilter, approvalStatus: 'approved' });
+
+    // Status can be multiple depending on definition of active/pending
+    const activeJobs = await HomeServiceBooking.countDocuments({ ...dateFilter, status: { $in: ['pending', 'confirmed', 'in_progress', 'assigned'] } });
+    const completedJobs = await HomeServiceBooking.countDocuments({ ...dateFilter, status: 'completed' });
+
+    // Top 5 workers by completed jobs (using dateFilter for completion date if possible, but createdAt is fine)
     const topWorkers = await HomeServiceBooking.aggregate([
-      { $match: { status: 'completed', workerId: { $exists: true, $ne: null } } },
+      { $match: { ...dateFilter, status: 'completed', workerId: { $exists: true, $ne: null } } },
       { $group: { _id: '$workerId', completedJobs: { $sum: 1 } } },
       { $sort: { completedJobs: -1 } },
       { $limit: 5 },
@@ -204,11 +229,37 @@ export const getWorkerAnalytics = async (req, res) => {
       }
     ]);
 
-    // Worker availability distribution (online vs offline)
+    // Worker availability distribution
     const availabilityDistribution = await Worker.aggregate([
       { $match: { approvalStatus: 'approved' } },
       { $group: { _id: '$isOnline', count: { $sum: 1 } } }
     ]);
+
+    // Import VendorBill at top implicitly or explicitly, assume it's available or we can use mongoose.model
+    const mongoose = await import('mongoose');
+    const VendorBill = mongoose.model('VendorBill');
+
+    const revenueAgg = await VendorBill.aggregate([
+      { $match: { ...dateFilter, status: 'paid' } },
+      { $group: { _id: null, companyRevenue: { $sum: '$companyRevenue' }, adminCommission: { $sum: '$adminCommission' } } }
+    ]);
+
+    // total revenue is the sum of companyRevenue (vendors) and adminCommission (workers)
+    const totalRevenue = revenueAgg.length > 0 ? (revenueAgg[0].companyRevenue + revenueAgg[0].adminCommission) : 0;
+
+    // Fetch recent bookings for the charts (limit to 100 to prevent large payloads)
+    const recentBookings = await HomeServiceBooking.find(dateFilter)
+      .populate('userId', 'name email phone')
+      .populate('workerId', 'name phone')
+      .populate('vendorId', 'businessName')
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    // Some charts expect serviceType instead of serviceName, let's map it safely on the fly or let the frontend handle it if it matches
+    const mappedBookings = recentBookings.map(b => ({
+      ...b.toObject(),
+      serviceType: b.serviceName // Map serviceName to serviceType for TopServices compatibility
+    }));
 
     res.json({
       success: true,
@@ -219,7 +270,9 @@ export const getWorkerAnalytics = async (req, res) => {
         activeJobs,
         completedJobs,
         topWorkers,
-        availabilityDistribution
+        availabilityDistribution,
+        totalRevenue,
+        recentBookings: mappedBookings
       }
     });
   } catch (error) {
@@ -236,5 +289,138 @@ export const getWorkerPayments = async (req, res) => {
     res.json({ success: true, data: transactions });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// WITHDRAWAL REQUESTS MANAGEMENT
+// ==========================================
+
+export const getWorkerWithdrawals = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const query = { workerId: { $exists: true } };
+
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const withdrawals = await Withdrawal.find(query)
+      .populate('workerId', 'name phone email wallet')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, data: withdrawals });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const approveWorkerWithdrawal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { utrNumber, remarks } = req.body || {};
+
+    const withdrawal = await Withdrawal.findById(id).populate('workerId');
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({ success: false, message: `Cannot approve ${withdrawal.status} withdrawal` });
+    }
+
+    // Mark withdrawal as completed
+    const updatedWithdrawal = await Withdrawal.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          status: 'completed',
+          processingDetails: {
+            ...withdrawal.processingDetails,
+            completedAt: new Date(),
+            processedAt: new Date(),
+            utrNumber,
+            remarks
+          }
+        }
+      },
+      { new: true }
+    );
+
+    // Update worker's total withdrawn
+    if (withdrawal.workerId && withdrawal.workerId._id) {
+      const worker = withdrawal.workerId;
+      await Worker.findByIdAndUpdate(
+        worker._id,
+        {
+          $inc: { 'wallet.totalWithdrawn': withdrawal.amount }
+        }
+      );
+
+      // Create transaction record
+      await Transaction.create({
+        workerId: worker._id,
+        amount: withdrawal.amount,
+        type: 'debit',
+        category: 'withdrawal',
+        balanceAfter: worker.wallet ? worker.wallet.balance : 0,
+        status: 'completed',
+        description: remarks || `Withdrawal Approved (UTR: ${utrNumber || 'N/A'})`
+      });
+    }
+
+    res.json({ success: true, message: 'Withdrawal approved successfully', data: updatedWithdrawal });
+  } catch (error) {
+    console.error('Approve Withdrawal Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+  }
+};
+
+export const rejectWorkerWithdrawal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { remarks } = req.body || {};
+
+    const withdrawal = await Withdrawal.findById(id).populate('workerId');
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({ success: false, message: `Cannot reject ${withdrawal.status} withdrawal` });
+    }
+
+    // Mark as rejected
+    const updatedWithdrawal = await Withdrawal.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          status: 'failed',
+          processingDetails: {
+            ...withdrawal.processingDetails,
+            failedAt: new Date(),
+            processedAt: new Date(),
+            remarks: remarks || 'Rejected by admin'
+          }
+        }
+      },
+      { new: true }
+    );
+
+    // Refund the amount back to worker's balance!
+    if (withdrawal.workerId && withdrawal.workerId._id) {
+      const worker = withdrawal.workerId;
+      await Worker.findByIdAndUpdate(
+        worker._id,
+        {
+          $inc: { 'wallet.balance': withdrawal.amount }
+        }
+      );
+    }
+
+    res.json({ success: true, message: 'Withdrawal rejected and amount refunded', data: updatedWithdrawal });
+  } catch (error) {
+    console.error('Reject Withdrawal Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
   }
 };

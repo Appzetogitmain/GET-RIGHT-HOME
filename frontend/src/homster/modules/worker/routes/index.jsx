@@ -7,7 +7,7 @@ import ErrorBoundary from '../components/common/ErrorBoundary';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
 import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
-import { SocketProvider } from '../../../context/SocketContext';
+// Removed SocketProvider import since it's now global
 
 // Lazy load wrapper with error handling
 const lazyLoad = (importFunc) => {
@@ -78,7 +78,7 @@ const WorkerRoutes = () => {
   const shouldShowBottomNav = !shouldHideBottomNav;
 
   return (
-    <SocketProvider>
+
       <ErrorBoundary>
         {/* Main content area - leaves space for bottom nav when needed */}
         <div className={shouldShowBottomNav ? "pb-24" : ""}>
@@ -113,7 +113,7 @@ const WorkerRoutes = () => {
 
         <GlobalWorkerJobAlert />
       </ErrorBoundary>
-    </SocketProvider>
+
   );
 };
 

@@ -4,6 +4,22 @@ import HomeServiceBooking from '../../models/HomeServiceBooking.js';
 import {  sendPushNotification  } from '../../services/firebaseAdmin.js';
 import {  createNotification  } from '../notificationControllers/notificationController.js';
 import Withdrawal from '../../models/Withdrawal.js';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+import PaymentConfig from '../../config/payment.config.js';
+
+// Initialize Razorpay
+let razorpay;
+try {
+  if (PaymentConfig.razorpayKeyId && PaymentConfig.razorpayKeySecret) {
+    razorpay = new Razorpay({
+      key_id: PaymentConfig.razorpayKeyId,
+      key_secret: PaymentConfig.razorpayKeySecret
+    });
+  }
+} catch (err) {
+  console.error("Razorpay Init Failed:", err.message);
+}
 
 /**
  * Get worker wallet with ledger balance
@@ -30,6 +46,10 @@ const getWallet = async (req, res) => {
       success: true,
       data: {
         balance: worker.wallet?.balance || 0,
+        dues: worker.wallet?.dues || 0,
+        earnings: worker.wallet?.earnings || 0,
+        totalWithdrawn: worker.wallet?.totalWithdrawn || 0,
+        totalCashCollected: worker.wallet?.totalCashCollected || 0,
         pendingBookings: pendingBookings
       }
     });
@@ -81,7 +101,6 @@ const getTransactions = async (req, res) => {
   }
 };
 
-
 /**
  * Request payout from vendor for a specific booking
  */
@@ -108,6 +127,7 @@ const requestPayout = async (req, res) => {
 
     if (!booking.vendorId) {
       return res.status(400).json({ success: false, message: 'No vendor associated with this booking' });
+
     }
 
     const vendor = booking.vendorId;
@@ -115,20 +135,25 @@ const requestPayout = async (req, res) => {
     const title = '💸 Payout Request';
 
     // Use createNotification helper for proper notification delivery
-    await createNotification({
-      vendorId: vendor._id,
-      type: 'payout_requested',
-      title: title,
-      message: message,
-      relatedId: booking._id,
-      relatedType: 'booking',
-      priority: 'high',
-      pushData: {
+    try {
+      await createNotification({
+        userId: vendor._id,
+        userType: 'partner',
         type: 'payout_requested',
-        bookingId: booking._id.toString(),
-        link: `/vendor/booking/${booking._id}`
-      }
-    });
+        title: title,
+        body: message,
+        relatedId: booking._id,
+        relatedType: 'booking',
+        priority: 'high',
+        data: {
+          type: 'payout_requested',
+          bookingId: booking._id.toString(),
+          link: `/vendor/booking/${booking._id}`
+        }
+      });
+    } catch (notifErr) {
+      console.error('Failed to notify vendor:', notifErr);
+    }
 
     res.status(200).json({ success: true, message: 'Payment request sent to vendor' });
 
@@ -183,15 +208,30 @@ const requestWithdrawal = async (req, res) => {
       requestDate: new Date()
     });
 
-    // Notify Admin
-    await createNotification({
-      type: 'withdrawal_requested',
-      title: '💰 New Withdrawal Request',
-      message: `Worker ${worker.name} has requested a withdrawal of ₹${withdrawAmount}.`,
-      relatedId: withdrawal._id,
-      relatedType: 'withdrawal',
-      priority: 'high'
-    });
+    // Deduct from worker balance
+    worker.wallet.balance -= withdrawAmount;
+    await worker.save();
+
+    // Notify Admin (fetch super_admin or admin to get a userId if needed)
+    try {
+      const Admin = (await import('../../models/Admin.js')).default;
+      const adminUser = await Admin.findOne({ role: { $in: ['superadmin', 'super_admin', 'admin'] } });
+      
+      if (adminUser) {
+        await createNotification({
+          userId: adminUser._id,
+          userType: 'admin',
+          type: 'withdrawal_requested',
+          title: '💰 New Withdrawal Request',
+          body: `Worker ${worker.name} has requested a withdrawal of ₹${withdrawAmount}.`,
+          relatedId: withdrawal._id,
+          relatedType: 'withdrawal',
+          priority: 'high'
+        });
+      }
+    } catch (notifErr) {
+      console.error('Failed to notify admin:', notifErr);
+    }
 
     res.status(200).json({ 
       success: true, 
@@ -205,9 +245,112 @@ const requestWithdrawal = async (req, res) => {
   }
 };
 
+/**
+ * Initiate payment to clear admin dues
+ */
+const payAdminDuesInitiate = async (req, res) => {
+  try {
+    const workerId = req.user.id;
+    const { amount } = req.body;
+
+    const worker = await Worker.findById(workerId);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid payment amount' });
+    }
+
+    if (!razorpay) {
+       return res.status(500).json({ success: false, message: 'Payment gateway not initialized' });
+    }
+
+    const options = {
+      amount: Math.round(amount * 100), // convert to paise
+      currency: "INR",
+      notes: {
+        workerId: worker._id.toString(),
+        type: 'clear_dues'
+      }
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    res.json({
+      success: true,
+      order: {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        key: PaymentConfig.razorpayKeyId
+      }
+    });
+
+  } catch (error) {
+    console.error('Pay admin dues initiate error:', error);
+    res.status(500).json({ success: false, message: 'Failed to initiate payment' });
+  }
+};
+
+/**
+ * Verify payment for admin dues
+ */
+const payAdminDuesVerify = async (req, res) => {
+  try {
+    const workerId = req.user.id;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
+
+    const worker = await Worker.findById(workerId);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    const sign = razorpay_order_id + '|' + razorpay_payment_id;
+    const expectedSign = crypto
+      .createHmac('sha256', PaymentConfig.razorpayKeySecret)
+      .update(sign.toString())
+      .digest('hex');
+
+    if (razorpay_signature !== expectedSign) {
+      return res.status(400).json({ success: false, message: 'Invalid payment signature' });
+    }
+
+    const paidAmount = Number(amount);
+
+    // Reduce dues
+    worker.wallet.dues = Math.max(0, (worker.wallet.dues || 0) - paidAmount);
+    await worker.save();
+
+    // Create a transaction record
+    await Transaction.create({
+      workerId: worker._id,
+      amount: paidAmount,
+      type: 'debit',
+      category: 'adjustment',
+      balanceAfter: worker.wallet.balance || 0,
+      status: 'completed',
+      description: 'Paid admin dues for cash collections',
+      reference: razorpay_payment_id
+    });
+
+    res.json({
+      success: true,
+      message: 'Dues paid successfully',
+      newDues: worker.wallet.dues
+    });
+
+  } catch (error) {
+    console.error('Pay admin dues verify error:', error);
+    res.status(500).json({ success: false, message: 'Payment verification failed' });
+  }
+};
+
 export { 
   getWallet,
   getTransactions,
   requestPayout,
-  requestWithdrawal
- };
+  requestWithdrawal,
+  payAdminDuesInitiate,
+  payAdminDuesVerify
+};

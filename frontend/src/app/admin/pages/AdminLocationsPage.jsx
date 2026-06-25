@@ -4,7 +4,7 @@ import {
   ChevronRight, ChevronDown, Loader2, Check, X, ToggleLeft, ToggleRight
 } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://homezoo.onrender.com/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://get-right-home.onrender.com/api';
 
 const TYPE_CONFIG = {
   country:  { label: 'Country',  icon: Globe,      color: 'blue',   next: 'state' },

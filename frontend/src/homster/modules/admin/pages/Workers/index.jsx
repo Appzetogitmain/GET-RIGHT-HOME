@@ -8,6 +8,7 @@ import { FiUsers, FiClock, FiActivity, FiDollarSign } from 'react-icons/fi';
 import AllWorkers from './AllWorkers';
 import WorkerJobs from './WorkerJobs';
 import WorkerAnalytics from './WorkerAnalytics';
+import WorkerWithdrawals from './WorkerWithdrawals';
 
 const Workers = () => {
   const location = useLocation();
@@ -15,6 +16,7 @@ const Workers = () => {
   const navTabs = [
     { name: 'All Workers', path: '/admin/home-service/workers/all', icon: FiUsers },
     { name: 'Worker Jobs', path: '/admin/home-service/workers/jobs', icon: FiClock },
+    { name: 'Withdrawals', path: '/admin/home-service/workers/withdrawals', icon: FiDollarSign },
     { name: 'Worker Analytics', path: '/admin/home-service/workers/analytics', icon: FiActivity },
   ];
 
@@ -36,6 +38,7 @@ const Workers = () => {
           <Route path="/" element={<Navigate to="all" replace />} />
           <Route path="all" element={<AllWorkers />} />
           <Route path="jobs" element={<WorkerJobs />} />
+          <Route path="withdrawals" element={<WorkerWithdrawals />} />
           <Route path="analytics" element={<WorkerAnalytics />} />
         </Routes>
       </motion.div>

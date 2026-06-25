@@ -114,6 +114,10 @@ const workerSchema = new mongoose.Schema({
     totalWithdrawn: {
       type: Number,
       default: 0
+    },
+    dues: {
+      type: Number,
+      default: 0 // Amount owed to Admin for cash collections
     }
   },
   // Settings

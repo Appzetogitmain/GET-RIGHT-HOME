@@ -31,6 +31,7 @@ const getAssignedJobs = async (req, res) => {
 
     // Get bookings
     const bookings = await HomeServiceBooking.find(query)
+      .select('-serviceImages -requirementImages -workPhotos -reviewImages')
       .populate('userId', 'name phone email')
       .populate('vendorId', 'name businessName phone')
       .populate('serviceId', 'title iconUrl')
@@ -808,8 +809,19 @@ const collectCash = async (req, res) => {
         workerDoc.wallet.dues = (workerDoc.wallet.dues || 0) + platformFees;
         await workerDoc.save();
 
-        // Transaction tracking for cash collection is currently unsupported by the Transaction schema
-        // and throws 500 error due to schema validation. Wallet balances are updated directly above.
+        // Create a transaction record for the cash collection
+        const Transaction = (await import('../../models/Transaction.js')).default;
+        await Transaction.create({
+          workerId: workerId,
+          amount: cashCollected,
+          type: 'credit',
+          category: 'cash_collected',
+          balanceAfter: workerDoc.wallet.earnings, // Earnings act as the balance scale here
+          status: 'completed',
+          description: `Cash Collected for booking #${booking.bookingNumber}`,
+          bookingId: booking._id,
+          reference: booking._id.toString()
+        });
       }
     } else if (booking.vendorId) {
       // Legacy Vendor Logic (already exists)

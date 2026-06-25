@@ -9,17 +9,21 @@ const withdrawalSchema = new mongoose.Schema({
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
+  },
+  workerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Worker',
+    required: false
   },
   walletId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Wallet',
-    required: true
+    required: false
   },
   amount: {
     type: Number,
-    required: true,
-    min: 500 // Minimum withdrawal amount
+    required: true
   },
   status: {
     type: String,
@@ -57,6 +61,7 @@ withdrawalSchema.pre('validate', async function () {
 
 // Indexes
 withdrawalSchema.index({ partnerId: 1, createdAt: -1 });
+withdrawalSchema.index({ workerId: 1, createdAt: -1 });
 withdrawalSchema.index({ status: 1 });
 
 const Withdrawal = mongoose.model('Withdrawal', withdrawalSchema);

@@ -68,7 +68,7 @@ const AdminDashboard = () => {
           startDate: startIso,
           endDate
         });
-        
+
         if (statsRes && statsRes.success) {
           const s = statsRes.stats || {};
           setStats({
@@ -94,10 +94,11 @@ const AdminDashboard = () => {
         });
 
         if (revRes.success) {
-          const mapped = revRes.data.revenueData.map(item => ({
+          const sourceData = revRes.data.revenueData || (Array.isArray(revRes.data) ? revRes.data : []);
+          const mapped = sourceData.map(item => ({
             date: item._id,
-            revenue: item.revenue,
-            orders: item.bookings
+            revenue: item.revenue || 0,
+            orders: item.bookings || 0
           }));
           mapped.sort((a, b) => new Date(a.date) - new Date(b.date));
           setRevenueData(mapped);
@@ -155,17 +156,7 @@ const AdminDashboard = () => {
       iconBg: 'bg-white/20',
       link: '/admin/home-service/reports/revenue'
     },
-    {
-      title: 'Worker Plan Revenue',
-      value: formatCurrency(stats.workerSubscriptionRevenue || 0),
-      change: 0,
-      icon: FiDollarSign,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-purple-500 to-fuchsia-600',
-      cardBg: 'bg-gradient-to-br from-purple-50 to-fuchsia-50',
-      iconBg: 'bg-white/20',
-      link: '/admin/home-service/workers/analytics'
-    },
+
     {
       title: 'Pending Bookings',
       value: (stats.activeBookings || 0).toLocaleString(),
@@ -259,19 +250,12 @@ const AdminDashboard = () => {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RevenueLineChart data={revenueData} period={period} />
-        <BookingsBarChart data={revenueData} period={period} />
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BookingStatusPieChart bookings={recentBookingsList} />
         <PaymentBreakdownPieChart bookings={recentBookingsList} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <RevenueVsBookingsChart data={revenueData} period={period} />
-      </div>
 
       <div className="grid grid-cols-1 gap-4">
         <CustomerGrowthAreaChart timelineData={revenueData} bookings={recentBookingsList} period={period} />
