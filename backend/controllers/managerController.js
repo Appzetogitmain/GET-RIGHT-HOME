@@ -199,7 +199,7 @@ export const createManager = async (req, res) => {
     if (phone) {
       const phoneRegex = /^[6-9]\d{9}$/;
       if (!phoneRegex.test(phone)) {
-        return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit Indian phone number starting with 6-9' });
+        return res.status(400).json({ success: false, message: 'Please enter a valid 10-digits phone number starting with 6-9' });
       }
     }
 
@@ -292,7 +292,7 @@ export const updateManager = async (req, res) => {
     if (phone !== undefined && phone !== null && phone !== '') {
       const phoneRegex = /^[6-9]\d{9}$/;
       if (!phoneRegex.test(phone)) {
-        return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit Indian phone number starting with 6-9' });
+        return res.status(400).json({ success: false, message: 'Please enter a valid 10-digits phone number starting with 6-9' });
       }
     }
 

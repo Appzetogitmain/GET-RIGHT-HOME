@@ -31,6 +31,38 @@ export const getPublicBuilders = async (req, res) => {
   }
 };
 
+const syncBuilderProjectDetails = (property) => {
+  const dd = property.dynamicData;
+  if (!dd) return;
+
+  const getVal = (key) => {
+    if (typeof dd.get === 'function') return dd.get(key);
+    return dd[key];
+  };
+
+  const possessionStatus = getVal('bpd_possessionStatus') || getVal('possessionStatus');
+  const possessionYear = getVal('bpd_possessionYear') || getVal('possessionYear');
+  const constructionQuality = getVal('bpd_constructionQuality') || getVal('constructionQuality');
+  const aiSummary = getVal('bpd_aiSummary') || getVal('aiSummary');
+  const currentPricePerSqft = getVal('bpd_currentPricePerSqft') || getVal('currentPricePerSqft');
+  const appreciationLast3Years = getVal('bpd_appreciationLast3Years') || getVal('appreciationLast3Years');
+
+  if (possessionStatus || possessionYear || constructionQuality || aiSummary || currentPricePerSqft || appreciationLast3Years) {
+    property.builderProjectDetails = {
+      possessionStatus: possessionStatus || undefined,
+      possessionYear: possessionYear ? Number(possessionYear) : undefined,
+      ratings: {
+        constructionQuality: constructionQuality ? Number(constructionQuality) : undefined,
+        aiSummary: aiSummary || undefined
+      },
+      priceHistory: {
+        currentPricePerSqft: currentPricePerSqft ? Number(currentPricePerSqft) : undefined,
+        appreciationLast3Years: appreciationLast3Years ? Number(appreciationLast3Years) : undefined
+      }
+    };
+  }
+};
+
 export const createProperty = async (req, res) => {
   try {
     const isPartner = req.user.role === 'partner';
@@ -223,6 +255,7 @@ export const createProperty = async (req, res) => {
       buyDetails: lowerType === 'buy' ? buyDetails : undefined
     });
 
+    syncBuilderProjectDetails(doc);
     await doc.save();
 
     // Inline RoomTypes if provided
@@ -417,6 +450,7 @@ export const updateProperty = async (req, res) => {
       property.contactNumber = req.user?.phone || req.user?.phoneNumber || req.user?.mobile || '';
     }
 
+    syncBuilderProjectDetails(property);
     await property.save();
 
     // documents update if provided
