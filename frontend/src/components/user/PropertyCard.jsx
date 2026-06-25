@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Star, Heart, BadgeCheck, Phone, MessageCircle, ChevronRight, Share2, ChevronLeft, X, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 import { userService, propertyService, authService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 import PropertyQuickViewModal from './PropertyQuickViewModal';
@@ -12,6 +13,7 @@ const LOGO_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/
 
 const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved, isSearchPage = false }) => {
   const navigate = useNavigate();
+  const { navigateToProperty, getPropertyPath } = usePropertyNavigate();
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
@@ -336,7 +338,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
 
   const handleShare = (e) => {
     e.stopPropagation();
-    const url = `${window.location.origin}/property/${_id}`;
+    const url = `${window.location.origin}${getPropertyPath(item)}`;
     if (navigator.share) {
       navigator.share({
         title: displayName,
@@ -497,7 +499,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       <>
         <div 
           ref={containerRef}
-          onClick={() => navigate(`/property/${_id}`)}
+          onClick={() => navigateToProperty(item)}
           className={`w-full bg-white rounded-[20px] border border-gray-200 shadow-sm hover:shadow-md overflow-hidden transition-all duration-300 flex flex-col cursor-pointer relative ${className}`}
         >
           {/* Image Container with Slider */}
@@ -864,7 +866,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
           className={`flex-shrink-0 w-[280px] h-[360px] relative ${className}`}
         >
           <div
-            onClick={() => navigate(`/hotel/${_id}`)}
+            onClick={() => navigateToProperty(item)}
             className={`w-full h-full bg-[#F4F5F7] rounded-[1.5rem] border border-gray-200/50 shadow-sm hover:shadow-md overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group relative`}
           >
           {/* Cover Image Section */}
@@ -941,7 +943,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/hotel/${_id}`);
+                navigateToProperty(item);
               }}
               className="bg-surface hover:bg-emerald-700 text-white text-xs font-black py-2.5 px-4 rounded-[12px] flex items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
             >
@@ -987,7 +989,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     return (
       <>
         <div
-          onClick={() => navigate(`/hotel/${_id}`)}
+          onClick={() => navigateToProperty(item)}
           className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-white to-amber-50/10' : 'border border-gray-150 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.12)] hover:border-emerald-500/30'} transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
         >
           {/* Cover Image Container */}
@@ -1071,7 +1073,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/hotel/${_id}`);
+                    navigateToProperty(item);
                   }}
                   className="text-[11px] font-black text-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-1.5 group/btn"
                 >
@@ -1120,7 +1122,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     return (
       <>
         <div
-          onClick={() => navigate(`/hotel/${_id}`)}
+          onClick={() => navigateToProperty(item)}
           className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-white to-amber-50/10' : 'border border-gray-150 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(217,119,6,0.15)] hover:border-amber-500/30'} transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
         >
           {/* Cover Image Container */}
@@ -1189,7 +1191,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/hotel/${_id}`);
+                    navigateToProperty(item);
                   }}
                   className="bg-slate-900 hover:bg-amber-600 text-white text-[9px] font-black uppercase py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition-all duration-300 active:scale-95 shadow-sm"
                 >
@@ -1237,7 +1239,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
   // ─── DEFAULT CARD ─────────────────────────────────────────────────
   return (
     <div
-      onClick={() => navigate(`/hotel/${_id}`)}
+      onClick={() => navigateToProperty(item)}
       className={`relative h-[270px] md:h-[340px] w-full bg-gray-100 rounded-[1.25rem] md:rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-slate-100 to-amber-50/10' : 'border border-gray-100 hover:-translate-y-1'} group ${className}`}
     >
       <img

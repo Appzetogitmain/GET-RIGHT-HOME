@@ -23,7 +23,8 @@ import { SocketProvider } from './homster/context/SocketContext';
 
 // Lazy Imports - User Pages
 const Home = React.lazy(() => import('./pages/user/Home'));
-const UserPropertyDetailsPage = React.lazy(() => import('./pages/user/PropertyDetailsPage'));
+const UserPropertyDetailsPage = React.lazy(() => import('./pages/user/PropertyDetailsDispatcher'));
+const HandpickedDetailsPage = React.lazy(() => import('./pages/user/HandpickedDetailsPage'));
 const PropertyComparePage = React.lazy(() => import('./pages/user/PropertyComparePage'));
 const UserLogin = React.lazy(() => import('./pages/auth/UserLogin'));
 const UserSignup = React.lazy(() => import('./pages/auth/UserSignup'));
@@ -497,6 +498,7 @@ function App() {
             <Route path="/property/:id/amenities" element={<AmenitiesPage />} />
             <Route path="/property/:id/reviews" element={<ReviewsPage />} />
             <Route path="/property/:id/offers" element={<OffersPage />} />
+            <Route path="/handpicked/:id" element={<HandpickedDetailsPage />} />
             <Route path="/partner/:id" element={<PartnerProfilePage />} />
 
             {/* User Property Listing (C2C) Routes (Public/Self-Authenticating) */}

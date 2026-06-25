@@ -6,11 +6,13 @@ import {
     Home, ChevronRight, Award, MessageSquare, Loader2, Sparkles
 } from 'lucide-react';
 import { propertyService } from '../../services/apiService';
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 import toast from 'react-hot-toast';
 
 const PartnerProfilePage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { navigateToProperty } = usePropertyNavigate();
     const [seller, setSeller] = useState(null);
     const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -245,7 +247,7 @@ const PartnerProfilePage = () => {
                                     <motion.div
                                         key={property._id}
                                         whileTap={{ scale: 0.99 }}
-                                        onClick={() => navigate(`/property/${property._id}`)}
+                                        onClick={() => navigateToProperty(property)}
                                         className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer flex h-28"
                                     >
                                         {/* Image */}

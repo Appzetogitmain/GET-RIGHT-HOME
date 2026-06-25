@@ -9,6 +9,7 @@ import {
 import { enquiryService, propertyService } from '../../services/apiService';
 import subscriptionService from '../../services/subscriptionService';
 import LeadTypeBadge from '../../components/LeadTypeBadge';
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 import toast from 'react-hot-toast';
 
 // Helper: parse raw message string into structured sections
@@ -107,6 +108,7 @@ const EnquiryStatusBadge = ({ status }) => {
 
 const UserReceivedEnquiriesPage = () => {
     const navigate = useNavigate();
+    const { navigateToProperty } = usePropertyNavigate();
     const [activeTab, setActiveTab] = useState('sent');
     const [properties, setProperties] = useState([]);
     const [receivedEnquiries, setReceivedEnquiries] = useState([]);
@@ -504,7 +506,7 @@ const UserReceivedEnquiriesPage = () => {
                                                 <div className="flex gap-3 items-center">
                                                     <div 
                                                         className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-150 cursor-pointer" 
-                                                        onClick={() => prop._id && navigate(`/property/${prop._id}`)}
+                                                        onClick={() => prop._id && navigateToProperty(prop)}
                                                     >
                                                         {prop.coverImage ? (
                                                             <img src={prop.coverImage} className="w-full h-full object-cover" alt="" />
@@ -518,7 +520,7 @@ const UserReceivedEnquiriesPage = () => {
                                                         <div className="flex items-start justify-between gap-2">
                                                             <h3 
                                                                 className="font-extrabold text-slate-900 text-sm leading-snug hover:text-indigo-650 cursor-pointer truncate" 
-                                                                onClick={() => prop._id && navigate(`/property/${prop._id}`)}
+                                                                onClick={() => prop._id && navigateToProperty(prop)}
                                                             >
                                                                 {prop.propertyName || 'Deleted Property'}
                                                             </h3>
@@ -829,7 +831,7 @@ const UserReceivedEnquiriesPage = () => {
                             <div className="flex gap-3 items-center">
                                 <div
                                     className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 shrink-0 border border-slate-150 cursor-pointer"
-                                    onClick={() => { setSelectedEnquiry(null); navigate(`/property/${selectedEnquiry.prop._id}`); }}
+                                    onClick={() => { setSelectedEnquiry(null); navigateToProperty(selectedEnquiry.prop); }}
                                 >
                                     {selectedEnquiry.prop.coverImage
                                         ? <img src={selectedEnquiry.prop.coverImage} className="w-full h-full object-cover" alt="" />
@@ -903,7 +905,7 @@ const UserReceivedEnquiriesPage = () => {
                             {/* View property button */}
                             {selectedEnquiry.prop._id && (
                                 <button
-                                    onClick={() => { setSelectedEnquiry(null); navigate(`/property/${selectedEnquiry.prop._id}`); }}
+                                    onClick={() => { setSelectedEnquiry(null); navigateToProperty(selectedEnquiry.prop); }}
                                     className="w-full py-3 bg-slate-900 text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-black transition-colors"
                                 >
                                     View Property Listing →

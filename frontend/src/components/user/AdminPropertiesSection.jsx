@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 import {
     MapPin, Building2, Star, Navigation,
     IndianRupee, ArrowRight, Loader2, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { propertyService } from '../../services/propertyService';
 import toast from 'react-hot-toast';
-import PropertyQuickViewModal from './PropertyQuickViewModal';
 
 const PROPERTY_TYPE_ICONS = {
     hotel: '🏨', villa: '🏡', pg: '🏠', hostel: '🛏️',
@@ -16,7 +16,7 @@ const PROPERTY_TYPE_ICONS = {
 
 /* ─── Property Card ─── */
 const AdminPropertyCard = ({ property, index }) => {
-    const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+    const navigate = useNavigate();
     const [isSaved, setIsSaved] = useState(false);
     const typeIcon = PROPERTY_TYPE_ICONS[property.propertyType] || '🏠';
     
@@ -75,10 +75,20 @@ const AdminPropertyCard = ({ property, index }) => {
     const displayLogo = property.logo || property.coverImage || '/src/assets/grh-logo.png';
     const logoIsCover = !property.logo && property.coverImage;
 
+    const { navigateToProperty } = usePropertyNavigate();
+
     const handleToggleSave = (e) => {
         e.stopPropagation();
         setIsSaved(!isSaved);
         toast.success(isSaved ? "Removed from saved properties" : "Property saved successfully!");
+    };
+
+    const handleCardClick = () => {
+        if (property.isDummy) {
+            toast.success("This is a demo property card showcasing the layout!");
+            return;
+        }
+        navigateToProperty(property);
     };
 
     return (
@@ -88,13 +98,7 @@ const AdminPropertyCard = ({ property, index }) => {
             transition={{ delay: index * 0.05, duration: 0.35, ease: 'easeOut' }}
             className="min-w-[280px] md:min-w-[320px] max-w-[320px] snap-center shrink-0"
         >
-            <div onClick={() => {
-                if (property.isDummy) {
-                    toast.success("This is a demo property card showcasing the layout!");
-                    return;
-                }
-                setIsQuickViewOpen(true);
-            }} className="block group cursor-pointer relative">
+            <div onClick={handleCardClick} className="block group cursor-pointer relative">
                 <div className="relative rounded-3xl overflow-hidden bg-white border border-gray-100 shadow-md hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 h-[340px] w-full flex flex-col">
                     {/* Full Card Background Image */}
                     <div className="absolute inset-0 w-full h-full overflow-hidden bg-gray-50">
@@ -189,12 +193,6 @@ const AdminPropertyCard = ({ property, index }) => {
                     </div>
                 </div>
             </div>
-            <PropertyQuickViewModal
-                isOpen={isQuickViewOpen}
-                onClose={() => setIsQuickViewOpen(false)}
-                property={property}
-                initialShowEnquiry={false}
-            />
         </motion.div>
     );
 };

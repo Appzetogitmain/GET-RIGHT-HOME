@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     Building2, Search, Filter, MoreVertical, MapPin,
     CheckCircle, XCircle, Clock, Star, ShieldAlert, Trash2, Edit, Eye, Loader2,
-    ChevronLeft, ChevronRight, Download, Plus
+    ChevronLeft, ChevronRight, Download, Plus, Sparkles, ExternalLink
 } from 'lucide-react';
 
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -326,14 +326,23 @@ const AdminProperties = () => {
                                                 transition={{ delay: index * 0.05 }}
                                                 className="hover:bg-gray-50/50 transition-colors group relative"
                                             >
-                                                <td className="p-4">
+                                                 <td className="p-4">
                                                     <Link to={`${basePath}/properties/${property._id}`} className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-lg bg-black text-white flex items-center justify-center shrink-0 border border-white shadow-sm">
-                                                            <Building2 size={18} />
+                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border shadow-sm ${
+                                                            property.isAddedByAdmin
+                                                                ? 'bg-purple-700 border-purple-500 text-white'
+                                                                : 'bg-black border-white text-white'
+                                                        }`}>
+                                                            {property.isAddedByAdmin ? <Sparkles size={16} /> : <Building2 size={18} />}
                                                         </div>
                                                         <div>
-                                                            <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-2 flex-wrap">
                                                                 <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{property.propertyName || 'Untitled'}</p>
+                                                                {property.isAddedByAdmin && (
+                                                                    <span className="flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide">
+                                                                        <Sparkles size={7} className="fill-purple-500" /> Handpicked
+                                                                    </span>
+                                                                )}
                                                                 {property.avgRating > 0 && (
                                                                     <span className="flex items-center bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded text-[9px] font-black border border-yellow-100">
                                                                         <Star size={8} className="fill-yellow-500 text-yellow-500 mr-0.5" />
@@ -382,6 +391,16 @@ const AdminProperties = () => {
                                                             <Link to={`${basePath}/properties/${property._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
+                                                            {property.isAddedByAdmin && (
+                                                                <a
+                                                                    href={`/handpicked/${property._id}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="flex items-center gap-2 px-4 py-2 hover:bg-purple-50 text-[10px] font-bold uppercase text-purple-700"
+                                                                >
+                                                                    <ExternalLink size={14} /> Preview Premium
+                                                                </a>
+                                                            )}
                                                             {property.isAddedByAdmin && property.dynamicCategory && (
                                                                 <button onClick={() => navigate(`${basePath}/properties/add`, { state: { existingProperty: property } })} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                     <Edit size={14} /> Edit Property
