@@ -50,7 +50,7 @@ const DynamicFormEngine = () => {
   const storageKey = `draft_property_${transactionType}_${category}_${displayPropertyType}`;
   const [formData, setFormData] = useState(() => {
     if (isEditMode) {
-      return {
+      const initialForm = {
         ...existingProperty.dynamicData,
         propertyName: existingProperty.propertyName || existingProperty.dynamicData?.propertyName,
         description: existingProperty.description || existingProperty.dynamicData?.description,
@@ -66,6 +66,19 @@ const DynamicFormEngine = () => {
         houseNumber: existingProperty.address?.fullAddress || existingProperty.dynamicData?.houseNumber || '',
         pincode: existingProperty.address?.pincode || existingProperty.dynamicData?.pincode || ''
       };
+      if (existingProperty.builderProjectDetails) {
+        initialForm.bpd_possessionStatus = existingProperty.builderProjectDetails.possessionStatus || '';
+        initialForm.bpd_possessionYear = existingProperty.builderProjectDetails.possessionYear || '';
+        if (existingProperty.builderProjectDetails.ratings) {
+          initialForm.bpd_constructionQuality = existingProperty.builderProjectDetails.ratings.constructionQuality || '';
+          initialForm.bpd_aiSummary = existingProperty.builderProjectDetails.ratings.aiSummary || '';
+        }
+        if (existingProperty.builderProjectDetails.priceHistory) {
+          initialForm.bpd_currentPricePerSqft = existingProperty.builderProjectDetails.priceHistory.currentPricePerSqft || '';
+          initialForm.bpd_appreciationLast3Years = existingProperty.builderProjectDetails.priceHistory.appreciationLast3Years || '';
+        }
+      }
+      return initialForm;
     }
     const saved = localStorage.getItem(storageKey);
     return saved ? JSON.parse(saved) : {};
@@ -195,8 +208,27 @@ const DynamicFormEngine = () => {
           newErrors[field.name] = `${field.label} is required`;
           if (!firstErrorField) firstErrorField = field.name;
         } else if (!isValEmpty) {
-          // Negative value check for number fields
-          if (field.type === 'number' && Number(value) < 0) {
+          // Custom validations
+          const isPhoneField = ['contactNumber', 'phone', 'mobile', 'mobileNumber', 'phoneNumber'].includes(field.name);
+          if (isPhoneField) {
+            if (!/^[6-9]\d{9}$/.test(value)) {
+              newErrors[field.name] = 'Mobile number must be exactly 10 digits starting with 6-9';
+              if (!firstErrorField) firstErrorField = field.name;
+            }
+          } else if (field.name === 'bpd_constructionQuality' || field.name === 'constructionQuality') {
+            const numVal = Number(value);
+            if (isNaN(numVal) || numVal < 1 || numVal > 5) {
+              newErrors[field.name] = 'Construction quality rating must be a number between 1 and 5';
+              if (!firstErrorField) firstErrorField = field.name;
+            }
+          } else if (field.name === 'bpd_possessionYear' || field.name === 'possessionYear') {
+            const yearStr = String(value).trim();
+            if (!/^\d{4}$/.test(yearStr)) {
+              newErrors[field.name] = 'Possession year must be a 4-digit number (e.g. 2026)';
+              if (!firstErrorField) firstErrorField = field.name;
+            }
+          } else if (field.type === 'number' && Number(value) < 0) {
+            // Negative value check for number fields
             newErrors[field.name] = `${field.label} cannot be negative`;
             if (!firstErrorField) firstErrorField = field.name;
           } else if (field.validation) {
@@ -381,7 +413,15 @@ const DynamicFormEngine = () => {
               onKeyDown={(e) => {
                 if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault();
               }}
-              onChange={(e) => handleChange(field.name, e.target.value)}
+              onChange={(e) => {
+                let val = e.target.value;
+                val = val.replace(/[^0-9.]/g, '');
+                const parts = val.split('.');
+                if (parts.length > 2) {
+                  val = parts[0] + '.' + parts.slice(1).join('');
+                }
+                handleChange(field.name, val);
+              }}
               placeholder={field.placeholder || ''}
               className="flex-1 bg-transparent px-4 py-3.5 text-[15px] outline-none border-none"
             />
@@ -418,22 +458,57 @@ const DynamicFormEngine = () => {
             <label className="block text-[14px] font-semibold text-slate-800 mb-2">
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </label>
-            <input
-              type={field.type}
-              value={formData[field.name] || ''}
-              onKeyDown={(e) => {
-                if (field.type === 'number' && (e.key === '-' || e.key === '+' || e.key === 'e')) {
-                  e.preventDefault();
-                }
-              }}
-              onChange={(e) => handleChange(field.name, e.target.value)}
-              placeholder={field.placeholder || ''}
-              className={`w-full bg-white border rounded-xl px-4 py-3.5 text-[15px] outline-none transition-all ${
-                errors[field.name] 
-                  ? 'border-red-400 focus:ring-1 focus:ring-red-400' 
-                  : 'border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
-              }`}
-            />
+            {(() => {
+              const isPhoneField = ['contactNumber', 'phone', 'mobile', 'mobileNumber', 'phoneNumber'].includes(field.name);
+              if (isPhoneField) {
+                return (
+                  <div className={`flex items-center bg-white border rounded-xl px-4 py-3.5 transition-all focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 ${
+                    errors[field.name] ? 'border-red-400' : 'border-slate-200'
+                  }`}>
+                    <span className="text-[15px] font-bold text-slate-500 mr-2">+91</span>
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      value={formData[field.name] || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, ''); // only digits
+                        handleChange(field.name, val);
+                      }}
+                      placeholder={field.placeholder || 'e.g. 9876543210'}
+                      className="w-full bg-transparent text-[15px] font-semibold outline-none border-none p-0"
+                    />
+                  </div>
+                );
+              }
+              return (
+                <input
+                  type={field.type}
+                  value={formData[field.name] || ''}
+                  onKeyDown={(e) => {
+                    if (field.type === 'number' && (e.key === '-' || e.key === '+' || e.key === 'e')) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (field.type === 'number') {
+                      val = val.replace(/[^0-9.]/g, '');
+                      const parts = val.split('.');
+                      if (parts.length > 2) {
+                        val = parts[0] + '.' + parts.slice(1).join('');
+                      }
+                    }
+                    handleChange(field.name, val);
+                  }}
+                  placeholder={field.placeholder || ''}
+                  className={`w-full bg-white border rounded-xl px-4 py-3.5 text-[15px] outline-none transition-all ${
+                    errors[field.name] 
+                      ? 'border-red-400 focus:ring-1 focus:ring-red-400' 
+                      : 'border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                  }`}
+                />
+              );
+            })()}
             {errors[field.name] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[field.name]}</p>}
 
             {/* Custom pricing features for Negotiable, Water/Electricity exclusions, and Maintenance Popup */}
@@ -946,9 +1021,22 @@ const DynamicFormEngine = () => {
                             className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
                             placeholder={subF.placeholder || ''}
                             value={item[subF.name] || ''}
+                            onKeyDown={(e) => {
+                              if (subF.type === 'number' && (e.key === '-' || e.key === '+' || e.key === 'e')) {
+                                e.preventDefault();
+                              }
+                            }}
                             onChange={(e) => {
+                              let val = e.target.value;
+                              if (subF.type === 'number') {
+                                val = val.replace(/[^0-9.]/g, '');
+                                const parts = val.split('.');
+                                if (parts.length > 2) {
+                                  val = parts[0] + '.' + parts.slice(1).join('');
+                                }
+                              }
                               const next = [...repeaterItems];
-                              next[index] = { ...next[index], [subF.name]: e.target.value };
+                              next[index] = { ...next[index], [subF.name]: val };
                               handleChange(field.name, next);
                             }}
                           />
@@ -995,7 +1083,7 @@ const DynamicFormEngine = () => {
         </button>
         <span className="ml-2 font-bold text-[17px] tracking-tight">{currentStep.title}</span>
         <span className="ml-auto text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          STEP {currentStepIndex + 1} OF 4
+          STEP {currentStepIndex + 1} OF {template.steps.length}
         </span>
       </div>
 

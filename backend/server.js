@@ -349,6 +349,14 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
         console.error('❌ Auto-seeding admin failed on startup:', adminErr.message);
       }
 
+      // Run builder details migration once on startup
+      try {
+        const { runMigrationOnStartup } = await import('./scripts/migrateBuilderProjectDetails.js');
+        await runMigrationOnStartup();
+      } catch (migrationErr) {
+        console.error('❌ Builder details migration failed on startup:', migrationErr.message);
+      }
+
       // Debug: Check Admin counts
       const adminCount = await mongoose.connection.db.collection('admins').countDocuments();
       const userCount = await mongoose.connection.db.collection('users').countDocuments();

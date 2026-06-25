@@ -20,6 +20,7 @@ import Enquiry from '../models/Enquiry.js';
 import Worker from '../models/Worker.js';
 import HomeServiceService from '../models/HomeServiceService.js';
 import Cart from '../models/Cart.js';
+import { syncBuilderProjectDetails } from './propertyController.js';
 
 
 
@@ -398,6 +399,8 @@ export const createAdminProperty = async (req, res) => {
     }
 
     const newProperty = await Property.create(propertyData);
+    await syncBuilderProjectDetails(newProperty._id, newProperty.dynamicData);
+    await newProperty.populate('builderProjectDetails');
     res.status(201).json({ success: true, property: newProperty });
   } catch (error) {
     console.error('Create Admin Property Error:', error);
@@ -425,6 +428,9 @@ export const updateAdminProperty = async (req, res) => {
     if (!updatedProperty) {
       return res.status(404).json({ success: false, message: 'Property not found' });
     }
+
+    await syncBuilderProjectDetails(updatedProperty._id, updatedProperty.dynamicData);
+    await updatedProperty.populate('builderProjectDetails');
 
     res.status(200).json({ success: true, property: updatedProperty });
   } catch (error) {

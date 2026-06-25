@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import Property from '../models/Property.js';
+import BuilderProjectDetails from '../models/BuilderProjectDetails.js';
 import bcrypt from 'bcryptjs';
 
 // @desc    Get all builders
@@ -113,17 +114,20 @@ export const getPublicBuilderDetails = async (req, res) => {
     }
 
     // Aggregate stats from properties
-    const ongoingCount = await Property.countDocuments({
-      userId: builder._id,
-      'builderProjectDetails.possessionStatus': 'Ongoing'
+    const builderProperties = await Property.find({ userId: builder._id }).select('_id');
+    const propertyIds = builderProperties.map(p => p._id);
+
+    const ongoingCount = await BuilderProjectDetails.countDocuments({
+      propertyId: { $in: propertyIds },
+      possessionStatus: 'Ongoing'
     });
 
-    const readyCount = await Property.countDocuments({
-      userId: builder._id,
-      'builderProjectDetails.possessionStatus': 'Ready To Move'
+    const readyCount = await BuilderProjectDetails.countDocuments({
+      propertyId: { $in: propertyIds },
+      possessionStatus: 'Ready To Move'
     });
     
-    const projects = await Property.find({ userId: builder._id }).select('address.city builderProjectDetails');
+    const projects = await Property.find({ userId: builder._id }).select('address.city').populate('builderProjectDetails');
     
     // Get unique cities
     const cities = [...new Set(projects.map(p => p.address?.city).filter(Boolean))];
@@ -191,14 +195,17 @@ export const getPublicBuilders = async (req, res) => {
     const builders = await User.find({ role: 'builder' }).select('name builderProfile createdAt');
     
     const buildersWithStats = await Promise.all(builders.map(async (builder) => {
-      const ongoingCount = await Property.countDocuments({
-        userId: builder._id,
-        'builderProjectDetails.possessionStatus': 'Ongoing'
+      const builderProperties = await Property.find({ userId: builder._id }).select('_id');
+      const propertyIds = builderProperties.map(p => p._id);
+
+      const ongoingCount = await BuilderProjectDetails.countDocuments({
+        propertyId: { $in: propertyIds },
+        possessionStatus: 'Ongoing'
       });
 
-      const readyCount = await Property.countDocuments({
-        userId: builder._id,
-        'builderProjectDetails.possessionStatus': 'Ready To Move'
+      const readyCount = await BuilderProjectDetails.countDocuments({
+        propertyId: { $in: propertyIds },
+        possessionStatus: 'Ready To Move'
       });
       
       const projects = await Property.find({ userId: builder._id }).select('address.city');

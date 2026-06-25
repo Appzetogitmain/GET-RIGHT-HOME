@@ -3,6 +3,7 @@ import Property from '../models/Property.js';
 import RoomType from '../models/RoomType.js';
 import PropertyCategory from '../models/PropertyCategory.js';
 import PropertyDocument from '../models/PropertyDocument.js';
+import BuilderProjectDetails from '../models/BuilderProjectDetails.js';
 import Partner from '../models/Partner.js';
 import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
 import emailService from '../services/emailService.js';
@@ -31,13 +32,12 @@ export const getPublicBuilders = async (req, res) => {
   }
 };
 
-const syncBuilderProjectDetails = (property) => {
-  const dd = property.dynamicData;
-  if (!dd) return;
+export const syncBuilderProjectDetails = async (propertyId, dynamicData) => {
+  if (!dynamicData) return;
 
   const getVal = (key) => {
-    if (typeof dd.get === 'function') return dd.get(key);
-    return dd[key];
+    if (typeof dynamicData.get === 'function') return dynamicData.get(key);
+    return dynamicData[key];
   };
 
   const possessionStatus = getVal('bpd_possessionStatus') || getVal('possessionStatus');
@@ -47,19 +47,38 @@ const syncBuilderProjectDetails = (property) => {
   const currentPricePerSqft = getVal('bpd_currentPricePerSqft') || getVal('currentPricePerSqft');
   const appreciationLast3Years = getVal('bpd_appreciationLast3Years') || getVal('appreciationLast3Years');
 
-  if (possessionStatus || possessionYear || constructionQuality || aiSummary || currentPricePerSqft || appreciationLast3Years) {
-    property.builderProjectDetails = {
+  const parseNum = (val) => {
+    if (val === undefined || val === null || val === '') return undefined;
+    const num = Number(val);
+    return isNaN(num) ? undefined : num;
+  };
+
+  const parsedPossessionYear = parseNum(possessionYear);
+  const parsedConstructionQuality = parseNum(constructionQuality);
+  const parsedCurrentPricePerSqft = parseNum(currentPricePerSqft);
+  const parsedAppreciationLast3Years = parseNum(appreciationLast3Years);
+
+  if (possessionStatus || parsedPossessionYear || parsedConstructionQuality || aiSummary || parsedCurrentPricePerSqft || parsedAppreciationLast3Years) {
+    const details = {
+      propertyId,
       possessionStatus: possessionStatus || undefined,
-      possessionYear: possessionYear ? Number(possessionYear) : undefined,
+      possessionYear: parsedPossessionYear,
       ratings: {
-        constructionQuality: constructionQuality ? Number(constructionQuality) : undefined,
+        constructionQuality: parsedConstructionQuality,
         aiSummary: aiSummary || undefined
       },
       priceHistory: {
-        currentPricePerSqft: currentPricePerSqft ? Number(currentPricePerSqft) : undefined,
-        appreciationLast3Years: appreciationLast3Years ? Number(appreciationLast3Years) : undefined
+        currentPricePerSqft: parsedCurrentPricePerSqft,
+        appreciationLast3Years: parsedAppreciationLast3Years
       }
     };
+    await BuilderProjectDetails.findOneAndUpdate(
+      { propertyId },
+      details,
+      { upsert: true, new: true }
+    );
+  } else {
+    await BuilderProjectDetails.deleteOne({ propertyId });
   }
 };
 
@@ -255,7 +274,7 @@ export const createProperty = async (req, res) => {
       buyDetails: lowerType === 'buy' ? buyDetails : undefined
     });
 
-    syncBuilderProjectDetails(doc);
+    await syncBuilderProjectDetails(doc._id, doc.dynamicData);
     await doc.save();
 
     // Inline RoomTypes if provided
@@ -450,7 +469,7 @@ export const updateProperty = async (req, res) => {
       property.contactNumber = req.user?.phone || req.user?.phoneNumber || req.user?.mobile || '';
     }
 
-    syncBuilderProjectDetails(property);
+    await syncBuilderProjectDetails(property._id, property.dynamicData);
     await property.save();
 
     // documents update if provided
@@ -1350,6 +1369,22 @@ export const getPublicProperties = async (req, res) => {
       }
     });
 
+    // Lookup Builder Project Details
+    const builderProjectDetailsCollection = BuilderProjectDetails.collection.name;
+    pipeline.push({
+      $lookup: {
+        from: builderProjectDetailsCollection,
+        localField: '_id',
+        foreignField: 'propertyId',
+        as: 'builderProjectDetails'
+      }
+    }, {
+      $unwind: {
+        path: '$builderProjectDetails',
+        preserveNullAndEmptyArrays: true
+      }
+    });
+
     // 4. Filter Active Room Types & Guest Capacity
     let roomFilter = { $eq: ['$$rt.isActive', true] };
 
@@ -1564,7 +1599,7 @@ export const getMyProperties = async (req, res) => {
     if (req.query.type) {
       query.propertyType = String(req.query.type).toLowerCase();
     }
-    const properties = await Property.find(query).sort({ createdAt: -1 });
+    const properties = await Property.find(query).populate('builderProjectDetails').sort({ createdAt: -1 });
     res.json({ success: true, properties });
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -1578,7 +1613,7 @@ export const getPropertyDetails = async (req, res) => {
       id,
       { $inc: { views: 1 } },
       { new: true }
-    ).populate('partnerId').populate('userId');
+    ).populate('partnerId').populate('userId').populate('builderProjectDetails');
     if (!property) return res.status(404).json({ message: 'Property not found' });
     const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
     const documents = await PropertyDocument.findOne({ propertyId: id });

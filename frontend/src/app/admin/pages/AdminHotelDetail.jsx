@@ -123,8 +123,8 @@ const OverviewTab = ({ hotel }) => {
                     {Object.entries(hotel.dynamicData).map(([key, val]) => {
                         if (val === undefined || val === null || val === '') return null;
                         
-                        // Skip system fields we already show
-                        if (['propertyName', 'description', 'country', 'state', 'district', 'city', 'locality', 'houseNumber', 'pincode'].includes(key)) {
+                        // Skip system fields and builder project details we already show
+                        if (['propertyName', 'description', 'country', 'state', 'district', 'city', 'locality', 'houseNumber', 'pincode'].includes(key) || key.startsWith('bpd_')) {
                             return null;
                         }
 
@@ -151,6 +151,64 @@ const OverviewTab = ({ hotel }) => {
                         );
                     })}
                 </div>
+            </div>
+        )}
+
+        {hotel.builderProjectDetails && 
+         (hotel.builderProjectDetails.possessionStatus || 
+          hotel.builderProjectDetails.possessionYear || 
+          (hotel.builderProjectDetails.ratings && (hotel.builderProjectDetails.ratings.constructionQuality || hotel.builderProjectDetails.ratings.aiSummary)) || 
+          (hotel.builderProjectDetails.priceHistory && (hotel.builderProjectDetails.priceHistory.currentPricePerSqft || hotel.builderProjectDetails.priceHistory.appreciationLast3Years))) && (
+            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mt-6">
+                <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
+                    <Building2 size={14} /> Builder Project Insights
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {hotel.builderProjectDetails.possessionStatus && (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4">
+                            <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Possession Status</h4>
+                            <p className="text-sm font-bold text-gray-900">
+                                {hotel.builderProjectDetails.possessionStatus}
+                                {hotel.builderProjectDetails.possessionYear ? ` (Est. ${hotel.builderProjectDetails.possessionYear})` : ''}
+                            </p>
+                        </div>
+                    )}
+                    {hotel.builderProjectDetails.ratings?.constructionQuality > 0 && (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4">
+                            <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Construction Quality</h4>
+                            <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                                {hotel.builderProjectDetails.ratings.constructionQuality} / 5
+                                <Star size={14} className="fill-yellow-500 text-yellow-500 border-none" />
+                            </p>
+                        </div>
+                    )}
+                    {hotel.builderProjectDetails.priceHistory?.currentPricePerSqft > 0 && (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4">
+                            <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Price Per Sqft</h4>
+                            <p className="text-sm font-bold text-gray-900">
+                                ₹{hotel.builderProjectDetails.priceHistory.currentPricePerSqft.toLocaleString('en-IN')}
+                            </p>
+                        </div>
+                    )}
+                    {hotel.builderProjectDetails.priceHistory?.appreciationLast3Years > 0 && (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4">
+                            <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">3-Year Appreciation</h4>
+                            <p className="text-sm font-bold text-emerald-600">
+                                +{hotel.builderProjectDetails.priceHistory.appreciationLast3Years}%
+                            </p>
+                        </div>
+                    )}
+                </div>
+                {hotel.builderProjectDetails.ratings?.aiSummary && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 mt-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 text-[9px] font-bold rounded-full uppercase">AI Summary</span>
+                        </div>
+                        <p className="text-xs font-bold text-gray-700 leading-relaxed uppercase tracking-tight">
+                            {hotel.builderProjectDetails.ratings.aiSummary}
+                        </p>
+                    </div>
+                )}
             </div>
         )}
 

@@ -212,19 +212,7 @@ const propertySchema = new mongoose.Schema({
     nearbyLandmark: String
   },
 
-  // --- BUILDER PROJECT DETAILS ---
-  builderProjectDetails: {
-    possessionStatus: { type: String, enum: ['Ongoing', 'Ready To Move', 'New Launch'] },
-    possessionYear: { type: Number },
-    ratings: {
-      constructionQuality: { type: Number, min: 1, max: 5 },
-      aiSummary: { type: String }
-    },
-    priceHistory: {
-      currentPricePerSqft: { type: Number },
-      appreciationLast3Years: { type: Number } // in percentage
-    }
-  },
+  // builderProjectDetails decoupled into separate BuilderProjectDetails collection
 
   // Universal / Pro Fields
   videoUrl: String,
@@ -265,7 +253,18 @@ const propertySchema = new mongoose.Schema({
   enquiryCount: { type: Number, default: 0 },
   views: { type: Number, default: 0 }
 
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+propertySchema.virtual('builderProjectDetails', {
+  ref: 'BuilderProjectDetails',
+  localField: '_id',
+  foreignField: 'propertyId',
+  justOne: true
+});
 
 propertySchema.index({ location: "2dsphere" });
 

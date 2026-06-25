@@ -54,11 +54,24 @@ const AdminAddProperty = () => {
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState(() => {
     if (isEditing) {
-      return {
+      const initialForm = {
         ...existingProperty.dynamicData,
         ...existingProperty.address,
         propertyName: existingProperty.propertyName
       };
+      if (existingProperty.builderProjectDetails) {
+        initialForm.bpd_possessionStatus = existingProperty.builderProjectDetails.possessionStatus || '';
+        initialForm.bpd_possessionYear = existingProperty.builderProjectDetails.possessionYear || '';
+        if (existingProperty.builderProjectDetails.ratings) {
+          initialForm.bpd_constructionQuality = existingProperty.builderProjectDetails.ratings.constructionQuality || '';
+          initialForm.bpd_aiSummary = existingProperty.builderProjectDetails.ratings.aiSummary || '';
+        }
+        if (existingProperty.builderProjectDetails.priceHistory) {
+          initialForm.bpd_currentPricePerSqft = existingProperty.builderProjectDetails.priceHistory.currentPricePerSqft || '';
+          initialForm.bpd_appreciationLast3Years = existingProperty.builderProjectDetails.priceHistory.appreciationLast3Years || '';
+        }
+      }
+      return initialForm;
     }
     const saved = sessionStorage.getItem('adminPropDraft');
     if (saved) return JSON.parse(saved);
@@ -72,7 +85,10 @@ const AdminAddProperty = () => {
   const [modalFrequency, setModalFrequency] = useState('Monthly');
   const [modalBooking, setModalBooking] = useState('');
 
-  const [isBuilderProject, setIsBuilderProject] = useState(() => existingProperty?.builderProject || sessionStorage.getItem('adminPropIsBuilder') === 'true');
+  const [isBuilderProject, setIsBuilderProject] = useState(() => {
+    const hasDetails = existingProperty?.builderProjectDetails && Object.keys(existingProperty.builderProjectDetails).length > 0;
+    return !!(existingProperty?.builderProject || hasDetails || sessionStorage.getItem('adminPropIsBuilder') === 'true');
+  });
 
   useEffect(() => {
     if (!isEditing) {
@@ -225,8 +241,27 @@ const AdminAddProperty = () => {
           newErrors[field.name] = `${field.label} is required`;
           if (!firstErrorField) firstErrorField = field.name;
         } else if (!isValEmpty) {
-          // Negative value check for number fields
-          if (field.type === 'number' && Number(value) < 0) {
+          // Custom validations
+          const isPhoneField = ['contactNumber', 'phone', 'mobile', 'mobileNumber', 'phoneNumber'].includes(field.name);
+          if (isPhoneField) {
+            if (!/^[6-9]\d{9}$/.test(value)) {
+              newErrors[field.name] = 'Mobile number must be exactly 10 digits starting with 6-9';
+              if (!firstErrorField) firstErrorField = field.name;
+            }
+          } else if (field.name === 'bpd_constructionQuality' || field.name === 'constructionQuality') {
+            const numVal = Number(value);
+            if (isNaN(numVal) || numVal < 1 || numVal > 5) {
+              newErrors[field.name] = 'Construction quality rating must be a number between 1 and 5';
+              if (!firstErrorField) firstErrorField = field.name;
+            }
+          } else if (field.name === 'bpd_possessionYear' || field.name === 'possessionYear') {
+            const yearStr = String(value).trim();
+            if (!/^\d{4}$/.test(yearStr)) {
+              newErrors[field.name] = 'Possession year must be a 4-digit number (e.g. 2026)';
+              if (!firstErrorField) firstErrorField = field.name;
+            }
+          } else if (field.type === 'number' && Number(value) < 0) {
+            // Negative value check for number fields
             newErrors[field.name] = `${field.label} cannot be negative`;
             if (!firstErrorField) firstErrorField = field.name;
           } else if (field.validation) {
@@ -439,7 +474,15 @@ const AdminAddProperty = () => {
               onKeyDown={(e) => {
                 if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault();
               }}
-              onChange={(e) => handleChange(field.name, e.target.value)}
+              onChange={(e) => {
+                let val = e.target.value;
+                val = val.replace(/[^0-9.]/g, '');
+                const parts = val.split('.');
+                if (parts.length > 2) {
+                  val = parts[0] + '.' + parts.slice(1).join('');
+                }
+                handleChange(field.name, val);
+              }}
               placeholder={field.placeholder || ''}
               className="flex-1 px-4 py-3 bg-transparent text-sm font-semibold outline-none border-none"
             />
@@ -468,18 +511,53 @@ const AdminAddProperty = () => {
             <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </label>
-            <input
-              type={field.type}
-              value={formData[field.name] || ''}
-              onKeyDown={(e) => {
-                if (field.type === 'number' && (e.key === '-' || e.key === '+' || e.key === 'e')) {
-                  e.preventDefault();
-                }
-              }}
-              onChange={(e) => handleChange(field.name, e.target.value)}
-              placeholder={field.placeholder || ''}
-              className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all"
-            />
+            {(() => {
+              const isPhoneField = ['contactNumber', 'phone', 'mobile', 'mobileNumber', 'phoneNumber'].includes(field.name);
+              if (isPhoneField) {
+                return (
+                  <div className={`flex items-center px-4 py-3 bg-slate-50 border rounded-xl focus-within:bg-white focus-within:border-slate-800 transition-all ${
+                    errors[field.name] ? 'border-red-500' : 'border-transparent'
+                  }`}>
+                    <span className="text-sm font-bold text-slate-500 mr-2">+91</span>
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      value={formData[field.name] || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, ''); // only digits
+                        handleChange(field.name, val);
+                      }}
+                      placeholder={field.placeholder || 'e.g. 9876543210'}
+                      className="w-full bg-transparent text-sm font-bold outline-none border-none p-0"
+                    />
+                  </div>
+                );
+              }
+              return (
+                <input
+                  type={field.type}
+                  value={formData[field.name] || ''}
+                  onKeyDown={(e) => {
+                    if (field.type === 'number' && (e.key === '-' || e.key === '+' || e.key === 'e')) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (field.type === 'number') {
+                      val = val.replace(/[^0-9.]/g, '');
+                      const parts = val.split('.');
+                      if (parts.length > 2) {
+                        val = parts[0] + '.' + parts.slice(1).join('');
+                      }
+                    }
+                    handleChange(field.name, val);
+                  }}
+                  placeholder={field.placeholder || ''}
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all"
+                />
+              );
+            })()}
             {errors[field.name] && <p className="text-red-500 text-xs mt-1 ml-1 font-semibold">{errors[field.name]}</p>}
           </div>
         );
@@ -841,9 +919,22 @@ const AdminAddProperty = () => {
                             className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
                             placeholder={subF.placeholder || ''}
                             value={item[subF.name] || ''}
+                            onKeyDown={(e) => {
+                              if (subF.type === 'number' && (e.key === '-' || e.key === '+' || e.key === 'e')) {
+                                e.preventDefault();
+                              }
+                            }}
                             onChange={(e) => {
+                              let val = e.target.value;
+                              if (subF.type === 'number') {
+                                val = val.replace(/[^0-9.]/g, '');
+                                const parts = val.split('.');
+                                if (parts.length > 2) {
+                                  val = parts[0] + '.' + parts.slice(1).join('');
+                                }
+                              }
                               const next = [...repeaterItems];
-                              next[index] = { ...next[index], [subF.name]: e.target.value };
+                              next[index] = { ...next[index], [subF.name]: val };
                               handleChange(field.name, next);
                             }}
                           />
