@@ -981,7 +981,7 @@ export const updateContactStatus = async (req, res) => {
     if (!['new', 'in_progress', 'resolved'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
-
+  //
     const message = await ContactMessage.findByIdAndUpdate(
       id,
       { status },
