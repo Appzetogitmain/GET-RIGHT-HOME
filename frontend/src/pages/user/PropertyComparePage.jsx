@@ -6,11 +6,13 @@ import {
   DollarSign, MapPin, Maximize, Home, Star, Layers, Activity, Info, Loader2 
 } from 'lucide-react';
 import { propertyService } from '../../services/apiService';
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 import toast from 'react-hot-toast';
 
 const PropertyComparePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { navigateToProperty } = usePropertyNavigate();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -429,7 +431,7 @@ const PropertyComparePage = () => {
                     </div>
 
                     <h3 
-                      onClick={() => navigate(`/property/${p._id}`)}
+                      onClick={() => navigateToProperty(p)}
                       className="text-xs font-extrabold text-slate-900 hover:text-indigo-600 cursor-pointer line-clamp-2 leading-tight"
                     >
                       {p.propertyName || p.name}
@@ -443,7 +445,7 @@ const PropertyComparePage = () => {
 
                   {/* Direct Details Page Link */}
                   <button 
-                    onClick={() => navigate(`/property/${p._id}`)}
+                    onClick={() => navigateToProperty(p)}
                     className="w-full mt-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-lg transition-colors uppercase tracking-wider"
                   >
                     View Details

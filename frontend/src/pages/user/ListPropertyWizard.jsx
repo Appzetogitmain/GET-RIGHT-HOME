@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, ChevronRight, Check, Loader2, Phone, User, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Plus, ChevronRight, Check, Loader2, Phone, User } from 'lucide-react';
 import { api } from '../../services/apiService';
 import { categoryService } from '../../services/categoryService';
 import toast from 'react-hot-toast';
@@ -271,10 +271,6 @@ const ListPropertyWizard = () => {
       <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 h-16 flex items-center justify-between border-b border-slate-50">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-700">
           <ArrowLeft size={22} strokeWidth={2} />
-        </button>
-        <button className="flex items-center gap-1.5 text-emerald-600 font-semibold text-[11px] uppercase tracking-wider bg-emerald-50/50 px-3 py-1.5 rounded-full border border-emerald-100">
-          <MessageCircle size={14} className="fill-emerald-500/20" />
-          Post via WhatsApp
         </button>
       </div>
 

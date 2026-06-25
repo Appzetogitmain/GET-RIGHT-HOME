@@ -140,10 +140,10 @@ const HeroSection = ({ theme, selectedType, onSearch }) => {
     };
 
     return (
-        <motion.section className="relative w-full pt-4 pb-2 flex flex-col bg-transparent">
+        <motion.section className="relative w-full pt-1 pb-2 flex flex-col bg-transparent">
 
             {/* ─── Mobile Top Bar (Menu + Brand + Post Property) ─── */}
-            <div className="px-4 flex md:hidden items-center justify-between h-14 mb-2">
+            <div className="px-4 flex md:hidden items-center justify-between h-12 mb-0">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setIsMenuOpen(true)}

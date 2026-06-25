@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { X, Phone, MessageCircle, Share2, Heart, Mail, Eye, Calendar, ArrowLeft, Loader2, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { enquiryService } from '../../services/apiService';
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
 
 const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry = false }) => {
   const navigate = useNavigate();
+  const { navigateToProperty, getPropertyPath } = usePropertyNavigate();
   const [showEnquiry, setShowEnquiry] = useState(initialShowEnquiry);
   const [isSaved, setIsSaved] = useState(false);
   const [enquiryLoading, setEnquiryLoading] = useState(false);
@@ -371,7 +373,11 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
               <button
                 onClick={() => {
                   onClose();
-                  navigate(`/hotel/${_id}`);
+                  if (property.isAddedByAdmin) {
+                    navigate(`/handpicked/${_id}`);
+                  } else {
+                    navigate(`/hotel/${_id}`);
+                  }
                 }}
                 className="flex items-center justify-center gap-1.5 w-full py-2.5 mt-1 border border-gray-700 hover:border-gray-500 rounded-xl text-xs font-bold active:scale-95 transition-all bg-transparent text-gray-200"
               >

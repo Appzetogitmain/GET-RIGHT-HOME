@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authService, propertyService, legalService, reviewService, offerService, availabilityService, userService, bookingService, enquiryService, localityReviewService } from '../../services/apiService';
 import GRHPropertyCard from '../../components/user/GRHPropertyCard';
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
   Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare, Tag, X, Gift,
@@ -18,6 +19,7 @@ const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.
 const PropertyDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { navigateToProperty } = usePropertyNavigate();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -204,6 +206,10 @@ const PropertyDetailsPage = () => {
       const response = await propertyService.getDetails(id);
       if (response && response.property) {
         const p = response.property;
+        if (p.isAddedByAdmin) {
+          navigateToProperty(p, { replace: true });
+          return;
+        }
         const rts = response.roomTypes || [];
         const adapted = {
           ...p,
@@ -1752,7 +1758,7 @@ const PropertyDetailsPage = () => {
               
               {/* Current Property */}
               <div 
-                onClick={() => navigate(`/property/${property?._id}`)}
+                onClick={() => navigateToProperty(property)}
                 className="p-3 rounded-2xl border border-slate-200 bg-white min-w-[210px] w-[210px] shrink-0 text-left relative shadow-sm hover:shadow-md transition-all cursor-pointer group"
               >
                 <span className="absolute top-2 left-2 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-md z-10">
@@ -1804,7 +1810,7 @@ const PropertyDetailsPage = () => {
                     </div>
 
                     <div 
-                      onClick={() => navigate(`/property/${item._id}`)}
+                      onClick={() => navigateToProperty(item)}
                       className="p-3 rounded-2xl border border-slate-150 bg-white min-w-[210px] w-[210px] shrink-0 text-left relative shadow-sm hover:shadow-md transition-all cursor-pointer group"
                     >
                       <img 
@@ -1926,7 +1932,7 @@ const PropertyDetailsPage = () => {
                   const ratingVal = simItem.avgRating || 0;
 
                   return (
-                    <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-150 p-3 w-[150px] shrink-0 shadow-sm hover:border-[#0061df] transition-colors cursor-pointer">
+                    <div key={i} onClick={() => navigateToProperty(simItem)} className="bg-white rounded-xl border border-slate-150 p-3 w-[150px] shrink-0 shadow-sm hover:border-[#0061df] transition-colors cursor-pointer">
                       <img src={simCover} className="w-full h-16 object-cover rounded-lg mb-1.5" />
                       <h5 className="text-[10px] font-bold text-gray-800 line-clamp-1">{simName}</h5>
                       <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{simLocality}</p>

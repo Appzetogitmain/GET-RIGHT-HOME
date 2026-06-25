@@ -5,6 +5,7 @@ import {
   ChevronDown, CheckCircle2, TrendingUp, Phone, Wrench, Loader2, AlertCircle
 } from 'lucide-react';
 import apiService from '../../services/apiService';
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 
 const InitialsAvatar = ({ name, size = 'lg' }) => {
   const initials = (name || 'B').slice(0, 2).toUpperCase();
@@ -21,6 +22,7 @@ const InitialsAvatar = ({ name, size = 'lg' }) => {
 const BuilderProfilePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { navigateToProperty } = usePropertyNavigate();
 
   const [builder, setBuilder] = useState(null);
   const [stats, setStats] = useState(null);
@@ -341,7 +343,7 @@ const BuilderProfilePage = () => {
                 return (
                   <div 
                     key={p._id || i}
-                    onClick={() => navigate(`/property/${p._id}`)}
+                    onClick={() => navigateToProperty(p)}
                     className="flex-shrink-0 w-[280px] bg-white border border-slate-100 rounded-2xl p-3 flex gap-3 shadow-sm snap-start cursor-pointer hover:border-blue-100 transition-colors"
                   >
                     <img 
@@ -680,7 +682,7 @@ const BuilderProfilePage = () => {
                   return (
                     <div 
                       key={p._id || i}
-                      onClick={() => navigate(`/property/${p._id}`)}
+                      onClick={() => navigateToProperty(p)}
                       className="bg-white border border-slate-100 rounded-2xl p-3 flex gap-3 shadow-sm cursor-pointer hover:border-blue-100 transition-colors"
                     >
                       <div className="relative shrink-0">

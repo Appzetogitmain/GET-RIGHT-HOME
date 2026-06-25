@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { propertyService } from '../../services/apiService';
 import { Star, MapPin, ArrowRight, Loader2, Sparkles, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 
 const LatestProjectsBanner = ({ categoryId, categoryName, theme }) => {
     const navigate = useNavigate();
+    const { navigateToProperty } = usePropertyNavigate();
     const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -79,7 +81,7 @@ const LatestProjectsBanner = ({ categoryId, categoryName, theme }) => {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.5, ease: "easeInOut" }}
-                    onClick={() => navigate(`/hotel/${current._id}`)}
+                    onClick={() => navigateToProperty(current)}
                     className="relative w-full h-[220px] md:h-[280px] rounded-3xl overflow-hidden cursor-pointer shadow-lg hover:shadow-xl transition-shadow border border-white/20"
                 >
                     {/* Background Image */}
