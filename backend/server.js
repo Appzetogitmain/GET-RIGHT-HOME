@@ -36,7 +36,11 @@ const io = new Server(server, {
       'https://homezoo.vercel.app',
       'homezoo.vercel.app',
       'https://get-right-home.vercel.app',
-      'get-right-home.vercel.app'
+      'get-right-home.vercel.app',
+      'https://getrighthome.com',
+      'https://www.getrighthome.com',
+      'getrighthome.com',
+      'www.getrighthome.com'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
@@ -76,7 +80,9 @@ app.use(cors({
       'https://homezoo.vercel.app',
       'https://homezoo.onrender.com',
       'https://get-right-home.vercel.app',
-      'https://get-right-home.onrender.com'   
+      'https://get-right-home.onrender.com',
+      'https://getrighthome.com',
+      'https://www.getrighthome.com'
     ];
     // Add 172.16-31 range (often used by hotspots) and 10.x
     const isLocalNetwork =
@@ -84,7 +90,7 @@ app.use(cors({
       origin.startsWith('http://10.') ||
       origin.startsWith('http://172.');
 
-    if (allowedOrigins.indexOf(origin) !== -1 || isLocalNetwork || (origin && origin.includes('get-right-home.vercel.app')) || (origin && origin.includes('get-right-home.onrender.com'))) {
+    if (allowedOrigins.indexOf(origin) !== -1 || isLocalNetwork || (origin && origin.includes('get-right-home.vercel.app')) || (origin && origin.includes('get-right-home.onrender.com')) || (origin && origin.includes('getrighthome.com'))) {
       callback(null, true);
     } else {
       console.log('Blocked by CORS:', origin); // Log blocked origin for debugging
