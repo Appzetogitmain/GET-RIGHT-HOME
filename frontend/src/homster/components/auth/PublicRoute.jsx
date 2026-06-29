@@ -29,7 +29,7 @@ const PublicRoute = ({ children, userType = 'user', redirectTo = null }) => {
           dataKey = 'workerData';
           break;
         case 'admin':
-          // Support both Hoomzo's and Homster's token keys
+          // Support both  Get Right Home's and Homster's token keys
           tokenKey = localStorage.getItem('adminToken') ? 'adminToken' : 'adminAccessToken';
           refreshTokenKey = 'adminRefreshToken';
           dataKey = 'adminData';

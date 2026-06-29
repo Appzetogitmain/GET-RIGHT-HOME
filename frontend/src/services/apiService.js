@@ -775,6 +775,14 @@ export const legalService = {
       throw error.response?.data || error.message;
     }
   },
+  getAdminContact: async () => {
+    try {
+      const response = await api.get('/info/contact');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
   submitContact: async (audience, payload) => {
     try {
       const response = await api.post(`/contact/${audience}`, payload);

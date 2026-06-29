@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Mail, ArrowRight, Loader2, Shield, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../../services/apiService';
-import logo from '../../../assets/rokologin-removebg-preview.png';
+import logo from '../../../assets/grh-logo.png';
 
 const HotelLogin = () => {
     const navigate = useNavigate();
@@ -95,7 +95,7 @@ const HotelLogin = () => {
                         transition={{ type: "spring", delay: 0.2 }}
                         className="inline-block mb-4"
                     >
-                        <img src={logo} alt="HoomZo Partner" className="w-32 h-auto" />
+                        <img src={logo} alt="Get Right Home Partner" className="w-32 h-auto" />
                     </motion.div>
                     <h1 className="text-3xl font-bold text-white">Partner Login</h1>
                     <p className="text-teal-100 mt-2">Access your hotel dashboard</p>

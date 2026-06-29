@@ -101,7 +101,7 @@ const PartnerJoinPropertyType = () => {
       <main className="flex-1 max-w-2xl mx-auto w-full p-4 md:p-6">
         <div className="space-y-2 mb-6">
           <h1 className="text-2xl font-bold text-gray-900">What keeps you busy?</h1>
-          <p className="text-gray-500 text-sm">Select the type of property you want to list on HoomZo.</p>
+          <p className="text-gray-500 text-sm">Select the type of property you want to list on Get Right Home.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

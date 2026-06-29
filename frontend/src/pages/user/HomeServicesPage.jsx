@@ -127,7 +127,7 @@ const HomeServicesPage = () => {
     useEffect(() => {
         // Read user data from localStorage directly — avoids wrong-token API errors
         // User data is stored on login and kept updated by the auth flow
-        const stored = 
+        const stored =
             JSON.parse(localStorage.getItem('userData') || 'null') ||
             JSON.parse(localStorage.getItem('user') || 'null');
         if (stored) setUser(stored);
@@ -517,9 +517,8 @@ const HomeServicesPage = () => {
                                             setCurrentCurationIdx(dotIdx);
                                         }
                                     }}
-                                    className={`h-1.5 rounded-full transition-all duration-300 ${
-                                        currentCurationIdx === dotIdx ? 'w-6 bg-emerald-500' : 'w-1.5 bg-gray-300'
-                                    }`}
+                                    className={`h-1.5 rounded-full transition-all duration-300 ${currentCurationIdx === dotIdx ? 'w-6 bg-emerald-500' : 'w-1.5 bg-gray-300'
+                                        }`}
                                     aria-label={`Go to slide ${dotIdx + 1}`}
                                 />
                             ))}
@@ -676,7 +675,7 @@ const HomeServicesPage = () => {
                                                 amount: orderRes.order.amount,
                                                 currency: orderRes.order.currency || 'INR',
                                                 order_id: orderRes.order.id,
-                                                name: 'Hoomzo',
+                                                name: ' Get Right Home',
                                                 description: `VIP Membership - ${vipDurationDays || 56} Days`,
                                                 handler: async (response) => {
                                                     try {
@@ -927,7 +926,7 @@ const HomeServicesPage = () => {
                 );
             })}
 
-            {/* Why Hoomzo Services */}
+            {/* Why  Get Right Home Services */}
             <section className="mt-10 px-5 max-w-7xl mx-auto">
                 <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl shadow-emerald-200/50">
                     {/* Decorative Elements */}
@@ -1054,106 +1053,106 @@ const HomeServicesPage = () => {
 
             {/* New and Noteworthy */}
             {noteworthy.length > 0 && (
-            <section className="mt-12 px-5 max-w-7xl mx-auto">
-                <div className="flex flex-col mb-8">
-                    <div className="flex items-center gap-2 mb-1.5">
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
-                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Fresh</span>
+                <section className="mt-12 px-5 max-w-7xl mx-auto">
+                    <div className="flex flex-col mb-8">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
+                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Fresh</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                            New & <span className="text-emerald-600">Noteworthy</span>
+                        </h2>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Discover the latest arrivals</p>
                     </div>
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
-                        New & <span className="text-emerald-600">Noteworthy</span>
-                    </h2>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Discover the latest arrivals</p>
-                </div>
-                <div className="flex overflow-x-auto gap-4 no-scrollbar pb-4">
-                    {noteworthy.map((item) => (
-                        <motion.div
-                            key={item.id || item._id}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => {
-                                if (item.targetCategoryId) {
-                                    const cat = categories.find(c => (c.id || c._id) === item.targetCategoryId);
-                                    openCategoryModal(cat || { id: item.targetCategoryId, title: item.title });
-                                } else if (item.slug) {
-                                    navigate(`/service/${item.slug}`);
-                                }
-                            }}
-                            className="min-w-[170px] bg-white rounded-[1.5rem] border border-gray-100 shadow-lg shadow-gray-200/30 p-3 cursor-pointer"
-                        >
-                            <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-3">
-                                <img src={item.imageUrl || item.image} alt={item.title} className="w-full h-full object-contain" />
-                            </div>
-                            <h4 className="font-bold text-gray-800 text-[11px] line-clamp-2 text-center px-1 h-8 leading-tight">
-                                {item.title}
-                            </h4>
-                        </motion.div>
-                    ))}
-                </div>
-            </section>
+                    <div className="flex overflow-x-auto gap-4 no-scrollbar pb-4">
+                        {noteworthy.map((item) => (
+                            <motion.div
+                                key={item.id || item._id}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => {
+                                    if (item.targetCategoryId) {
+                                        const cat = categories.find(c => (c.id || c._id) === item.targetCategoryId);
+                                        openCategoryModal(cat || { id: item.targetCategoryId, title: item.title });
+                                    } else if (item.slug) {
+                                        navigate(`/service/${item.slug}`);
+                                    }
+                                }}
+                                className="min-w-[170px] bg-white rounded-[1.5rem] border border-gray-100 shadow-lg shadow-gray-200/30 p-3 cursor-pointer"
+                            >
+                                <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-3">
+                                    <img src={item.imageUrl || item.image} alt={item.title} className="w-full h-full object-contain" />
+                                </div>
+                                <h4 className="font-bold text-gray-800 text-[11px] line-clamp-2 text-center px-1 h-8 leading-tight">
+                                    {item.title}
+                                </h4>
+                            </motion.div>
+                        ))}
+                    </div>
+                </section>
             )}
 
             {/* Most Booked Services */}
             {mostBooked.length > 0 && (
-            <section className="mt-12 px-5 pb-4 max-w-7xl mx-auto">
-                <div className="flex flex-col mb-8">
-                    <div className="flex items-center gap-2 mb-1.5">
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
-                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Trending</span>
+                <section className="mt-12 px-5 pb-4 max-w-7xl mx-auto">
+                    <div className="flex flex-col mb-8">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
+                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Trending</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                            Most <span className="text-emerald-600">Booked</span> Services
+                        </h2>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Most loved by our community</p>
                     </div>
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
-                        Most <span className="text-emerald-600">Booked</span> Services
-                    </h2>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Most loved by our community</p>
-                </div>
-                <div className="flex overflow-x-auto gap-4 no-scrollbar pb-6">
-                    {mostBooked.map((service) => (
-                        <motion.div
-                            key={service.id || service._id}
-                            whileHover={{ y: -5 }}
-                            onClick={() => {
-                                if (service.targetCategoryId) {
-                                    const cat = categories.find(c => (c.id || c._id) === service.targetCategoryId);
-                                    openCategoryModal(cat || { id: service.targetCategoryId, title: service.title });
-                                } else if (service.slug) {
-                                    navigate(`/service/${service.slug}`);
-                                }
-                            }}
-                            className="min-w-[165px] bg-white rounded-[1.5rem] border border-gray-100 shadow-lg shadow-gray-200/30 overflow-hidden cursor-pointer"
-                        >
-                            <div className="h-40 bg-gray-50 p-2 overflow-hidden">
-                                <img src={service.imageUrl || service.image} alt={service.title} className="w-full h-full object-contain" />
-                            </div>
-                            <div className="p-3 flex flex-col items-center">
-                                <h4 className="font-bold text-gray-800 text-[11px] line-clamp-2 mb-2 h-8 leading-tight text-center">
-                                    {service.title}
-                                </h4>
-                                <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-700 mb-3 justify-center">
-                                    <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                                    {service.rating || '4.0'}
+                    <div className="flex overflow-x-auto gap-4 no-scrollbar pb-6">
+                        {mostBooked.map((service) => (
+                            <motion.div
+                                key={service.id || service._id}
+                                whileHover={{ y: -5 }}
+                                onClick={() => {
+                                    if (service.targetCategoryId) {
+                                        const cat = categories.find(c => (c.id || c._id) === service.targetCategoryId);
+                                        openCategoryModal(cat || { id: service.targetCategoryId, title: service.title });
+                                    } else if (service.slug) {
+                                        navigate(`/service/${service.slug}`);
+                                    }
+                                }}
+                                className="min-w-[165px] bg-white rounded-[1.5rem] border border-gray-100 shadow-lg shadow-gray-200/30 overflow-hidden cursor-pointer"
+                            >
+                                <div className="h-40 bg-gray-50 p-2 overflow-hidden">
+                                    <img src={service.imageUrl || service.image} alt={service.title} className="w-full h-full object-contain" />
                                 </div>
-                                <div className="flex items-center justify-between w-full">
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-1">
-                                            <span className="text-xs font-black text-gray-900">₹{service.price}</span>
-                                            {service.originalPrice && (
-                                                <span className="text-[9px] text-gray-400 line-through">₹{service.originalPrice}</span>
+                                <div className="p-3 flex flex-col items-center">
+                                    <h4 className="font-bold text-gray-800 text-[11px] line-clamp-2 mb-2 h-8 leading-tight text-center">
+                                        {service.title}
+                                    </h4>
+                                    <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-700 mb-3 justify-center">
+                                        <Star size={12} className="text-yellow-400 fill-yellow-400" />
+                                        {service.rating || '4.0'}
+                                    </div>
+                                    <div className="flex items-center justify-between w-full">
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-xs font-black text-gray-900">₹{service.price}</span>
+                                                {service.originalPrice && (
+                                                    <span className="text-[9px] text-gray-400 line-through">₹{service.originalPrice}</span>
+                                                )}
+                                            </div>
+                                            {service.discount && (
+                                                <span className="text-[9px] text-green-600 font-bold text-left mt-0.5 leading-none">
+                                                    {service.discount}
+                                                </span>
                                             )}
                                         </div>
-                                        {service.discount && (
-                                            <span className="text-[9px] text-green-600 font-bold text-left mt-0.5 leading-none">
-                                                {service.discount}
-                                            </span>
-                                        )}
+                                        <button className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg shadow-emerald-200/50 hover:shadow-emerald-300/50 transition-all active:scale-95">
+                                            Book
+                                        </button>
                                     </div>
-                                    <button className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg shadow-emerald-200/50 hover:shadow-emerald-300/50 transition-all active:scale-95">
-                                        Book
-                                    </button>
                                 </div>
-                            </div>
-                        </motion.div>
-                    ))}
-                </div>
-            </section>
+                            </motion.div>
+                        ))}
+                    </div>
+                </section>
             )}
 
             {/* Category Sections */}
@@ -1170,7 +1169,7 @@ const HomeServicesPage = () => {
                     </div>
                     <div className="flex overflow-x-auto gap-4 no-scrollbar pb-6">
                         {(section.cards || []).map((card) => (
-                            <motion.div 
+                            <motion.div
                                 key={card.id || card._id}
                                 whileHover={{ y: -5 }}
                                 onClick={() => {

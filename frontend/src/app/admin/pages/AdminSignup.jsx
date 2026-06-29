@@ -67,7 +67,7 @@ const AdminSignup = () => {
                                 }
                             })}
                             className={`block w-full pl-9 pr-3 py-2.5 border ${errors.email ? 'border-red-500 focus:ring-red-200' : 'border-gray-200 focus:ring-black'} rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all bg-gray-50 focus:bg-white text-sm`}
-                            placeholder="admin@hoomzo.in"
+                            placeholder="[EMAIL_ADDRESS]"
                         />
                     </div>
                     {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}

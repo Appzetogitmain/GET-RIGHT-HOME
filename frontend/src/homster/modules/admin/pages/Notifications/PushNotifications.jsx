@@ -65,7 +65,7 @@ const PushNotifications = () => {
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <form onSubmit={handleSend} className="space-y-6">
-          
+
           {/* Target Audience */}
           <div>
             <label className="block text-sm font-semibold text-gray-900 mb-3">Target Audience</label>
@@ -77,9 +77,8 @@ const PushNotifications = () => {
                   <div
                     key={aud.id}
                     onClick={() => setAudience(aud.id)}
-                    className={`cursor-pointer border-2 rounded-xl p-4 transition-all flex items-start gap-3 ${
-                      isSelected ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200 bg-white'
-                    }`}
+                    className={`cursor-pointer border-2 rounded-xl p-4 transition-all flex items-start gap-3 ${isSelected ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200 bg-white'
+                      }`}
                   >
                     <div className={`mt-0.5 p-2 rounded-lg ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
                       <Icon />
@@ -120,7 +119,7 @@ const PushNotifications = () => {
                   required
                 ></textarea>
               </div>
-              
+
               <button
                 type="submit"
                 disabled={sending}
@@ -133,15 +132,15 @@ const PushNotifications = () => {
                 )}
               </button>
             </div>
-            
+
             {/* Live Preview */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">Live Preview (Android)</label>
               <div className="bg-gray-100 rounded-[2rem] p-4 w-[300px] h-[600px] border-[8px] border-gray-800 mx-auto relative shadow-xl overflow-hidden">
                 <div className="absolute top-0 inset-x-0 h-6 bg-black flex justify-center items-center">
-                   <div className="w-16 h-4 bg-gray-800 rounded-b-xl"></div>
+                  <div className="w-16 h-4 bg-gray-800 rounded-b-xl"></div>
                 </div>
-                
+
                 {/* Status Bar */}
                 <div className="mt-4 flex justify-between px-2 text-[10px] text-gray-500 font-medium">
                   <span>12:00</span>
@@ -150,22 +149,22 @@ const PushNotifications = () => {
                     <span>100%</span>
                   </div>
                 </div>
-                
+
                 {/* Notification Dropdown */}
-                <motion.div 
+                <motion.div
                   initial={{ y: -50, opacity: 0 }}
                   animate={{ y: title || body ? 0 : -50, opacity: title || body ? 1 : 0 }}
                   className="mt-4 bg-white rounded-xl shadow-lg p-3 mx-1"
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white text-[10px] font-bold">H</div>
-                    <span className="text-xs font-semibold text-gray-700">Hoomzo</span>
+                    <span className="text-xs font-semibold text-gray-700"> Get Right Home</span>
                     <span className="text-[10px] text-gray-400 ml-auto">now</span>
                   </div>
                   <h4 className="font-semibold text-sm text-gray-900">{title || 'Notification Title'}</h4>
                   <p className="text-xs text-gray-600 mt-1">{body || 'Your message will appear here. Keep it concise and clear.'}</p>
                 </motion.div>
-                
+
                 {/* Wallpaper */}
                 <div className="absolute inset-0 z-[-1] opacity-10 bg-blue-600"></div>
               </div>

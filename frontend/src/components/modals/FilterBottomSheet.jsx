@@ -40,7 +40,7 @@ const FilterBottomSheet = ({
     ];
 
     const trendingFilters = [
-        "HoomZos welcome couples", "Local IDs accepted", "Flagship"
+        " Get Right Home welcome couples", "Local IDs accepted", "Flagship"
     ];
 
     const categories = [
@@ -140,8 +140,8 @@ const FilterBottomSheet = ({
                             {/* Highest Rated Toggle */}
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <h3 className="font-medium text-surface text-base">Highest rated HoomZos</h3>
-                                    <p className="text-xs text-gray-400">Show HoomZos with rating &gt;4.0</p>
+                                    <h3 className="font-medium text-surface text-base">Highest rated  Get Right Home</h3>
+                                    <p className="text-xs text-gray-400">Show  Get Right Home with rating &gt;4.0</p>
                                 </div>
                                 <button
                                     onClick={() => setHighRated(!highRated)}

@@ -17,12 +17,12 @@ const api = axios.create({
 const getTokenKeys = (url) => {
   // 1. Prioritize current page context for role-based tokens
   if (window.location.pathname.startsWith('/admin')) {
-    // Check if we have Hoomzo's admin token first, otherwise fallback to Homster's key
+    // Check if we have  Get Right Home's admin token first, otherwise fallback to Homster's key
     const hasHoomzoToken = !!localStorage.getItem('adminToken');
-    return { 
-      access: hasHoomzoToken ? 'adminToken' : 'adminAccessToken', 
-      refresh: 'adminRefreshToken', 
-      role: 'admin' 
+    return {
+      access: hasHoomzoToken ? 'adminToken' : 'adminAccessToken',
+      refresh: 'adminRefreshToken',
+      role: 'admin'
     };
   }
   if (window.location.pathname.startsWith('/vendor')) {
@@ -146,14 +146,14 @@ api.interceptors.response.use(
         console.error('RefreshToken failed:', refreshError);
         processQueue(refreshError, null);
         isRefreshing = false;
-        
+
         // Only force logout if the refresh request failed with a client error (4xx)
         // If it's a 5xx or network error, the server is just down.
         const isServerError = !refreshError.response || refreshError.response.status >= 500;
         if (!isServerError) {
           handleLogout(role);
         }
-        
+
         return Promise.reject(refreshError);
       }
     }

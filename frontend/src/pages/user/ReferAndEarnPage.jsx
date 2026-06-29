@@ -82,7 +82,7 @@ const ReferAndEarnPage = () => {
         const shareData = {
             title: 'Join Get-Right-Home & Get ₹200!',
             text: `Hey! Book hotels at amazing prices on Get-Right-Home. Use my referral code ${referralData.code} to get ₹200 OFF on your first booking!`,
-            url: referralData.link || 'https://hoomzo.in'
+            url: referralData.link || 'https:// getrighthome.com'
         };
 
         if (navigator.share) {

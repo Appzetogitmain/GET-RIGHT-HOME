@@ -41,7 +41,8 @@ import {
   createAdminProperty,
   getAbandonedCarts,
   sendTargetedNotification,
-  updateAdminProperty
+  updateAdminProperty,
+  updateAdminPassword
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import {
@@ -142,5 +143,8 @@ router.get('/reports/workers', checkManagerPermission('dashboard', 'view'), getW
 router.get('/worker-withdrawals', checkManagerPermission('finance', 'view'), getWorkerWithdrawals);
 router.put('/worker-withdrawals/:id/approve', checkManagerPermission('finance', 'edit'), approveWorkerWithdrawal);
 router.put('/worker-withdrawals/:id/reject', checkManagerPermission('finance', 'edit'), rejectWorkerWithdrawal);
+
+// Password Management
+router.put('/update-password', updateAdminPassword);
 
 export default router;

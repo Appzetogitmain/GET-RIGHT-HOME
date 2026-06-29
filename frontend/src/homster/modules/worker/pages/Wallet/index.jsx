@@ -20,7 +20,7 @@ const Wallet = () => {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
-  
+
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawForm, setWithdrawForm] = useState({
@@ -181,7 +181,7 @@ const Wallet = () => {
 
   const handlePayDues = async () => {
     if (!wallet.dues || wallet.dues <= 0) return;
-    
+
     try {
       setPayingDues(true);
       const isLoaded = await loadRazorpay();
@@ -192,12 +192,12 @@ const Wallet = () => {
 
       // Initiate order
       const initRes = await workerWalletService.payAdminDuesInitiate(wallet.dues);
-      
+
       const options = {
         key: initRes.order.key,
         amount: initRes.order.amount,
         currency: initRes.order.currency,
-        name: "Hoomzo",
+        name: " Get Right Home",
         description: "Clear Admin Dues",
         order_id: initRes.order.id,
         handler: async function (response) {
@@ -220,7 +220,7 @@ const Wallet = () => {
           color: "#0F766E"
         }
       };
-      
+
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', function (response) {
         toast.error('Payment Failed: ' + response.error.description);
@@ -315,7 +315,7 @@ const Wallet = () => {
                 <p className="text-white/80 text-sm font-medium mb-1">Available Balance</p>
                 <p className="text-4xl font-bold">₹{wallet.balance?.toLocaleString() || 0}</p>
               </div>
-              <button 
+              <button
                 onClick={() => setWithdrawModalOpen(true)}
                 disabled={wallet.balance <= 0}
                 className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center gap-2 ${wallet.balance > 0 ? 'bg-white text-teal-700' : 'bg-white/20 text-white/50 cursor-not-allowed'}`}
@@ -346,7 +346,7 @@ const Wallet = () => {
               <p className="text-sm font-medium text-gray-600 mb-1">To Pay</p>
               <p className={`text-2xl font-bold ${wallet.dues > 0 ? 'text-red-600' : 'text-green-600'}`}>₹{wallet.dues?.toLocaleString() || 0}</p>
             </div>
-            <button 
+            <button
               onClick={handlePayDues}
               disabled={payingDues || !wallet.dues || wallet.dues <= 0}
               className={`px-6 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${wallet.dues > 0 ? 'bg-red-500 hover:bg-red-600 text-white active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
@@ -688,14 +688,14 @@ const Wallet = () => {
 
                 <div className="pt-2">
                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-3 tracking-widest border-b border-gray-100 pb-2">Payout Method Details</p>
-                  
+
                   <div className="space-y-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">UPI ID (Optional)</label>
                       <input
                         type="text"
                         value={withdrawForm.upiId}
-                        onChange={(e) => setWithdrawForm({...withdrawForm, upiId: e.target.value})}
+                        onChange={(e) => setWithdrawForm({ ...withdrawForm, upiId: e.target.value })}
                         placeholder="example@upi"
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-sm"
                       />
@@ -707,7 +707,7 @@ const Wallet = () => {
                         <input
                           type="text"
                           value={withdrawForm.accountNumber}
-                          onChange={(e) => setWithdrawForm({...withdrawForm, accountNumber: e.target.value})}
+                          onChange={(e) => setWithdrawForm({ ...withdrawForm, accountNumber: e.target.value })}
                           placeholder="Bank A/C No"
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-sm"
                         />
@@ -717,7 +717,7 @@ const Wallet = () => {
                         <input
                           type="text"
                           value={withdrawForm.ifscCode}
-                          onChange={(e) => setWithdrawForm({...withdrawForm, ifscCode: e.target.value})}
+                          onChange={(e) => setWithdrawForm({ ...withdrawForm, ifscCode: e.target.value })}
                           placeholder="IFSC"
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-sm"
                         />
@@ -729,7 +729,7 @@ const Wallet = () => {
                       <input
                         type="text"
                         value={withdrawForm.accountHolderName}
-                        onChange={(e) => setWithdrawForm({...withdrawForm, accountHolderName: e.target.value})}
+                        onChange={(e) => setWithdrawForm({ ...withdrawForm, accountHolderName: e.target.value })}
                         placeholder="Full Name as per Bank"
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-sm"
                       />

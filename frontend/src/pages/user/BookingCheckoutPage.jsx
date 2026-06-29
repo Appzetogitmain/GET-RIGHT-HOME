@@ -149,7 +149,7 @@ const BookingCheckoutPage = () => {
             key: key,
             amount: order.amount, // Net amount after wallet deduction
             currency: order.currency,
-            name: "HoomZo",
+            name: " Get Right Home",
             description: `Booking Payment`,
             order_id: order.id,
             handler: async function (response) {

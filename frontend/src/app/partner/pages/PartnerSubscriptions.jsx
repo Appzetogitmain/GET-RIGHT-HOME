@@ -112,7 +112,7 @@ const PartnerSubscriptions = () => {
                 key: key,
                 amount: order.amount,
                 currency: order.currency,
-                name: "HoomZo Partner",
+                name: " Get Right Home Partner",
                 description: `Subscription: ${plan.name}`,
                 order_id: order.id,
                 handler: async function (response) {

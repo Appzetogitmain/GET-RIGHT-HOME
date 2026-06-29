@@ -103,7 +103,7 @@ export default function ReelsPage() {
     setPropertyType(reel.propertyType || 'Apartment');
     setContactNumber(reel.contactNumber || '');
     setCaption(reel.caption || '');
-    
+
     const bhks = {};
     if (reel.configurations && Array.isArray(reel.configurations)) {
       reel.configurations.forEach(config => {
@@ -271,11 +271,11 @@ export default function ReelsPage() {
     if (navigator.share) {
       navigator.share({
         title: reel.title || 'Check out this property!',
-        text: reel.caption || 'Look at this property listing on Hoomzo!',
+        text: reel.caption || 'Look at this property listing on  Get Right Home!',
         url: shareUrl,
       })
-      .then(() => toast.success('Shared successfully'))
-      .catch(() => {});
+        .then(() => toast.success('Shared successfully'))
+        .catch(() => { });
     } else {
       navigator.clipboard.writeText(shareUrl)
         .then(() => toast.success('Link copied to clipboard!'))
@@ -553,9 +553,8 @@ export default function ReelsPage() {
         <button
           type="button"
           onClick={() => setSearchOpen(!searchOpen)}
-          className={`p-2 rounded-full border transition-all ${
-            searchOpen ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
-          }`}
+          className={`p-2 rounded-full border transition-all ${searchOpen ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
+            }`}
         >
           <Search size={18} />
         </button>
@@ -564,11 +563,10 @@ export default function ReelsPage() {
         <button
           type="button"
           onClick={() => setFilterOpen(true)}
-          className={`p-2 rounded-full border transition-all ${
-            filterCity !== 'All' || filterBudget !== 'All' || filterType !== 'All' || filterStatus !== 'All'
+          className={`p-2 rounded-full border transition-all ${filterCity !== 'All' || filterBudget !== 'All' || filterType !== 'All' || filterStatus !== 'All'
               ? 'bg-blue-600 border-blue-500 text-white'
               : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
-          }`}
+            }`}
         >
           <SlidersHorizontal size={18} />
         </button>
@@ -600,7 +598,7 @@ export default function ReelsPage() {
 
       {/* Floating search input underneath top bar */}
       {searchOpen && (
-        <form 
+        <form
           onSubmit={handleSearchSubmit}
           className="fixed top-14 left-3 right-3 z-50 md:max-w-[420px] md:mx-auto"
         >
@@ -612,8 +610,8 @@ export default function ReelsPage() {
               placeholder="Search by title, location or city..."
               className="w-full bg-black/85 backdrop-blur-md text-white text-xs border border-white/15 rounded-xl py-2.5 pl-3.5 pr-10 focus:outline-none focus:border-blue-500 shadow-xl transition-all"
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="absolute right-3 top-2.5 text-blue-500 hover:text-blue-400 font-bold text-xs"
             >
               Go
@@ -825,11 +823,10 @@ export default function ReelsPage() {
                       key={area}
                       type="button"
                       onClick={() => setSelectedCity(area)}
-                      className={`py-3 px-3.5 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between ${
-                        selectedCity === area
+                      className={`py-3 px-3.5 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between ${selectedCity === area
                           ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20'
                           : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
-                      }`}
+                        }`}
                     >
                       <span>{area}</span>
                       <MapPin size={11} className={selectedCity === area ? 'text-white' : 'text-neutral-500'} />
@@ -858,11 +855,10 @@ export default function ReelsPage() {
                       key={budget}
                       type="button"
                       onClick={() => setSelectedBudget(budget)}
-                      className={`py-3.5 px-4 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between ${
-                        selectedBudget === budget
+                      className={`py-3.5 px-4 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between ${selectedBudget === budget
                           ? 'bg-blue-600 border-blue-500 text-white shadow-lg'
                           : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
-                      }`}
+                        }`}
                     >
                       <span>{budget}</span>
                       <span className={`w-2.5 h-2.5 rounded-full ${selectedBudget === budget ? 'bg-white border border-white' : 'border border-neutral-600'}`} />
@@ -897,9 +893,8 @@ export default function ReelsPage() {
                   <button
                     type="button"
                     onClick={() => setVideoType('file')}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                      videoType === 'file' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white'
-                    }`}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${videoType === 'file' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white'
+                      }`}
                   >
                     <Video size={13} />
                     <span>Upload Video File</span>
@@ -907,9 +902,8 @@ export default function ReelsPage() {
                   <button
                     type="button"
                     onClick={() => setVideoType('url')}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                      videoType === 'url' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white'
-                    }`}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${videoType === 'url' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white'
+                      }`}
                   >
                     <Link size={13} />
                     <span>Paste Link URL</span>
@@ -917,7 +911,7 @@ export default function ReelsPage() {
                 </div>
 
                 {videoType === 'file' ? (
-                  <div 
+                  <div
                     onClick={() => fileInputRef.current?.click()}
                     className="border border-dashed border-white/15 rounded-2xl p-8 flex flex-col items-center justify-center bg-white/5 cursor-pointer hover:bg-white/10 transition-all"
                   >

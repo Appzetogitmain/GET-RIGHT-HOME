@@ -23,30 +23,36 @@ async function seedAdmin() {
             profileImage: String,
         }, { timestamps: true }));
 
-        // Check if admin already exists
-        const existingAdmin = await Admin.findOne({ email: 'hoomzoteam@gmail.com' });
-        if (existingAdmin) {
-            console.log('⚠️  Admin already exists with email: hoomzoteam@gmail.com');
-            console.log('   Updating password...');
-            const hashedPassword = await bcrypt.hash('SumeeT@2020', 10);
-            await Admin.updateOne({ email: 'hoomzoteam@gmail.com' }, { password: hashedPassword });
-            console.log('✅ Password updated successfully!');
+        const email = process.env.DEFAULT_ADMIN_EMAIL;
+        const password = process.env.DEFAULT_ADMIN_PASSWORD;
+
+        if (!email || !password) {
+            console.error('❌ Please set DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_PASSWORD in your .env file.');
+            process.exit(1);
+        }
+
+        const name = 'Get Right Home Admin';
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        let admin = await Admin.findOne({ email });
+
+        if (admin) {
+            admin.password = hashedPassword;
+            await admin.save();
+            console.log('✅ Existing admin password updated');
         } else {
-            const hashedPassword = await bcrypt.hash('SumeeT@2020', 10);
             await Admin.create({
-                name: 'HoomZo Admin',
-                email: 'hoomzoteam@gmail.com',
+                name,
+                email,
                 phone: '9999999999',
                 password: hashedPassword,
                 role: 'superadmin',
-                isActive: true,
+                isActive: true
             });
-            console.log('✅ Admin account created successfully!');
+            console.log('✅ New Admin Created');
         }
 
-        console.log('\n📋 Admin Credentials:');
-        console.log('   Email:    hoomzoteam@gmail.com');
-        console.log('   Password: SumeeT@2020');
+        console.log('\n🔐 Admin Credentials updated from ENV successfully!\n');
 
         await mongoose.disconnect();
         console.log('\n🔌 Disconnected from MongoDB');

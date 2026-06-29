@@ -43,10 +43,10 @@ const AdminLoginPage = () => {
         // Simulate authentication
         setTimeout(() => {
             // Mock credentials check
-            if (formData.email === 'admin@hoomzo.in' && formData.password === 'admin123') {
+            if (formData.email === 'admin@ Get Right Home.in' && formData.password === 'admin123') {
                 navigate('/admin/dashboard');
             } else {
-                setError('Invalid credentials. Try admin@hoomzo.in / admin123');
+                setError('Invalid credentials.');
                 setLoading(false);
             }
         }, 1500);
@@ -93,7 +93,7 @@ const AdminLoginPage = () => {
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
-                                    placeholder="admin@hoomzo.in"
+                                    placeholder="admin@ Get Right Home.in"
                                     className="flex-1 bg-transparent px-4 py-4 text-white font-medium placeholder:text-slate-600 outline-none"
                                     autoComplete="email"
                                 />
@@ -181,7 +181,7 @@ const AdminLoginPage = () => {
                 >
                     <p className="text-xs text-slate-500 text-center mb-2">Demo Credentials</p>
                     <div className="text-center text-slate-400 text-sm font-mono">
-                        <p>Email: <span className="text-white">admin@hoomzo.in</span></p>
+                        <p>Email: <span className="text-white">admin@ Get Right Home.in</span></p>
                         <p>Password: <span className="text-white">admin123</span></p>
                     </div>
                 </motion.div>

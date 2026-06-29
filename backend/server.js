@@ -141,9 +141,7 @@ import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
 import { getPublicBuilderDetails, getPublicBuilders } from './controllers/builderController.js';
-
-
-
+import { seedAdminOnStartup } from './utils/adminSeeder.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -181,48 +179,6 @@ app.get('/api/public/builders/:id', getPublicBuilderDetails);
 // Plans public endpoint (returns empty list if no plans configured)
 app.get('/api/public/plans', (req, res) => {
   res.json({ success: true, data: [] });
-});
-app.get('/api/public/config', async (req, res) => {
-  try {
-    const Settings = (await import('./models/Settings.js')).default;
-    let settings = await Settings.findOne({ type: 'global' });
-    if (!settings) {
-      settings = {
-        supportEmail: 'help@Truliq.in',
-        supportPhone: '+919999999999',
-        visitedCharges: 29,
-        serviceGstPercentage: 18,
-        partsGstPercentage: 18
-      };
-    }
-    res.json({ success: true, settings });
-  } catch (err) {
-    res.json({
-      success: true,
-      settings: {
-        supportEmail: 'help@Truliq.in',
-        supportPhone: '+919999999999',
-        visitedCharges: 29,
-        serviceGstPercentage: 18,
-        partsGstPercentage: 18
-      }
-    });
-  }
-});
-app.get('/api/public/home-data', async (req, res) => {
-  try {
-    const { cityId } = req.query;
-    const HomeContent = (await import('./models/HomeContent.js')).default;
-    let homeContent = await HomeContent.findOne(cityId ? { cityId } : {});
-
-    if (!homeContent && cityId && cityId !== 'default') {
-      homeContent = await HomeContent.findOne({ cityId: 'default' });
-    }
-
-    res.json({ success: true, homeContent: homeContent || {} });
-  } catch (e) {
-    res.json({ success: true, homeContent: {} });
-  }
 });
 app.use('/api/upload', uploadRoutes);
 app.use('/api/property-forms', propertyFormRoutes);
@@ -271,39 +227,6 @@ const mongoOptions = {
   retryReads: true,
   heartbeatFrequencyMS: 10000,     // Check connection health every 10s
   maxIdleTimeMS: 30000,            // Close idle connections after 30s
-};
-
-// Seed admin user helper
-const seedAdminOnStartup = async () => {
-  try {
-    const Admin = (await import('./models/Admin.js')).default;
-    const bcrypt = (await import('bcryptjs')).default;
-    const email = 'hoomzoteam@gmail.com';
-    const existingAdmin = await Admin.findOne({ email });
-    const hashedPassword
-    
-    = await bcrypt.hash('SumeeT@2020', 10);
-
-    if (existingAdmin) {
-      existingAdmin.password = hashedPassword;
-      existingAdmin.isActive = true;
-      existingAdmin.role = 'superadmin';
-      await existingAdmin.save();
-      console.log('✅ Admin credentials updated successfully on startup');
-    } else {
-      await Admin.create({
-        name: 'HoomZo Admin',
-        email,
-        phone: '9999999999',
-        password: hashedPassword,
-        role: 'superadmin',
-        isActive: true
-      });
-      console.log('✅ Admin user created successfully on startup');
-    }
-  } catch (err) {
-    console.error('❌ Auto-seeding admin failed on startup:', err.message);
-  }
 };
 
 // Database Connection with Retry Logic

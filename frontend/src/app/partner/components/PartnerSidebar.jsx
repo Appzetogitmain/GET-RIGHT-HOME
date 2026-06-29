@@ -9,7 +9,7 @@ import {
     ChevronRight, Wallet, Bell, Settings, Edit3, Info, Phone, Calendar, MessageSquare
 } from 'lucide-react';
 import usePartnerStore from '../store/partnerStore';
-import logo from '../../../assets/rokologin-removebg-preview.png';
+import logo from '../../../assets/grh-logo.png';
 
 const PartnerSidebar = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
@@ -106,8 +106,8 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
                 { icon: HelpCircle, label: 'Help & Support', path: '/hotel/support' },
                 { icon: FileText, label: 'Terms & Conditions', path: '/hotel/terms' },
                 { icon: Shield, label: 'Privacy Policy', path: '/hotel/privacy' },
-                { icon: Info, label: 'About HoomZo Partner', path: '/hotel/about' },
-                { icon: Phone, label: 'Contact HoomZo Team', path: '/hotel/contact' },
+                { icon: Info, label: 'About Get Right Home Partner', path: '/hotel/about' },
+                { icon: Phone, label: 'Contact Get Right Home Team', path: '/hotel/contact' },
                 { icon: Settings, label: 'Settings', path: '/hotel/settings' },
             ]
         }

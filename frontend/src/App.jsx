@@ -16,7 +16,7 @@ import { useLenis } from './app/shared/hooks/useLenis';
 import { legalService, userService } from './services/apiService';
 import adminService from './services/adminService';
 import { requestNotificationPermission, onMessageListener } from './utils/firebase';
-import logo from './assets/rokologin-removebg-preview.png';
+import logo from './assets/grh-logo.png';
 import { CityProvider } from './homster/context/CityContext';
 import { CartProvider } from './homster/context/CartContext';
 import { SocketProvider } from './homster/context/SocketContext';
@@ -457,235 +457,235 @@ function App() {
             <ScrollToTop />
             <Toaster position="top-center" reverseOrder={false} />
             <SocketProvider>
-      <Layout>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* User Auth Routes (Public Only) */}
-            <Route path="/login" element={<PublicRoute><UserLogin /></PublicRoute>} />
-            <Route path="/signup" element={<PublicRoute><UserSignup /></PublicRoute>} />
-            <Route path="/user/login" element={<Navigate to="/login" replace />} />
-            <Route path="/legal" element={<LegalPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
+              <Layout>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    {/* User Auth Routes (Public Only) */}
+                    <Route path="/login" element={<PublicRoute><UserLogin /></PublicRoute>} />
+                    <Route path="/signup" element={<PublicRoute><UserSignup /></PublicRoute>} />
+                    <Route path="/user/login" element={<Navigate to="/login" replace />} />
+                    <Route path="/legal" element={<LegalPage />} />
+                    <Route path="/terms" element={<TermsPage />} />
+                    <Route path="/privacy" element={<PrivacyPage />} />
 
-            {/* Home Services Public Routes */}
-            <Route path="/home-services" element={<HomeServicesPage />} />
-            <Route path="/home-services/sub-category" element={<SubCategoryPage />} />
-            <Route path="/home-service" element={<Navigate to="/home-services" replace />} />
+                    {/* Home Services Public Routes */}
+                    <Route path="/home-services" element={<HomeServicesPage />} />
+                    <Route path="/home-services/sub-category" element={<SubCategoryPage />} />
+                    <Route path="/home-service" element={<Navigate to="/home-services" replace />} />
 
-            {/* Public User Routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/reels" element={<ReelsPage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/rent" element={<SearchPage />} />
-            <Route path="/plot" element={<SearchPage />} />
-            <Route path="/pg-coliving" element={<SearchPage />} />
-            <Route path="/buy" element={<SearchPage />} />
-            <Route path="/compare" element={<PropertyComparePage />} />
-            <Route path="/listings" element={<Navigate to="/search" replace />} />
-            <Route path="/partner-landing" element={<PartnerLandingPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/builder/:id" element={<BuilderProfilePage />} />
+                    {/* Public User Routes */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/reels" element={<ReelsPage />} />
+                    <Route path="/search" element={<SearchPage />} />
+                    <Route path="/rent" element={<SearchPage />} />
+                    <Route path="/plot" element={<SearchPage />} />
+                    <Route path="/pg-coliving" element={<SearchPage />} />
+                    <Route path="/buy" element={<SearchPage />} />
+                    <Route path="/compare" element={<PropertyComparePage />} />
+                    <Route path="/listings" element={<Navigate to="/search" replace />} />
+                    <Route path="/partner-landing" element={<PartnerLandingPage />} />
+                    <Route path="/about" element={<AboutPage />} />
+                    <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/builder/:id" element={<BuilderProfilePage />} />
 
-            {/* Unified Property Details (C2C & Hotel) - Public */}
-            <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
-            <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
-            <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />
-            <Route path="/hotel/:id/offers" element={<OffersPage />} />
-            
-            <Route path="/property/:id" element={<UserPropertyDetailsPage />} />
-            <Route path="/property/:id/amenities" element={<AmenitiesPage />} />
-            <Route path="/property/:id/reviews" element={<ReviewsPage />} />
-            <Route path="/property/:id/offers" element={<OffersPage />} />
-            <Route path="/handpicked/:id" element={<HandpickedDetailsPage />} />
-            <Route path="/partner/:id" element={<PartnerProfilePage />} />
+                    {/* Unified Property Details (C2C & Hotel) - Public */}
+                    <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
+                    <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
+                    <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />
+                    <Route path="/hotel/:id/offers" element={<OffersPage />} />
 
-            {/* User Property Listing (C2C) Routes (Public/Self-Authenticating) */}
-            <Route path="/list-property" element={<ListPropertyWizard />} />
-            <Route path="/list-property/dynamic-form" element={<DynamicFormEngine />} />
-            <Route path="/list-property/wizard/:categoryId/:id?" element={<AddDynamicWizard />} />
-            <Route path="/list-property/join-hotel/:id?" element={<AddHotelWizard />} />
-            <Route path="/list-property/join-resort/:id?" element={<AddResortWizard />} />
-            <Route path="/list-property/join-hostel/:id?" element={<AddHostelWizard />} />
-            <Route path="/list-property/join-villa/:id?" element={<AddVillaWizard />} />
-            <Route path="/list-property/join-pg/:id?" element={<AddPGWizard />} />
-            <Route path="/list-property/join-homestay/:id?" element={<AddHomestayWizard />} />
+                    <Route path="/property/:id" element={<UserPropertyDetailsPage />} />
+                    <Route path="/property/:id/amenities" element={<AmenitiesPage />} />
+                    <Route path="/property/:id/reviews" element={<ReviewsPage />} />
+                    <Route path="/property/:id/offers" element={<OffersPage />} />
+                    <Route path="/handpicked/:id" element={<HandpickedDetailsPage />} />
+                    <Route path="/partner/:id" element={<PartnerProfilePage />} />
 
-            {/* Hotel/Partner Module Routes */}
-            <Route path="/hotel/login" element={<HotelLogin />} />
-            <Route path="/hotel/register" element={<HotelSignup />} />
-            <Route path="/hotel" element={<HotelLayout />}>
-              <Route index element={<Navigate to="/hotel/login" replace />} />
-              <Route path="partner" element={<Navigate to="/hotel" replace />} />
-              {/* Wizard Route */}
-              <Route element={<PartnerProtectedRoute />}>
-                <Route path="join" element={<PartnerJoinPropertyType />} />
-                <Route path="join-hotel" element={<AddHotelWizard />} />
-                <Route path="join-resort" element={<AddResortWizard />} />
-                <Route path="join-hostel" element={<AddHostelWizard />} />
-                <Route path="join-villa" element={<AddVillaWizard />} />
-                <Route path="join-pg" element={<AddPGWizard />} />
-                <Route path="join-homestay" element={<AddHomestayWizard />} />
-                <Route path="wizard/:categoryId" element={<AddDynamicWizard />} />
-                <Route path="join-dynamic/:categoryId" element={<AddDynamicWizard />} />
-                <Route path="partner-dashboard" element={<PartnerDashboard />} />
-                <Route path="dashboard" element={<PartnerDashboard />} />
+                    {/* User Property Listing (C2C) Routes (Public/Self-Authenticating) */}
+                    <Route path="/list-property" element={<ListPropertyWizard />} />
+                    <Route path="/list-property/dynamic-form" element={<DynamicFormEngine />} />
+                    <Route path="/list-property/wizard/:categoryId/:id?" element={<AddDynamicWizard />} />
+                    <Route path="/list-property/join-hotel/:id?" element={<AddHotelWizard />} />
+                    <Route path="/list-property/join-resort/:id?" element={<AddResortWizard />} />
+                    <Route path="/list-property/join-hostel/:id?" element={<AddHostelWizard />} />
+                    <Route path="/list-property/join-villa/:id?" element={<AddVillaWizard />} />
+                    <Route path="/list-property/join-pg/:id?" element={<AddPGWizard />} />
+                    <Route path="/list-property/join-homestay/:id?" element={<AddHomestayWizard />} />
 
-                {/* Partner Sub-pages */}
-                <Route path="properties" element={<PartnerProperties />} />
-                <Route path="properties/:id" element={<PartnerPropertyDetails />} />
-                <Route path="inventory-properties" element={<PartnerInventoryProperties />} />
-                <Route path="inventory/:id" element={<PartnerInventory />} />
-                <Route path="bookings" element={<PartnerBookings />} />
-                <Route path="bookings" element={<PartnerBookings />} />
-                <Route path="bookings/:id" element={<PartnerBookingDetail />} />
-                <Route path="wallet" element={<PartnerWallet />} />
-                <Route path="reviews" element={<PartnerReviews />} />
-                <Route path="transactions" element={<PartnerTransactions />} />
-                <Route path="notifications" element={<PartnerNotifications />} />
-                <Route path="kyc" element={<PartnerKYC />} />
-                <Route path="support" element={<PartnerSupport />} />
-                <Route path="terms" element={<PartnerTerms />} />
-                <Route path="about" element={<PartnerAbout />} />
-                <Route path="privacy" element={<PartnerPrivacy />} />
-                <Route path="contact" element={<PartnerContact />} />
-                <Route path="settings" element={<PartnerSettings />} />
-                <Route path="bank-details" element={<PartnerBankDetails />} />
-                <Route path="profile" element={<PartnerProfile />} />
-                <Route path="subscriptions" element={<PartnerSubscriptions />} />
-              </Route>
-            </Route>
+                    {/* Hotel/Partner Module Routes */}
+                    <Route path="/hotel/login" element={<HotelLogin />} />
+                    <Route path="/hotel/register" element={<HotelSignup />} />
+                    <Route path="/hotel" element={<HotelLayout />}>
+                      <Route index element={<Navigate to="/hotel/login" replace />} />
+                      <Route path="partner" element={<Navigate to="/hotel" replace />} />
+                      {/* Wizard Route */}
+                      <Route element={<PartnerProtectedRoute />}>
+                        <Route path="join" element={<PartnerJoinPropertyType />} />
+                        <Route path="join-hotel" element={<AddHotelWizard />} />
+                        <Route path="join-resort" element={<AddResortWizard />} />
+                        <Route path="join-hostel" element={<AddHostelWizard />} />
+                        <Route path="join-villa" element={<AddVillaWizard />} />
+                        <Route path="join-pg" element={<AddPGWizard />} />
+                        <Route path="join-homestay" element={<AddHomestayWizard />} />
+                        <Route path="wizard/:categoryId" element={<AddDynamicWizard />} />
+                        <Route path="join-dynamic/:categoryId" element={<AddDynamicWizard />} />
+                        <Route path="partner-dashboard" element={<PartnerDashboard />} />
+                        <Route path="dashboard" element={<PartnerDashboard />} />
 
-            {/* Admin Auth Routes */}
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin/signup" element={<AdminSignup />} />
+                        {/* Partner Sub-pages */}
+                        <Route path="properties" element={<PartnerProperties />} />
+                        <Route path="properties/:id" element={<PartnerPropertyDetails />} />
+                        <Route path="inventory-properties" element={<PartnerInventoryProperties />} />
+                        <Route path="inventory/:id" element={<PartnerInventory />} />
+                        <Route path="bookings" element={<PartnerBookings />} />
+                        <Route path="bookings" element={<PartnerBookings />} />
+                        <Route path="bookings/:id" element={<PartnerBookingDetail />} />
+                        <Route path="wallet" element={<PartnerWallet />} />
+                        <Route path="reviews" element={<PartnerReviews />} />
+                        <Route path="transactions" element={<PartnerTransactions />} />
+                        <Route path="notifications" element={<PartnerNotifications />} />
+                        <Route path="kyc" element={<PartnerKYC />} />
+                        <Route path="support" element={<PartnerSupport />} />
+                        <Route path="terms" element={<PartnerTerms />} />
+                        <Route path="about" element={<PartnerAbout />} />
+                        <Route path="privacy" element={<PartnerPrivacy />} />
+                        <Route path="contact" element={<PartnerContact />} />
+                        <Route path="settings" element={<PartnerSettings />} />
+                        <Route path="bank-details" element={<PartnerBankDetails />} />
+                        <Route path="profile" element={<PartnerProfile />} />
+                        <Route path="subscriptions" element={<PartnerSubscriptions />} />
+                      </Route>
+                    </Route>
 
-            {/* Admin App Routes */}
-            <Route element={<AdminProtectedRoute />}>
-              {/* Home Service Admin Routes */}
-              <Route path="/admin/home-service/*" element={<HomsterAdminRoutes />} />
+                    {/* Admin Auth Routes */}
+                    <Route path="/admin/login" element={<AdminLogin />} />
+                    <Route path="/admin/signup" element={<AdminSignup />} />
 
-              <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="dashboard" element={<AdminDashboard />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="users/:id" element={<AdminUserDetail />} />
-                <Route path="bookings" element={<AdminBookings />} />
-                <Route path="bookings/:id" element={<AdminBookingDetail />} />
-                <Route path="enquiries" element={<AdminEnquiries />} />
-                <Route path="partners" element={<AdminPartners />} />
-                <Route path="partners/:id" element={<AdminPartnerDetail />} />
-                <Route path="builders" element={<AdminBuilders />} />
-                <Route path="reviews" element={<AdminReviews />} />
-                <Route path="finance" element={<AdminFinance />} />
-                <Route path="legal" element={<AdminLegalPages />} />
-                <Route path="contact-messages" element={<AdminContactMessages />} />
-                <Route path="settings" element={<AdminSettings />} />
-                <Route path="properties" element={<AdminProperties />} />
-                <Route path="properties/add" element={<AdminAddProperty />} />
-                <Route path="properties/:id" element={<AdminHotelDetail />} />
+                    {/* Admin App Routes */}
+                    <Route element={<AdminProtectedRoute />}>
+                      {/* Home Service Admin Routes */}
+                      <Route path="/admin/home-service/*" element={<HomsterAdminRoutes />} />
 
-                <Route path="offers" element={<AdminOffers />} />
-                <Route path="notifications" element={<AdminNotifications />} />
-                <Route path="faqs" element={<AdminFaqs />} />
-                <Route path="categories" element={<AdminCategories />} />
-                <Route path="featured-properties" element={<AdminFeaturedProperties />} />
-                <Route path="subscriptions" element={<AdminSubscriptions />} />
-                <Route path="reel-analysis" element={<AdminReelAnalysis />} />
-                <Route path="banners" element={<AdminBanners />} />
-                <Route path="property-forms" element={<AdminPropertyFormManager />} />
-                <Route path="locations" element={<AdminLocationsPage />} />
-                <Route path="managers" element={<AdminManagers />} />
-              </Route>
-            </Route>
+                      <Route path="/admin" element={<AdminLayout />}>
+                        <Route index element={<AdminDashboard />} />
+                        <Route path="dashboard" element={<AdminDashboard />} />
+                        <Route path="users" element={<AdminUsers />} />
+                        <Route path="users/:id" element={<AdminUserDetail />} />
+                        <Route path="bookings" element={<AdminBookings />} />
+                        <Route path="bookings/:id" element={<AdminBookingDetail />} />
+                        <Route path="enquiries" element={<AdminEnquiries />} />
+                        <Route path="partners" element={<AdminPartners />} />
+                        <Route path="partners/:id" element={<AdminPartnerDetail />} />
+                        <Route path="builders" element={<AdminBuilders />} />
+                        <Route path="reviews" element={<AdminReviews />} />
+                        <Route path="finance" element={<AdminFinance />} />
+                        <Route path="legal" element={<AdminLegalPages />} />
+                        <Route path="contact-messages" element={<AdminContactMessages />} />
+                        <Route path="settings" element={<AdminSettings />} />
+                        <Route path="properties" element={<AdminProperties />} />
+                        <Route path="properties/add" element={<AdminAddProperty />} />
+                        <Route path="properties/:id" element={<AdminHotelDetail />} />
 
-            {/* Manager Auth Routes */}
-            <Route path="/manager/login" element={<ManagerLogin />} />
+                        <Route path="offers" element={<AdminOffers />} />
+                        <Route path="notifications" element={<AdminNotifications />} />
+                        <Route path="faqs" element={<AdminFaqs />} />
+                        <Route path="categories" element={<AdminCategories />} />
+                        <Route path="featured-properties" element={<AdminFeaturedProperties />} />
+                        <Route path="subscriptions" element={<AdminSubscriptions />} />
+                        <Route path="reel-analysis" element={<AdminReelAnalysis />} />
+                        <Route path="banners" element={<AdminBanners />} />
+                        <Route path="property-forms" element={<AdminPropertyFormManager />} />
+                        <Route path="locations" element={<AdminLocationsPage />} />
+                        <Route path="managers" element={<AdminManagers />} />
+                      </Route>
+                    </Route>
 
-            {/* Manager App Routes */}
-            <Route element={<ManagerProtectedRoute />}>
-              <Route path="/manager" element={<ManagerLayout />}>
-                <Route index element={<ManagerDashboard />} />
-                <Route path="dashboard" element={<ManagerDashboard />} />
+                    {/* Manager Auth Routes */}
+                    <Route path="/manager/login" element={<ManagerLogin />} />
 
-                {/* User Management */}
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="users/:id" element={<AdminUserDetail />} />
+                    {/* Manager App Routes */}
+                    <Route element={<ManagerProtectedRoute />}>
+                      <Route path="/manager" element={<ManagerLayout />}>
+                        <Route index element={<ManagerDashboard />} />
+                        <Route path="dashboard" element={<ManagerDashboard />} />
 
-                {/* Partner Management */}
-                <Route path="partners" element={<AdminPartners />} />
-                <Route path="partners/:id" element={<AdminPartnerDetail />} />
-                <Route path="builders" element={<AdminBuilders />} />
+                        {/* User Management */}
+                        <Route path="users" element={<AdminUsers />} />
+                        <Route path="users/:id" element={<AdminUserDetail />} />
 
-                {/* Property Management */}
-                <Route path="properties" element={<AdminProperties />} />
-                <Route path="properties/add" element={<AdminAddProperty />} />
-                <Route path="properties/:id" element={<AdminHotelDetail />} />
+                        {/* Partner Management */}
+                        <Route path="partners" element={<AdminPartners />} />
+                        <Route path="partners/:id" element={<AdminPartnerDetail />} />
+                        <Route path="builders" element={<AdminBuilders />} />
 
-                {/* Bookings & Enquiries */}
-                <Route path="bookings" element={<AdminBookings />} />
-                <Route path="bookings/:id" element={<AdminBookingDetail />} />
-                <Route path="enquiries" element={<AdminEnquiries />} />
+                        {/* Property Management */}
+                        <Route path="properties" element={<AdminProperties />} />
+                        <Route path="properties/add" element={<AdminAddProperty />} />
+                        <Route path="properties/:id" element={<AdminHotelDetail />} />
 
-                {/* Content & Catalog */}
-                <Route path="categories" element={<AdminCategories />} />
-                <Route path="featured-properties" element={<AdminFeaturedProperties />} />
-                <Route path="banners" element={<AdminBanners />} />
-                <Route path="property-forms" element={<AdminPropertyFormManager />} />
-                <Route path="locations" element={<AdminLocationsPage />} />
-                <Route path="reel-analysis" element={<AdminReelAnalysis />} />
-                <Route path="reviews" element={<AdminReviews />} />
-                <Route path="subscriptions" element={<AdminSubscriptions />} />
+                        {/* Bookings & Enquiries */}
+                        <Route path="bookings" element={<AdminBookings />} />
+                        <Route path="bookings/:id" element={<AdminBookingDetail />} />
+                        <Route path="enquiries" element={<AdminEnquiries />} />
 
-                {/* System */}
-                <Route path="finance" element={<AdminFinance />} />
-                <Route path="offers" element={<AdminOffers />} />
-                <Route path="notifications" element={<AdminNotifications />} />
-                <Route path="legal" element={<AdminLegalPages />} />
-                <Route path="contact-messages" element={<AdminContactMessages />} />
-                <Route path="faqs" element={<AdminFaqs />} />
-                <Route path="settings" element={<AdminSettings />} />
-              </Route>
-            </Route>
+                        {/* Content & Catalog */}
+                        <Route path="categories" element={<AdminCategories />} />
+                        <Route path="featured-properties" element={<AdminFeaturedProperties />} />
+                        <Route path="banners" element={<AdminBanners />} />
+                        <Route path="property-forms" element={<AdminPropertyFormManager />} />
+                        <Route path="locations" element={<AdminLocationsPage />} />
+                        <Route path="reel-analysis" element={<AdminReelAnalysis />} />
+                        <Route path="reviews" element={<AdminReviews />} />
+                        <Route path="subscriptions" element={<AdminSubscriptions />} />
 
-            {/* Protected User Pages */}
-            <Route element={<UserProtectedRoute />}>
-              <Route path="/reels/my" element={<MyReelsPage />} />
-              <Route path="/profile" element={<ProfileEdit />} />
-              <Route path="/bookings" element={<BookingsPage />} />
-              <Route path="/my-reviews" element={<UserMyReviewsPage />} />
-              <Route path="/wallet" element={<WalletPage />} />
-              <Route path="/payment" element={<PaymentPage />} />
-              <Route path="/support" element={<SupportPage />} />
-              <Route path="/checkout" element={<BookingCheckoutPage />} />
-              <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
-              <Route path="/booking/:id" element={<BookingConfirmationPage />} />
-              <Route path="/refer" element={<ReferAndEarnPage />} />
-              <Route path="/saved-places" element={<SavedPlacesPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/user/cart" element={<CartPage />} />
-              <Route path="/user/home-services/checkout" element={<HomeServiceCheckoutPage />} />
-              <Route path="/user/home-services/bookings" element={<HomeServiceBookingsPage />} />
-              <Route path="/user/booking/:id" element={<HSBookingDetailsPage />} />
-              <Route path="/user/booking-confirmation/:id" element={<HSBookingConfirmationPage />} />
-              <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />
+                        {/* System */}
+                        <Route path="finance" element={<AdminFinance />} />
+                        <Route path="offers" element={<AdminOffers />} />
+                        <Route path="notifications" element={<AdminNotifications />} />
+                        <Route path="legal" element={<AdminLegalPages />} />
+                        <Route path="contact-messages" element={<AdminContactMessages />} />
+                        <Route path="faqs" element={<AdminFaqs />} />
+                        <Route path="settings" element={<AdminSettings />} />
+                      </Route>
+                    </Route>
 
-              {/* User Property Listing Dashboard & Bookings Routes (Protected) */}
-              <Route path="/my-properties" element={<MyProperties />} />
-              <Route path="/my-received-bookings" element={<UserReceivedBookingsPage />} />
-              <Route path="/my-enquiries" element={<UserReceivedEnquiriesPage />} />
-              <Route path="/my-subscriptions" element={<UserSubscriptionsPage />} />
-              <Route path="/my-property-dashboard/:id" element={<UserPropertyDashboard />} />
-              <Route path="/properties/:id" element={<PartnerPropertyDetails />} />
-            </Route>
-            
-            {/* Worker Module Routes */}
-            <Route path="/worker/*" element={<WorkerRoutes />} />
-          </Routes>
-        </Suspense>
-      </Layout>
+                    {/* Protected User Pages */}
+                    <Route element={<UserProtectedRoute />}>
+                      <Route path="/reels/my" element={<MyReelsPage />} />
+                      <Route path="/profile" element={<ProfileEdit />} />
+                      <Route path="/bookings" element={<BookingsPage />} />
+                      <Route path="/my-reviews" element={<UserMyReviewsPage />} />
+                      <Route path="/wallet" element={<WalletPage />} />
+                      <Route path="/payment" element={<PaymentPage />} />
+                      <Route path="/support" element={<SupportPage />} />
+                      <Route path="/checkout" element={<BookingCheckoutPage />} />
+                      <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
+                      <Route path="/booking/:id" element={<BookingConfirmationPage />} />
+                      <Route path="/refer" element={<ReferAndEarnPage />} />
+                      <Route path="/saved-places" element={<SavedPlacesPage />} />
+                      <Route path="/notifications" element={<NotificationsPage />} />
+                      <Route path="/settings" element={<SettingsPage />} />
+                      <Route path="/user/cart" element={<CartPage />} />
+                      <Route path="/user/home-services/checkout" element={<HomeServiceCheckoutPage />} />
+                      <Route path="/user/home-services/bookings" element={<HomeServiceBookingsPage />} />
+                      <Route path="/user/booking/:id" element={<HSBookingDetailsPage />} />
+                      <Route path="/user/booking-confirmation/:id" element={<HSBookingConfirmationPage />} />
+                      <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />
+
+                      {/* User Property Listing Dashboard & Bookings Routes (Protected) */}
+                      <Route path="/my-properties" element={<MyProperties />} />
+                      <Route path="/my-received-bookings" element={<UserReceivedBookingsPage />} />
+                      <Route path="/my-enquiries" element={<UserReceivedEnquiriesPage />} />
+                      <Route path="/my-subscriptions" element={<UserSubscriptionsPage />} />
+                      <Route path="/my-property-dashboard/:id" element={<UserPropertyDashboard />} />
+                      <Route path="/properties/:id" element={<PartnerPropertyDetails />} />
+                    </Route>
+
+                    {/* Worker Module Routes */}
+                    <Route path="/worker/*" element={<WorkerRoutes />} />
+                  </Routes>
+                </Suspense>
+              </Layout>
             </SocketProvider>
           </Router>
         </AuthProvider>

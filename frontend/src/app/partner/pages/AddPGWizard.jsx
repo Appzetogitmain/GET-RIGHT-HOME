@@ -9,7 +9,7 @@ import {
   Loader2, Camera, Wind, Droplets, Zap, Thermometer, Shirt,
   Sparkles, Shield, Car, Dumbbell, Box, Flame, ArrowUpCircle, Tv, Utensils, User, Users
 } from 'lucide-react';
-import logo from '../../../assets/rokologin-removebg-preview.png';
+import logo from '../../../assets/grh-logo.png';
 import { isFlutterApp, openFlutterCamera } from '../../../utils/flutterBridge';
 
 const REQUIRED_DOCS_PG = [

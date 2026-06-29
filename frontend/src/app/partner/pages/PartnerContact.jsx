@@ -42,7 +42,7 @@ const PartnerContact = () => {
         subject,
         message
       });
-      setSuccess('Your message has been sent to the HoomZo team.');
+      setSuccess('Your message has been sent to the Get Right Home team.');
       setName('');
       setEmail('');
       setPhone('');
@@ -57,7 +57,7 @@ const PartnerContact = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <PartnerHeader title="Contact Partner Support" subtitle="Reach the HoomZo team" />
+      <PartnerHeader title="Contact Partner Support" subtitle="Reach the Get Right Home team" />
 
       <main ref={contentRef} className="max-w-3xl mx-auto px-4 pt-6 space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -67,7 +67,7 @@ const PartnerContact = () => {
             </div>
             <div>
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Email</p>
-              <p className="text-xs text-gray-500">hoomzohub@gmail.com</p>
+              <p className="text-xs text-gray-500">getrighthome7@gmail.com</p>
             </div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
@@ -76,7 +76,7 @@ const PartnerContact = () => {
             </div>
             <div>
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Phone</p>
-              <p className="text-xs text-gray-500">6232314147</p>
+              <p className="text-xs text-gray-500">+91 6232314147</p>
             </div>
           </div>
         </div>

@@ -60,9 +60,8 @@ const FaqItem = ({ faq }) => {
         </svg>
       </button>
       <div
-        className={`transition-all duration-300 ease-in-out overflow-hidden ${
-          isOpen ? 'max-h-[500px] border-t border-gray-50' : 'max-h-0'
-        }`}
+        className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[500px] border-t border-gray-50' : 'max-h-0'
+          }`}
       >
         <div className="px-5 py-4 text-sm text-gray-500 leading-relaxed bg-gray-50/50">
           {faq.answer}
@@ -154,7 +153,7 @@ const Home = () => {
       const newAddress = locationObj.address;
       setAddress(newAddress);
       localStorage.setItem('currentAddress', newAddress);
-      
+
       if (locationObj.lat && locationObj.lng) {
         localStorage.setItem('currentLat', locationObj.lat);
         localStorage.setItem('currentLng', locationObj.lng);
@@ -278,7 +277,7 @@ const Home = () => {
   useEffect(() => {
     const lat = localStorage.getItem('currentLat');
     const lng = localStorage.getItem('currentLng');
-    
+
     if (lat && lng) {
       const checkZone = async () => {
         try {
@@ -473,7 +472,7 @@ const Home = () => {
         amount: orderRes.order.amount,
         currency: orderRes.order.currency || 'INR',
         order_id: orderRes.order.id,
-        name: 'Hoomzo',
+        name: ' Get Right Home',
         description: `VIP Membership - ${vipDurationDays || 56} Days`,
         handler: async (response) => {
           try {

@@ -74,7 +74,7 @@ const ReelCard = memo(function ReelCard({
       video.play().catch(() => {
         // Fallback: autoplay muted if blocked by browser policy
         video.muted = true;
-        video.play().catch(() => {});
+        video.play().catch(() => { });
       });
     } else {
       video.pause();
@@ -100,7 +100,7 @@ const ReelCard = memo(function ReelCard({
   };
 
   const user = reel.user || {};
-  const displayName = user.name || 'Hoomzo Agent';
+  const displayName = user.name || ' Get Right Home Agent';
 
   // Detect and parse video links (Instagram / YouTube)
   const getVideoDetails = (url) => {
@@ -188,7 +188,7 @@ const ReelCard = memo(function ReelCard({
             />
           )}
           {/* Transparent Overlay to capture click gestures */}
-          <div 
+          <div
             className={`absolute inset-0 z-10 cursor-pointer ${videoDetails.type === 'instagram' && isPlaying ? 'pointer-events-none' : ''}`}
             onClick={togglePlayPause}
           />
@@ -206,7 +206,7 @@ const ReelCard = memo(function ReelCard({
             onTimeUpdate={handleTimeUpdate}
           />
           {/* Transparent Overlay to capture click gestures */}
-          <div 
+          <div
             className="absolute inset-0 z-10 cursor-pointer"
             onClick={togglePlayPause}
           />
@@ -393,11 +393,10 @@ const ReelCard = memo(function ReelCard({
           <button
             type="button"
             onClick={() => onShortlistToggle(reel._id)}
-            className={`w-full py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 shadow-lg ${
-              reel.shortlistedByMe
+            className={`w-full py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 shadow-lg ${reel.shortlistedByMe
                 ? 'bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-500/20'
                 : 'bg-blue-600 text-white hover:bg-blue-700 border border-blue-500/20'
-            }`}
+              }`}
           >
             {reel.shortlistedByMe ? '✓ Shortlisted' : '♡ Shortlist project'}
           </button>

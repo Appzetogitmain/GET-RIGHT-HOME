@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowRight, Loader2, Shield, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import logo from '../../../assets/rokologin-removebg-preview.png';
+import logo from '../../../assets/grh-logo.png';
 import useAdminStore from '../store/adminStore';
 import toast from 'react-hot-toast';
 import adminService from '../../../services/adminService';
@@ -105,10 +105,9 @@ const AdminLogin = () => {
                         className="inline-block mb-4"
                     >
                         <div className="flex flex-col items-start leading-tight">
-                            <span className="text-4xl font-black tracking-tighter text-white flex items-center">
-                                HOOM<span className="text-amber-500">ZO</span>
-                            </span>
-                            <div className="h-1 w-8 bg-amber-500 rounded-full mt-1"></div>
+                            <div className="bg-white/95 p-4 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.1)] inline-block border border-white/20 backdrop-blur-md">
+                                <img src={logo} alt="Get Right Home" className="h-16 md:h-20 object-contain w-auto mx-auto" />
+                            </div>
                         </div>
                     </motion.div>
                     <h1 className="text-3xl font-bold text-white">Admin Portal</h1>
@@ -136,7 +135,7 @@ const AdminLogin = () => {
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder="eg:admin@hoomzo.in"
+                                    placeholder="eg:admin@getrighthome.in"
                                     className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 text-white placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-white/50 focus:border-transparent outline-none transition-all"
                                     required
                                 />
@@ -195,11 +194,11 @@ const AdminLogin = () => {
                     </form>
 
                     {/* Demo Credentials */}
-                    <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                    {/* <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
                         <p className="text-xs text-blue-200 font-medium mb-2">Demo Credentials:</p>
-                        <p className="text-xs text-gray-300 font-mono">Email: hoomzoteam@gmail.com</p>
-                        <p className="text-xs text-gray-300 font-mono">Password: SumeeT@2020</p>
-                    </div>
+                        <p className="text-xs text-gray-300 font-mono">Email: [EMAIL_ADDRESS]</p>
+                        <p className="text-xs text-gray-300 font-mono">Password: [PASSWORD]</p>
+                    </div> */}
                 </motion.div>
 
                 {/* Security Notice */}

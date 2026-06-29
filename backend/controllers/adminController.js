@@ -613,8 +613,6 @@ export const getReviewStats = async (req, res) => {
   }
 };
 
-
-
 export const deleteReview = async (req, res) => {
   try {
     const reviewId = req.body.reviewId || req.params.id;
@@ -1601,4 +1599,32 @@ export const getReviewModeration = async (req, res) => {
   }
 };
 
+export const updateAdminPassword = async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const adminId = req.user._id || req.user.id;
+    
+    const Admin = (await import('../models/Admin.js')).default;
+    const bcrypt = (await import('bcryptjs')).default;
 
+    const admin = await Admin.findById(adminId).select('+password');
+    if (!admin) {
+      return res.status(404).json({ success: false, message: 'Admin not found' });
+    }
+
+    const isMatch = await bcrypt.compare(oldPassword, admin.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Incorrect old password' });
+    }
+
+    if (oldPassword === newPassword) return res.status(400).json({ success: false, message: 'New password must be different from current password' });
+    if (newPassword.length < 6) return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
+    admin.password = await bcrypt.hash(newPassword, 10);
+    await admin.save();
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Update Password Error:', error);
+    res.status(500).json({ success: false, message: 'Error updating password', error: error.message });
+  }
+};

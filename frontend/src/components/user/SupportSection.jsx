@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Phone, MessageCircle, MessageSquare, Heart, X, Loader2, Headphones } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { feedbackService, authService } from '../../services/apiService';
+import { feedbackService, authService, legalService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 
 const SupportSection = () => {
@@ -28,8 +28,9 @@ const SupportSection = () => {
   const [actionAfterLogin, setActionAfterLogin] = useState(null); // { type: 'feedback'|'call'|'whatsapp'|'callback', payload: any }
 
   // Support details
-  const supportPhone = '+91 63044 71791';
-  const supportPhoneRaw = '+916304471791';
+  const [supportPhone, setSupportPhone] = useState('+91 63044 71791');
+  const [supportPhoneRaw, setSupportPhoneRaw] = useState('+916304471791');
+  const [supportEmail, setSupportEmail] = useState('getrighthome7@gmail.com');
 
   const checkLogin = () => {
     return !!localStorage.getItem('user');
@@ -53,8 +54,30 @@ const SupportSection = () => {
     }
   };
 
+  const fetchContactInfo = async () => {
+    try {
+      const res = await legalService.getAdminContact();
+      if (res && res.success) {
+        setSupportEmail(res.email);
+        setSupportPhoneRaw(res.phone);
+        // Format the phone if it's 10 digits
+        const digits = res.phone.replace(/\D/g, '');
+        if (digits.length === 12 && digits.startsWith('91')) {
+          setSupportPhone(`+91 ${digits.slice(2, 7)} ${digits.slice(7)}`);
+        } else if (digits.length === 10) {
+          setSupportPhone(`+91 ${digits.slice(0, 5)} ${digits.slice(5)}`);
+        } else {
+          setSupportPhone(res.phone);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load contact info:', err);
+    }
+  };
+
   useEffect(() => {
     fetchUserFeedback();
+    fetchContactInfo();
 
     // Listen for storage events (login/logout changes)
     const handleStorageChange = () => {
@@ -70,6 +93,8 @@ const SupportSection = () => {
     } else if (action.type === 'whatsapp') {
       const msg = encodeURIComponent("Hi, I need support regarding Get Right Home.");
       window.open(`https://wa.me/${supportPhoneRaw.replace('+', '')}?text=${msg}`, '_blank');
+    } else if (action.type === 'email') {
+      window.location.href = `mailto:${supportEmail}`;
     } else if (action.type === 'callback') {
       toast.success("Callback requested! Our support team will contact you shortly.");
     } else if (action.type === 'feedback') {
@@ -338,6 +363,24 @@ const SupportSection = () => {
                 </svg>
               </button>
             </div>
+          </div>
+
+          {/* Email Support Option */}
+          <div className="p-5 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Email Support</span>
+              <a href={`mailto:${supportEmail}`} className="text-base font-extrabold text-[#0d6efd] hover:underline mt-1 block">{supportEmail}</a>
+            </div>
+            <button
+              onClick={() => handleSupportAction('email')}
+              className="w-12 h-12 rounded-[14px] bg-[#EEF2F6]/80 hover:bg-[#E2E8F0] flex items-center justify-center transition-all cursor-pointer"
+              title="Email Support"
+            >
+              <svg viewBox="0 0 24 24" width="22" height="22" className="fill-none stroke-[#0d6efd] stroke-[2] stroke-linecap-round stroke-linejoin-round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+            </button>
           </div>
         </div>
 

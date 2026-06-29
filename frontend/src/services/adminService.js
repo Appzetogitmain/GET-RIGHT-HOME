@@ -148,6 +148,11 @@ const adminService = {
     const response = await axiosInstance.put('/auth/update-profile', payload);
     return response.data;
   },
+  
+  updateAdminPassword: async (payload) => {
+    const response = await axiosInstance.put('/admin/update-password', payload);
+    return response.data;
+  },
 
   updateFcmToken: async (fcmToken, platform = 'web') => {
     try {

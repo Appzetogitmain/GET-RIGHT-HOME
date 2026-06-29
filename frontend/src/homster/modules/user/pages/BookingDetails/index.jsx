@@ -30,6 +30,7 @@ import {
 import { bookingService } from '../../../../services/bookingService';
 import { paymentService } from '../../../../services/paymentService';
 import { cartService } from '../../../../services/cartService';
+import { legalService } from '../../../../services/apiService';
 import RatingModal from '../../components/booking/RatingModal';
 import PaymentVerificationModal from '../../components/booking/PaymentVerificationModal';
 import { ConfirmDialog } from '../../../../components/common';
@@ -72,25 +73,24 @@ const BookingDetails = () => {
 
   // Fetch support settings
   useEffect(() => {
-    const fetchSettings = async () => {
+    const loadSupportSettings = async () => {
       try {
-        const response = await api.get('/public/config');
-        if (response.data?.success && response.data?.settings) {
-          const { supportEmail, supportPhone } = response.data.settings;
+        const response = await legalService.getAdminContact();
+        if (response?.success) {
           setSupportInfo({
-            email: supportEmail || 'help@Truliq.in',
-            phone: supportPhone || '+919999999999'
+            email: response.email || 'getrighthome7@gmail.com',
+            phone: response.phone || '+91 63044 71791'
           });
         }
       } catch (error) {
         console.error('Failed to fetch support settings:', error);
         setSupportInfo({
-          email: 'help@Truliq.in',
-          phone: '+919999999999'
+          email: 'getrighthome7@gmail.com',
+          phone: '+91 63044 71791'
         });
       }
     };
-    fetchSettings();
+    loadSupportSettings();
   }, []);
 
   // Function to load booking
