@@ -30,7 +30,7 @@ import {
 import { bookingService } from '../../../../services/bookingService';
 import { paymentService } from '../../../../services/paymentService';
 import { cartService } from '../../../../services/cartService';
-import { legalService } from '../../../../services/apiService';
+import { legalService } from '../../../../../services/apiService';
 import RatingModal from '../../components/booking/RatingModal';
 import PaymentVerificationModal from '../../components/booking/PaymentVerificationModal';
 import { ConfirmDialog } from '../../../../components/common';
