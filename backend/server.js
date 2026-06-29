@@ -199,7 +199,20 @@ app.use('/api/managers', managerRoutes);
 
 
 
-// Global Error Handler
+// Basic API Check Route
+app.get('/api/check', (req, res) => {
+  res.send({ success: true, message: 'Get Right Home API is running successfully' });
+});
+
+// Fallback 404 Handler for unmatched routes
+app.use((req, res, next) => {
+  res.status(404).json({
+    success: false,
+    message: `API Route Not Found: ${req.originalUrl}`
+  });
+});
+
+// Global Error Handler (MUST BE THE LAST ROUTE)
 app.use((err, req, res, next) => {
   console.error('❌ Global Error Handler:', err);
   res.status(err.status || 500).json({
@@ -207,12 +220,6 @@ app.use((err, req, res, next) => {
     message: err.message || 'Internal Server Error',
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
-});
-
-
-// Basic Route
-app.get('/', (req, res) => {
-  res.send({ message: 'Rukkoin API is running successfully' });
 });
 
 // MongoDB Connection Options with retry logic
