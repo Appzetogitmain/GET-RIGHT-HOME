@@ -62,6 +62,10 @@ const HandpickedDetailsPage = () => {
   // Comparison Matrix Modal
   const [showComparisonMatrix, setShowComparisonMatrix] = useState(false);
   const [similarProperties, setSimilarProperties] = useState([]);
+  
+  // Dynamic Locality Data
+  const [localityStats, setLocalityStats] = useState(null);
+  const [localityReviewsData, setLocalityReviewsData] = useState([]);
 
   // Enquiry / Lead Modal State
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
@@ -113,6 +117,22 @@ const HandpickedDetailsPage = () => {
     return () => clearInterval(interval);
   }, [property, currentImgIndex]);
 
+  const fetchLocalityData = async (localityName) => {
+    if (!localityName) return;
+    try {
+      const statsRes = await localityReviewService.getStats(localityName);
+      if (statsRes && statsRes.success) {
+        setLocalityStats(statsRes.stats);
+      }
+      const revRes = await localityReviewService.getReviews(localityName, 1, 3);
+      if (revRes && revRes.success) {
+        setLocalityReviewsData(revRes.reviews || []);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch locality stats:", err);
+    }
+  };
+
   const loadHandpickedDetails = async () => {
     try {
       setLoading(true);
@@ -120,14 +140,20 @@ const HandpickedDetailsPage = () => {
       if (res && res.property) {
         setProperty(res.property);
         
-        // Load similar handpicked/admin added properties in the same category
+        // Fetch locality details based on property address
+        const localityString = res.property.address?.locality || res.property.address?.area || res.property.address?.city || '';
+        if (localityString) fetchLocalityData(localityString);
+
+        // Load similar handpicked/admin added projects
         try {
           const simRes = await propertyService.getPublic({
-            propertyCategory: res.property.propertyCategory,
+            isAddedByAdmin: true,
             limit: 6
           });
           if (simRes && simRes.properties) {
             setSimilarProperties(simRes.properties.filter(p => p._id !== res.property._id));
+          } else if (Array.isArray(simRes)) {
+            setSimilarProperties(simRes.filter(p => p._id !== res.property._id).slice(0, 6));
           }
         } catch (err) {
           console.warn("Failed to load similar properties:", err);
@@ -292,13 +318,13 @@ const HandpickedDetailsPage = () => {
   const localityCons = (dynamicData.localityCons || []).map(normalizeLocalityItem);
 
   const builderTrackRecord = {
-    name: property?.userId?.name || property?.builderName || "Builder",
-    logo: property?.userId?.builderProfile?.logo || "",
-    summary: property?.userId?.builderProfile?.about || "",
-    experience: property?.userId?.builderProfile?.experienceYears || 0,
-    ongoingCount: property?.userId?.builderProfile?.ongoingProjects || 0,
-    completedCount: property?.userId?.builderProfile?.completedProjects || 0,
-    rating: property?.userId?.builderProfile?.rating || 0
+    name: property?.userId?.builderProfile?.companyName || property?.userId?.name || property?.builderName || property?.partnerId?.name || property?.dynamicData?.builderName || "Builder",
+    logo: property?.userId?.builderProfile?.logo || property?.builderId?.logo || property?.partnerId?.logo || property?.dynamicData?.builderLogo || "",
+    summary: property?.userId?.builderProfile?.about || property?.partnerId?.about || property?.dynamicData?.builderAbout || "",
+    experience: property?.userId?.builderProfile?.experienceYears || property?.partnerId?.experience || property?.dynamicData?.builderExperience || 0,
+    ongoingCount: property?.userId?.builderProfile?.ongoingProjects || property?.partnerId?.ongoingProjects || property?.dynamicData?.builderOngoing || 0,
+    completedCount: property?.userId?.builderProfile?.completedProjects || property?.partnerId?.completedProjects || property?.dynamicData?.builderCompleted || 0,
+    rating: property?.userId?.builderProfile?.rating || property?.partnerId?.rating || property?.dynamicData?.builderRating || 0
   };
 
   // Floor plans
@@ -375,26 +401,45 @@ const HandpickedDetailsPage = () => {
     return `₹${(val / 100000).toFixed(2)} L`;
   };
 
-  const rawPrice = property?.buyDetails?.expectedPrice || property?.rentDetails?.monthlyRent || property?.plotDetails?.expectedPrice || property?.buyDetails?.price || property?.price;
+  const rawPrice = property?.buyDetails?.expectedPrice || property?.rentDetails?.monthlyRent || property?.plotDetails?.expectedPrice || property?.buyDetails?.price || property?.price || property?.dynamicData?.expectedPrice || property?.dynamicData?.monthlyRent;
   let dispPriceStr = formatPriceLakhCrore(rawPrice);
 
-  // Derive locality review variables
-  const avgLocalityRating = property?.avgRating || 4.2;
-  const totalLocalityReviews = property?.totalReviews || 128;
+  const getCarpetOrPriceString = () => {
+    let price = rawPrice;
+    let area = property?.buyDetails?.area?.carpet || property?.dynamicData?.carpetArea || property?.dynamicData?.superArea;
+    if (price && area && !isNaN(price) && !isNaN(area) && Number(area) > 0) {
+       return `₹${Math.round(price / area).toLocaleString('en-IN')}/sq.ft.`;
+    }
+    if (property?.buyDetails?.area?.carpet) return `${property.buyDetails.area.carpet} sq.ft. Carpet Area`;
+    if (property?.dynamicData?.carpetArea) return `${property.dynamicData.carpetArea} ${property.dynamicData.carpetAreaUnit || 'sq.ft.'} Carpet Area`;
+    if (property?.dynamicData?.superArea) return `${property.dynamicData.superArea} ${property.dynamicData.superAreaUnit || 'sq.ft.'} Super Area`;
+    if (property?.plotDetails?.plotArea) return `${property.plotDetails.plotArea} ${property.plotDetails.unit || 'sq.yrd.'} Plot Area`;
+    return 'Contact for exact area/price details';
+  };
+  // Derive locality review variables using real state
+  const avgLocalityRating = localityStats?.aggregate || property?.avgRating || 0;
+  const totalLocalityReviews = localityStats?.totalReviews || property?.totalReviews || 0;
+  
   const getStarPercentage = (star) => {
+    if (localityStats?.starBreakdown && totalLocalityReviews > 0) {
+      return (localityStats.starBreakdown[star] / totalLocalityReviews) * 100;
+    }
+    // Fallback if no real breakdown is present
     const weights = { 5: 65, 4: 20, 3: 10, 2: 3, 1: 2 };
     return weights[star] || 0;
   };
+
   const featureRatings = [
-    { title: 'Connectivity', val: '4.5/5', percent: 90 },
-    { title: 'Lifestyle', val: '4.2/5', percent: 84 },
-    { title: 'Safety', val: '4.6/5', percent: 92 },
-    { title: 'Environment', val: '4.0/5', percent: 80 }
+    { title: 'Connectivity', val: `${(localityStats?.connectivity || 4.2).toFixed(1)}/5`, percent: ((localityStats?.connectivity || 4.2) / 5) * 100 },
+    { title: 'Lifestyle', val: `${(localityStats?.lifestyle || 4.0).toFixed(1)}/5`, percent: ((localityStats?.lifestyle || 4.0) / 5) * 100 },
+    { title: 'Safety', val: `${(localityStats?.safety || 4.5).toFixed(1)}/5`, percent: ((localityStats?.safety || 4.5) / 5) * 100 },
+    { title: 'Environment', val: `${(localityStats?.environment || 4.1).toFixed(1)}/5`, percent: ((localityStats?.environment || 4.1) / 5) * 100 }
   ];
-  const localityPositives = property?.dynamicData?.positives || ["Excellent Public Transport", "Good Hospitals", "Markets at walkable distance"];
-  const localityNegatives = property?.dynamicData?.negatives || ["High Traffic during peak hours", "Limited visitor parking"];
+
+  const localityPositives = property?.dynamicData?.positives || localityStats?.positives || ["Excellent Public Transport", "Good Hospitals", "Markets at walkable distance"];
+  const localityNegatives = property?.dynamicData?.negatives || localityStats?.negatives || ["High Traffic during peak hours", "Limited visitor parking"];
   
-  const localityReviews = property?.reviews || [
+  const localityReviewsList = (localityReviewsData && localityReviewsData.length > 0) ? localityReviewsData : [
     { name: "Rahul S.", role: "Resident", stayDuration: "2 years", rating: 4.5, title: "Great community", reviewText: "Very peaceful and well maintained society. Connectivity to main IT hubs is a huge plus." },
     { name: "Priya M.", role: "Owner", stayDuration: "5 years", rating: 4.0, title: "Good returns", reviewText: "The property value has appreciated well. Maintenance team is responsive." }
   ];
@@ -527,7 +572,7 @@ const HandpickedDetailsPage = () => {
               <span className="text-lg md:text-xl font-bold text-slate-900">
                 {dispPriceStr}
               </span>
-              <span className="text-xs text-slate-500 mt-0.5">Carpet Area</span>
+              <span className="text-xs text-slate-500 mt-0.5">{getCarpetOrPriceString()}</span>
             </div>
             <button 
               onClick={() => {
@@ -1039,44 +1084,7 @@ const HandpickedDetailsPage = () => {
                 </div>
               </div>
 
-              {/* Locality reviews list widget */}
-              <div className="bg-white/40 border border-slate-200 rounded-3xl p-8 space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <MessageSquare className="w-6 h-6 text-purple-400" /> Locality Reviews
-                  </h2>
-                  <p className="text-slate-500 text-sm mt-1">Verified testimonials from people living in this zone</p>
-                </div>
 
-                <div className="flex flex-wrap gap-2 py-2">
-                  {localityReviewsMock.tagCloud.map((tag, idx) => (
-                    <span key={idx} className="px-3 py-1 bg-slate-100/80 border border-slate-300/60 rounded-full text-xs text-slate-700 font-medium">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="space-y-4">
-                  {localityReviewsMock.list.map((rev, idx) => (
-                    <div key={idx} className="bg-slate-100/20 border border-slate-200/60 p-5 rounded-2xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-sm font-bold text-slate-900">{rev.author}</h4>
-                          <span className="text-[10px] text-slate-500">{rev.role}</span>
-                        </div>
-                        <div className="flex items-center gap-0.5 text-amber-400">
-                          {Array.from({ length: rev.stars }).map((_, i) => (
-                            <Star key={i} className="w-3.5 h-3.5 fill-current" />
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-xs text-slate-700 leading-relaxed italic">
-                        "{rev.text}"
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
               {/* Section 5: Builder Profile & Details */}
               <div ref={sectionRefs['builder-sec']} className="bg-white/40 border border-slate-200 rounded-3xl p-8 space-y-6">
@@ -1251,24 +1259,32 @@ const HandpickedDetailsPage = () => {
                   </div>
 
                   <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar pb-2">
-                    {localityReviews.map((rev, idx) => (
-                      <div key={idx} className="bg-slate-50/80 rounded-2xl border border-slate-200 p-4 min-w-[260px] max-w-[280px] shrink-0 text-xs font-medium text-slate-700 relative shadow-sm">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-1 rounded shadow-sm">{rev.rating.toFixed(1)} ★</span>
-                        </div>
-                        <h6 className="text-sm font-bold text-slate-900 mb-1.5 line-clamp-1">{rev.title}</h6>
-                        <p className="line-clamp-3 leading-relaxed opacity-95">{rev.reviewText}</p>
-                        <div className="flex items-center gap-3 mt-4 pt-3 border-t border-slate-200">
-                          <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xs">
-                            {rev.name.charAt(0).toUpperCase()}
+                    {localityReviewsList.map((rev, idx) => {
+                      const ratingVal = rev.rating || 4.0;
+                      const reviewerName = rev.reviewerName || rev.userId?.name || rev.name || 'Anonymous';
+                      const role = rev.reviewerType || rev.role || 'Resident';
+                      const duration = rev.stayDuration ? ` | living since ${rev.stayDuration}` : '';
+                      const timeAgo = rev.createdAt ? `${new Date(rev.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : '';
+
+                      return (
+                        <div key={idx} className="bg-slate-50/80 rounded-2xl border border-slate-200 p-4 min-w-[260px] max-w-[280px] shrink-0 text-xs font-medium text-slate-700 relative shadow-sm">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-1 rounded shadow-sm">{ratingVal.toFixed(1)} ★</span>
                           </div>
-                          <div>
-                            <p className="text-[11px] font-bold text-slate-900 leading-none mb-0.5">{rev.name}</p>
-                            <p className="text-[9px] text-slate-500">{rev.role} {rev.stayDuration ? `| living since ${rev.stayDuration}` : ''}</p>
+                          <h6 className="text-sm font-bold text-slate-900 mb-1.5 line-clamp-1">{rev.title || 'Locality Rating'}</h6>
+                          <p className="line-clamp-3 leading-relaxed opacity-95">{rev.reviewText || rev.review}</p>
+                          <div className="flex items-center gap-3 mt-4 pt-3 border-t border-slate-200">
+                            <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xs">
+                              {reviewerName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-bold text-slate-900 leading-none mb-0.5">{reviewerName}</p>
+                              <p className="text-[9px] text-slate-500">{role}{duration} {timeAgo ? `| ${timeAgo}` : ''}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               </div>
