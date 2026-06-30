@@ -13,7 +13,7 @@ export const getAdminFeaturedProperties = async (req, res) => {
     if (req.query.isFeatured === 'true') {
       query['featuredDetails.isFeatured'] = true;
     }
-
+// fghjk
     const properties = await Property.find(query)
       .populate('userId', 'name email role')
       .populate('partnerId', 'name email role')
