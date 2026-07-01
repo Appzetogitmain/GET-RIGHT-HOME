@@ -7,7 +7,7 @@ import {
   LayoutTemplate, Wind, Droplets, Zap, Award, Check, ChevronDown, Layers, Home,
   Grid, FileText, Plus, Minus, Eye, EyeOff, Calendar, Send, Sparkles, Building,
   TrendingUp, ThumbsUp, ThumbsDown, CheckCircle2, AlertTriangle, AlertCircle,
-  Search, Download, Map, Filter, Leaf, Activity, Dumbbell
+  Search, Download, Map, Filter, Leaf, Activity, Dumbbell, Key, Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -59,6 +59,9 @@ const HandpickedDetailsPage = () => {
   // Pros & Cons Full Screen Modal
   const [showProsConsModal, setShowProsConsModal] = useState(false);
 
+  // Resolved Builder ID
+  const [resolvedBuilderId, setResolvedBuilderId] = useState(null);
+
   // Comparison Matrix Modal
   const [showComparisonMatrix, setShowComparisonMatrix] = useState(false);
   const [similarProperties, setSimilarProperties] = useState([]);
@@ -76,6 +79,12 @@ const HandpickedDetailsPage = () => {
     message: 'I am interested in this handpicked project. Please contact me with more details.'
   });
   const [enquirySubmitting, setEnquirySubmitting] = useState(false);
+
+  // New Builder Section States
+  const [showAboutBuilderModal, setShowAboutBuilderModal] = useState(false);
+  const [showVerifiedSourcesModal, setShowVerifiedSourcesModal] = useState(false);
+  const [activeBuilderProjectsTab, setActiveBuilderProjectsTab] = useState('ongoing');
+
 
   // References to sections for scroll spying
   const sectionRefs = {
@@ -169,6 +178,60 @@ const HandpickedDetailsPage = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchBuilderByName = async () => {
+      // Base check: If we have an explicit builderId
+      if (property?.dynamicData?.builderId) {
+        setResolvedBuilderId(property.dynamicData.builderId);
+        return;
+      }
+      if (property?.builderId) {
+        setResolvedBuilderId(property.builderId);
+        return;
+      }
+      // Check if userId is explicitly a builder/partner
+      if (property?.userId && typeof property.userId === 'object' && ['builder', 'partner'].includes(property.userId.role)) {
+        setResolvedBuilderId(property.userId._id);
+        return;
+      }
+      if (property?.partnerId && typeof property.partnerId === 'object') {
+        setResolvedBuilderId(property.partnerId._id);
+        return;
+      }
+      
+      // If we only have string IDs (e.g. from an Admin), try to match the builder name
+      const targetName = property?.userId?.builderProfile?.companyName || property?.dynamicData?.builderName || property?.partnerId?.name;
+      if (targetName) {
+        try {
+          const { api } = await import('../../services/apiService');
+          const res = await api.get('/public/builders');
+          if (res.data && res.data.builders) {
+             const matchedBuilder = res.data.builders.find(b => 
+               b.name?.toLowerCase() === targetName.toLowerCase() || 
+               b.profile?.companyName?.toLowerCase() === targetName.toLowerCase()
+             );
+             if (matchedBuilder) {
+               setResolvedBuilderId(matchedBuilder._id);
+               return;
+             }
+          }
+        } catch(e) {
+          console.warn("Failed to fetch builder by name:", e);
+        }
+      }
+
+      // Final fallback to whatever ID we have, let the Builder Profile page handle if it's valid
+      if (property?.userId?._id) setResolvedBuilderId(property.userId._id);
+      else if (property?.partnerId?._id) setResolvedBuilderId(property.partnerId._id);
+      else if (typeof property?.userId === 'string' && property.userId.length === 24) setResolvedBuilderId(property.userId);
+      else if (typeof property?.partnerId === 'string' && property.partnerId.length === 24) setResolvedBuilderId(property.partnerId);
+    };
+
+    if (property) {
+      fetchBuilderByName();
+    }
+  }, [property]);
 
   const checkIfSaved = async () => {
     try {
@@ -318,8 +381,8 @@ const HandpickedDetailsPage = () => {
   const localityCons = (dynamicData.localityCons || []).map(normalizeLocalityItem);
 
   const builderTrackRecord = {
-    name: property?.userId?.builderProfile?.companyName || property?.userId?.name || property?.builderName || property?.partnerId?.name || property?.dynamicData?.builderName || "Builder",
-    logo: property?.userId?.builderProfile?.logo || property?.builderId?.logo || property?.partnerId?.logo || property?.dynamicData?.builderLogo || "",
+    name: property?.userId?.builderProfile?.companyName || property?.dynamicData?.builderName || property?.userId?.name || property?.partnerId?.name || "Builder",
+    logo: property?.userId?.builderProfile?.logo || property?.dynamicData?.builderLogo || property?.logo || property?.coverImage || property?.partnerId?.profilePicture || "",
     summary: property?.userId?.builderProfile?.about || property?.partnerId?.about || property?.dynamicData?.builderAbout || "",
     experience: property?.userId?.builderProfile?.experienceYears || property?.partnerId?.experience || property?.dynamicData?.builderExperience || 0,
     ongoingCount: property?.userId?.builderProfile?.ongoingProjects || property?.partnerId?.ongoingProjects || property?.dynamicData?.builderOngoing || 0,
@@ -1087,47 +1150,158 @@ const HandpickedDetailsPage = () => {
 
 
               {/* Section 5: Builder Profile & Details */}
-              <div ref={sectionRefs['builder-sec']} className="bg-white/40 border border-slate-200 rounded-3xl p-8 space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 p-2 flex items-center justify-center overflow-hidden shadow-sm">
+              {(() => {
+                const targetBuilderId = resolvedBuilderId;
+              
+                const handleBuilderNavigate = (tab) => {
+                  if (targetBuilderId) {
+                    navigate(`/builder/${targetBuilderId}${tab ? `?tab=${tab}` : ''}`);
+                  } else {
+                    toast.error('Detailed builder profile is not available for this project.');
+                  }
+                };
+
+                return (
+                  <div ref={sectionRefs['builder-sec']} className="bg-white/40 border border-slate-200 rounded-3xl p-6 md:p-8 space-y-6">
+                    <h2 className="text-xl md:text-2xl font-bold text-slate-900">About Builder</h2>
+                
+                {/* Builder Info Card */}
+                <div className="border border-slate-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center sm:items-start gap-6 bg-white shadow-sm">
+                  <div className="flex flex-col items-center gap-3 w-full sm:w-1/3">
+                    <div className="w-20 h-20 rounded-full border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm p-2">
                       <img 
-                        src={builderTrackRecord.logo} 
+                        src={builderTrackRecord.logo || "https://ui-avatars.com/api/?name=" + (builderTrackRecord.name || 'B') + "&background=random"} 
                         alt={builderTrackRecord.name} 
                         onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=" + (builderTrackRecord.name || 'B') + "&background=random"; }}
                         className="w-full h-full object-contain" 
                       />
                     </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-1.5">
-                        {builderTrackRecord.name} <Award className="w-5 h-5 text-purple-400" />
-                      </h2>
-                      <p className="text-slate-500 text-xs mt-0.5">Premium developer partner with Get-Right-home</p>
+                    <span className="font-bold text-slate-900 text-center">{builderTrackRecord.name}</span>
+                  </div>
+                  
+                  <div className="w-full sm:w-2/3 flex flex-col justify-center space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-900 font-bold text-sm">{builderTrackRecord.experience} yrs</span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-900 font-bold text-sm">{builderTrackRecord.completedCount + builderTrackRecord.ongoingCount} projects*</span>
+                    </div>
+                    <div className="flex items-center justify-between pb-1">
+                      <span className="text-slate-900 font-bold text-sm">3 cities</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setShowEnquiryModal(true)}
-                    className="py-2.5 px-5 bg-slate-850 hover:bg-slate-100 border border-slate-750 text-xs font-bold text-slate-800 rounded-xl transition-all"
-                  >
-                    Direct Callback
-                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500">*Based on residential properties only</p>
+
+                {/* Track Record Section */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-bold text-slate-900">Track Record</h3>
+                    <button onClick={() => setShowVerifiedSourcesModal(true)} className="text-xs text-slate-500 hover:text-slate-800 underline underline-offset-2 font-medium">Source</button>
+                  </div>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    For over {builderTrackRecord.experience || 40} years, {builderTrackRecord.name} has been a symbol of trust, transparency, technology, <span onClick={() => setShowAboutBuilderModal(true)} className="text-blue-600 cursor-pointer hover:underline">...more</span>
+                  </p>
                 </div>
 
-                <p className="text-slate-700 text-sm leading-relaxed">{builderTrackRecord.summary}</p>
+                {/* Top Rated Badge */}
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-xl p-4 flex items-center gap-4">
+                  <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-amber-200">
+                    <Award className="w-7 h-7 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-0.5">Top Rated for</p>
+                    <p className="text-sm font-bold text-slate-900">Construction Quality</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Based on resident reviews</p>
+                  </div>
+                </div>
 
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div className="bg-slate-100/30 p-3 rounded-xl border border-slate-200/80">
-                    <span className="text-xs text-slate-500 block font-medium">Experience</span>
-                    <span className="text-lg font-bold text-purple-400 mt-1 block">{builderTrackRecord.experience} Years</span>
+                {/* Record List */}
+                <div className="space-y-1">
+                  <div onClick={() => handleBuilderNavigate('delivered')} className="flex items-center justify-between p-3 py-4 border-b border-slate-100 cursor-pointer group">
+                    <div className="flex items-start gap-4">
+                      <Key className="w-5 h-5 text-slate-400 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Delivered</h4>
+                        <p className="text-xs text-slate-500 mt-0.5">{builderTrackRecord.completedCount} projects delivered successfully!</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
                   </div>
-                  <div className="bg-slate-100/30 p-3 rounded-xl border border-slate-200/80">
-                    <span className="text-xs text-slate-500 block font-medium">Ongoing Projects</span>
-                    <span className="text-lg font-bold text-purple-400 mt-1 block">{builderTrackRecord.ongoingCount} Sites</span>
+                  <div onClick={() => handleBuilderNavigate('delivered')} className="flex items-center justify-between p-3 py-4 border-b border-slate-100 cursor-pointer group">
+                    <div className="flex items-start gap-4">
+                      <Clock className="w-5 h-5 text-slate-400 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Recently delivered</h4>
+                        <p className="text-xs text-slate-500 mt-0.5">2 projects delivered in last 5 yrs</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
                   </div>
-                  <div className="bg-slate-100/30 p-3 rounded-xl border border-slate-200/80">
-                    <span className="text-xs text-slate-500 block font-medium">Completed</span>
-                    <span className="text-lg font-bold text-purple-400 mt-1 block">{builderTrackRecord.completedCount} Deliveries</span>
+                  <div onClick={() => handleBuilderNavigate('ongoing')} className="flex items-center justify-between p-3 py-4 border-b border-slate-100 cursor-pointer group">
+                    <div className="flex items-start gap-4">
+                      <Building className="w-5 h-5 text-slate-400 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Ongoing construction</h4>
+                        <p className="text-xs text-slate-500 mt-0.5">{builderTrackRecord.ongoingCount} projects under construction</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
                   </div>
+                  <div onClick={() => handleBuilderNavigate('insights')} className="flex items-center justify-between p-3 py-4 cursor-pointer group">
+                    <div className="flex items-start gap-4">
+                      <TrendingUp className="w-5 h-5 text-slate-400 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Price appreciation</h4>
+                        <p className="text-xs text-slate-500 mt-0.5">More than 25% appreciation seen in 4 projects in the last 3 yrs</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3 pt-2">
+                  <button onClick={() => setShowEnquiryModal(true)} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition-colors">
+                    <Phone className="w-4 h-4" /> Call Builder
+                  </button>
+                  <button onClick={() => handleBuilderNavigate('')} className="flex-1 py-3 bg-white border border-slate-200 text-blue-600 font-bold text-sm rounded-xl flex items-center justify-center gap-1 hover:bg-slate-50 transition-colors">
+                    View details <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              );
+              })()}
+
+              {/* Projects by Builder List */}
+              <div className="bg-white rounded-3xl p-6 md:p-8 space-y-6 shadow-sm border border-slate-100">
+                <h2 className="text-xl md:text-2xl font-bold text-slate-900">Projects by {builderTrackRecord.name}</h2>
+                <div className="flex items-center gap-4 border-b border-slate-100 pb-2">
+                  {['ongoing', 'upcoming', 'delivered'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveBuilderProjectsTab(tab)}
+                      className={`text-sm font-bold pb-2 border-b-2 transition-colors capitalize ${activeBuilderProjectsTab === tab ? 'text-blue-600 border-blue-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar pb-2">
+                  {(similarProperties?.length > 0 ? similarProperties : fallbackSimilarProperties).map((simItem, i) => {
+                    const simPrice = simItem.buyDetails?.expectedPrice ? formatPriceLakhCrore(simItem.buyDetails.expectedPrice) : 'Contact for Price';
+                    const simName = simItem.name || 'Property';
+                    const simLocality = simItem.address?.locality || '';
+                    const simCover = simItem.images?.cover || NO_IMAGE_PLACEHOLDER;
+                    return (
+                      <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[200px] shrink-0 shadow-sm hover:border-purple-300 transition-colors cursor-pointer">
+                        <img src={simCover} className="w-full h-24 object-cover rounded-lg mb-3" />
+                        <h5 className="text-sm font-bold text-gray-800 line-clamp-1">{simName}</h5>
+                        <p className="text-[11px] text-slate-500 font-bold mb-1 line-clamp-1">{simLocality}</p>
+                        <p className="text-xs font-bold text-slate-900">{simPrice}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -2004,6 +2178,60 @@ const HandpickedDetailsPage = () => {
                   Submit Callback Request
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+        
+        {/* About Builder Modal */}
+        {showAboutBuilderModal && (
+          <div className="fixed inset-0 z-[99999] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 relative shadow-2xl h-[75vh] sm:h-auto flex flex-col"
+            >
+              <button onClick={() => setShowAboutBuilderModal(false)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+              <h3 className="text-xl font-bold text-slate-900 mb-4 border-b border-slate-100 pb-3">About builder</h3>
+              <div className="flex-1 overflow-y-auto pr-2 text-sm text-slate-700 leading-relaxed text-justify space-y-4">
+                <p>{builderTrackRecord.summary || "Detailed builder information is not available at the moment. Our team is working on curating the best insights for you."}</p>
+              </div>
+              <button onClick={() => setShowAboutBuilderModal(false)} className="w-full mt-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors">
+                Close
+              </button>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Verified Sources Modal */}
+        {showVerifiedSourcesModal && (
+          <div className="fixed inset-0 z-[99999] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 relative shadow-2xl h-[85vh] sm:h-auto flex flex-col"
+            >
+              <button onClick={() => setShowVerifiedSourcesModal(false)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2"><Shield className="w-5 h-5 text-slate-800" /> Our verified sources</h3>
+              <div className="flex-1 overflow-y-auto space-y-6 text-sm">
+                <div>
+                  <h4 className="font-bold text-slate-900 mb-1">Delivery information: RERA</h4>
+                  <p className="text-slate-600 text-xs leading-relaxed">Delivery timing has been calculated based on the completion date & subsequent changes in the data updated by the Builder on State RERA website.</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 mb-1">Construction Quality: Resident Reviews</h4>
+                  <p className="text-slate-600 text-xs leading-relaxed">Construction ratings & insights have been generated based on the reviews submitted by actual residents on the platform.</p>
+                  <p className="text-slate-600 text-[10px] leading-relaxed mt-2 italic font-medium">Powered by AI: The insights are generated using AI & may contain errors or inaccuracies. You can refer to our detailed resident reviews for further research.</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 mb-1">Price Appreciation: Price Intelligence</h4>
+                  <p className="text-slate-600 text-xs leading-relaxed">Based on listings posted in the last 3 months by owners & brokers.</p>
+                </div>
+              </div>
+              <button onClick={() => setShowVerifiedSourcesModal(false)} className="w-full mt-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors">
+                Okay, got it
+              </button>
             </motion.div>
           </div>
         )}
