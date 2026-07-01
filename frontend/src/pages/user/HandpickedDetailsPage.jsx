@@ -1166,32 +1166,30 @@ const HandpickedDetailsPage = () => {
                     <h2 className="text-xl md:text-2xl font-bold text-slate-900">About Builder</h2>
                 
                 {/* Builder Info Card */}
-                <div className="border border-slate-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center sm:items-start gap-6 bg-white shadow-sm">
-                  <div className="flex flex-col items-center gap-3 w-full sm:w-1/3">
-                    <div className="w-20 h-20 rounded-full border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm p-2">
-                      <img 
-                        src={builderTrackRecord.logo || "https://ui-avatars.com/api/?name=" + (builderTrackRecord.name || 'B') + "&background=random"} 
-                        alt={builderTrackRecord.name} 
-                        onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=" + (builderTrackRecord.name || 'B') + "&background=random"; }}
-                        className="w-full h-full object-contain" 
-                      />
-                    </div>
-                    <span className="font-bold text-slate-900 text-center">{builderTrackRecord.name}</span>
+                <div className="border border-slate-200 rounded-3xl p-5 pt-12 flex flex-col items-center gap-4 bg-white shadow-sm relative mt-12 max-w-sm">
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full border border-slate-200 bg-white flex items-center justify-center overflow-hidden shadow-sm p-1 z-10">
+                    <img 
+                      src={builderTrackRecord.logo || "https://ui-avatars.com/api/?name=" + (builderTrackRecord.name || 'B') + "&background=random"} 
+                      alt={builderTrackRecord.name} 
+                      onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=" + (builderTrackRecord.name || 'B') + "&background=random"; }}
+                      className="w-full h-full object-contain rounded-full" 
+                    />
                   </div>
+                  <span className="font-bold text-slate-900 text-lg text-center mt-2">{builderTrackRecord.name}</span>
                   
-                  <div className="w-full sm:w-2/3 flex flex-col justify-center space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <span className="text-slate-900 font-bold text-sm">{builderTrackRecord.experience} yrs</span>
+                  <div className="w-full flex flex-col space-y-4 mt-2">
+                    <div className="w-full border-b border-slate-100 pb-3 pl-2">
+                      <span className="text-slate-900 font-bold text-[15px]">{builderTrackRecord.experience || 0} yrs</span>
                     </div>
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <span className="text-slate-900 font-bold text-sm">{builderTrackRecord.completedCount + builderTrackRecord.ongoingCount} projects*</span>
+                    <div className="w-full border-b border-slate-100 pb-3 pl-2">
+                      <span className="text-slate-900 font-bold text-[15px]">{builderTrackRecord.completedCount + builderTrackRecord.ongoingCount} projects*</span>
                     </div>
-                    <div className="flex items-center justify-between pb-1">
-                      <span className="text-slate-900 font-bold text-sm">3 cities</span>
+                    <div className="w-full pb-1 pl-2">
+                      <span className="text-slate-900 font-bold text-[15px]">3 cities</span>
                     </div>
                   </div>
                 </div>
-                <p className="text-[10px] text-slate-500">*Based on residential properties only</p>
+                <p className="text-[11px] text-slate-500 max-w-sm mt-2">*Based on residential properties only</p>
 
                 {/* Track Record Section */}
                 <div className="pt-2">

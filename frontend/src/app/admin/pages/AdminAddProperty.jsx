@@ -1084,6 +1084,9 @@ const AdminAddProperty = () => {
                 <option key={b._id} value={b._id}>{b.builderProfile?.companyName || b.name}</option>
               ))}
             </select>
+            <p className="text-[10px] text-slate-500 mt-1 leading-tight">
+              * Select a real Builder to enable the "View Details" profile navigation. If left as Admin/Manager, the profile page will not be available.
+            </p>
           </div>
 
         </div>
