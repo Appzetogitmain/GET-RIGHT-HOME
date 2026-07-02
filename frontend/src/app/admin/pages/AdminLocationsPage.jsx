@@ -4,20 +4,20 @@ import {
   ChevronRight, ChevronDown, Loader2, Check, X, ToggleLeft, ToggleRight
 } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://get-right-home.onrender.com/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://get-right-home.onrender.com/api';
 
 const TYPE_CONFIG = {
-  country:  { label: 'Country',  icon: Globe,      color: 'blue',   next: 'state' },
-  state:    { label: 'State',    icon: Map,         color: 'purple', next: 'district' },
-  district: { label: 'District', icon: Building2,   color: 'emerald',next: 'city' },
-  city:     { label: 'City/Area',icon: MapPin,      color: 'orange', next: null }
+  country: { label: 'Country', icon: Globe, color: 'blue', next: 'state' },
+  state: { label: 'State', icon: Map, color: 'purple', next: 'district' },
+  district: { label: 'District', icon: Building2, color: 'emerald', next: 'city' },
+  city: { label: 'City/Area', icon: MapPin, color: 'orange', next: null }
 };
 
 const colorClass = {
-  blue:    { bg: 'bg-blue-50',    badge: 'bg-blue-100 text-blue-700',    border: 'border-blue-200' },
-  purple:  { bg: 'bg-purple-50',  badge: 'bg-purple-100 text-purple-700', border: 'border-purple-200' },
+  blue: { bg: 'bg-blue-50', badge: 'bg-blue-100 text-blue-700', border: 'border-blue-200' },
+  purple: { bg: 'bg-purple-50', badge: 'bg-purple-100 text-purple-700', border: 'border-purple-200' },
   emerald: { bg: 'bg-emerald-50', badge: 'bg-emerald-100 text-emerald-700', border: 'border-emerald-200' },
-  orange:  { bg: 'bg-orange-50',  badge: 'bg-orange-100 text-orange-700', border: 'border-orange-200' }
+  orange: { bg: 'bg-orange-50', badge: 'bg-orange-100 text-orange-700', border: 'border-orange-200' }
 };
 
 const api = {
@@ -324,7 +324,7 @@ const AdminLocationsPage = () => {
                                       onEdit={(item) => setModal({ type: 'city', parentId: district._id, parentName: district.name, editItem: item })}
                                       onToggle={handleToggle}
                                       onDelete={handleDelete}
-                                      onAddChild={() => {}}
+                                      onAddChild={() => { }}
                                     />
                                   ))}
                                 </div>

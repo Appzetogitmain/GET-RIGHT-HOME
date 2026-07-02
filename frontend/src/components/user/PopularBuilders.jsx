@@ -168,7 +168,7 @@ const BUILDERS_DATA = [
 ];
 
 
-const PopularBuilders = () => {
+const PopularBuilders = ({ locality }) => {
     const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
     const autoScrollTimer = useRef(null);
@@ -180,7 +180,8 @@ const PopularBuilders = () => {
     useEffect(() => {
         const fetchBuilders = async () => {
             try {
-                const res = await api.get('/public/builders');
+                const queryParam = locality ? `?locality=${encodeURIComponent(locality)}` : '';
+                const res = await api.get(`/public/builders${queryParam}`);
                 if (res.data.success && res.data.builders && res.data.builders.length > 0) {
                     setBuilders(res.data.builders);
                 } else {
@@ -260,7 +261,7 @@ const PopularBuilders = () => {
                         </h2>
                     </div>
                     <p className="text-xs md:text-sm text-gray-400 font-bold uppercase tracking-wider ml-3">
-                        In Bangalore East & major hubs
+                        {locality ? `In ${locality}` : 'In Bangalore East & major hubs'}
                     </p>
                 </div>
 

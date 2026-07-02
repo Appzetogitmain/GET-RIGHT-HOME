@@ -9,7 +9,7 @@ import CityDropdown from './CityDropdown';
 import toast from 'react-hot-toast';
 
 
-const HeroSection = ({ theme, selectedType, onSearch }) => {
+const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) => {
     const accentColor = theme?.accent || '#10B981';
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -288,17 +288,19 @@ const HeroSection = ({ theme, selectedType, onSearch }) => {
             </AnimatePresence>
 
             {/* ─── Hero Title & Subtitle ─── */}
-            <div className="text-left text-[#0B1A3A] mt-2 px-4">
-                <motion.div
-                    key={selectedType?.label}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                >
-                    <h1 className="text-[22px] md:text-3xl font-bold tracking-tight mb-0.5">Get started with</h1>
-                    <p className="text-[13px] md:text-base text-gray-500 font-normal">Explore real estate options in top cities</p>
-                </motion.div>
-            </div>
+            {!hideGetStarted && (
+                <div className="text-left text-[#0B1A3A] mt-2 px-4">
+                    <motion.div
+                        key={selectedType?.label}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <h1 className="text-[22px] md:text-3xl font-bold tracking-tight mb-0.5">Get started with</h1>
+                        <p className="text-[13px] md:text-base text-gray-500 font-normal">Explore real estate options in top cities</p>
+                    </motion.div>
+                </div>
+            )}
 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 

@@ -29,6 +29,9 @@ const PropertyComparePage = React.lazy(() => import('./pages/user/PropertyCompar
 const UserLogin = React.lazy(() => import('./pages/auth/UserLogin'));
 const UserSignup = React.lazy(() => import('./pages/auth/UserSignup'));
 const SearchPage = React.lazy(() => import('./pages/user/SearchPage'));
+const BuyPage = React.lazy(() => import('./pages/user/BuyPage'));
+const RentPage = React.lazy(() => import('./pages/user/RentPage'));
+const LocalityDetail = React.lazy(() => import('./pages/user/LocalityDetail'));
 const BookingsPage = React.lazy(() => import('./pages/user/BookingsPage'));
 const ListingPage = React.lazy(() => import('./pages/user/ListingPage'));
 const BookingConfirmationPage = React.lazy(() => import('./pages/user/BookingConfirmationPage'));
@@ -477,10 +480,11 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/reels" element={<ReelsPage />} />
                     <Route path="/search" element={<SearchPage />} />
-                    <Route path="/rent" element={<SearchPage />} />
+                    <Route path="/rent" element={<RentPage />} />
                     <Route path="/plot" element={<SearchPage />} />
                     <Route path="/pg-coliving" element={<SearchPage />} />
-                    <Route path="/buy" element={<SearchPage />} />
+                    <Route path="/buy" element={<BuyPage />} />
+                    <Route path="/insights/:locality" element={<LocalityDetail />} />
                     <Route path="/compare" element={<PropertyComparePage />} />
                     <Route path="/listings" element={<Navigate to="/search" replace />} />
                     <Route path="/partner-landing" element={<PartnerLandingPage />} />

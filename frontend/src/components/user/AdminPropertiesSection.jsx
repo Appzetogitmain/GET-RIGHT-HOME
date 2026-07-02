@@ -210,7 +210,7 @@ const SkeletonCard = () => (
 );
 
 /* ─── Main Component ─── */
-const AdminPropertiesSection = ({ searchCity }) => {
+const AdminPropertiesSection = ({ searchCity, transactionType }) => {
     const navigate = useNavigate();
     const [availableCities, setAvailableCities] = useState([]);
     const [selectedCity, setSelectedCity] = useState(null); // null = no city selected yet
@@ -397,6 +397,18 @@ const AdminPropertiesSection = ({ searchCity }) => {
     };
 
     const filteredProperties = properties.filter(property => {
+        // Filter by transaction type if prop is provided
+        if (transactionType) {
+            const typeValue = transactionType.toLowerCase();
+            const pType = (property.propertyType || '').toLowerCase();
+            const dType = (property.dynamicCategory?.name || '').toLowerCase();
+            
+            // Only include if it explicitly matches the requested transaction type
+            if (pType !== typeValue && dType !== typeValue) {
+                return false;
+            }
+        }
+
         if (!localQuery) return true;
         const q = localQuery.toLowerCase();
         return (

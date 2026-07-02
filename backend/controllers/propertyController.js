@@ -25,8 +25,45 @@ const notifyAdminOfNewProperty = async (property) => {
 
 export const getPublicBuilders = async (req, res) => {
   try {
-    const builders = await User.find({ role: 'builder' }).select('name builderProfile').sort({ createdAt: -1 });
-    res.json({ success: true, builders });
+    const { locality } = req.query;
+    
+    if (locality) {
+      // Aggregate builders based on properties in this locality
+      const regexLocality = new RegExp(`^${locality}$`, 'i');
+      const sellerAggregation = await Property.aggregate([
+          { $match: { 'address.area': regexLocality, status: 'Active', userId: { $exists: true } } },
+          { $group: { _id: "$userId", propertyCount: { $sum: 1 } } },
+          { $sort: { propertyCount: -1 } }
+      ]);
+
+      if (sellerAggregation.length > 0) {
+          const sellerIds = sellerAggregation.map(s => s._id);
+          const users = await User.find({ _id: { $in: sellerIds }, role: 'builder' }).select('name builderProfile profilePicture');
+          
+          let builders = users.map(u => {
+              const agg = sellerAggregation.find(s => s._id.toString() === u._id.toString());
+              return {
+                  _id: u._id,
+                  name: u.name,
+                  brandLogo: u.profilePicture,
+                  profile: u.builderProfile,
+                  cityProjects: agg ? agg.propertyCount : 0,
+                  totalProjects: agg ? agg.propertyCount : 0 // Adjust if needed
+              };
+          }).sort((a, b) => b.cityProjects - a.cityProjects);
+
+          return res.json({ success: true, builders });
+      }
+    }
+
+    const builders = await User.find({ role: 'builder' }).select('name builderProfile profilePicture').sort({ createdAt: -1 });
+    const formattedBuilders = builders.map(b => ({
+      _id: b._id,
+      name: b.name,
+      brandLogo: b.profilePicture,
+      profile: b.builderProfile
+    }));
+    res.json({ success: true, builders: formattedBuilders });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching builders' });
   }
