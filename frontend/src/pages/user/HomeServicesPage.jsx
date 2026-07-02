@@ -322,7 +322,7 @@ const HomeServicesPage = () => {
                             whileHover={{ y: -6 }}
                             whileTap={{ scale: 0.96 }}
                             onClick={() => openCategoryModal(cat)}
-                            className="w-full h-36 sm:h-48 bg-white border border-gray-100 rounded-[1.5rem] shadow-md shadow-gray-100/50 overflow-hidden flex flex-col justify-between relative group cursor-pointer"
+                            className="w-full h-32 sm:h-40 bg-white border border-gray-100 rounded-2xl shadow-md shadow-gray-100/50 overflow-hidden flex flex-col justify-between relative group cursor-pointer"
                         >
                             {/* Centered Title on Top */}
                             <div className="p-2 sm:p-3 pt-3 sm:pt-4 text-center z-10 flex flex-col items-center justify-center flex-1 w-full">
