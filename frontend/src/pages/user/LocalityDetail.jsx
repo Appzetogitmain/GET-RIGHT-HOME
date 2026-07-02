@@ -134,241 +134,294 @@ const LocalityDetail = () => {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
+            <div className="max-w-4xl mx-auto sm:px-6 lg:px-8 mt-4 sm:mt-6">
                 
-                {/* TWO COLUMN LAYOUT FOR DESKTOP, STACKED ON MOBILE */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="flex flex-col gap-[6px] sm:gap-6 bg-slate-100 sm:bg-transparent pb-10">
                     
-                    {/* LEFT COLUMN - MAIN CONTENT */}
-                    <div className="lg:col-span-2 space-y-6">
+                    {/* 2. PROS */}
+                    {pros.length > 0 && (
+                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">What's great about {locality}</h2>
+                            <ul className="space-y-3 text-sm text-slate-700">
+                                {pros.map((pro, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                        <div className="mt-0.5 p-1 bg-emerald-100 rounded-full"><Check className="w-3.5 h-3.5 text-emerald-600" /></div>
+                                        <span className="font-medium leading-relaxed">{pro}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* 2.5 CONS */}
+                    {cons.length > 0 && (
+                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">What needs attention</h2>
+                            <ul className="space-y-3 text-sm text-slate-700">
+                                {cons.map((con, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                        <div className="mt-0.5 p-1 bg-rose-100 rounded-full"><Minus className="w-3.5 h-3.5 text-rose-600" /></div>
+                                        <span className="font-medium leading-relaxed">{con}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <div className="mt-5 flex items-center gap-3 text-xs text-slate-500 font-medium pt-4 border-t border-slate-100">
+                                <span>Is this helpful?</span>
+                                <button className="flex items-center gap-1 hover:text-blue-600"><ThumbsUp className="w-4 h-4" /> Yes</button>
+                                <button className="flex items-center gap-1 hover:text-red-500"><ThumbsDown className="w-4 h-4" /> No</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 3. PRICE CONFIGURATIONS (BHK Slider) */}
+                    <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200 pt-6">
+                        <h2 className="text-lg font-bold text-[#0B1A3A] mb-1">Showing for Apartments</h2>
+                        <p className="text-xs text-slate-500 mb-4">Avg property prices based on configuration</p>
                         
-                        {/* 1. PRICE CONFIGURATIONS (BHK Slider) */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-1">Showing for Apartments</h2>
-                            <p className="text-xs text-slate-500 mb-4">Avg property prices based on configuration</p>
-                            
-                            <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar -mx-2 px-2">
-                                {automated.propertyPrices.length > 0 ? automated.propertyPrices.map((bhkData, i) => (
-                                    <div key={i} className="min-w-[180px] p-4 rounded-xl border border-slate-200 bg-white hover:border-blue-300 transition-colors cursor-pointer group flex flex-col justify-between">
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{bhkData.bhk} APARTMENTS</p>
-                                            <h3 className="text-base font-black text-slate-900 mt-1">
-                                                ₹{(bhkData.minPrice / 10000000).toFixed(2)} - {(bhkData.maxPrice / 10000000).toFixed(2)} Cr
-                                            </h3>
-                                            <p className="text-[10px] text-slate-400 mt-0.5">Price Range</p>
-                                        </div>
-                                        <button className="mt-4 w-full py-2 rounded-lg border border-blue-100 bg-blue-50/50 text-blue-600 text-[11px] font-bold group-hover:bg-blue-50 transition-colors flex items-center justify-center gap-1">
-                                            {bhkData.count}+ properties <ChevronRight className="w-3 h-3" />
-                                        </button>
+                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0">
+                            {automated.propertyPrices.length > 0 ? automated.propertyPrices.map((bhkData, i) => (
+                                <div key={i} className="min-w-[180px] p-4 rounded-xl border border-slate-200 bg-white hover:border-blue-300 transition-colors cursor-pointer group flex flex-col justify-between">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{bhkData.bhk} APARTMENTS</p>
+                                        <h3 className="text-base font-black text-slate-900 mt-1">
+                                            ₹{(bhkData.minPrice / 10000000).toFixed(2)} - {(bhkData.maxPrice / 10000000).toFixed(2)} Cr
+                                        </h3>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">Price Range</p>
                                     </div>
-                                )) : (
-                                    <div className="text-xs text-slate-500 font-medium p-2">No pricing data available yet.</div>
+                                    <button className="mt-4 w-full py-2 rounded-lg border border-blue-100 bg-blue-50/50 text-blue-600 text-[11px] font-bold group-hover:bg-blue-50 transition-colors flex items-center justify-center gap-1">
+                                        {bhkData.count}+ properties <ChevronRight className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            )) : (
+                                <div className="text-xs text-slate-500 font-medium p-2">No pricing data available yet.</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 4. UPCOMING DEVELOPMENTS */}
+                    {upcomingDevelopments.length > 0 && (
+                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Upcoming Developments</h2>
+                            <div className="space-y-4">
+                                {upcomingDevelopments.map((dev, i) => (
+                                    <div key={i} className="flex gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                            <Hammer className="w-5 h-5 text-slate-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-800 leading-tight">{dev.title}</p>
+                                            {dev.badge && <span className="inline-flex mt-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[9px] font-bold rounded uppercase tracking-wider border border-purple-100">{dev.badge}</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 5. NEARBY LANDMARKS */}
+                    {landmarks.length > 0 && (
+                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Explore Nearby Landmarks</h2>
+                            <div className="space-y-3">
+                                {landmarks.map((lm, i) => (
+                                    <div key={i} className="flex justify-between items-center py-3 border-b border-slate-100 last:border-0">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                                                <MapPin className="w-4 h-4 text-blue-500" />
+                                            </div>
+                                            <span className="text-sm font-medium text-slate-700">{lm.name}</span>
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded-md">{lm.distance}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 6. POPULAR & NEWLY LAUNCHED PROJECTS */}
+                    {(automated.popularProjects?.length > 0 || automated.newlyLaunched?.length > 0) && (
+                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Scan Popular & Newly Launched Projects</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {/* Popular */}
+                                {automated.popularProjects?.length > 0 && (
+                                    <div>
+                                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Popular Projects</h3>
+                                        <div className="space-y-3">
+                                            {automated.popularProjects.slice(0,3).map((proj, i) => (
+                                                <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="flex gap-3 items-center group cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-100 hover:border-blue-200">
+                                                    <img src={proj.coverImage || coverImage} className="w-14 h-14 rounded-lg object-cover" alt="" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-sm font-bold text-slate-800 truncate">{proj.propertyName}</h4>
+                                                        <p className="text-[11px] text-slate-500 truncate">{proj.address?.locality || locality}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {/* Newly Launched */}
+                                {automated.newlyLaunched?.length > 0 && (
+                                    <div>
+                                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Newly Launched</h3>
+                                        <div className="space-y-3">
+                                            {automated.newlyLaunched.slice(0,3).map((proj, i) => (
+                                                <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="flex gap-3 items-center group cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-100 hover:border-blue-200">
+                                                    <img src={proj.coverImage || coverImage} className="w-14 h-14 rounded-lg object-cover" alt="" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-sm font-bold text-slate-800 truncate">{proj.propertyName}</h4>
+                                                        <p className="text-[11px] text-slate-500 truncate">{proj.address?.locality || locality}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         </div>
+                    )}
 
-                        {/* 2. PROS & CONS */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Pros & Cons of {locality}</h2>
-                            <div className="grid grid-cols-1 gap-5">
-                                <div className="space-y-3">
-                                    <ul className="space-y-2.5 text-xs text-slate-700">
-                                        {pros.map((pro, i) => (
-                                            <li key={i} className="flex items-start gap-2">
-                                                <div className="mt-0.5 p-0.5 bg-emerald-100 rounded-full"><Check className="w-3 h-3 text-emerald-600" /></div>
-                                                <span className="font-medium leading-relaxed">{pro}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div className="space-y-3 border-t border-slate-100 pt-4">
-                                    <ul className="space-y-2.5 text-xs text-slate-700">
-                                        {cons.map((con, i) => (
-                                            <li key={i} className="flex items-start gap-2">
-                                                <div className="mt-0.5 p-0.5 bg-slate-100 rounded-full"><Minus className="w-3 h-3 text-slate-500" /></div>
-                                                <span className="font-medium leading-relaxed">{con}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div className="pt-2">
-                                    <div className="flex items-center gap-3 text-xs text-slate-500 font-medium bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <span>Is this helpful?</span>
-                                        <button className="flex items-center gap-1 hover:text-blue-600"><ThumbsUp className="w-3.5 h-3.5" /> Yes</button>
-                                        <button className="flex items-center gap-1 hover:text-red-500"><ThumbsDown className="w-3.5 h-3.5" /> No</button>
-                                    </div>
+                    {/* 7. TOP BUILDERS */}
+                    <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200 overflow-hidden">
+                        <div className="transform sm:scale-95 origin-top-left sm:w-[105%] sm:-mt-4 sm:-mb-4">
+                            <PopularBuilders locality={locality} />
+                        </div>
+                    </div>
+
+                    {/* 8. SCAN ALL PROPERTY TYPES */}
+                    {automated.propertyTypes && (
+                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-lg font-bold text-[#0B1A3A]">Scan all property types</h2>
+                                <div className="flex bg-slate-100 p-1 rounded-lg">
+                                    <button className="px-4 py-1.5 rounded-md text-xs font-bold bg-white shadow-sm text-slate-800 transition-all">Buy</button>
+                                    <button className="px-4 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-slate-800 transition-all">Rent</button>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* 3. UPCOMING DEVELOPMENTS & LANDMARKS */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {upcomingDevelopments.length > 0 && (
-                                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                                    <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Upcoming Developments</h2>
-                                    <div className="space-y-4">
-                                        {upcomingDevelopments.map((dev, i) => (
-                                            <div key={i} className="flex gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                                                    <Hammer className="w-4 h-4 text-slate-600" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-semibold text-slate-800 leading-tight">{dev.title}</p>
-                                                    {dev.badge && <span className="inline-flex mt-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[9px] font-bold rounded uppercase tracking-wider border border-purple-100">{dev.badge}</span>}
-                                                </div>
-                                            </div>
-                                        ))}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                {automated.propertyTypes.Buy?.length > 0 ? automated.propertyTypes.Buy.map((pt, i) => (
+                                    <div key={i} className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-center hover:border-blue-300 cursor-pointer transition-colors">
+                                        <p className="text-sm font-bold text-slate-700">{pt.type}</p>
+                                        <p className="text-xs text-slate-500 mt-1">{pt.count} properties</p>
                                     </div>
-                                </div>
-                            )}
-
-                            {landmarks.length > 0 && (
-                                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                                    <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Nearby Landmarks</h2>
-                                    <div className="space-y-2">
-                                        {landmarks.map((lm, i) => (
-                                            <div key={i} className="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
-                                                <div className="flex items-center gap-2">
-                                                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                                                    <span className="text-sm font-medium text-slate-700">{lm.name}</span>
-                                                </div>
-                                                <span className="text-[11px] font-bold text-slate-500">{lm.distance}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                                )) : (
+                                    <p className="text-xs text-slate-400 col-span-4 text-center py-4">No properties available for buy.</p>
+                                )}
+                            </div>
                         </div>
+                    )}
 
-                        {/* PHASE 3: Resident Reviews & Ratings Slider */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-1">Locality Reviews</h2>
-                            <p className="text-xs text-slate-500 mb-4">What residents say about {locality}</p>
-                            
-                            {automated.reviews?.length > 0 ? (
-                                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2 snap-x snap-mandatory">
-                                    {automated.reviews.map((review, i) => (
-                                        <div key={i} className="min-w-[260px] snap-center shrink-0 p-4 rounded-xl border border-slate-100 bg-slate-50 flex flex-col justify-between">
+                    {/* 9. TOP SELLERS */}
+                    <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                        <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">View Properties by Top Sellers</h2>
+                        {automated.topSellers?.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {automated.topSellers.map((seller, i) => (
+                                    <div key={i} className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 cursor-pointer transition-colors">
+                                        <img src={seller.profilePicture || "https://ui-avatars.com/api/?name=" + seller.name + "&background=random"} className="w-12 h-12 rounded-full border border-slate-200 object-cover" alt="" />
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-sm font-bold text-slate-800 truncate">{seller.name}</h4>
+                                            <p className="text-[11px] text-slate-500 mt-1">{seller.propertyCount} active properties</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-xs text-slate-500 font-medium">No top sellers identified yet.</div>
+                        )}
+                    </div>
+
+                    {/* 10. RESIDENT REVIEWS & RATINGS */}
+                    <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                        <h2 className="text-lg font-bold text-[#0B1A3A] mb-1">Check {locality} Ratings & Reviews</h2>
+                        <p className="text-xs text-slate-500 mb-4">What residents say about {locality}</p>
+                        
+                        {automated.reviews?.length > 0 ? (
+                            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 snap-x snap-mandatory">
+                                {automated.reviews.map((review, i) => (
+                                    <div key={i} className="min-w-[280px] snap-center shrink-0 p-5 rounded-2xl border border-slate-100 bg-slate-50 flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex items-center gap-1 mb-3">
+                                                {[...Array(5)].map((_, idx) => (
+                                                    <span key={idx} className={`text-base ${idx < (review.rating || 5) ? 'text-amber-400' : 'text-slate-200'}`}>★</span>
+                                                ))}
+                                            </div>
+                                            <p className="text-sm text-slate-700 line-clamp-4 leading-relaxed italic">"{review.reviewText || review.comment}"</p>
+                                        </div>
+                                        <div className="flex items-center gap-3 mt-5 pt-4 border-t border-slate-200/60">
+                                            <img src={review.userId?.profilePicture || "https://ui-avatars.com/api/?name=" + (review.userId?.name || 'U') + "&background=random"} className="w-8 h-8 rounded-full object-cover shadow-sm" alt="" />
                                             <div>
-                                                <div className="flex items-center gap-1 mb-2">
-                                                    {[...Array(5)].map((_, idx) => (
-                                                        <span key={idx} className={`text-sm ${idx < (review.rating || 5) ? 'text-amber-400' : 'text-slate-200'}`}>★</span>
-                                                    ))}
-                                                </div>
-                                                <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed italic">"{review.reviewText || review.comment}"</p>
-                                            </div>
-                                            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-200/60">
-                                                <img src={review.userId?.profilePicture || "https://ui-avatars.com/api/?name=" + (review.userId?.name || 'U') + "&background=random"} className="w-6 h-6 rounded-full object-cover" alt="" />
-                                                <span className="text-[10px] font-bold text-slate-700">{review.userId?.name || "Resident"}</span>
-                                                {review.isVerifiedResident && <Check className="w-3 h-3 text-blue-500 ml-auto" />}
+                                                <p className="text-xs font-bold text-slate-800">{review.userId?.name || "Resident"}</p>
+                                                {review.isVerifiedResident && <p className="text-[10px] text-blue-600 font-medium flex items-center gap-1"><Check className="w-3 h-3" /> Verified Resident</p>}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="h-24 bg-slate-50 rounded-xl border border-slate-200 border-dashed flex items-center justify-center">
-                                    <span className="text-[11px] text-slate-400 font-medium">No reviews for this locality yet.</span>
-                                </div>
-                            )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="h-24 bg-slate-50 rounded-xl border border-slate-200 border-dashed flex items-center justify-center">
+                                <span className="text-[11px] text-slate-400 font-medium">No reviews for this locality yet.</span>
+                            </div>
+                        )}
 
-                            <button onClick={() => setShowReviewModal(true)} className="mt-4 w-full py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition-colors">
-                                Write a Review
+                        <button onClick={() => setShowReviewModal(true)} className="mt-4 w-full sm:w-auto sm:px-8 py-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-bold hover:bg-emerald-100 transition-colors">
+                            Write a Review
+                        </button>
+                    </div>
+
+                    {/* 11. RESIDENTIAL ZONES */}
+                    {insight.residentialZones?.length > 0 && (
+                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Explore Residential Zones</h2>
+                            <div className="flex flex-wrap gap-2">
+                                {insight.residentialZones.map((zone, i) => (
+                                    <span key={i} className="px-4 py-2 bg-blue-50 text-blue-700 text-sm font-bold rounded-xl border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors">
+                                        {zone}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 12. POPULAR TOOLS */}
+                    <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                        <h2 className="text-lg font-bold text-[#0B1A3A] mb-5">Use Popular Tools</h2>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <button className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-purple-50 rounded-2xl border border-slate-100 hover:border-purple-200 transition-colors group text-center">
+                                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-purple-600 mb-3 group-hover:scale-110 transition-transform">
+                                    <span className="font-bold text-lg">₹</span>
+                                </div>
+                                <span className="text-xs font-bold text-slate-700">Budget Calculator</span>
+                            </button>
+                            <button className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-blue-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-colors group text-center">
+                                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-blue-600 mb-3 group-hover:scale-110 transition-transform">
+                                    <Home className="w-5 h-5" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-700">EMI Calculator</span>
+                            </button>
+                            <button className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-emerald-50 rounded-2xl border border-slate-100 hover:border-emerald-200 transition-colors group text-center">
+                                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-emerald-600 mb-3 group-hover:scale-110 transition-transform">
+                                    <Activity className="w-5 h-5" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-700">Area Convertor</span>
+                            </button>
+                            <button className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-amber-50 rounded-2xl border border-slate-100 hover:border-amber-200 transition-colors group text-center">
+                                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-amber-600 mb-3 group-hover:scale-110 transition-transform">
+                                    <Building className="w-5 h-5" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-700">Loan Eligibility</span>
                             </button>
                         </div>
-
                     </div>
 
-                    {/* RIGHT COLUMN - SIDEBAR */}
-                    <div className="space-y-6">
-                        
-                        {/* NEWLY LAUNCHED PROJECTS (Mobile optimized) */}
-                        {automated.newlyLaunched?.length > 0 && (
-                            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                                <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Newly Launched Projects</h2>
-                                <div className="space-y-3">
-                                    {automated.newlyLaunched.slice(0,3).map((proj, i) => (
-                                        <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="flex gap-3 items-center group cursor-pointer">
-                                            <img src={proj.coverImage || coverImage} className="w-14 h-14 rounded-xl object-cover border border-slate-100" alt="" />
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">{proj.projectName}</h4>
-                                                <p className="text-[11px] text-slate-500 mt-0.5 truncate">{proj.address?.locality || locality}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* TOP BUILDERS IN LOCALITY */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <div className="transform scale-95 origin-top-left w-[105%] -mt-6 -mb-6">
-                                <PopularBuilders locality={locality} />
-                            </div>
+                    {/* LIVE PROPERTIES FEED */}
+                    <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                        <h2 className="text-xl font-bold text-[#0B1A3A] mb-4 border-b border-slate-100 pb-4">
+                            All Properties in {locality}
+                        </h2>
+                        <div className="-mt-4">
+                            <AdminPropertiesSection searchCity={locality} />
                         </div>
-
-                        {/* PHASE 3: Top Sellers / Agents */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Top Sellers in Locality</h2>
-                            {automated.topSellers?.length > 0 ? (
-                                <div className="space-y-3">
-                                    {automated.topSellers.map((seller, i) => (
-                                        <div key={i} className="flex items-center gap-3 p-2 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 cursor-pointer transition-colors">
-                                            <img src={seller.profilePicture || "https://ui-avatars.com/api/?name=" + seller.name + "&background=random"} className="w-10 h-10 rounded-full border border-slate-200 object-cover" alt="" />
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-bold text-slate-800 truncate">{seller.name}</h4>
-                                                <p className="text-[11px] text-slate-500 mt-0.5">{seller.propertyCount} active properties</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-xs text-slate-500 font-medium">No top sellers identified yet.</div>
-                            )}
-                        </div>
-
-                        {/* PHASE 3: Residential Zones */}
-                        {insight.residentialZones?.length > 0 && (
-                            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                                <h2 className="text-lg font-bold text-[#0B1A3A] mb-3">Explore Residential Zones</h2>
-                                <div className="flex flex-wrap gap-2">
-                                    {insight.residentialZones.map((zone, i) => (
-                                        <span key={i} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors">
-                                            {zone}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* PHASE 3: Popular Tools */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Popular Tools</h2>
-                            <div className="grid grid-cols-2 gap-3">
-                                <button className="flex flex-col items-center justify-center p-3 bg-slate-50 hover:bg-purple-50 rounded-xl border border-slate-100 hover:border-purple-200 transition-colors group">
-                                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-purple-600 mb-2 group-hover:scale-110 transition-transform">
-                                        ₹
-                                    </div>
-                                    <span className="text-[11px] font-bold text-slate-700">EMI Calculator</span>
-                                </button>
-                                <button className="flex flex-col items-center justify-center p-3 bg-slate-50 hover:bg-blue-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors group">
-                                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-blue-600 mb-2 group-hover:scale-110 transition-transform">
-                                        <Home className="w-4 h-4" />
-                                    </div>
-                                    <span className="text-[11px] font-bold text-slate-700">Affordability</span>
-                                </button>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
-                {/* 4. LIVE PROPERTIES FEED */}
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                    <h2 className="text-xl font-bold text-[#0B1A3A] mb-4 border-b border-slate-100 pb-3">
-                        Properties in {locality}
-                    </h2>
-                    <div className="-mt-6">
-                        <AdminPropertiesSection searchCity={locality} />
                     </div>
                 </div>
             </div>

@@ -105,6 +105,22 @@ export const getLocalityDetail = async (req, res) => {
             }).sort((a, b) => b.propertyCount - a.propertyCount);
         }
 
+        // 5. Aggregate Property Types by Transaction Type (Buy/Rent)
+        const propertyTypesAggregation = await Property.aggregate([
+            { $match: { 'address.area': regexLocality, status: 'Active' } },
+            { $group: { 
+                _id: { type: "$propertyType", transaction: "$transactionType" }, 
+                count: { $sum: 1 } 
+            }}
+        ]);
+
+        const propertyTypes = { Buy: [], Rent: [] };
+        propertyTypesAggregation.forEach(pt => {
+            const trans = pt._id.transaction === 'Rent' ? 'Rent' : 'Buy';
+            const type = pt._id.type || 'Other';
+            propertyTypes[trans].push({ type, count: pt.count });
+        });
+
         // 5. Fetch Reviews (Assuming LocalityReview model exists)
         // Since we might not have imported LocalityReview, I'll dynamically require it or just use an empty array if it fails.
         let reviews = [];
@@ -136,6 +152,7 @@ export const getLocalityDetail = async (req, res) => {
                 propertyPrices,
                 newlyLaunched,
                 popularProjects,
+                propertyTypes,
                 topSellers,
                 reviews,
                 averageRating
