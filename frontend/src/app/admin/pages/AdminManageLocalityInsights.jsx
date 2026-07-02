@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Plus, Trash2, MapPin, Save, AlertCircle } from 'lucide-react';
-import { toast } from 'react-toastify';
+import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -20,14 +20,39 @@ const AdminManageLocalityInsights = () => {
         landmarks: [{ name: '', distance: '', type: '' }],
         residentialZones: ['']
     });
+    const [errors, setErrors] = useState({});
+    const [availableCities, setAvailableCities] = useState([]);
 
     useEffect(() => {
         fetchInsights();
+        fetchCities();
     }, []);
+
+    const fetchCities = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/locations/tree`);
+            if (res.data.success) {
+                const citiesList = [];
+                res.data.data.forEach(c => {
+                    c.states?.forEach(s => {
+                        s.districts?.forEach(d => {
+                            citiesList.push(d.name);
+                            d.cities?.forEach(city => {
+                                citiesList.push(city.name);
+                            });
+                        });
+                    });
+                });
+                setAvailableCities([...new Set(citiesList)].sort());
+            }
+        } catch (error) {
+            console.error("Failed to fetch cities", error);
+        }
+    };
 
     const fetchInsights = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('adminToken');
             const res = await axios.get(`${API_URL}/admin/insights`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -63,10 +88,23 @@ const AdminManageLocalityInsights = () => {
         setFormData({ ...formData, [field]: newArray });
     };
 
+    const validate = () => {
+        const newErrors = {};
+        if (!formData.locality.trim()) newErrors.locality = "Locality name is required";
+        if (!formData.city.trim()) newErrors.city = "City is required";
+        if (!formData.coverImage.trim()) newErrors.coverImage = "Cover image URL is required";
+        else if (!/^https?:\/\/.+/.test(formData.coverImage)) newErrors.coverImage = "Must be a valid URL";
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validate()) return;
+        
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('adminToken');
             const res = await axios.post(`${API_URL}/admin/insights`, formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -107,15 +145,23 @@ const AdminManageLocalityInsights = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Locality Name <span className="text-red-500">*</span></label>
-                                    <input type="text" required value={formData.locality} onChange={(e) => setFormData({...formData, locality: e.target.value})} className="w-full p-2 border rounded-md" placeholder="e.g. Andheri East" />
+                                    <input type="text" value={formData.locality} onChange={(e) => setFormData({...formData, locality: e.target.value})} className={`w-full p-2 border rounded-md ${errors.locality ? 'border-red-500' : ''}`} placeholder="e.g. Andheri East" />
+                                    {errors.locality && <p className="text-red-500 text-xs mt-1">{errors.locality}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">City <span className="text-red-500">*</span></label>
-                                    <input type="text" required value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} className="w-full p-2 border rounded-md" placeholder="e.g. Mumbai" />
+                                    <select value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} className={`w-full p-2 border rounded-md ${errors.city ? 'border-red-500' : ''}`}>
+                                        <option value="">Select a city</option>
+                                        {availableCities.map(city => (
+                                            <option key={city} value={city}>{city}</option>
+                                        ))}
+                                    </select>
+                                    {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Cover Image URL <span className="text-red-500">*</span></label>
-                                    <input type="url" required value={formData.coverImage} onChange={(e) => setFormData({...formData, coverImage: e.target.value})} className="w-full p-2 border rounded-md" placeholder="https://..." />
+                                    <input type="text" value={formData.coverImage} onChange={(e) => setFormData({...formData, coverImage: e.target.value})} className={`w-full p-2 border rounded-md ${errors.coverImage ? 'border-red-500' : ''}`} placeholder="https://..." />
+                                    {errors.coverImage && <p className="text-red-500 text-xs mt-1">{errors.coverImage}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Transaction Type</label>

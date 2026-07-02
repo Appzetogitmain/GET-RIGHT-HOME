@@ -109,6 +109,7 @@ const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/Property
 const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocationsPage'));
 const AdminManagers = React.lazy(() => import('./app/admin/pages/AdminManagers'));
 const AdminBuilders = React.lazy(() => import('./app/admin/pages/AdminBuilders'));
+const AdminManageLocalityInsights = React.lazy(() => import('./app/admin/pages/AdminManageLocalityInsights'));
 
 // Lazy Imports - Manager Panel
 const ManagerLogin = React.lazy(() => import('./app/manager/pages/ManagerLogin'));
@@ -601,6 +602,7 @@ function App() {
                         <Route path="property-forms" element={<AdminPropertyFormManager />} />
                         <Route path="locations" element={<AdminLocationsPage />} />
                         <Route path="managers" element={<AdminManagers />} />
+                        <Route path="locality-insights" element={<AdminManageLocalityInsights />} />
                       </Route>
                     </Route>
 
