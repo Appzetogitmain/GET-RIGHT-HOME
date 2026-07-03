@@ -21,7 +21,13 @@ const AdminManageLocalityInsights = () => {
         residentialZones: ['']
     });
     const [errors, setErrors] = useState({});
-    const [availableCities, setAvailableCities] = useState([]);
+    const [locationTree, setLocationTree] = useState([]);
+    const [selectedCountryId, setSelectedCountryId] = useState('');
+    const [selectedStateId, setSelectedStateId] = useState('');
+    const [selectedDistrictId, setSelectedDistrictId] = useState('');
+    const [availableStates, setAvailableStates] = useState([]);
+    const [availableDistricts, setAvailableDistricts] = useState([]);
+    const [availableLocalities, setAvailableLocalities] = useState([]);
 
     useEffect(() => {
         fetchInsights();
@@ -32,22 +38,55 @@ const AdminManageLocalityInsights = () => {
         try {
             const res = await axios.get(`${API_URL}/locations/tree`);
             if (res.data.success) {
-                const citiesList = [];
-                res.data.data.forEach(c => {
-                    c.states?.forEach(s => {
-                        s.districts?.forEach(d => {
-                            citiesList.push(d.name);
-                            d.cities?.forEach(city => {
-                                citiesList.push(city.name);
-                            });
-                        });
-                    });
-                });
-                setAvailableCities([...new Set(citiesList)].sort());
+                const tree = res.data.data;
+                setLocationTree(tree);
+                
+                const india = tree.find(c => c.name.toLowerCase() === 'india');
+                if (india) {
+                    setSelectedCountryId(india._id);
+                    const karnataka = india.states?.find(s => s.name.toLowerCase() === 'karnataka');
+                    if (karnataka) {
+                        setAvailableStates([karnataka]);
+                        setSelectedStateId(karnataka._id);
+                        setAvailableDistricts(karnataka.districts || []);
+                    } else {
+                        setAvailableStates(india.states || []);
+                    }
+                }
             }
         } catch (error) {
             console.error("Failed to fetch cities", error);
         }
+    };
+
+    const handleStateChange = (e) => {
+        const stateId = e.target.value;
+        setSelectedStateId(stateId);
+        setSelectedDistrictId('');
+        setFormData({ ...formData, city: '', locality: '' });
+        
+        const state = availableStates.find(s => s._id === stateId);
+        setAvailableDistricts(state?.districts || []);
+        setAvailableLocalities([]);
+    };
+
+    const handleDistrictChange = (e) => {
+        const distId = e.target.value;
+        setSelectedDistrictId(distId);
+        
+        const dist = availableDistricts.find(d => d._id === distId);
+        setAvailableLocalities(dist?.cities || []);
+        
+        if (distId) {
+            const distName = e.target.options[e.target.selectedIndex].text;
+            setFormData({ ...formData, city: distName, locality: '' });
+        } else {
+            setFormData({ ...formData, city: '', locality: '' });
+        }
+    };
+
+    const handleLocalityChange = (e) => {
+        setFormData({ ...formData, locality: e.target.value });
     };
 
     const fetchInsights = async () => {
@@ -117,6 +156,8 @@ const AdminManageLocalityInsights = () => {
                     pros: [''], cons: [''], upcomingDevelopments: [{ title: '', badge: '' }],
                     landmarks: [{ name: '', distance: '', type: '' }], residentialZones: ['']
                 });
+                setSelectedDistrictId('');
+                setAvailableLocalities([]);
             }
         } catch (error) {
             toast.error(error.response?.data?.message || 'Error saving insight');
@@ -144,19 +185,39 @@ const AdminManageLocalityInsights = () => {
                             <h3 className="font-semibold text-lg border-b pb-2 mb-4">Basic Information</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">Locality Name <span className="text-red-500">*</span></label>
-                                    <input type="text" value={formData.locality} onChange={(e) => setFormData({...formData, locality: e.target.value})} className={`w-full p-2 border rounded-md ${errors.locality ? 'border-red-500' : ''}`} placeholder="e.g. Andheri East" />
-                                    {errors.locality && <p className="text-red-500 text-xs mt-1">{errors.locality}</p>}
+                                    <label className="block text-sm font-medium mb-1">Country</label>
+                                    <select value={selectedCountryId} disabled className="w-full p-2 border rounded-md bg-gray-50 text-gray-500">
+                                        <option value={selectedCountryId}>India</option>
+                                    </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">City <span className="text-red-500">*</span></label>
-                                    <select value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} className={`w-full p-2 border rounded-md ${errors.city ? 'border-red-500' : ''}`}>
-                                        <option value="">Select a city</option>
-                                        {availableCities.map(city => (
-                                            <option key={city} value={city}>{city}</option>
+                                    <label className="block text-sm font-medium mb-1">State</label>
+                                    <select value={selectedStateId} onChange={handleStateChange} className="w-full p-2 border rounded-md">
+                                        <option value="">Select State</option>
+                                        {availableStates.map(s => (
+                                            <option key={s._id} value={s._id}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">District <span className="text-red-500">*</span></label>
+                                    <select value={selectedDistrictId} onChange={handleDistrictChange} disabled={!selectedStateId} className={`w-full p-2 border rounded-md ${errors.city ? 'border-red-500' : ''}`}>
+                                        <option value="">Select District</option>
+                                        {availableDistricts.map(d => (
+                                            <option key={d._id} value={d._id}>{d.name}</option>
                                         ))}
                                     </select>
                                     {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">City / Area <span className="text-red-500">*</span></label>
+                                    <select value={formData.locality} onChange={handleLocalityChange} disabled={!selectedDistrictId} className={`w-full p-2 border rounded-md ${errors.locality ? 'border-red-500' : ''}`}>
+                                        <option value="">{selectedDistrictId ? 'Select Locality' : 'Select district first'}</option>
+                                        {availableLocalities.map(l => (
+                                            <option key={l._id} value={l.name}>{l.name}</option>
+                                        ))}
+                                    </select>
+                                    {errors.locality && <p className="text-red-500 text-xs mt-1">{errors.locality}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Cover Image URL <span className="text-red-500">*</span></label>
