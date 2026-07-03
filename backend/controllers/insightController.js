@@ -124,14 +124,52 @@ export const getLocalityDetail = async (req, res) => {
         // 5. Fetch Reviews (Assuming LocalityReview model exists)
         // Since we might not have imported LocalityReview, I'll dynamically require it or just use an empty array if it fails.
         let reviews = [];
-        let averageRating = 4.2; // Fallback
+        let averageRating = 4.3; // Fallback
+        let ratingBreakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0, total: 0 };
+        let featureRatings = { connectivity: 4.3, lifestyle: 4.3, safety: 4.2, greenArea: 4.2 };
+        let allPositives = ["Good Public Transport", "Easy Cab Availability"];
+        let allNegatives = ["Frequent Traffic Jams"];
+        
         try {
             const { default: LocalityReview } = await import('../models/LocalityReview.js');
             reviews = await LocalityReview.find({ localityName: regexLocality }).sort({ createdAt: -1 }).limit(3).populate('userId', 'name profilePicture');
             const allReviews = await LocalityReview.find({ localityName: regexLocality });
+            
             if (allReviews.length > 0) {
-                const totalRating = allReviews.reduce((sum, r) => sum + (r.rating || 0), 0);
-                averageRating = (totalRating / allReviews.length).toFixed(1);
+                let sum = 0, conn = 0, life = 0, safe = 0, green = 0;
+                let posSet = new Set(), negSet = new Set();
+                
+                ratingBreakdown.total = allReviews.length;
+                allReviews.forEach(r => {
+                    sum += (r.rating || 4);
+                    conn += (r.connectivityRating || 4);
+                    life += (r.lifestyleRating || 4);
+                    safe += (r.safetyRating || 4);
+                    green += (r.greenAreaRating || 4);
+                    
+                    if (r.rating) {
+                        const rInt = Math.round(r.rating);
+                        if (rInt >= 1 && rInt <= 5) ratingBreakdown[rInt]++;
+                    }
+                    
+                    if (r.positives && Array.isArray(r.positives)) {
+                        r.positives.forEach(p => posSet.add(p));
+                    }
+                    if (r.negatives && Array.isArray(r.negatives)) {
+                        r.negatives.forEach(n => negSet.add(n));
+                    }
+                });
+                
+                averageRating = (sum / allReviews.length).toFixed(1);
+                featureRatings = {
+                    connectivity: (conn / allReviews.length).toFixed(1),
+                    lifestyle: (life / allReviews.length).toFixed(1),
+                    safety: (safe / allReviews.length).toFixed(1),
+                    greenArea: (green / allReviews.length).toFixed(1)
+                };
+                
+                if (posSet.size > 0) allPositives = Array.from(posSet).slice(0, 5);
+                if (negSet.size > 0) allNegatives = Array.from(negSet).slice(0, 5);
             }
         } catch (e) {
             console.log("LocalityReview model missing or error fetching reviews", e.message);
@@ -155,7 +193,11 @@ export const getLocalityDetail = async (req, res) => {
                 propertyTypes,
                 topSellers,
                 reviews,
-                averageRating
+                averageRating,
+                ratingBreakdown,
+                featureRatings,
+                allPositives,
+                allNegatives
             }
         });
     } catch (error) {

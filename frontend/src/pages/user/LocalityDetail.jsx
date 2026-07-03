@@ -368,32 +368,34 @@ const LocalityDetail = () => {
                                     <span className="text-xl font-bold text-slate-400">/5</span>
                                 </div>
                                 <div className="flex justify-center gap-0.5 text-amber-400 mb-2">
-                                    ★ ★ ★ ★ <span className="text-slate-300">★</span>
+                                    {[...Array(5)].map((_, i) => (
+                                        <span key={i} className={i < Math.round(Number(automated.averageRating || 4.3)) ? "" : "text-slate-300"}>★</span>
+                                    ))}
                                 </div>
                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Average Rating</p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">({automated.reviews?.length || 205} Total Reviews)</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">({automated.ratingBreakdown?.total || automated.reviews?.length || 0} Total Reviews)</p>
                             </div>
                             
                             <div className="flex-1 w-full space-y-2.5">
-                                {[
-                                    { s: 5, w: '80%' },
-                                    { s: 4, w: '40%' },
-                                    { s: 3, w: '15%' },
-                                    { s: 2, w: '5%' },
-                                    { s: 1, w: '5%' }
-                                ].map(bar => (
-                                    <div key={bar.s} className="flex items-center gap-3">
-                                        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 w-6">
-                                            {bar.s} ★
+                                {[5, 4, 3, 2, 1].map(s => {
+                                    const count = automated.ratingBreakdown?.[s] || 0;
+                                    const total = automated.ratingBreakdown?.total || 1;
+                                    const percentage = total > 0 ? (count / total) * 100 : (s >= 4 ? 40 : 5); // Fallback visuals
+                                    
+                                    return (
+                                        <div key={s} className="flex items-center gap-3">
+                                            <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 w-6">
+                                                {s} ★
+                                            </div>
+                                            <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                                <div className="h-full bg-[#0d6efd] rounded-full" style={{ width: `${percentage}%` }}></div>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-[11px] font-bold text-slate-500 w-6 justify-end">
+                                                {s}★
+                                            </div>
                                         </div>
-                                        <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                            <div className="h-full bg-[#0d6efd] rounded-full" style={{ width: bar.w }}></div>
-                                        </div>
-                                        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-500 w-6 justify-end">
-                                            {bar.s}★
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -406,14 +408,14 @@ const LocalityDetail = () => {
                             <h3 className="font-bold text-slate-900 mb-6 text-[15px]">Ratings by features</h3>
                             <div className="flex justify-between md:justify-start md:gap-12 px-2 md:px-0">
                                 {[
-                                    { label: 'Connectivity', val: '4.3' },
-                                    { label: 'Lifestyle', val: '4.3' },
-                                    { label: 'Safety', val: '4.2' },
-                                    { label: 'Green Area', val: '4.2' }
+                                    { label: 'Connectivity', val: automated.featureRatings?.connectivity || '4.3' },
+                                    { label: 'Lifestyle', val: automated.featureRatings?.lifestyle || '4.3' },
+                                    { label: 'Safety', val: automated.featureRatings?.safety || '4.2' },
+                                    { label: 'Green Area', val: automated.featureRatings?.greenArea || '4.2' }
                                 ].map(f => (
                                     <div key={f.label} className="flex flex-col items-center">
-                                        <div className="w-12 h-12 rounded-full border-[3px] border-[#0d6efd] flex items-center justify-center mb-2">
-                                            <span className="text-xs font-black text-slate-900">{f.val}</span>
+                                        <div className="w-12 h-12 rounded-full border-[3px] border-[#0d6efd] flex items-center justify-center mb-2 relative overflow-hidden">
+                                            <span className="text-xs font-black text-slate-900 z-10">{f.val}</span>
                                         </div>
                                         <span className="text-[10px] font-bold text-slate-600 text-center leading-tight max-w-[60px]">{f.label}</span>
                                     </div>
@@ -426,15 +428,17 @@ const LocalityDetail = () => {
                             <div>
                                 <h3 className="font-bold text-slate-900 mb-3 text-[15px]">What are the positives</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-semibold text-xs rounded border border-emerald-100">Good Public Transport</span>
-                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-semibold text-xs rounded border border-emerald-100">Easy Cab Availability</span>
-                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-semibold text-xs rounded border border-emerald-100">Safe at Night</span>
+                                    {(automated.allPositives || ["Good Public Transport", "Easy Cab Availability", "Safe at Night"]).map((pos, idx) => (
+                                        <span key={idx} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-semibold text-xs rounded border border-emerald-100">{pos}</span>
+                                    ))}
                                 </div>
                             </div>
                             <div>
                                 <h3 className="font-bold text-slate-900 mb-3 text-[15px]">What are the negatives</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    <span className="px-3 py-1.5 bg-red-50 text-red-700 font-semibold text-xs rounded border border-red-100">Frequent Traffic Jams</span>
+                                    {(automated.allNegatives || ["Frequent Traffic Jams"]).map((neg, idx) => (
+                                        <span key={idx} className="px-3 py-1.5 bg-red-50 text-red-700 font-semibold text-xs rounded border border-red-100">{neg}</span>
+                                    ))}
                                 </div>
                             </div>
                         </div>
