@@ -50,7 +50,7 @@ export const getLocalityDetail = async (req, res) => {
         const regexLocality = new RegExp(locality, 'i');
         
         // A. Total properties and average price
-        const properties = await Property.find({ 'address.area': regexLocality, status: 'Active' });
+        const properties = await Property.find({ 'address.area': regexLocality, status: 'approved' });
         const totalProperties = properties.length;
         
         // Calculate average price (simplified)
@@ -77,13 +77,13 @@ export const getLocalityDetail = async (req, res) => {
         }));
 
         // 3. Automated Project Aggregations (using Property model, as projects are just premium properties)
-        const newlyLaunched = await Property.find({ 'address.area': regexLocality, status: 'Active' }).sort({ createdAt: -1 }).limit(4);
-        const popularProjects = await Property.find({ 'address.area': regexLocality, status: 'Active' }).sort({ views: -1 }).limit(4);
+        const newlyLaunched = await Property.find({ 'address.area': regexLocality, status: 'approved' }).sort({ createdAt: -1 }).limit(4);
+        const popularProjects = await Property.find({ 'address.area': regexLocality, status: 'approved' }).sort({ views: -1 }).limit(4);
         
         // 4. Aggregate Top Sellers (Users with most active properties in this locality)
         // Group properties by userId
         const sellerAggregation = await Property.aggregate([
-            { $match: { 'address.area': regexLocality, status: 'Active', userId: { $exists: true } } },
+            { $match: { 'address.area': regexLocality, status: 'approved', userId: { $exists: true } } },
             { $group: { _id: "$userId", propertyCount: { $sum: 1 } } },
             { $sort: { propertyCount: -1 } },
             { $limit: 4 }
@@ -107,7 +107,7 @@ export const getLocalityDetail = async (req, res) => {
 
         // 5. Aggregate Property Types by Transaction Type (Buy/Rent)
         const propertyTypesAggregation = await Property.aggregate([
-            { $match: { 'address.area': regexLocality, status: 'Active' } },
+            { $match: { 'address.area': regexLocality, status: 'approved' } },
             { $group: { 
                 _id: { type: "$propertyType", transaction: "$transactionType" }, 
                 count: { $sum: 1 } 

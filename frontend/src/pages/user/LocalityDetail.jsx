@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import PopularBuilders from '../../components/user/PopularBuilders';
+import PopularToolsModals from '../../components/user/PopularToolsModals';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -17,10 +18,12 @@ const LocalityDetail = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Review Modal State
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [reviewData, setReviewData] = useState({ rating: 5, comment: '', userType: 'Resident' });
+
+    // Tools Modal State
+    const [activeTool, setActiveTool] = useState(null);
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -387,25 +390,25 @@ const LocalityDetail = () => {
                     <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
                         <h2 className="text-lg font-bold text-[#0B1A3A] mb-5">Use Popular Tools</h2>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            <button className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-purple-50 rounded-2xl border border-slate-100 hover:border-purple-200 transition-colors group text-center">
+                            <button onClick={() => setActiveTool('budget')} className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-purple-50 rounded-2xl border border-slate-100 hover:border-purple-200 transition-colors group text-center">
                                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-purple-600 mb-3 group-hover:scale-110 transition-transform">
                                     <span className="font-bold text-lg">₹</span>
                                 </div>
                                 <span className="text-xs font-bold text-slate-700">Budget Calculator</span>
                             </button>
-                            <button className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-blue-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-colors group text-center">
+                            <button onClick={() => setActiveTool('emi')} className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-blue-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-colors group text-center">
                                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-blue-600 mb-3 group-hover:scale-110 transition-transform">
                                     <Home className="w-5 h-5" />
                                 </div>
                                 <span className="text-xs font-bold text-slate-700">EMI Calculator</span>
                             </button>
-                            <button className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-emerald-50 rounded-2xl border border-slate-100 hover:border-emerald-200 transition-colors group text-center">
+                            <button onClick={() => setActiveTool('area')} className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-emerald-50 rounded-2xl border border-slate-100 hover:border-emerald-200 transition-colors group text-center">
                                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-emerald-600 mb-3 group-hover:scale-110 transition-transform">
                                     <Activity className="w-5 h-5" />
                                 </div>
                                 <span className="text-xs font-bold text-slate-700">Area Convertor</span>
                             </button>
-                            <button className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-amber-50 rounded-2xl border border-slate-100 hover:border-amber-200 transition-colors group text-center">
+                            <button onClick={() => setActiveTool('loan')} className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-amber-50 rounded-2xl border border-slate-100 hover:border-amber-200 transition-colors group text-center">
                                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-amber-600 mb-3 group-hover:scale-110 transition-transform">
                                     <Building className="w-5 h-5" />
                                 </div>
@@ -462,6 +465,9 @@ const LocalityDetail = () => {
                     </div>
                 </div>
             )}
+            
+            {/* POPULAR TOOLS MODALS */}
+            <PopularToolsModals activeTool={activeTool} onClose={() => setActiveTool(null)} />
         </div>
     );
 };
