@@ -50,7 +50,7 @@ export const getLocalityDetail = async (req, res) => {
         const regexLocality = new RegExp(locality, 'i');
         
         // A. Total properties and average price
-        const properties = await Property.find({ 'address.area': regexLocality, status: 'approved' });
+        const properties = await Property.find({ 'address.area': regexLocality, status: 'approved' }).lean();
         const totalProperties = properties.length;
         
         // Calculate average price (simplified)
@@ -77,8 +77,8 @@ export const getLocalityDetail = async (req, res) => {
         }));
 
         // 3. Automated Project Aggregations (using Property model, as projects are just premium properties)
-        const newlyLaunched = await Property.find({ 'address.area': regexLocality, status: 'approved' }).sort({ createdAt: -1 }).limit(4);
-        const popularProjects = await Property.find({ 'address.area': regexLocality, status: 'approved' }).sort({ views: -1 }).limit(4);
+        const newlyLaunched = await Property.find({ 'address.area': regexLocality, status: 'approved' }).sort({ createdAt: -1 }).limit(4).lean();
+        const popularProjects = await Property.find({ 'address.area': regexLocality, status: 'approved' }).sort({ views: -1 }).limit(4).lean();
         
         // 4. Aggregate Top Sellers (Users with most active properties in this locality)
         // Group properties by userId

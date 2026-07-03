@@ -32,6 +32,7 @@ const SearchPage = React.lazy(() => import('./pages/user/SearchPage'));
 const BuyPage = React.lazy(() => import('./pages/user/BuyPage'));
 const RentPage = React.lazy(() => import('./pages/user/RentPage'));
 const LocalityDetail = React.lazy(() => import('./pages/user/LocalityDetail'));
+const LocalityReviewsPage = React.lazy(() => import('./pages/user/LocalityReviewsPage'));
 const BookingsPage = React.lazy(() => import('./pages/user/BookingsPage'));
 const ListingPage = React.lazy(() => import('./pages/user/ListingPage'));
 const BookingConfirmationPage = React.lazy(() => import('./pages/user/BookingConfirmationPage'));
@@ -486,6 +487,7 @@ function App() {
                     <Route path="/pg-coliving" element={<SearchPage />} />
                     <Route path="/buy" element={<BuyPage />} />
                     <Route path="/insights/:locality" element={<LocalityDetail />} />
+                    <Route path="/insights/:locality/reviews" element={<LocalityReviewsPage />} />
                     <Route path="/compare" element={<PropertyComparePage />} />
                     <Route path="/listings" element={<Navigate to="/search" replace />} />
                     <Route path="/partner-landing" element={<PartnerLandingPage />} />

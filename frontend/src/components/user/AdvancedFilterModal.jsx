@@ -38,7 +38,7 @@ const AdvancedFilterModal = ({
         return list;
     }, []);
 
-    const propertyTypes = ['Residential Apartment', 'Residential Land', 'Independent House/Villa', 'Builder Floor', 'Farm House', '1 RK/ Studio Apartment', 'Serviced Apartments', 'Commercial Office Space', 'Commercial Shop'];
+    const propertyTypes = ['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK / Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Plot / Land', 'Office', 'Retail', 'Industry', 'Storage', 'Hospitality'];
     const bhkTypes = ['1 RK/1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'];
     const possessionStatuses = ['Ready to Move', 'Under Construction', 'Pre Launch'];
     const newBookingResale = ['New Bookings', 'Resale'];

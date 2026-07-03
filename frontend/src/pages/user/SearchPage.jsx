@@ -128,7 +128,7 @@ const SearchPage = () => {
         const initialPropertyTypes = [];
         subTypeFromUrl.forEach(v => {
             const matched = [
-                'Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 
+                'Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK / Studio Apartment', 
                 'Serviced Apartment', 'Farmhouse', 'Plot / Land', 'Office', 'Retail', 
                 'Industry', 'Storage', 'Hospitality', 'Other'
             ].find(opt => opt.toLowerCase() === v.toLowerCase());

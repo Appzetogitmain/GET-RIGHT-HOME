@@ -88,7 +88,8 @@ const AdminPropertyCard = ({ property, index }) => {
             toast.success("This is a demo property card showcasing the layout!");
             return;
         }
-        navigateToProperty(property);
+        // Force navigate to handpicked since these are featured handpicked projects
+        navigate(`/handpicked/${property._id || property.id}`);
     };
 
     return (
@@ -446,7 +447,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType }) => {
                     {displayProperties.length > 0 && (
                         <button
                             onClick={() => {
-                                navigate('/properties');
+                                navigate(`/search?city=${selectedCity || ''}`);
                                 window.scrollTo(0, 0);
                             }}
                             className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
@@ -507,7 +508,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType }) => {
             */}
 
             {/* Properties Grid */}
-            <div className="px-5 md:px-0">
+            <div className="md:px-0">
                 {!selectedCity ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                         <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-4 border border-emerald-100">
@@ -559,7 +560,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType }) => {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 scrollbar-hide"
+                            className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 scrollbar-hide px-5 md:px-0"
                             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                         >
                             {displayProperties.slice(0, 8).map((property, index) => (

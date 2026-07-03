@@ -252,11 +252,12 @@ const LocalityDetail = () => {
                                         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Popular Projects</h3>
                                         <div className="space-y-3">
                                             {automated.popularProjects.slice(0,3).map((proj, i) => (
-                                                <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="flex gap-3 items-center group cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-100 hover:border-blue-200">
+                                                <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="flex gap-3 items-center group cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
                                                     <img src={proj.coverImage || coverImage} className="w-14 h-14 rounded-lg object-cover" alt="" />
                                                     <div className="flex-1 min-w-0">
-                                                        <h4 className="text-sm font-bold text-slate-800 truncate">{proj.propertyName}</h4>
-                                                        <p className="text-[11px] text-slate-500 truncate">{proj.address?.locality || locality}</p>
+                                                        <h4 className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">{proj.propertyName}</h4>
+                                                        <p className="text-[12px] font-black text-slate-900 mt-0.5">₹{(proj.price || proj.dynamicData?.expectedPrice || proj.dynamicData?.monthlyRent || 0).toLocaleString()}</p>
+                                                        <p className="text-[10px] text-slate-500 truncate flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3"/> {proj.address?.locality || locality}</p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -269,11 +270,12 @@ const LocalityDetail = () => {
                                         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Newly Launched</h3>
                                         <div className="space-y-3">
                                             {automated.newlyLaunched.slice(0,3).map((proj, i) => (
-                                                <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="flex gap-3 items-center group cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-100 hover:border-blue-200">
+                                                <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="flex gap-3 items-center group cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
                                                     <img src={proj.coverImage || coverImage} className="w-14 h-14 rounded-lg object-cover" alt="" />
                                                     <div className="flex-1 min-w-0">
-                                                        <h4 className="text-sm font-bold text-slate-800 truncate">{proj.propertyName}</h4>
-                                                        <p className="text-[11px] text-slate-500 truncate">{proj.address?.locality || locality}</p>
+                                                        <h4 className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">{proj.propertyName}</h4>
+                                                        <p className="text-[12px] font-black text-slate-900 mt-0.5">₹{(proj.price || proj.dynamicData?.expectedPrice || proj.dynamicData?.monthlyRent || 0).toLocaleString()}</p>
+                                                        <p className="text-[10px] text-slate-500 truncate flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3"/> {proj.address?.locality || locality}</p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -301,16 +303,23 @@ const LocalityDetail = () => {
                                     <button className="px-4 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-slate-800 transition-all">Rent</button>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                {automated.propertyTypes.Buy?.length > 0 ? automated.propertyTypes.Buy.map((pt, i) => (
-                                    <div key={i} className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-center hover:border-blue-300 cursor-pointer transition-colors">
-                                        <p className="text-sm font-bold text-slate-700">{pt.type}</p>
-                                        <p className="text-xs text-slate-500 mt-1">{pt.count} properties</p>
-                                    </div>
-                                )) : (
-                                    <p className="text-xs text-slate-400 col-span-4 text-center py-4">No properties available for buy.</p>
-                                )}
-                            </div>
+                            <div className="flex sm:grid sm:grid-cols-4 gap-3 mt-5 overflow-x-auto pb-4 no-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 snap-x snap-mandatory">
+                                                {/* Pre-fill default types if array is empty so styling is visible */}
+                                                {(automated.propertyTypes.Buy?.length > 0 ? automated.propertyTypes.Buy : [{type: 'Apartment', count: 0}, {type: 'Villas', count: 0}, {type: 'Plots/Land', count: 0}]).map((pt, i) => {
+                                                    let Icon = Home;
+                                                    if(pt.type?.toLowerCase().includes('villa')) Icon = Building;
+                                                    if(pt.type?.toLowerCase().includes('plot') || pt.type?.toLowerCase().includes('land')) Icon = MapPin;
+                                                    return (
+                                                        <div key={i} onClick={() => navigate(`/search?subType=${encodeURIComponent(pt.type)}&areas=${locality}`)} className="min-w-[130px] sm:min-w-0 snap-center shrink-0 flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgb(0,0,0,0.04)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group">
+                                                            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                                                <Icon className="w-5 h-5" />
+                                                            </div>
+                                                            <p className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{pt.type}</p>
+                                                            <p className="text-[10px] text-slate-500 mt-1">{pt.count} properties</p>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                         </div>
                     )}
 
@@ -320,11 +329,14 @@ const LocalityDetail = () => {
                         {automated.topSellers?.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {automated.topSellers.map((seller, i) => (
-                                    <div key={i} className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 cursor-pointer transition-colors">
-                                        <img src={seller.profilePicture || "https://ui-avatars.com/api/?name=" + seller.name + "&background=random"} className="w-12 h-12 rounded-full border border-slate-200 object-cover" alt="" />
+                                    <div key={i} onClick={() => navigate(`/search?builder=${seller._id}&areas=${locality}`)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgb(0,0,0,0.04)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group">
+                                        <img src={seller.profilePicture || "https://ui-avatars.com/api/?name=" + seller.name + "&background=random"} className="w-14 h-14 rounded-full border-2 border-white shadow-md object-cover group-hover:border-blue-200 transition-colors" alt="" />
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-bold text-slate-800 truncate">{seller.name}</h4>
-                                            <p className="text-[11px] text-slate-500 mt-1">{seller.propertyCount} active properties</p>
+                                            <h4 className="text-sm font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">{seller.name}</h4>
+                                            <p className="text-[11px] text-slate-500 mt-0.5">{seller.propertyCount} active properties</p>
+                                        </div>
+                                        <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wide bg-blue-50 px-3 py-1.5 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors flex items-center gap-1">
+                                            View Properties <ArrowRight className="w-3 h-3" />
                                         </div>
                                     </div>
                                 ))}
@@ -336,40 +348,135 @@ const LocalityDetail = () => {
 
                     {/* 10. RESIDENT REVIEWS & RATINGS */}
                     <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
-                        <h2 className="text-lg font-bold text-[#0B1A3A] mb-1">Check {locality} Ratings & Reviews</h2>
-                        <p className="text-xs text-slate-500 mb-4">What residents say about {locality}</p>
+                        <div className="flex justify-between items-end mb-6">
+                            <div>
+                                <h2 className="text-xl font-black text-[#0B1A3A] mb-1">Locality Reviews</h2>
+                                <p className="text-sm text-slate-500">For {locality}</p>
+                            </div>
+                            {automated.reviews?.length > 0 && (
+                                <button onClick={() => navigate(`/insights/${locality}/reviews`)} className="text-sm font-bold text-[#0d6efd] hover:text-blue-800 transition-colors flex items-center gap-1">
+                                    View all
+                                </button>
+                            )}
+                        </div>
                         
-                        {automated.reviews?.length > 0 ? (
-                            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 snap-x snap-mandatory">
-                                {automated.reviews.map((review, i) => (
-                                    <div key={i} className="min-w-[280px] snap-center shrink-0 p-5 rounded-2xl border border-slate-100 bg-slate-50 flex flex-col justify-between">
-                                        <div>
-                                            <div className="flex items-center gap-1 mb-3">
-                                                {[...Array(5)].map((_, idx) => (
-                                                    <span key={idx} className={`text-base ${idx < (review.rating || 5) ? 'text-amber-400' : 'text-slate-200'}`}>★</span>
-                                                ))}
-                                            </div>
-                                            <p className="text-sm text-slate-700 line-clamp-4 leading-relaxed italic">"{review.reviewText || review.comment}"</p>
+                        {/* Summary Block */}
+                        <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-5 mb-6 flex flex-col md:flex-row items-center gap-6">
+                            <div className="text-center shrink-0">
+                                <div className="flex items-baseline justify-center mb-1">
+                                    <span className="text-4xl font-black text-slate-900">{automated.averageRating || '4.3'}</span>
+                                    <span className="text-xl font-bold text-slate-400">/5</span>
+                                </div>
+                                <div className="flex justify-center gap-0.5 text-amber-400 mb-2">
+                                    ★ ★ ★ ★ <span className="text-slate-300">★</span>
+                                </div>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Average Rating</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">({automated.reviews?.length || 205} Total Reviews)</p>
+                            </div>
+                            
+                            <div className="flex-1 w-full space-y-2.5">
+                                {[
+                                    { s: 5, w: '80%' },
+                                    { s: 4, w: '40%' },
+                                    { s: 3, w: '15%' },
+                                    { s: 2, w: '5%' },
+                                    { s: 1, w: '5%' }
+                                ].map(bar => (
+                                    <div key={bar.s} className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 w-6">
+                                            {bar.s} ★
                                         </div>
-                                        <div className="flex items-center gap-3 mt-5 pt-4 border-t border-slate-200/60">
-                                            <img src={review.userId?.profilePicture || "https://ui-avatars.com/api/?name=" + (review.userId?.name || 'U') + "&background=random"} className="w-8 h-8 rounded-full object-cover shadow-sm" alt="" />
-                                            <div>
-                                                <p className="text-xs font-bold text-slate-800">{review.userId?.name || "Resident"}</p>
-                                                {review.isVerifiedResident && <p className="text-[10px] text-blue-600 font-medium flex items-center gap-1"><Check className="w-3 h-3" /> Verified Resident</p>}
-                                            </div>
+                                        <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-[#0d6efd] rounded-full" style={{ width: bar.w }}></div>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-500 w-6 justify-end">
+                                            {bar.s}★
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                        ) : (
-                            <div className="h-24 bg-slate-50 rounded-xl border border-slate-200 border-dashed flex items-center justify-center">
-                                <span className="text-[11px] text-slate-400 font-medium">No reviews for this locality yet.</span>
-                            </div>
-                        )}
+                        </div>
 
-                        <button onClick={() => setShowReviewModal(true)} className="mt-4 w-full sm:w-auto sm:px-8 py-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-bold hover:bg-emerald-100 transition-colors">
-                            Write a Review
+                        <button className="text-sm font-bold text-[#0d6efd] hover:underline mb-8">
+                            See how ratings are calculated
                         </button>
+
+                        {/* Ratings by features */}
+                        <div className="mb-8">
+                            <h3 className="font-bold text-slate-900 mb-6 text-[15px]">Ratings by features</h3>
+                            <div className="flex justify-between md:justify-start md:gap-12 px-2 md:px-0">
+                                {[
+                                    { label: 'Connectivity', val: '4.3' },
+                                    { label: 'Lifestyle', val: '4.3' },
+                                    { label: 'Safety', val: '4.2' },
+                                    { label: 'Green Area', val: '4.2' }
+                                ].map(f => (
+                                    <div key={f.label} className="flex flex-col items-center">
+                                        <div className="w-12 h-12 rounded-full border-[3px] border-[#0d6efd] flex items-center justify-center mb-2">
+                                            <span className="text-xs font-black text-slate-900">{f.val}</span>
+                                        </div>
+                                        <span className="text-[10px] font-bold text-slate-600 text-center leading-tight max-w-[60px]">{f.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Positives & Negatives */}
+                        <div className="mb-8 space-y-5">
+                            <div>
+                                <h3 className="font-bold text-slate-900 mb-3 text-[15px]">What are the positives</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-semibold text-xs rounded border border-emerald-100">Good Public Transport</span>
+                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-semibold text-xs rounded border border-emerald-100">Easy Cab Availability</span>
+                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-semibold text-xs rounded border border-emerald-100">Safe at Night</span>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-900 mb-3 text-[15px]">What are the negatives</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    <span className="px-3 py-1.5 bg-red-50 text-red-700 font-semibold text-xs rounded border border-red-100">Frequent Traffic Jams</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Resident Reviews List */}
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-slate-900 text-[15px]">Reviews by Residents</h3>
+                                {automated.reviews?.length > 0 && (
+                                    <button onClick={() => navigate(`/insights/${locality}/reviews`)} className="text-xs font-bold text-[#0d6efd] hover:underline">
+                                        View all
+                                    </button>
+                                )}
+                            </div>
+                            
+                            {automated.reviews?.length > 0 ? (
+                                <div className="space-y-4 mb-6">
+                                    {automated.reviews.slice(0, 2).map((review, i) => (
+                                        <div key={i} className="p-4 rounded-xl border border-slate-100 bg-white shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+                                            <div className="flex items-center gap-1 mb-2">
+                                                {[...Array(5)].map((_, idx) => (
+                                                    <span key={idx} className={`text-sm ${idx < (review.rating || 5) ? 'text-[#0d6efd]' : 'text-slate-200'}`}>★</span>
+                                                ))}
+                                            </div>
+                                            <p className="text-sm text-slate-700 mb-3">"{review.reviewText || review.comment}"</p>
+                                            <div className="flex items-center gap-2">
+                                                <img src={review.userId?.profilePicture || "https://ui-avatars.com/api/?name=" + (review.userId?.name || 'U') + "&background=random"} className="w-6 h-6 rounded-full object-cover" alt="" />
+                                                <span className="text-xs font-bold text-slate-800">{review.userId?.name || "Resident"}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 text-center mb-6">
+                                    <p className="text-sm font-bold text-slate-400">No reviews yet for this locality. Be the first to share your experience!</p>
+                                </div>
+                            )}
+
+                            <button onClick={() => setShowReviewModal(true)} className="w-full py-3.5 bg-[#0d6efd] hover:bg-blue-700 text-white font-bold rounded-xl transition-colors text-sm">
+                                Review your Society / Locality
+                            </button>
+                        </div>
                     </div>
 
                     {/* 11. RESIDENTIAL ZONES */}
@@ -378,7 +485,12 @@ const LocalityDetail = () => {
                             <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Explore Residential Zones</h2>
                             <div className="flex flex-wrap gap-2">
                                 {insight.residentialZones.map((zone, i) => (
-                                    <span key={i} className="px-4 py-2 bg-blue-50 text-blue-700 text-sm font-bold rounded-xl border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors">
+                                    <span 
+                                        key={i} 
+                                        onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(zone + ', ' + locality + ', Bengaluru')}`, '_blank')}
+                                        className="px-4 py-2 bg-blue-50 text-blue-700 text-sm font-bold rounded-xl border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+                                    >
+                                        <MapPin className="w-3 h-3" />
                                         {zone}
                                     </span>
                                 ))}
@@ -418,13 +530,8 @@ const LocalityDetail = () => {
                     </div>
 
                     {/* LIVE PROPERTIES FEED */}
-                    <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
-                        <h2 className="text-xl font-bold text-[#0B1A3A] mb-4 border-b border-slate-100 pb-4">
-                            All Properties in {locality}
-                        </h2>
-                        <div className="-mt-4">
-                            <AdminPropertiesSection searchCity={locality} />
-                        </div>
+                    <div>
+                        <AdminPropertiesSection searchCity={locality} />
                     </div>
                 </div>
             </div>
