@@ -99,6 +99,25 @@ const HandpickedDetailsPage = () => {
     checkIfSaved();
   }, [id]);
 
+  // Robust iOS/Mobile Background Scroll Lock
+  useEffect(() => {
+    const isModalOpen = showAllHighlights || showAllAmenities || showInteriorsModal || showProsConsModal || showComparisonMatrix || showEnquiryModal || showAboutBuilderModal || showVerifiedSourcesModal;
+    if (isModalOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+    } else {
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
+    }
+  }, [showAllHighlights, showAllAmenities, showInteriorsModal, showProsConsModal, showComparisonMatrix, showEnquiryModal, showAboutBuilderModal, showVerifiedSourcesModal]);
+
   useEffect(() => {
     const handleScroll = () => {
       const scrollPos = window.scrollY + 160;
@@ -597,17 +616,24 @@ const HandpickedDetailsPage = () => {
               <img src={builderTrackRecord.logo} alt="Builder Logo" className="w-14 h-14 md:w-16 md:h-16 rounded-full border border-slate-200 object-cover p-1 shadow-sm" />
             )}
             <div className="flex-1">
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
-                {property?.propertyName}
-              </h1>
-              <p className="text-slate-500 font-medium text-sm mt-0.5">
+              <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
+                  {property?.propertyName}
+                </h1>
+                {builderDetails.possessionStatus && (
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[10px] font-bold uppercase tracking-wider">
+                    {builderDetails.possessionStatus.toLowerCase().includes('ready') ? 'Ready to Move' : 'Under Construction'}
+                  </span>
+                )}
+                {property?.isLive && (
+                  <div className="flex items-center gap-1 text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    <CheckCircle2 className="w-3 h-3 text-slate-500" /> RERA
+                  </div>
+                )}
+              </div>
+              <p className="text-slate-500 font-medium text-sm">
                 {[property?.address?.locality, property?.address?.city].filter(Boolean).join(', ')}
               </p>
-              {property?.isLive && (
-                <div className="flex items-center gap-1 mt-1.5 text-[11px] font-bold text-slate-500">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" /> RERA
-                </div>
-              )}
             </div>
           </div>
 
@@ -630,9 +656,9 @@ const HandpickedDetailsPage = () => {
           <hr className="border-slate-100 my-4" />
 
           {/* Price & Map Row */}
-          <div className="flex gap-4 mb-4">
-            <div className="flex-1 border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center hover:border-purple-300 transition-colors">
-              <span className="text-lg md:text-xl font-bold text-slate-900">
+          <div className="flex gap-4 mb-2">
+            <div className="flex-1 border border-slate-200 rounded-2xl p-3 flex flex-col items-center justify-center hover:border-blue-300 transition-colors">
+              <span className="text-base md:text-lg font-bold text-slate-900">
                 {dispPriceStr}
               </span>
               <span className="text-xs text-slate-500 mt-0.5">{getCarpetOrPriceString()}</span>
@@ -642,12 +668,12 @@ const HandpickedDetailsPage = () => {
                 const query = encodeURIComponent([property?.propertyName, property?.address?.locality, property?.address?.city].filter(Boolean).join(', '));
                 window.open(`https://maps.google.com/?q=${query}`, '_blank');
               }}
-              className="flex-1 border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center hover:border-purple-300 transition-colors"
+              className="flex-1 border border-slate-200 rounded-2xl p-3 flex flex-col items-center justify-center hover:border-blue-300 transition-colors"
             >
-              <div className="flex items-center gap-1 text-base font-bold text-slate-900">
-                <MapPin className="w-5 h-5 text-blue-600 fill-blue-600" /> Map
+              <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
+                <MapPin className="w-4 h-4 text-blue-600 fill-blue-600" /> Map
               </div>
-              <span className="text-xs text-slate-500 mt-0.5">View</span>
+              <span className="text-xs text-slate-500 mt-0.5">View on Map</span>
             </button>
           </div>
         </div>
@@ -656,14 +682,14 @@ const HandpickedDetailsPage = () => {
       {/* 2. Tabbed Sticky Navigation (Matches second image) */}
       <div className="sticky top-0 bg-white z-40 shadow-[0_4px_12px_rgba(0,0,0,0.03)] border-b border-slate-100 mt-2">
         <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center justify-between border-b border-slate-100">
-          <div className="flex space-x-12 pt-2 w-full justify-center md:justify-start">
+          <div className="flex space-x-6 pt-1 w-full justify-center md:justify-start">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`text-sm md:text-base font-bold pb-3 relative transition-colors ${
+              className={`text-sm font-bold pb-2.5 relative transition-colors ${
                 activeTab === 'overview' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
-              <div className="flex justify-center mb-1"><Grid className="w-5 h-5" /></div>
+              <div className="flex justify-center mb-0.5"><Grid className="w-4 h-4" /></div>
               Overview
               {activeTab === 'overview' && (
                 <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-900 rounded-t-md" />
@@ -671,11 +697,11 @@ const HandpickedDetailsPage = () => {
             </button>
             <button
               onClick={() => setActiveTab('properties')}
-              className={`text-sm md:text-base font-bold pb-3 relative transition-colors ${
+              className={`text-sm font-bold pb-2.5 relative transition-colors ${
                 activeTab === 'properties' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
-              <div className="flex justify-center mb-1"><Home className="w-5 h-5" /></div>
+              <div className="flex justify-center mb-0.5"><Home className="w-4 h-4" /></div>
               Properties
               {activeTab === 'properties' && (
                 <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-900 rounded-t-md" />
@@ -686,17 +712,17 @@ const HandpickedDetailsPage = () => {
       </div>
 
       {/* Main Content Layout */}
-      <div className="max-w-7xl mx-auto px-6 mt-8">
+      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 mt-4 sm:mt-8">
         {activeTab === 'overview' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column (Main Scroll) */}
-            <div className="lg:col-span-2 space-y-10">
+            <div className="lg:col-span-2 space-y-6">
               
               {/* Section 1: Overview & Highlights */}
-              <div ref={sectionRefs['overview-sec']} className="bg-white/40 border border-slate-200 rounded-3xl p-8 space-y-6">
+              <div ref={sectionRefs['overview-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <Building className="w-6 h-6 text-purple-400" /> Project Architectural Highlights
+                    <Building className="w-6 h-6 text-blue-500" /> Project Architectural Highlights
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">High-end specifications curated by Get-Right-home analysts</p>
                 </div>
@@ -705,17 +731,17 @@ const HandpickedDetailsPage = () => {
                   <div className="bg-slate-100/40 p-4 rounded-xl border border-slate-300/50">
                     <span className="text-xs text-slate-500 block font-medium">Density Configuration</span>
                     <span className="text-base font-bold text-slate-900 mt-1 block">{densityType}</span>
-                    <span className="text-[10px] text-purple-400 mt-0.5 block">{projectDensity}</span>
+                    <span className="text-[10px] text-blue-500 mt-0.5 block">{projectDensity}</span>
                   </div>
                   <div className="bg-slate-100/40 p-4 rounded-xl border border-slate-300/50">
                     <span className="text-xs text-slate-500 block font-medium">Total Area Spread</span>
                     <span className="text-base font-bold text-slate-900 mt-1 block">{totalArea} Acres</span>
-                    <span className="text-[10px] text-purple-400 mt-0.5 block">{openAreaPercentage}% Land Open & Green</span>
+                    <span className="text-[10px] text-blue-500 mt-0.5 block">{openAreaPercentage}% Land Open & Green</span>
                   </div>
                   <div className="bg-slate-100/40 p-4 rounded-xl border border-slate-300/50">
                     <span className="text-xs text-slate-500 block font-medium">Towers & Height</span>
                     <span className="text-base font-bold text-slate-900 mt-1 block">{totalTowers} Structural Towers</span>
-                    <span className="text-[10px] text-purple-400 mt-0.5 block">Avg {towersList[0]?.floors || 24} Floors / Tower</span>
+                    <span className="text-[10px] text-blue-500 mt-0.5 block">Avg {towersList[0]?.floors || 24} Floors / Tower</span>
                   </div>
                 </div>
 
@@ -732,7 +758,7 @@ const HandpickedDetailsPage = () => {
                   {propertyHighlights.length > 4 && (
                     <button
                       onClick={() => setShowAllHighlights(true)}
-                      className="text-purple-400 hover:text-purple-300 text-xs font-bold flex items-center gap-1 pt-2 transition-all"
+                      className="text-blue-500 hover:text-blue-500 text-xs font-bold flex items-center gap-1 pt-2 transition-all"
                     >
                       View all {propertyHighlights.length} highlights <ChevronDown className="w-3.5 h-3.5" />
                     </button>
@@ -804,24 +830,24 @@ const HandpickedDetailsPage = () => {
               )}
 
               {/* Section 2: Available Configs & Floor Plans */}
-              <div className="bg-white/40 border border-slate-200 rounded-3xl p-8 space-y-6">
+              <div className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                      <LayoutTemplate className="w-6 h-6 text-purple-400" /> Floor Plans & Configurations
+                      <LayoutTemplate className="w-6 h-6 text-blue-500" /> Floor Plans & Configurations
                     </h2>
                     <p className="text-slate-500 text-sm mt-1">Configure layout preferences and review room sizing</p>
                   </div>
                   <div className="bg-slate-100/80 p-0.5 rounded-full border border-slate-300 flex">
                     <button
                       onClick={() => setSqftUnit(true)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${sqftUnit ? 'bg-purple-600 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${sqftUnit ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}
                     >
                       Sq. Ft.
                     </button>
                     <button
                       onClick={() => setSqftUnit(false)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${!sqftUnit ? 'bg-purple-600 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${!sqftUnit ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}
                     >
                       Sq. M.
                     </button>
@@ -831,11 +857,11 @@ const HandpickedDetailsPage = () => {
                 {isApartmentOrVilla && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {floorPlansList.map((plan, i) => (
-                      <div key={i} className="bg-slate-100/40 border border-slate-300/50 rounded-2xl overflow-hidden hover:border-purple-500/50 transition-all flex flex-col justify-between">
+                      <div key={i} className="bg-slate-100/40 border border-slate-300/50 rounded-2xl overflow-hidden hover:border-blue-500/50 transition-all flex flex-col justify-between">
                         <div className="p-5 space-y-4">
                           <div className="flex justify-between items-start">
                             <div>
-                              <span className="px-2 py-0.5 bg-purple-900/40 text-purple-300 border border-purple-800/40 text-[10px] font-bold uppercase rounded tracking-wider">
+                              <span className="px-2 py-0.5 bg-blue-900/40 text-purple-300 border border-blue-800/40 text-[10px] font-bold uppercase rounded tracking-wider">
                                 APARTMENT PLAN
                               </span>
                               <h4 className="text-lg font-bold text-slate-900 mt-1">{plan.configType}</h4>
@@ -854,7 +880,7 @@ const HandpickedDetailsPage = () => {
                             </div>
                             <div>
                               <span className="text-slate-500 block font-medium">Starting Price</span>
-                              <span className="text-sm font-bold text-purple-400">
+                              <span className="text-sm font-bold text-blue-500">
                                 ₹{(plan.price / 10000000).toFixed(2)} Cr
                               </span>
                             </div>
@@ -866,7 +892,7 @@ const HandpickedDetailsPage = () => {
                             onClick={() => setSelectedFloorPlan(plan)}
                             className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-bold text-slate-800 rounded-xl transition-all flex items-center justify-center gap-1.5"
                           >
-                            <Maximize2 className="w-3.5 h-3.5 text-purple-400" /> View Layout & Dimensions
+                            <Maximize2 className="w-3.5 h-3.5 text-blue-500" /> View Layout & Dimensions
                           </button>
                         </div>
                       </div>
@@ -877,11 +903,11 @@ const HandpickedDetailsPage = () => {
                 {isPlot && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {plotConfigsList.map((plot, i) => (
-                      <div key={i} className="bg-slate-100/40 border border-slate-300/50 rounded-2xl overflow-hidden hover:border-purple-500/50 transition-all flex flex-col justify-between">
+                      <div key={i} className="bg-slate-100/40 border border-slate-300/50 rounded-2xl overflow-hidden hover:border-blue-500/50 transition-all flex flex-col justify-between">
                         <div className="p-5 space-y-4">
                           <div className="flex justify-between items-start">
                             <div>
-                              <span className="px-2 py-0.5 bg-purple-900/40 text-purple-300 border border-purple-800/40 text-[10px] font-bold uppercase rounded tracking-wider">
+                              <span className="px-2 py-0.5 bg-blue-900/40 text-purple-300 border border-blue-800/40 text-[10px] font-bold uppercase rounded tracking-wider">
                                 PLOT LAYOUT
                               </span>
                               <h4 className="text-lg font-bold text-slate-900 mt-1">{plot.name}</h4>
@@ -909,7 +935,7 @@ const HandpickedDetailsPage = () => {
                             onClick={() => setSelectedFloorPlan({ configType: plot.name, carpetArea: plot.totalArea, price: plot.price, isPlot: true, facing: plot.facing, dimensions: plot.dimensions, boundaryWall: plot.boundaryWall })}
                             className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-bold text-slate-800 rounded-xl transition-all flex items-center justify-center gap-1.5"
                           >
-                            <Maximize2 className="w-3.5 h-3.5 text-purple-400" /> View Layout & Details
+                            <Maximize2 className="w-3.5 h-3.5 text-blue-500" /> View Layout & Details
                           </button>
                         </div>
                       </div>
@@ -919,10 +945,10 @@ const HandpickedDetailsPage = () => {
               </div>
 
               {/* Milestone Payment Plan Widget */}
-              <div className="bg-white/40 border border-slate-200 rounded-3xl p-8 space-y-6">
+              <div className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <FileText className="w-6 h-6 text-purple-400" /> Premium Payment Plans
+                    <FileText className="w-6 h-6 text-blue-500" /> Premium Payment Plans
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">Review milestone schedules and subvention terms</p>
                 </div>
@@ -932,13 +958,13 @@ const HandpickedDetailsPage = () => {
                     <div key={i} className="bg-slate-100/30 border border-slate-200/80 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
                         <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                          <Award className="w-4 h-4 text-purple-400" /> {plan.planName}
+                          <Award className="w-4 h-4 text-blue-500" /> {plan.planName}
                         </h4>
                         <p className="text-xs text-slate-500 mt-1">Divided into {plan.milestones?.length || 0} stages of construction progress</p>
                       </div>
                       <button
                         onClick={() => setSelectedPaymentPlan(plan)}
-                        className="py-2 px-4 bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/20 text-xs font-bold text-purple-400 rounded-xl transition-all"
+                        className="py-2 px-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 text-xs font-bold text-blue-500 rounded-xl transition-all"
                       >
                         View Milestone Percentages
                       </button>
@@ -948,10 +974,10 @@ const HandpickedDetailsPage = () => {
               </div>
 
               {/* Section 3: Specifications, Towers, Construction */}
-              <div ref={sectionRefs['specs-sec']} className="bg-white/40 border border-slate-200 rounded-3xl p-8 space-y-6">
+              <div ref={sectionRefs['specs-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <Layers className="w-6 h-6 text-purple-400" /> Towers, Layout & Structural Details
+                    <Layers className="w-6 h-6 text-blue-500" /> Towers, Layout & Structural Details
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">Detailed block phases, structural floor counts, and specifications</p>
                 </div>
@@ -985,7 +1011,7 @@ const HandpickedDetailsPage = () => {
                       </div>
                       <button
                         onClick={() => setShowInteriorsModal(true)}
-                        className="py-3 px-6 bg-purple-600 hover:bg-purple-700 text-xs font-bold text-slate-900 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-purple-600/20"
+                        className="py-3 px-6 bg-blue-600 hover:bg-blue-700 text-xs font-bold text-slate-900 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-blue-600/20"
                       >
                         <Shield className="w-4 h-4" /> View Technical Materials Spec-Sheet
                       </button>
@@ -1019,7 +1045,7 @@ const HandpickedDetailsPage = () => {
               </div>
 
               {/* Locality Amenities Section with Lead-Gen photos card */}
-              <div className="bg-white rounded-3xl p-6 md:p-8 space-y-6 shadow-sm border border-slate-100">
+              <div className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold text-slate-900">
@@ -1029,7 +1055,7 @@ const HandpickedDetailsPage = () => {
                   </div>
                   <button
                     onClick={() => setShowAllAmenities(true)}
-                    className="text-purple-600 hover:text-purple-700 text-xs font-bold transition-all"
+                    className="text-blue-600 hover:text-purple-700 text-xs font-bold transition-all"
                   >
                     View All
                   </button>
@@ -1037,7 +1063,7 @@ const HandpickedDetailsPage = () => {
 
                 {/* Lead-gen card - Light Theme */}
                 {!amenityRequestSuccess ? (
-                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="bg-gradient-to-r from-blue-50 to-blue-50 border border-blue-100 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                       <h4 className="text-base font-bold text-slate-900">Need actual photos of clubhouse & amenities?</h4>
                       <p className="text-sm text-slate-600 mt-1">Our on-site advisors can message you latest site images directly.</p>
@@ -1047,7 +1073,7 @@ const HandpickedDetailsPage = () => {
                         setAmenityRequestSuccess(true);
                         toast.success("Request submitted! We will send photos on WhatsApp shortly.");
                       }}
-                      className="py-3 px-5 bg-purple-600 hover:bg-purple-700 text-sm font-bold text-white rounded-xl transition-all shadow-md shadow-purple-600/20"
+                      className="py-3 px-5 bg-blue-600 hover:bg-blue-700 text-sm font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/20"
                     >
                       Request Photos via WhatsApp
                     </button>
@@ -1060,8 +1086,8 @@ const HandpickedDetailsPage = () => {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {(property?.amenities?.length > 0 ? property.amenities.slice(0, 8) : ["Clubhouse", "Swimming Pool", "Biometric Lobby", "EV Charging Station", "Jogging Track", "24/7 Security", "Central Park", "Mini Theatre"]).map((am, i) => (
-                    <div key={i} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 text-xs text-slate-800 shadow-sm hover:border-purple-200 transition-colors">
-                      <div className="p-1.5 bg-purple-100 text-purple-600 rounded-lg">
+                    <div key={i} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 text-xs text-slate-800 shadow-sm hover:border-blue-200 transition-colors">
+                      <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
                         <Check className="w-3.5 h-3.5" />
                       </div>
                       <span className="font-medium truncate">{am}</span>
@@ -1071,10 +1097,10 @@ const HandpickedDetailsPage = () => {
               </div>
 
               {/* Section 4: Location, What Locals Said, Pros & Cons */}
-              <div ref={sectionRefs['locality-sec']} className="bg-white/40 border border-slate-200 rounded-3xl p-8 space-y-6">
+              <div ref={sectionRefs['locality-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <MapPin className="w-6 h-6 text-purple-400" /> Locality Insights & Real Reviews
+                    <MapPin className="w-6 h-6 text-blue-500" /> Locality Insights & Real Reviews
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">What resident locals and safety maps tell about this sector</p>
                 </div>
@@ -1083,7 +1109,7 @@ const HandpickedDetailsPage = () => {
                 <div className="relative h-48 w-full rounded-2xl overflow-hidden border border-slate-200 bg-white">
                   <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]"></div>
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center space-y-2">
-                    <div className="p-3 bg-purple-600 text-white rounded-full animate-bounce shadow-lg shadow-purple-600/30">
+                    <div className="p-3 bg-blue-600 text-white rounded-full animate-bounce shadow-lg shadow-blue-600/30">
                       <MapPin className="w-6 h-6" />
                     </div>
                     <p className="text-xs font-bold text-slate-800 mt-2">{property?.address?.locality}, {property?.address?.city}</p>
@@ -1093,7 +1119,7 @@ const HandpickedDetailsPage = () => {
 
                 {/* What Locals Said Cards Slider */}
                 <div className="space-y-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-purple-400">Locality Sentiments Insights</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-blue-500">Locality Sentiments Insights</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {localSentiments.slice(0, 2).map((item, idx) => (
                       <div key={idx} className="bg-slate-100/30 border border-slate-200 p-4 rounded-xl space-y-1">
@@ -1140,7 +1166,7 @@ const HandpickedDetailsPage = () => {
                 <div className="text-center pt-2">
                   <button
                     onClick={() => setShowProsConsModal(true)}
-                    className="text-xs font-bold text-purple-400 hover:text-purple-300 transition-colors"
+                    className="text-xs font-bold text-blue-500 hover:text-blue-500 transition-colors"
                   >
                     View detailed pros & cons analysis page
                   </button>
@@ -1272,7 +1298,7 @@ const HandpickedDetailsPage = () => {
               })()}
 
               {/* Projects by Builder List */}
-              <div className="bg-white rounded-3xl p-6 md:p-8 space-y-6 shadow-sm border border-slate-100">
+              <div className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
                 <h2 className="text-xl md:text-2xl font-bold text-slate-900">Projects by {builderTrackRecord.name}</h2>
                 <div className="flex items-center gap-4 border-b border-slate-100 pb-2">
                   {['ongoing', 'upcoming', 'delivered'].map((tab) => (
@@ -1292,7 +1318,7 @@ const HandpickedDetailsPage = () => {
                     const simLocality = simItem.address?.locality || '';
                     const simCover = simItem.images?.cover || NO_IMAGE_PLACEHOLDER;
                     return (
-                      <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[200px] shrink-0 shadow-sm hover:border-purple-300 transition-colors cursor-pointer">
+                      <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[200px] shrink-0 shadow-sm hover:border-blue-300 transition-colors cursor-pointer">
                         <img src={simCover} className="w-full h-24 object-cover rounded-lg mb-3" />
                         <h5 className="text-sm font-bold text-gray-800 line-clamp-1">{simName}</h5>
                         <p className="text-[11px] text-slate-500 font-bold mb-1 line-clamp-1">{simLocality}</p>
@@ -1304,7 +1330,7 @@ const HandpickedDetailsPage = () => {
               </div>
 
               {/* Compare with similar homes list carousel */}
-              <div className="bg-white rounded-3xl p-6 md:p-8 space-y-6 shadow-sm border border-slate-100">
+              <div className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
                 <h2 className="text-2xl font-bold text-slate-900">Compare with Similar Homes</h2>
                 <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar pb-2">
                   {(similarProperties?.length > 0 ? similarProperties : fallbackSimilarProperties).map((simItem, i) => {
@@ -1315,7 +1341,7 @@ const HandpickedDetailsPage = () => {
                     const ratingVal = simItem.avgRating || 0;
 
                     return (
-                      <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[160px] shrink-0 shadow-sm hover:border-purple-300 transition-colors cursor-pointer">
+                      <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[160px] shrink-0 shadow-sm hover:border-blue-300 transition-colors cursor-pointer">
                         <img src={simCover} className="w-full h-20 object-cover rounded-lg mb-2" />
                         <h5 className="text-[11px] font-bold text-gray-800 line-clamp-1">{simName}</h5>
                         <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{simLocality}</p>
@@ -1335,13 +1361,13 @@ const HandpickedDetailsPage = () => {
               </div>
 
               {/* Locality Reviews Section */}
-              <div id="explore-locality" className="bg-white rounded-3xl p-6 md:p-8 space-y-6 shadow-sm border border-slate-100">
+              <div id="explore-locality" className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="text-2xl font-bold text-slate-900">Locality Reviews</h3>
                     <p className="text-sm text-slate-500 mt-1">For {property?.address?.locality || property?.address?.city || 'this area'}</p>
                   </div>
-                  <button className="text-sm font-bold text-purple-600 hover:underline transition-all">
+                  <button onClick={() => navigate('/insights/' + (property?.address?.locality || 'Locality') + '/reviews')} className="text-sm font-bold text-blue-600 hover:underline transition-all">
                     View all
                   </button>
                 </div>
@@ -1371,7 +1397,7 @@ const HandpickedDetailsPage = () => {
                           <span className="w-2">{starVal}</span>
                           <Star size={10} className="fill-slate-400 text-slate-400" />
                           <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-purple-500 rounded-full" style={{ width: `${percentage}%` }} />
+                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${percentage}%` }} />
                           </div>
                           <span className="w-6 text-right opacity-70">{starVal === 5 ? '5★' : `${starVal}★`}</span>
                         </div>
@@ -1446,7 +1472,7 @@ const HandpickedDetailsPage = () => {
                           <h6 className="text-sm font-bold text-slate-900 mb-1.5 line-clamp-1">{rev.title || 'Locality Rating'}</h6>
                           <p className="line-clamp-3 leading-relaxed opacity-95">{rev.reviewText || rev.review}</p>
                           <div className="flex items-center gap-3 mt-4 pt-3 border-t border-slate-200">
-                            <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xs">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
                               {reviewerName.charAt(0).toUpperCase()}
                             </div>
                             <div>
@@ -1467,7 +1493,7 @@ const HandpickedDetailsPage = () => {
             <div className="space-y-6 lg:sticky lg:top-[120px] self-start h-auto">
               
               {/* Main Booking/Lead Panel */}
-              <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-md space-y-6">
+              <div className="bg-white border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-6 shadow-md space-y-6">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Enquire About This Project</h3>
                   <p className="text-xs text-slate-500 mt-1">Get-Right-home verified agent callback within 15 minutes</p>
@@ -1484,7 +1510,7 @@ const HandpickedDetailsPage = () => {
                     <button
                       onClick={handleRevealContact}
                       disabled={revealLoading}
-                      className="py-2 px-4 bg-purple-600/20 hover:bg-purple-600/35 border border-purple-500/30 text-xs font-bold text-purple-300 rounded-xl transition-all flex items-center gap-1"
+                      className="py-2 px-4 bg-blue-600/20 hover:bg-blue-600/35 border border-blue-500/30 text-xs font-bold text-purple-300 rounded-xl transition-all flex items-center gap-1"
                     >
                       {revealLoading ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
@@ -1498,28 +1524,28 @@ const HandpickedDetailsPage = () => {
                   <div className="space-y-3">
                     <button
                       onClick={() => setShowEnquiryModal(true)}
-                      className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-sm font-bold text-slate-900 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30"
+                      className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-sm font-bold text-slate-900 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30"
                     >
                       <MessageSquare className="w-4 h-4" /> Schedule Visit / Callback
                     </button>
                     <a
-                      href={`https://wa.me/91${revealedNumber || property?.contactNumber || ''}?text=I%20am%20interested%20in%20${encodeURIComponent(property?.propertyName || 'Handpicked Project')}`}
+                      href={`https://wa.me/918884976767?text=I%20am%20interested%20in%20${encodeURIComponent(property?.propertyName || 'Handpicked Project')}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full py-3.5 bg-slate-100 hover:bg-slate-750 border border-slate-300 text-sm font-semibold text-slate-800 rounded-2xl transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-sm font-semibold text-slate-800 rounded-2xl transition-all flex items-center justify-center gap-2"
                     >
-                      <Phone className="w-4 h-4 text-emerald-400" /> WhatsApp Direct Chat
+                      <Phone className="w-4 h-4 text-emerald-500" /> WhatsApp Direct Chat
                     </a>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-slate-200/80 text-[11px] text-slate-500 space-y-2.5">
                   <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                    <Shield className="w-4 h-4 text-blue-500 flex-shrink-0" />
                     <span>Get-Right-home zero-brokerage guarantee.</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Info className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                    <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />
                     <span>Real-time pricing synced with developer catalog.</span>
                   </div>
                 </div>
@@ -1527,14 +1553,14 @@ const HandpickedDetailsPage = () => {
 
               {/* Similar properties shortcut panel */}
               {similarProperties.length > 0 && (
-                <div className="bg-white/40 border border-slate-200 rounded-3xl p-6 space-y-4">
+                <div className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-6 space-y-4">
                   <h3 className="text-sm font-bold text-slate-800">Other Handpicked Near Locality</h3>
                   <div className="space-y-3">
                     {similarProperties.slice(0, 3).map((sim, idx) => (
                       <div
                         key={idx}
                         onClick={() => navigate(`/handpicked/${sim._id}`)}
-                        className="flex gap-3 p-2 bg-white/80 border border-slate-200 rounded-xl hover:border-purple-500/30 transition-all cursor-pointer"
+                        className="flex gap-3 p-2 bg-white/80 border border-slate-200 rounded-xl hover:border-blue-500/30 transition-all cursor-pointer"
                       >
                         <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
                           <img src={sim.coverImage || NO_IMAGE_PLACEHOLDER} className="w-full h-full object-cover" alt="" />
@@ -1542,7 +1568,7 @@ const HandpickedDetailsPage = () => {
                         <div className="min-w-0">
                           <h4 className="text-xs font-bold text-slate-900 truncate">{sim.propertyName}</h4>
                           <p className="text-[10px] text-slate-500 mt-0.5">{sim.address?.locality}</p>
-                          <span className="text-[11px] font-bold text-purple-400 mt-1 block">
+                          <span className="text-[11px] font-bold text-blue-500 mt-1 block">
                             ₹{sim.buyDetails?.price ? (sim.buyDetails.price / 10000000).toFixed(2) : '1.10'} Cr+
                           </span>
                         </div>
@@ -1610,7 +1636,7 @@ const HandpickedDetailsPage = () => {
 
             <div className="grid grid-cols-1 gap-6">
               {availableUnitsList.map((unit, idx) => (
-                <div key={idx} className="bg-white/60 border border-slate-850 rounded-3xl overflow-hidden hover:border-purple-500/30 transition-all flex flex-col md:flex-row gap-6 p-6">
+                <div key={idx} className="bg-white/60 border border-slate-850 rounded-3xl overflow-hidden hover:border-blue-500/30 transition-all flex flex-col md:flex-row gap-6 p-6">
                   <div className="w-full md:w-80 h-48 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0">
                     <img src={unit.images?.[0] || NO_IMAGE_PLACEHOLDER} className="w-full h-full object-cover" alt="" />
                   </div>
@@ -1618,13 +1644,13 @@ const HandpickedDetailsPage = () => {
                     <div className="space-y-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <span className="px-2.5 py-0.5 bg-purple-900/40 border border-purple-800/40 text-purple-300 text-[10px] font-bold rounded uppercase tracking-wide">
+                          <span className="px-2.5 py-0.5 bg-blue-900/40 border border-blue-800/40 text-purple-300 text-[10px] font-bold rounded uppercase tracking-wide">
                             {unit.roomCategory || 'Unit'}
                           </span>
                           <h4 className="text-lg font-bold text-slate-900 mt-1">{unit.name}</h4>
                         </div>
                         <div className="text-right">
-                          <span className="text-xl font-extrabold text-purple-400">
+                          <span className="text-xl font-extrabold text-blue-500">
                             ₹{(unit.pricePerNight / 10000000).toFixed(2)} Cr
                           </span>
                           <span className="text-[10px] text-slate-500 block mt-0.5">All-inclusive Estimate</span>
@@ -1652,7 +1678,7 @@ const HandpickedDetailsPage = () => {
                         </button>
                         <button
                           onClick={() => setShowEnquiryModal(true)}
-                          className="py-2.5 px-5 bg-purple-600 hover:bg-purple-700 text-xs font-bold text-slate-900 rounded-xl transition-all shadow-md shadow-purple-600/25"
+                          className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/25"
                         >
                           Request Callback
                         </button>
@@ -1666,45 +1692,21 @@ const HandpickedDetailsPage = () => {
         )}
       </div>
 
-      {/* Sticky Bottom Action Bar for Desktop/Mobile Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200 py-4 px-6 z-40 shadow-md"><div className="flex items-center justify-between max-w-7xl mx-auto">
-        <div className="hidden sm:block">
-          <p className="text-[10px] text-slate-500 font-semibold tracking-wider uppercase">Project starting at</p>
-          <p className="text-2xl font-extrabold text-purple-400">
-            ₹{property?.buyDetails?.price ? (property.buyDetails.price / 10000000).toFixed(2) : '1.25'} Cr
-          </p>
-        </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          <button
-            onClick={() => {
-              toast.success("Download started! Project brochure saved successfully.");
-            }}
-            className="flex-1 sm:flex-initial py-3.5 px-6 bg-slate-100 hover:bg-slate-750 border border-slate-300 text-xs font-bold text-slate-800 rounded-xl transition-all flex items-center justify-center gap-2"
-          >
-            <FileText className="w-4 h-4 text-purple-400" /> Brochure
-          </button>
-          <button
-            onClick={() => setShowEnquiryModal(true)}
-            className="flex-1 sm:flex-initial py-3.5 px-8 bg-purple-600 hover:bg-purple-700 text-xs font-bold text-slate-900 rounded-xl transition-all shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2"
-          >
-            <MessageSquare className="w-4 h-4" /> Book Consultation Call
-          </button>
-        </div>
-      </div></div>
+
 
       {/* MODALS & BOTTOM SHEETS */}
       <AnimatePresence>
         
         {/* Floor Plan Modal */}
         {selectedFloorPlan && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl overflow-hidden shadow-md"
+              className="bg-white rounded-3xl shadow-2xl flex flex-col w-full max-w-3xl max-h-[90vh] overflow-hidden"
             >
-              <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-white/60 backdrop-blur-md">
+              <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">{selectedFloorPlan.configType} Layout</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Configured dimensions and carpet values</p>
@@ -1717,7 +1719,7 @@ const HandpickedDetailsPage = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 flex-1 overflow-y-auto">
                 <div className="p-6 flex flex-col justify-center bg-slate-50 border-r border-slate-200">
                   <div className="relative aspect-video rounded-xl overflow-hidden border border-slate-200 bg-black/50 flex items-center justify-center">
                     <img
@@ -1726,7 +1728,7 @@ const HandpickedDetailsPage = () => {
                       alt=""
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">
-                      <span className="text-[10px] text-purple-300 font-semibold bg-purple-900/40 border border-purple-800/40 px-2 py-0.5 rounded uppercase">2D Architectural Plan</span>
+                      <span className="text-[10px] text-blue-300 font-semibold bg-blue-900/40 border border-blue-800/40 px-2 py-0.5 rounded uppercase">2D Architectural Plan</span>
                     </div>
                   </div>
                 </div>
@@ -1775,7 +1777,7 @@ const HandpickedDetailsPage = () => {
 
                   <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-xs">
                     <span className="text-slate-500">Estimated Sizing Price</span>
-                    <span className="text-lg font-bold text-purple-400">
+                    <span className="text-lg font-bold text-blue-600">
                       ₹{(selectedFloorPlan.price / 10000000).toFixed(2)} Cr+
                     </span>
                   </div>
@@ -1787,14 +1789,14 @@ const HandpickedDetailsPage = () => {
 
         {/* Payment Plan Milestones Modal */}
         {selectedPaymentPlan && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg overflow-hidden shadow-md"
+              className="bg-white rounded-3xl shadow-2xl flex flex-col w-full max-w-lg max-h-[90vh] overflow-hidden"
             >
-              <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+              <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Payment Milestones Breakdown</h3>
                   <p className="text-xs text-slate-500 mt-0.5">{selectedPaymentPlan.planName}</p>
@@ -1807,10 +1809,10 @@ const HandpickedDetailsPage = () => {
                 </button>
               </div>
 
-              <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-none">
+              <div className="p-5 flex-1 overflow-y-auto space-y-4">
                 {selectedPaymentPlan.milestones?.map((milestone, idx) => (
                   <div key={idx} className="flex gap-4 items-start p-3 bg-slate-100/30 border border-slate-200 rounded-xl">
-                    <div className="w-12 h-12 bg-purple-900/40 text-purple-400 border border-purple-800/40 rounded-xl flex items-center justify-center font-black flex-shrink-0">
+                    <div className="w-12 h-12 bg-blue-900/40 text-blue-600 border border-blue-800/40 rounded-xl flex items-center justify-center font-black flex-shrink-0">
                       {milestone.percentage}%
                     </div>
                     <div>
@@ -1826,14 +1828,14 @@ const HandpickedDetailsPage = () => {
 
         {/* Highlights Bottom Sheet / Modal */}
         {showAllHighlights && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 50, opacity: 0 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl overflow-hidden shadow-md"
+              className="bg-white rounded-3xl shadow-2xl flex flex-col w-full max-w-xl max-h-[90vh] overflow-hidden"
             >
-              <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+              <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Full Highlights & USPs</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Analyst verified list of unique selling points</p>
@@ -1846,7 +1848,7 @@ const HandpickedDetailsPage = () => {
                 </button>
               </div>
 
-              <div className="p-6 space-y-3.5 max-h-[60vh] overflow-y-auto pr-2 scrollbar-none">
+              <div className="p-5 flex-1 overflow-y-auto space-y-3.5">
                 {propertyHighlights.map((hl, i) => (
                   <div key={i} className="flex gap-3 items-start p-3 bg-slate-100/35 border border-slate-200 rounded-xl">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
@@ -1860,14 +1862,14 @@ const HandpickedDetailsPage = () => {
 
         {/* Full Amenities sheet */}
         {showAllAmenities && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl overflow-hidden shadow-md"
+              className="bg-white rounded-3xl shadow-2xl flex flex-col w-full max-w-3xl max-h-[90vh] overflow-hidden"
             >
-              <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+              <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Full Amenities Catalog</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Categorized list of project features & common amenities</p>
@@ -1880,10 +1882,10 @@ const HandpickedDetailsPage = () => {
                 </button>
               </div>
 
-              <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-none">
+              <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-4 flex-1 overflow-y-auto">
                 {(property?.amenities?.length > 0 ? property.amenities : ["Clubhouse", "Swimming Pool", "Biometric Lobby", "EV Charging Station", "Jogging Track", "24/7 Security", "Central Park", "Mini Theatre", "Gymnasium", "Indoor Squash Court", "Kid's Play Area", "Visitor's Lounge"]).map((am, i) => (
-                  <div key={i} className="p-3 bg-slate-100/40 border border-slate-200 rounded-xl flex items-center gap-2.5 text-xs text-slate-800">
-                    <div className="p-1 bg-purple-900/40 text-purple-400 rounded">
+                  <div key={i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2.5 text-xs text-slate-800 shadow-sm">
+                    <div className="p-1.5 bg-blue-100 text-blue-600 rounded">
                       <Check className="w-3.5 h-3.5" />
                     </div>
                     <span className="font-medium truncate">{am}</span>
@@ -1896,17 +1898,17 @@ const HandpickedDetailsPage = () => {
 
         {/* Material & Construction spec sheet modal */}
         {showInteriorsModal && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl overflow-hidden shadow-md"
+              className="bg-white rounded-3xl shadow-2xl flex flex-col w-full max-w-3xl max-h-[90vh] overflow-hidden"
             >
-              <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-white/60 backdrop-blur-md">
+              <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-1.5">
-                    <Shield className="w-5.5 h-5.5 text-purple-400" /> Technical Material Spec-Sheet
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
+                    <Shield className="w-5.5 h-5.5 text-blue-500" /> Technical Material Spec-Sheet
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">Detailed engineering materials, doors, wiring specifications</p>
                 </div>
@@ -1918,13 +1920,13 @@ const HandpickedDetailsPage = () => {
                 </button>
               </div>
 
-              <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none text-xs font-semibold">
+              <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none text-xs font-semibold shrink-0">
                 {Object.keys(constructionSpecs).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveInteriorTab(tab)}
                     className={`px-5 py-3 transition-colors capitalize ${
-                      activeInteriorTab === tab ? 'text-purple-400 border-b-2 border-purple-500' : 'text-slate-500 hover:text-slate-800'
+                      activeInteriorTab === tab ? 'text-blue-600 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
                     {tab}
@@ -1932,7 +1934,7 @@ const HandpickedDetailsPage = () => {
                 ))}
               </div>
 
-              <div className="p-6 space-y-4 max-h-[50vh] overflow-y-auto scrollbar-none">
+              <div className="p-5 flex-1 overflow-y-auto space-y-4">
                 <div className="bg-slate-955 rounded-2xl p-5 border border-slate-200/80">
                   <h4 className="text-sm font-bold text-slate-800 capitalize">{activeInteriorTab} Specifications</h4>
                   <div className="mt-3.5 space-y-3">
@@ -1945,7 +1947,7 @@ const HandpickedDetailsPage = () => {
                   </div>
                 </div>
 
-                <div className="bg-purple-900/10 border border-purple-800/30 p-4 rounded-xl flex items-start gap-2.5 text-xs text-purple-300">
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-start gap-2.5 text-xs text-blue-600 mt-4">
                   <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>Quality checked on site by Get-Right-home construction auditing team. ISO 9001 certifications verified.</span>
                 </div>
@@ -1956,17 +1958,17 @@ const HandpickedDetailsPage = () => {
 
         {/* Detailed Pros & Cons full screen Modal */}
         {showProsConsModal && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[99999] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl overflow-hidden shadow-md"
+              className="bg-white rounded-3xl shadow-2xl flex flex-col w-full max-w-2xl max-h-[90vh] overflow-hidden"
             >
-              <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+              <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-1.5">
-                    <TrendingUp className="w-5.5 h-5.5 text-purple-400" /> Locality Positives & Concerns Matrix
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
+                    <TrendingUp className="w-5.5 h-5.5 text-blue-500" /> Locality Positives & Concerns Matrix
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">Analyzed by community residents & traffic telemetry</p>
                 </div>
@@ -1978,7 +1980,7 @@ const HandpickedDetailsPage = () => {
                 </button>
               </div>
 
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto scrollbar-none">
+              <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-y-auto">
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
                     <ThumbsUp className="w-4 h-4" /> Locality Positives
@@ -2011,17 +2013,17 @@ const HandpickedDetailsPage = () => {
 
         {/* Comparison Matrix Modal */}
         {showComparisonMatrix && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="fixed inset-0 z-[99999] bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-4xl overflow-hidden shadow-md"
+              className="bg-white rounded-3xl shadow-2xl flex flex-col w-full max-w-4xl max-h-[90vh] overflow-hidden"
             >
-              <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-white/60 backdrop-blur-md">
+              <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
-                  <h3 className="text-base sm:text-xl font-bold text-slate-900 flex items-center gap-1.5">
-                    <Compass className="w-5 h-5 text-purple-400" /> Project Comparison Matrix
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-1.5">
+                    <Compass className="w-5 h-5 text-blue-500" /> Project Comparison Matrix
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">Compare against similar {property?.address?.city || 'local'} projects</p>
                 </div>
@@ -2033,12 +2035,12 @@ const HandpickedDetailsPage = () => {
                 </button>
               </div>
 
-              <div className="p-4 sm:p-6 overflow-auto max-h-[70vh] scrollbar-none">
+              <div className="p-4 sm:p-5 flex-1 overflow-auto">
                 <table className="min-w-[520px] w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200">
                       <th className="py-4 px-3 font-semibold text-slate-500 text-left w-48">Key Metric</th>
-                      <th className="py-4 px-3 font-bold text-purple-400 border-x border-purple-500/20 bg-purple-500/5">{property?.propertyName || 'This Property'}</th>
+                      <th className="py-4 px-3 font-bold text-purple-400 border-x border-blue-500/20 bg-blue-500/5">{property?.propertyName || 'This Property'}</th>
                       {similarProperties.slice(0, 2).map((sim, i) => (
                         <th key={i} className="py-4 px-3 font-bold text-slate-800">{sim.propertyName}</th>
                       ))}
@@ -2047,7 +2049,7 @@ const HandpickedDetailsPage = () => {
                   <tbody>
                     <tr className="border-b border-slate-200 hover:bg-slate-100/20">
                       <td className="py-3.5 px-3 text-slate-500 font-medium">Estimated Pricing</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-purple-500/20 bg-purple-500/5">
+                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">
                         ₹{property?.buyDetails?.price ? (property.buyDetails.price / 10000000).toFixed(2) : '1.25'} Cr+
                       </td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
@@ -2058,21 +2060,21 @@ const HandpickedDetailsPage = () => {
                     </tr>
                     <tr className="border-b border-slate-200 hover:bg-slate-100/20">
                       <td className="py-3.5 px-3 text-slate-500 font-medium">Architectural Density</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-purple-500/20 bg-purple-500/5">{densityType} ({projectDensity})</td>
+                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{densityType} ({projectDensity})</td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
                         <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.densityType || '65 units/acre'}</td>
                       ))}
                     </tr>
                     <tr className="border-b border-slate-200 hover:bg-slate-100/20">
                       <td className="py-3.5 px-3 text-slate-500 font-medium">Total Area Spread</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-purple-500/20 bg-purple-500/5">{totalArea} Acres</td>
+                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{totalArea} Acres</td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
                         <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.totalArea || '8.20'} Acres</td>
                       ))}
                     </tr>
                     <tr className="border-b border-slate-200 hover:bg-slate-100/20">
                       <td className="py-3.5 px-3 text-slate-500 font-medium">Green Open Area</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-purple-500/20 bg-purple-500/5">{openAreaPercentage}%</td>
+                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{openAreaPercentage}%</td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
                         <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.openAreaPercentage || '60'}%</td>
                       ))}
@@ -2100,14 +2102,14 @@ const HandpickedDetailsPage = () => {
 
         {/* Enquiry Modal */}
         {showEnquiryModal && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-md overflow-hidden shadow-md p-6 space-y-6"
+              className="bg-white rounded-3xl shadow-2xl flex flex-col w-full max-w-md max-h-[90vh] overflow-hidden"
             >
-              <div className="flex justify-between items-start">
+              <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">Schedule Callback Consultation</h3>
                   <p className="text-xs text-slate-500 mt-1">Get-Right-home verified agent response within 15 minutes</p>
@@ -2120,7 +2122,7 @@ const HandpickedDetailsPage = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleEnquirySubmit} className="space-y-4">
+              <form onSubmit={handleEnquirySubmit} className="space-y-4 p-5 flex-1 overflow-y-auto">
                 <div className="space-y-1.5">
                   <label className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Your Full Name</label>
                   <input
@@ -2128,7 +2130,7 @@ const HandpickedDetailsPage = () => {
                     required
                     value={enquiryForm.name}
                     onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-purple-500 transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-blue-500 transition-all"
                     placeholder="Enter your name"
                   />
                 </div>
@@ -2139,7 +2141,7 @@ const HandpickedDetailsPage = () => {
                     required
                     value={enquiryForm.phone}
                     onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-purple-500 transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-blue-500 transition-all"
                     placeholder="Enter 10-digit Indian phone number"
                   />
                 </div>
@@ -2149,7 +2151,7 @@ const HandpickedDetailsPage = () => {
                     type="email"
                     value={enquiryForm.email}
                     onChange={(e) => setEnquiryForm({ ...enquiryForm, email: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-purple-500 transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-blue-500 transition-all"
                     placeholder="name@example.com (Optional)"
                   />
                 </div>
@@ -2159,14 +2161,14 @@ const HandpickedDetailsPage = () => {
                     rows="3"
                     value={enquiryForm.message}
                     onChange={(e) => setEnquiryForm({ ...enquiryForm, message: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-purple-500 transition-all resize-none"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-blue-500 transition-all resize-none"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={enquirySubmitting}
-                  className="w-full py-4 bg-purple-600 hover:bg-purple-750 text-xs font-bold text-slate-900 rounded-xl transition-all shadow flex items-center justify-center gap-1.5"
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-sm font-bold text-white rounded-xl transition-all shadow flex items-center justify-center gap-1.5"
                 >
                   {enquirySubmitting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -2236,18 +2238,18 @@ const HandpickedDetailsPage = () => {
 
       </AnimatePresence>
       {/* Fixed Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 pb-8 md:p-4 z-[9999] flex items-center justify-between gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.08)]">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 pb-safe md:p-4 z-[9999] flex items-center justify-between gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.08)]">
         <a 
           href={builderDetails.brochureUrl || "#"} 
-          className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-full border-2 border-blue-100 bg-blue-50 text-blue-600 font-bold text-sm hover:bg-blue-100 transition-colors"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
         >
-          <Download className="w-4 h-4" /> Brochure
+          <Download className="w-3.5 h-3.5" /> Brochure
         </a>
         <button 
           onClick={() => setShowEnquiryModal(true)}
-          className="flex-[1.5] flex items-center justify-center gap-2 py-4 rounded-full bg-blue-600 text-white font-bold text-sm shadow-md shadow-blue-600/30 hover:bg-blue-700 transition-colors"
+          className="flex-[1.5] flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-blue-600 text-white font-bold text-xs shadow-md shadow-blue-600/30 hover:bg-blue-700 transition-colors"
         >
-          View number
+          View Number
         </button>
       </div>
 
