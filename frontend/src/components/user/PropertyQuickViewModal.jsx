@@ -152,7 +152,7 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
 
   const handleShare = (e) => {
     e.stopPropagation();
-    const shareUrl = `${window.location.origin}/hotel/${_id}`;
+    const shareUrl = `${window.location.origin}${getPropertyPath(property)}`;
     if (navigator.share) {
       navigator.share({
         title: displayName,
@@ -169,7 +169,7 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
     e.stopPropagation();
     if (!localStorage.getItem('user')) {
       toast.error('Please login to send enquiry');
-      navigate('/login', { state: { from: `/hotel/${_id}` } });
+      navigate('/login', { state: { from: getPropertyPath(property) } });
       onClose();
       return;
     }
@@ -373,11 +373,7 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
               <button
                 onClick={() => {
                   onClose();
-                  if (property.isAddedByAdmin) {
-                    navigate(`/handpicked/${_id}`);
-                  } else {
-                    navigate(`/hotel/${_id}`);
-                  }
+                  navigateToProperty(property);
                 }}
                 className="flex items-center justify-center gap-1.5 w-full py-2.5 mt-1 border border-gray-700 hover:border-gray-500 rounded-xl text-xs font-bold active:scale-95 transition-all bg-transparent text-gray-200"
               >

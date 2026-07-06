@@ -224,7 +224,7 @@ const Layout = ({ children }) => {
   const showUserNavs = !isPartnerApp;
 
   // Specific user pages where BottomNav is hidden (reels = full-screen experience)
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/property/', '/handpicked/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
   const isReelsPage = location.pathname.startsWith('/reels');
 

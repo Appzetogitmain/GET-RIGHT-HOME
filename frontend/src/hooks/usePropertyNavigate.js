@@ -19,7 +19,7 @@ export const usePropertyNavigate = () => {
 
     // 2. Determine prefix based on property type (hotel vs property)
     const propertyType = property.propertyType || '';
-    const hotelTypes = ['hotel', 'resort', 'hostel', 'pg', 'villa', 'homestay'];
+    const hotelTypes = ['hotel', 'resort', 'homestay'];
     const isHotelType = hotelTypes.includes(propertyType.toLowerCase());
 
     return isHotelType ? `/hotel/${id}` : `/property/${id}`;
