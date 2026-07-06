@@ -161,7 +161,15 @@ const SearchPage = () => {
         } else if (pathName === '/buy') {
             categoryTab = 'Sell';
         } else if (transactionTypeVal) {
-            categoryTab = transactionTypeVal;
+            if (transactionTypeVal.toLowerCase() === 'buy' || transactionTypeVal.toLowerCase() === 'sell') {
+                categoryTab = 'Sell';
+            } else if (transactionTypeVal.toLowerCase() === 'rent') {
+                categoryTab = 'Rent / Lease';
+            } else if (transactionTypeVal.toLowerCase() === 'pg') {
+                categoryTab = 'Paying Guest';
+            } else {
+                categoryTab = transactionTypeVal;
+            }
         } else if (typeVal.toLowerCase().includes('pg') || typeVal.toLowerCase().includes('hostel')) {
             categoryTab = 'Paying Guest';
         } else if (typeVal.toLowerCase().includes('rent')) {
@@ -343,38 +351,19 @@ const SearchPage = () => {
 
     useEffect(() => {
         fetchProperties();
-    }, [searchParams, location]);
+    }, [searchParams, location, propertyTypes]);
 
     const fetchProperties = async () => {
         setLoading(true);
         try {
-            const params = Object.fromEntries([...searchParams]);
-
-            // Pathname overrides
-            const pathName = window.location.pathname;
-            if (pathName === '/rent') {
-                params.transactionType = 'Rent / Lease';
-                const rentIdObj = propertyTypes.find(t => t.label === 'Rent');
-                params.type = rentIdObj && rentIdObj.id !== 'rent' ? rentIdObj.id : 'rent';
-            } else if (pathName === '/pg-coliving') {
-                params.transactionType = 'Paying Guest';
-                const pgIdObj = propertyTypes.find(t => t.label === 'PG');
-                params.type = pgIdObj && pgIdObj.id !== 'pg' ? pgIdObj.id : 'pg';
-            } else if (pathName === '/plot') {
-                params.transactionType = 'Sell';
-                const plotIdObj = propertyTypes.find(t => t.label === 'Plot');
-                params.type = plotIdObj && plotIdObj.id !== 'plot' ? plotIdObj.id : 'plot';
-            } else if (pathName === '/buy') {
-                params.transactionType = 'Sell';
-                const buyIdObj = propertyTypes.find(t => t.label === 'Buy');
-                params.type = buyIdObj && buyIdObj.id !== 'buy' ? buyIdObj.id : 'buy';
-            }
+            const currentFilters = getInitialFilters();
+            const params = getParamsFromFilters(currentFilters);
 
             // Add location if present
             if (location) {
                 params.lat = location.lat;
                 params.lng = location.lng;
-                params.radius = filters.radius;
+                params.radius = currentFilters.radius;
             }
 
             // Fetch properties and saved status in parallel if logged in

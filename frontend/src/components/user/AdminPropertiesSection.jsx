@@ -457,7 +457,11 @@ const AdminPropertiesSection = ({ searchCity, transactionType }) => {
                     {displayProperties.length > 0 && (
                         <button
                             onClick={() => {
-                                navigate(`/search?city=${selectedCity || ''}`);
+                                let url = `/search?city=${selectedCity || ''}`;
+                                if (transactionType) {
+                                    url += `&transactionType=${transactionType.toLowerCase()}`;
+                                }
+                                navigate(url);
                                 window.scrollTo(0, 0);
                             }}
                             className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
