@@ -150,7 +150,7 @@ const SearchPage = () => {
         const pCategory = searchParams.get('propertyCategory') || '';
         const transactionTypeVal = searchParams.get('transactionType') || '';
 
-        let categoryTab = 'Sell';
+        let categoryTab = 'All';
         const pathName = window.location.pathname;
         if (pathName === '/rent') {
             categoryTab = 'Rent / Lease';
@@ -167,6 +167,10 @@ const SearchPage = () => {
                 categoryTab = 'Rent / Lease';
             } else if (transactionTypeVal.toLowerCase() === 'pg') {
                 categoryTab = 'Paying Guest';
+            } else if (transactionTypeVal.toLowerCase() === 'rent,pg') {
+                categoryTab = 'Rent / PG';
+            } else if (transactionTypeVal.toLowerCase() === 'all') {
+                categoryTab = 'All';
             } else {
                 categoryTab = transactionTypeVal;
             }
@@ -175,7 +179,7 @@ const SearchPage = () => {
         } else if (typeVal.toLowerCase().includes('rent')) {
             categoryTab = 'Rent / Lease';
         } else {
-            categoryTab = 'Sell';
+            categoryTab = 'All';
         }
 
         const areasFromUrl = searchParams.get('areas')?.split(',').filter(Boolean) || [];
@@ -436,13 +440,34 @@ const SearchPage = () => {
         
         // Map categoryTab to transactionType & dynamic type ID
         if (targetFilters.categoryTab) {
-            params.transactionType = targetFilters.categoryTab;
+            if (targetFilters.categoryTab === 'Rent / Lease') {
+                params.transactionType = 'rent';
+            } else if (targetFilters.categoryTab === 'Paying Guest') {
+                params.transactionType = 'pg';
+            } else if (targetFilters.categoryTab === 'Sell') {
+                params.transactionType = 'sell';
+            } else if (targetFilters.categoryTab === 'Rent / PG') {
+                params.transactionType = 'rent,pg';
+            } else if (targetFilters.categoryTab === 'All') {
+                params.transactionType = 'all';
+            } else {
+                params.transactionType = targetFilters.categoryTab;
+            }
             if (targetFilters.categoryTab === 'Paying Guest') {
                 const pgIdObj = propertyTypes.find(t => t.label === 'PG');
                 params.type = pgIdObj && pgIdObj.id !== 'pg' ? pgIdObj.id : 'pg';
             } else if (targetFilters.categoryTab === 'Rent / Lease') {
                 const rentIdObj = propertyTypes.find(t => t.label === 'Rent');
                 params.type = rentIdObj && rentIdObj.id !== 'rent' ? rentIdObj.id : 'rent';
+            } else if (targetFilters.categoryTab === 'Rent / PG') {
+                const rentIdObj = propertyTypes.find(t => t.label === 'Rent');
+                const pgIdObj = propertyTypes.find(t => t.label === 'PG');
+                const tIds = [];
+                if (rentIdObj && rentIdObj.id !== 'rent') tIds.push(rentIdObj.id);
+                if (pgIdObj && pgIdObj.id !== 'pg') tIds.push(pgIdObj.id);
+                params.type = tIds.length > 0 ? tIds.join(',') : 'rent,pg';
+            } else if (targetFilters.categoryTab === 'All') {
+                params.type = 'all';
             } else {
                 const isPlot = targetFilters.propertyTypes && (
                     targetFilters.propertyTypes.includes('Plot / Land') ||

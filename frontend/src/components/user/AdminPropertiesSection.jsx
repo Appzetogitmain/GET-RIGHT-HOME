@@ -465,6 +465,8 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }
                                 let url = `/search?city=${selectedCity || ''}`;
                                 if (transactionType) {
                                     url += `&transactionType=${transactionType.toLowerCase()}`;
+                                } else {
+                                    url += `&transactionType=all`;
                                 }
                                 navigate(url);
                                 window.scrollTo(0, 0);
