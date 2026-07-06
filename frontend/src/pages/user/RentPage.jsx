@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HeroSection from '../../components/user/HeroSection';
-import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
 import ExclusiveOffers from '../../components/user/ExclusiveOffers';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import ReelSection from '../../components/user/ReelSection';
@@ -10,6 +9,7 @@ import SupportSection from '../../components/user/SupportSection';
 import { categoryService } from '../../services/categoryService';
 import BHKChoice from '../../components/user/BHKChoice';
 import RecommendInsights from '../../components/user/RecommendInsights';
+import PropertyFeed from '../../components/user/PropertyFeed';
 
 // Theme for Rent Page
 const THEME = {
@@ -18,36 +18,63 @@ const THEME = {
     accent: '#8B5CF6'
 };
 
+const RentPGSection = ({ title, typeId, subtitle, extraFilters, onTypeSelect, typeLabel }) => (
+    <div className="py-4 border-b border-gray-100 last:border-0 relative">
+        <div className="flex justify-between items-end px-5 md:px-0 mb-2">
+            <div>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{title}</h2>
+                {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+            </div>
+            <button
+                onClick={() => {
+                    onTypeSelect(typeId, typeLabel);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+            >
+                View All
+            </button>
+        </div>
+        <PropertyFeed selectedType={typeId} viewMode="carousel" limit={8} extraFilters={extraFilters} />
+    </div>
+);
+
 const RentPage = () => {
     const navigate = useNavigate();
     const [searchCity, setSearchCity] = useState("");
-    const [rentCategoryId, setRentCategoryId] = useState(null);
+    const [sectionIds, setSectionIds] = useState({ rent: null, pg: null });
 
-    // Initial state to match the Rent tab
-    const selectedType = { id: rentCategoryId, label: 'Rent' };
+    const selectedType = { id: sectionIds.rent, label: 'Rent/PG' };
 
     useEffect(() => {
         const fetchIds = async () => {
             try {
                 const categories = await categoryService.getActiveCategories();
-                const rentCat = categories.find(c => 
-                    (c.displayName || '').toLowerCase() === 'rent' || 
-                    (c.name || '').toLowerCase() === 'rent'
-                );
-                if (rentCat) setRentCategoryId(rentCat._id);
+                
+                const findCategoryIds = (names) => {
+                    const searchNames = Array.isArray(names) ? names : [names];
+                    const found = categories.filter(c =>
+                        searchNames.some(n =>
+                            (c.displayName || '').toLowerCase() === n.toLowerCase() ||
+                            (c.name || '').toLowerCase() === n.toLowerCase()
+                        )
+                    );
+                    return found.map(c => c._id).length > 0 ? found.map(c => c._id).join(',') : null;
+                };
+
+                setSectionIds({
+                    rent: findCategoryIds('Rent'),
+                    pg: findCategoryIds(['hostel', 'pg', 'pg/co-living', 'co-living', 'pg/co-livinig', 'paying guest'])
+                });
             } catch (err) {
-                console.error("Failed to fetch Rent category ID", err);
+                console.error("Failed to fetch Category IDs", err);
             }
         };
         fetchIds();
     }, []);
 
     const handleTypeSelect = (id, label) => {
-        if (label === 'All') navigate('/');
-        else if (label === 'Buy') navigate('/buy');
-        else if (label === 'PG/Co-Living' || label === 'PG') navigate('/pg-coliving');
-        else if (label === 'Plot') navigate('/plot');
-        else if (label === 'Home Service') navigate('/home-services');
+        navigate('/search', { state: { categoryTab: label } });
     };
 
     return (
@@ -72,10 +99,10 @@ const RentPage = () => {
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-                            Explore Properties for <span className="text-violet-600">Rent</span>
+                            Explore Properties for <span className="text-violet-600">Rent & PG</span>
                         </h1>
                         <p className="text-sm text-gray-500 mt-1">
-                            Find your perfect rental in {searchCity || 'Bengaluru'} with zero hassle.
+                            Find your perfect rental or co-living space in {searchCity || 'Bengaluru'} with zero hassle.
                         </p>
                     </div>
                 </div>
@@ -84,12 +111,33 @@ const RentPage = () => {
             {/* 1. Offers Section */}
             <ExclusiveOffers />
 
-            {/* 2. Handpicked Projects (Rent Context) */}
+            {/* 2. Handpicked Projects */}
             <div className="max-w-7xl mx-auto">
-                <AdminPropertiesSection searchCity={searchCity} transactionType="rent" />
+                <AdminPropertiesSection searchCity={searchCity} transactionType="rent,pg" />
             </div>
 
             <div className="mt-2 max-w-7xl mx-auto flex flex-col gap-4 px-4 md:px-0">
+                
+                {sectionIds.pg && (
+                    <RentPGSection
+                        title="Scholar & Professional Stays"
+                        subtitle="Top rated PGs and Hostels near you"
+                        typeId={sectionIds.pg}
+                        typeLabel="PG/Co-Living"
+                        onTypeSelect={handleTypeSelect}
+                    />
+                )}
+
+                {sectionIds.rent && (
+                    <RentPGSection
+                        title="Properties for Rent"
+                        subtitle="Apartments, Homes, and Villas for Rent"
+                        typeId={sectionIds.rent}
+                        extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
+                        typeLabel="Rent"
+                        onTypeSelect={handleTypeSelect}
+                    />
+                )}
                 {/* 3. Recommend Insights */}
                 <RecommendInsights transactionType="Rent" />
 

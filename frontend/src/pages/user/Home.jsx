@@ -128,12 +128,8 @@ const Home = () => {
             navigate('/home-services');
             return;
         }
-        if (label === 'PG/Co-Living' || label === 'PG') {
-            navigate('/pg-coliving');
-            return;
-        }
-        if (label === 'Rent') {
-            navigate('/rent');
+        if (label === 'PG/Co-Living' || label === 'PG' || label === 'Rent/PG' || label === 'Rent') {
+            navigate('/rent-pg');
             return;
         }
         if (label === 'Buy') {

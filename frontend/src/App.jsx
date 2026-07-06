@@ -482,9 +482,10 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/reels" element={<ReelsPage />} />
                     <Route path="/search" element={<SearchPage />} />
-                    <Route path="/rent" element={<RentPage />} />
+                    <Route path="/rent" element={<Navigate to="/rent-pg" replace />} />
+                    <Route path="/rent-pg" element={<RentPage />} />
                     <Route path="/plot" element={<SearchPage />} />
-                    <Route path="/pg-coliving" element={<SearchPage />} />
+                    <Route path="/pg-coliving" element={<Navigate to="/rent-pg" replace />} />
                     <Route path="/buy" element={<BuyPage />} />
                     <Route path="/insights/:locality" element={<LocalityDetail />} />
                     <Route path="/insights/:locality/reviews" element={<LocalityReviewsPage />} />

@@ -211,7 +211,7 @@ const SkeletonCard = () => (
 );
 
 /* ─── Main Component ─── */
-const AdminPropertiesSection = ({ searchCity, transactionType }) => {
+const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }) => {
     const navigate = useNavigate();
     const [availableCities, setAvailableCities] = useState([]);
     const [selectedCity, setSelectedCity] = useState(null); // null = no city selected yet
@@ -409,7 +409,9 @@ const AdminPropertiesSection = ({ searchCity, transactionType }) => {
             
             if (typeValue === 'buy' && (tType.includes('buy') || tType.includes('sell') || pType.includes('buy') || dType.includes('buy'))) {
                 isMatch = true;
-            } else if (typeValue === 'rent' && (tType.includes('rent') || pType.includes('rent') || dType.includes('rent'))) {
+            } else if ((typeValue === 'rent' || typeValue.includes('rent')) && (tType.includes('rent') || pType.includes('rent') || dType.includes('rent'))) {
+                isMatch = true;
+            } else if ((typeValue === 'pg' || typeValue.includes('pg')) && (tType.includes('pg') || tType.includes('paying guest') || pType.includes('pg') || dType.includes('pg'))) {
                 isMatch = true;
             } else if (tType === typeValue || pType === typeValue || dType === typeValue) {
                 isMatch = true;
@@ -437,6 +439,9 @@ const AdminPropertiesSection = ({ searchCity, transactionType }) => {
     // If no cities at all, don't render the section
     if (!citiesLoading && availableCities.length === 0) return null;
 
+    const defaultTitle = "Handpicked Projects";
+    const defaultSubtitle = `Featured projects in ${selectedCity || 'your city'}`;
+
     return (
         <section id="admin-properties-section" className="py-8 border-b border-gray-100">
 
@@ -447,11 +452,11 @@ const AdminPropertiesSection = ({ searchCity, transactionType }) => {
                         <div className="flex items-center gap-2 mb-0.5">
                             <div className="w-1 h-5 bg-emerald-500 rounded-full" />
                             <h2 className="text-xl md:text-2xl font-black text-gray-900">
-                                Handpicked Projects
+                                {title || defaultTitle}
                             </h2>
                         </div>
                         <p className="text-sm text-gray-500 mt-1 ml-3">
-                            Featured projects in {selectedCity || 'your city'}
+                            {subtitle || defaultSubtitle}
                         </p>
                     </div>
                     {displayProperties.length > 0 && (
