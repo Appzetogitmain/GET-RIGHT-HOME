@@ -17,12 +17,15 @@ import {
   localityReviewService,
   userService
 } from '../../services/apiService';
+import { useAuth } from '../../context/AuthContext';
+import SupportSection from '../../components/user/SupportSection';
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='24' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
 const HandpickedDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Core State
   const [property, setProperty] = useState(null);
@@ -645,14 +648,14 @@ const HandpickedDetailsPage = () => {
                     const isReady = statusStr.toLowerCase().includes('ready');
                     
                     if (isReady) {
-                      return <span className="text-slate-900 font-bold text-sm">Ready to Move</span>;
+                      return <span className="text-slate-900 font-bold text-xs md:text-sm">Ready to Move</span>;
                     }
                     
                     const pDate = property?.dynamicData?.possessionDate || property?.dynamicData?.possessionYear || 'Dec, 2027';
                     return (
                       <>
-                        <span className="text-slate-900 font-bold text-sm">Under Construction</span>
-                        <span className="text-slate-500 font-medium text-xs mt-0.5">Completion in {pDate}</span>
+                        <span className="text-slate-900 font-bold text-xs md:text-sm">Under Construction</span>
+                        <span className="text-slate-500 font-medium text-[11px] md:text-xs mt-0.5">Completion in {pDate}</span>
                       </>
                     );
                   })()}
@@ -708,10 +711,10 @@ const HandpickedDetailsPage = () => {
           {/* Price & Map Row (99acres style unified box) */}
           <div className="flex items-center border border-slate-200 rounded-3xl mb-2 py-4 shadow-sm bg-white overflow-hidden">
             <div className="w-1/2 flex flex-col items-center justify-center border-r border-slate-200 hover:bg-slate-50 transition-colors">
-              <span className="text-lg md:text-xl font-extrabold text-slate-900">
-                {dispPriceStr} <span className="font-normal text-sm text-slate-500">/sqft+</span>
+              <span className="text-base md:text-lg font-bold text-slate-900">
+                {dispPriceStr} <span className="font-normal text-xs text-slate-500">/sqft+</span>
               </span>
-              <span className="text-xs text-slate-500 mt-1">{property?.buyDetails?.area?.carpet ? 'Carpet Area' : 'Carpet Area'}</span>
+              <span className="text-[11px] md:text-xs text-slate-500 mt-1">{property?.buyDetails?.area?.carpet ? 'Carpet Area' : 'Carpet Area'}</span>
             </div>
             <button
               onClick={() => {
@@ -720,10 +723,10 @@ const HandpickedDetailsPage = () => {
               }}
               className="w-1/2 flex flex-col items-center justify-center hover:bg-slate-50 transition-colors"
             >
-              <div className="flex items-center gap-1.5 text-base font-bold text-slate-900">
+              <div className="flex items-center gap-1.5 text-sm md:text-base font-bold text-slate-900">
                 <MapPin className="w-4 h-4 text-blue-600 fill-blue-600" /> Map
               </div>
-              <span className="text-xs text-slate-500 mt-1">View</span>
+              <span className="text-[11px] md:text-xs text-slate-500 mt-1">View</span>
             </button>
           </div>
         </div>
@@ -741,7 +744,7 @@ const HandpickedDetailsPage = () => {
               <div className="flex justify-center mb-1"><Grid className="w-5 h-5" /></div>
               <span className="text-sm font-bold">Overview</span>
               {activeTab === 'overview' && (
-                <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-900 rounded-t-md" />
+                <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-blue-500 rounded-t-md" />
               )}
             </button>
             <button
@@ -752,7 +755,7 @@ const HandpickedDetailsPage = () => {
               <div className="flex justify-center mb-1"><Home className="w-5 h-5" /></div>
               <span className="text-sm font-bold">Properties</span>
               {activeTab === 'properties' && (
-                <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-900 rounded-t-md" />
+                <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-blue-500 rounded-t-md" />
               )}
             </button>
           </div>
@@ -1657,7 +1660,7 @@ const HandpickedDetailsPage = () => {
                 <button
                   key={f}
                   onClick={() => setPropertyFilter(f === propertyFilter ? 'All' : f)}
-                  className={`flex-shrink-0 px-4 py-1.5 border rounded-full text-sm font-medium transition-colors ${propertyFilter === f ? 'border-slate-800 text-slate-900 bg-slate-100' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                  className={`flex-shrink-0 px-4 py-1.5 border rounded-full text-sm font-medium transition-colors ${propertyFilter === f ? 'border-slate-800 text-slate-900 bg-slate-50' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}
                 >
                   {f}
                 </button>
@@ -1666,24 +1669,39 @@ const HandpickedDetailsPage = () => {
 
             {/* Inline Action Buttons */}
             <div className="flex items-center gap-3">
-              <a
-                href={builderDetails.brochureUrl || "#"}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-blue-100 bg-blue-50 text-blue-600 font-bold text-sm hover:bg-blue-100 transition-colors"
+              <button
+                onClick={() => {
+                  if (!user) {
+                    toast.error("Please login to download brochure");
+                    navigate('/login');
+                  } else {
+                    if (builderDetails.brochureUrl) window.open(builderDetails.brochureUrl, "_blank");
+                    else toast.error("Brochure not available.");
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
               >
                 <Download className="w-4 h-4" /> Brochure
-              </a>
+              </button>
               <button
-                onClick={() => setShowEnquiryModal(true)}
-                className="flex-[1.5] flex items-center justify-center py-3 rounded-full bg-blue-600 text-white font-bold text-sm shadow-md hover:bg-blue-700 transition-colors"
+                onClick={() => {
+                  if (!user) {
+                    toast.error("Please login to view contact details");
+                    navigate('/login');
+                  } else {
+                    setShowEnquiryModal(true);
+                  }
+                }}
+                className="flex-[1.5] flex items-center justify-center py-3 rounded-full bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition-colors"
               >
-                View number
+                <Phone className="w-4 h-4 mr-2" /> View Number
               </button>
             </div>
 
             {/* Available Units Header */}
             <div className="pt-2">
               <h3 className="text-xl font-bold text-slate-900">Available Units</h3>
-              <p className="text-sm text-slate-600 mt-1 flex items-center gap-1.5">
+              <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
                 <span className="text-orange-500 text-base">🔥</span> Limited inventory is available at the launch price.
               </p>
             </div>
@@ -1691,7 +1709,7 @@ const HandpickedDetailsPage = () => {
             {/* Config Tabs */}
             <div className="flex gap-2 overflow-x-auto scrollbar-none pb-2">
               {['1 BHK Apartment', '2 BHK Apartment', '3 BHK Apartment'].map((bhk, i) => (
-                <button key={i} className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${i === 0 ? 'border-slate-800 text-slate-900 bg-white shadow-sm' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                <button key={i} className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium border transition-colors ${i === 0 ? 'border-slate-800 text-slate-900 bg-white shadow-sm' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                   {bhk}
                 </button>
               ))}
@@ -1710,13 +1728,13 @@ const HandpickedDetailsPage = () => {
                           <span className="px-2.5 py-0.5 bg-blue-900/40 border border-blue-800/40 text-purple-300 text-[10px] font-bold rounded uppercase tracking-wide">
                             {unit.roomCategory || 'Unit'}
                           </span>
-                          <h4 className="text-lg font-bold text-slate-900 mt-1">{unit.name}</h4>
+                          <h4 className="text-base font-bold text-slate-900 mt-1">{unit.name}</h4>
                         </div>
                         <div className="text-right">
-                          <span className="text-xl font-extrabold text-blue-500">
+                          <span className="text-lg font-extrabold text-blue-500">
                             ₹{(unit.pricePerNight / 10000000).toFixed(2)} Cr
                           </span>
-                          <span className="text-[10px] text-slate-500 block mt-0.5">All-inclusive Estimate</span>
+                          <span className="text-[9px] text-slate-500 block mt-0.5">All-inclusive Estimate</span>
                         </div>
                       </div>
                       <p className="text-xs text-slate-700 leading-relaxed">
@@ -1725,7 +1743,7 @@ const HandpickedDetailsPage = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-4 items-center justify-between pt-4 border-t border-slate-200/60">
-                      <div className="flex gap-4 text-xs text-slate-500">
+                      <div className="flex gap-4 text-[10px] text-slate-500">
                         <span>Config: <strong className="text-slate-800">{unit.bedsPerRoom} BHK</strong></span>
                         <span>•</span>
                         <span>Capacity: <strong className="text-slate-800">{unit.maxAdults} Adults</strong></span>
@@ -1735,13 +1753,13 @@ const HandpickedDetailsPage = () => {
                           onClick={() => {
                             toast.success("Brochure download started!");
                           }}
-                          className="py-2 px-4 bg-slate-100 hover:bg-slate-750 text-xs font-bold text-slate-800 rounded-xl transition-all"
+                          className="py-2 px-4 bg-slate-100 hover:bg-slate-750 text-[10px] font-bold text-slate-800 rounded-xl transition-all"
                         >
                           Download Brochure
                         </button>
                         <button
                           onClick={() => setShowEnquiryModal(true)}
-                          className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/25"
+                          className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-[10px] font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/25"
                         >
                           Request Callback
                         </button>
@@ -1750,6 +1768,10 @@ const HandpickedDetailsPage = () => {
                   </div>
                 </div>
               ))}
+              {/* Support Section at Bottom */}
+              <div className="mt-8">
+                <SupportSection />
+              </div>
             </div>
           </div>
         )}
@@ -2301,17 +2323,32 @@ const HandpickedDetailsPage = () => {
       </AnimatePresence>
       {/* Fixed Bottom Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 pb-safe md:p-4 z-[9999] flex items-center justify-between gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.08)]">
-        <a
-          href={builderDetails.brochureUrl || "#"}
+        <button
+          onClick={() => {
+            if (!user) {
+              toast.error("Please login to download brochure");
+              navigate('/login');
+            } else {
+              if (builderDetails.brochureUrl) window.open(builderDetails.brochureUrl, "_blank");
+              else toast.error("Brochure not available.");
+            }
+          }}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
         >
           <Download className="w-3.5 h-3.5" /> Brochure
-        </a>
+        </button>
         <button
-          onClick={() => setShowEnquiryModal(true)}
+          onClick={() => {
+            if (!user) {
+              toast.error("Please login to view contact details");
+              navigate('/login');
+            } else {
+              setShowEnquiryModal(true);
+            }
+          }}
           className="flex-[1.5] flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-blue-600 text-white font-bold text-xs shadow-md shadow-blue-600/30 hover:bg-blue-700 transition-colors"
         >
-          View Number
+          <Phone className="w-3.5 h-3.5" /> View Number
         </button>
       </div>
 

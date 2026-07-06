@@ -168,11 +168,6 @@ const LocalityDetail = () => {
                                     </li>
                                 ))}
                             </ul>
-                            <div className="mt-5 flex items-center gap-3 text-xs text-slate-500 font-medium pt-4 border-t border-slate-100">
-                                <span>Is this helpful?</span>
-                                <button className="flex items-center gap-1 hover:text-blue-600"><ThumbsUp className="w-4 h-4" /> Yes</button>
-                                <button className="flex items-center gap-1 hover:text-red-500"><ThumbsDown className="w-4 h-4" /> No</button>
-                            </div>
                         </div>
                     )}
 

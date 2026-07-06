@@ -110,20 +110,10 @@ const RecommendInsights = ({ transactionType }) => {
             <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <button 
                     className="text-[15px] font-bold text-[#0B1A3A] hover:text-blue-600 flex items-center gap-2 transition-colors"
-                    onClick={() => navigate('/insights')}
+                    onClick={() => insights.length > 0 ? navigate(`/insights/${insights[0].locality}`) : null}
                 >
-                    View all Insights <ArrowRight size={16} />
+                    View Insights <ArrowRight size={16} />
                 </button>
-                
-                <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-500">Is this helpful?</span>
-                    <button className="text-gray-400 hover:text-blue-600 transition-colors flex items-center gap-1 text-sm font-medium">
-                        Yes <ThumbsUp size={14} />
-                    </button>
-                    <button className="text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1 text-sm font-medium">
-                        No <ThumbsDown size={14} />
-                    </button>
-                </div>
             </div>
         </div>
     );
