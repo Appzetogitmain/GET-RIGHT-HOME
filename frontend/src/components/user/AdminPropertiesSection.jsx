@@ -401,11 +401,21 @@ const AdminPropertiesSection = ({ searchCity, transactionType }) => {
         // Filter by transaction type if prop is provided
         if (transactionType) {
             const typeValue = transactionType.toLowerCase();
+            const tType = (property.transactionType || '').toLowerCase();
             const pType = (property.propertyType || '').toLowerCase();
             const dType = (property.dynamicCategory?.name || '').toLowerCase();
             
-            // Only include if it explicitly matches the requested transaction type
-            if (pType !== typeValue && dType !== typeValue) {
+            let isMatch = false;
+            
+            if (typeValue === 'buy' && (tType.includes('buy') || tType.includes('sell') || pType.includes('buy') || dType.includes('buy'))) {
+                isMatch = true;
+            } else if (typeValue === 'rent' && (tType.includes('rent') || pType.includes('rent') || dType.includes('rent'))) {
+                isMatch = true;
+            } else if (tType === typeValue || pType === typeValue || dType === typeValue) {
+                isMatch = true;
+            }
+
+            if (!isMatch) {
                 return false;
             }
         }
