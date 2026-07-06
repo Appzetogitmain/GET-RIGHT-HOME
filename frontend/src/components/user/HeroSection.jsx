@@ -158,6 +158,16 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                         <div className="h-0.5 w-4 bg-orange-600/30 rounded-full mt-0.5" />
                     </div>
                 </div>
+                
+                {/* Notification Bell (Center) */}
+                <button 
+                    onClick={() => navigate('/notifications')}
+                    className="relative p-1.5 text-gray-600 hover:bg-gray-100 rounded-full transition-all active:scale-90"
+                >
+                    <LucideIcons.Bell size={20} strokeWidth={1.5} />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                </button>
+
                 <div
                     onClick={() => navigate('/list-property')}
                     className="flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform"

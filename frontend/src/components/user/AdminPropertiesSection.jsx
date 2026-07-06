@@ -138,7 +138,7 @@ const AdminPropertyCard = ({ property, index }) => {
                                 property.featuredDetails.planName === 'Silver' ? 'bg-slate-500' :
                                 'bg-[#a21caf]'
                             }`}>
-                                {property.featuredDetails.planName && property.featuredDetails.planName !== 'None' ? `${property.featuredDetails.planName} Featured` : 'Featured'}
+                                Featured
                             </span>
                         </div>
                     )}

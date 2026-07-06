@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Globe } from 'lucide-react';
+import { User, Globe, Bell } from 'lucide-react';
 import logo from '../../assets/grh-logo.png';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -24,6 +24,21 @@ const TopNavbar = () => {
                     </div>
                 </div>
             </Link>
+
+            {/* Web View: Bell and Post Property */}
+            <div className="hidden md:flex items-center gap-6 ml-6 mr-auto">
+                <Link to="/notifications" className="relative p-2 text-gray-500 hover:bg-gray-50 rounded-full transition-all active:scale-95">
+                    <Bell size={20} strokeWidth={2} />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                </Link>
+                <Link
+                    to="/list-property"
+                    className="flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
+                >
+                    <span className="text-[#005B9F] font-bold text-[14px]">Post property</span>
+                    <span className="bg-[#10B981] text-white text-[10px] px-2 py-0.5 rounded uppercase font-black tracking-widest shadow-sm">Free</span>
+                </Link>
+            </div>
 
             {/* Desktop Links */}
             <div className="flex items-center gap-8">

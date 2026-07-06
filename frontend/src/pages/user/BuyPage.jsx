@@ -82,7 +82,7 @@ const BuyPage = () => {
             </div>
 
             {/* 1. Offers Section */}
-            <ExclusiveOffers />
+
 
             {/* 2. Handpicked Projects (Buy Context) */}
             <div className="max-w-7xl mx-auto">

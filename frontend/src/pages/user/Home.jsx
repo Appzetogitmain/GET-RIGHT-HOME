@@ -183,7 +183,7 @@ const Home = () => {
                 </div>
             </div>
 
-            <ExclusiveOffers />
+
 
             {/* Admin Curated Properties - Location Based */}
             <div className="max-w-7xl mx-auto">
