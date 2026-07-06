@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+  ChevronUp,
   MapPin, Star, Share2, Heart, ArrowLeft, Loader2, ChevronLeft, ChevronRight,
   MessageSquare, Tag, X, CheckCircle, Shield, Info, Phone, Maximize2, Compass,
   LayoutTemplate, Wind, Droplets, Zap, Award, Check, ChevronDown, Layers, Home,
@@ -47,6 +48,8 @@ const HandpickedDetailsPage = () => {
 
   // Highlights Bottom-sheet / Modal
   const [showAllHighlights, setShowAllHighlights] = useState(false);
+  const [showFullAmenitiesDesc, setShowFullAmenitiesDesc] = useState(false);
+  const [showUpdates, setShowUpdates] = useState(false);
 
   // Amenities Modal
   const [showAllAmenities, setShowAllAmenities] = useState(false);
@@ -65,7 +68,7 @@ const HandpickedDetailsPage = () => {
   // Comparison Matrix Modal
   const [showComparisonMatrix, setShowComparisonMatrix] = useState(false);
   const [similarProperties, setSimilarProperties] = useState([]);
-  
+
   // Dynamic Locality Data
   const [localityStats, setLocalityStats] = useState(null);
   const [localityReviewsData, setLocalityReviewsData] = useState([]);
@@ -101,7 +104,7 @@ const HandpickedDetailsPage = () => {
 
   // Robust iOS/Mobile Background Scroll Lock
   useEffect(() => {
-    const isModalOpen = showAllHighlights || showAllAmenities || showInteriorsModal || showProsConsModal || showComparisonMatrix || showEnquiryModal || showAboutBuilderModal || showVerifiedSourcesModal;
+    const isModalOpen = showAllHighlights || showAllAmenities || showInteriorsModal || showProsConsModal || showComparisonMatrix || showEnquiryModal || showAboutBuilderModal || showVerifiedSourcesModal || selectedFloorPlan || selectedPaymentPlan;
     if (isModalOpen) {
       const scrollY = window.scrollY;
       document.body.style.position = 'fixed';
@@ -116,7 +119,7 @@ const HandpickedDetailsPage = () => {
         window.scrollTo(0, parseInt(scrollY || '0') * -1);
       }
     }
-  }, [showAllHighlights, showAllAmenities, showInteriorsModal, showProsConsModal, showComparisonMatrix, showEnquiryModal, showAboutBuilderModal, showVerifiedSourcesModal]);
+  }, [showAllHighlights, showAllAmenities, showInteriorsModal, showProsConsModal, showComparisonMatrix, showEnquiryModal, showAboutBuilderModal, showVerifiedSourcesModal, selectedFloorPlan, selectedPaymentPlan]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -167,7 +170,7 @@ const HandpickedDetailsPage = () => {
       const res = await propertyService.getDetails(id);
       if (res && res.property) {
         setProperty(res.property);
-        
+
         // Fetch locality details based on property address
         const localityString = res.property.address?.locality || res.property.address?.area || res.property.address?.city || '';
         if (localityString) fetchLocalityData(localityString);
@@ -218,7 +221,7 @@ const HandpickedDetailsPage = () => {
         setResolvedBuilderId(property.partnerId._id);
         return;
       }
-      
+
       // If we only have string IDs (e.g. from an Admin), try to match the builder name
       const targetName = property?.userId?.builderProfile?.companyName || property?.dynamicData?.builderName || property?.partnerId?.name;
       if (targetName) {
@@ -226,16 +229,16 @@ const HandpickedDetailsPage = () => {
           const { api } = await import('../../services/apiService');
           const res = await api.get('/public/builders');
           if (res.data && res.data.builders) {
-             const matchedBuilder = res.data.builders.find(b => 
-               b.name?.toLowerCase() === targetName.toLowerCase() || 
-               b.profile?.companyName?.toLowerCase() === targetName.toLowerCase()
-             );
-             if (matchedBuilder) {
-               setResolvedBuilderId(matchedBuilder._id);
-               return;
-             }
+            const matchedBuilder = res.data.builders.find(b =>
+              b.name?.toLowerCase() === targetName.toLowerCase() ||
+              b.profile?.companyName?.toLowerCase() === targetName.toLowerCase()
+            );
+            if (matchedBuilder) {
+              setResolvedBuilderId(matchedBuilder._id);
+              return;
+            }
           }
-        } catch(e) {
+        } catch (e) {
           console.warn("Failed to fetch builder by name:", e);
         }
       }
@@ -382,8 +385,8 @@ const HandpickedDetailsPage = () => {
   const totalUnits = dynamicData.totalUnits || 0;
 
   // Highlights & Amenities lists
-  const propertyHighlights = property?.highlights?.length > 0 
-    ? property.highlights 
+  const propertyHighlights = property?.highlights?.length > 0
+    ? property.highlights
     : [];
 
   // Normalize a localityPros/Cons entry — DB may store objects like {proText:'...'} or plain strings
@@ -490,7 +493,7 @@ const HandpickedDetailsPage = () => {
     let price = rawPrice;
     let area = property?.buyDetails?.area?.carpet || property?.dynamicData?.carpetArea || property?.dynamicData?.superArea;
     if (price && area && !isNaN(price) && !isNaN(area) && Number(area) > 0) {
-       return `₹${Math.round(price / area).toLocaleString('en-IN')}/sq.ft.`;
+      return `₹${Math.round(price / area).toLocaleString('en-IN')}/sq.ft.`;
     }
     if (property?.buyDetails?.area?.carpet) return `${property.buyDetails.area.carpet} sq.ft. Carpet Area`;
     if (property?.dynamicData?.carpetArea) return `${property.dynamicData.carpetArea} ${property.dynamicData.carpetAreaUnit || 'sq.ft.'} Carpet Area`;
@@ -501,7 +504,7 @@ const HandpickedDetailsPage = () => {
   // Derive locality review variables using real state
   const avgLocalityRating = localityStats?.aggregate || property?.avgRating || 0;
   const totalLocalityReviews = localityStats?.totalReviews || property?.totalReviews || 0;
-  
+
   const getStarPercentage = (star) => {
     if (localityStats?.starBreakdown && totalLocalityReviews > 0) {
       return (localityStats.starBreakdown[star] / totalLocalityReviews) * 100;
@@ -520,7 +523,7 @@ const HandpickedDetailsPage = () => {
 
   const localityPositives = property?.dynamicData?.positives || localityStats?.positives || ["Excellent Public Transport", "Good Hospitals", "Markets at walkable distance"];
   const localityNegatives = property?.dynamicData?.negatives || localityStats?.negatives || ["High Traffic during peak hours", "Limited visitor parking"];
-  
+
   const localityReviewsList = (localityReviewsData && localityReviewsData.length > 0) ? localityReviewsData : [
     { name: "Rahul S.", role: "Resident", stayDuration: "2 years", rating: 4.5, title: "Great community", reviewText: "Very peaceful and well maintained society. Connectivity to main IT hubs is a huge plus." },
     { name: "Priya M.", role: "Owner", stayDuration: "5 years", rating: 4.0, title: "Good returns", reviewText: "The property value has appreciated well. Maintenance team is responsive." }
@@ -550,7 +553,7 @@ const HandpickedDetailsPage = () => {
           >
             <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
           </button>
-          
+
           <div className="flex-1 hidden sm:flex items-center bg-white rounded-full px-4 py-2 md:py-3 shadow-md gap-2">
             <Search className="w-4 h-4 text-slate-400" />
             <input type="text" disabled placeholder="Search City/Locality/Project" className="bg-transparent border-none outline-none w-full text-sm text-slate-500" />
@@ -559,9 +562,8 @@ const HandpickedDetailsPage = () => {
           <div className="flex items-center space-x-2 shrink-0">
             <button
               onClick={handleSaveToggle}
-              className={`p-2 md:p-3 bg-white rounded-full transition-all shadow-md ${
-                isSaved ? 'text-rose-500' : 'text-slate-700'
-              }`}
+              className={`p-2 md:p-3 bg-white rounded-full transition-all shadow-md ${isSaved ? 'text-rose-500' : 'text-slate-700'
+                }`}
             >
               <Heart className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-current' : ''}`} />
             </button>
@@ -583,7 +585,7 @@ const HandpickedDetailsPage = () => {
             <ChevronRight className="w-6 h-6" />
           </button>
         </div>
-        
+
         <div className="absolute bottom-28 md:bottom-32 left-1/2 -translate-x-1/2 flex items-center justify-center space-x-1.5 z-20 bg-black/30 backdrop-blur-sm px-3 py-1 rounded-full">
           {pImages.slice(0, 4).map((_, idx) => (
             <div key={idx} className={`h-1.5 rounded-full ${idx === (currentImgIndex % 4) ? 'w-1.5 bg-white' : 'w-1.5 bg-white/50'}`} />
@@ -609,100 +611,146 @@ const HandpickedDetailsPage = () => {
       {/* The Rounded Overlay White Sheet */}
       <div className="bg-white rounded-t-[32px] md:rounded-t-[40px] relative -mt-6 z-30 pt-6 pb-2 w-full border-t border-slate-100 shadow-[0_-8px_30px_rgba(0,0,0,0.12)]">
         <div className="max-w-7xl mx-auto px-5 md:px-8">
-          
-          {/* Header Area */}
+
+          {/* Header Area (99acres style) */}
           <div className="flex items-start gap-4">
             {builderTrackRecord.logo && (
               <img src={builderTrackRecord.logo} alt="Builder Logo" className="w-14 h-14 md:w-16 md:h-16 rounded-full border border-slate-200 object-cover p-1 shadow-sm" />
             )}
-            <div className="flex-1">
-              <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
-                  {property?.propertyName}
-                </h1>
-                {builderDetails.possessionStatus && (
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[10px] font-bold uppercase tracking-wider">
-                    {builderDetails.possessionStatus.toLowerCase().includes('ready') ? 'Ready to Move' : 'Under Construction'}
-                  </span>
-                )}
-                {property?.isLive && (
-                  <div className="flex items-center gap-1 text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                    <CheckCircle2 className="w-3 h-3 text-slate-500" /> RERA
-                  </div>
-                )}
-              </div>
-              <p className="text-slate-500 font-medium text-sm">
+            <div className="flex-1 flex flex-col items-start">
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
+                {property?.propertyName}
+              </h1>
+              <p className="text-slate-500 font-medium text-sm mt-0.5">
                 {[property?.address?.locality, property?.address?.city].filter(Boolean).join(', ')}
               </p>
+              {property?.isLive && (
+                <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500 mt-1">
+                  <CheckCircle2 className="w-3 h-3 text-slate-400" /> <span className="underline underline-offset-2">RERA</span>
+                </div>
+              )}
             </div>
           </div>
 
           <hr className="border-slate-100 my-4" />
 
-          {/* Possession Area */}
-          <div className="flex items-center justify-between px-1">
-            {builderDetails.possessionStatus && (
-              <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                <Building className="w-5 h-5 text-slate-700" />
-                Completion in {builderDetails.possessionStatus}
+          {/* Possession & Updates Area */}
+          <div className="flex flex-col">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-start gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-700 mt-0.5"><path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9"/><path d="M17.64 15 22 10.64"/><path d="m20.91 11.7-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16 4.6V3.86a3.18 3.18 0 0 0-.93-2.25L13.82.36"/><path d="m7 15-5.5 5.5"/></svg>
+                <div className="flex flex-col">
+                  {(() => {
+                    const statusStr = String(builderDetails.possessionStatus || property?.dynamicData?.projectStatus || property?.status || 'Under Construction');
+                    const isReady = statusStr.toLowerCase().includes('ready');
+                    
+                    if (isReady) {
+                      return <span className="text-slate-900 font-bold text-sm">Ready to Move</span>;
+                    }
+                    
+                    const pDate = property?.dynamicData?.possessionDate || property?.dynamicData?.possessionYear || 'Dec, 2027';
+                    return (
+                      <>
+                        <span className="text-slate-900 font-bold text-sm">Under Construction</span>
+                        <span className="text-slate-500 font-medium text-xs mt-0.5">Completion in {pDate}</span>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
+              <button
+                onClick={() => setShowUpdates(!showUpdates)}
+                className="flex items-center gap-1.5 text-xs text-slate-600 font-medium ml-auto p-1 hover:bg-slate-50 rounded"
+              >
+                <span className={`w-2 h-2 rounded-full ${String(builderDetails.possessionStatus || property?.dynamicData?.projectStatus).toLowerCase().includes('ready') ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                Updates {showUpdates ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+              </button>
+            </div>
+
+            {/* Updates Expandable Content */}
+            {showUpdates && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mt-4 p-4 border border-slate-200 rounded-2xl bg-slate-50 overflow-hidden"
+              >
+                <h3 className="text-sm font-bold text-slate-900 mb-3">Project Phases & Status</h3>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-20 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-200 relative">
+                      <img src={pImages[1] || pImages[0]} alt="Construction Update" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/20"></div>
+                      <div className="absolute bottom-1 left-1 text-[8px] font-bold text-white uppercase">Latest</div>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-xs font-bold text-slate-800">{totalTowers || 1} Phases {String(builderDetails.possessionStatus || property?.dynamicData?.projectStatus || 'Under Construction').toLowerCase().includes('ready') ? 'Completed' : 'are Under Construction'}</h4>
+                      <p className="text-[11px] text-slate-500 mt-1">Completion in {builderDetails.possessionStatus || property?.dynamicData?.projectStatus || 'Dec, 2027'}</p>
+                    </div>
+                  </div>
+                  {totalTowers > 1 && (
+                    <div className="flex items-start gap-3 pt-3 border-t border-slate-200/60">
+                      <div className="w-20 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center">
+                        <Building className="w-6 h-6 text-slate-400" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-xs font-bold text-slate-800">{Math.floor(totalTowers / 2) || 1} Phases Announced</h4>
+                        <p className="text-[11px] text-slate-500 mt-1">Completion in Dec, 2029</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
             )}
-            <button className="flex items-center gap-1.5 text-xs text-slate-600 font-medium ml-auto">
-              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-              Updates <ChevronDown className="w-4 h-4 text-slate-400" />
-            </button>
           </div>
 
           <hr className="border-slate-100 my-4" />
 
-          {/* Price & Map Row */}
-          <div className="flex gap-4 mb-2">
-            <div className="flex-1 border border-slate-200 rounded-2xl p-3 flex flex-col items-center justify-center hover:border-blue-300 transition-colors">
-              <span className="text-base md:text-lg font-bold text-slate-900">
-                {dispPriceStr}
+          {/* Price & Map Row (99acres style unified box) */}
+          <div className="flex items-center border border-slate-200 rounded-3xl mb-2 py-4 shadow-sm bg-white overflow-hidden">
+            <div className="w-1/2 flex flex-col items-center justify-center border-r border-slate-200 hover:bg-slate-50 transition-colors">
+              <span className="text-lg md:text-xl font-extrabold text-slate-900">
+                {dispPriceStr} <span className="font-normal text-sm text-slate-500">/sqft+</span>
               </span>
-              <span className="text-xs text-slate-500 mt-0.5">{getCarpetOrPriceString()}</span>
+              <span className="text-xs text-slate-500 mt-1">{property?.buyDetails?.area?.carpet ? 'Carpet Area' : 'Carpet Area'}</span>
             </div>
-            <button 
+            <button
               onClick={() => {
                 const query = encodeURIComponent([property?.propertyName, property?.address?.locality, property?.address?.city].filter(Boolean).join(', '));
                 window.open(`https://maps.google.com/?q=${query}`, '_blank');
               }}
-              className="flex-1 border border-slate-200 rounded-2xl p-3 flex flex-col items-center justify-center hover:border-blue-300 transition-colors"
+              className="w-1/2 flex flex-col items-center justify-center hover:bg-slate-50 transition-colors"
             >
-              <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
+              <div className="flex items-center gap-1.5 text-base font-bold text-slate-900">
                 <MapPin className="w-4 h-4 text-blue-600 fill-blue-600" /> Map
               </div>
-              <span className="text-xs text-slate-500 mt-0.5">View on Map</span>
+              <span className="text-xs text-slate-500 mt-1">View</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* 2. Tabbed Sticky Navigation (Matches second image) */}
-      <div className="sticky top-0 bg-white z-40 shadow-[0_4px_12px_rgba(0,0,0,0.03)] border-b border-slate-100 mt-2">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center justify-between border-b border-slate-100">
-          <div className="flex space-x-6 pt-1 w-full justify-center md:justify-start">
+      <div className="sticky top-0 bg-white z-40 shadow-[0_4px_12px_rgba(0,0,0,0.03)] border-b border-slate-100 mt-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex w-full">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`text-sm font-bold pb-2.5 relative transition-colors ${
-                activeTab === 'overview' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
-              }`}
+              className={`w-1/2 flex flex-col items-center justify-center py-3 relative transition-colors ${activeTab === 'overview' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+                }`}
             >
-              <div className="flex justify-center mb-0.5"><Grid className="w-4 h-4" /></div>
-              Overview
+              <div className="flex justify-center mb-1"><Grid className="w-5 h-5" /></div>
+              <span className="text-sm font-bold">Overview</span>
               {activeTab === 'overview' && (
                 <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-900 rounded-t-md" />
               )}
             </button>
             <button
               onClick={() => setActiveTab('properties')}
-              className={`text-sm font-bold pb-2.5 relative transition-colors ${
-                activeTab === 'properties' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
-              }`}
+              className={`w-1/2 flex flex-col items-center justify-center py-3 relative transition-colors ${activeTab === 'properties' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+                }`}
             >
-              <div className="flex justify-center mb-0.5"><Home className="w-4 h-4" /></div>
-              Properties
+              <div className="flex justify-center mb-1"><Home className="w-5 h-5" /></div>
+              <span className="text-sm font-bold">Properties</span>
               {activeTab === 'properties' && (
                 <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-900 rounded-t-md" />
               )}
@@ -717,12 +765,12 @@ const HandpickedDetailsPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column (Main Scroll) */}
             <div className="lg:col-span-2 space-y-6">
-              
+
               {/* Section 1: Overview & Highlights */}
               <div ref={sectionRefs['overview-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <Building className="w-6 h-6 text-blue-500" /> Project Architectural Highlights
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <Building className="w-5 h-5 text-blue-500" /> Project Architectural Highlights
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">High-end specifications curated by Get-Right-home analysts</p>
                 </div>
@@ -746,7 +794,7 @@ const HandpickedDetailsPage = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-slate-800">Premium USPs & Considerations</h3>
+                  <h3 className="text-base font-bold text-slate-800">Why you should consider {property?.propertyName || 'this project'}</h3>
                   <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {propertyHighlights.slice(0, 4).map((hl, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
@@ -785,12 +833,22 @@ const HandpickedDetailsPage = () => {
               {(property?.amenities?.length > 0 || propertyHighlights.length > 0) && (
                 <div className="bg-white rounded-3xl p-6 md:p-8 space-y-5 shadow-sm border border-slate-100">
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Amenities</h2>
+                    <h2 className="text-lg md:text-xl font-bold text-slate-900">Amenities</h2>
                     <p className="text-slate-500 text-sm mt-1">
-                      {property?.propertyName} presents an exclusive opportunity to own a stunning home... <span className="font-semibold text-slate-700 underline cursor-pointer">more</span>
+                      {showFullAmenitiesDesc ? (
+                        <>
+                          {property?.description || `${property?.propertyName || 'This project'} presents an exclusive opportunity to own a stunning home that offers all kinds of amenities and facilities. This includes a swimming pool, gymnasium, and a clubhouse. It has an excellent combination of comfort and convenience to suit every requirement as well as need.`}
+                          <span onClick={() => setShowFullAmenitiesDesc(false)} className="font-semibold text-slate-700 underline cursor-pointer ml-1">less</span>
+                        </>
+                      ) : (
+                        <>
+                          {property?.propertyName || 'This project'} presents an exclusive opportunity to own a stunning home that offers all kinds of...
+                          <span onClick={() => setShowFullAmenitiesDesc(true)} className="font-semibold text-slate-700 underline cursor-pointer ml-1">more</span>
+                        </>
+                      )}
                     </p>
                   </div>
-                  
+
                   <div className="relative h-56 w-full rounded-2xl overflow-hidden shadow-sm">
                     <img src={pImages[1] || pImages[0]} className="w-full h-full object-cover brightness-[0.8]" alt="Amenity view" />
                     <div className="absolute bottom-4 left-4 text-white">
@@ -808,7 +866,7 @@ const HandpickedDetailsPage = () => {
                       else if (name.includes('gym') || name.includes('fitness') || name.includes('sports')) Icon = Dumbbell;
                       else if (name.includes('security') || name.includes('cctv')) Icon = Shield;
                       else if (name.includes('club')) Icon = Home;
-                      
+
                       return (
                         <div key={idx} className="flex items-center gap-3">
                           <Icon className="w-5 h-5 text-slate-700 flex-shrink-0" />
@@ -833,7 +891,7 @@ const HandpickedDetailsPage = () => {
               <div className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                    <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
                       <LayoutTemplate className="w-6 h-6 text-blue-500" /> Floor Plans & Configurations
                     </h2>
                     <p className="text-slate-500 text-sm mt-1">Configure layout preferences and review room sizing</p>
@@ -947,7 +1005,7 @@ const HandpickedDetailsPage = () => {
               {/* Milestone Payment Plan Widget */}
               <div className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
                     <FileText className="w-6 h-6 text-blue-500" /> Premium Payment Plans
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">Review milestone schedules and subvention terms</p>
@@ -976,7 +1034,7 @@ const HandpickedDetailsPage = () => {
               {/* Section 3: Specifications, Towers, Construction */}
               <div ref={sectionRefs['specs-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
                     <Layers className="w-6 h-6 text-blue-500" /> Towers, Layout & Structural Details
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">Detailed block phases, structural floor counts, and specifications</p>
@@ -1048,7 +1106,7 @@ const HandpickedDetailsPage = () => {
               <div className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900">
+                    <h2 className="text-lg md:text-xl font-bold text-slate-900">
                       Premium Curated Amenities
                     </h2>
                     <p className="text-slate-500 text-sm mt-1">Premium facilities, rare options, and high-end services</p>
@@ -1099,7 +1157,7 @@ const HandpickedDetailsPage = () => {
               {/* Section 4: Location, What Locals Said, Pros & Cons */}
               <div ref={sectionRefs['locality-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
                     <MapPin className="w-6 h-6 text-blue-500" /> Locality Insights & Real Reviews
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">What resident locals and safety maps tell about this sector</p>
@@ -1178,7 +1236,7 @@ const HandpickedDetailsPage = () => {
               {/* Section 5: Builder Profile & Details */}
               {(() => {
                 const targetBuilderId = resolvedBuilderId;
-              
+
                 const handleBuilderNavigate = (tab) => {
                   if (targetBuilderId) {
                     navigate(`/builder/${targetBuilderId}${tab ? `?tab=${tab}` : ''}`);
@@ -1189,117 +1247,122 @@ const HandpickedDetailsPage = () => {
 
                 return (
                   <div ref={sectionRefs['builder-sec']} className="bg-white/40 border border-slate-200 rounded-3xl p-6 md:p-8 space-y-6">
-                    <h2 className="text-xl md:text-2xl font-bold text-slate-900">About Builder</h2>
-                
-                {/* Builder Info Card */}
-                <div className="border border-slate-200 rounded-3xl p-5 pt-12 flex flex-col items-center gap-4 bg-white shadow-sm relative mt-12 max-w-sm">
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full border border-slate-200 bg-white flex items-center justify-center overflow-hidden shadow-sm p-1 z-10">
-                    <img 
-                      src={builderTrackRecord.logo || "https://ui-avatars.com/api/?name=" + (builderTrackRecord.name || 'B') + "&background=random"} 
-                      alt={builderTrackRecord.name} 
-                      onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=" + (builderTrackRecord.name || 'B') + "&background=random"; }}
-                      className="w-full h-full object-contain rounded-full" 
-                    />
-                  </div>
-                  <span className="font-bold text-slate-900 text-lg text-center mt-2">{builderTrackRecord.name}</span>
-                  
-                  <div className="w-full flex flex-col space-y-4 mt-2">
-                    <div className="w-full border-b border-slate-100 pb-3 pl-2">
-                      <span className="text-slate-900 font-bold text-[15px]">{builderTrackRecord.experience || 0} yrs</span>
-                    </div>
-                    <div className="w-full border-b border-slate-100 pb-3 pl-2">
-                      <span className="text-slate-900 font-bold text-[15px]">{builderTrackRecord.completedCount + builderTrackRecord.ongoingCount} projects*</span>
-                    </div>
-                    <div className="w-full pb-1 pl-2">
-                      <span className="text-slate-900 font-bold text-[15px]">3 cities</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-500 max-w-sm mt-2">*Based on residential properties only</p>
+                    <h2 className="text-base md:text-lg md:text-lg md:text-xl font-bold text-slate-900">About Builder</h2>
 
-                {/* Track Record Section */}
-                <div className="pt-2">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-bold text-slate-900">Track Record</h3>
-                    <button onClick={() => setShowVerifiedSourcesModal(true)} className="text-xs text-slate-500 hover:text-slate-800 underline underline-offset-2 font-medium">Source</button>
-                  </div>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    For over {builderTrackRecord.experience || 40} years, {builderTrackRecord.name} has been a symbol of trust, transparency, technology, <span onClick={() => setShowAboutBuilderModal(true)} className="text-blue-600 cursor-pointer hover:underline">...more</span>
-                  </p>
-                </div>
+                    {/* Builder Info Card */}
+                    <div className="border border-slate-200 rounded-3xl p-5 pt-12 flex flex-col items-center gap-4 bg-white shadow-sm relative mt-12 max-w-sm">
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full border border-slate-200 bg-white flex items-center justify-center overflow-hidden shadow-sm p-1 z-10">
+                        <img
+                          src={builderTrackRecord.logo || "https://ui-avatars.com/api/?name=" + (builderTrackRecord.name || 'B') + "&background=random"}
+                          alt={builderTrackRecord.name}
+                          onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=" + (builderTrackRecord.name || 'B') + "&background=random"; }}
+                          className="w-full h-full object-contain rounded-full"
+                        />
+                      </div>
+                      <span className="font-bold text-slate-900 text-lg text-center mt-2">{builderTrackRecord.name}</span>
 
-                {/* Top Rated Badge */}
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-xl p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-amber-200">
-                    <Award className="w-7 h-7 text-amber-500" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-600 mb-0.5">Top Rated for</p>
-                    <p className="text-sm font-bold text-slate-900">Construction Quality</p>
-                    <p className="text-[10px] text-slate-500 mt-1">Based on resident reviews</p>
-                  </div>
-                </div>
-
-                {/* Record List */}
-                <div className="space-y-1">
-                  <div onClick={() => handleBuilderNavigate('delivered')} className="flex items-center justify-between p-3 py-4 border-b border-slate-100 cursor-pointer group">
-                    <div className="flex items-start gap-4">
-                      <Key className="w-5 h-5 text-slate-400 mt-0.5" />
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900">Delivered</h4>
-                        <p className="text-xs text-slate-500 mt-0.5">{builderTrackRecord.completedCount} projects delivered successfully!</p>
+                      <div className="w-full flex flex-col space-y-4 mt-2">
+                        <div className="w-full border-b border-slate-100 pb-3 pl-2">
+                          <span className="text-slate-900 font-bold text-[15px]">{builderTrackRecord.experience || 0} yrs</span>
+                        </div>
+                        <div className="w-full border-b border-slate-100 pb-3 pl-2">
+                          <span className="text-slate-900 font-bold text-[15px]">{builderTrackRecord.completedCount + builderTrackRecord.ongoingCount} projects*</span>
+                        </div>
+                        <div className="w-full pb-1 pl-2">
+                          <span className="text-slate-900 font-bold text-[15px]">3 cities</span>
+                        </div>
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
-                  </div>
-                  <div onClick={() => handleBuilderNavigate('delivered')} className="flex items-center justify-between p-3 py-4 border-b border-slate-100 cursor-pointer group">
-                    <div className="flex items-start gap-4">
-                      <Clock className="w-5 h-5 text-slate-400 mt-0.5" />
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900">Recently delivered</h4>
-                        <p className="text-xs text-slate-500 mt-0.5">2 projects delivered in last 5 yrs</p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
-                  </div>
-                  <div onClick={() => handleBuilderNavigate('ongoing')} className="flex items-center justify-between p-3 py-4 border-b border-slate-100 cursor-pointer group">
-                    <div className="flex items-start gap-4">
-                      <Building className="w-5 h-5 text-slate-400 mt-0.5" />
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900">Ongoing construction</h4>
-                        <p className="text-xs text-slate-500 mt-0.5">{builderTrackRecord.ongoingCount} projects under construction</p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
-                  </div>
-                  <div onClick={() => handleBuilderNavigate('insights')} className="flex items-center justify-between p-3 py-4 cursor-pointer group">
-                    <div className="flex items-start gap-4">
-                      <TrendingUp className="w-5 h-5 text-slate-400 mt-0.5" />
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900">Price appreciation</h4>
-                        <p className="text-xs text-slate-500 mt-0.5">More than 25% appreciation seen in 4 projects in the last 3 yrs</p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
-                  </div>
-                </div>
+                    <p className="text-[11px] text-slate-500 max-w-sm mt-2">*Based on residential properties only</p>
 
-                {/* Actions */}
-                <div className="flex items-center gap-3 pt-2">
-                  <button onClick={() => setShowEnquiryModal(true)} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition-colors">
-                    <Phone className="w-4 h-4" /> Call Builder
-                  </button>
-                  <button onClick={() => handleBuilderNavigate('')} className="flex-1 py-3 bg-white border border-slate-200 text-blue-600 font-bold text-sm rounded-xl flex items-center justify-center gap-1 hover:bg-slate-50 transition-colors">
-                    View details <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              );
+                    {/* Track Record Section */}
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-lg font-bold text-slate-900">Track Record</h3>
+                        <button onClick={() => setShowVerifiedSourcesModal(true)} className="text-xs text-slate-500 hover:text-slate-800 underline underline-offset-2 font-medium">Source</button>
+                      </div>
+                      <p className="text-sm text-slate-600 leading-relaxed">
+                        {builderTrackRecord.summary ? (
+                          <>{builderTrackRecord.summary.length > 120 ? builderTrackRecord.summary.substring(0, 120) + '...' : builderTrackRecord.summary}</>
+                        ) : (
+                          <>For over {builderTrackRecord.experience || 40} years, {builderTrackRecord.name} has been a symbol of trust, transparency, technology,</>
+                        )}
+                        <span onClick={() => setShowAboutBuilderModal(true)} className="text-blue-600 cursor-pointer hover:underline ml-1">...more</span>
+                      </p>
+                    </div>
+
+                    {/* Top Rated Badge */}
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-xl p-4 flex items-center gap-4">
+                      <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-amber-200">
+                        <Award className="w-7 h-7 text-amber-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-600 mb-0.5">Top Rated for</p>
+                        <p className="text-sm font-bold text-slate-900">Construction Quality</p>
+                        <p className="text-[10px] text-slate-500 mt-1">Based on resident reviews</p>
+                      </div>
+                    </div>
+
+                    {/* Record List */}
+                    <div className="space-y-1">
+                      <div onClick={() => handleBuilderNavigate('delivered')} className="flex items-center justify-between p-3 py-4 border-b border-slate-100 cursor-pointer group">
+                        <div className="flex items-start gap-4">
+                          <Key className="w-5 h-5 text-slate-400 mt-0.5" />
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900">Delivered</h4>
+                            <p className="text-xs text-slate-500 mt-0.5">{builderTrackRecord.completedCount} projects delivered successfully!</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
+                      </div>
+                      <div onClick={() => handleBuilderNavigate('delivered')} className="flex items-center justify-between p-3 py-4 border-b border-slate-100 cursor-pointer group">
+                        <div className="flex items-start gap-4">
+                          <Clock className="w-5 h-5 text-slate-400 mt-0.5" />
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900">Recently delivered</h4>
+                            <p className="text-xs text-slate-500 mt-0.5">2 projects delivered in last 5 yrs</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
+                      </div>
+                      <div onClick={() => handleBuilderNavigate('ongoing')} className="flex items-center justify-between p-3 py-4 border-b border-slate-100 cursor-pointer group">
+                        <div className="flex items-start gap-4">
+                          <Building className="w-5 h-5 text-slate-400 mt-0.5" />
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900">Ongoing construction</h4>
+                            <p className="text-xs text-slate-500 mt-0.5">{builderTrackRecord.ongoingCount} projects under construction</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
+                      </div>
+                      <div onClick={() => handleBuilderNavigate('insights')} className="flex items-center justify-between p-3 py-4 cursor-pointer group">
+                        <div className="flex items-start gap-4">
+                          <TrendingUp className="w-5 h-5 text-slate-400 mt-0.5" />
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900">Price appreciation</h4>
+                            <p className="text-xs text-slate-500 mt-0.5">More than 25% appreciation seen in 4 projects in the last 3 yrs</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-3 pt-2">
+                      <button onClick={() => setShowEnquiryModal(true)} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition-colors">
+                        <Phone className="w-4 h-4" /> Call Builder
+                      </button>
+                      <button onClick={() => handleBuilderNavigate('')} className="flex-1 py-3 bg-white border border-slate-200 text-blue-600 font-bold text-sm rounded-xl flex items-center justify-center gap-1 hover:bg-slate-50 transition-colors">
+                        View details <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
               })()}
 
               {/* Projects by Builder List */}
               <div className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
-                <h2 className="text-xl md:text-2xl font-bold text-slate-900">Projects by {builderTrackRecord.name}</h2>
+                <h2 className="text-base md:text-lg md:text-lg md:text-xl font-bold text-slate-900">Projects by {builderTrackRecord.name}</h2>
                 <div className="flex items-center gap-4 border-b border-slate-100 pb-2">
                   {['ongoing', 'upcoming', 'delivered'].map((tab) => (
                     <button
@@ -1331,7 +1394,7 @@ const HandpickedDetailsPage = () => {
 
               {/* Compare with similar homes list carousel */}
               <div className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
-                <h2 className="text-2xl font-bold text-slate-900">Compare with Similar Homes</h2>
+                <h2 className="text-lg md:text-xl font-bold text-slate-900">Compare with Similar Homes</h2>
                 <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar pb-2">
                   {(similarProperties?.length > 0 ? similarProperties : fallbackSimilarProperties).map((simItem, i) => {
                     const simPrice = simItem.buyDetails?.expectedPrice ? formatPriceLakhCrore(simItem.buyDetails.expectedPrice) : 'Contact for Price';
@@ -1345,7 +1408,7 @@ const HandpickedDetailsPage = () => {
                         <img src={simCover} className="w-full h-20 object-cover rounded-lg mb-2" />
                         <h5 className="text-[11px] font-bold text-gray-800 line-clamp-1">{simName}</h5>
                         <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{simLocality}</p>
-                        
+
                         {ratingVal > 0 && (
                           <div className="flex items-center gap-1 my-1.5 text-[10px] text-amber-500 font-bold">
                             <Star size={10} className="fill-amber-500" /> {ratingVal.toFixed(1)}
@@ -1364,7 +1427,7 @@ const HandpickedDetailsPage = () => {
               <div id="explore-locality" className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900">Locality Reviews</h3>
+                    <h3 className="text-lg md:text-xl font-bold text-slate-900">Locality Reviews</h3>
                     <p className="text-sm text-slate-500 mt-1">For {property?.address?.locality || property?.address?.city || 'this area'}</p>
                   </div>
                   <button onClick={() => navigate('/insights/' + (property?.address?.locality || 'Locality') + '/reviews')} className="text-sm font-bold text-blue-600 hover:underline transition-all">
@@ -1491,7 +1554,7 @@ const HandpickedDetailsPage = () => {
 
             {/* Right Column (Sticky Side Panel) */}
             <div className="space-y-6 lg:sticky lg:top-[120px] self-start h-auto">
-              
+
               {/* Main Booking/Lead Panel */}
               <div className="bg-white border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-6 shadow-md space-y-6">
                 <div>
@@ -1588,11 +1651,11 @@ const HandpickedDetailsPage = () => {
                 <Filter className="w-4 h-4" />
               </button>
               <button className="flex-shrink-0 px-4 py-1.5 border border-slate-200 rounded-full text-sm font-medium text-slate-700 flex items-center gap-1 hover:bg-slate-50">
-                Sort <ChevronDown className="w-3.5 h-3.5"/>
+                Sort <ChevronDown className="w-3.5 h-3.5" />
               </button>
               {['Owner', 'Verified', 'Ready To Move', 'Budget'].map(f => (
-                <button 
-                  key={f} 
+                <button
+                  key={f}
                   onClick={() => setPropertyFilter(f === propertyFilter ? 'All' : f)}
                   className={`flex-shrink-0 px-4 py-1.5 border rounded-full text-sm font-medium transition-colors ${propertyFilter === f ? 'border-slate-800 text-slate-900 bg-slate-100' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}
                 >
@@ -1603,13 +1666,13 @@ const HandpickedDetailsPage = () => {
 
             {/* Inline Action Buttons */}
             <div className="flex items-center gap-3">
-              <a 
-                href={builderDetails.brochureUrl || "#"} 
+              <a
+                href={builderDetails.brochureUrl || "#"}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-blue-100 bg-blue-50 text-blue-600 font-bold text-sm hover:bg-blue-100 transition-colors"
               >
                 <Download className="w-4 h-4" /> Brochure
               </a>
-              <button 
+              <button
                 onClick={() => setShowEnquiryModal(true)}
                 className="flex-[1.5] flex items-center justify-center py-3 rounded-full bg-blue-600 text-white font-bold text-sm shadow-md hover:bg-blue-700 transition-colors"
               >
@@ -1624,7 +1687,7 @@ const HandpickedDetailsPage = () => {
                 <span className="text-orange-500 text-base">🔥</span> Limited inventory is available at the launch price.
               </p>
             </div>
-            
+
             {/* Config Tabs */}
             <div className="flex gap-2 overflow-x-auto scrollbar-none pb-2">
               {['1 BHK Apartment', '2 BHK Apartment', '3 BHK Apartment'].map((bhk, i) => (
@@ -1696,7 +1759,7 @@ const HandpickedDetailsPage = () => {
 
       {/* MODALS & BOTTOM SHEETS */}
       <AnimatePresence>
-        
+
         {/* Floor Plan Modal */}
         {selectedFloorPlan && (
           <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1925,9 +1988,8 @@ const HandpickedDetailsPage = () => {
                   <button
                     key={tab}
                     onClick={() => setActiveInteriorTab(tab)}
-                    className={`px-5 py-3 transition-colors capitalize ${
-                      activeInteriorTab === tab ? 'text-blue-600 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`px-5 py-3 transition-colors capitalize ${activeInteriorTab === tab ? 'text-blue-600 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     {tab}
                   </button>
@@ -2181,7 +2243,7 @@ const HandpickedDetailsPage = () => {
             </motion.div>
           </div>
         )}
-        
+
         {/* About Builder Modal */}
         {showAboutBuilderModal && (
           <div className="fixed inset-0 z-[99999] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
@@ -2239,13 +2301,13 @@ const HandpickedDetailsPage = () => {
       </AnimatePresence>
       {/* Fixed Bottom Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 pb-safe md:p-4 z-[9999] flex items-center justify-between gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.08)]">
-        <a 
-          href={builderDetails.brochureUrl || "#"} 
+        <a
+          href={builderDetails.brochureUrl || "#"}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
         >
           <Download className="w-3.5 h-3.5" /> Brochure
         </a>
-        <button 
+        <button
           onClick={() => setShowEnquiryModal(true)}
           className="flex-[1.5] flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-blue-600 text-white font-bold text-xs shadow-md shadow-blue-600/30 hover:bg-blue-700 transition-colors"
         >
