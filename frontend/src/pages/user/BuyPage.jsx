@@ -10,6 +10,7 @@ import SupportSection from '../../components/user/SupportSection';
 import { categoryService } from '../../services/categoryService';
 import BHKChoice from '../../components/user/BHKChoice';
 import RecommendInsights from '../../components/user/RecommendInsights';
+import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 
 // Theme for Buy Page
 const THEME = {
@@ -82,7 +83,9 @@ const BuyPage = () => {
             </div>
 
             {/* 1. Offers Section */}
-
+            <div className="max-w-7xl mx-auto -mt-8 mb-6">
+                 <PropertyVideoCurations pageType="buy" />
+            </div>
 
             {/* 2. Handpicked Projects (Buy Context) */}
             <div className="max-w-7xl mx-auto">

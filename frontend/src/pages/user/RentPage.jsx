@@ -10,6 +10,7 @@ import { categoryService } from '../../services/categoryService';
 import BHKChoice from '../../components/user/BHKChoice';
 import RecommendInsights from '../../components/user/RecommendInsights';
 import PropertyFeed from '../../components/user/PropertyFeed';
+import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 
 // Theme for Rent Page
 const THEME = {
@@ -110,6 +111,11 @@ const RentPage = () => {
 
             {/* 1. Offers Section */}
             <ExclusiveOffers />
+
+            {/* Property Videos */}
+            <div className="max-w-7xl mx-auto -mt-4 mb-6">
+                 <PropertyVideoCurations pageType="rent" />
+            </div>
 
             {/* 2. Handpicked Projects */}
             <div className="max-w-7xl mx-auto">

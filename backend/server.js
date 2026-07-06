@@ -139,6 +139,7 @@ import feedbackRoutes from './routes/feedbackRoutes.js';
 import managerRoutes from './routes/managerRoutes.js';
 import insightRoutes from './routes/insightRoutes.js';
 import adminInsightRoutes from './routes/adminInsightRoutes.js';
+import propertyVideoRoutes from './routes/propertyVideoRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
@@ -200,8 +201,8 @@ app.use('/api/admin/workers', adminWorkerRoutes);
 app.use('/api/admin/managers', managerRoutes);
 app.use('/api/managers', managerRoutes);
 
-
-
+// Property Video Curations
+app.use('/api/property-videos', propertyVideoRoutes);
 
 // Basic API Check Route
 app.get('/api/check', (req, res) => {

@@ -23,6 +23,7 @@ const MODULE_NAV_MAP = {
     properties:      { icon: Home,             label: 'Properties',         path: '/manager/properties' },
     categories:      { icon: LayoutGrid,       label: 'Categories',         path: '/manager/categories' },
     property_forms:  { icon: FileText,         label: 'Property Forms',     path: '/manager/property-forms' },
+    property_videos: { icon: Video,            label: 'Property Videos',    path: '/manager/property-videos' },
     locations:       { icon: MapPin,           label: 'Locations',          path: '/manager/locations' },
     enquiries:       { icon: ClipboardList,    label: 'Enquiries / Leads',  path: '/manager/enquiries' },
     bookings:        { icon: BarChart3,        label: 'Bookings',           path: '/manager/bookings' },

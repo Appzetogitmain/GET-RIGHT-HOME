@@ -107,6 +107,7 @@ const AdminSubscriptions = React.lazy(() => import('./app/admin/pages/AdminSubsc
 const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAnalysis'));
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
 const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/PropertyFormManager'));
+const AdminPropertyVideos = React.lazy(() => import('./app/admin/pages/AdminPropertyVideos'));
 const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocationsPage'));
 const AdminManagers = React.lazy(() => import('./app/admin/pages/AdminManagers'));
 const AdminBuilders = React.lazy(() => import('./app/admin/pages/AdminBuilders'));
@@ -603,6 +604,7 @@ function App() {
                         <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                         <Route path="banners" element={<AdminBanners />} />
                         <Route path="property-forms" element={<AdminPropertyFormManager />} />
+                        <Route path="property-videos" element={<AdminPropertyVideos />} />
                         <Route path="locations" element={<AdminLocationsPage />} />
                         <Route path="managers" element={<AdminManagers />} />
                         <Route path="locality-insights" element={<AdminManageLocalityInsights />} />
@@ -642,6 +644,7 @@ function App() {
                         <Route path="featured-properties" element={<AdminFeaturedProperties />} />
                         <Route path="banners" element={<AdminBanners />} />
                         <Route path="property-forms" element={<AdminPropertyFormManager />} />
+                        <Route path="property-videos" element={<AdminPropertyVideos />} />
                         <Route path="locations" element={<AdminLocationsPage />} />
                         <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                         <Route path="reviews" element={<AdminReviews />} />

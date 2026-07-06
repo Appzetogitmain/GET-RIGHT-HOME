@@ -14,6 +14,7 @@ import AdminPropertiesSection from '../../components/user/AdminPropertiesSection
 import { categoryService } from '../../services/categoryService';
 import GRHHomeSection from '../../components/user/GRHHomeSection';
 import SupportSection from '../../components/user/SupportSection';
+import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 
 
 // Category Theme Map - Professional palettes inspired by Housing.com
@@ -180,6 +181,11 @@ const Home = () => {
             </div>
 
 
+
+            {/* Property Videos */}
+            <div className="max-w-7xl mx-auto -mt-8 mb-6">
+                 <PropertyVideoCurations pageType="home" />
+            </div>
 
             {/* Admin Curated Properties - Location Based */}
             <div className="max-w-7xl mx-auto">
