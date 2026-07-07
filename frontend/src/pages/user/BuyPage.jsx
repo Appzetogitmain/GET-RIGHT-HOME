@@ -9,6 +9,7 @@ import PopularBuilders from '../../components/user/PopularBuilders';
 import SupportSection from '../../components/user/SupportSection';
 import { categoryService } from '../../services/categoryService';
 import BHKChoice from '../../components/user/BHKChoice';
+import PostedByChoice from '../../components/user/PostedByChoice';
 import RecommendInsights from '../../components/user/RecommendInsights';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 
@@ -113,6 +114,7 @@ const BuyPage = () => {
 
                 {/* 7. BHK Choice */}
                 <BHKChoice transactionType="Buy" />
+                <PostedByChoice transactionType="Buy" />
 
                 {/* 8. Move In Timeline Placeholder */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -120,11 +122,6 @@ const BuyPage = () => {
                     <p className="text-sm text-slate-500">[To be implemented: Filters for Ready to move, Under construction]</p>
                 </div>
 
-                {/* 9. Properties Posted By Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Properties Posted By</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Quick filters for Owner, Builder, Dealer]</p>
-                </div>
 
                 {/* 10. Future Dealers Placeholder */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">

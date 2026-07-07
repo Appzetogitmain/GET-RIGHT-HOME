@@ -102,7 +102,7 @@ const BHKChoice = ({ transactionType = 'buy' }) => {
                             <Building2 size={46} fill="currentColor" strokeWidth={1} />
                         </div>
                     </div>
-                    <h2 className="text-[18px] md:text-xl font-black text-[#0B1D35] leading-tight tracking-tight">
+                    <h2 className="text-[16px] md:text-[18px] font-extrabold text-slate-800 leading-tight tracking-tight">
                         BHK choice<br/>in mind?
                     </h2>
                 </div>
@@ -130,7 +130,7 @@ const BHKChoice = ({ transactionType = 'buy' }) => {
                                     <UniformHouseIcon />
                                 </div>
                                 <div>
-                                    <h3 className="font-black text-[#0B1D35] text-[16px] md:text-[17px] mb-0.5">
+                                    <h3 className="font-bold text-slate-800 text-[15px] md:text-[16px] mb-0.5">
                                         {opt.label}
                                     </h3>
                                     <p className="text-[12px] md:text-[13px] text-gray-500 font-medium">
