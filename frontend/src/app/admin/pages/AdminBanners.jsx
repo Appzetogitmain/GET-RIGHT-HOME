@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    Plus, Edit2, Trash2, Save, X, MoveUp, MoveDown, 
+import {
+    Plus, Edit2, Trash2, Save, X, MoveUp, MoveDown,
     Image as ImageIcon, Link as LinkIcon, Hash, Check, AlertCircle, Loader2
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const AdminBanners = () => {
     const [banners, setBanners] = useState([]);
@@ -54,7 +54,7 @@ const AdminBanners = () => {
             setUploading(true);
             const token = localStorage.getItem('adminToken');
             const response = await axios.post(`${API_URL}/banners/upload`, uploadData, {
-                headers: { 
+                headers: {
                     'Content-Type': 'multipart/form-data',
                     Authorization: `Bearer ${token}`
                 }
@@ -153,7 +153,7 @@ const AdminBanners = () => {
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight">Banner Management</h1>
                     <p className="text-gray-500 mt-1">Manage dynamic banners for home and offer pages.</p>
                 </div>
-                <button 
+                <button
                     onClick={() => {
                         setEditingBanner(null);
                         setFormData({ title: '', link: '', order: 0, type: 'home', imageUrl: '', imagePublicId: '' });
@@ -197,7 +197,7 @@ const AdminBanners = () => {
                                                 <ImageIcon size={32} />
                                             </div>
                                             <p className="text-gray-400 font-medium text-lg">No banners found</p>
-                                            <button 
+                                            <button
                                                 onClick={() => setIsModalOpen(true)}
                                                 className="text-black font-bold hover:underline"
                                             >
@@ -211,9 +211,9 @@ const AdminBanners = () => {
                                     <tr key={banner._id} className="hover:bg-gray-50/50 transition-colors group">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="w-32 h-16 rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
-                                                <img 
-                                                    src={banner.imageUrl} 
-                                                    alt={banner.title} 
+                                                <img
+                                                    src={banner.imageUrl}
+                                                    alt={banner.title}
                                                     className="w-full h-full object-cover"
                                                 />
                                             </div>
@@ -236,27 +236,26 @@ const AdminBanners = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <button 
+                                            <button
                                                 onClick={() => handleToggleStatus(banner)}
-                                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                                                    banner.isActive 
-                                                    ? 'bg-green-100 text-green-600' 
-                                                    : 'bg-red-100 text-red-600'
-                                                }`}
+                                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${banner.isActive
+                                                        ? 'bg-green-100 text-green-600'
+                                                        : 'bg-red-100 text-red-600'
+                                                    }`}
                                             >
                                                 {banner.isActive ? 'Active' : 'Inactive'}
                                             </button>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button 
+                                                <button
                                                     onClick={() => openEditModal(banner)}
                                                     className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-lg transition-all"
                                                     title="Edit"
                                                 >
                                                     <Edit2 size={18} />
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => handleDelete(banner._id)}
                                                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                                                     title="Delete"
@@ -277,7 +276,7 @@ const AdminBanners = () => {
             <AnimatePresence>
                 {isModalOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -291,7 +290,7 @@ const AdminBanners = () => {
                                         </h2>
                                         <p className="text-gray-500 text-sm">Fill in the details for your banner.</p>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => setIsModalOpen(false)}
                                         className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
                                     >
@@ -304,9 +303,8 @@ const AdminBanners = () => {
                                     <div className="space-y-2">
                                         <label className="text-xs font-black text-gray-400 uppercase tracking-wider ml-1">Banner Image</label>
                                         <div className="relative group">
-                                            <div className={`aspect-[2/1] rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center overflow-hidden bg-gray-50/50 ${
-                                                formData.imageUrl ? 'border-transparent' : 'border-gray-200 hover:border-black/20'
-                                            }`}>
+                                            <div className={`aspect-[2/1] rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center overflow-hidden bg-gray-50/50 ${formData.imageUrl ? 'border-transparent' : 'border-gray-200 hover:border-black/20'
+                                                }`}>
                                                 {uploading ? (
                                                     <div className="flex flex-col items-center gap-2">
                                                         <Loader2 className="w-8 h-8 animate-spin text-black" />
@@ -340,11 +338,11 @@ const AdminBanners = () => {
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-wider ml-1">Title</label>
                                             <div className="relative">
                                                 <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                                <input 
-                                                    type="text" 
+                                                <input
+                                                    type="text"
                                                     required
                                                     value={formData.title}
-                                                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                                     placeholder="Enter title"
                                                     className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-black outline-none transition-all"
                                                 />
@@ -354,11 +352,11 @@ const AdminBanners = () => {
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-wider ml-1">Order / Sequence</label>
                                             <div className="relative">
                                                 <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                                <input 
-                                                    type="number" 
+                                                <input
+                                                    type="number"
                                                     required
                                                     value={formData.order}
-                                                    onChange={(e) => setFormData({...formData, order: parseInt(e.target.value)})}
+                                                    onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
                                                     placeholder="Sequence no."
                                                     className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-black outline-none transition-all"
                                                 />
@@ -370,10 +368,10 @@ const AdminBanners = () => {
                                         <label className="text-xs font-black text-gray-400 uppercase tracking-wider ml-1">Redirect Link (Optional)</label>
                                         <div className="relative">
                                             <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 value={formData.link}
-                                                onChange={(e) => setFormData({...formData, link: e.target.value})}
+                                                onChange={(e) => setFormData({ ...formData, link: e.target.value })}
                                                 placeholder="/offers, https://..."
                                                 className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-black outline-none transition-all"
                                             />
@@ -381,14 +379,14 @@ const AdminBanners = () => {
                                     </div>
 
                                     <div className="flex gap-4 pt-4">
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={() => setIsModalOpen(false)}
                                             className="flex-1 py-4 px-6 rounded-2xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
                                         >
                                             Cancel
                                         </button>
-                                        <button 
+                                        <button
                                             type="submit"
                                             disabled={uploading}
                                             className="flex-1 bg-black text-white py-4 px-6 rounded-2xl font-bold shadow-lg shadow-black/10 hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"

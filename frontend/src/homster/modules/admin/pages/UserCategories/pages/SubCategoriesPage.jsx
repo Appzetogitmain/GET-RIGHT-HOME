@@ -88,6 +88,7 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           bannerUrl: svc.bannerUrl || "",
           badge: svc.badge || "",
           isActive: svc.isActive !== false,
+          isEstimateBased: svc.categoryId?.isEstimateBased || false,
           cityIds: (svc.cityIds || []).map(id => getStrId(id)).filter(Boolean),
         }));
       } else {
@@ -98,7 +99,8 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
         mappedCategories = (categoriesRes.categories || []).map(cat => ({
           id: getStrId(cat.id || cat._id) || "",
           title: cat.title,
-          slug: cat.slug
+          slug: cat.slug,
+          isEstimateBased: cat.isEstimateBased || false
         }));
       } else {
         console.error('Categories fetch failed:', categoriesRes);
@@ -109,7 +111,8 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
             mappedCategories = (adminCatRes.categories || []).map(cat => ({
               id: getStrId(cat.id || cat._id) || "",
               title: cat.title,
-              slug: cat.slug
+              slug: cat.slug,
+              isEstimateBased: cat.isEstimateBased || false
             }));
           }
         } catch (e) {
@@ -428,7 +431,10 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       {selectedSubCategoryForServices && (
         <SubCategoryServicesModal
           isOpen={isServicesModalOpen}
-          onClose={() => setIsServicesModalOpen(false)}
+          onClose={() => {
+            setIsServicesModalOpen(false);
+            setSelectedSubCategoryForServices(null);
+          }}
           subCategory={selectedSubCategoryForServices}
         />
       )}

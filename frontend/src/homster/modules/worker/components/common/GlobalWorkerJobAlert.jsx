@@ -127,8 +127,8 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 120 })
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                   Total Price
                 </span>
-                <span className="text-[13px] font-black text-green-600">
-                  ₹{booking.price || 'N/A'}
+                <span className={`text-[13px] font-black ${booking.isEstimateBased ? 'text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100' : 'text-green-600'}`}>
+                  {booking.isEstimateBased ? 'Estimate Based' : `₹${booking.price || 'N/A'}`}
                 </span>
               </div>
             </div>

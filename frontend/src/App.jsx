@@ -29,6 +29,10 @@ const PropertyComparePage = React.lazy(() => import('./pages/user/PropertyCompar
 const UserLogin = React.lazy(() => import('./pages/auth/UserLogin'));
 const UserSignup = React.lazy(() => import('./pages/auth/UserSignup'));
 const SearchPage = React.lazy(() => import('./pages/user/SearchPage'));
+const BuyPage = React.lazy(() => import('./pages/user/BuyPage'));
+const RentPage = React.lazy(() => import('./pages/user/RentPage'));
+const LocalityDetail = React.lazy(() => import('./pages/user/LocalityDetail'));
+const LocalityReviewsPage = React.lazy(() => import('./pages/user/LocalityReviewsPage'));
 const BookingsPage = React.lazy(() => import('./pages/user/BookingsPage'));
 const ListingPage = React.lazy(() => import('./pages/user/ListingPage'));
 const BookingConfirmationPage = React.lazy(() => import('./pages/user/BookingConfirmationPage'));
@@ -103,9 +107,11 @@ const AdminSubscriptions = React.lazy(() => import('./app/admin/pages/AdminSubsc
 const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAnalysis'));
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
 const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/PropertyFormManager'));
+const AdminPropertyVideos = React.lazy(() => import('./app/admin/pages/AdminPropertyVideos'));
 const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocationsPage'));
 const AdminManagers = React.lazy(() => import('./app/admin/pages/AdminManagers'));
 const AdminBuilders = React.lazy(() => import('./app/admin/pages/AdminBuilders'));
+const AdminManageLocalityInsights = React.lazy(() => import('./app/admin/pages/AdminManageLocalityInsights'));
 
 // Lazy Imports - Manager Panel
 const ManagerLogin = React.lazy(() => import('./app/manager/pages/ManagerLogin'));
@@ -219,7 +225,7 @@ const Layout = ({ children }) => {
   const showUserNavs = !isPartnerApp;
 
   // Specific user pages where BottomNav is hidden (reels = full-screen experience)
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/property/', '/handpicked/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
   const isReelsPage = location.pathname.startsWith('/reels');
 
@@ -241,7 +247,7 @@ const Layout = ({ children }) => {
     <>
       {showUserNavs && !isReelsPage && !isHomeServicesPage && <TopNavbar />}
 
-      <div className={`min-h-screen ${showUserNavs && !isReelsPage ? 'md:pt-24' : ''} ${showUserBottomNav || showPartnerBottomNav ? 'pb-20 md:pb-0' : ''}`}>
+      <div className={`min-h-screen ${showUserNavs && !isReelsPage ? 'lg:pt-20' : ''} ${showUserBottomNav || showPartnerBottomNav ? 'pb-20 md:pb-0' : ''}`}>
         {showMaintenanceOverlay ? (
           <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-6 py-10 text-center bg-gradient-to-b from-[#111827] via-[#0f172a] to-black">
             <div className="flex flex-col items-center justify-center max-w-md w-full">
@@ -433,10 +439,22 @@ function App() {
     // Listen for foreground messages
     onMessageListener((payload) => {
       console.log('Foreground Message:', payload);
+      
+      const title = payload.notification?.title || payload.data?.title || 'Notification';
+      const body = payload.notification?.body || payload.data?.body || '';
+
+      // Force a system push notification even when the app is in the foreground
+      if (Notification.permission === 'granted') {
+        new Notification(title, {
+          body: body,
+          icon: '/icon-192x192.png'
+        });
+      }
+
       toast((t) => (
         <div className="flex flex-col">
-          <span className="font-bold">{payload.notification?.title || 'Notification'}</span>
-          <span className="text-sm">{payload.notification?.body}</span>
+          <span className="font-bold">{title}</span>
+          <span className="text-sm">{body}</span>
         </div>
       ), {
         duration: 5000,
@@ -477,10 +495,13 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/reels" element={<ReelsPage />} />
                     <Route path="/search" element={<SearchPage />} />
-                    <Route path="/rent" element={<SearchPage />} />
+                    <Route path="/rent" element={<Navigate to="/rent-pg" replace />} />
+                    <Route path="/rent-pg" element={<RentPage />} />
                     <Route path="/plot" element={<SearchPage />} />
-                    <Route path="/pg-coliving" element={<SearchPage />} />
-                    <Route path="/buy" element={<SearchPage />} />
+                    <Route path="/pg-coliving" element={<Navigate to="/rent-pg" replace />} />
+                    <Route path="/buy" element={<BuyPage />} />
+                    <Route path="/insights/:locality" element={<LocalityDetail />} />
+                    <Route path="/insights/:locality/reviews" element={<LocalityReviewsPage />} />
                     <Route path="/compare" element={<PropertyComparePage />} />
                     <Route path="/listings" element={<Navigate to="/search" replace />} />
                     <Route path="/partner-landing" element={<PartnerLandingPage />} />
@@ -595,8 +616,10 @@ function App() {
                         <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                         <Route path="banners" element={<AdminBanners />} />
                         <Route path="property-forms" element={<AdminPropertyFormManager />} />
+                        <Route path="property-videos" element={<AdminPropertyVideos />} />
                         <Route path="locations" element={<AdminLocationsPage />} />
                         <Route path="managers" element={<AdminManagers />} />
+                        <Route path="locality-insights" element={<AdminManageLocalityInsights />} />
                       </Route>
                     </Route>
 
@@ -633,6 +656,7 @@ function App() {
                         <Route path="featured-properties" element={<AdminFeaturedProperties />} />
                         <Route path="banners" element={<AdminBanners />} />
                         <Route path="property-forms" element={<AdminPropertyFormManager />} />
+                        <Route path="property-videos" element={<AdminPropertyVideos />} />
                         <Route path="locations" element={<AdminLocationsPage />} />
                         <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                         <Route path="reviews" element={<AdminReviews />} />

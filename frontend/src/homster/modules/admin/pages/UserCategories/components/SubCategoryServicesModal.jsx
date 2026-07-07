@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import Modal from './Modal'; 
 import { serviceService } from '../../../../../services/catalogService';
 import { z } from 'zod';
+import { loadCatalog } from '../utils';
 
 // Local asset utility helper
 const toAssetUrl = (url) => {
@@ -40,6 +41,10 @@ const SubCategoryServicesModal = ({ isOpen, onClose, subCategory }) => {
     imageUrl: '',
     description: ''
   });
+
+  const catalog = loadCatalog();
+  const parentCategory = catalog.categories.find(c => c.id === subCategory?.categoryId);
+  const isEstimateBased = parentCategory?.isEstimateBased;
 
   useEffect(() => {
     if (isOpen && subCategory) {
@@ -208,33 +213,35 @@ const SubCategoryServicesModal = ({ isOpen, onClose, subCategory }) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Base Price */}
-              <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">Base Price / Starts At (₹)</label>
-                <input 
-                  type="number" 
-                  value={form.basePrice} 
-                  onChange={e => setForm(p => ({ ...p, basePrice: e.target.value }))} 
-                  placeholder="0" 
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium" 
-                  required
-                  min="0"
-                />
-              </div>
+            {!isEstimateBased && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Base Price */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Base Price / Starts At (₹)</label>
+                  <input 
+                    type="number" 
+                    value={form.basePrice} 
+                    onChange={e => setForm(p => ({ ...p, basePrice: e.target.value }))} 
+                    placeholder="0" 
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium" 
+                    required={!isEstimateBased}
+                    min="0"
+                  />
+                </div>
 
-              {/* Discounted Price */}
-              <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">Discounted Price (₹) - Optional</label>
-                <input 
-                  type="number" 
-                  value={form.discountPrice} 
-                  onChange={e => setForm(p => ({ ...p, discountPrice: e.target.value }))} 
-                  placeholder="Leave empty" 
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium" 
-                />
+                {/* Discounted Price */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Discounted Price (₹) - Optional</label>
+                  <input 
+                    type="number" 
+                    value={form.discountPrice} 
+                    onChange={e => setForm(p => ({ ...p, discountPrice: e.target.value }))} 
+                    placeholder="Leave empty" 
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium" 
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Description */}
             <div>
@@ -294,7 +301,7 @@ const SubCategoryServicesModal = ({ isOpen, onClose, subCategory }) => {
                 <th className="px-4 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Image</th>
                 <th className="px-4 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Title</th>
                 <th className="px-4 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Subheading</th>
-                <th className="px-4 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Price</th>
+                {!subCategory?.isEstimateBased && <th className="px-4 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Price</th>}
                 <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
@@ -321,7 +328,7 @@ const SubCategoryServicesModal = ({ isOpen, onClose, subCategory }) => {
                     </td>
                     <td className="px-4 py-3 text-sm font-black text-gray-900">{service.title}</td>
                     <td className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">{service.subheading || '—'}</td>
-                    <td className="px-4 py-3 text-sm font-bold text-emerald-600">₹{service.discountPrice || service.basePrice || service.price}</td>
+                    {!subCategory?.isEstimateBased && <td className="px-4 py-3 text-sm font-bold text-emerald-600">₹{service.discountPrice || service.basePrice || service.price}</td>}
                     <td className="px-4 py-3 text-right flex justify-end gap-1.5 pt-4">
                       <button onClick={() => handleEdit(service)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
                       <button onClick={() => handleDelete(service.id || service._id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>

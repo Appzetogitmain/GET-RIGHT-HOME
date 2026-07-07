@@ -98,9 +98,11 @@ const SearchPage = () => {
 
         // Map back to UI labels
         bhksFromUrl.forEach(v => {
-            if (v === '1BHK') amsFromUrl.push('1 BHK');
+            if (v === '1BHK') amsFromUrl.push('1 RK/1 BHK');
             else if (v === '2BHK') amsFromUrl.push('2 BHK');
             else if (v === '3BHK') amsFromUrl.push('3 BHK');
+            else if (v === '4BHK') amsFromUrl.push('4 BHK');
+            else if (v === '4+BHK') amsFromUrl.push('4+ BHK');
             else if (v === 'Villa') amsFromUrl.push('Villa');
             else if (v === 'Studio') amsFromUrl.push('Studio');
         });
@@ -128,7 +130,7 @@ const SearchPage = () => {
         const initialPropertyTypes = [];
         subTypeFromUrl.forEach(v => {
             const matched = [
-                'Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 
+                'Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK / Studio Apartment', 
                 'Serviced Apartment', 'Farmhouse', 'Plot / Land', 'Office', 'Retail', 
                 'Industry', 'Storage', 'Hospitality', 'Other'
             ].find(opt => opt.toLowerCase() === v.toLowerCase());
@@ -150,7 +152,7 @@ const SearchPage = () => {
         const pCategory = searchParams.get('propertyCategory') || '';
         const transactionTypeVal = searchParams.get('transactionType') || '';
 
-        let categoryTab = 'Sell';
+        let categoryTab = 'All';
         const pathName = window.location.pathname;
         if (pathName === '/rent') {
             categoryTab = 'Rent / Lease';
@@ -161,13 +163,25 @@ const SearchPage = () => {
         } else if (pathName === '/buy') {
             categoryTab = 'Sell';
         } else if (transactionTypeVal) {
-            categoryTab = transactionTypeVal;
+            if (transactionTypeVal.toLowerCase() === 'buy' || transactionTypeVal.toLowerCase() === 'sell') {
+                categoryTab = 'Sell';
+            } else if (transactionTypeVal.toLowerCase() === 'rent') {
+                categoryTab = 'Rent / Lease';
+            } else if (transactionTypeVal.toLowerCase() === 'pg') {
+                categoryTab = 'Paying Guest';
+            } else if (transactionTypeVal.toLowerCase() === 'rent,pg') {
+                categoryTab = 'Rent / PG';
+            } else if (transactionTypeVal.toLowerCase() === 'all') {
+                categoryTab = 'All';
+            } else {
+                categoryTab = transactionTypeVal;
+            }
         } else if (typeVal.toLowerCase().includes('pg') || typeVal.toLowerCase().includes('hostel')) {
             categoryTab = 'Paying Guest';
         } else if (typeVal.toLowerCase().includes('rent')) {
             categoryTab = 'Rent / Lease';
         } else {
-            categoryTab = 'Sell';
+            categoryTab = 'All';
         }
 
         const areasFromUrl = searchParams.get('areas')?.split(',').filter(Boolean) || [];
@@ -263,7 +277,6 @@ const SearchPage = () => {
 
                     setPropertyTypes(updatedTypes);
 
-                    // Check pathname overrides or URL query params
                     const pathName = window.location.pathname;
                     if (pathName === '/rent') {
                         setFilters(prev => ({ ...prev, categoryTab: 'Rent / Lease', type: rentId }));
@@ -309,75 +322,22 @@ const SearchPage = () => {
         fetchBuilders();
     }, [searchParams]);
 
-    const getAmenitiesOptions = () => {
-        const cat = filters.categoryTab;
-        
-        if (cat === 'Paying Guest') {
-            return [
-                'Boys Only', 'Girls Only', 'Coliving',
-                'Single Occupancy', 'Double Occupancy', 'Triple Occupancy',
-                'Wi-Fi', 'AC', 'Food', 'Laundry', 'Housekeeping', 'CCTV', 'Security',
-                'RO Water', 'Gym', 'Lift', 'Power Backup', 'Geyser', 'Fridge', 'Parking', 'TV', 'Kitchen'
-            ];
-        }
-        if (cat === 'Rent / Lease') {
-            return [
-                '1 BHK', '2 BHK', '3 BHK', 'Villa', 'Studio',
-                'Fully Furnished', 'Semi Furnished', 'Unfurnished',
-                'Lift', 'Parking', 'Power Backup', 'Water Supply', 'Security Guard', 'CCTV', 'Comfort Amenities',
-                'Gym', 'Garden', 'Balcony', 'Modular Kitchen', 'Air Conditioning'
-            ];
-        }
-        if (cat === 'Sell') {
-            return [
-                'Ready to Move', 'Under Construction', 'Pre Launch',
-                'East Facing', 'West Facing', 'North Facing', 'South Facing',
-                'Lift', 'Parking', 'Power Backup', 'Water Supply', 'Security Guard', 'CCTV',
-                'Gym', 'Garden', 'Balcony', 'Modular Kitchen', 'Air Conditioning', 'Club House'
-            ];
-        }
-
-        return ['Wi-Fi', 'AC', 'Parking', 'Kitchen', 'Geyser', 'Power Backup'];
-    };
-
-
     useEffect(() => {
         fetchProperties();
-    }, [searchParams, location]);
+    }, [searchParams, location, propertyTypes]);
 
     const fetchProperties = async () => {
         setLoading(true);
         try {
-            const params = Object.fromEntries([...searchParams]);
+            const currentFilters = getInitialFilters();
+            const params = getParamsFromFilters(currentFilters);
 
-            // Pathname overrides
-            const pathName = window.location.pathname;
-            if (pathName === '/rent') {
-                params.transactionType = 'Rent / Lease';
-                const rentIdObj = propertyTypes.find(t => t.label === 'Rent');
-                params.type = rentIdObj && rentIdObj.id !== 'rent' ? rentIdObj.id : 'rent';
-            } else if (pathName === '/pg-coliving') {
-                params.transactionType = 'Paying Guest';
-                const pgIdObj = propertyTypes.find(t => t.label === 'PG');
-                params.type = pgIdObj && pgIdObj.id !== 'pg' ? pgIdObj.id : 'pg';
-            } else if (pathName === '/plot') {
-                params.transactionType = 'Sell';
-                const plotIdObj = propertyTypes.find(t => t.label === 'Plot');
-                params.type = plotIdObj && plotIdObj.id !== 'plot' ? plotIdObj.id : 'plot';
-            } else if (pathName === '/buy') {
-                params.transactionType = 'Sell';
-                const buyIdObj = propertyTypes.find(t => t.label === 'Buy');
-                params.type = buyIdObj && buyIdObj.id !== 'buy' ? buyIdObj.id : 'buy';
-            }
-
-            // Add location if present
             if (location) {
                 params.lat = location.lat;
                 params.lng = location.lng;
-                params.radius = filters.radius;
+                params.radius = currentFilters.radius;
             }
 
-            // Fetch properties and saved status in parallel if logged in
             const promises = [propertyService.getPublicProperties(params)];
             if (isLoggedIn) {
                 promises.push(userService.getSavedHotels());
@@ -390,11 +350,9 @@ const SearchPage = () => {
                 setSavedHotelIds(list.map(h => (typeof h === 'object' ? h._id : h)));
             }
 
-            // Backend returns a direct array of properties
             if (Array.isArray(res)) {
                 setProperties(res);
             } else if (res.success && Array.isArray(res.properties)) {
-                // Fallback for wrapped response
                 setProperties(res.properties);
             } else {
                 setProperties([]);
@@ -431,7 +389,6 @@ const SearchPage = () => {
                 nextFilters[filterKey] = newValues;
             }
 
-            // apply filters immediately
             setTimeout(() => {
                 const newParams = getParamsFromFilters(nextFilters);
                 setSearchParams(newParams, { replace: true });
@@ -445,15 +402,35 @@ const SearchPage = () => {
         const params = {};
         if (targetFilters.search) params.search = targetFilters.search;
         
-        // Map categoryTab to transactionType & dynamic type ID
         if (targetFilters.categoryTab) {
-            params.transactionType = targetFilters.categoryTab;
+            if (targetFilters.categoryTab === 'Rent / Lease') {
+                params.transactionType = 'rent';
+            } else if (targetFilters.categoryTab === 'Paying Guest') {
+                params.transactionType = 'pg';
+            } else if (targetFilters.categoryTab === 'Sell') {
+                params.transactionType = 'sell';
+            } else if (targetFilters.categoryTab === 'Rent / PG') {
+                params.transactionType = 'rent,pg';
+            } else if (targetFilters.categoryTab === 'All') {
+                params.transactionType = 'all';
+            } else {
+                params.transactionType = targetFilters.categoryTab;
+            }
             if (targetFilters.categoryTab === 'Paying Guest') {
                 const pgIdObj = propertyTypes.find(t => t.label === 'PG');
                 params.type = pgIdObj && pgIdObj.id !== 'pg' ? pgIdObj.id : 'pg';
             } else if (targetFilters.categoryTab === 'Rent / Lease') {
                 const rentIdObj = propertyTypes.find(t => t.label === 'Rent');
                 params.type = rentIdObj && rentIdObj.id !== 'rent' ? rentIdObj.id : 'rent';
+            } else if (targetFilters.categoryTab === 'Rent / PG') {
+                const rentIdObj = propertyTypes.find(t => t.label === 'Rent');
+                const pgIdObj = propertyTypes.find(t => t.label === 'PG');
+                const tIds = [];
+                if (rentIdObj && rentIdObj.id !== 'rent') tIds.push(rentIdObj.id);
+                if (pgIdObj && pgIdObj.id !== 'pg') tIds.push(pgIdObj.id);
+                params.type = tIds.length > 0 ? tIds.join(',') : 'rent,pg';
+            } else if (targetFilters.categoryTab === 'All') {
+                params.type = 'all';
             } else {
                 const isPlot = targetFilters.propertyTypes && (
                     targetFilters.propertyTypes.includes('Plot / Land') ||
@@ -469,10 +446,10 @@ const SearchPage = () => {
             }
         }
 
-        // Only send propertyCategory to backend when user explicitly chose 'Commercial'
-        // Many properties may not have propertyCategory field set, so never filter by 'Residential' (the default)
         if (targetFilters.propertyCategory && targetFilters.propertyCategory === 'Commercial') {
             params.propertyCategory = targetFilters.propertyCategory;
+        } else if (targetFilters.propertyCategory === 'Project') {
+            params.propertyCategory = 'Project';
         }
 
         if (targetFilters.minPrice) params.minPrice = targetFilters.minPrice;
@@ -494,7 +471,6 @@ const SearchPage = () => {
             : (typeof targetFilters.builder === 'string' ? targetFilters.builder.split(',').filter(Boolean) : []);
         if (targetBuilders.length > 0) params.builder = targetBuilders.join(',');
 
-        // Map Special Amenities to specific query params
         const finalAmenities = [];
         const bhks = [];
         const furnishLevels = [];
@@ -511,7 +487,6 @@ const SearchPage = () => {
             : (typeof targetFilters.amenities === 'string' ? targetFilters.amenities.split(',').filter(Boolean) : []);
 
         targetAmenities.forEach(am => {
-            // Availability mapping
             if (am === 'Ready to Move') {
                 availabilities.push('Ready to move');
             } else if (am === 'Under Construction') {
@@ -519,29 +494,26 @@ const SearchPage = () => {
             } else if (am === 'Pre Launch') {
                 availabilities.push('Pre Launch');
             }
-            // Rent BHK mapping
-            else if (am === '1 BHK') bhks.push('1BHK');
+            else if (am === '1 RK/1 BHK' || am === '1 BHK' || am === '1 RK') bhks.push('1BHK');
             else if (am === '2 BHK') bhks.push('2BHK');
             else if (am === '3 BHK') bhks.push('3BHK');
+            else if (am === '4 BHK') bhks.push('4BHK');
+            else if (am === '4+ BHK' || am === '> 4 BHK') bhks.push('4+BHK');
             else if (am === 'Villa') bhks.push('Villa');
             else if (am === 'Studio') bhks.push('Studio');
 
-            // Rent Furnishing mapping
             else if (am === 'Fully Furnished') furnishLevels.push('Fully');
             else if (am === 'Semi Furnished') furnishLevels.push('Semi');
             else if (am === 'Unfurnished') furnishLevels.push('Unfurnished');
 
-            // PG Gender mapping
             else if (am === 'Boys Only') genders.push('Boys');
             else if (am === 'Girls Only') genders.push('Girls');
             else if (am === 'Coliving') genders.push('Co-ed');
 
-            // PG Occupancy mapping
             else if (am === 'Single Occupancy') occupancies.push('Single');
             else if (am === 'Double Occupancy') occupancies.push('Double');
             else if (am === 'Triple Occupancy') occupancies.push('Triple');
 
-            // Plot Land Type mapping
             else if (am === 'Residential' && targetFilters.type !== 'all' && (String(targetFilters.type).toLowerCase().includes('plot') || String(targetFilters.type).toLowerCase().includes('sell'))) landTypes.push('Residential');
             else if (am === 'Commercial') landTypes.push('Commercial');
             else if (am === 'Agricultural') landTypes.push('Agricultural');
@@ -641,11 +613,8 @@ const SearchPage = () => {
 
     return (
         <div className="min-h-screen bg-white pb-24">
-
-            {/* Sticky Header */}
             <div className="sticky top-0 z-30 bg-white border-b border-gray-100 pb-2 pt-3 md:pt-4 px-4 shadow-sm">
                 <div className="max-w-7xl mx-auto">
-                    {/* Header Top Row (Search Bar) */}
                     <div className="flex items-center gap-3 mb-3">
                         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
                             <ChevronLeft size={20} className="text-gray-600" />
@@ -675,97 +644,110 @@ const SearchPage = () => {
                     </div>
 
                     {/* Quick Filters Horizontal Scroll */}
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4">
-                        {/* Filter Button */}
-                        <button 
-                            onClick={() => setShowFilters(true)}
-                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-full shrink-0 active:scale-95 transition-transform"
-                        >
-                            <SlidersHorizontal size={14} className="text-gray-700" />
-                            {(() => {
-                                let count = 0;
-                                if (filters.minPrice || filters.maxPrice) count++;
-                                if (filters.propertyTypes && filters.propertyTypes.length > 0) count++;
-                                if (filters.amenities && filters.amenities.length > 0) count++;
-                                if (filters.minArea || filters.maxArea) count++;
-                                if (filters.bathrooms > 0) count++;
-                                if (filters.postedBy) count++;
-                                if (filters.purchaseType) count++;
-                                if (filters.areas && filters.areas.length > 0) count++;
-                                if (filters.builder && Array.isArray(filters.builder) && filters.builder.length > 0) count++;
-                                return count > 0 ? <span className="text-xs font-bold text-surface">{count}</span> : null;
-                            })()}
-                        </button>
-
-                        {/* Sort Dropdown */}
-                        <div className="relative shrink-0">
-                            <select
-                                value={filters.sort}
-                                onChange={(e) => {
-                                    updateFilter('sort', e.target.value);
-                                    const params = { ...Object.fromEntries([...searchParams]), sort: e.target.value };
-                                    setSearchParams(params, { replace: true });
-                                }}
-                                className="appearance-none pl-3 pr-7 py-1.5 border border-gray-300 rounded-full text-xs font-medium text-gray-700 bg-white outline-none cursor-pointer"
+                    <div className="relative flex items-center pb-1 -mx-4">
+                        {/* Fixed Filter Button on the left */}
+                        <div className="absolute left-0 top-0 bottom-1 z-10 bg-white px-4 flex items-center shadow-[10px_0_15px_-10px_rgba(0,0,0,0.15)]">
+                            <button 
+                                onClick={() => setShowFilters(true)}
+                                className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-full shrink-0 active:scale-95 transition-transform bg-white"
                             >
-                                <option value="" disabled hidden>Sort</option>
-                                {sortOptions.map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                            </select>
-                            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                                <SlidersHorizontal size={14} className="text-gray-700" />
+                                {(() => {
+                                    let count = 0;
+                                    if (filters.minPrice || filters.maxPrice) count++;
+                                    if (filters.propertyTypes && filters.propertyTypes.length > 0) count++;
+                                    if (filters.amenities && filters.amenities.length > 0) count++;
+                                    if (filters.minArea || filters.maxArea) count++;
+                                    if (filters.bathrooms > 0) count++;
+                                    if (filters.postedBy) count++;
+                                    if (filters.purchaseType) count++;
+                                    if (filters.areas && filters.areas.length > 0) count++;
+                                    if (filters.builder && Array.isArray(filters.builder) && filters.builder.length > 0) count++;
+                                    return count > 0 ? <span className="text-xs font-bold text-white bg-red-500 rounded-full w-4 h-4 flex items-center justify-center">{count}</span> : null;
+                                })()}
+                            </button>
                         </div>
 
-                        {/* Quick Filter Buttons */}
-                        {(() => {
-                            const qfButtons = [
-                                { label: 'Owner', key: 'postedBy', isToggle: true, val: 'Owner' },
-                                { label: 'Budget', isModal: true, tab: 'Budget' },
-                                { label: 'BHK', isModal: true, tab: 'BHK' },
-                                { label: 'Property Type', isModal: true, tab: 'Property Type' },
-                                { label: 'New Launch', key: 'amenities', isToggle: true, val: 'New Launch' },
-                                { label: 'Verified', key: 'amenities', isToggle: true, val: 'Verified Properties' },
-                                { label: 'New Booking', key: 'purchaseType', isToggle: true, val: 'New Bookings' },
-                                { label: 'Ready To Move', key: 'amenities', isToggle: true, val: 'Ready to Move' },
-                                { label: 'With Photos', key: 'amenities', isToggle: true, val: 'With Photos' },
-                                { label: 'With Videos', key: 'amenities', isToggle: true, val: 'With Videos' },
-                                { label: 'Gated Society', key: 'amenities', isToggle: true, val: 'Gated Society' },
-                                { label: 'Property Size', isModal: true, tab: 'Property Size' },
-                                { label: 'Under Construction', key: 'amenities', isToggle: true, val: 'Under Construction' },
-                                { label: 'Possession Status', isModal: true, tab: 'Possession Status' },
-                                { label: 'Builders', isModal: true, tab: 'Builders' },
-                                { label: 'Floor Preference', isModal: true, tab: 'Floor Preference' },
-                                { label: 'Project', isModal: true, tab: 'Projects' }
-                            ];
+                        {/* Scrolling Chip Container */}
+                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pl-[85px] pr-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                            {/* Sort Dropdown */}
+                            <div className="relative shrink-0">
+                                <select
+                                    value={filters.sort}
+                                    onChange={(e) => {
+                                        updateFilter('sort', e.target.value);
+                                        const params = { ...Object.fromEntries([...searchParams]), sort: e.target.value };
+                                        setSearchParams(params, { replace: true });
+                                    }}
+                                    className="appearance-none pl-3 pr-7 py-0 h-[30px] border border-gray-300 rounded-full text-xs font-medium text-gray-700 bg-white outline-none cursor-pointer max-w-[110px] truncate"
+                                >
+                                    <option value="" disabled hidden>Sort</option>
+                                    {sortOptions.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                            </div>
 
-                            return qfButtons.map(qf => {
-                                let isSelected = false;
-                                if (qf.isToggle && filters[qf.key]) {
-                                    const current = Array.isArray(filters[qf.key]) ? filters[qf.key] : filters[qf.key].split(',');
-                                    isSelected = current.includes(qf.val);
-                                }
+                            {/* Quick Filter Buttons */}
+                            {(() => {
+                                const qfButtons = [
+                                    { label: 'Owner', key: 'postedBy', isToggle: true, val: 'Owner' },
+                                    { label: 'Budget', isModal: true, tab: 'Budget' },
+                                    { label: 'BHK', isModal: true, tab: 'BHK' },
+                                    { label: 'Property Type', isModal: true, tab: 'Property Type' },
+                                    { label: 'New Launch', key: 'amenities', isToggle: true, val: 'New Launch' },
+                                    { label: 'Verified', key: 'amenities', isToggle: true, val: 'Verified Properties' },
+                                    { label: 'New Booking', key: 'purchaseType', isToggle: true, val: 'New Bookings' },
+                                    { label: 'Ready To Move', key: 'amenities', isToggle: true, val: 'Ready to Move' },
+                                    { label: 'With Photos', key: 'amenities', isToggle: true, val: 'With Photos' },
+                                    { label: 'With Videos', key: 'amenities', isToggle: true, val: 'With Videos' },
+                                    { label: 'Gated Society', key: 'amenities', isToggle: true, val: 'Gated Society' },
+                                    { label: 'Property Size', isModal: true, tab: 'Property Size' },
+                                    { label: 'Under Construction', key: 'amenities', isToggle: true, val: 'Under Construction' },
+                                    { label: 'Possession Status', isModal: true, tab: 'Possession Status' },
+                                    { label: 'Builders', isModal: true, tab: 'Builders' },
+                                    { label: 'Floor Preference', isModal: true, tab: 'Floor Preference' },
+                                    { label: 'Project', isModal: true, tab: 'Projects' }
+                                ];
 
-                                return (
-                                    <button
-                                        key={qf.label}
-                                        onClick={() => {
-                                            if (qf.isModal) {
-                                                setActiveModalTab(qf.tab);
-                                                setShowFilters(true);
-                                            } else if (qf.isToggle) {
-                                                toggleQuickFilter(qf.key, qf.val);
-                                            }
-                                        }}
-                                        className={`px-3 py-1.5 border rounded-full text-xs font-medium shrink-0 flex items-center gap-1 whitespace-nowrap transition-colors ${isSelected ? 'border-surface text-surface bg-surface/10 font-bold' : 'border-gray-300 text-gray-700 bg-white'}`}
-                                    >
-                                        {qf.label}
-                                        {qf.isModal && (
-                                            <ChevronDown size={14} className={isSelected ? "text-surface" : "text-gray-400"} />
-                                        )}
-                                    </button>
-                                );
-                            });
-                        })()}
+                                return qfButtons.map(qf => {
+                                    let isSelected = false;
+                                    if (qf.isToggle && filters[qf.key]) {
+                                        const current = Array.isArray(filters[qf.key]) ? filters[qf.key] : filters[qf.key].split(',');
+                                        isSelected = current.includes(qf.val);
+                                    } else if (qf.isModal) {
+                                        if (qf.tab === 'Budget' && (filters.minPrice || filters.maxPrice)) isSelected = true;
+                                        if (qf.tab === 'BHK' && filters.amenities.some(a => ['1 RK/1 BHK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'].includes(a))) isSelected = true;
+                                        if (qf.tab === 'Property Type' && filters.propertyTypes && filters.propertyTypes.length > 0) isSelected = true;
+                                        if (qf.tab === 'Property Size' && (filters.minArea || filters.maxArea)) isSelected = true;
+                                        if (qf.tab === 'Possession Status' && filters.amenities.some(a => ['Ready to Move', 'Under Construction', 'Pre Launch'].includes(a))) isSelected = true;
+                                        if (qf.tab === 'Builders' && filters.builder && filters.builder.length > 0) isSelected = true;
+                                        if (qf.tab === 'Projects' && (filters.propertyCategory === 'Project' || filters.amenities.some(a => ['Prestige Shantiniketan', 'Sobha City', 'Brigade Gateway', 'Godrej Woodsman Estate'].includes(a)))) isSelected = true;
+                                    }
+
+                                    return (
+                                        <button
+                                            key={qf.label}
+                                            onClick={() => {
+                                                if (qf.isModal) {
+                                                    setActiveModalTab(qf.tab);
+                                                    setShowFilters(true);
+                                                } else if (qf.isToggle) {
+                                                    toggleQuickFilter(qf.key, qf.val);
+                                                }
+                                            }}
+                                            className={`px-3 py-0 h-[30px] border rounded-full text-xs font-medium shrink-0 flex items-center gap-1 whitespace-nowrap transition-colors ${isSelected ? 'border-blue-600 text-blue-600 bg-blue-50 font-bold' : 'border-gray-300 text-gray-700 bg-white'}`}
+                                        >
+                                            {qf.label}
+                                            {qf.isModal && (
+                                                <ChevronDown size={14} className={isSelected ? "text-blue-600" : "text-gray-400"} />
+                                            )}
+                                        </button>
+                                    );
+                                });
+                            })()}
+                        </div>
                     </div>
                 </div>
             </div>

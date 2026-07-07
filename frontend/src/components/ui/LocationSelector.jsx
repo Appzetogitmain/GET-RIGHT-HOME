@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://get-right-home.onrender.com/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://get-right-home.onrender.com/api';
 
 const fetchJSON = async (url) => {
   const res = await fetch(url);

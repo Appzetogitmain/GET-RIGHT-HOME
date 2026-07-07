@@ -1037,7 +1037,6 @@ const PropertyDetailsPage = () => {
       });
 
       if (response.success) {
-        toast.success("Enquiry submitted successfully!");
         await handleRevealContact();
       } else {
         toast.error(response.message || "Failed to submit enquiry");
@@ -2162,8 +2161,12 @@ const PropertyDetailsPage = () => {
           {/* WhatsApp Support */}
           <button
             onClick={() => {
-              const msg = encodeURIComponent(`Hi, I am interested in property "${name}" (${id}) listed on Get Right Home.`);
-              window.open(`https://wa.me/919652961607?text=${msg}`, '_blank');
+              if (revealedNumber) {
+                const msg = encodeURIComponent(`Hi, I am interested in property "${name}" listed on Get Right Home.`);
+                window.open(`https://wa.me/${revealedNumber}?text=${msg}`, '_blank');
+              } else {
+                handleEnquiryButtonClick();
+              }
             }}
             className="flex-1 py-3 bg-white hover:bg-slate-50 text-emerald-600 border border-emerald-500 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all text-center"
           >
@@ -2173,44 +2176,10 @@ const PropertyDetailsPage = () => {
           {/* Solid blue core action button */}
           <button
             onClick={() => {
-              const pType = propertyType?.toLowerCase();
-              const isHotelOrPg = ['hotel', 'pg', 'hostel', 'resort', 'homestay'].includes(pType);
-              if (!isHotelOrPg) {
-                if (revealedNumber) {
-                  window.location.href = `tel:${revealedNumber}`;
-                } else {
-                  handleEnquiryButtonClick();
-                }
+              if (revealedNumber) {
+                window.location.href = `tel:${revealedNumber}`;
               } else {
-                // Hotel booking flow
-                if (!selectedRoom && inventory && inventory.length > 0) {
-                  toast.error("Please choose a Room Type first");
-                  const el = document.getElementById('facilities');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  return;
-                }
-                
-                // Route to checkout with selected dates
-                const checkInDate = dates.checkIn || new Date().toISOString().split('T')[0];
-                const checkOutDate = dates.checkOut || new Date(new Date().getTime() + 86400000).toISOString().split('T')[0];
-                
-                navigate('/checkout', {
-                  state: {
-                    property,
-                    selectedRoom: selectedRoom || (inventory && inventory[0]),
-                    dates: { checkIn: checkInDate, checkOut: checkOutDate },
-                    guests,
-                    priceBreakdown: priceBreakdown || {
-                      nights: 1,
-                      units: 1,
-                      pricePerNight: bookingBarPrice,
-                      grossAmount: bookingBarPrice,
-                      grandTotal: bookingBarPrice + Math.round((bookingBarPrice * taxRate) / 100),
-                      taxAmount: Math.round((bookingBarPrice * taxRate) / 100)
-                    },
-                    taxRate
-                  }
-                });
+                handleEnquiryButtonClick();
               }
             }}
             className="flex-[2] py-3.5 bg-[#0061df] hover:bg-blue-700 text-white rounded-full text-xs font-bold flex items-center justify-center gap-1 shadow-lg active:scale-95 transition-all"

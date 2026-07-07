@@ -88,6 +88,8 @@ const AdminLayout = () => {
                 { icon: Star, label: 'Featured Properties', path: '/admin/featured-properties' },
                 { icon: FileText, label: 'Property Form CMS', path: '/admin/property-forms' },
                 { icon: MapPin, label: 'Location Manager', path: '/admin/locations' },
+                { icon: MapPin, label: 'Locality Insights', path: '/admin/locality-insights' },
+                { icon: Video, label: 'Property Videos', path: '/admin/property-videos' },
                 { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' },
                 { icon: ImageIcon, label: 'Banner Management', path: '/admin/banners' },
                 { icon: Video, label: 'Reel Analysis', path: '/admin/reel-analysis' },

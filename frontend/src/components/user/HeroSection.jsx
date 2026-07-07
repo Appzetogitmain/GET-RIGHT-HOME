@@ -9,7 +9,7 @@ import CityDropdown from './CityDropdown';
 import toast from 'react-hot-toast';
 
 
-const HeroSection = ({ theme, selectedType, onSearch }) => {
+const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) => {
     const accentColor = theme?.accent || '#10B981';
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -143,8 +143,8 @@ const HeroSection = ({ theme, selectedType, onSearch }) => {
         <motion.section className="relative w-full pt-1 pb-2 flex flex-col bg-transparent">
 
             {/* ─── Mobile Top Bar (Menu + Brand + Post Property) ─── */}
-            <div className="px-4 flex md:hidden items-center justify-between h-12 mb-0">
-                <div className="flex items-center gap-2">
+            <div className="px-2 flex lg:hidden items-center justify-between h-12 mb-0">
+                <div className="flex items-center gap-0">
                     <button
                         onClick={() => setIsMenuOpen(true)}
                         className="p-1 text-gray-900 hover:bg-gray-100 rounded-full transition-all active:scale-90"
@@ -158,12 +158,23 @@ const HeroSection = ({ theme, selectedType, onSearch }) => {
                         <div className="h-0.5 w-4 bg-orange-600/30 rounded-full mt-0.5" />
                     </div>
                 </div>
-                <div
-                    onClick={() => navigate('/list-property')}
-                    className="flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
-                >
-                    <span className="text-[#005B9F] font-semibold text-[13px]">Post property</span>
-                    <span className="bg-[#10B981] text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Free</span>
+                
+                <div className="flex items-center gap-1.5">
+                    <div
+                        onClick={() => navigate('/list-property')}
+                        className="flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
+                    >
+                        <span className="text-[#005B9F] font-semibold text-[13px]">Post property</span>
+                        <span className="bg-[#10B981] text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Free</span>
+                    </div>
+
+                    <button 
+                        onClick={() => navigate('/notifications')}
+                        className="relative p-1.5 text-gray-600 hover:bg-gray-100 rounded-full transition-all active:scale-90"
+                    >
+                        <LucideIcons.Bell size={20} strokeWidth={1.5} />
+                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                    </button>
                 </div>
             </div>
 
@@ -288,17 +299,19 @@ const HeroSection = ({ theme, selectedType, onSearch }) => {
             </AnimatePresence>
 
             {/* ─── Hero Title & Subtitle ─── */}
-            <div className="text-left text-[#0B1A3A] mt-2 px-4">
-                <motion.div
-                    key={selectedType?.label}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                >
-                    <h1 className="text-[22px] md:text-3xl font-bold tracking-tight mb-0.5">Get started with</h1>
-                    <p className="text-[13px] md:text-base text-gray-500 font-normal">Explore real estate options in top cities</p>
-                </motion.div>
-            </div>
+            {!hideGetStarted && (
+                <div className="text-left text-[#0B1A3A] mt-2 px-4">
+                    <motion.div
+                        key={selectedType?.label}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <h1 className="text-[22px] md:text-3xl font-bold tracking-tight mb-0.5">Get started with</h1>
+                        <p className="text-[13px] md:text-base text-gray-500 font-normal">Explore real estate options in top cities</p>
+                    </motion.div>
+                </div>
+            )}
 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 

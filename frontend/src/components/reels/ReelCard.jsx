@@ -90,6 +90,18 @@ const ReelCard = memo(function ReelCard({
     }
   }, [isActive, reel._id, onViewed]);
 
+  // Handle views for YouTube/Instagram iframes that don't have onTimeUpdate
+  useEffect(() => {
+    let timer;
+    if (isActive && isPlaying && !viewReported.current && onViewed && reel.videoType === 'url') {
+      timer = setTimeout(() => {
+        viewReported.current = true;
+        onViewed(reel._id);
+      }, 2000); // Record view after 2 seconds of being active and playing
+    }
+    return () => clearTimeout(timer);
+  }, [isActive, isPlaying, reel._id, onViewed, reel.videoType]);
+
   const togglePlayPause = () => {
     setIsPlaying((prev) => !prev);
   };
@@ -144,7 +156,7 @@ const ReelCard = memo(function ReelCard({
           {videoDetails.type === 'youtube' ? (
             (isActive && isPlaying) ? (
               <SafeIframe
-                src={`https://www.youtube.com/embed/${videoDetails.id}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${videoDetails.id}&controls=0&modestbranding=1&rel=0&playsinline=1`}
+                src={`https://www.youtube.com/embed/${videoDetails.id}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&controls=0&modestbranding=1&rel=0&playsinline=1`}
                 className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                 style={{ border: 0, height: '100%', width: '100%' }}
                 title={reel.title}

@@ -122,6 +122,7 @@ export const updateUserProfile = async (req, res) => {
       if (req.body.profileImagePublicId !== undefined) user.profileImagePublicId = req.body.profileImagePublicId;
       if (req.body.isVip !== undefined) user.isVip = req.body.isVip;
       if (req.body.vipExpiry !== undefined) user.vipExpiry = req.body.vipExpiry;
+      if (req.body.addresses !== undefined) user.addresses = req.body.addresses;
 
       if (req.body.builderProfile && user.role === 'builder') {
         user.builderProfile = {
@@ -145,7 +146,7 @@ export const updateUserProfile = async (req, res) => {
         isVip: updatedUser.isVip || false,
         vipExpiry: updatedUser.vipExpiry || null,
         builderProfile: updatedUser.builderProfile,
-        token: req.headers.authorization.split(' ')[1] // Keep existing token
+        token: req.headers.authorization ? req.headers.authorization.split(' ')[1] : (req.cookies ? req.cookies.token : undefined)
       });
     } else {
       res.status(404).json({ message: 'User not found' });

@@ -49,6 +49,7 @@ export default function ReelsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [commentReel, setCommentReel] = useState(null);
 
   // Search & Filter State
@@ -271,10 +272,10 @@ export default function ReelsPage() {
     if (navigator.share) {
       navigator.share({
         title: reel.title || 'Check out this property!',
-        text: reel.caption || 'Look at this property listing on  Get Right Home!',
+        text: reel.caption || 'Look at this property listing on Get Right Home!',
         url: shareUrl,
       })
-        .then(() => toast.success('Shared successfully'))
+        .then(() => {}) // Don't show generic success toast on share open
         .catch(() => { });
     } else {
       navigator.clipboard.writeText(shareUrl)
@@ -480,7 +481,10 @@ export default function ReelsPage() {
 
     const params = new URLSearchParams(window.location.search);
     const targetReelId = params.get('reel') || params.get('id');
-    if (!targetReelId) return;
+    if (!targetReelId) {
+      setInitialScrollDone(true);
+      return;
+    }
 
     const targetIndex = reels.findIndex(r => r._id === targetReelId);
     if (targetIndex !== -1) {
@@ -492,11 +496,15 @@ export default function ReelsPage() {
         if (container) {
           const element = container.querySelector(`[data-reel-index="${targetIndex}"]`);
           if (element) {
+            // Use jump immediately for the initial load
             element.scrollIntoView({ behavior: 'auto', block: 'start' });
             container.scrollTop = element.offsetTop;
           }
         }
-      }, 100);
+        setTimeout(() => setInitialScrollDone(true), 50);
+      }, 50);
+    } else {
+      setInitialScrollDone(true);
     }
   }, [reels]);
 
@@ -649,11 +657,17 @@ export default function ReelsPage() {
           </button>
         </div>
       ) : (
-        <div
-          ref={containerRef}
-          className="h-full w-full overflow-y-auto snap-y snap-proximity scroll-smooth no-scrollbar"
-          style={{ scrollSnapType: 'y proximity', overscrollBehaviorY: 'contain' }}
-        >
+        <>
+          {!initialScrollDone && (
+            <div className="flex flex-col items-center justify-center h-full text-white bg-black z-[100] absolute inset-0">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          )}
+          <div
+            ref={containerRef}
+            className={`h-full w-full overflow-y-auto snap-y snap-mandatory no-scrollbar ${!initialScrollDone ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+            style={{ scrollSnapType: 'y mandatory', overscrollBehaviorY: 'contain' }}
+          >
           {reels.map((reel, index) => (
             <ReelCard
               key={reel._id}
@@ -677,6 +691,7 @@ export default function ReelsPage() {
             </div>
           )}
         </div>
+        </>
       )}
 
       {/* Floating Comments Overlay Sheet */}

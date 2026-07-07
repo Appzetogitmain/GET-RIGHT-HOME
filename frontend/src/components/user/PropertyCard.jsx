@@ -651,29 +651,91 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                 </span>
               </div>
               
-              <div className="flex items-center gap-1.5">
-                <button 
-                  onClick={handleCall}
-                  className="px-2.5 py-1.5 border border-[#0d6efd] text-[#0d6efd] hover:bg-[#0d6efd]/5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
-                >
-                  View Number
-                </button>
-                <button 
-                  onClick={handleWhatsApp}
-                  className="w-9 h-9 rounded-full bg-[#25D366] text-white flex items-center justify-center hover:bg-[#20ba5a] transition-colors shrink-0 shadow-sm"
-                  title="WhatsApp"
-                >
-                  <MessageCircle size={16} className="fill-white text-white" />
-                </button>
-                <button 
-                  onClick={handleCall}
-                  className="w-9 h-9 rounded-full bg-[#0d6efd] text-white flex items-center justify-center hover:bg-[#0b5ed7] transition-colors shrink-0 shadow-sm"
-                  title="Call"
-                >
-                  <Phone size={14} className="fill-white text-white" />
-                </button>
-              </div>
+              {(() => {
+                const isProject = 
+                  (badgeTypeKey || '').toLowerCase() === 'project' ||
+                  (item.dynamicCategory?.displayName || '').toLowerCase().includes('project') ||
+                  (item.dynamicCategory?.name || '').toLowerCase().includes('project') ||
+                  (item.propertyCategory || '').toLowerCase().includes('project') ||
+                  (item.propertyType || '').toLowerCase().includes('project') ||
+                  item.isProject ||
+                  !!item.projectName ||
+                  !!item.project ||
+                  (item.buyDetails?.propertyAge || '').toLowerCase() === 'new launch' ||
+                  (item.dynamicData?.constructionStatus || '').toLowerCase() === 'new launch' ||
+                  (item.availabilityStatus || '').toLowerCase() === 'new launch' ||
+                  (item.availabilityStatus || '').toLowerCase() === 'under construction' ||
+                  (postedByName || '').toLowerCase() === 'builder' || 
+                  (postedByRole || '').toLowerCase() === 'builder';
+
+                if (isProject) return null;
+
+                // Default Resale Property Style CTAs
+                return (
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={handleCall}
+                      className="px-2.5 py-1.5 bg-[#E0EFFF] text-[#0056B8] hover:bg-[#cde4ff] text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      View Number
+                    </button>
+                    <button 
+                      onClick={handleWhatsApp}
+                      className="w-8 h-8 rounded-full bg-[#25D366] text-white flex items-center justify-center hover:bg-[#20ba5a] transition-colors shrink-0 shadow-sm"
+                      title="WhatsApp"
+                    >
+                      <MessageCircle size={14} className="fill-white text-white" />
+                    </button>
+                    <button 
+                      onClick={handleCall}
+                      className="w-8 h-8 rounded-full bg-[#0069E0] text-white flex items-center justify-center hover:bg-[#0056b8] transition-colors shrink-0 shadow-sm"
+                      title="Call"
+                    >
+                      <Phone size={13} className="fill-white text-white" />
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
+
+            {/* Row 5: Project CTAs (Only for Projects) */}
+            {(() => {
+                const isProject = 
+                  (badgeTypeKey || '').toLowerCase() === 'project' ||
+                  (item.dynamicCategory?.displayName || '').toLowerCase().includes('project') ||
+                  (item.dynamicCategory?.name || '').toLowerCase().includes('project') ||
+                  (item.propertyCategory || '').toLowerCase().includes('project') ||
+                  (item.propertyType || '').toLowerCase().includes('project') ||
+                  item.isProject ||
+                  !!item.projectName ||
+                  !!item.project ||
+                  (item.buyDetails?.propertyAge || '').toLowerCase() === 'new launch' ||
+                  (item.dynamicData?.constructionStatus || '').toLowerCase() === 'new launch' ||
+                  (item.availabilityStatus || '').toLowerCase() === 'new launch' ||
+                  (item.availabilityStatus || '').toLowerCase() === 'under construction' ||
+                  (postedByName || '').toLowerCase() === 'builder' || 
+                  (postedByRole || '').toLowerCase() === 'builder';
+
+                if (!isProject) return null;
+
+                return (
+                  <div className="flex items-center gap-2 w-full mt-3 pt-3 border-t border-slate-100">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); toast.success('Brochure downloading...'); }}
+                      className="flex-1 py-2 bg-[#E0EFFF] text-[#0056B8] hover:bg-[#cde4ff] text-[13px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                      Brochure
+                    </button>
+                    <button 
+                      onClick={handleCall}
+                      className="flex-1 py-2 bg-[#0069E0] text-white hover:bg-[#0056b8] text-[13px] font-bold rounded-lg transition-colors flex items-center justify-center"
+                    >
+                      View Number
+                    </button>
+                  </div>
+                );
+            })()}
           </div>
         </div>
 

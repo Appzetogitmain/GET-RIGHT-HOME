@@ -238,8 +238,7 @@ function setupForegroundNotificationHandler(handler) {
   console.log('[FCM] 🛠 Setting up foreground notification handler...');
   
   if (!messaging) {
-    console.warn('[FCM] ⚠️ Messaging not initialized yet. Retrying in 1s...');
-    setTimeout(() => setupForegroundNotificationHandler(handler), 1000);
+    console.warn('[FCM] ⚠️ Messaging not initialized. Foreground notifications will not work.');
     return;
   }
 

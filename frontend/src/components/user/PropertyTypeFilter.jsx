@@ -14,8 +14,7 @@ const ALL_OPTION = {
 const PREMIUM_IMAGES = {
   'All': 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=120&q=80',
   'Home Service': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=120&q=80',
-  'PG/Co-Living': 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=120&q=80',
-  'Rent': 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=120&q=80',
+  'Rent/PG': 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=120&q=80',
   'Buy': 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=120&q=80',
   'Plot': 'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?auto=format&fit=crop&w=120&q=80'
 };
@@ -50,7 +49,6 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
           return found.map(c => c._id);
         };
 
-        // PG/Co-Living often groups multiple categories
         const pgIds = findCategoryIds(['hostel', 'pg', 'pg/co-living', 'co-living', 'pg/co-livinig', 'paying guest']);
         const rentIds = findCategoryIds('Rent');
         const buyIds = findCategoryIds('Buy');
@@ -64,21 +62,15 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
             isDynamic: false
           },
           {
-            id: pgIds.length > 0 ? pgIds.join(',') : 'pg',
-            label: 'PG/Co-Living',
-            icon: LucideIcons.BedDouble,
-            isDynamic: true
-          },
-          {
-            id: rentIds.length > 0 ? rentIds.join(',') : 'rent',
-            label: 'Rent',
-            icon: LucideIcons.Home,
-            isDynamic: true
-          },
-          {
             id: buyIds.length > 0 ? buyIds.join(',') : 'buy',
             label: 'Buy',
             icon: LucideIcons.Landmark,
+            isDynamic: true
+          },
+          {
+            id: [...rentIds, ...pgIds].length > 0 ? [...rentIds, ...pgIds].join(',') : 'rent,pg',
+            label: 'Rent/PG',
+            icon: LucideIcons.Home,
             isDynamic: true
           },
           {
@@ -96,10 +88,9 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
         // Fallback to static list without IDs if fetch fails
         setAllTypes([ALL_OPTION,
           { id: 'homeservice', label: 'Home Service', icon: LucideIcons.Sparkles, isDynamic: false },
-          { label: 'PG/Co-Living', icon: LucideIcons.BedDouble, id: null },
-          { label: 'Rent', icon: LucideIcons.Home, id: null },
-          { label: 'Buy', icon: LucideIcons.Landmark, id: null },
-          { label: 'Plot', icon: LucideIcons.TreePine, id: null }
+          { label: 'Buy', icon: LucideIcons.Landmark, id: 'buy' },
+          { label: 'Rent/PG', icon: LucideIcons.Home, id: 'rent,pg' },
+          { label: 'Plot', icon: LucideIcons.TreePine, id: 'plot' }
         ]);
       }
     };

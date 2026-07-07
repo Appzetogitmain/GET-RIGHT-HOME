@@ -14,6 +14,7 @@ import AdminPropertiesSection from '../../components/user/AdminPropertiesSection
 import { categoryService } from '../../services/categoryService';
 import GRHHomeSection from '../../components/user/GRHHomeSection';
 import SupportSection from '../../components/user/SupportSection';
+import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 
 
 // Category Theme Map - Professional palettes inspired by Housing.com
@@ -128,12 +129,8 @@ const Home = () => {
             navigate('/home-services');
             return;
         }
-        if (label === 'PG/Co-Living' || label === 'PG') {
-            navigate('/pg-coliving');
-            return;
-        }
-        if (label === 'Rent') {
-            navigate('/rent');
+        if (label === 'PG/Co-Living' || label === 'PG' || label === 'Rent/PG' || label === 'Rent') {
+            navigate('/rent-pg');
             return;
         }
         if (label === 'Buy') {
@@ -183,7 +180,12 @@ const Home = () => {
                 </div>
             </div>
 
-            <ExclusiveOffers />
+
+
+            {/* Property Videos */}
+            <div className="max-w-7xl mx-auto -mt-8 mb-6">
+                 <PropertyVideoCurations pageType="home" />
+            </div>
 
             {/* Admin Curated Properties - Location Based */}
             <div className="max-w-7xl mx-auto">
@@ -286,6 +288,26 @@ const Home = () => {
                     </div>
                 )}
             </div>
+            
+            {/* Test Push Notification Button */}
+            <div className="max-w-7xl mx-auto px-5 md:px-0 py-8 flex justify-center">
+                <button
+                    onClick={async () => {
+                        try {
+                            const { api } = await import('../../services/apiService');
+                            await api.post('/fcm-tokens/test');
+                            alert('Test notification sent! Check your device.');
+                        } catch (err) {
+                            console.error(err);
+                            alert('Failed to send test notification. Please login first.');
+                        }
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all active:scale-95"
+                >
+                    Test Push Notification
+                </button>
+            </div>
+
             <SupportSection />
         </main>
     );

@@ -287,6 +287,8 @@ export const ensureIds = (catalog) => {
       hasSaleBadge: Boolean(c.hasSaleBadge),
       showOnHome: c.showOnHome !== false,
       homeOrder: Number.isFinite(c.homeOrder) ? c.homeOrder : 0,
+      isEstimateBased: Boolean(c.isEstimateBased),
+      isDirectService: Boolean(c.isDirectService),
       // Preserve additional fields
       cityIds: c.cityIds || [],
       description: c.description || "",

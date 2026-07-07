@@ -439,6 +439,25 @@ const BookingDetails = () => {
     }
   };
 
+  const handlePayToken = async (amount) => {
+    try {
+      toast.loading('Processing token payment...');
+      // MOCK: Auto-approve estimate upon clicking Pay Token
+      const response = await bookingService.approveEstimate(booking._id || booking.id);
+      toast.dismiss();
+
+      if (response.success) {
+        toast.success('Token paid! Estimate approved.');
+        loadBooking();
+      } else {
+        toast.error(response.message || 'Failed to approve estimate');
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Payment failed');
+    }
+  };
+
   const handlePayAtHome = async () => {
     try {
       toast.loading('Confirming request...');
@@ -1136,8 +1155,9 @@ const BookingDetails = () => {
             </div>
           </section>
 
-          {/* Payment Summary - Always visible, serves as Order Summary too */}
-          <section className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 overflow-hidden">
+          {/* Payment Summary - Hidden for estimate bookings until approved */}
+          {(!booking?.isEstimateBased || booking?.estimate?.status === 'APPROVED') && (
+            <section className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 overflow-hidden">
             <div className="p-5">
               <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100">
                 <div className={`p-2 rounded-lg ${booking.paymentMethod === 'plan_benefit' ? 'bg-amber-100' : 'bg-green-50'}`}>
@@ -1307,6 +1327,46 @@ const BookingDetails = () => {
                 </span>
               </div>
             </section>
+          )}
+
+          {/* Estimate Approval Card */}
+          {booking.isEstimateBased && booking.estimate?.status === 'PENDING' && (
+            <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 p-6 space-y-4 mb-6">
+              <div className="text-center mb-4">
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <FiDollarSign className="w-8 h-8 text-emerald-600" />
+                </div>
+                <h3 className="text-lg font-bold text-black">Estimate Received</h3>
+                <p className="text-sm text-gray-500">The professional has shared an estimate for the requested work. Please review and pay the token to proceed.</p>
+              </div>
+
+              <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                  <span className="text-sm font-bold text-gray-700">Total Estimate</span>
+                  <span className="text-lg font-black text-gray-900">₹{booking.estimate?.amount}</span>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Breakdown</p>
+                  <p className="text-sm font-medium text-gray-700 leading-relaxed">{booking.estimate?.description}</p>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm font-bold text-emerald-700">Required Token (30%)</span>
+                  <span className="text-xl font-black text-emerald-600">₹{booking.estimate?.tokenAmount}</span>
+                </div>
+                <button
+                  onClick={() => handlePayToken(booking.estimate?.tokenAmount)}
+                  className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
+                  style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
+                >
+                  <FiDollarSign className="w-5 h-5" />
+                  Pay Token & Approve
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Action Card for Awaiting Payment */}
           {booking.status === 'awaiting_payment' && (

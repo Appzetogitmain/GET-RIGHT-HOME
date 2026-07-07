@@ -88,7 +88,8 @@ const AdminPropertyCard = ({ property, index }) => {
             toast.success("This is a demo property card showcasing the layout!");
             return;
         }
-        navigateToProperty(property);
+        // Force navigate to handpicked since these are featured handpicked projects
+        navigate(`/handpicked/${property._id || property.id}`);
     };
 
     return (
@@ -131,13 +132,8 @@ const AdminPropertyCard = ({ property, index }) => {
                     {/* Featured Badge (Top Left) */}
                     {property.featuredDetails?.isFeatured && (
                         <div className="absolute top-4 left-4 z-10">
-                            <span className={`px-2.5 py-1 text-white rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm ${
-                                property.featuredDetails.planName === 'Pro' ? 'bg-purple-600' :
-                                property.featuredDetails.planName === 'Gold' ? 'bg-amber-500' :
-                                property.featuredDetails.planName === 'Silver' ? 'bg-slate-500' :
-                                'bg-[#a21caf]'
-                            }`}>
-                                {property.featuredDetails.planName && property.featuredDetails.planName !== 'None' ? `${property.featuredDetails.planName} Featured` : 'Featured'}
+                            <span className="bg-amber-500/95 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-md">
+                                Featured
                             </span>
                         </div>
                     )}
@@ -210,7 +206,7 @@ const SkeletonCard = () => (
 );
 
 /* ─── Main Component ─── */
-const AdminPropertiesSection = ({ searchCity }) => {
+const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }) => {
     const navigate = useNavigate();
     const [availableCities, setAvailableCities] = useState([]);
     const [selectedCity, setSelectedCity] = useState(null); // null = no city selected yet
@@ -397,6 +393,30 @@ const AdminPropertiesSection = ({ searchCity }) => {
     };
 
     const filteredProperties = properties.filter(property => {
+        // Filter by transaction type if prop is provided
+        if (transactionType) {
+            const typeValue = transactionType.toLowerCase();
+            const tType = (property.transactionType || '').toLowerCase();
+            const pType = (property.propertyType || '').toLowerCase();
+            const dType = (property.dynamicCategory?.name || '').toLowerCase();
+            
+            let isMatch = false;
+            
+            if (typeValue === 'buy' && (tType.includes('buy') || tType.includes('sell') || pType.includes('buy') || dType.includes('buy'))) {
+                isMatch = true;
+            } else if ((typeValue === 'rent' || typeValue.includes('rent')) && (tType.includes('rent') || pType.includes('rent') || dType.includes('rent'))) {
+                isMatch = true;
+            } else if ((typeValue === 'pg' || typeValue.includes('pg')) && (tType.includes('pg') || tType.includes('paying guest') || pType.includes('pg') || dType.includes('pg'))) {
+                isMatch = true;
+            } else if (tType === typeValue || pType === typeValue || dType === typeValue) {
+                isMatch = true;
+            }
+
+            if (!isMatch) {
+                return false;
+            }
+        }
+
         if (!localQuery) return true;
         const q = localQuery.toLowerCase();
         return (
@@ -414,6 +434,9 @@ const AdminPropertiesSection = ({ searchCity }) => {
     // If no cities at all, don't render the section
     if (!citiesLoading && availableCities.length === 0) return null;
 
+    const defaultTitle = "Handpicked Projects";
+    const defaultSubtitle = `Featured projects in ${selectedCity || 'your city'}`;
+
     return (
         <section id="admin-properties-section" className="py-8 border-b border-gray-100">
 
@@ -424,17 +447,23 @@ const AdminPropertiesSection = ({ searchCity }) => {
                         <div className="flex items-center gap-2 mb-0.5">
                             <div className="w-1 h-5 bg-emerald-500 rounded-full" />
                             <h2 className="text-xl md:text-2xl font-black text-gray-900">
-                                Handpicked Projects
+                                {title || defaultTitle}
                             </h2>
                         </div>
                         <p className="text-sm text-gray-500 mt-1 ml-3">
-                            Featured projects in {selectedCity || 'your city'}
+                            {subtitle || defaultSubtitle}
                         </p>
                     </div>
                     {displayProperties.length > 0 && (
                         <button
                             onClick={() => {
-                                navigate('/properties');
+                                let url = `/search?city=${selectedCity || ''}`;
+                                if (transactionType) {
+                                    url += `&transactionType=${transactionType.toLowerCase()}`;
+                                } else {
+                                    url += `&transactionType=all`;
+                                }
+                                navigate(url);
                                 window.scrollTo(0, 0);
                             }}
                             className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
@@ -495,7 +524,7 @@ const AdminPropertiesSection = ({ searchCity }) => {
             */}
 
             {/* Properties Grid */}
-            <div className="px-5 md:px-0">
+            <div className="md:px-0">
                 {!selectedCity ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                         <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-4 border border-emerald-100">
@@ -547,7 +576,7 @@ const AdminPropertiesSection = ({ searchCity }) => {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 scrollbar-hide"
+                            className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 scrollbar-hide px-5 md:px-0"
                             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                         >
                             {displayProperties.slice(0, 8).map((property, index) => (

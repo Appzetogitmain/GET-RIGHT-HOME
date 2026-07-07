@@ -16,7 +16,8 @@ import {
   respondToJob,
   getBill,
   createBill,
-  initiateCashCollection
+  initiateCashCollection,
+  generateEstimate
 } from '../../controllers/workerControllers/workerBookingController.js';
 
 // Validation rules
@@ -47,5 +48,6 @@ router.post('/:id/payment/initiate-cash', authenticate, isWorker, initiateCashCo
 router.post('/:id/notes', authenticate, isWorker, addNotesValidation, addWorkerNotes);
 router.get('/:id/bill', authenticate, isWorker, getBill);
 router.post('/:id/bill', authenticate, isWorker, createBill);
+router.patch('/:id/estimate', authenticate, isWorker, generateEstimate);
 
 export default router;

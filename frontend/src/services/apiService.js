@@ -467,6 +467,50 @@ export const propertyService = {
   },
 };
 
+export const propertyVideoService = {
+  getVideos: async (page) => {
+    try {
+      const url = page ? `/property-videos?page=${page}` : '/property-videos';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getAllAdmin: async () => {
+    try {
+      const response = await api.get('/property-videos/all');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  create: async (data) => {
+    try {
+      const response = await api.post('/property-videos', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  update: async (id, data) => {
+    try {
+      const response = await api.put(`/property-videos/${id}`, data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  delete: async (id) => {
+    try {
+      const response = await api.delete(`/property-videos/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
 
 // Hotel Services (Updated)
 export const hotelService = {
@@ -901,6 +945,15 @@ export const referralService = {
   getActiveProgram: async () => {
     try {
       const response = await api.get('/referrals/program/active');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  // Update FCM Token
+  updateFcmToken: async (token, platform = 'web') => {
+    try {
+      const response = await api.post('/fcm-tokens/save', { token, platform });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

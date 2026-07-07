@@ -75,6 +75,18 @@ const userSchema = new mongoose.Schema({
       lng: { type: Number }
     }
   },
+  addresses: [{
+    type: { type: String, default: 'home' }, // 'home', 'work', 'other'
+    addressLine1: { type: String, required: true },
+    addressLine2: { type: String, default: '' },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    pincode: { type: String, required: true },
+    landmark: { type: String, default: '' },
+    lat: { type: Number, default: null },
+    lng: { type: Number, default: null },
+    isDefault: { type: Boolean, default: false }
+  }],
   aadhaarNumber: { type: String, trim: true },
   aadhaarFront: { type: String }, // URL
   aadhaarBack: { type: String }, // URL

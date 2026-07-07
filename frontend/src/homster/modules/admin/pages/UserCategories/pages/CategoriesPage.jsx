@@ -17,6 +17,7 @@ const categorySchema = z.object({
   homeBadge: z.string().optional(),
   hasSaleBadge: z.boolean(),
   showOnHome: z.boolean(),
+  isEstimateBased: z.boolean().optional().default(false),
 });
 
 const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = false }) => {
@@ -31,6 +32,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
     homeBadge: "",
     hasSaleBadge: false,
     showOnHome: true,
+    isEstimateBased: false,
   });
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const [showReorderModal, setShowReorderModal] = useState(false);
@@ -63,6 +65,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             homeBadge: cat.homeBadge || "",
             hasSaleBadge: cat.hasSaleBadge || false,
             showOnHome: cat.showOnHome !== false,
+            isEstimateBased: cat.isEstimateBased || false,
             homeOrder: cat.homeOrder || 0,
             isDirectService: cat.isDirectService || false,
           }));
@@ -92,6 +95,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
         homeBadge: "",
         hasSaleBadge: false,
         showOnHome: true,
+        isEstimateBased: false,
       });
       return;
     }
@@ -103,6 +107,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       homeBadge: safe.homeBadge || "",
       hasSaleBadge: Boolean(safe.hasSaleBadge),
       showOnHome: safe.showOnHome !== false,
+      isEstimateBased: Boolean(safe.isEstimateBased),
     });
   }, [editing]);
 
@@ -117,6 +122,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       homeBadge: "",
       hasSaleBadge: false,
       showOnHome: true,
+      isEstimateBased: false,
     });
     setIsModalOpen(false);
   };
@@ -131,7 +137,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       homeIconUrl: form.homeIconUrl.trim(),
       homeBadge: form.homeBadge.trim(),
       hasSaleBadge: Boolean(form.hasSaleBadge),
-      showOnHome: Boolean(form.showOnHome)
+      showOnHome: Boolean(form.showOnHome),
+      isEstimateBased: Boolean(form.isEstimateBased)
     });
 
     if (!validationResult.success) {
@@ -141,7 +148,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       return;
     }
 
-    const { title, slug, homeIconUrl, homeBadge, hasSaleBadge, showOnHome } = validationResult.data;
+    const { title, slug, homeIconUrl, homeBadge, hasSaleBadge, showOnHome, isEstimateBased } = validationResult.data;
 
     try {
       setLoading(true);
@@ -169,6 +176,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
         homeBadge: homeBadge || null,
         hasSaleBadge,
         showOnHome,
+        isEstimateBased,
         homeOrder,
         cityIds: selectedCity ? [selectedCity] : [],
         isDirectService: isDirectFlow,
@@ -196,13 +204,14 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
         const response = await categoryService.create(categoryData);
         if (response.success) {
           savedCategory = {
-            id: response.category.id,
+            id: response.category._id || response.category.id,
             title: response.category.title,
             slug: response.category.slug,
             homeIconUrl: response.category.homeIconUrl || "",
             homeBadge: response.category.homeBadge || "",
             hasSaleBadge: response.category.hasSaleBadge || false,
             showOnHome: response.category.showOnHome !== false,
+            isEstimateBased: response.category.isEstimateBased || false,
             homeOrder: response.category.homeOrder || 0,
             isDirectService: response.category.isDirectService || false,
           };
@@ -214,13 +223,14 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
         const response = await categoryService.update(editingId, categoryData);
         if (response.success) {
           savedCategory = {
-            id: response.category.id,
+            id: response.category._id || response.category.id,
             title: response.category.title,
             slug: response.category.slug,
             homeIconUrl: response.category.homeIconUrl || "",
             homeBadge: response.category.homeBadge || "",
             hasSaleBadge: response.category.hasSaleBadge || false,
             showOnHome: response.category.showOnHome !== false,
+            isEstimateBased: response.category.isEstimateBased || false,
             homeOrder: response.category.homeOrder || 0,
             isDirectService: response.category.isDirectService || false,
           };
@@ -239,6 +249,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
               homeBadge: response.category.homeBadge || "",
               hasSaleBadge: response.category.hasSaleBadge || false,
               showOnHome: response.category.showOnHome !== false,
+              isEstimateBased: response.category.isEstimateBased || false,
               homeOrder: response.category.homeOrder || 0,
               isDirectService: response.category.isDirectService || false,
             };
@@ -659,6 +670,19 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             />
             <label htmlFor="showOnHome" className="text-base font-semibold text-gray-800">
               Show this category on home
+            </label>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <input
+              id="isEstimateBased"
+              type="checkbox"
+              checked={form.isEstimateBased}
+              onChange={(e) => setForm((p) => ({ ...p, isEstimateBased: e.target.checked }))}
+              className="h-4 w-4"
+            />
+            <label htmlFor="isEstimateBased" className="text-base font-semibold text-gray-800">
+              Is Estimate Based Service? (e.g., Painting, Packers)
             </label>
           </div>
 

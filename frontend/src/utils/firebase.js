@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
 // Your web app's Firebase configuration
@@ -19,7 +19,7 @@ let messaging = null;
 
 try {
   if (firebaseConfig.projectId) {
-    app = initializeApp(firebaseConfig);
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   } else {
     console.warn('⚠️ Firebase initialization skipped: Missing VITE_FIREBASE_PROJECT_ID in .env');
   }

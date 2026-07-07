@@ -7,6 +7,8 @@ export const BOOKING_STATUS = {
   ACCEPTED: 'accepted',
   JOURNEY_STARTED: 'journey_started',
   VISITED: 'visited',
+  ESTIMATE_PROVIDED: 'estimate_provided',
+  ESTIMATE_ACCEPTED: 'estimate_accepted',
   IN_PROGRESS: 'in_progress',
   WORK_DONE: 'work_done',
   AWAITING_PAYMENT: 'awaiting_payment',

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const BannerCarousel = () => {
     const [banners, setBanners] = useState([]);
@@ -53,8 +53,8 @@ const BannerCarousel = () => {
                     transition={{ duration: 0.6, ease: "easeInOut" }}
                     className="absolute inset-0 w-full h-full"
                 >
-                    <img 
-                        src={banners[currentIndex].imageUrl} 
+                    <img
+                        src={banners[currentIndex].imageUrl}
                         alt={banners[currentIndex].title}
                         className="w-full h-full object-cover"
                     />
@@ -70,9 +70,8 @@ const BannerCarousel = () => {
                         <button
                             key={idx}
                             onClick={() => setCurrentIndex(idx)}
-                            className={`h-1.5 rounded-full transition-all duration-300 ${
-                                idx === currentIndex ? 'w-6 bg-white' : 'w-1.5 bg-white/40'
-                            }`}
+                            className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-6 bg-white' : 'w-1.5 bg-white/40'
+                                }`}
                         />
                     ))}
                 </div>
@@ -81,13 +80,13 @@ const BannerCarousel = () => {
             {/* Arrow Buttons (Desktop Only) */}
             {banners.length > 1 && (
                 <div className="hidden group-hover:flex items-center justify-between absolute inset-x-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <button 
+                    <button
                         onClick={prevBanner}
                         className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-all pointer-events-auto shadow-lg"
                     >
                         <ChevronLeft size={24} />
                     </button>
-                    <button 
+                    <button
                         onClick={nextBanner}
                         className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-all pointer-events-auto shadow-lg"
                     >

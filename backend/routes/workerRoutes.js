@@ -18,4 +18,15 @@ router.use('/', profileRoutes);          // exposes /api/workers/profile
 router.use('/subscription', subscriptionRoutes); // exposes /api/workers/subscription/status
 router.use('/wallet', walletRoutes);
 
+// DEBUG ROUTE (for testing worker status)
+router.get('/debug', async (req, res) => {
+  try {
+    const Worker = (await import('../models/Worker.js')).default;
+    const workers = await Worker.find().select('name phone isOnline approvalStatus location geoLocation status serviceCategories');
+    res.json({ count: workers.length, workers });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

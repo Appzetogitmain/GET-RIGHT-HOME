@@ -10,16 +10,27 @@ let firebaseAdmin = null;
 
 export const initializeFirebase = () => {
   try {
-    // Path to service account key - assuming it's in the root backend folder
-    const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
+    let serviceAccount;
 
-    // Check if service account file exists
-    if (!fs.existsSync(serviceAccountPath)) {
-      throw new Error(`serviceAccountKey.json file not found at ${serviceAccountPath}`);
+    // 1. Check for minified JSON in FIREBASE_CONFIG environment variable
+    if (process.env.FIREBASE_CONFIG) {
+      try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
+      } catch (err) {
+        throw new Error('Failed to parse FIREBASE_CONFIG from environment variables.');
+      }
+    } else {
+      // 2. Fallback to file path
+      let serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH 
+        ? path.resolve(process.cwd(), process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
+        : path.join(__dirname, '../serviceAccountKey.json');
+
+      if (!fs.existsSync(serviceAccountPath)) {
+        throw new Error(`Service account file not found at ${serviceAccountPath}`);
+      }
+
+      serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
     }
-
-    // Read service account key
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
 
     // Initialize Firebase Admin
     if (!admin.apps.length) {

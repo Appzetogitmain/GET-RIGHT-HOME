@@ -15,7 +15,7 @@ import workerRoutes from './routes/workerRoutes.js';
 import hsBookingRoutes from './routes/hsBookingRoutes.js';
 import adminWorkerRoutes from './routes/adminWorkerRoutes.js';
 import zoneRoutes from './routes/zoneRoutes.js';
-
+import fcmRoutes from './routes/fcmRoutes.js';
 // Initialize Firebase
 initializeFirebase();
 
@@ -137,6 +137,9 @@ import localityReviewRoutes from './routes/localityReviewRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import feedbackRoutes from './routes/feedbackRoutes.js';
 import managerRoutes from './routes/managerRoutes.js';
+import insightRoutes from './routes/insightRoutes.js';
+import adminInsightRoutes from './routes/adminInsightRoutes.js';
+import propertyVideoRoutes from './routes/propertyVideoRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
@@ -169,6 +172,7 @@ app.use('/api/admin/cities', cityRoutes);
 app.use('/api/admin/categories', hsCategoryRoutes);
 app.use('/api/admin/sub-categories', hsSubCategoryRoutes);
 app.use('/api/admin/services', hsServiceRoutes);
+app.use('/api/admin/insights', adminInsightRoutes);
 app.get('/api/public/home-content', getPublicHomeContent);
 app.get('/api/public/categories', getPublicCategories);
 app.get('/api/public/sub-categories', getPublicSubCategories);
@@ -180,6 +184,7 @@ app.get('/api/public/builders/:id', getPublicBuilderDetails);
 app.get('/api/public/plans', (req, res) => {
   res.json({ success: true, data: [] });
 });
+app.use('/api/public/insights', insightRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/property-forms', propertyFormRoutes);
 app.use('/api/builder-forms', builderFormRoutes);
@@ -191,13 +196,13 @@ app.use('/api/hs-bookings', hsBookingRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin/workers', adminWorkerRoutes);
-
+app.use('/api/fcm-tokens', fcmRoutes);
 // Manager routes: CRUD under admin namespace + module registry
 app.use('/api/admin/managers', managerRoutes);
 app.use('/api/managers', managerRoutes);
 
-
-
+// Property Video Curations
+app.use('/api/property-videos', propertyVideoRoutes);
 
 // Basic API Check Route
 app.get('/api/check', (req, res) => {
