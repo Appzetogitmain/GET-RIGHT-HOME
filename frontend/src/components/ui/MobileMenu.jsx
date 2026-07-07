@@ -94,13 +94,13 @@ const MobileMenu = ({ isOpen, onClose }) => {
                     <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         transition={{ duration: 0.3 }} onClick={onClose}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] md:hidden"
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] lg:hidden"
                         style={{ pointerEvents: 'auto' }}
                     />
                     <motion.div
                         initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
                         transition={{ type: 'tween', ease: 'circOut', duration: 0.4 }}
-                        className="fixed top-0 left-0 h-[100dvh] w-[85%] max-w-[300px] bg-white z-[101] overflow-y-auto overscroll-contain md:hidden shadow-2xl flex flex-col"
+                        className="fixed top-0 left-0 h-[100dvh] w-[85%] max-w-[300px] bg-white z-[101] overflow-y-auto overscroll-contain lg:hidden shadow-2xl flex flex-col"
                         style={{ touchAction: 'pan-y' }}
                         onClick={(e) => e.stopPropagation()}
                     >

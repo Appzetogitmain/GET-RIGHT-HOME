@@ -132,12 +132,7 @@ const AdminPropertyCard = ({ property, index }) => {
                     {/* Featured Badge (Top Left) */}
                     {property.featuredDetails?.isFeatured && (
                         <div className="absolute top-4 left-4 z-10">
-                            <span className={`px-2.5 py-1 text-white rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm ${
-                                property.featuredDetails.planName === 'Pro' ? 'bg-purple-600' :
-                                property.featuredDetails.planName === 'Gold' ? 'bg-amber-500' :
-                                property.featuredDetails.planName === 'Silver' ? 'bg-slate-500' :
-                                'bg-[#a21caf]'
-                            }`}>
+                            <span className="bg-amber-500/95 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-md">
                                 Featured
                             </span>
                         </div>

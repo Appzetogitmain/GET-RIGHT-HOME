@@ -247,7 +247,7 @@ const Layout = ({ children }) => {
     <>
       {showUserNavs && !isReelsPage && !isHomeServicesPage && <TopNavbar />}
 
-      <div className={`min-h-screen ${showUserNavs && !isReelsPage ? 'md:pt-24' : ''} ${showUserBottomNav || showPartnerBottomNav ? 'pb-20 md:pb-0' : ''}`}>
+      <div className={`min-h-screen ${showUserNavs && !isReelsPage ? 'lg:pt-20' : ''} ${showUserBottomNav || showPartnerBottomNav ? 'pb-20 md:pb-0' : ''}`}>
         {showMaintenanceOverlay ? (
           <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-6 py-10 text-center bg-gradient-to-b from-[#111827] via-[#0f172a] to-black">
             <div className="flex flex-col items-center justify-center max-w-md w-full">
