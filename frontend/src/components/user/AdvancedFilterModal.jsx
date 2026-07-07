@@ -318,6 +318,65 @@ const AdvancedFilterModal = ({
         }
     };
 
+    const getTabCount = (tabName) => {
+        let count = 0;
+        if (tabName === 'Budget') {
+            if (filters.minPrice || filters.maxPrice) count = 1;
+        } else if (tabName === 'Property Type') {
+            if (filters.propertyTypes && filters.propertyTypes.length > 0) count = filters.propertyTypes.length;
+        } else if (tabName === 'BHK') {
+            const bhks = ['1 RK/1 BHK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'];
+            count = (filters.amenities || []).filter(a => bhks.includes(a)).length;
+        } else if (tabName === 'Property Size') {
+            if (filters.minArea || filters.maxArea) count = 1;
+        } else if (tabName === 'Possession Status') {
+            const pos = ['Ready to Move', 'Under Construction', 'Pre Launch'];
+            count = (filters.amenities || []).filter(a => pos.includes(a)).length;
+        } else if (tabName === 'New Booking / Resale') {
+            count = (filters.purchaseType || []).length;
+        } else if (tabName === 'Amenities & Facilities') {
+            const ams = ['Parking', 'Wifi', 'Pool', 'Gym', 'AC', 'Kitchen', 'Security', 'Lift', 'Power Backup', 'Club House'];
+            count = (filters.amenities || []).filter(a => ams.includes(a)).length;
+        } else if (tabName === 'Localities') {
+            count = (filters.areas || []).length;
+        } else if (tabName === 'Builders') {
+            count = (filters.builder || []).length;
+        } else if (tabName === 'Projects') {
+            const prj = ['Prestige Shantiniketan', 'Sobha City', 'Brigade Gateway', 'Godrej Woodsman Estate'];
+            count = (filters.amenities || []).filter(a => prj.includes(a)).length;
+        } else if (tabName === 'Floor Preference') {
+            const flr = ['Ground Floor', '1st to 4th Floor', '5th to 8th Floor', '9th to 12th Floor', 'Top Floor'];
+            count = (filters.amenities || []).filter(a => flr.includes(a)).length;
+        } else if (tabName === 'Facing Direction') {
+            const dir = ['East Facing', 'West Facing', 'North Facing', 'South Facing', 'North-East Facing'];
+            count = (filters.amenities || []).filter(a => dir.includes(a)).length;
+        } else if (tabName === 'Property Features') {
+            const feat = ['Park Facing', 'Main Road Facing', 'Corner Property', 'Gated Society', 'Pet Friendly'];
+            count = (filters.amenities || []).filter(a => feat.includes(a)).length;
+        } else if (tabName === 'Project Area') {
+            const pa = ['Less than 1 Acre', '1 to 5 Acres', '5 to 10 Acres', 'More than 10 Acres'];
+            count = (filters.amenities || []).filter(a => pa.includes(a)).length;
+        } else if (tabName === 'Project Density') {
+            const pd = ['Low Density (Less than 50 units/acre)', 'Medium Density', 'High Density'];
+            count = (filters.amenities || []).filter(a => pd.includes(a)).length;
+        } else if (tabName === 'Posted By') {
+            count = Array.isArray(filters.postedBy) ? filters.postedBy.length : (filters.postedBy ? filters.postedBy.split(',').length : 0);
+        } else if (tabName === 'Bathrooms') {
+            const bath = ['1 Bathroom', '2 Bathrooms', '3 Bathrooms', '4+ Bathrooms'];
+            count = (filters.amenities || []).filter(a => bath.includes(a)).length;
+        } else if (tabName === 'Photos & Videos') {
+            const pv = ['With Photos', 'With Videos'];
+            count = (filters.amenities || []).filter(a => pv.includes(a)).length;
+        } else if (tabName === 'Furnishing Status') {
+            const fs = ['Fully Furnished', 'Semi Furnished', 'Unfurnished'];
+            count = (filters.amenities || []).filter(a => fs.includes(a)).length;
+        } else if (tabName === 'Quick Filters') {
+            const qf = ['Verified Properties', 'With Photos', 'With Videos', 'Gated Society', 'Corner Property'];
+            count = (filters.amenities || []).filter(a => qf.includes(a)).length;
+        }
+        return count;
+    };
+
     return (
         <div className={`
             fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm transition-opacity duration-300 flex items-end justify-center
@@ -359,18 +418,20 @@ const AdvancedFilterModal = ({
                 <div className="flex flex-1 overflow-hidden bg-white">
                     {/* Left Sidebar */}
                     <div className="w-[35%] md:w-[25%] bg-gray-50 overflow-y-auto border-r border-gray-100 no-scrollbar pb-20">
-                        {tabs.map(tab => (
+                        {tabs.map(tab => {
+                            const c = getTabCount(tab);
+                            return (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`w-full text-left px-4 py-4 text-xs font-semibold transition-colors border-l-4
                                     ${activeTab === tab 
-                                        ? 'bg-white border-surface text-gray-900 font-bold shadow-sm' 
+                                        ? 'bg-white border-blue-600 text-gray-900 font-bold shadow-sm' 
                                         : 'border-transparent text-gray-500 hover:bg-gray-100'}`}
                             >
-                                {tab}
+                                {tab} {c > 0 && <span className="ml-1 text-blue-600 bg-blue-50 rounded-full px-1.5 py-0.5 text-[10px]">{c}</span>}
                             </button>
-                        ))}
+                        )})}
                     </div>
 
                     {/* Right Content */}

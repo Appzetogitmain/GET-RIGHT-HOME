@@ -1,52 +1,149 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Building2 } from 'lucide-react';
+import { propertyService } from '../../services/propertyService';
 
-const BHKChoice = ({ transactionType }) => {
+const BHKChoice = ({ transactionType = 'buy' }) => {
     const navigate = useNavigate();
+    const scrollContainerRef = useRef(null);
+    const [titleOpacity, setTitleOpacity] = useState(1);
+    const [bhkCounts, setBhkCounts] = useState({
+        '1bhk': 0,
+        '2bhk': 0,
+        '3bhk': 0,
+        '4bhk': 0,
+        '4plus': 0
+    });
 
-    // 99acres style BHK options
+    // Handle scroll to fade out the title when sliding left
+    const handleScroll = () => {
+        if (!scrollContainerRef.current) return;
+        const scrollLeft = scrollContainerRef.current.scrollLeft;
+        // Fade out completely when scrolled 100px
+        const newOpacity = Math.max(0, 1 - (scrollLeft / 80));
+        setTitleOpacity(newOpacity);
+    };
+
+    // Fetch dynamic counts
+    useEffect(() => {
+        const fetchCounts = async () => {
+            try {
+                // Fetch active properties to count (can optimize by adding a backend count endpoint later)
+                const res = await propertyService.getPublicProperties({ limit: 1000 });
+                if (res?.success && res?.properties) {
+                    const properties = res.properties;
+                    
+                    const counts = { '1bhk': 0, '2bhk': 0, '3bhk': 0, '4bhk': 0, '4plus': 0 };
+                    
+                    properties.forEach(p => {
+                        // Filter to buy transaction if required
+                        if (transactionType && (p.transactionType || '').toLowerCase() !== transactionType.toLowerCase() && !p.dynamicCategory?.name?.toLowerCase().includes(transactionType.toLowerCase())) {
+                            return;
+                        }
+
+                        const bhkStr = (p.bhk || p.dynamicData?.bedrooms || p.dynamicData?.bhk || p.buyDetails?.type || '').toString().toLowerCase();
+                        
+                        if (bhkStr.includes('1 bhk') || bhkStr.includes('1 rk')) counts['1bhk']++;
+                        else if (bhkStr.includes('2 bhk')) counts['2bhk']++;
+                        else if (bhkStr.includes('3 bhk')) counts['3bhk']++;
+                        else if (bhkStr.includes('4 bhk')) counts['4bhk']++;
+                        else if (bhkStr.includes('5') || bhkStr.includes('6') || bhkStr.includes('4+')) counts['4plus']++;
+                    });
+
+                    setBhkCounts(counts);
+                }
+            } catch (err) {
+                console.error("Failed to fetch properties for BHK counts", err);
+            }
+        };
+        fetchCounts();
+    }, [transactionType]);
+
+    // 99acres style uniform icon for all cards
+    const UniformHouseIcon = () => (
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="#3B82F6" opacity="0.9" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 10l1.5 1.5L4 11v9h5v-6h6v6h5v-9l.5.5L22 10 12 2z" />
+            <path d="M14 13h-4v7h4v-7z" fill="#BFDBFE" />
+        </svg>
+    );
+
     const options = [
-        { label: '1 RK/1 BHK', value: '1', icon: '🛏️' },
-        { label: '2 BHK', value: '2', icon: '🛋️' },
-        { label: '3 BHK', value: '3', icon: '🏡' },
-        { label: '4+ BHK', value: '4', icon: '✨' },
+        { label: '1 RK/1 BHK', countKey: '1bhk', filters: ['1BHK'] },
+        { label: '2 BHK', countKey: '2bhk', filters: ['2BHK'] },
+        { label: '3 BHK', countKey: '3bhk', filters: ['3BHK'] },
+        { label: '4 BHK', countKey: '4bhk', filters: ['4BHK'] },
+        { label: '4+ BHK', countKey: '4plus', filters: ['4+BHK'] },
     ];
 
-    const handleSelect = (bhkValue) => {
-        // Navigate to search with bhk filter
+    const handleSelect = (filters) => {
         const params = new URLSearchParams();
         if (transactionType) {
-            params.set('type', transactionType);
+            params.set('transactionType', transactionType.toLowerCase());
         }
-        params.set('bhk', bhkValue);
+        params.set('bhkType', filters.join(','));
         navigate(`/search?${params.toString()}`);
+        window.scrollTo(0, 0);
     };
 
     return (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-            <h2 className="text-xl md:text-2xl font-black text-gray-900 mb-4 tracking-tight">
-                BHK Choice in Mind
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {options.map((opt, idx) => (
-                    <motion.button
-                        key={idx}
-                        whileHover={{ y: -4, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
-                        whileTap={{ scale: 0.96 }}
-                        onClick={() => handleSelect(opt.value)}
-                        className="flex flex-col items-center justify-center py-6 px-4 rounded-2xl border-2 border-slate-50 bg-slate-50 hover:bg-white hover:border-blue-100 transition-all duration-300 group"
-                    >
-                        <span className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
-                            {opt.icon}
-                        </span>
-                        <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600">
-                            {opt.label}
-                        </span>
-                    </motion.button>
-                ))}
+        <section className="mb-6 w-full md:px-0">
+            {/* Edge-to-edge on mobile, larger height */}
+            <div className="relative bg-[#FFF7EB] md:rounded-3xl overflow-hidden h-[200px] md:h-[220px] flex items-center w-full">
+                
+                {/* 1. Static Title on the Left (Fades out when scrolling) */}
+                <div 
+                    className="absolute left-4 top-0 bottom-0 flex flex-col justify-center w-[120px] md:w-[150px] z-10 pointer-events-none"
+                    style={{ opacity: titleOpacity, transition: 'opacity 0.1s ease-out' }}
+                >
+                    <div className="relative w-14 h-14 mb-3">
+                        <div className="absolute left-0 bottom-0 w-10 h-12 bg-orange-300 rounded-sm opacity-80 rounded-tl-full"></div>
+                        <div className="absolute right-0 bottom-0 w-12 h-12 text-blue-500">
+                            <Building2 size={46} fill="currentColor" strokeWidth={1} />
+                        </div>
+                    </div>
+                    <h2 className="text-[18px] md:text-xl font-black text-[#0B1D35] leading-tight tracking-tight">
+                        BHK choice<br/>in mind?
+                    </h2>
+                </div>
+
+                {/* 2. Scrolling Container */}
+                <div 
+                    ref={scrollContainerRef}
+                    onScroll={handleScroll}
+                    className="absolute inset-0 z-20 flex overflow-x-auto scrollbar-hide snap-x snap-mandatory items-center h-full"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                    {/* The Transparent Spacer */}
+                    <div className="w-[140px] md:w-[180px] shrink-0 snap-start h-full"></div>
+
+                    {/* Sliding Cards (Increased size) */}
+                    <div className="flex gap-4 pr-6 items-center h-full">
+                        {options.map((opt, idx) => (
+                            <motion.div
+                                key={idx}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => handleSelect(opt.filters)}
+                                className="shrink-0 snap-center w-[150px] md:w-[170px] h-[140px] md:h-[150px] bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col items-start justify-center p-4 cursor-pointer hover:shadow-md transition-shadow"
+                            >
+                                <div className="mb-auto mt-1">
+                                    <UniformHouseIcon />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-[#0B1D35] text-[16px] md:text-[17px] mb-0.5">
+                                        {opt.label}
+                                    </h3>
+                                    <p className="text-[12px] md:text-[13px] text-gray-500 font-medium">
+                                        {bhkCounts[opt.countKey] > 0 ? `${bhkCounts[opt.countKey]}+ Properties` : 'Explore Options'}
+                                    </p>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+
             </div>
-        </div>
+        </section>
     );
 };
 
