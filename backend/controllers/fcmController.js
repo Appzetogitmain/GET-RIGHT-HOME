@@ -69,7 +69,7 @@ export const testPushNotification = async (req, res) => {
     // Call the deduplicate-safe function
     await sendNotificationToUser(userId, {
       title: 'Test Notification 🎉',
-      body: 'This is a test notification from Hoomzo backend.',
+      body: 'This is a test notification from GET-RIGHT-HOME backend.',
       data: {
         type: 'test',
         id: Date.now().toString(),
