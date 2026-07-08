@@ -15,7 +15,7 @@ import workerRoutes from './routes/workerRoutes.js';
 import hsBookingRoutes from './routes/hsBookingRoutes.js';
 import adminWorkerRoutes from './routes/adminWorkerRoutes.js';
 import zoneRoutes from './routes/zoneRoutes.js';
-
+import fcmRoutes from './routes/fcmRoutes.js';
 // Initialize Firebase
 initializeFirebase();
 
@@ -196,7 +196,7 @@ app.use('/api/hs-bookings', hsBookingRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin/workers', adminWorkerRoutes);
-
+app.use('/api/fcm-tokens', fcmRoutes);
 // Manager routes: CRUD under admin namespace + module registry
 app.use('/api/admin/managers', managerRoutes);
 app.use('/api/managers', managerRoutes);

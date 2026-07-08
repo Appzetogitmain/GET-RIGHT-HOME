@@ -315,14 +315,14 @@ const HomeServicesPage = () => {
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Premium Home Solutions for Every Need</p>
                 </div>
 
-                <div className="grid grid-cols-4 gap-y-4 gap-x-3.5">
+                <div className="grid grid-cols-4 gap-y-4 gap-x-2">
                     {categories.map((cat) => (
                         <motion.button
                             key={cat.id || cat._id}
                             whileHover={{ y: -6 }}
                             whileTap={{ scale: 0.96 }}
                             onClick={() => openCategoryModal(cat)}
-                            className="w-full h-32 sm:h-40 bg-white border border-gray-100 rounded-2xl shadow-md shadow-gray-100/50 overflow-hidden flex flex-col justify-between relative group cursor-pointer"
+                            className="w-full h-32 sm:h-40 bg-white border border-gray-100 rounded-xl shadow-md shadow-gray-100/50 overflow-hidden flex flex-col justify-between relative group cursor-pointer"
                         >
                             {/* Centered Title on Top */}
                             <div className="p-2 sm:p-3 pt-3 sm:pt-4 text-center z-10 flex flex-col items-center justify-center flex-1 w-full">

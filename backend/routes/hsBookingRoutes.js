@@ -5,6 +5,7 @@ import {
   getBookingById,
   cancelBooking,
   rescheduleBooking,
+  approveEstimate,
   addReview,
   getUserRatings
 } from '../controllers/hsBookingController.js';
@@ -20,6 +21,7 @@ router.get('/ratings', getUserRatings);
 router.get('/:id', getBookingById);
 router.post('/:id/cancel', cancelBooking);
 router.put('/:id/reschedule', rescheduleBooking);
+router.post('/:id/approve-estimate', approveEstimate);
 router.post('/:id/review', addReview);
 
 export default router;

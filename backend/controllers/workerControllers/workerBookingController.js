@@ -1241,6 +1241,82 @@ const confirmManualOnlineCollection = async (req, res) => {
   }
 };
 
+/**
+ * Generate Estimate (Option 2)
+ */
+const generateEstimate = async (req, res) => {
+  try {
+    const workerId = req.user.id;
+    const { id } = req.params;
+    const { estimatedAmount, estimateDescription } = req.body;
+
+    if (!estimatedAmount || estimatedAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Valid estimated amount is required' });
+    }
+
+    const booking = await HomeServiceBooking.findOne({ _id: id, workerId });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found or not assigned to you' });
+    }
+
+    if (booking.status !== BOOKING_STATUS.VISITED && booking.status !== BOOKING_STATUS.IN_PROGRESS && booking.status !== BOOKING_STATUS.ESTIMATE_PROVIDED) {
+      return res.status(400).json({ success: false, message: 'Estimate can only be generated when status is visited or in_progress' });
+    }
+
+    // Token logic: 30% of total estimate
+    const tokenAmount = Math.round(Number(estimatedAmount) * 0.3);
+    const adminCommission = Math.round(tokenAmount * 0.2); // 20% of token
+    const workerAdvance = tokenAmount - adminCommission;
+
+    booking.estimate = {
+      amount: Number(estimatedAmount),
+      description: estimateDescription,
+      tokenAmount: tokenAmount,
+      adminCommission: adminCommission,
+      workerAdvance: workerAdvance,
+      status: 'PENDING',
+      generatedAt: new Date()
+    };
+
+    // We don't overwrite basePrice or finalAmount yet. 
+    // They get updated ONLY when the customer approves.
+    booking.status = BOOKING_STATUS.ESTIMATE_PROVIDED;
+    
+    await booking.save();
+
+    // Notify User
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${String(booking.userId?._id || booking.userId)}`).emit('booking_updated', {
+        bookingId: String(booking._id),
+        status: BOOKING_STATUS.ESTIMATE_PROVIDED,
+        estimatedAmount: booking.finalAmount,
+        tokenAmount: booking.userPayableAmount
+      });
+      // push notification to user
+      try {
+        const notificationService = (await import('../../../services/notificationService.js')).default;
+        await notificationService.sendToUser(booking.userId, {
+          title: 'Estimate Received',
+          body: `Worker has provided an estimate of ₹${booking.finalAmount} for your job. Please pay the token to start work.`,
+          data: { type: 'estimate', bookingId: String(booking._id) }
+        });
+      } catch (err) {
+        console.error('Error sending push notification for estimate:', err);
+      }
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Estimate sent successfully',
+      booking
+    });
+  } catch (error) {
+    console.error('Generate estimate error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate estimate' });
+  }
+};
+
 export { 
   getAssignedJobs,
   getJobById,
@@ -1257,5 +1333,6 @@ export {
   initiateOnlineCollection,
   verifyOnlineCollection,
   initiateCashCollection,
-  confirmManualOnlineCollection
+  confirmManualOnlineCollection,
+  generateEstimate
  };

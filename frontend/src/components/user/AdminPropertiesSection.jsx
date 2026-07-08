@@ -88,8 +88,7 @@ const AdminPropertyCard = ({ property, index }) => {
             toast.success("This is a demo property card showcasing the layout!");
             return;
         }
-        // Save the section ID so back navigation can perfectly align to this section despite layout shifts
-        sessionStorage.setItem('last-clicked-section', 'admin-properties-section');
+
         // Force navigate to handpicked since these are featured handpicked projects
         navigate(`/handpicked/${property._id || property.id}`);
     };

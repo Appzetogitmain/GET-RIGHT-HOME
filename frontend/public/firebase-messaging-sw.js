@@ -1,62 +1,71 @@
 /* eslint-env serviceworker, webworker */
 /* global firebase, importScripts */
-// Import and configure the Firebase SDK
-// These scripts are made available when the app is served or deployed on Firebase Hosting
 importScripts('https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js');
 
-// Initialize Firebase
-firebase.initializeApp({
-  apiKey: "AIzaSyDRdqC6o3xTAEp3HpDE7laeLkiHNCevTX4",
-  authDomain: "homzoo.firebaseapp.com",
-  projectId: "homzoo",
-  storageBucket: "homzoo.firebasestorage.app",
-  messagingSenderId: "166464194870",
-  appId: "1:166464194870:web:ea077aa1064b1ca61c8b97"
-});
+// Standard Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyDGlnu2FIZJFr3xydLfxmuPxg9Qt3xsQ64",
+  authDomain: "get-right-home.firebaseapp.com",
+  projectId: "get-right-home",
+  storageBucket: "get-right-home.firebasestorage.app",
+  messagingSenderId: "792383548755",
+  appId: "1:792383548755:web:b5eeca20677221964305a6",
+  measurementId: "G-4GGTSXJW36"
+};
 
-// Retrieve an instance of Firebase Messaging
+firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-// Handle background messages
+const shownNotifications = new Set();
+
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
 
-  const notificationTitle = payload.notification?.title || 'Rukkoin';
+  const id = payload.data?.notificationId;
+  
+  // Deduplicate
+  if (id && shownNotifications.has(id)) {
+    console.log('[firebase-messaging-sw.js] Duplicate notification blocked', id);
+    return;
+  }
+  
+  if (id) shownNotifications.add(id);
+
+  // Auto clean up set to avoid memory leak
+  if (shownNotifications.size > 100) {
+    const iterator = shownNotifications.values();
+    shownNotifications.delete(iterator.next().value);
+  }
+
+  const notificationTitle = payload.notification?.title || payload.data?.title || 'New Notification';
   const notificationOptions = {
-    body: payload.notification?.body || '',
+    body: payload.notification?.body || payload.data?.body || '',
     icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
-    data: payload.data || {},
-    tag: payload.data?.tag || 'default',
-    requireInteraction: false,
-    silent: false,
+    data: payload.data || {}
   };
 
-  return self.registration.showNotification(notificationTitle, notificationOptions);
+  self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Handle notification clicks
+// Handle Notification Click
 self.addEventListener('notificationclick', (event) => {
-  console.log('[firebase-messaging-sw.js] Notification click received.');
-
   event.notification.close();
-
-  // Get the URL from notification data or default to root
-  const urlToOpen = event.notification.data?.url || '/';
-
+  
+  const clickUrl = event.notification.data?.link || '/';
+  
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if there's already a window open
-      for (let i = 0; i < clientList.length; i++) {
-        const client = clientList[i];
-        if (client.url === urlToOpen && 'focus' in client) {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Check if there is already a window/tab open with the target URL
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url.includes(clickUrl) && 'focus' in client) {
           return client.focus();
         }
       }
-      // If no window is open, open a new one
+      // If not, open a new window
       if (self.clients.openWindow) {
-        return self.clients.openWindow(urlToOpen);
+        return self.clients.openWindow(clickUrl);
       }
     })
   );

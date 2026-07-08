@@ -32,6 +32,10 @@ const categorySchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isEstimateBased: {
+    type: Boolean,
+    default: false
+  },
   showOnHome: {
     type: Boolean,
     default: true,

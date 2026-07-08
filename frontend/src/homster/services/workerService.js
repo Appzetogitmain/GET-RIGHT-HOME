@@ -139,6 +139,11 @@ const workerService = {
   testPushNotification: async () => {
     const response = await api.post('/workers/fcm-tokens/test');
     return response.data;
+  },
+
+  generateEstimate: async (jobId, data) => {
+    const response = await api.patch(`/workers/jobs/${jobId}/estimate`, data);
+    return response.data;
   }
 };
 

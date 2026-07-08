@@ -532,6 +532,15 @@ const Checkout = () => {
                 replace: true
               });
             }, 2000);
+          } else if (status === 'NO_VENDORS' || status === 'CANCELLED') {
+            setSearchingVendors(false);
+            setCurrentStep('failed');
+            toast.error('No professionals found nearby. Please try again later.');
+            
+            setTimeout(() => {
+              setShowVendorModal(false);
+              setCurrentStep('details');
+            }, 2000);
           }
         }
       } catch (err) {
@@ -1337,7 +1346,8 @@ const Checkout = () => {
   const itemTotal = cartItems.reduce((sum, item) => sum + calculateItemPrice(item), 0);
   // Calculate savings including Plan Savings + VIP Discount
   const totalOriginalPrice = cartItems.reduce((sum, item) => {
-    const original = (item.originalPrice || item.unitPrice || (item.price / (item.serviceCount || 1))) * (item.serviceCount || 1);
+    const basePrice = item.price || 0;
+    const original = (item.originalPrice || item.unitPrice || (basePrice / (item.serviceCount || 1))) * (item.serviceCount || 1);
     return sum + original;
   }, 0);
 

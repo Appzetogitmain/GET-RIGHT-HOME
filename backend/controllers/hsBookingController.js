@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import Service from '../models/HomeServiceService.js';
-import Category from '../models/Category.js';
+import HomeServiceCategory from '../models/HomeServiceCategory.js';
+import Category from '../models/Category.js'; // Keeping this if it's used elsewhere
 import UserService from '../models/UserService.js';
 import Vendor from '../models/Partner.js';
 import Cart from '../models/Cart.js';
@@ -112,7 +113,7 @@ const createBooking = async (req, res) => {
 
     // 2. Fetch Category if exists
     const categoryId = service.categoryId || service.categoryIds?.[0];
-    const category = categoryId ? await Category.findById(categoryId).select('title icon image slug').lean() : null;
+    const category = categoryId ? await HomeServiceCategory.findById(categoryId).select('title icon image slug isEstimateBased').lean() : null;
 
     // Calculate total value from booked items or fallback to service base price
     if (totalServiceValue === 0) {
@@ -288,7 +289,7 @@ const createBooking = async (req, res) => {
     let finalCategory = category;
     if (!finalCategory && service.category) {
       // Try finding by name if ID lookup failed
-      finalCategory = await Category.findOne({ title: service.category });
+      finalCategory = await HomeServiceCategory.findOne({ title: service.category });
     }
 
     // Map booked items to new schema (sectionTitle -> brandName)
@@ -325,6 +326,7 @@ const createBooking = async (req, res) => {
       categoryId: finalCategory?._id || categoryId,
       serviceName: service.title,
       serviceCategory: reqServiceCategory || finalCategory?.title || service.category || 'General',
+      isEstimateBased: finalCategory?.isEstimateBased || req.body.isEstimateBased || false,
       // Visual Identity Fields
       categoryIcon: reqCategoryIcon || categoryIcon,
       brandName: reqBrandName || brandName,
@@ -551,6 +553,7 @@ const createBooking = async (req, res) => {
               bookedItems: bookingForBackground.bookedItems,
               requirementText: bookingForBackground.requirementText,
               isConsultancyRequest: bookingForBackground.isConsultancyRequest,
+              isEstimateBased: bookingForBackground.isEstimateBased,
               createdAt: bookingForBackground.createdAt || new Date(),
               expiresAt: new Date(new Date(bookingForBackground.createdAt || Date.now()).getTime() + (60 * 1000)).toISOString(),
               playSound: true,
@@ -1262,6 +1265,62 @@ const getUserRatings = async (req, res) => {
   }
 };
 
+// @desc    Approve estimate and pay token
+// @route   POST /api/v1/hs-bookings/:id/approve-estimate
+// @access  Private (User)
+const approveEstimate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await HomeServiceBooking.findById(id);
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (!booking.isEstimateBased || booking.estimate?.status !== 'PENDING') {
+      return res.status(400).json({ success: false, message: 'No pending estimate found for this booking' });
+    }
+
+    // Update estimate status
+    booking.estimate.status = 'APPROVED';
+    
+    // Set actual pricing now that estimate is approved
+    booking.basePrice = booking.estimate.amount;
+    booking.finalAmount = booking.estimate.amount;
+    
+    // Deduct token from what's left to pay later
+    booking.userPayableAmount = booking.estimate.amount - booking.estimate.tokenAmount;
+    
+    // Status can remain visited or go to in_progress depending on business logic
+    // Let's set it to IN_PROGRESS so the worker can start the job
+    booking.status = 'IN_PROGRESS';
+
+    await booking.save();
+
+    // Notify worker via Socket
+    const io = req.app.get('io');
+    if (io && booking.workerId) {
+      io.to(`worker_${String(booking.workerId)}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: booking.status,
+        estimateStatus: 'APPROVED'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Estimate approved successfully',
+      data: booking
+    });
+  } catch (error) {
+    console.error('Approve estimate error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to approve estimate'
+    });
+  }
+};
+
 export {
   createBooking,
   getUserBookings,
@@ -1269,6 +1328,7 @@ export {
   cancelBooking,
   rescheduleBooking,
   addReview,
-  getUserRatings
+  getUserRatings,
+  approveEstimate
 };
 

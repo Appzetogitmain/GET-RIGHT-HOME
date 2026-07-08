@@ -2,3 +2,4 @@
 node_modules
 scripts/
 serviceAccountKey.json
+config/*.json

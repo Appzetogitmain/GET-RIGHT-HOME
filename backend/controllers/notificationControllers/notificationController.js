@@ -3,6 +3,10 @@ import { getIO } from '../../sockets.js';
 
 export const createNotification = async (data) => {
   try {
+    // Ensure body exists for validation
+    data.body = data.body || data.message || 'Notification';
+    data.title = data.title || 'New Notification';
+    
     const notification = await Notification.create(data);
 
     // Emit real-time socket notification to the relevant user/worker/vendor

@@ -9,6 +9,7 @@ const CashCollectionModal = lazy(() => import('../../components/common/CashColle
 const VisitVerificationModal = lazy(() => import('../../components/common/VisitVerificationModal'));
 const WorkCompletionModal = lazy(() => import('../../components/common/WorkCompletionModal'));
 const OtpVerificationModal = lazy(() => import('../../components/common/OtpVerificationModal'));
+const GenerateEstimateModal = lazy(() => import('../../components/common/GenerateEstimateModal'));
 import workerService from '../../../../services/workerService';
 import api from '../../../../services/api';
 import { toast } from 'react-hot-toast';
@@ -24,6 +25,7 @@ const JobDetails = () => {
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
   const [otpInput, setOtpInput] = useState(['', '', '', '']); // Array for 4 digit OTP
   const [workPhotos, setWorkPhotos] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -370,7 +372,18 @@ const JobDetails = () => {
             </button>
           )}
 
-          {(job.status === 'visited' || job.status === 'in_progress') && (
+          {job.status === 'visited' && job.isEstimateBased && (
+            <button
+              onClick={() => setIsEstimateModalOpen(true)}
+              disabled={actionLoading}
+              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
+              style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
+            >
+              {actionLoading ? 'Loading...' : <>GENERATE ESTIMATE <FiDollarSign className="w-5 h-5" /></>}
+            </button>
+          )}
+
+          {((job.status === 'visited' && !job.isEstimateBased) || job.status === 'in_progress') && (
             <button
               onClick={() => handleStatusUpdate('complete')}
               disabled={actionLoading}
@@ -528,6 +541,7 @@ const JobDetails = () => {
         )}
 
         {/* Payment Details - Professional Card (Matched with Vendor) */}
+        {(!job?.isEstimateBased || job?.estimate?.status === 'APPROVED') && (
         <div
           className="bg-white rounded-xl p-5 mb-6 shadow-sm border border-gray-100"
           style={{
@@ -631,6 +645,7 @@ const JobDetails = () => {
             </div>
           </div>
         </div>
+        )}
 
         {/* Booking Details Extra */}
         <div className="bg-gray-50 rounded-2xl p-5 shadow-inner mb-6 border border-gray-100">
@@ -687,6 +702,19 @@ const JobDetails = () => {
           bookingId={id}
           onSuccess={() => {
             setIsVisitModalOpen(false);
+            fetchJobDetails();
+          }}
+        />
+      </Suspense>
+
+      {/* Generate Estimate Modal */}
+      <Suspense fallback={null}>
+        <GenerateEstimateModal
+          isOpen={isEstimateModalOpen}
+          onClose={() => setIsEstimateModalOpen(false)}
+          bookingId={id}
+          onSuccess={() => {
+            setIsEstimateModalOpen(false);
             fetchJobDetails();
           }}
         />

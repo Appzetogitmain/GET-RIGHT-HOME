@@ -92,6 +92,10 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Service category is required']
   },
+  isEstimateBased: {
+    type: Boolean,
+    default: false
+  },
   // Visual Identity (For easier UI access)
   categoryIcon: { type: String, default: null }, // URL to category icon
   brandName: { type: String, default: null },    // e.g. "LG", "Samsung"
@@ -169,6 +173,15 @@ const bookingSchema = new mongoose.Schema({
     default: 0
   },
   // Total Value of the Booking (set after bill generation)
+  estimate: {
+    amount: { type: Number, default: 0 },
+    description: { type: String, default: '' },
+    tokenAmount: { type: Number, default: 0 },
+    adminCommission: { type: Number, default: 0 },
+    workerAdvance: { type: Number, default: 0 },
+    status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
+    generatedAt: { type: Date, default: null }
+  },
   finalAmount: {
     type: Number,
     required: [true, 'Final amount is required'],
@@ -288,6 +301,10 @@ const bookingSchema = new mongoose.Schema({
     enum: ['instant', 'scheduled'],
     default: 'scheduled',
     index: true
+  },
+  isEstimateBased: {
+    type: Boolean,
+    default: false
   },
   bookingModel: {
     type: String,

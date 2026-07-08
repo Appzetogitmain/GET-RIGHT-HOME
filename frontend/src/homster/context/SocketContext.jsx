@@ -441,6 +441,7 @@ export const SocketProvider = ({ children }) => {
           bookedItems: data.bookedItems,
           requirementText: data.requirementText,
           isConsultancyRequest: data.isConsultancyRequest,
+          isEstimateBased: data.isEstimateBased,
           scheduledDate: data.scheduledDate,
           scheduledTime: data.scheduledTime,
           timeSlot: {

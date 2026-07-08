@@ -439,10 +439,22 @@ function App() {
     // Listen for foreground messages
     onMessageListener((payload) => {
       console.log('Foreground Message:', payload);
+      
+      const title = payload.notification?.title || payload.data?.title || 'Notification';
+      const body = payload.notification?.body || payload.data?.body || '';
+
+      // Force a system push notification even when the app is in the foreground
+      if (Notification.permission === 'granted') {
+        new Notification(title, {
+          body: body,
+          icon: '/icon-192x192.png'
+        });
+      }
+
       toast((t) => (
         <div className="flex flex-col">
-          <span className="font-bold">{payload.notification?.title || 'Notification'}</span>
-          <span className="text-sm">{payload.notification?.body}</span>
+          <span className="font-bold">{title}</span>
+          <span className="text-sm">{body}</span>
         </div>
       ), {
         duration: 5000,

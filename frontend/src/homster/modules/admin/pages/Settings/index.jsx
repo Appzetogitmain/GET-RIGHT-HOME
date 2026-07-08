@@ -21,6 +21,7 @@ const AdminSettings = () => {
     cancellationPenalty: 49,
     tdsPercentage: 1,
     platformFeePercentage: 1,
+    defaultCommission: 10,
     platformFlatFee: 20,
     cashCollectionFee: 20,
     maxSearchTime: 5,
@@ -119,6 +120,7 @@ const AdminSettings = () => {
             servicePayoutPercentage: res.settings.servicePayoutPercentage ?? 90,
             partsPayoutPercentage: res.settings.partsPayoutPercentage ?? 100,
             tdsPercentage: res.settings.tdsPercentage || 1,
+            defaultCommission: res.settings.defaultCommission || 10,
             platformFeePercentage: res.settings.platformFeePercentage || 1,
             platformFlatFee: res.settings.platformFlatFee || 20,
             cashCollectionFee: res.settings.cashCollectionFee || 20,
@@ -608,6 +610,13 @@ const AdminSettings = () => {
                     </div>
 
 
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Estimate Services Commission (%)</label>
+                      <input type="number" name="defaultCommission" value={financialSettings.defaultCommission} onChange={handleFinancialChange}
+                        min="0" max="100"
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
+                      <p className="text-[10px] text-gray-400 mt-1">Commission % for estimate-based bookings</p>
+                    </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Platform Flat Fee (₹)</label>
                       <input type="number" name="platformFlatFee" value={financialSettings.platformFlatFee} onChange={handleFinancialChange}

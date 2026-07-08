@@ -257,17 +257,23 @@ const SubCategoryPage = () => {
                                                 </h3>
                                                 
                                                 {/* Price block */}
-                                                <div className="flex items-center gap-1.5 mt-1 mb-2">
-                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Starts at</span>
-                                                    <span className="text-base font-black text-gray-800">
-                                                        ₹{price}
-                                                    </span>
-                                                    {originalPrice && (
-                                                        <span className="text-[11px] text-gray-400 line-through font-bold">
-                                                            ₹{originalPrice}
+                                                {category?.isEstimateBased ? (
+                                                    <div className="flex items-center gap-1.5 mt-1 mb-2">
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Price Post Inspection</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 mt-1 mb-2">
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Starts at</span>
+                                                        <span className="text-base font-black text-gray-800">
+                                                            ₹{price}
                                                         </span>
-                                                    )}
-                                                </div>
+                                                        {originalPrice && (
+                                                            <span className="text-[11px] text-gray-400 line-through font-bold">
+                                                                ₹{originalPrice}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
 
                                                 {svc.description && (
                                                     <p className="text-xs text-gray-500 leading-relaxed mb-3">
@@ -321,7 +327,7 @@ const SubCategoryPage = () => {
                                                             </>
                                                         ) : (
                                                             <>
-                                                                Add
+                                                                {category?.isEstimateBased ? 'Book Visit' : 'Add'}
                                                             </>
                                                         )}
                                                     </motion.button>

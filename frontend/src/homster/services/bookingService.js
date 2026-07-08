@@ -54,6 +54,12 @@ export const bookingService = {
   getRatings: async (params = {}) => {
     const response = await api.get('/hs-bookings/ratings', { params });
     return response.data;
+  },
+
+  // Approve Estimate and pay token
+  approveEstimate: async (id) => {
+    const response = await api.post(`/hs-bookings/${id}/approve-estimate`);
+    return response.data;
   }
 };
 

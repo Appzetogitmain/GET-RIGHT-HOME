@@ -980,6 +980,15 @@ export const referralService = {
     } catch (error) {
       throw error.response?.data || error.message;
     }
+  },
+  // Update FCM Token
+  updateFcmToken: async (token, platform = 'web') => {
+    try {
+      const response = await api.post('/fcm-tokens/save', { token, platform });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
   }
 };
 

@@ -289,6 +289,26 @@ const Home = () => {
                     </div>
                 )}
             </div>
+            
+            {/* Test Push Notification Button */}
+            <div className="max-w-7xl mx-auto px-5 md:px-0 py-8 flex justify-center">
+                <button
+                    onClick={async () => {
+                        try {
+                            const { api } = await import('../../services/apiService');
+                            await api.post('/fcm-tokens/test');
+                            alert('Test notification sent! Check your device.');
+                        } catch (err) {
+                            console.error(err);
+                            alert('Failed to send test notification. Please login first.');
+                        }
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all active:scale-95"
+                >
+                    Test Push Notification
+                </button>
+            </div>
+
             <SupportSection />
         </main>
     );
