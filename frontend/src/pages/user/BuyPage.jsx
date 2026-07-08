@@ -53,7 +53,7 @@ const BuyPage = () => {
     };
 
     return (
-        <main className="min-h-screen pb-24 transition-colors duration-700" style={{ backgroundColor: THEME.pageBg }}>
+        <main className="transition-colors duration-700 w-full overflow-x-hidden" style={{ backgroundColor: THEME.pageBg }}>
             {/* Hero Section */}
             <div className="relative min-h-[280px] md:min-h-[340px] bg-gray-50/50">
                 <div className="absolute inset-0 w-full h-full bg-white" />

@@ -88,6 +88,8 @@ const AdminPropertyCard = ({ property, index }) => {
             toast.success("This is a demo property card showcasing the layout!");
             return;
         }
+        // Save the section ID so back navigation can perfectly align to this section despite layout shifts
+        sessionStorage.setItem('last-clicked-section', 'admin-properties-section');
         // Force navigate to handpicked since these are featured handpicked projects
         navigate(`/handpicked/${property._id || property.id}`);
     };
@@ -205,17 +207,52 @@ const SkeletonCard = () => (
     </div>
 );
 
+// Simple client-side cache to instantly render previously loaded lists on back navigation
+const adminPropertiesCache = {
+    cities: null,
+    propertiesByCity: {}
+};
+
 /* ─── Main Component ─── */
 const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }) => {
     const navigate = useNavigate();
-    const [availableCities, setAvailableCities] = useState([]);
-    const [selectedCity, setSelectedCity] = useState(null); // null = no city selected yet
-    const [properties, setProperties] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [citiesLoading, setCitiesLoading] = useState(true);
+    
+    const [availableCities, setAvailableCities] = useState(() => adminPropertiesCache.cities || []);
+    
+    const initialCity = adminPropertiesCache.cities?.length > 0 ? adminPropertiesCache.cities[0].city : null;
+    const [selectedCity, setSelectedCity] = useState(initialCity);
+    
+    const [properties, setProperties] = useState(() => {
+        return (initialCity && adminPropertiesCache.propertiesByCity[initialCity]) 
+            ? adminPropertiesCache.propertiesByCity[initialCity] 
+            : [];
+    });
+    
+    const [loading, setLoading] = useState(() => {
+        return !(initialCity && adminPropertiesCache.propertiesByCity[initialCity]);
+    });
+    
+    const [citiesLoading, setCitiesLoading] = useState(() => !adminPropertiesCache.cities);
     const [detectingLocation, setDetectingLocation] = useState(false);
     const [localQuery, setLocalQuery] = useState("");
-    const scrollRef = useRef(null);
+    const scrollRef = useRef(null); // For cities list
+    const propertiesScrollRef = useRef(null); // For properties list
+
+    // Horizontal Scroll Memory for properties carousel
+    React.useLayoutEffect(() => {
+        if (!loading && propertiesScrollRef.current) {
+            const savedScroll = sessionStorage.getItem(`scroll-left-admin-properties`);
+            if (savedScroll) {
+                propertiesScrollRef.current.scrollLeft = parseInt(savedScroll, 10);
+            }
+        }
+    }, [loading, selectedCity]);
+
+    const handlePropertiesScroll = () => {
+        if (propertiesScrollRef.current) {
+            sessionStorage.setItem(`scroll-left-admin-properties`, propertiesScrollRef.current.scrollLeft.toString());
+        }
+    };
 
     // Sync with external searchCity prop (from HeroSection)
     useEffect(() => {
@@ -250,6 +287,10 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }
     // Step 1: Fetch all available cities on mount
     useEffect(() => {
         const fetchCities = async () => {
+            if (adminPropertiesCache.cities) {
+                return; // Already initialized from cache synchronously
+            }
+            
             setCitiesLoading(true);
             try {
                 const res = await propertyService.getAdminPropertyCities();
@@ -260,6 +301,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }
                     cities = [{ city: 'Bengaluru', count: 1 }];
                 }
 
+                adminPropertiesCache.cities = cities;
                 setAvailableCities(cities);
 
                 if (cities.length > 0) {
@@ -320,10 +362,19 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }
     // Step 3: Fetch properties for selected city
     const selectCity = async (city) => {
         setSelectedCity(city);
+        
+        if (adminPropertiesCache.propertiesByCity[city]) {
+            setProperties(adminPropertiesCache.propertiesByCity[city]);
+            setLoading(false);
+            return;
+        }
+        
         setLoading(true);
         try {
             const res = await propertyService.getAdminPropertiesByLocation({ city });
-            setProperties(res?.properties || []);
+            const props = res?.properties || [];
+            adminPropertiesCache.propertiesByCity[city] = props;
+            setProperties(props);
         } catch {
             setProperties([]);
         } finally {
@@ -572,6 +623,8 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={selectedCity}
+                            ref={propertiesScrollRef}
+                            onScroll={handlePropertiesScroll}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}

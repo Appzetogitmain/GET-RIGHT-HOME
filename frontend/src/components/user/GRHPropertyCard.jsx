@@ -187,6 +187,7 @@ const GRHPropertyCard = ({ property, data }) => {
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
 
   const handleCardClick = () => {
+    sessionStorage.setItem('last-clicked-section', 'grh-home-section');
     navigate(`/property/${_id}`);
   };
 

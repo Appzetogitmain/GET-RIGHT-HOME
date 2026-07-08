@@ -10,6 +10,24 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const carouselRef = React.useRef(null);
+  const cacheKey = selectedType || 'all';
+
+  React.useLayoutEffect(() => {
+    if (!loading && viewMode === 'carousel' && carouselRef.current) {
+      const savedScroll = sessionStorage.getItem(`scroll-left-feed-${cacheKey}`);
+      if (savedScroll) {
+        carouselRef.current.scrollLeft = parseInt(savedScroll, 10);
+      }
+    }
+  }, [loading, viewMode, cacheKey]);
+
+  const handleScroll = () => {
+    if (carouselRef.current) {
+      sessionStorage.setItem(`scroll-left-feed-${cacheKey}`, carouselRef.current.scrollLeft.toString());
+    }
+  };
+
   useEffect(() => {
     const fetchPropertiesAndSaved = async () => {
       setLoading(true);
@@ -92,9 +110,15 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
 
   const displayedProperties = limit ? properties.slice(0, limit) : properties;
 
+
+
   if (viewMode === 'carousel') {
     return (
-      <div className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full">
+      <div 
+        ref={carouselRef}
+        onScroll={handleScroll}
+        className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full"
+      >
         {displayedProperties.map(property => (
           <PropertyCard
             key={property._id}

@@ -57,7 +57,7 @@ const THEME_MAP = {
 };
 
 const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onTypeSelect }) => (
-    <div className="py-4 border-b border-gray-100 last:border-0 relative">
+    <div id={`home-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
         <div className="flex justify-between items-end px-5 md:px-0 mb-2">
             <div>
                 <h2 className="text-xl md:text-2xl font-bold text-gray-900">{title}</h2>
@@ -148,8 +148,9 @@ const Home = () => {
 
     const pageBg = '#FFFFFF';
 
+
     return (
-        <main className="min-h-screen pb-24 transition-colors duration-700" style={{ backgroundColor: pageBg }}>
+        <main className="transition-colors duration-700 w-full overflow-x-hidden" style={{ backgroundColor: pageBg }}>
             {/* Hero: dark background only (no images), changes per category */}
             {/* Hero section — no overflow-hidden so floating search box is not clipped */}
             <div className="relative min-h-[280px] md:min-h-[340px] bg-gray-50/50">

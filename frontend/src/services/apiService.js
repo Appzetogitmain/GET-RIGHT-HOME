@@ -9,19 +9,50 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-// Interceptor to add Token and Log
+// Simple GET request cache to prevent layout shifts on back navigation
+const apiCache = new Map();
+
+// Interceptor to add Token, Log, and check Cache
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('adminToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  console.log(`API Request: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`, config.data || '');
+  
+  // Cache GET requests to prevent layout collapse on back navigation (valid for 2 mins)
+  if (config.method?.toLowerCase() === 'get') {
+    const fullUrl = `${config.baseURL || ''}${config.url || ''}?${new URLSearchParams(config.params || {}).toString()}`;
+    const cached = apiCache.get(fullUrl);
+    
+    if (cached && Date.now() - cached.timestamp < 120000) {
+      config.adapter = () => Promise.resolve({
+        data: cached.data,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+        request: {}
+      });
+      return config;
+    }
+  }
+
+  console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config.data || '');
   return config;
 }, (error) => Promise.reject(error));
 
-// Interceptor to handle 401 Unauthorized (Session invalid/expired)
+// Interceptor to handle 401 Unauthorized and populate Cache
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config.method?.toLowerCase() === 'get') {
+      const fullUrl = `${response.config.baseURL || ''}${response.config.url || ''}?${new URLSearchParams(response.config.params || {}).toString()}`;
+      apiCache.set(fullUrl, {
+        data: response.data,
+        timestamp: Date.now()
+      });
+    }
+    return response;
+  },
   (error) => {
     const status = error.response ? error.response.status : null;
     const isBlocked = error.response?.data?.isBlocked;

@@ -4,17 +4,39 @@ import { Loader2 } from 'lucide-react';
 import { propertyService } from '../../services/apiService';
 import GRHPropertyCard from './GRHPropertyCard';
 
+const grhCache = {};
+
 const GRHHomeSection = ({ title, subtitle, availabilityFilter }) => {
   const navigate = useNavigate();
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = availabilityFilter || 'default';
+  
+  // Synchronously initialize from cache to prevent DOM height jumping on back navigation
+  const [properties, setProperties] = useState(grhCache[cacheKey] || []);
+  const [loading, setLoading] = useState(!grhCache[cacheKey]);
+  const carouselRef = React.useRef(null);
+
+  // Horizontal Scroll Memory for GRHHomeSection carousel
+  React.useLayoutEffect(() => {
+    if (!loading && carouselRef.current) {
+      const savedScroll = sessionStorage.getItem(`scroll-left-grh-${cacheKey}`);
+      if (savedScroll) {
+        carouselRef.current.scrollLeft = parseInt(savedScroll, 10);
+      }
+    }
+  }, [loading, cacheKey]);
+
+  const handleScroll = () => {
+    if (carouselRef.current) {
+      sessionStorage.setItem(`scroll-left-grh-${cacheKey}`, carouselRef.current.scrollLeft.toString());
+    }
+  };
 
   useEffect(() => {
     const fetchProperties = async () => {
-      setLoading(true);
+      if (!grhCache[cacheKey]) setLoading(true);
       try {
         const data = await propertyService.getPublic({ availability: availabilityFilter });
-        // filter out invalid properties
+        grhCache[cacheKey] = data || [];
         setProperties(data || []);
       } catch (err) {
         console.error(`Failed to fetch properties for section ${title}:`, err);
@@ -23,14 +45,14 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter }) => {
       }
     };
     fetchProperties();
-  }, [availabilityFilter, title]);
+  }, [availabilityFilter, title, cacheKey]);
 
   const handleViewMore = () => {
     navigate(`/search?availability=${encodeURIComponent(availabilityFilter)}`);
   };
 
   return (
-    <div className="py-6 border-b border-gray-100 last:border-0 relative">
+    <div id={`grh-section-${cacheKey.replace(/\s+/g, '-')}`} className="py-6 border-b border-gray-100 last:border-0 relative">
       {/* Section Header */}
       <div className="flex justify-between items-end px-5 md:px-0 mb-4">
         <div>
@@ -65,7 +87,11 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter }) => {
           </button>
         </div>
       ) : (
-        <div className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full">
+        <div
+          ref={carouselRef}
+          onScroll={handleScroll}
+          className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full"
+        >
           {properties.slice(0, 8).map((property) => (
             <GRHPropertyCard
               key={property._id}

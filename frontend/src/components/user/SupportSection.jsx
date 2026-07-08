@@ -238,7 +238,7 @@ const SupportSection = () => {
     }
   };
   return (
-    <div className="w-full bg-[#f8fafc] py-12 px-6 border-t border-slate-100 font-sans max-w-4xl mx-auto">
+    <div className="w-full bg-[#f8fafc] pt-8 pb-4 px-6 border-t border-slate-100 font-sans max-w-4xl mx-auto">
       {/* 1. Feedback Card */}
       <div className="bg-gradient-to-br from-[#FFF9F2] to-[#FFF0DF] rounded-[24px] p-6 shadow-sm border border-[#FFE7CD] mb-8 relative overflow-hidden">
         {/* Decorative subtle shine */}
