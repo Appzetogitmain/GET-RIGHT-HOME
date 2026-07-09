@@ -146,6 +146,25 @@ const Header = ({
               <FiSearch className="w-5 h-5" style={{ color: themeColors.button }} />
             </button>
           )}
+
+          {/* Test Push Notification Button */}
+          <button
+            className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-full hover:bg-emerald-700 active:scale-95 transition shadow-sm whitespace-nowrap"
+            onClick={async () => {
+              const { toast } = await import('react-hot-toast');
+              try {
+                toast.loading('Sending test push...', { id: 'test-push' });
+                await api.post('/workers/fcm-tokens/test');
+                toast.success('Push notification sent from server!', { id: 'test-push' });
+              } catch (error) {
+                console.error('Error sending test notification:', error);
+                toast.error('Failed to send test notification.', { id: 'test-push' });
+              }
+            }}
+          >
+            TEST PUSH
+          </button>
+
           {/* showNotifications && (
             <div
               ref={bellButtonRef}
