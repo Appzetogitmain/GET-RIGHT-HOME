@@ -27,7 +27,7 @@ export const uploadToCloudinary = async (filePath, folder = 'general', publicId 
   try {
     const isVideo = filePath.match(/\.(mp4|webm|mov|avi)$/i);
     const uploadOptions = {
-      folder: `rukkoin/${folder}`,
+      folder: `get-right-home/${folder}`,
       resource_type: 'auto',
       ...(isVideo ? {} : {
         transformation: [
@@ -105,7 +105,7 @@ export const uploadBase64ToCloudinary = async (base64String, folder = 'general',
     }
 
     const uploadOptions = {
-      folder: `rukkoin/${folder}`,
+      folder: `get-right-home/${folder}`,
       resource_type: 'auto',
       transformation: [
         { width: 1920, height: 1920, crop: 'limit' },
@@ -149,7 +149,7 @@ export const uploadBase64ToCloudinary = async (base64String, folder = 'general',
 export const uploadVideoToCloudinary = async (filePath, folder = 'reels', publicId = null) => {
   try {
     const uploadOptions = {
-      folder: `rukkoin/${folder}`,
+      folder: `get-right-home/${folder}`,
       resource_type: 'video',
     };
     if (publicId) uploadOptions.public_id = publicId;
@@ -217,7 +217,7 @@ export const deleteVideoFromCloudinary = async (publicId) => {
  * @returns {Object} - Signature, timestamp, apiKey, cloudName
  */
 export const generateSignature = (folder = 'general') => {
-  const fullFolder = `rukkoin/${folder}`;
+  const fullFolder = `get-right-home/${folder}`;
   const timestamp = Math.round(new Date().getTime() / 1000);
   const signature = cloudinary.utils.api_sign_request(
     { timestamp, folder: fullFolder },
