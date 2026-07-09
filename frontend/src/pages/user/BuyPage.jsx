@@ -12,6 +12,7 @@ import BHKChoice from '../../components/user/BHKChoice';
 import PostedByChoice from '../../components/user/PostedByChoice';
 import RecommendInsights from '../../components/user/RecommendInsights';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
+import DemandInCitySection from '../../components/user/DemandInCitySection';
 
 // Theme for Buy Page
 const THEME = {
@@ -100,11 +101,8 @@ const BuyPage = () => {
                 {/* 4. Reels (Buy Context) */}
                 <ReelSection category="Buy" />
 
-                {/* 5. Demand in [City] Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Demand in {searchCity || 'Bengaluru'}</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Dynamic grid of top localities]</p>
-                </div>
+                {/* 5. Demand in [City] Section */}
+                <DemandInCitySection city={searchCity || 'Bengaluru'} />
 
                 {/* 6. Pre-launch Projects Placeholder */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">

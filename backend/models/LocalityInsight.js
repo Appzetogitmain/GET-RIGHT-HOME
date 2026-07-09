@@ -35,6 +35,11 @@ const LocalityInsightSchema = new mongoose.Schema({
     residentialZones: [{ type: String }], // e.g., neighboring sub-zones
     midSegmentLocality: { type: Boolean, default: false }, // For purple badge
     
+    faqs: [{
+        question: { type: String, required: true },
+        answer: { type: String, required: true }
+    }],
+    
     // Auto-aggregated or Cached Metrics (Can be updated via cron or aggregate pipeline)
     averagePricePerSqft: { type: Number },
     averageRent: { type: Number },

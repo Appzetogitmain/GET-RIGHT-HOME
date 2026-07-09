@@ -12,7 +12,7 @@ import PopularToolsModals from '../../components/user/PopularToolsModals';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const LocalityDetail = () => {
-    const { locality } = useParams();
+    const { city: routeCity, locality } = useParams();
     const navigate = useNavigate();
     
     const [data, setData] = useState(null);
@@ -85,7 +85,7 @@ const LocalityDetail = () => {
 
     // Derived values
     const coverImage = insight.coverImage || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80";
-    const city = insight.city || "Explore";
+    const city = routeCity || insight.city || "Explore";
     const pros = insight.pros || ["Well connected via roads", "Good infrastructure"];
     const cons = insight.cons || ["Heavy traffic during peak hours", "High cost of living"];
     const landmarks = insight.landmarks || [];
@@ -283,9 +283,28 @@ const LocalityDetail = () => {
 
                     {/* 7. TOP BUILDERS */}
                     <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200 overflow-hidden">
-                        <div className="transform sm:scale-95 origin-top-left sm:w-[105%] sm:-mt-4 sm:-mb-4">
-                            <PopularBuilders locality={locality} />
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-bold text-[#0B1A3A]">Top Builders in {locality}</h2>
                         </div>
+                        {automated.topBuilders?.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                {automated.topBuilders.map((builder, i) => (
+                                    <div key={i} onClick={() => navigate(`/search?builderName=${encodeURIComponent(builder.name || 'Unknown Builder')}&areas=${locality}`)} className="flex flex-col items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group text-center">
+                                        <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-sm overflow-hidden group-hover:border-blue-200 transition-colors">
+                                            <span className="text-xl font-black text-slate-400 group-hover:text-blue-500">{builder.name ? builder.name.charAt(0).toUpperCase() : 'B'}</span>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">{builder.name || 'Unknown Builder'}</h4>
+                                            <p className="text-[11px] text-slate-500 mt-1 bg-white border border-slate-200 px-2 py-0.5 rounded-full inline-block">{builder.propertyCount} Projects</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="transform sm:scale-95 origin-top-left sm:w-[105%] sm:-mt-4 sm:-mb-4">
+                                <PopularBuilders locality={locality} />
+                            </div>
+                        )}
                     </div>
 
                     {/* 8. SCAN ALL PROPERTY TYPES */}
@@ -478,6 +497,27 @@ const LocalityDetail = () => {
                         </div>
                     </div>
 
+                    {/* EXPLORE SIMILAR LOCALITIES */}
+                    {automated.similarLocalities?.length > 0 && (
+                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Explore Similar Localities</h2>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                {automated.similarLocalities.map((sim, i) => (
+                                    <div key={i} onClick={() => navigate(`/locality-insights/${encodeURIComponent(city.toLowerCase())}/${encodeURIComponent(sim.locality)}`)} className="flex flex-col justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">{sim.locality}</h4>
+                                            <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1"><Home className="w-3 h-3" /> {sim.propertyCount} properties</p>
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-slate-200/60">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Avg Price</p>
+                                            <p className="text-sm font-black text-slate-900 mt-0.5">₹{(sim.averagePropertyRate).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* 11. RESIDENTIAL ZONES */}
                     {insight.residentialZones?.length > 0 && (
                         <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
@@ -492,6 +532,26 @@ const LocalityDetail = () => {
                                         <MapPin className="w-3 h-3" />
                                         {zone}
                                     </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FAQS */}
+                    {insight.faqs?.length > 0 && (
+                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
+                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-5">Frequently Asked Questions</h2>
+                            <div className="space-y-4">
+                                {insight.faqs.map((faq, i) => (
+                                    <div key={i} className="border border-slate-100 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors group">
+                                        <h4 className="text-sm font-bold text-slate-800 mb-2 flex gap-2">
+                                            <span className="text-blue-600">Q.</span>
+                                            <span className="group-hover:text-blue-700 transition-colors">{faq.question}</span>
+                                        </h4>
+                                        <p className="text-sm text-slate-600 pl-6 border-l-2 border-slate-200 ml-1 leading-relaxed">
+                                            {faq.answer}
+                                        </p>
+                                    </div>
                                 ))}
                             </div>
                         </div>

@@ -105,6 +105,35 @@ export const getLocalityDetail = async (req, res) => {
             }).sort((a, b) => b.propertyCount - a.propertyCount);
         }
 
+        // 4b. Top Builders
+        const builderAggregation = await Property.aggregate([
+            { $match: { 'address.area': regexLocality, status: 'approved' } },
+            { $group: { _id: "$buyDetails.builderName", propertyCount: { $sum: 1 } } },
+            { $match: { _id: { $ne: null, $nin: ["", " "] } } },
+            { $sort: { propertyCount: -1 } },
+            { $limit: 4 }
+        ]);
+        const topBuilders = builderAggregation.map(b => ({ name: b._id, propertyCount: b.propertyCount }));
+
+        // 6. Similar Localities (based on same city, excluding this locality)
+        let similarLocalities = [];
+        const currentCity = insight ? insight.city : (properties.length > 0 ? properties[0].address.city : null);
+        
+        if (currentCity) {
+            const cityRegex = new RegExp(`^${currentCity}$`, 'i');
+            const similarAgg = await Property.aggregate([
+                { $match: { 'address.city': cityRegex, 'address.area': { $not: regexLocality }, status: 'approved' } },
+                { $group: { _id: "$address.area", count: { $sum: 1 }, avgPrice: { $avg: "$price" } } },
+                { $sort: { count: -1 } },
+                { $limit: 4 }
+            ]);
+            similarLocalities = similarAgg.map(s => ({
+                locality: s._id,
+                propertyCount: s.count,
+                averagePropertyRate: s.avgPrice
+            }));
+        }
+
         // 5. Aggregate Property Types by Transaction Type (Buy/Rent)
         const propertyTypesAggregation = await Property.aggregate([
             { $match: { 'address.area': regexLocality, status: 'approved' } },
@@ -192,6 +221,8 @@ export const getLocalityDetail = async (req, res) => {
                 popularProjects,
                 propertyTypes,
                 topSellers,
+                topBuilders,
+                similarLocalities,
                 reviews,
                 averageRating,
                 ratingBreakdown,
@@ -244,5 +275,95 @@ export const submitLocalityReview = async (req, res) => {
     } catch (error) {
         console.error("Error submitting review:", error);
         res.status(500).json({ success: false, message: "Failed to submit review." });
+    }
+};
+
+// @desc    Get demand (popular localities) by city based on property inventory
+// @route   GET /api/public/insights/demand/:city
+// @access  Public
+export const getDemandInCity = async (req, res) => {
+    try {
+        const { city } = req.params;
+        
+        if (!city) {
+            return res.status(400).json({ success: false, message: 'City is required' });
+        }
+
+        const cityRegex = new RegExp(`^${city}$`, 'i');
+
+        const demandPipeline = [
+            {
+                $match: {
+                    'address.city': cityRegex,
+                    status: 'approved',
+                    isLive: true
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        propertyType: "$propertyType",
+                        locality: "$address.area"
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $group: {
+                    _id: "$_id.propertyType",
+                    totalPropertiesForType: { $sum: "$count" },
+                    localities: {
+                        $push: {
+                            name: "$_id.locality",
+                            count: "$count"
+                        }
+                    }
+                }
+            }
+        ];
+
+        const aggregatedData = await Property.aggregate(demandPipeline);
+
+        // Generate URL slug helper
+        const generateSlug = (text) => text?.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, '') || '';
+
+        const formattedData = aggregatedData.map(typeData => {
+            const sortedLocalities = typeData.localities
+                .filter(l => l.name) // Remove empty localities
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5); // Take top 5
+
+            const topLocalitiesWithPercentage = sortedLocalities.map((loc, index) => {
+                const percentage = typeData.totalPropertiesForType > 0 
+                    ? Math.round((loc.count / typeData.totalPropertiesForType) * 100) 
+                    : 0;
+                
+                return {
+                    rank: index + 1,
+                    name: loc.name,
+                    percentage: percentage,
+                    urlSlug: generateSlug(loc.name)
+                };
+            });
+
+            // Clean property type for subtitle
+            const propTypeStr = typeData._id || 'Properties';
+            
+            return {
+                propertyType: propTypeStr,
+                subtitle: `Most searched localities for ${propTypeStr}`,
+                localities: topLocalitiesWithPercentage
+            };
+        }).filter(data => data.localities.length > 0);
+
+        res.status(200).json({
+            success: true,
+            city,
+            demandData: formattedData
+        });
+
+    } catch (error) {
+        console.error('Error fetching demand in city:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch demand data' });
     }
 };

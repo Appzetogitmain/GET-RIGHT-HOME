@@ -502,6 +502,8 @@ function App() {
                     <Route path="/buy" element={<BuyPage />} />
                     <Route path="/insights/:locality" element={<LocalityDetail />} />
                     <Route path="/insights/:locality/reviews" element={<LocalityReviewsPage />} />
+                    <Route path="/locality-insights/:city/:locality" element={<LocalityDetail />} />
+                    <Route path="/locality-insights/:city/:locality/reviews" element={<LocalityReviewsPage />} />
                     <Route path="/compare" element={<PropertyComparePage />} />
                     <Route path="/listings" element={<Navigate to="/search" replace />} />
                     <Route path="/partner-landing" element={<PartnerLandingPage />} />
