@@ -3,7 +3,7 @@
  * Initialize Firebase for push notifications
  */
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { getDatabase } from 'firebase/database';
 
@@ -26,7 +26,7 @@ let db;
 
 try {
   if (firebaseConfig.projectId) {
-    app = initializeApp(firebaseConfig);
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     messaging = getMessaging(app);
     db = getDatabase(app);
     console.log('✅ Firebase initialized successfully');

@@ -242,11 +242,11 @@ function setupForegroundNotificationHandler(handler) {
     return;
   }
 
-  if (foregroundListenerRegistered) {
+  if (window._isForegroundListenerRegistered) {
     console.log('[FCM] ℹ️ Foreground listener already registered.');
     return;
   }
-  foregroundListenerRegistered = true;
+  window._isForegroundListenerRegistered = true;
 
   console.log('[FCM] ✅ Registering onMessage listener...');
   
@@ -287,26 +287,9 @@ function setupForegroundNotificationHandler(handler) {
 
     let notificationShown = false;
 
-    // 2. Show System Notification (Browser level)
-    if ('serviceWorker' in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration) {
-          await registration.showNotification(title, {
-            body: body,
-            icon: icon,
-            badge: '/truliq-logo.png',
-            data: data,
-            tag: data.notificationId || data.tag || 'truliq-alert',
-            renotify: true
-          });
-          notificationShown = true;
-          console.log('[FCM] ✅ System notification triggered');
-        }
-      } catch (err) {
-        console.error('[FCM] ❌ Error showing system notification:', err);
-      }
-    }
+    // We removed the System Notification trigger here because onMessage ONLY runs 
+    // when the app is in the foreground. We already show a beautiful custom toast below,
+    // so triggering a system notification here caused duplicates (1 toast + 1 system notification).
 
     // 3. ALWAYS Show Internal Alert in Foreground (Premium Toast)
     try {
@@ -355,14 +338,9 @@ function setupForegroundNotificationHandler(handler) {
       console.error('[FCM] ❌ Toast fallback failed:', toastErr);
     }
 
-    // 4. Fallback: Use native Notification API if needed
-    if (!notificationShown && Notification.permission === 'granted') {
-      try {
-        new Notification(title, { body, icon });
-      } catch (err) {
-        console.error('[FCM] ❌ Native Notification failed:', err);
-      }
-    }
+    // 4. Fallback Native Notification removed.
+    // The in-app toast is guaranteed to render, so we don't need a native 
+    // fallback which would cause a duplicate UI pop-up.
 
     // 5. Dispatch global event for components to react
     window.dispatchEvent(new CustomEvent('appNotificationReceived', { 

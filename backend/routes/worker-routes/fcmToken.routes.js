@@ -6,7 +6,7 @@
 import express from 'express';
 const router = express.Router();
 import {  authenticate  } from '../../middlewares/authMiddleware.js';
-import {  sendPushNotification  } from '../../services/firebaseAdmin.js';
+import { sendNotificationToWorker } from '../../services/firebaseAdmin.js';
 import Worker from '../../models/Worker.js';
 import User from '../../models/User.js';
 
@@ -165,12 +165,12 @@ router.post('/test', authenticate, async (req, res) => {
       return res.json({ success: false, error: 'No FCM tokens found for worker' });
     }
 
-    const response = await sendPushNotification(worker, {
-      notificationId: 'test-notification',
+    const response = await sendNotificationToWorker(workerId, {
       title: '🔔 Test Notification',
       body: 'This is a test notification for worker!',
       data: {
         type: 'test',
+        id: `test-${Date.now()}`,
         link: '/worker/dashboard'
       }
     });
@@ -178,8 +178,8 @@ router.post('/test', authenticate, async (req, res) => {
     res.json({
       success: true,
       message: 'Test notification sent',
-      successCount: response.successCount,
-      failureCount: response.failureCount
+      successCount: response?.successCount || 0,
+      failureCount: response?.failureCount || 0
     });
   } catch (error) {
     console.error('Error sending test notification:', error);
