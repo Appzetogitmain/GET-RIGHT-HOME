@@ -85,50 +85,61 @@ const BuyPage = () => {
             </div>
 
             {/* 1. Offers Section */}
-            <div className="max-w-7xl mx-auto -mt-8 mb-6">
+            <div id="video-curations-section" className="max-w-7xl mx-auto -mt-8 mb-6">
                  <PropertyVideoCurations pageType="buy" />
             </div>
 
             {/* 2. Handpicked Projects (Buy Context) */}
-            <div className="max-w-7xl mx-auto">
+            <div id="handpicked-admin-section" className="max-w-7xl mx-auto">
                 <AdminPropertiesSection searchCity={searchCity} transactionType="buy" />
             </div>
 
             <div className="mt-2 max-w-7xl mx-auto flex flex-col gap-4 px-4 md:px-0">
                 {/* 3. Recommend Insights */}
-                <RecommendInsights transactionType="Buy" />
+                <div id="recommended-insights-section">
+                    <RecommendInsights transactionType="Buy" />
+                </div>
 
                 {/* 4. Reels (Buy Context) */}
-                <ReelSection category="Buy" />
+                <div id="buy-reels-section">
+                    <ReelSection category="Buy" />
+                </div>
 
                 {/* 5. Demand in [City] Section */}
-                <DemandInCitySection city={searchCity || 'Bengaluru'} />
+                <div id="demand-city-section">
+                    <DemandInCitySection city={searchCity || 'Bengaluru'} />
+                </div>
 
                 {/* 6. Pre-launch Projects Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div id="prelaunch-section" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h2 className="text-xl font-bold mb-2">Pre Launch Projects</h2>
                     <p className="text-sm text-slate-500">[To be implemented: Carousel of pre-launch projects]</p>
                 </div>
 
                 {/* 7. BHK Choice */}
-                <BHKChoice transactionType="Buy" />
-                <PostedByChoice transactionType="Buy" />
+                <div id="bhk-choice-section">
+                    <BHKChoice transactionType="Buy" />
+                </div>
+                <div id="posted-by-section">
+                    <PostedByChoice transactionType="Buy" />
+                </div>
 
                 {/* 8. Move In Timeline Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div id="timeline-section" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h2 className="text-xl font-bold mb-2">Move in Timeline</h2>
                     <p className="text-sm text-slate-500">[To be implemented: Filters for Ready to move, Under construction]</p>
                 </div>
 
-
                 {/* 10. Future Dealers Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div id="dealers-section" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h2 className="text-xl font-bold mb-2">Future Dealers</h2>
                     <p className="text-sm text-slate-500">[To be implemented: Avatar carousel of top rated dealers]</p>
                 </div>
 
                 {/* 11. Popular Builders (Existing) */}
-                <PopularBuilders />
+                <div id="popular-builders-section">
+                    <PopularBuilders />
+                </div>
 
                 {/* 12. Popular Tools Placeholder */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
