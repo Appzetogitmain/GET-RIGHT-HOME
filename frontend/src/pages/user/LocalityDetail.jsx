@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
     MapPin, ThumbsUp, ThumbsDown, Check, Minus, 
-    ChevronRight, ArrowRight, Building, Hammer, Home, Activity
+    ChevronRight, ArrowRight, Building, Hammer, Home, Activity, Info
 } from 'lucide-react';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import PopularBuilders from '../../components/user/PopularBuilders';
@@ -22,6 +22,13 @@ const LocalityDetail = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [reviewData, setReviewData] = useState({ rating: 5, comment: '', userType: 'Resident' });
 
+    // Disclaimer Modal State
+    const [showDisclaimer, setShowDisclaimer] = useState({ visible: false, type: '' });
+
+    // Toggles State
+    const [propTypeTab, setPropTypeTab] = useState('Buy');
+    const [projectTab, setProjectTab] = useState('Buy');
+
     // Tools Modal State
     const [activeTool, setActiveTool] = useState(null);
 
@@ -29,6 +36,32 @@ const LocalityDetail = () => {
         window.scrollTo(0, 0);
         fetchData();
     }, [locality]);
+
+    // Bullet-proof background scrolling disable for mobile (iOS/Android)
+    useEffect(() => {
+        if (showDisclaimer.visible || showReviewModal || activeTool) {
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.width = '100%';
+            document.body.style.overflowY = 'scroll'; // Prevents horizontal jump on desktop
+        } else {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.width = '';
+            document.body.style.overflowY = '';
+            if (scrollY) {
+                window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            }
+        }
+        return () => {
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.width = '';
+            document.body.style.overflowY = '';
+        };
+    }, [showDisclaimer.visible, showReviewModal, activeTool]);
 
     const fetchData = async () => {
         try {
@@ -236,127 +269,186 @@ const LocalityDetail = () => {
                         </div>
                     )}
 
-                    {/* 6. POPULAR & NEWLY LAUNCHED PROJECTS */}
-                    {(automated.popularProjects?.length > 0 || automated.newlyLaunched?.length > 0) && (
+                    {/* 6. SCAN POPULAR PROJECTS */}
+                    {(automated.popularProjects?.Buy?.length > 0 || automated.popularProjects?.Rent?.length > 0) && (
                         <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
-                            <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">Scan Popular & Newly Launched Projects</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {/* Popular */}
-                                {automated.popularProjects?.length > 0 && (
-                                    <div>
-                                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Popular Projects</h3>
-                                        <div className="space-y-3">
-                                            {automated.popularProjects.slice(0,3).map((proj, i) => (
-                                                <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="flex gap-3 items-center group cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
-                                                    <img src={proj.coverImage || coverImage} className="w-14 h-14 rounded-lg object-cover" alt="" />
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">{proj.propertyName}</h4>
-                                                        <p className="text-[12px] font-black text-slate-900 mt-0.5">₹{(proj.price || proj.dynamicData?.expectedPrice || proj.dynamicData?.monthlyRent || 0).toLocaleString()}</p>
-                                                        <p className="text-[10px] text-slate-500 truncate flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3"/> {proj.address?.locality || locality}</p>
-                                                    </div>
-                                                </div>
-                                            ))}
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h2 className="text-lg font-bold text-[#0B1A3A]">Scan popular projects</h2>
+                                    <p className="text-[12px] text-slate-500 mt-0.5">in {locality}</p>
+                                </div>
+                                <div className="flex border border-slate-200 p-0.5 rounded-full bg-slate-50">
+                                    <button onClick={() => setProjectTab('Buy')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${projectTab === 'Buy' ? 'bg-white shadow border border-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-800'}`}>Buy</button>
+                                    <button onClick={() => setProjectTab('Rent')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${projectTab === 'Rent' ? 'bg-white shadow border border-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-800'}`}>Rent</button>
+                                </div>
+                            </div>
+                            
+                            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 snap-x snap-mandatory">
+                                {(automated.popularProjects[projectTab] || []).map((proj, i) => (
+                                    <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="min-w-[260px] sm:min-w-[280px] snap-center shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group overflow-hidden">
+                                        <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+                                            <img src={proj.coverImage || coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={proj.propertyName} />
+                                            {/* Top badges */}
+                                            <div className="absolute top-3 left-3 flex gap-1">
+                                                {proj.rera && (
+                                                    <span className="flex items-center gap-1.5 px-2.5 py-1.5 bg-black/50 backdrop-blur-md text-white text-[10px] font-bold rounded-lg border border-white/20">
+                                                        <div className="w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><Check className="w-2.5 h-2.5 text-black" /></div> RERA
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-black/70 transition-colors">
+                                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                                            </div>
+                                            {/* Bottom completion text */}
+                                            <div className="absolute bottom-3 left-3 text-white text-[12px] font-bold drop-shadow-md">
+                                                {proj.possessionStatus === 'Under Construction' ? 'Completion in ' + (proj.possessionDate || 'N/A') : 'Ready to Move'}
+                                            </div>
+                                        </div>
+                                        <div className="p-4">
+                                            <h4 className="text-[16px] font-bold text-[#0B1A3A] truncate group-hover:text-blue-600 transition-colors">{proj.propertyName}</h4>
+                                            <p className="text-[13px] text-[#7A869A] truncate mt-0.5">{proj.propertyType || 'Apartment'} in {proj.address?.area || locality}, {proj.address?.city || city}</p>
+                                            <p className="text-[15px] font-black text-[#0B1A3A] mt-3">₹{(proj.price || proj.dynamicData?.expectedPrice || proj.dynamicData?.monthlyRent || 0).toLocaleString()}</p>
                                         </div>
                                     </div>
+                                ))}
+                                {(!automated.popularProjects[projectTab] || automated.popularProjects[projectTab].length === 0) && (
+                                    <div className="w-full text-center py-6 text-sm text-slate-500 font-medium">No projects found for {projectTab}.</div>
                                 )}
-                                {/* Newly Launched */}
-                                {automated.newlyLaunched?.length > 0 && (
-                                    <div>
-                                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Newly Launched</h3>
-                                        <div className="space-y-3">
-                                            {automated.newlyLaunched.slice(0,3).map((proj, i) => (
-                                                <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="flex gap-3 items-center group cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
-                                                    <img src={proj.coverImage || coverImage} className="w-14 h-14 rounded-lg object-cover" alt="" />
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">{proj.propertyName}</h4>
-                                                        <p className="text-[12px] font-black text-slate-900 mt-0.5">₹{(proj.price || proj.dynamicData?.expectedPrice || proj.dynamicData?.monthlyRent || 0).toLocaleString()}</p>
-                                                        <p className="text-[10px] text-slate-500 truncate flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3"/> {proj.address?.locality || locality}</p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                            </div>
+                            <div onClick={() => setShowDisclaimer({ visible: true, type: 'project' })} className="mt-2 flex items-center gap-1.5 text-[12px] text-slate-500 font-medium cursor-pointer hover:text-slate-800 transition-colors w-fit">
+                                <Info className="w-4 h-4" /> Disclaimer
                             </div>
                         </div>
                     )}
 
                     {/* 7. TOP BUILDERS */}
                     <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200 overflow-hidden">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-bold text-[#0B1A3A]">Top Builders in {locality}</h2>
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h2 className="text-lg font-bold text-[#0B1A3A]">Know the top builders</h2>
+                                <p className="text-[12px] text-[#7A869A] mt-0.5">in {locality}</p>
+                            </div>
+                            <button onClick={() => setShowDisclaimer({ visible: true, type: 'builder' })} className="w-7 h-7 rounded-full border border-slate-300 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+                                <Info className="w-4 h-4" />
+                            </button>
                         </div>
+
                         {automated.topBuilders?.length > 0 ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 snap-x snap-mandatory">
                                 {automated.topBuilders.map((builder, i) => (
-                                    <div key={i} onClick={() => navigate(`/search?builderName=${encodeURIComponent(builder.name || 'Unknown Builder')}&areas=${locality}`)} className="flex flex-col items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group text-center">
-                                        <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-sm overflow-hidden group-hover:border-blue-200 transition-colors">
-                                            <span className="text-xl font-black text-slate-400 group-hover:text-blue-500">{builder.name ? builder.name.charAt(0).toUpperCase() : 'B'}</span>
+                                    <div key={i} className="min-w-[280px] sm:min-w-[320px] snap-center shrink-0 bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgb(0,0,0,0.01)] hover:shadow-md hover:border-blue-200 transition-all flex flex-col">
+                                        <div className="p-4 flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-full border border-slate-200 bg-white flex items-center justify-center overflow-hidden shrink-0">
+                                                <span className="text-lg font-black text-slate-400">{builder.name ? builder.name.charAt(0) : 'B'}</span>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[15px] font-bold text-slate-900 leading-tight">{builder.name || 'Unknown Builder'}</h4>
+                                                <p className="text-[13px] text-slate-500 mt-1">{builder.years} years • {builder.propertyCount} projects • {builder.cityCount} cities</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">{builder.name || 'Unknown Builder'}</h4>
-                                            <p className="text-[11px] text-slate-500 mt-1 bg-white border border-slate-200 px-2 py-0.5 rounded-full inline-block">{builder.propertyCount} Projects</p>
+                                        <div className="border-t border-slate-100 p-3 flex justify-center">
+                                            <button onClick={() => navigate(`/search?builderName=${encodeURIComponent(builder.name || 'Unknown Builder')}&areas=${locality}`)} className="text-[14px] font-bold text-[#0052CC] flex items-center gap-1 hover:underline">
+                                                View properties <ChevronRight className="w-4 h-4" />
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="transform sm:scale-95 origin-top-left sm:w-[105%] sm:-mt-4 sm:-mb-4">
-                                <PopularBuilders locality={locality} />
-                            </div>
+                            <div className="w-full text-center py-6 text-sm text-slate-500 font-medium">No top builders identified yet for {locality}.</div>
                         )}
                     </div>
 
                     {/* 8. SCAN ALL PROPERTY TYPES */}
                     {automated.propertyTypes && (
-                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-lg font-bold text-[#0B1A3A]">Scan all property types</h2>
-                                <div className="flex bg-slate-100 p-1 rounded-lg">
-                                    <button className="px-4 py-1.5 rounded-md text-xs font-bold bg-white shadow-sm text-slate-800 transition-all">Buy</button>
-                                    <button className="px-4 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-slate-800 transition-all">Rent</button>
+                        <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200 overflow-hidden relative">
+                            <div className="flex justify-between items-center mb-6 relative z-10">
+                                <div>
+                                    <h2 className="text-lg font-bold text-[#0B1A3A]">Scan all property types</h2>
+                                    <p className="text-[12px] text-slate-500 mt-0.5">in {locality}</p>
+                                </div>
+                                <div className="flex border border-slate-200 p-0.5 rounded-full bg-slate-50">
+                                    <button onClick={() => setPropTypeTab('Buy')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${propTypeTab === 'Buy' ? 'bg-white shadow border border-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-800'}`}>Buy</button>
+                                    <button onClick={() => setPropTypeTab('Rent')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${propTypeTab === 'Rent' ? 'bg-white shadow border border-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-800'}`}>Rent</button>
                                 </div>
                             </div>
-                            <div className="flex sm:grid sm:grid-cols-4 gap-3 mt-5 overflow-x-auto pb-4 no-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 snap-x snap-mandatory">
-                                                {/* Pre-fill default types if array is empty so styling is visible */}
-                                                {(automated.propertyTypes.Buy?.length > 0 ? automated.propertyTypes.Buy : [{type: 'Apartment', count: 0}, {type: 'Villas', count: 0}, {type: 'Plots/Land', count: 0}]).map((pt, i) => {
-                                                    let Icon = Home;
-                                                    if(pt.type?.toLowerCase().includes('villa')) Icon = Building;
-                                                    if(pt.type?.toLowerCase().includes('plot') || pt.type?.toLowerCase().includes('land')) Icon = MapPin;
-                                                    return (
-                                                        <div key={i} onClick={() => navigate(`/search?subType=${encodeURIComponent(pt.type)}&areas=${locality}`)} className="min-w-[130px] sm:min-w-0 snap-center shrink-0 flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgb(0,0,0,0.04)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group">
-                                                            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                                                <Icon className="w-5 h-5" />
-                                                            </div>
-                                                            <p className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{pt.type}</p>
-                                                            <p className="text-[10px] text-slate-500 mt-1">{pt.count} properties</p>
-                                                        </div>
-                                                    );
-                                                })}
+                            
+                            <div className="flex gap-6 overflow-x-auto pb-4 pt-2 no-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 snap-x snap-mandatory">
+                                {(automated.propertyTypes[propTypeTab] || []).map((pt, i) => {
+                                    // Total for percentage calculation
+                                    const total = automated.propertyTypes[propTypeTab]?.reduce((sum, item) => sum + item.count, 0) || 1;
+                                    const percentage = total > 0 ? Math.round((pt.count / total) * 100) : 0;
+                                    
+                                    return (
+                                        <div key={i} className="relative min-w-[240px] h-[300px] snap-center shrink-0 overflow-visible group">
+                                            {/* Giant Background Number */}
+                                            <div 
+                                                className="absolute -left-3 top-[50%] -translate-y-[40%] text-[180px] font-black z-0 pointer-events-none select-none transition-transform group-hover:-translate-y-[45%] duration-700"
+                                                style={{ 
+                                                    WebkitTextStroke: '3px #E2E8F0',
+                                                    color: 'transparent',
+                                                    lineHeight: '1',
+                                                    letterSpacing: '-10px'
+                                                }}
+                                            >
+                                                {i + 1}
                                             </div>
+                                            
+                                            {/* The Card */}
+                                            <div className="absolute inset-0 ml-12 rounded-[32px] overflow-hidden bg-[#0B1A3A] cursor-pointer shadow-xl border border-slate-100/20">
+                                                <img src={coverImage} className="w-full h-full object-cover opacity-60 group-hover:scale-110 group-hover:opacity-80 transition-all duration-700" alt={pt.type} />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-[#010817] via-[#010817]/60 to-transparent"></div>
+                                                
+                                                <div className="absolute bottom-0 left-0 w-full p-5 text-white">
+                                                    <h3 className="text-[22px] font-extrabold tracking-tight">{pt.type}s</h3>
+                                                    <p className="text-[12px] font-medium text-slate-300">in {locality}</p>
+                                                    <p className="text-[14px] font-bold text-white mt-1.5 mb-5">{percentage}% Searches</p>
+                                                    
+                                                    <button onClick={() => navigate(`/search?subType=${encodeURIComponent(pt.type)}&areas=${locality}`)} className="w-fit py-2.5 bg-white/10 hover:bg-white/25 border border-white/20 backdrop-blur-lg rounded-xl text-xs font-bold text-white flex items-center justify-between px-5 transition-all gap-2 group-hover:pr-4">
+                                                        {pt.count}+ Properties <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {(!automated.propertyTypes[propTypeTab] || automated.propertyTypes[propTypeTab].length === 0) && (
+                                    <div className="w-full text-center py-6 text-sm text-slate-500 font-medium">No property types found for {propTypeTab}.</div>
+                                )}
+                            </div>
                         </div>
                     )}
 
                     {/* 9. TOP SELLERS */}
                     <div className="bg-white sm:rounded-2xl p-5 sm:shadow-sm sm:border sm:border-slate-200">
-                        <h2 className="text-lg font-bold text-[#0B1A3A] mb-4">View Properties by Top Sellers</h2>
+                        <h2 className="text-lg font-bold text-[#0B1A3A] mb-1">View properties by top sellers</h2>
+                        <p className="text-[12px] text-[#7A869A] mb-6">in {locality}</p>
+                        
                         {automated.topSellers?.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-6">
                                 {automated.topSellers.map((seller, i) => (
-                                    <div key={i} onClick={() => navigate(`/search?builder=${seller._id}&areas=${locality}`)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgb(0,0,0,0.04)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group">
-                                        <img src={seller.profilePicture || "https://ui-avatars.com/api/?name=" + seller.name + "&background=random"} className="w-14 h-14 rounded-full border-2 border-white shadow-md object-cover group-hover:border-blue-200 transition-colors" alt="" />
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">{seller.name}</h4>
-                                            <p className="text-[11px] text-slate-500 mt-0.5">{seller.propertyCount} active properties</p>
+                                    <div key={i} className="flex gap-4 items-start group">
+                                        <div className="w-[54px] h-[54px] rounded-2xl border border-slate-200 p-0.5 shrink-0 overflow-hidden bg-white shadow-sm group-hover:border-blue-300 transition-colors">
+                                            <img src={seller.profilePicture || "https://ui-avatars.com/api/?name=" + seller.name + "&background=random&color=0B1A3A&bold=true"} className="w-full h-full rounded-[14px] object-cover" alt="" />
                                         </div>
-                                        <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wide bg-blue-50 px-3 py-1.5 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors flex items-center gap-1">
-                                            View Properties <ArrowRight className="w-3 h-3" />
+                                        <div className="flex-1 min-w-0 pt-0.5">
+                                            <h4 className="text-[15px] font-black text-[#0B1A3A] leading-tight uppercase truncate">{seller.name}</h4>
+                                            <p className="text-[13px] text-[#7A869A] mt-1">{seller.propertyCount} Properties • Member Since {seller.createdAt ? new Date(seller.createdAt).getFullYear() : '2024'}</p>
+                                            <button onClick={() => navigate(`/search?builder=${seller._id}&areas=${locality}`)} className="text-[14px] font-bold text-[#0052CC] hover:underline mt-2 flex items-center gap-0.5">
+                                                View Properties <ChevronRight className="w-4 h-4" />
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
+                                
+                                <div className="pt-2">
+                                    <button onClick={() => navigate(`/search?areas=${locality}`)} className="w-full py-3 rounded-full border border-slate-200 text-sm font-bold text-[#0052CC] hover:bg-blue-50 hover:border-blue-100 transition-colors flex items-center justify-center gap-1">
+                                        View all <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                         ) : (
-                            <div className="text-xs text-slate-500 font-medium">No top sellers identified yet.</div>
+                            <div className="text-xs text-slate-500 font-medium pb-4">No top sellers identified yet.</div>
                         )}
                     </div>
 
@@ -634,6 +726,31 @@ const LocalityDetail = () => {
             
             {/* POPULAR TOOLS MODALS */}
             <PopularToolsModals activeTool={activeTool} onClose={() => setActiveTool(null)} />
+
+            {/* DISCLAIMER MODAL */}
+            {showDisclaimer.visible && (
+                <div 
+                    className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4 transition-opacity duration-300"
+                    style={{ touchAction: 'none' }}
+                >
+                    <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md overflow-hidden shadow-2xl transform transition-transform duration-300 translate-y-0 sm:scale-100">
+                        <div className="p-6 relative">
+                            <button onClick={() => setShowDisclaimer({ visible: false, type: '' })} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 transition-colors">
+                                <span className="text-slate-500 text-sm font-black">✕</span>
+                            </button>
+                            <h3 className="text-xl font-bold text-[#0B1A3A] mb-4 pr-6">How is popularity calculated?</h3>
+                            <p className="text-[15px] text-slate-700 leading-relaxed mb-6">
+                                {showDisclaimer.type === 'project' 
+                                    ? "Search Popularity of a project is calculated based on aggregate searches & views of a project on GET RIGHT HOME during the last 6 months."
+                                    : "Search Popularity of a Builder is calculated based on aggregate searches & views of a Builder Projects on GET RIGHT HOME during the last 6 months."}
+                            </p>
+                            <button onClick={() => setShowDisclaimer({ visible: false, type: '' })} className="w-full py-3.5 bg-[#0052CC] hover:bg-blue-700 text-white font-bold rounded-xl transition-colors">
+                                Okay, understood
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

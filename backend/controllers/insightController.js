@@ -47,16 +47,25 @@ export const getLocalityDetail = async (req, res) => {
         const insight = await LocalityInsight.findOne({ locality: { $regex: new RegExp(`^${locality}$`, 'i') } });
         
         // 2. Automated Property Aggregations
-        const regexLocality = new RegExp(locality, 'i');
-        
+        // Strict regex to exactly match the locality name and prevent partial matches (e.g. 'Indore' matching 'AB Road Indore')
+        const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regexLocality = new RegExp('^' + escapeRegex(locality) + '$', 'i');
+
         // A. Total properties and average price
         const properties = await Property.find({ 'address.area': regexLocality, status: 'approved' }).lean();
         const totalProperties = properties.length;
         
-        // Calculate average price (simplified)
+        // Calculate average price (extracting from sub-schemas)
         let totalPrice = 0;
-        properties.forEach(p => totalPrice += (p.price || 0));
-        const averagePropertyRate = totalProperties > 0 ? (totalPrice / totalProperties) : 0;
+        let validPriceCount = 0;
+        properties.forEach(p => {
+            const price = p.buyDetails?.expectedPrice || p.rentDetails?.monthlyRent || p.plotDetails?.expectedPrice || p.dynamicData?.expectedPrice || p.dynamicData?.monthlyRent || 0;
+            if (price > 0) {
+                totalPrice += price;
+                validPriceCount++;
+            }
+        });
+        const averagePropertyRate = validPriceCount > 0 ? Math.round(totalPrice / validPriceCount) : 0;
         
         // B. BHK Configurations Aggregation
         const bhkConfigMap = {};
@@ -77,9 +86,20 @@ export const getLocalityDetail = async (req, res) => {
         }));
 
         // 3. Automated Project Aggregations (using Property model, as projects are just premium properties)
-        const newlyLaunched = await Property.find({ 'address.area': regexLocality, status: 'approved' }).sort({ createdAt: -1 }).limit(4).lean();
-        const popularProjects = await Property.find({ 'address.area': regexLocality, status: 'approved' }).sort({ views: -1 }).limit(4).lean();
-        
+        // 7. Popular Projects (Split by Buy and Rent)
+        const popularBuyProjects = await Property.find({ 'address.area': regexLocality, status: 'approved', transactionType: 'Buy' })
+            .sort({ views: -1 })
+            .limit(5);
+            
+        const popularRentProjects = await Property.find({ 'address.area': regexLocality, status: 'approved', transactionType: 'Rent' })
+            .sort({ views: -1 })
+            .limit(5);
+            
+        const popularProjects = { Buy: popularBuyProjects, Rent: popularRentProjects };
+
+        // 8. Newly Launched (keeping as empty array if not used, or fetch if needed)
+        const newlyLaunched = [];
+
         // 4. Aggregate Top Sellers (Users with most active properties in this locality)
         // Group properties by userId
         const sellerAggregation = await Property.aggregate([
@@ -92,7 +112,7 @@ export const getLocalityDetail = async (req, res) => {
         let topSellers = [];
         if (sellerAggregation.length > 0) {
             const sellerIds = sellerAggregation.map(s => s._id);
-            const users = await User.find({ _id: { $in: sellerIds } }).select('name profilePicture role');
+            const users = await User.find({ _id: { $in: sellerIds } }).select('name profilePicture role createdAt');
             topSellers = users.map(u => {
                 const agg = sellerAggregation.find(s => s._id.toString() === u._id.toString());
                 return {
@@ -100,24 +120,50 @@ export const getLocalityDetail = async (req, res) => {
                     name: u.name,
                     role: u.role,
                     profilePicture: u.profilePicture,
+                    createdAt: u.createdAt,
                     propertyCount: agg ? agg.propertyCount : 0
                 };
             }).sort((a, b) => b.propertyCount - a.propertyCount);
         }
 
         // 4b. Top Builders
+        // Step 1: Find builders active in this locality
+        const localBuilders = await Property.distinct('buyDetails.builderName', { 'address.area': regexLocality, status: 'approved' });
+        const cleanLocalBuilders = localBuilders.filter(b => b && b.trim() !== '');
+
+        const currentCity = insight ? insight.city : (properties.length > 0 ? properties[0].address.city : null);
+
+        // Fallback logic: If no local builders, fetch top builders in the city, or globally
+        let builderMatch = {};
+        if (cleanLocalBuilders.length > 0) {
+            builderMatch = { 'buyDetails.builderName': { $in: cleanLocalBuilders }, status: 'approved' };
+        } else if (currentCity) {
+            builderMatch = { 'address.city': new RegExp(`^${currentCity}$`, 'i'), status: 'approved', 'buyDetails.builderName': { $ne: null, $nin: ["", " "] } };
+        } else {
+            builderMatch = { status: 'approved', 'buyDetails.builderName': { $ne: null, $nin: ["", " "] } };
+        }
+
+        // Step 2: Aggregate their global stats (total views, total projects, total cities) to rank them
         const builderAggregation = await Property.aggregate([
-            { $match: { 'address.area': regexLocality, status: 'approved' } },
-            { $group: { _id: "$buyDetails.builderName", propertyCount: { $sum: 1 } } },
-            { $match: { _id: { $ne: null, $nin: ["", " "] } } },
-            { $sort: { propertyCount: -1 } },
+            { $match: builderMatch },
+            { $group: { 
+                _id: "$buyDetails.builderName", 
+                propertyCount: { $sum: 1 }, 
+                totalViews: { $sum: "$views" },
+                cities: { $addToSet: "$address.city" }
+            } },
+            { $sort: { totalViews: -1, propertyCount: -1 } },
             { $limit: 4 }
         ]);
-        const topBuilders = builderAggregation.map(b => ({ name: b._id, propertyCount: b.propertyCount }));
+        const topBuilders = builderAggregation.map(b => ({ 
+            name: b._id, 
+            propertyCount: b.propertyCount,
+            cityCount: b.cities.length || 1,
+            years: 15 // Placeholder since Builder entity doesn't track founding year yet
+        }));
 
         // 6. Similar Localities (based on same city, excluding this locality)
         let similarLocalities = [];
-        const currentCity = insight ? insight.city : (properties.length > 0 ? properties[0].address.city : null);
         
         if (currentCity) {
             const cityRegex = new RegExp(`^${currentCity}$`, 'i');
