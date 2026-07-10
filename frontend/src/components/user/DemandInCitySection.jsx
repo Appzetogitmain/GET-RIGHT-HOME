@@ -9,6 +9,22 @@ const DemandInCitySection = ({ city }) => {
     const navigate = useNavigate();
     const [demandData, setDemandData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const scrollRef = React.useRef(null);
+
+    React.useLayoutEffect(() => {
+        if (!loading && demandData.length > 0 && scrollRef.current) {
+            const savedScroll = sessionStorage.getItem(`scroll-left-demand-${city}`);
+            if (savedScroll) {
+                scrollRef.current.scrollLeft = parseInt(savedScroll, 10);
+            }
+        }
+    }, [loading, demandData, city]);
+
+    const handleScroll = () => {
+        if (scrollRef.current) {
+            sessionStorage.setItem(`scroll-left-demand-${city}`, scrollRef.current.scrollLeft.toString());
+        }
+    };
 
     useEffect(() => {
         const fetchDemandData = async () => {
@@ -70,7 +86,12 @@ const DemandInCitySection = ({ city }) => {
             </div>
 
             <div className="bg-[#F4F7FB] rounded-2xl p-4 sm:p-5">
-                <div className="flex overflow-x-auto gap-4 pb-2 snap-x snap-mandatory scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div 
+                    ref={scrollRef}
+                    onScroll={handleScroll}
+                    className="flex overflow-x-auto gap-4 pb-2 snap-x snap-mandatory scrollbar-hide" 
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
                     {demandData.map((typeData, idx) => (
                         <div 
                             key={idx} 
@@ -118,11 +139,13 @@ const DemandInCitySection = ({ city }) => {
                 </div>
             </div>
             
-            <style jsx>{`
+            <style>
+                {`
                 .scrollbar-hide::-webkit-scrollbar {
                     display: none;
                 }
-            `}</style>
+                `}
+            </style>
         </div>
     );
 };

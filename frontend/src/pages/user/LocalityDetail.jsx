@@ -602,7 +602,7 @@ const LocalityDetail = () => {
                                         </div>
                                         <div className="mt-3 pt-3 border-t border-slate-200/60">
                                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Avg Price</p>
-                                            <p className="text-sm font-black text-slate-900 mt-0.5">₹{(sim.averagePropertyRate).toLocaleString()}</p>
+                                            <p className="text-sm font-black text-slate-900 mt-0.5">{sim.averagePropertyRate ? `₹${Number(sim.averagePropertyRate).toLocaleString()}` : 'NA'}</p>
                                         </div>
                                     </div>
                                 ))}

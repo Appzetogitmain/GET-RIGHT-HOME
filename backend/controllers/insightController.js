@@ -21,7 +21,26 @@ export const getInsights = async (req, res) => {
 
         const insights = await LocalityInsight.find(query)
             .sort({ views: -1, createdAt: -1 })
-            .limit(Number(limit));
+            .limit(Number(limit))
+            .lean();
+
+        // Dynamically calculate average property rate for each insight
+        for (let insight of insights) {
+            const regexLocality = new RegExp('^' + insight.locality.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i');
+            const properties = await Property.find({ 'address.area': regexLocality, status: 'approved' }).lean();
+            
+            let totalPrice = 0;
+            let validPriceCount = 0;
+            properties.forEach(p => {
+                const price = p.buyDetails?.expectedPrice || p.rentDetails?.monthlyRent || p.plotDetails?.expectedPrice || p.dynamicData?.expectedPrice || p.dynamicData?.monthlyRent || 0;
+                if (price > 0) {
+                    totalPrice += price;
+                    validPriceCount++;
+                }
+            });
+            let fallbackPrice = insight.averagePricePerSqft ? insight.averagePricePerSqft * 1200 : 8500000;
+            insight.averagePropertyRate = validPriceCount > 0 ? Math.round(totalPrice / validPriceCount) : fallbackPrice;
+        }
 
         res.status(200).json({
             success: true,
@@ -65,7 +84,9 @@ export const getLocalityDetail = async (req, res) => {
                 validPriceCount++;
             }
         });
-        const averagePropertyRate = validPriceCount > 0 ? Math.round(totalPrice / validPriceCount) : 0;
+        
+        let fallbackRate = insight && insight.averagePricePerSqft ? insight.averagePricePerSqft * 1200 : 8500000;
+        const averagePropertyRate = validPriceCount > 0 ? Math.round(totalPrice / validPriceCount) : fallbackRate;
         
         // B. BHK Configurations Aggregation
         const bhkConfigMap = {};
@@ -173,10 +194,22 @@ export const getLocalityDetail = async (req, res) => {
                 { $sort: { count: -1 } },
                 { $limit: 4 }
             ]);
-            similarLocalities = similarAgg.map(s => ({
+            
+            // If aggregation returns nothing, we need to fetch some random localities as fallback
+            let localSimilars = similarAgg;
+            if (localSimilars.length === 0) {
+                const fallbackInsights = await LocalityInsight.find({ city: cityRegex, locality: { $not: regexLocality } }).limit(4).lean();
+                localSimilars = fallbackInsights.map(f => ({
+                    _id: f.locality,
+                    count: 0,
+                    avgPrice: f.averagePricePerSqft ? f.averagePricePerSqft * 1200 : 8500000
+                }));
+            }
+            
+            similarLocalities = localSimilars.map(s => ({
                 locality: s._id,
                 propertyCount: s.count,
-                averagePropertyRate: s.avgPrice
+                averagePropertyRate: s.avgPrice || 8500000
             }));
         }
 
