@@ -148,7 +148,7 @@ const LocalityDetail = () => {
 
             {/* QUICK METRICS BAR */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 relative z-10">
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 grid grid-cols-2 gap-4 text-center divide-x divide-slate-100 md:grid-cols-4">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 grid grid-cols-2 gap-x-4 gap-y-5 text-center divide-x divide-slate-100 md:grid-cols-4 md:gap-y-0">
                     <div>
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Avg Price</p>
                         <p className="text-base font-black text-slate-900 mt-0.5">
@@ -159,11 +159,11 @@ const LocalityDetail = () => {
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Properties</p>
                         <p className="text-base font-black text-slate-900 mt-0.5">{automated.totalProperties}+ Active</p>
                     </div>
-                    <div className="hidden md:block">
+                    <div>
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Rating</p>
                         <p className="text-base font-black text-emerald-500 mt-0.5">★ {automated.averageRating || 4.2} / 5</p>
                     </div>
-                    <div className="hidden md:block">
+                    <div>
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Views</p>
                         <p className="text-base font-black text-slate-900 mt-0.5">{insight.views || 0}</p>
                     </div>
