@@ -259,7 +259,7 @@ const EmiCalculatorPage = () => {
                                             cx="50%"
                                             cy="50%"
                                             innerRadius={0}
-                                            outerRadius={150}
+                                            outerRadius="95%"
                                             dataKey="value"
                                             stroke="none"
                                             isAnimationActive={false}
