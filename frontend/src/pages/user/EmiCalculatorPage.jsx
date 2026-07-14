@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const EmiCalculatorPage = () => {
@@ -124,12 +124,22 @@ const EmiCalculatorPage = () => {
         <div className="min-h-screen bg-[#f3f4f6] font-sans pb-24">
             
             {/* Hero Banner Section */}
-            <div className="bg-[#0b1037] w-full pt-6 pb-28 md:pb-36 px-4 md:px-10 relative">
+            <div className="bg-[#0b1037] w-full pt-16 md:pt-6 pb-28 md:pb-36 px-4 md:px-10 relative">
                 
+                {/* Back Button */}
+                <button 
+                    onClick={() => navigate(-1)} 
+                    className="absolute top-6 left-4 md:top-6 md:left-6 text-white hover:text-[#ffb71b] flex items-center text-sm font-medium transition-colors z-20"
+                >
+                    <ArrowLeft size={20} className="mr-1" />
+                    Back
+                </button>
+
                 {/* Desktop Top Links (Hidden on Mobile) */}
                 <div className="hidden md:flex justify-end gap-10 text-white text-xs font-bold tracking-wider mb-10">
-                    <a href="#calculateEmi" className="cursor-pointer hover:text-[#ffb71b] transition-colors">CALCULATE EMI</a>
-                    <a href="#faq" className="cursor-pointer hover:text-[#ffb71b] transition-colors">FAQs</a>
+                    <button onClick={() => document.getElementById('calculateEmi')?.scrollIntoView({behavior: 'smooth'})} className="cursor-pointer hover:text-[#ffb71b] transition-colors">CALCULATE EMI</button>
+                    <button onClick={() => document.getElementById('faqs')?.scrollIntoView({behavior: 'smooth'})} className="cursor-pointer hover:text-[#ffb71b] transition-colors">FAQs</button>
+                    <button onClick={() => document.getElementById('articles')?.scrollIntoView({behavior: 'smooth'})} className="cursor-pointer hover:text-[#ffb71b] transition-colors">ARTICLES</button>
                 </div>
 
                 <div className="max-w-[1000px] mx-auto flex flex-col-reverse md:flex-row items-center justify-center gap-6 md:gap-10">

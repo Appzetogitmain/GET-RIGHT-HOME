@@ -1,11 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Lightbulb, Calculator, Map, Building, IndianRupee, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import PopularToolsModals from './PopularToolsModals';
 
 const PopularToolsSection = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [activeTool, setActiveTool] = useState(null);
+    const scrollRef = useRef(null);
+
+    // Restore horizontal scroll position
+    useEffect(() => {
+        const savedScroll = sessionStorage.getItem(`scroll-left-popular-tools-${location.pathname}`);
+        if (savedScroll && scrollRef.current) {
+            scrollRef.current.scrollLeft = parseInt(savedScroll, 10);
+        }
+    }, [location.pathname]);
+
+    const handleScroll = (e) => {
+        sessionStorage.setItem(`scroll-left-popular-tools-${location.pathname}`, e.target.scrollLeft.toString());
+    };
 
     const tools = [
         {
@@ -43,7 +57,7 @@ const PopularToolsSection = () => {
     ];
 
     return (
-        <section className="mb-6 w-full md:px-0">
+        <section id="popular-tools-section" className="mb-6 w-full md:px-0 scroll-mt-20">
             <div className="bg-[#F4F7F9] md:rounded-3xl py-6 pl-6 border border-slate-100">
                 <div className="flex items-center justify-between mb-6 pr-6">
                     <div className="flex items-center gap-3">
@@ -59,7 +73,11 @@ const PopularToolsSection = () => {
                 </div>
 
                 {/* Horizontally scrolling list on mobile, grid on desktop */}
-                <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-4 scrollbar-hide pr-6">
+                <div 
+                    ref={scrollRef}
+                    onScroll={handleScroll}
+                    className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-4 scrollbar-hide pr-6"
+                >
                     {tools.map(tool => (
                         <div 
                             key={tool.id} 

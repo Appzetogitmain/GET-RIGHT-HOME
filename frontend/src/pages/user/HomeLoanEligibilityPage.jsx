@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const HomeLoanEligibilityPage = () => {
@@ -163,14 +163,23 @@ const HomeLoanEligibilityPage = () => {
         <div className="min-h-screen bg-[#f3f4f6] font-sans pb-24">
             
             {/* Hero Section */}
-            <div className="bg-[#090936] w-full pt-6 pb-12 md:pb-16 px-4 md:px-10 relative">
+            <div className="bg-[#090936] w-full pt-16 md:pt-6 pb-12 md:pb-16 px-4 md:px-10 relative">
                 
+                {/* Back Button */}
+                <button 
+                    onClick={() => navigate(-1)} 
+                    className="absolute top-6 left-4 md:top-6 md:left-6 text-white hover:text-[#00a699] flex items-center text-sm font-medium transition-colors"
+                >
+                    <ArrowLeft size={20} className="mr-1" />
+                    Back
+                </button>
+
                 {/* Desktop Top Links */}
                 <div className="hidden md:flex justify-end gap-10 text-white text-xs font-bold tracking-wider mb-10">
-                    <a href="#checkEligibility" className="cursor-pointer hover:text-[#00a699] transition-colors">CHECK ELIGIBILITY</a>
-                    <a href="#calculateEmi" className="cursor-pointer hover:text-[#00a699] transition-colors">CALCULATE EMI</a>
-                    <a href="#requestCallback" className="cursor-pointer hover:text-[#00a699] transition-colors">REQUEST CALLBACK</a>
-                    <a href="#faqs" className="cursor-pointer hover:text-[#00a699] transition-colors">FAQs</a>
+                    <button onClick={() => document.getElementById('checkEligibility')?.scrollIntoView({behavior: 'smooth'})} className="cursor-pointer hover:text-[#00a699] transition-colors">CHECK ELIGIBILITY</button>
+                    <button onClick={() => document.getElementById('calculateEmi')?.scrollIntoView({behavior: 'smooth'})} className="cursor-pointer hover:text-[#00a699] transition-colors">CALCULATE EMI</button>
+                    <button onClick={() => document.getElementById('requestCallback')?.scrollIntoView({behavior: 'smooth'})} className="cursor-pointer hover:text-[#00a699] transition-colors">REQUEST CALLBACK</button>
+                    <button onClick={() => document.getElementById('faqs')?.scrollIntoView({behavior: 'smooth'})} className="cursor-pointer hover:text-[#00a699] transition-colors">FAQs</button>
                 </div>
 
                 <div className="max-w-[1100px] mx-auto flex flex-col items-center text-center pb-4 md:pb-8">
