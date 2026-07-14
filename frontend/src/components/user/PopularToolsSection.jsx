@@ -84,6 +84,7 @@ const PopularToolsSection = () => {
                         onClick={() => {
                             if (tool.id === 'emi') navigate('/home-loan-emi-calculator');
                             else if (tool.id === 'loan') navigate('/home-loan-eligibility-calculator');
+                            else if (tool.id === 'area') navigate('/area-converter');
                             else setActiveTool(tool.id);
                         }}
                             className="shrink-0 snap-center w-[200px] md:w-auto bg-white rounded-2xl p-5 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.1)] border border-slate-100 cursor-pointer hover:shadow-md transition-shadow group flex flex-col items-center text-center"
