@@ -60,20 +60,14 @@ const BHKChoice = ({ transactionType = 'buy' }) => {
         fetchCounts();
     }, [transactionType]);
 
-    // 99acres style uniform icon for all cards
-    const UniformHouseIcon = () => (
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="#3B82F6" opacity="0.9" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 10l1.5 1.5L4 11v9h5v-6h6v6h5v-9l.5.5L22 10 12 2z" />
-            <path d="M14 13h-4v7h4v-7z" fill="#BFDBFE" />
-        </svg>
-    );
+
 
     const options = [
-        { label: '1 RK/1 BHK', countKey: '1bhk', filters: ['1BHK'] },
-        { label: '2 BHK', countKey: '2bhk', filters: ['2BHK'] },
-        { label: '3 BHK', countKey: '3bhk', filters: ['3BHK'] },
-        { label: '4 BHK', countKey: '4bhk', filters: ['4BHK'] },
-        { label: '4+ BHK', countKey: '4plus', filters: ['4+BHK'] },
+        { label: '1 RK/1 BHK', countKey: '1bhk', filters: ['1BHK'], image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&q=80' },
+        { label: '2 BHK', countKey: '2bhk', filters: ['2BHK'], image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=500&q=80' },
+        { label: '3 BHK', countKey: '3bhk', filters: ['3BHK'], image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=500&q=80' },
+        { label: '4 BHK', countKey: '4bhk', filters: ['4BHK'], image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=500&q=80' },
+        { label: '4+ BHK', countKey: '4plus', filters: ['4+BHK'], image: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=500&q=80' },
     ];
 
     const handleSelect = (filters) => {
@@ -89,7 +83,7 @@ const BHKChoice = ({ transactionType = 'buy' }) => {
     return (
         <section className="mb-6 w-full md:px-0">
             {/* Edge-to-edge on mobile, larger height */}
-            <div className="relative bg-[#FFF7EB] md:rounded-3xl overflow-hidden h-[200px] md:h-[220px] flex items-center w-full">
+            <div className="relative bg-[#FFF7EB] md:rounded-3xl overflow-hidden h-[240px] md:h-[260px] flex items-center w-full">
                 
                 {/* 1. Static Title on the Left (Fades out when scrolling) */}
                 <div 
@@ -124,16 +118,21 @@ const BHKChoice = ({ transactionType = 'buy' }) => {
                                 key={idx}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => handleSelect(opt.filters)}
-                                className="shrink-0 snap-center w-[150px] md:w-[170px] h-[140px] md:h-[150px] bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col items-start justify-center p-4 cursor-pointer hover:shadow-md transition-shadow"
+                                className="shrink-0 snap-center w-[160px] md:w-[180px] h-[190px] md:h-[210px] bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
                             >
-                                <div className="mb-auto mt-1">
-                                    <UniformHouseIcon />
+                                <div className="w-full h-[120px] md:h-[135px] bg-gray-100 overflow-hidden relative">
+                                    <img 
+                                        src={opt.image} 
+                                        alt={opt.label} 
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                    />
+                                    <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors"></div>
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-slate-800 text-[15px] md:text-[16px] mb-0.5">
+                                <div className="p-3 flex-1 flex flex-col justify-center">
+                                    <h3 className="font-bold text-slate-800 text-[14px] md:text-[15px] mb-0.5">
                                         {opt.label}
                                     </h3>
-                                    <p className="text-[12px] md:text-[13px] text-gray-500 font-medium">
+                                    <p className="text-[11px] md:text-[12px] text-gray-500 font-medium truncate">
                                         {bhkCounts[opt.countKey] > 0 ? `${bhkCounts[opt.countKey]}+ Properties` : 'Explore Options'}
                                     </p>
                                 </div>

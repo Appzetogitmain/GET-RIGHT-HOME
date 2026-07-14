@@ -63,48 +63,12 @@ const PostedByChoice = ({ transactionType = 'buy' }) => {
         fetchCounts();
     }, [transactionType]);
 
-    const getCardIcon = (iconType) => {
-        return (
-            <div className="mb-auto mt-1 relative w-[32px] h-[32px]">
-                {/* Base Icon */}
-                {iconType === 'builder' && (
-                    <svg viewBox="0 0 24 24" width="32" height="32" fill="#3B82F6" opacity="0.9" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 10h14v12H4z" />
-                        <path d="M4 10l7-6 7 6z" />
-                        <rect x="8" y="13" width="2" height="2" fill="#BFDBFE" />
-                        <rect x="12" y="13" width="2" height="2" fill="#BFDBFE" />
-                        <rect x="8" y="17" width="2" height="2" fill="#BFDBFE" />
-                        <rect x="12" y="17" width="2" height="2" fill="#BFDBFE" />
-                    </svg>
-                )}
-                {iconType === 'owner' && (
-                    <svg viewBox="0 0 24 24" width="32" height="32" fill="#3B82F6" opacity="0.9" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                    </svg>
-                )}
-                {iconType === 'dealer' && (
-                    <svg viewBox="0 0 24 24" width="32" height="32" fill="#3B82F6" opacity="0.9" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                        {/* White collar and blue tie */}
-                        <path d="M12 15l-3 4h6l-3-4z" fill="#BFDBFE" />
-                        <path d="M12 17l-1 5h2l-1-5z" fill="#1D4ED8" />
-                    </svg>
-                )}
-                
-                {/* Small Yellow/Orange Badge with House Outline */}
-                <div className="absolute -bottom-1 -right-1 w-[14px] h-[14px] bg-[#FDE68A] rounded-full flex items-center justify-center border-[1.5px] border-white">
-                    <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="#D97706" strokeWidth="3" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 3l10 9h-3v9H5v-9H2z" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                </div>
-            </div>
-        );
-    };
+
 
     const options = [
-        { label: 'Builder', countKey: 'builder', filters: ['Builder'], iconType: 'builder' },
-        { label: 'Owner', countKey: 'owner', filters: ['Owner'], iconType: 'owner' },
-        { label: 'Broker', countKey: 'broker', filters: ['Broker', 'Agent', 'Dealer'], iconType: 'dealer' },
+        { label: 'Builder', countKey: 'builder', filters: ['Builder'], image: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=500&q=80' },
+        { label: 'Owner', countKey: 'owner', filters: ['Owner'], image: 'https://images.unsplash.com/photo-1556912173-3bb406ef7e77?w=500&q=80' },
+        { label: 'Broker', countKey: 'broker', filters: ['Broker', 'Agent', 'Dealer'], image: 'https://images.unsplash.com/photo-1560520031-3a4dc4e9de0c?w=500&q=80' },
     ];
 
     // Always show all options regardless of count
@@ -123,7 +87,7 @@ const PostedByChoice = ({ transactionType = 'buy' }) => {
     return (
         <section className="mb-6 w-full md:px-0">
             {/* Edge-to-edge on mobile, identical background to BHKChoice */}
-            <div className="relative bg-[#FFF7EB] md:rounded-3xl overflow-hidden h-[200px] md:h-[220px] flex items-center w-full">
+            <div className="relative bg-[#FFF7EB] md:rounded-3xl overflow-hidden h-[240px] md:h-[260px] flex items-center w-full">
                 
                 {/* 1. Static Title on the Left */}
                 <div 
@@ -171,14 +135,21 @@ const PostedByChoice = ({ transactionType = 'buy' }) => {
                                 key={idx}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => handleSelect(opt.filters)}
-                                className="shrink-0 snap-center w-[150px] md:w-[170px] h-[140px] md:h-[150px] bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col items-start justify-center p-4 cursor-pointer hover:shadow-md transition-shadow"
+                                className="shrink-0 snap-center w-[160px] md:w-[180px] h-[190px] md:h-[210px] bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
                             >
-                                {getCardIcon(opt.iconType)}
-                                <div>
-                                    <h3 className="font-bold text-slate-800 text-[15px] md:text-[16px] mb-0.5">
+                                <div className="w-full h-[120px] md:h-[135px] bg-gray-100 overflow-hidden relative">
+                                    <img 
+                                        src={opt.image} 
+                                        alt={opt.label} 
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                    />
+                                    <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors"></div>
+                                </div>
+                                <div className="p-3 flex-1 flex flex-col justify-center">
+                                    <h3 className="font-bold text-slate-800 text-[14px] md:text-[15px] mb-0.5">
                                         {opt.label}
                                     </h3>
-                                    <p className="text-[12px] md:text-[13px] text-gray-500 font-medium">
+                                    <p className="text-[11px] md:text-[12px] text-gray-500 font-medium truncate">
                                         {postedByCounts[opt.countKey] > 0 ? `${postedByCounts[opt.countKey]} Properties` : 'Explore Options'}
                                     </p>
                                 </div>
