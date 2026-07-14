@@ -131,25 +131,26 @@ const MoveInTimelineSection = ({ transactionType = 'buy' }) => {
                                 key={idx}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => handleSelect(opt.filters)}
-                                className="shrink-0 snap-center w-[160px] md:w-[180px] h-[200px] md:h-[230px] rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden cursor-pointer hover:shadow-md transition-shadow group relative"
+                                className="shrink-0 snap-center w-[140px] md:w-[150px] h-[180px] md:h-[190px] rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden cursor-pointer hover:shadow-md transition-shadow group relative"
                                 style={{
                                     background: idx === 0 ? '#FFF7EB' : '#F0F9FF'
                                 }}
                             >
-                                <div className="p-4 z-10 relative">
-                                    <h3 className="font-bold text-slate-800 text-[16px] md:text-[18px] mb-1 leading-tight w-full">
+                                <div className="p-3 z-20 relative bg-transparent">
+                                    <h3 className="font-bold text-slate-800 text-[15px] md:text-[16px] mb-0.5 leading-tight w-full">
                                         {opt.label}
                                     </h3>
-                                    <p className="text-[12px] md:text-[13px] text-slate-500 font-medium">
+                                    <p className="text-[11px] md:text-[12px] text-slate-500 font-medium">
                                         {timelineCounts[opt.countKey] > 0 ? `${timelineCounts[opt.countKey]}+ Properties` : 'Explore Options'}
                                     </p>
                                 </div>
-                                <div className="absolute bottom-0 left-0 right-0 h-[140px] md:h-[160px] mt-auto">
-                                    <div className={`absolute inset-0 bg-gradient-to-b ${idx === 0 ? 'from-[#FFF7EB]' : 'from-[#F0F9FF]'} to-transparent z-10 h-10`}></div>
+                                <div className="absolute bottom-0 left-0 right-0 h-[110px] md:h-[120px] mt-auto overflow-hidden rounded-b-2xl">
+                                    {/* Gradient covering the top part of the image to blend it with the card background */}
+                                    <div className={`absolute top-0 left-0 right-0 h-10 bg-gradient-to-b ${idx === 0 ? 'from-[#FFF7EB] via-[#FFF7EB]/80' : 'from-[#F0F9FF] via-[#F0F9FF]/80'} to-transparent z-10 pointer-events-none`}></div>
                                     <img 
                                         src={opt.image} 
                                         alt={opt.label} 
-                                        className="w-full h-full object-cover rounded-b-2xl object-bottom mix-blend-darken opacity-90 group-hover:scale-105 transition-transform duration-500" 
+                                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" 
                                     />
                                 </div>
                             </motion.div>
