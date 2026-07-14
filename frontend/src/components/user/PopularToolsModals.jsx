@@ -81,6 +81,38 @@ const EmiCalculator = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Added Content for EMI Calculator */}
+            <div className="mt-8 pt-6 border-t border-slate-100 text-left">
+                <h4 className="font-bold text-slate-800 text-lg mb-3">About GetRightHome EMI Calculator</h4>
+                <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                    Planning to buy a home? The GetRightHome EMI Calculator helps you estimate your monthly home loan EMIs in seconds. 
+                    By simply inputting the loan amount, interest rate, and tenure, you can accurately plan your budget and make 
+                    informed real estate decisions.
+                </p>
+
+                <h4 className="font-bold text-slate-800 text-lg mb-4">Frequently Asked Questions</h4>
+                <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-2">What is an EMI?</h5>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            Equated Monthly Installment (EMI) is a fixed payment amount made by a borrower to a lender at a specified date each calendar month. EMIs are used to pay off both interest and principal each month.
+                        </p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-2">How is the GetRightHome EMI calculated?</h5>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            We use the standard formula: P x R x (1+R)^N / [(1+R)^N-1], where P is Principal, R is monthly interest rate, and N is loan tenure in months.
+                        </p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-2">Can I prepay my home loan?</h5>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            Yes, most banks allow you to prepay your home loan. Prepaying can significantly reduce your interest burden and overall loan tenure.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
@@ -188,6 +220,52 @@ const AreaConverter = () => {
                 <p className="text-xs text-emerald-600 font-bold mt-1 uppercase">
                     {toUnit === 'sqft' ? 'Sq. Ft.' : toUnit === 'sqm' ? 'Sq. Meters' : toUnit === 'sqyrd' ? 'Sq. Yards' : toUnit}
                 </p>
+            </div>
+
+            {/* Added Content for Area Converter */}
+            <div className="mt-8 pt-6 border-t border-slate-100 text-left">
+                <h4 className="font-bold text-slate-800 text-lg mb-3">About Land Measurement Units</h4>
+                <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                    In India, especially in cities like Bengaluru, real estate transactions involve various measurement units. 
+                    While Sq. Ft. is the standard for apartments, independent plots often use units like Sq. Yards, Acres, or local measurements.
+                    The GetRightHome Area Converter makes these complex conversions instant and simple.
+                </p>
+
+                <h4 className="font-bold text-slate-800 text-lg mb-4">Popular Area Conversions</h4>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 block mb-1">1 Sq. Yard</span>
+                        <span className="text-sm font-bold text-slate-800">9 Sq. Feet</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 block mb-1">1 Acre</span>
+                        <span className="text-sm font-bold text-slate-800">43,560 Sq. Feet</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 block mb-1">1 Hectare</span>
+                        <span className="text-sm font-bold text-slate-800">2.47 Acres</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 block mb-1">1 Sq. Meter</span>
+                        <span className="text-sm font-bold text-slate-800">10.76 Sq. Feet</span>
+                    </div>
+                </div>
+
+                <h4 className="font-bold text-slate-800 text-lg mb-4">FAQs on Area Measurement (Bengaluru based)</h4>
+                <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-2">What is the standard unit for buying flats in Bengaluru?</h5>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            Square Feet (Sq. Ft.) is the standard and most legally recognized unit for buying and selling apartments and flats across Bengaluru.
+                        </p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-2">How is carpet area different from super built-up area?</h5>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            Carpet area is the actual usable floor area inside your flat. Super built-up area includes common spaces like corridors, lifts, and lobbies, which is usually 20-30% more than the carpet area.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     );

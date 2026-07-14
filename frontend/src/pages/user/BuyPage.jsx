@@ -14,6 +14,7 @@ import PostedByChoice from '../../components/user/PostedByChoice';
 import RecommendInsights from '../../components/user/RecommendInsights';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 import DemandInCitySection from '../../components/user/DemandInCitySection';
+import PopularToolsSection from '../../components/user/PopularToolsSection';
 
 // Theme for Buy Page
 const THEME = {
@@ -142,9 +143,8 @@ const BuyPage = () => {
                 </div>
 
                 {/* 12. Popular Tools Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Use Popular Tools</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Icons for EMI calculator, etc.]</p>
+                <div id="popular-tools-section">
+                    <PopularToolsSection />
                 </div>
 
                 {/* 13. Top Articles Placeholder */}
