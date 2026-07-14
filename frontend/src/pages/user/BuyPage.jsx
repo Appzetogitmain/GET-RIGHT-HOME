@@ -6,6 +6,7 @@ import ExclusiveOffers from '../../components/user/ExclusiveOffers';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import ReelSection from '../../components/user/ReelSection';
 import PopularBuilders from '../../components/user/PopularBuilders';
+import MoveInTimelineSection from '../../components/user/MoveInTimelineSection';
 import SupportSection from '../../components/user/SupportSection';
 import { categoryService } from '../../services/categoryService';
 import BHKChoice from '../../components/user/BHKChoice';
@@ -124,10 +125,9 @@ const BuyPage = () => {
                     <PostedByChoice transactionType="Buy" />
                 </div>
 
-                {/* 8. Move In Timeline Placeholder */}
-                <div id="timeline-section" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Move in Timeline</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Filters for Ready to move, Under construction]</p>
+                {/* 8. Move In Timeline */}
+                <div id="timeline-section">
+                    <MoveInTimelineSection transactionType="Buy" />
                 </div>
 
                 {/* 10. Future Dealers Placeholder */}

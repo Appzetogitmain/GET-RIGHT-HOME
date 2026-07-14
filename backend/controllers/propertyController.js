@@ -809,7 +809,8 @@ export const getPublicProperties = async (req, res) => {
       transactionType,
       areas,
       builder,
-      excludeAvailability
+      excludeAvailability,
+      possessionYear
     } = req.query;
 
     const pipeline = [];
@@ -1104,6 +1105,8 @@ export const getPublicProperties = async (req, res) => {
         } else {
           matchConditions.$or = residentialCondition.$or;
         }
+      } else if (propertyCategory.toLowerCase() === 'project') {
+        matchConditions.propertyCategory = /^Project$/i;
       }
     }
 
@@ -1175,6 +1178,20 @@ export const getPublicProperties = async (req, res) => {
         } else {
           matchConditions.$and = [excludeMatch];
         }
+      }
+    }
+
+    if (possessionYear) {
+      const year = parseInt(possessionYear, 10);
+      if (!isNaN(year)) {
+        // If exact year or 'after 2030'
+        if (possessionYear === '2030+') {
+           matchConditions['dynamicData.possessionYear'] = { $gt: 2030 };
+        } else {
+           matchConditions['dynamicData.possessionYear'] = year;
+        }
+      } else if (possessionYear === '2030+') {
+         matchConditions['dynamicData.possessionYear'] = { $gt: 2030 };
       }
     }
 
