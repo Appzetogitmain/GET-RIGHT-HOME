@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Lightbulb, Calculator, Map, Building, IndianRupee, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import PopularToolsModals from './PopularToolsModals';
 
 const PopularToolsSection = () => {
+    const navigate = useNavigate();
     const [activeTool, setActiveTool] = useState(null);
 
     const tools = [
@@ -61,7 +63,10 @@ const PopularToolsSection = () => {
                     {tools.map(tool => (
                         <div 
                             key={tool.id} 
-                            onClick={() => setActiveTool(tool.id)}
+                            onClick={() => {
+                                if (tool.id === 'emi') navigate('/home-loan-emi-calculator');
+                                else setActiveTool(tool.id);
+                            }}
                             className="shrink-0 snap-center w-[200px] md:w-auto bg-white rounded-2xl p-5 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.1)] border border-slate-100 cursor-pointer hover:shadow-md transition-shadow group flex flex-col items-center text-center"
                         >
                             <div className={`w-[85px] h-[85px] rounded-full flex items-center justify-center mb-5 transition-transform group-hover:scale-105 ${tool.bgColor}`}>
