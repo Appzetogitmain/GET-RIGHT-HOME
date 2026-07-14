@@ -113,10 +113,10 @@ const BuyPage = () => {
                 </div>
 
                 {/* 6. Pre-launch Projects Placeholder */}
-                <div id="prelaunch-section" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                {/* <div id="prelaunch-section" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h2 className="text-xl font-bold mb-2">Pre Launch Projects</h2>
                     <p className="text-sm text-slate-500">[To be implemented: Carousel of pre-launch projects]</p>
-                </div>
+                </div> */}
 
                 {/* 7. BHK Choice */}
                 <div id="bhk-choice-section">
@@ -147,11 +147,6 @@ const BuyPage = () => {
                     <PopularToolsSection />
                 </div>
 
-                {/* 13. Top Articles Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Top Articles</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Grid of blog/news posts]</p>
-                </div>
             </div>
 
             <SupportSection />
