@@ -17,7 +17,12 @@ const serviceSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
   subCategoryId: z.string().optional(),
   imageUrl: z.string().optional(),
-  description: z.string().optional()
+  description: z.string().optional(),
+  isTexture: z.boolean().optional(),
+  isIdea: z.boolean().optional(),
+  isRecentProject: z.boolean().optional(),
+  workerName: z.string().optional(),
+  projectImages: z.array(z.string()).optional()
 });
 
 const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
@@ -29,6 +34,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubCategoryFilter, setSelectedSubCategoryFilter] = useState("all");
   const [expandedCategories, setExpandedCategories] = useState({});
+  const [sharedServices, setSharedServices] = useState([]);
 
   const toggleCategory = (catTitle) => {
     setExpandedCategories(prev => ({
@@ -55,7 +61,8 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
           id: (cat.id || cat._id?.$oid || cat._id)?.toString() || "",
           title: cat.title,
           slug: cat.slug,
-          isDirectService: cat.isDirectService || false
+          isDirectService: cat.isDirectService || false,
+          isEstimateBased: cat.isEstimateBased || false
         }));
         setCategories(mappedCategories);
       }
@@ -73,10 +80,10 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       }
 
       setCatalog(prev => {
-        const next = { 
-          ...prev, 
-          categories: mappedCategories, 
-          subCategories: mappedSubCategories 
+        const next = {
+          ...prev,
+          categories: mappedCategories,
+          subCategories: mappedSubCategories
         };
         saveCatalog(next);
         return next;
@@ -94,6 +101,26 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     fetchCatalogData();
   }, [selectedCity]);
 
+  // Fetch Shared Services for "Interior Painting"
+  useEffect(() => {
+    const fetchSharedServices = async () => {
+      const interiorCat = subCategories.find(sc => sc.title.toLowerCase().includes("interior painting"));
+      if (interiorCat) {
+        try {
+          const response = await serviceService.getAll({ subCategoryId: interiorCat.id });
+          if (response.success) {
+            setSharedServices(response.services || []);
+          }
+        } catch (error) {
+          console.error("Failed to fetch shared services:", error);
+        }
+      }
+    };
+    if (subCategories.length > 0) {
+      fetchSharedServices();
+    }
+  }, [subCategories]);
+
   // Fetch Services when Filter changes
   useEffect(() => {
     const fetchServices = async () => {
@@ -103,7 +130,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
         if (selectedSubCategoryFilter !== "all") {
           params.subCategoryId = selectedSubCategoryFilter;
         }
-        
+
         const response = await serviceService.getAll(params);
         if (response.success) {
           setServices(response.services || []);
@@ -134,7 +161,12 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     categoryId: "",
     subCategoryId: "",
     imageUrl: "",
-    description: ""
+    description: "",
+    isTexture: false,
+    isIdea: false,
+    isRecentProject: false,
+    workerName: "",
+    projectImages: []
   });
   const [saving, setSaving] = useState(false);
 
@@ -158,21 +190,34 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   const selectedFormCategory = useMemo(() => {
     return categories.find(c => String(c.id) === String(form.categoryId));
   }, [form.categoryId, categories]);
-  
+
   const isDirectService = (selectedFormCategory?.isDirectService && formFilteredSubCategories.length === 0) || false;
+  const isEstimateBased = selectedFormCategory?.isEstimateBased || false;
 
   const resetForm = () => {
     setEditingId(null);
+    let prefillCategoryId = "";
+    if (selectedSubCategoryFilter !== "all") {
+      const subCat = subCategories.find(sc => String(sc.id) === String(selectedSubCategoryFilter));
+      if (subCat) {
+        prefillCategoryId = subCat.categoryId || "";
+      }
+    }
     setForm({
       title: "",
       subheading: "",
       basePrice: "",
       gstPercentage: 18,
       discountPrice: "",
-      categoryId: "",
+      categoryId: prefillCategoryId,
       subCategoryId: selectedSubCategoryFilter !== "all" ? selectedSubCategoryFilter : "",
       imageUrl: "",
-      description: ""
+      description: "",
+      isTexture: false,
+      isIdea: false,
+      isRecentProject: false,
+      workerName: "",
+      projectImages: []
     });
     setIsModalOpen(false);
   };
@@ -180,7 +225,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   const handleEdit = (service) => {
     const parentCatId = service.categoryId?._id || service.categoryId || "";
     const subCatId = service.subCategoryId?._id || service.subCategoryId || "";
-    
+
     setEditingId(service.id || service._id);
     setForm({
       title: service.title,
@@ -191,7 +236,12 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       categoryId: parentCatId?.toString() || "",
       subCategoryId: subCatId?.toString() || "",
       imageUrl: service.imageUrl || service.icon || "",
-      description: service.description || ""
+      description: service.description || "",
+      isTexture: service.isTexture || false,
+      isIdea: service.isIdea || false,
+      isRecentProject: service.isRecentProject || false,
+      workerName: service.workerName || "",
+      projectImages: service.projectImages || []
     });
     setIsModalOpen(true);
   };
@@ -217,24 +267,58 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     }
   };
 
+  const handleMultipleFileUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    try {
+      setUploadingImage(true);
+      const uploadedUrls = [];
+      for (const file of files) {
+        const res = await serviceService.uploadImage(file);
+        if (res.success) {
+          uploadedUrls.push(res.imageUrl);
+        }
+      }
+      
+      if (uploadedUrls.length > 0) {
+        setForm(prev => ({ 
+          ...prev, 
+          projectImages: [...(prev.projectImages || []), ...uploadedUrls] 
+        }));
+        toast.success(`Successfully uploaded ${uploadedUrls.length} image(s)!`);
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error("Failed to upload images");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
-    
+
     if (!isDirectService && !form.subCategoryId) {
       toast.error("Sub-category is required");
       return;
     }
-    
+
     const data = {
-      title: form.title.trim(),
+      title: form.isRecentProject ? `Recent Project by ${form.workerName?.trim() || 'Expert'}` : form.title.trim(),
       subheading: form.subheading.trim(),
-      basePrice: Number(form.basePrice),
+      basePrice: isEstimateBased ? 0 : Number(form.basePrice),
       gstPercentage: Number(form.gstPercentage),
-      discountPrice: form.discountPrice ? Number(form.discountPrice) : undefined,
+      discountPrice: (!isEstimateBased && form.discountPrice) ? Number(form.discountPrice) : undefined,
       categoryId: form.categoryId,
       subCategoryId: form.subCategoryId || undefined,
       imageUrl: form.imageUrl,
-      description: form.description?.trim()
+      description: form.description?.trim(),
+      isTexture: form.isTexture,
+      isIdea: form.isIdea,
+      isRecentProject: form.isRecentProject,
+      workerName: form.workerName?.trim(),
+      projectImages: form.projectImages
     };
 
     const result = serviceSchema.safeParse(data);
@@ -285,7 +369,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
 
   const displayedServices = useMemo(() => {
     let filtered = services;
-    
+
     // Filter by subcategory if not "all"
     if (selectedSubCategoryFilter !== "all") {
       filtered = filtered.filter(s => {
@@ -297,8 +381,8 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     // Filter by search term
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
-      filtered = filtered.filter(s => 
-        s.title.toLowerCase().includes(lower) || 
+      filtered = filtered.filter(s =>
+        s.title.toLowerCase().includes(lower) ||
         (s.subheading && s.subheading.toLowerCase().includes(lower))
       );
     }
@@ -330,11 +414,10 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <button
                 onClick={() => setSelectedSubCategoryFilter("all")}
-                className={`w-full text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-                  selectedSubCategoryFilter === "all" 
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                className={`w-full text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${selectedSubCategoryFilter === "all"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                     : "text-gray-600 hover:bg-gray-50 border-transparent"
-                }`}
+                  }`}
               >
                 All Sub-categories
               </button>
@@ -358,11 +441,10 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                             key={sc.id}
                             type="button"
                             onClick={() => setSelectedSubCategoryFilter(sc.id)}
-                            className={`w-full text-left px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between border ${
-                              selectedSubCategoryFilter === sc.id 
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm" 
+                            className={`w-full text-left px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between border ${selectedSubCategoryFilter === sc.id
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm"
                                 : "text-gray-600 hover:bg-gray-50 border-transparent"
-                            }`}
+                              }`}
                           >
                             <span className="truncate">{sc.title}</span>
                             <FiChevronRight className={`w-3.5 h-3.5 transition-transform ${selectedSubCategoryFilter === sc.id ? "rotate-90 text-emerald-600" : "text-gray-300"}`} />
@@ -398,12 +480,37 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
           ) : displayedServices.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-200 text-center">
               <FiPackage className="w-16 h-16 text-gray-200 mb-4" />
-              <h3 className="text-lg font-black text-gray-400">No Services Found</h3>
-              <p className="text-sm text-gray-400 max-w-xs mx-auto mt-1">
-                {selectedSubCategoryFilter === 'all' 
-                  ? "Start by adding a service to any sub-category." 
-                  : "No services have been added to this sub-category yet."}
-              </p>
+              {(() => {
+                const selectedSubCat = subCategories.find(sc => String(sc.id) === String(selectedSubCategoryFilter));
+                const isShared = selectedSubCat && ["rental painting", "exterior painting", "water proofing"].some(t => selectedSubCat.title.toLowerCase().includes(t));
+                
+                return (
+                  <>
+                    <h3 className={`text-lg font-black ${isShared ? "text-yellow-500" : "text-gray-400"}`}>
+                      {isShared ? "Services Already Applied" : "No Services Found"}
+                    </h3>
+                    <p className={`text-sm max-w-xs mx-auto mt-1 ${isShared ? "text-yellow-600/90" : "text-gray-400"}`}>
+                      {selectedSubCategoryFilter === 'all' 
+                        ? "Start by adding a service to any sub-category."
+                        : isShared
+                          ? "Services added in Interior Painting are automatically applied here. No need to recreate them."
+                          : "No services have been added to this sub-category yet."}
+                    </p>
+                    {isShared && sharedServices.length > 0 && (
+                      <div className="mt-6 w-full max-w-md">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 text-left">Applied Services</p>
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          {sharedServices.map(s => (
+                            <span key={s.id || s._id} className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                              {s.title}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -414,10 +521,10 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                     {/* Service Preview Image */}
                     <div className="h-20 w-20 bg-gray-50 border border-gray-100 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center">
                       {(service.imageUrl || service.icon) ? (
-                        <img 
-                          src={toAssetUrl(service.imageUrl || service.icon)} 
-                          alt={service.title} 
-                          className="w-full h-full object-cover" 
+                        <img
+                          src={toAssetUrl(service.imageUrl || service.icon)}
+                          alt={service.title}
+                          className="w-full h-full object-cover"
                         />
                       ) : (
                         <FiImage className="text-gray-300 w-6 h-6" />
@@ -441,7 +548,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                           </div>
                         </div>
                         <h3 className="font-black text-gray-900 text-sm leading-tight mt-1 truncate">{service.title}</h3>
-                        
+
                         {/* Compact Price and Subheading Row */}
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs font-black text-emerald-600">₹{service.discountPrice || service.basePrice || service.price}</span>
@@ -515,82 +622,180 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
           </div>
 
           {/* Heading / Service Title */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Service Heading / Title</label>
-            <input
-              value={form.title}
-              onChange={e => setForm({ ...form, title: e.target.value })}
-              placeholder="e.g. Foam Blast AC Service"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
-              required
-            />
-          </div>
+          {!form.isRecentProject && (
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Service Heading / Title</label>
+              <input
+                value={form.title}
+                onChange={e => setForm({ ...form, title: e.target.value })}
+                placeholder="e.g. Foam Blast AC Service"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                required={!form.isRecentProject}
+              />
+            </div>
+          )}
 
           {/* Subheading */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Service Subheading (optional)</label>
-            <input
-              value={form.subheading}
-              onChange={e => setForm({ ...form, subheading: e.target.value })}
-              placeholder="e.g. FREE GAS CHECK or 2 options"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
+          {(!form.isTexture && !form.isIdea && !form.isRecentProject) && (
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Service Subheading (optional)</label>
+              <input
+                value={form.subheading}
+                onChange={e => setForm({ ...form, subheading: e.target.value })}
+                placeholder="e.g. FREE GAS CHECK or 2 options"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          )}
 
           {/* Pricing Row */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Base Price / Starts At (₹)</label>
-              <input
-                type="number"
-                value={form.basePrice}
-                onChange={e => setForm({ ...form, basePrice: e.target.value })}
-                placeholder="0"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                required
-                min="0"
-              />
+          {form.categoryId && !isEstimateBased && !form.isRecentProject && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Base Price / Starts At (₹)</label>
+                <input
+                  type="number"
+                  value={form.basePrice}
+                  onChange={e => setForm({ ...form, basePrice: e.target.value })}
+                  placeholder="0"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  required={!isEstimateBased}
+                  min="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Discounted Price (₹) - Optional</label>
+                <input
+                  type="number"
+                  value={form.discountPrice}
+                  onChange={e => setForm({ ...form, discountPrice: e.target.value })}
+                  placeholder="Leave empty"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Discounted Price (₹) - Optional</label>
-              <input
-                type="number"
-                value={form.discountPrice}
-                onChange={e => setForm({ ...form, discountPrice: e.target.value })}
-                placeholder="Leave empty"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Description */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
-            <textarea
-              value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })}
-              placeholder="Detailed description of premium service package contents..."
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 h-20 resize-none"
-            />
-          </div>
+          {(!form.isTexture && !form.isIdea && !form.isRecentProject) && (
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Description (Points)</label>
+              <p className="text-[11px] text-gray-500 mb-2 leading-tight">
+                Type your points and separate them with <kbd className="bg-gray-100 px-1 py-0.5 rounded font-mono text-xs">Enter</kbd> or <kbd className="bg-gray-100 px-1 py-0.5 rounded font-mono text-xs">-&gt;</kbd> to display them as bullet points.
+              </p>
+              <textarea
+                value={form.description}
+                onChange={e => setForm({ ...form, description: e.target.value })}
+                placeholder="e.g.&#10;Book your service&#10;Get Estimation&#10;Start painting!"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 h-28 resize-y"
+              />
+            </div>
+          )}
+
+          {/* Checkboxes Row */}
+          {selectedFormCategory?.title?.toLowerCase().includes("home painting") && (
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isTexture"
+                  checked={form.isTexture}
+                  onChange={e => setForm({ ...form, isTexture: e.target.checked })}
+                  className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                />
+                <label htmlFor="isTexture" className="text-sm font-bold text-gray-700">
+                  Is this a Texture? <span className="text-xs text-gray-400 font-normal">("Explore Textures" gallery)</span>
+                </label>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isIdea"
+                  checked={form.isIdea}
+                  onChange={e => setForm({ ...form, isIdea: e.target.checked })}
+                  className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                />
+                <label htmlFor="isIdea" className="text-sm font-bold text-gray-700">
+                  Is this an Idea? <span className="text-xs text-gray-400 font-normal">("Ideas for your Home" gallery)</span>
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isRecentProject"
+                  checked={form.isRecentProject}
+                  onChange={e => setForm({ ...form, isRecentProject: e.target.checked })}
+                  className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                />
+                <label htmlFor="isRecentProject" className="text-sm font-bold text-gray-700">
+                  Recent Project? <span className="text-xs text-gray-400 font-normal">("Tour our Recent Projects")</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Recent Project Extras */}
+          {form.isRecentProject && (
+            <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Worker Name (Reviewer Name)</label>
+                <input
+                  value={form.workerName}
+                  onChange={e => setForm({ ...form, workerName: e.target.value })}
+                  placeholder="e.g. Ankit Sharma"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Project Images (Stories)</label>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    {form.projectImages?.map((url, i) => (
+                      <div key={i} className="relative h-16 w-16 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden group">
+                        <img src={toAssetUrl(url)} alt={`Project ${i}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setForm(prev => ({ ...prev, projectImages: prev.projectImages.filter((_, idx) => idx !== i) }))}
+                          className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <FiTrash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <label className="cursor-pointer px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-bold text-xs shadow-sm inline-block">
+                      <input type="file" multiple className="hidden" accept="image/*" onChange={handleMultipleFileUpload} />
+                      {uploadingImage ? "Uploading..." : "Upload Project Images"}
+                    </label>
+                    <p className="text-[10px] text-gray-500 mt-1">Upload multiple images. They will appear as a carousel in the story viewer.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Service Image URL Upload */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Service Image</label>
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
-                {form.imageUrl ? (
-                  <img src={toAssetUrl(form.imageUrl)} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <FiImage className="text-gray-400 w-6 h-6" />
-                )}
+          {!form.isRecentProject && (
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Service Image</label>
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {form.imageUrl ? (
+                    <img src={toAssetUrl(form.imageUrl)} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <FiImage className="text-gray-400 w-6 h-6" />
+                  )}
+                </div>
+                <label className="cursor-pointer px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-bold text-xs shadow-sm">
+                  <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                  {uploadingImage ? "Uploading..." : "Upload Service Image"}
+                </label>
               </div>
-              <label className="cursor-pointer px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-bold text-xs shadow-sm">
-                <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
-                {uploadingImage ? "Uploading..." : "Upload Service Image"}
-              </label>
             </div>
-          </div>
+          )}
 
           {/* Buttons */}
           <div className="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-4">

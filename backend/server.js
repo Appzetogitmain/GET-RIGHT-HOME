@@ -130,6 +130,7 @@ import hsServiceRoutes from './routes/hsServiceRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import propertyFormRoutes from './routes/propertyFormRoutes.js';
 import builderFormRoutes from './routes/builderFormRoutes.js';
+import imageRoutes from './routes/imageRoutes.js';
 import { seedOnStartup } from './controllers/propertyFormController.js';
 import locationRoutes from './routes/locationRoutes.js';
 import enquiryRoutes from './routes/enquiryRoutes.js';
@@ -186,6 +187,7 @@ app.get('/api/public/plans', (req, res) => {
 });
 app.use('/api/public/insights', insightRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/image', imageRoutes);
 app.use('/api/property-forms', propertyFormRoutes);
 app.use('/api/builder-forms', builderFormRoutes);
 app.use('/api/locations', locationRoutes);

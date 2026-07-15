@@ -305,11 +305,18 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
-      <Header title="Dashboard" showBack={false} notificationCount={stats.pendingJobs} />
+      <Header 
+        title="Dashboard" 
+        showBack={false} 
+        notificationCount={stats.pendingJobs}
+        locationText={workerProfile.address?.city 
+          ? `${workerProfile.address.city}${workerProfile.address.state ? `, ${workerProfile.address.state}` : ''}`
+          : 'Location Not Set'}
+      />
 
       <main className="pt-0">
         {/* Profile Card Section */}
-        <div className="px-4 pt-4 pb-2">
+        <div className="px-4 pt-3 pb-2">
           <div
             className="rounded-2xl p-4 cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
             onClick={() => navigate('/worker/profile')}
@@ -475,6 +482,12 @@ const Dashboard = () => {
             </div>
             
             <div className="flex gap-2">
+               <button 
+                onClick={handleTestPush}
+                className="p-2 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 active:scale-95 transition-all"
+               >
+                 TEST PUSH
+               </button>
                <button 
                 onClick={() => {
                   if (window.fcmDebug) window.fcmDebug();

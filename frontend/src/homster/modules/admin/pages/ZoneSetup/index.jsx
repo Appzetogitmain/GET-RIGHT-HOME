@@ -39,7 +39,7 @@ const ZoneSetup = () => {
   const fetchZones = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/zones');
+      const res = await api.get(`/zones?_t=${Date.now()}`);
       if (res.data.success) {
         setZones(res.data.data);
       }
