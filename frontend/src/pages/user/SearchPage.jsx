@@ -697,6 +697,7 @@ const SearchPage = () => {
                                 const qfButtons = [
                                     { label: 'Owner', key: 'postedBy', isToggle: true, val: 'Owner' },
                                     { label: 'Budget', isModal: true, tab: 'Budget' },
+                                    { label: 'Gender', isModal: true, tab: 'Gender' },
                                     { label: 'BHK', isModal: true, tab: 'BHK' },
                                     { label: 'Property Type', isModal: true, tab: 'Property Type' },
                                     { label: 'New Launch', key: 'amenities', isToggle: true, val: 'New Launch' },
@@ -721,6 +722,7 @@ const SearchPage = () => {
                                         isSelected = current.includes(qf.val);
                                     } else if (qf.isModal) {
                                         if (qf.tab === 'Budget' && (filters.minPrice || filters.maxPrice)) isSelected = true;
+                                        if (qf.tab === 'Gender' && filters.amenities.some(a => ['Boys Only', 'Girls Only', 'Coliving'].includes(a))) isSelected = true;
                                         if (qf.tab === 'BHK' && filters.amenities.some(a => ['1 RK/1 BHK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'].includes(a))) isSelected = true;
                                         if (qf.tab === 'Property Type' && filters.propertyTypes && filters.propertyTypes.length > 0) isSelected = true;
                                         if (qf.tab === 'Property Size' && (filters.minArea || filters.maxArea)) isSelected = true;

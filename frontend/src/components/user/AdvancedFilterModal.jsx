@@ -17,7 +17,7 @@ const AdvancedFilterModal = ({
 }) => {
 
     const tabs = [
-        'Quick Filters', 'Budget', 'Property Type', 'BHK', 'Property Size', 'Possession Status',
+        'Quick Filters', 'Gender', 'Budget', 'Property Type', 'BHK', 'Property Size', 'Possession Status',
         'New Booking / Resale', 'Amenities & Facilities', 'Localities', 'Builders', 'Projects',
         'Floor Preference', 'Facing Direction', 'Property Features', 'Project Area',
         'Project Density', 'Posted By', 'Bathrooms', 'Photos & Videos', 'Furnishing Status'
@@ -97,6 +97,8 @@ const AdvancedFilterModal = ({
         switch (activeTab) {
             case 'Quick Filters':
                 return renderMultiSelect('amenities', 'Quick Filters', ['Verified Properties', 'With Photos', 'With Videos', 'Gated Society', 'Corner Property']);
+            case 'Gender':
+                return renderMultiSelect('amenities', 'Gender', ['Boys Only', 'Girls Only', 'Coliving']);
             case 'Property Type':
                 return renderMultiSelect('propertyTypes', 'Property Type', propertyTypes);
             case 'BHK':
@@ -322,6 +324,9 @@ const AdvancedFilterModal = ({
         let count = 0;
         if (tabName === 'Budget') {
             if (filters.minPrice || filters.maxPrice) count = 1;
+        } else if (tabName === 'Gender') {
+            const gen = ['Boys Only', 'Girls Only', 'Coliving'];
+            count = (filters.amenities || []).filter(a => gen.includes(a)).length;
         } else if (tabName === 'Property Type') {
             if (filters.propertyTypes && filters.propertyTypes.length > 0) count = filters.propertyTypes.length;
         } else if (tabName === 'BHK') {
