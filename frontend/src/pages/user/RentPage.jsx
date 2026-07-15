@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HeroSection from '../../components/user/HeroSection';
+import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
 import ExclusiveOffers from '../../components/user/ExclusiveOffers';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import ReelSection from '../../components/user/ReelSection';
@@ -92,6 +93,14 @@ const RentPage = () => {
         navigate(`/search${queryString ? `?${queryString}` : ''}`);
     };
 
+    const handleCategoryTabSelect = (id, label) => {
+        if (label === 'All') navigate('/');
+        else if (label === 'Rent' || label === 'Rent/PG' || label === 'PG/Co-Living' || label === 'PG') navigate('/rent-pg');
+        else if (label === 'Plot') navigate('/plot');
+        else if (label === 'Home Service') navigate('/home-services');
+        else if (label === 'Buy') navigate('/buy');
+    };
+
     return (
         <main className="transition-colors duration-700 w-full overflow-x-hidden min-h-screen" style={{ backgroundColor: THEME.pageBg }}>
             {/* Hero Section */}
@@ -104,8 +113,16 @@ const RentPage = () => {
                         theme={THEME} 
                         selectedType={selectedType} 
                         onSearch={(city) => setSearchCity(city)}
-                        hideGetStarted={true}
                     />
+
+                    {/* Filter Bar at bottom of hero */}
+                    <div className="bg-white pt-2">
+                        <PropertyTypeFilter
+                            selectedType={selectedType.id}
+                            onSelectType={handleCategoryTabSelect}
+                            theme={THEME}
+                        />
+                    </div>
                 </div>
             </div>
 

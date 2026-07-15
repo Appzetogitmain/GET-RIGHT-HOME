@@ -1,46 +1,45 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HeroSection from '../../components/user/HeroSection';
 import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
-import ExclusiveOffers from '../../components/user/ExclusiveOffers';
 import ReelSection from '../../components/user/ReelSection';
 import PopularBuilders from '../../components/user/PopularBuilders';
-import MoveInTimelineSection from '../../components/user/MoveInTimelineSection';
 import SupportSection from '../../components/user/SupportSection';
 import { categoryService } from '../../services/categoryService';
-import BHKChoice from '../../components/user/BHKChoice';
 import PostedByChoice from '../../components/user/PostedByChoice';
 import RecommendInsights from '../../components/user/RecommendInsights';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 import DemandInCitySection from '../../components/user/DemandInCitySection';
 import PopularToolsSection from '../../components/user/PopularToolsSection';
 
-// Theme for Buy Page
+// Theme for Plot Page (Amber style from Home.jsx)
 const THEME = {
-    darkBg: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)', // Blue
-    pageBg: '#EFF6FF',
-    accent: '#3B82F6'
+    darkBg: 'linear-gradient(135deg, #78350F 0%, #92400E 100%)', // Amber
+    pageBg: '#FFFBEB',
+    accent: '#F59E0B'
 };
 
-const BuyPage = () => {
+const PlotPage = () => {
     const navigate = useNavigate();
     const [searchCity, setSearchCity] = useState("");
-    const [buyCategoryId, setBuyCategoryId] = useState(null);
+    const [plotCategoryId, setPlotCategoryId] = useState(null);
 
-    // Initial state to match the Buy tab
-    const selectedType = { id: buyCategoryId, label: 'Buy' };
+    // Initial state to match the Plot tab
+    const selectedType = { id: plotCategoryId, label: 'Plot' };
 
     useEffect(() => {
         const fetchIds = async () => {
             try {
                 const categories = await categoryService.getActiveCategories();
-                const buyCat = categories.find(c => 
-                    (c.displayName || '').toLowerCase() === 'buy' || 
-                    (c.name || '').toLowerCase() === 'buy'
+                const plotCat = categories.find(c => 
+                    (c.displayName || '').toLowerCase() === 'plot' || 
+                    (c.name || '').toLowerCase() === 'plot' ||
+                    (c.displayName || '').toLowerCase() === 'plots' || 
+                    (c.name || '').toLowerCase() === 'plots'
                 );
-                if (buyCat) setBuyCategoryId(buyCat._id);
+                if (plotCat) setPlotCategoryId(plotCat._id);
             } catch (err) {
-                console.error("Failed to fetch Buy category ID", err);
+                console.error("Failed to fetch Plot category ID", err);
             }
         };
         fetchIds();
@@ -80,14 +79,14 @@ const BuyPage = () => {
             </div>
 
             {/* Clear Navigation Header */}
-            <div className="bg-white px-4 py-6 border-b border-blue-100 mb-6 shadow-sm">
+            <div className="bg-white px-4 py-6 border-b border-amber-100 mb-6 shadow-sm">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-                            Explore Properties for <span className="text-blue-600">Buy</span>
+                            Explore Premium <span className="text-amber-600">Plots & Land</span>
                         </h1>
                         <p className="text-sm text-gray-500 mt-1">
-                            Find your dream home in {searchCity || 'Bengaluru'} with zero hassle.
+                            Find the perfect land for your dream project in {searchCity || 'Bengaluru'}.
                         </p>
                     </div>
                 </div>
@@ -95,18 +94,18 @@ const BuyPage = () => {
 
             {/* 1. Offers Section */}
             <div id="video-curations-section" className="max-w-7xl mx-auto -mt-8 mb-6">
-                 <PropertyVideoCurations pageType="buy" />
+                 <PropertyVideoCurations pageType="plot" />
             </div>
 
             <div className="mt-2 max-w-7xl mx-auto flex flex-col gap-4 px-4 md:px-0">
                 {/* 3. Recommend Insights */}
                 <div id="recommended-insights-section">
-                    <RecommendInsights transactionType="Buy" />
+                    <RecommendInsights transactionType="Plot" />
                 </div>
 
-                {/* 4. Reels (Buy Context) */}
-                <div id="buy-reels-section">
-                    <ReelSection category="Buy" />
+                {/* 4. Reels (Plot Context) */}
+                <div id="plot-reels-section">
+                    <ReelSection category="Plot" />
                 </div>
 
                 {/* 5. Demand in [City] Section */}
@@ -114,37 +113,20 @@ const BuyPage = () => {
                     <DemandInCitySection city={searchCity || 'Bengaluru'} />
                 </div>
 
-
-
-                {/* 7. BHK Choice */}
-                <div id="bhk-choice-section">
-                    <BHKChoice transactionType="Buy" />
-                </div>
+                {/* 6. Posted By */}
                 <div id="posted-by-section">
-                    <PostedByChoice transactionType="Buy" />
+                    <PostedByChoice transactionType="Plot" />
                 </div>
 
-                {/* 8. Move In Timeline */}
-                <div id="timeline-section">
-                    <MoveInTimelineSection transactionType="Buy" />
-                </div>
-
-                {/* 10. Future Dealers Placeholder */}
-                {/* <div id="dealers-section" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Future Dealers</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Avatar carousel of top rated dealers]</p>
-                </div> */}
-
-                {/* 11. Popular Builders (Existing) */}
+                {/* 7. Popular Builders */}
                 <div id="popular-builders-section">
                     <PopularBuilders />
                 </div>
 
-                {/* 12. Popular Tools Placeholder */}
+                {/* 8. Popular Tools */}
                 <div id="popular-tools-section">
                     <PopularToolsSection />
                 </div>
-
             </div>
 
             <SupportSection />
@@ -152,4 +134,4 @@ const BuyPage = () => {
     );
 };
 
-export default BuyPage;
+export default PlotPage;
