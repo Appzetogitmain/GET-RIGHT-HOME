@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import HeroSection from '../../components/user/HeroSection';
 import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
 import ExclusiveOffers from '../../components/user/ExclusiveOffers';
-import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import ReelSection from '../../components/user/ReelSection';
 import PopularBuilders from '../../components/user/PopularBuilders';
 import MoveInTimelineSection from '../../components/user/MoveInTimelineSection';
@@ -91,11 +90,6 @@ const BuyPage = () => {
                  <PropertyVideoCurations pageType="buy" />
             </div>
 
-            {/* 2. Handpicked Projects (Buy Context) */}
-            <div id="handpicked-admin-section" className="max-w-7xl mx-auto">
-                <AdminPropertiesSection searchCity={searchCity} transactionType="buy" />
-            </div>
-
             <div className="mt-2 max-w-7xl mx-auto flex flex-col gap-4 px-4 md:px-0">
                 {/* 3. Recommend Insights */}
                 <div id="recommended-insights-section">
@@ -112,11 +106,7 @@ const BuyPage = () => {
                     <DemandInCitySection city={searchCity || 'Bengaluru'} />
                 </div>
 
-                {/* 6. Pre-launch Projects Placeholder */}
-                {/* <div id="prelaunch-section" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Pre Launch Projects</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Carousel of pre-launch projects]</p>
-                </div> */}
+
 
                 {/* 7. BHK Choice */}
                 <div id="bhk-choice-section">
@@ -132,10 +122,10 @@ const BuyPage = () => {
                 </div>
 
                 {/* 10. Future Dealers Placeholder */}
-                <div id="dealers-section" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                {/* <div id="dealers-section" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h2 className="text-xl font-bold mb-2">Future Dealers</h2>
                     <p className="text-sm text-slate-500">[To be implemented: Avatar carousel of top rated dealers]</p>
-                </div>
+                </div> */}
 
                 {/* 11. Popular Builders (Existing) */}
                 <div id="popular-builders-section">
