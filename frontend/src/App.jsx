@@ -68,6 +68,9 @@ const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPag
 const ListPropertyWizard = React.lazy(() => import('./pages/user/ListPropertyWizard'));
 const DynamicFormEngine = React.lazy(() => import('./pages/user/DynamicFormEngine'));
 const BuilderProfilePage = React.lazy(() => import('./pages/user/BuilderProfilePage'));
+const EmiCalculatorPage = React.lazy(() => import('./pages/user/EmiCalculatorPage'));
+const HomeLoanEligibilityPage = React.lazy(() => import('./pages/user/HomeLoanEligibilityPage'));
+const AreaConverterPage = React.lazy(() => import('./pages/user/AreaConverterPage'));
 const CartPage = React.lazy(() => import('./homster/modules/user/pages/Cart'));
 const HomeServiceCheckoutPage = React.lazy(() => import('./homster/modules/user/pages/Checkout'));
 const HomeServiceBookingsPage = React.lazy(() => import('./homster/modules/user/pages/MyBookings'));
@@ -502,7 +505,12 @@ function App() {
                     <Route path="/buy" element={<BuyPage />} />
                     <Route path="/insights/:locality" element={<LocalityDetail />} />
                     <Route path="/insights/:locality/reviews" element={<LocalityReviewsPage />} />
+                    <Route path="/locality-insights/:city/:locality" element={<LocalityDetail />} />
+                    <Route path="/locality-insights/:city/:locality/reviews" element={<LocalityReviewsPage />} />
                     <Route path="/compare" element={<PropertyComparePage />} />
+                    <Route path="/home-loan-emi-calculator" element={<EmiCalculatorPage />} />
+                    <Route path="/home-loan-eligibility-calculator" element={<HomeLoanEligibilityPage />} />
+                    <Route path="/area-converter" element={<AreaConverterPage />} />
                     <Route path="/listings" element={<Navigate to="/search" replace />} />
                     <Route path="/partner-landing" element={<PartnerLandingPage />} />
                     <Route path="/about" element={<AboutPage />} />

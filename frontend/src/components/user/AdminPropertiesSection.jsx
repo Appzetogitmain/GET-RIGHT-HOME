@@ -583,8 +583,12 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }
                         <p className="text-sm font-bold text-gray-500">Select a city above to see properties</p>
                     </div>
                 ) : loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
+                    <div className="flex overflow-x-hidden gap-4 pb-4 px-5 md:px-0">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="min-w-[280px] md:min-w-[320px] max-w-[320px] shrink-0">
+                                <SkeletonCard />
+                            </div>
+                        ))}
                     </div>
                 ) : (displayProperties.length === 0) ? (
                     <motion.div

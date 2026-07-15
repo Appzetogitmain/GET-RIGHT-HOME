@@ -28,6 +28,16 @@ const PropertyVideoCurations = ({ pageType }) => {
         fetchVideos();
     }, [pageType]);
 
+    // Restore Horizontal Scroll
+    React.useLayoutEffect(() => {
+        if (!loading && videos.length > 0 && scrollRef.current) {
+            const savedScroll = sessionStorage.getItem(`scroll-left-videos-${pageType}`);
+            if (savedScroll) {
+                scrollRef.current.scrollLeft = parseInt(savedScroll, 10);
+            }
+        }
+    }, [loading, videos, pageType]);
+
     const getYoutubeId = (url) => {
         if (!url) return null;
         const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
@@ -59,6 +69,7 @@ const PropertyVideoCurations = ({ pageType }) => {
                     const width = e.target.offsetWidth;
                     const index = Math.round(scrollLeft / width);
                     setCurrentIdx(index);
+                    sessionStorage.setItem(`scroll-left-videos-${pageType}`, scrollLeft.toString());
                 }}
                 className="flex overflow-x-auto gap-5 no-scrollbar pb-6 -mx-1 px-1 snap-x snap-mandatory"
             >

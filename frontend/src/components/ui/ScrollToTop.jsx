@@ -32,6 +32,11 @@ const ScrollToTop = () => {
       const lastSectionId = sessionStorage.getItem(`last-clicked-section-${pathname}`);
       const savedPosition = sessionStorage.getItem(`scrollPos-${pathname}`);
       
+      // Instantly wipe memory so a refresh never triggers this twice
+      if (lastSectionId) sessionStorage.removeItem(`last-clicked-section-${pathname}`);
+
+      const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
+
       if (lastSectionId) {
         // --- ELEMENT ANCHOR LOGIC ---
         let attempts = 0;
@@ -77,8 +82,8 @@ const ScrollToTop = () => {
         observer.observe(document.body);
         setTimeout(() => observer.disconnect(), 2500);
 
-      } else if (savedPosition) {
-        // --- FALLBACK PIXEL LOGIC ---
+      } else if (savedPosition && !isReload) {
+        // --- FALLBACK PIXEL LOGIC (Only for back-button, not refresh) ---
         const targetPos = parseInt(savedPosition, 10);
         let attempts = 0;
         let success = false;
@@ -114,11 +119,15 @@ const ScrollToTop = () => {
   }, [pathname, action]);
 
   useEffect(() => {
+    // Prevent saving scroll state during the chaotic first second of mount/restoration
+    let isRestoring = true;
+    setTimeout(() => isRestoring = false, 1000);
+
     // 1. Vertical Scroll tracker
     const handleScroll = () => {
+      if (isRestoring) return;
       const currentPos = window.lenis ? window.lenis.scroll : window.scrollY;
       sessionStorage.setItem(`scrollPos-${pathname}`, (currentPos || 0).toString());
-      sessionStorage.setItem(`scrollHeight-${pathname}`, document.documentElement.scrollHeight.toString());
     };
 
     let scrollTimeout;

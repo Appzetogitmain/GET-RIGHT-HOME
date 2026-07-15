@@ -160,7 +160,22 @@ const ReelSection = ({ category }) => {
     const navigate = useNavigate();
     const [reels, setReels] = useState([]);
     const [loading, setLoading] = useState(true);
+    const scrollRef = useRef(null);
 
+    React.useLayoutEffect(() => {
+        if (!loading && reels.length > 0 && scrollRef.current) {
+            const savedScroll = sessionStorage.getItem(`scroll-left-reels-${category}`);
+            if (savedScroll) {
+                scrollRef.current.scrollLeft = parseInt(savedScroll, 10);
+            }
+        }
+    }, [loading, reels, category]);
+
+    const handleScroll = () => {
+        if (scrollRef.current) {
+            sessionStorage.setItem(`scroll-left-reels-${category}`, scrollRef.current.scrollLeft.toString());
+        }
+    };
 
     useEffect(() => {
         const fetchReels = async () => {
@@ -210,7 +225,11 @@ const ReelSection = ({ category }) => {
                 </button>
             </div>
 
-            <div className="flex overflow-x-auto gap-2 pb-2 px-5 no-scrollbar snap-x snap-mandatory">
+            <div 
+                ref={scrollRef}
+                onScroll={handleScroll}
+                className="flex overflow-x-auto gap-2 pb-2 px-5 no-scrollbar snap-x snap-mandatory"
+            >
                 {reels.map((reel) => (
                     <ReelItem key={reel._id} reel={reel} navigate={navigate} />
                 ))}

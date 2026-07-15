@@ -8,6 +8,7 @@ const RecommendInsights = ({ transactionType }) => {
     const navigate = useNavigate();
     const [insights, setInsights] = useState([]);
     const [loading, setLoading] = useState(true);
+    const scrollContainerRef = React.useRef(null);
 
     useEffect(() => {
         const fetchInsights = async () => {
@@ -42,10 +43,38 @@ const RecommendInsights = ({ transactionType }) => {
         fetchInsights();
     }, [transactionType]);
 
-    if (loading) return null;
+    // Restore Horizontal Scroll
+    useEffect(() => {
+        if (!loading && insights.length > 0 && scrollContainerRef.current) {
+            const savedScroll = sessionStorage.getItem('buy_recommended_insights_scroll');
+            if (savedScroll) {
+                scrollContainerRef.current.scrollLeft = parseInt(savedScroll, 10);
+            }
+        }
+    }, [loading, insights]);
+
+    const handleScroll = (e) => {
+        sessionStorage.setItem('buy_recommended_insights_scroll', e.target.scrollLeft);
+    };
+
+    if (loading) {
+        return (
+            <div id="buy-recommended-insights-section" className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mt-2 min-h-[340px] animate-pulse">
+                 <div className="mb-6">
+                    <div className="h-7 bg-slate-200 rounded w-1/3 mb-2"></div>
+                    <div className="h-4 bg-slate-100 rounded w-1/2"></div>
+                </div>
+                <div className="flex gap-4">
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="min-w-[160px] md:min-w-[200px] aspect-[4/5] bg-slate-100 rounded-xl shrink-0"></div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mt-2">
+        <div id="buy-recommended-insights-section" className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mt-2 scroll-mt-24">
             {/* Header section matching 99acres style */}
             <div className="mb-6">
                 <h2 className="text-xl md:text-2xl font-black text-[#0B1A3A] tracking-tight">
@@ -57,7 +86,11 @@ const RecommendInsights = ({ transactionType }) => {
             </div>
 
             {/* Slider */}
-            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2 snap-x snap-mandatory">
+            <div 
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2 snap-x snap-mandatory"
+            >
                 {insights.map((insight) => (
                     <motion.div
                         key={insight._id}

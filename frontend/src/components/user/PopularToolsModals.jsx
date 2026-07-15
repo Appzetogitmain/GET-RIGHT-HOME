@@ -1,39 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { X, RefreshCw, Home, Activity, Building } from 'lucide-react';
+import { ArrowLeft, X, RefreshCw, Home, Activity, Building } from 'lucide-react';
 
 const PopularToolsModals = ({ activeTool, onClose }) => {
     useEffect(() => {
         if (activeTool) {
             document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = 'unset';
+            document.documentElement.style.overflow = 'unset';
         }
         return () => {
             document.body.style.overflow = 'unset';
+            document.documentElement.style.overflow = 'unset';
         };
     }, [activeTool]);
 
     if (!activeTool) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-            <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl my-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-slate-900">
-                        {activeTool === 'budget' && 'Budget Calculator'}
-                        {activeTool === 'emi' && 'EMI Calculator'}
-                        {activeTool === 'area' && 'Area Converter'}
-                        {activeTool === 'loan' && 'Loan Eligibility'}
-                    </h3>
-                    <button onClick={onClose} className="p-2 bg-slate-100 rounded-full hover:bg-rose-100 hover:text-rose-600 transition-colors">
+        <div data-lenis-prevent="true" className="fixed inset-0 z-[9999] bg-white md:bg-black/60 md:backdrop-blur-sm md:p-4 md:flex md:items-center md:justify-center overflow-hidden overscroll-none touch-none">
+            <div data-lenis-prevent="true" className={`bg-white w-full h-full md:h-auto md:max-h-[95vh] overflow-y-auto overscroll-contain md:rounded-2xl p-6 md:shadow-2xl flex flex-col touch-auto ${activeTool === 'budget' ? 'md:max-w-[800px] md:w-full' : 'md:max-w-md'}`}>
+                {/* Mobile Header */}
+                <div className="flex justify-between items-center mb-4 shrink-0 md:hidden">
+                    <button onClick={onClose} className="p-2 -ml-2 text-slate-800 hover:bg-slate-100 rounded-full transition-colors">
+                        <ArrowLeft className="w-6 h-6" strokeWidth={2} />
+                    </button>
+                </div>
+                {/* Desktop Header */}
+                <div className="hidden md:flex justify-end items-center shrink-0 -mt-2 -mr-2">
+                    <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                {activeTool === 'emi' && <EmiCalculator />}
-                {activeTool === 'budget' && <BudgetCalculator />}
-                {activeTool === 'area' && <AreaConverter />}
-                {activeTool === 'loan' && <LoanEligibility />}
+                {activeTool === 'emi' && (
+                    <>
+                        <h2 className="text-2xl font-bold text-[#0B1A3A] mb-6">EMI Calculator</h2>
+                        <EmiCalculator />
+                    </>
+                )}
+                {activeTool === 'budget' && (
+                    <>
+                        <h2 className="text-[20px] md:text-[26px] font-bold text-[#0B1A3A] leading-tight mb-5 md:mb-8">Check your home buying budget</h2>
+                        <BudgetCalculator />
+                    </>
+                )}
+                {activeTool === 'area' && (
+                    <>
+                        <h2 className="text-2xl font-bold text-[#0B1A3A] mb-6">Area Converter</h2>
+                        <AreaConverter />
+                    </>
+                )}
+                {activeTool === 'loan' && (
+                    <>
+                        <h2 className="text-2xl font-bold text-[#0B1A3A] mb-6">Loan Eligibility</h2>
+                        <LoanEligibility />
+                    </>
+                )}
             </div>
         </div>
     );
@@ -81,53 +105,158 @@ const EmiCalculator = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Added Content for EMI Calculator */}
+            <div className="mt-8 pt-6 border-t border-slate-100 text-left">
+                <h4 className="font-bold text-slate-800 text-lg mb-3">About GetRightHome EMI Calculator</h4>
+                <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                    Planning to buy a home? The GetRightHome EMI Calculator helps you estimate your monthly home loan EMIs in seconds. 
+                    By simply inputting the loan amount, interest rate, and tenure, you can accurately plan your budget and make 
+                    informed real estate decisions.
+                </p>
+
+                <h4 className="font-bold text-slate-800 text-lg mb-4">Frequently Asked Questions</h4>
+                <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-2">What is an EMI?</h5>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            Equated Monthly Installment (EMI) is a fixed payment amount made by a borrower to a lender at a specified date each calendar month. EMIs are used to pay off both interest and principal each month.
+                        </p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-2">How is the GetRightHome EMI calculated?</h5>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            We use the standard formula: P x R x (1+R)^N / [(1+R)^N-1], where P is Principal, R is monthly interest rate, and N is loan tenure in months.
+                        </p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-2">Can I prepay my home loan?</h5>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            Yes, most banks allow you to prepay your home loan. Prepaying can significantly reduce your interest burden and overall loan tenure.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
 
 // --- Budget Calculator ---
 const BudgetCalculator = () => {
-    const [income, setIncome] = useState(100000);
-    const [existingEmi, setExistingEmi] = useState(0);
-    const [rate, setRate] = useState(8.5);
+    const [savings, setSavings] = useState(2000000);
+    const [emi, setEmi] = useState(20000);
     const [tenure, setTenure] = useState(20);
 
-    // Affordable EMI is max 50% of income minus existing EMIs
-    const affordableEmi = Math.max(0, (income * 0.5) - existingEmi);
-    
-    // Reverse EMI formula to find Principal
-    const r = rate / (12 * 100);
+    const formatCurrency = (val) => {
+        if (val >= 10000000) return `₹ ${(val / 10000000).toFixed(2).replace(/\.00$/, '')} Cr`;
+        if (val >= 100000) return `₹ ${(val / 100000).toFixed(2).replace(/\.00$/, '')} Lacs`;
+        return `₹ ${val.toLocaleString('en-IN')}`;
+    };
+
+    // Calculate budget
+    const r = 8.75 / (12 * 100);
     const n = tenure * 12;
-    const maxLoan = r > 0 ? affordableEmi / (r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1)) : 0;
-    
-    // Assuming 20% down payment is required
-    const maxPropertyBudget = maxLoan / 0.8;
+    const maxLoan = emi / (r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1));
+    const totalBudget = savings + maxLoan;
+
+    // Budget range (e.g., 40 - 45 lacs)
+    const lowerBudget = Math.floor(totalBudget * 0.95 / 100000);
+    const upperBudget = Math.ceil(totalBudget * 1.05 / 100000);
+    let rangeText = `${lowerBudget} - ${upperBudget} lacs`;
+    if (totalBudget >= 10000000) {
+        rangeText = `${(totalBudget * 0.95 / 10000000).toFixed(2)} - ${(totalBudget * 1.05 / 10000000).toFixed(2)} Cr`;
+    }
 
     return (
-        <div className="space-y-4">
-            <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">Net Monthly Income (₹)</label>
-                <input type="number" value={income} onChange={e => setIncome(Number(e.target.value))} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-purple-500 outline-none" />
-            </div>
-            <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">Existing Monthly EMIs (₹)</label>
-                <input type="number" value={existingEmi} onChange={e => setExistingEmi(Number(e.target.value))} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-purple-500 outline-none" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Interest Rate (%)</label>
-                    <input type="number" step="0.1" value={rate} onChange={e => setRate(Number(e.target.value))} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-purple-500 outline-none" />
+        <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-16">
+                <div className="space-y-5 md:space-y-8">
+                    {/* Savings Slider */}
+                    <div>
+                        <div className="flex justify-between items-center mb-3 md:mb-4">
+                            <label className="text-[13px] md:text-[15px] text-[#0B1A3A]">Savings for buying home</label>
+                            <span className="font-bold text-[13px] md:text-[15px] text-[#0B1A3A]">{formatCurrency(savings)}</span>
+                        </div>
+                        <input 
+                            type="range" 
+                            min={0} max={200000000} step={100000} 
+                            value={savings} 
+                            onChange={e => setSavings(Number(e.target.value))} 
+                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#1A65EB]"
+                        />
+                        <div className="flex justify-between mt-2">
+                            <span className="text-[11px] md:text-[12px] text-[#7B8B9B] font-medium">₹ 0</span>
+                            <span className="text-[11px] md:text-[12px] text-[#7B8B9B] font-medium">₹ 20 Cr</span>
+                        </div>
+                    </div>
+
+                    {/* EMI Slider */}
+                    <div>
+                        <div className="flex justify-between items-center mb-3 md:mb-4">
+                            <label className="text-[13px] md:text-[15px] text-[#0B1A3A]">EMI you can afford</label>
+                            <span className="font-bold text-[13px] md:text-[15px] text-[#0B1A3A]">{formatCurrency(emi)}</span>
+                        </div>
+                        <input 
+                            type="range" 
+                            min={1000} max={1000000} step={1000} 
+                            value={emi} 
+                            onChange={e => setEmi(Number(e.target.value))} 
+                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#1A65EB]"
+                        />
+                        <div className="flex justify-between mt-2">
+                            <span className="text-[11px] md:text-[12px] text-[#7B8B9B] font-medium">₹ 1,000</span>
+                            <span className="text-[11px] md:text-[12px] text-[#7B8B9B] font-medium">₹ 10 Lacs</span>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Tenure (Years)</label>
-                    <input type="number" value={tenure} onChange={e => setTenure(Number(e.target.value))} className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-purple-500 outline-none" />
+
+                <div className="space-y-5 md:space-y-8">
+                    {/* Tenure Slider */}
+                    <div>
+                        <div className="flex justify-between items-center mb-3 md:mb-4">
+                            <label className="text-[13px] md:text-[15px] text-[#0B1A3A]">Preffered loan tenure</label>
+                            <span className="font-bold text-[13px] md:text-[15px] text-[#0B1A3A]">{tenure} Years</span>
+                        </div>
+                        <input 
+                            type="range" 
+                            min={1} max={30} step={1} 
+                            value={tenure} 
+                            onChange={e => setTenure(Number(e.target.value))} 
+                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#1A65EB]"
+                        />
+                        <div className="flex justify-between mt-2">
+                            <span className="text-[11px] md:text-[12px] text-[#7B8B9B] font-medium">1 yr</span>
+                            <span className="text-[11px] md:text-[12px] text-[#7B8B9B] font-medium">30 yrs</span>
+                        </div>
+                    </div>
+
+                    {/* Desktop Result View */}
+                    <div className="hidden md:flex items-center gap-6 pt-6">
+                        <span className="text-[15px] text-[#0B1A3A]">Your home budget</span>
+                        <span className="text-[20px] font-bold text-[#0B1A3A]">{rangeText}</span>
+                    </div>
                 </div>
+            </div>
+
+            {/* Mobile Result View */}
+            <div className="md:hidden mt-5 text-center">
+                <p className="text-[14px] text-[#0B1A3A] mb-2">Budget range you may consider*</p>
+                <div className="flex justify-center items-center gap-2 mb-4">
+                    <p className="text-[22px] font-bold text-[#0B1A3A]">₹ {rangeText}</p>
+                    <div className="w-4 h-4 rounded-full bg-slate-400 text-white flex items-center justify-center text-[10px] font-bold font-serif cursor-pointer">i</div>
+                </div>
+                
+                <button 
+                    onClick={() => window.location.href = `/search?transactionType=buy&maxPrice=${upperBudget * 100000}`}
+                    className="w-full py-3 bg-[#0078DB] hover:bg-[#0066BA] text-white font-bold rounded-lg transition-colors text-[14px] mb-2"
+                >
+                    View properties in this budget
+                </button>
             </div>
             
-            <div className="p-4 bg-purple-50 rounded-xl border border-purple-100 mt-6 text-center">
-                <p className="text-xs text-purple-600 font-bold mb-1">Max Affordable Property Budget</p>
-                <p className="text-3xl font-black text-purple-900">₹{Math.round(maxPropertyBudget || 0).toLocaleString()}</p>
-                <p className="text-[10px] text-slate-500 mt-2">*Assuming 20% down payment and 50% max EMI ratio</p>
+            {/* Disclaimer */}
+            <div className="mt-4 md:mt-16 text-center md:text-left">
+                <p className="text-[10px] md:text-[12px] text-[#7B8B9B]">*Estimated budget is calculated at an average interest rate of 8.75%</p>
             </div>
         </div>
     );
@@ -188,6 +317,77 @@ const AreaConverter = () => {
                 <p className="text-xs text-emerald-600 font-bold mt-1 uppercase">
                     {toUnit === 'sqft' ? 'Sq. Ft.' : toUnit === 'sqm' ? 'Sq. Meters' : toUnit === 'sqyrd' ? 'Sq. Yards' : toUnit}
                 </p>
+            </div>
+
+            {/* Added Content for Area Converter */}
+            <div className="mt-8 pt-6 border-t border-slate-100 text-left">
+                <h4 className="font-bold text-slate-800 text-lg mb-3">About Land Measurement Units</h4>
+                <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                    Land measurement in India involves a variety of local and regional units, which can vary significantly from state to state. To ensure accuracy in property transactions, it is standard practice to convert these regional units into internationally accepted SI units (such as square meters or square feet).
+                </p>
+
+                <div className="mb-6 space-y-4">
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-1">Units used in North India</h5>
+                        <p className="text-xs text-slate-600">Commonly used units include Bigha, Biswa, Biswansi, Killa, Ghumaon, and Kanal, prevalent in states like Haryana, Punjab, Uttar Pradesh, and Uttarakhand.</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-1">Units used in South India</h5>
+                        <p className="text-xs text-slate-600">Units such as Cent, Ground, Ankanam, Guntha, and Kuncham are widely used in Tamil Nadu, Andhra Pradesh, Kerala, and Karnataka.</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-1">Units used in East India</h5>
+                        <p className="text-xs text-slate-600">States like West Bengal, Assam, Bihar, and Jharkhand often utilize Chatak, Decimal, Dhur, Kattha, and Lecha.</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-1">Units used in West India</h5>
+                        <p className="text-xs text-slate-600">In parts of Rajasthan and Gujarat, Bigha, Biswa, and Biswansi are popular.</p>
+                    </div>
+                </div>
+
+                <h4 className="font-bold text-slate-800 text-lg mb-4">Popular Area Conversions</h4>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-500">Hectare to Acre</span>
+                        <span className="text-sm font-bold text-slate-800">2.47</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-500">Acre to Hectare</span>
+                        <span className="text-sm font-bold text-slate-800">0.404</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-500">Sq Ft to Cent</span>
+                        <span className="text-sm font-bold text-slate-800">0.002</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-500">Sq Ft to Sq Meter</span>
+                        <span className="text-sm font-bold text-slate-800">0.092</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-500">Sq Ft to Sq Yard</span>
+                        <span className="text-sm font-bold text-slate-800">0.111</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-500">Sq Ft to Gaj</span>
+                        <span className="text-sm font-bold text-slate-800">0.111</span>
+                    </div>
+                </div>
+
+                <h4 className="font-bold text-slate-800 text-lg mb-4">FAQs on Area Measurement (Bengaluru based)</h4>
+                <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-2">What is the standard unit for buying flats in Bengaluru?</h5>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            Square Feet (Sq. Ft.) is the standard and most legally recognized unit for buying and selling apartments and flats across Bengaluru.
+                        </p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <h5 className="font-bold text-slate-800 text-sm mb-2">How is carpet area different from super built-up area?</h5>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            Carpet area is the actual usable floor area inside your flat. Super built-up area includes common spaces like corridors, lifts, and lobbies, which is usually 20-30% more than the carpet area.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     );

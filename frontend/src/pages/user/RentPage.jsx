@@ -157,12 +157,6 @@ const RentPage = () => {
                     <p className="text-sm text-slate-500">[To be implemented: Dynamic grid of top localities]</p>
                 </div>
 
-                {/* 6. Pre-launch Projects Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Pre Launch Projects</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Carousel of pre-launch projects]</p>
-                </div>
-
                 {/* 7. BHK Choice */}
                 <BHKChoice transactionType="Rent" />
                 <PostedByChoice transactionType="Rent" />
@@ -189,11 +183,6 @@ const RentPage = () => {
                     <p className="text-sm text-slate-500">[To be implemented: Icons for EMI calculator, etc.]</p>
                 </div>
 
-                {/* 13. Top Articles Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Top Articles</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Grid of blog/news posts]</p>
-                </div>
             </div>
 
             <SupportSection />

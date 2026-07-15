@@ -21,7 +21,26 @@ export const getInsights = async (req, res) => {
 
         const insights = await LocalityInsight.find(query)
             .sort({ views: -1, createdAt: -1 })
-            .limit(Number(limit));
+            .limit(Number(limit))
+            .lean();
+
+        // Dynamically calculate average property rate for each insight
+        for (let insight of insights) {
+            const regexLocality = new RegExp('^' + insight.locality.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i');
+            const properties = await Property.find({ 'address.area': regexLocality, status: 'approved' }).lean();
+            
+            let totalPrice = 0;
+            let validPriceCount = 0;
+            properties.forEach(p => {
+                const price = p.buyDetails?.expectedPrice || p.rentDetails?.monthlyRent || p.plotDetails?.expectedPrice || p.dynamicData?.expectedPrice || p.dynamicData?.monthlyRent || 0;
+                if (price > 0) {
+                    totalPrice += price;
+                    validPriceCount++;
+                }
+            });
+            let fallbackPrice = insight.averagePricePerSqft ? insight.averagePricePerSqft * 1200 : 8500000;
+            insight.averagePropertyRate = validPriceCount > 0 ? Math.round(totalPrice / validPriceCount) : fallbackPrice;
+        }
 
         res.status(200).json({
             success: true,
@@ -47,16 +66,27 @@ export const getLocalityDetail = async (req, res) => {
         const insight = await LocalityInsight.findOne({ locality: { $regex: new RegExp(`^${locality}$`, 'i') } });
         
         // 2. Automated Property Aggregations
-        const regexLocality = new RegExp(locality, 'i');
-        
+        // Strict regex to exactly match the locality name and prevent partial matches (e.g. 'Indore' matching 'AB Road Indore')
+        const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regexLocality = new RegExp('^' + escapeRegex(locality) + '$', 'i');
+
         // A. Total properties and average price
         const properties = await Property.find({ 'address.area': regexLocality, status: 'approved' }).lean();
         const totalProperties = properties.length;
         
-        // Calculate average price (simplified)
+        // Calculate average price (extracting from sub-schemas)
         let totalPrice = 0;
-        properties.forEach(p => totalPrice += (p.price || 0));
-        const averagePropertyRate = totalProperties > 0 ? (totalPrice / totalProperties) : 0;
+        let validPriceCount = 0;
+        properties.forEach(p => {
+            const price = p.buyDetails?.expectedPrice || p.rentDetails?.monthlyRent || p.plotDetails?.expectedPrice || p.dynamicData?.expectedPrice || p.dynamicData?.monthlyRent || 0;
+            if (price > 0) {
+                totalPrice += price;
+                validPriceCount++;
+            }
+        });
+        
+        let fallbackRate = insight && insight.averagePricePerSqft ? insight.averagePricePerSqft * 1200 : 8500000;
+        const averagePropertyRate = validPriceCount > 0 ? Math.round(totalPrice / validPriceCount) : fallbackRate;
         
         // B. BHK Configurations Aggregation
         const bhkConfigMap = {};
@@ -77,9 +107,20 @@ export const getLocalityDetail = async (req, res) => {
         }));
 
         // 3. Automated Project Aggregations (using Property model, as projects are just premium properties)
-        const newlyLaunched = await Property.find({ 'address.area': regexLocality, status: 'approved' }).sort({ createdAt: -1 }).limit(4).lean();
-        const popularProjects = await Property.find({ 'address.area': regexLocality, status: 'approved' }).sort({ views: -1 }).limit(4).lean();
-        
+        // 7. Popular Projects (Split by Buy and Rent)
+        const popularBuyProjects = await Property.find({ 'address.area': regexLocality, status: 'approved', transactionType: 'Buy' })
+            .sort({ views: -1 })
+            .limit(5);
+            
+        const popularRentProjects = await Property.find({ 'address.area': regexLocality, status: 'approved', transactionType: 'Rent' })
+            .sort({ views: -1 })
+            .limit(5);
+            
+        const popularProjects = { Buy: popularBuyProjects, Rent: popularRentProjects };
+
+        // 8. Newly Launched (keeping as empty array if not used, or fetch if needed)
+        const newlyLaunched = [];
+
         // 4. Aggregate Top Sellers (Users with most active properties in this locality)
         // Group properties by userId
         const sellerAggregation = await Property.aggregate([
@@ -92,7 +133,7 @@ export const getLocalityDetail = async (req, res) => {
         let topSellers = [];
         if (sellerAggregation.length > 0) {
             const sellerIds = sellerAggregation.map(s => s._id);
-            const users = await User.find({ _id: { $in: sellerIds } }).select('name profilePicture role');
+            const users = await User.find({ _id: { $in: sellerIds } }).select('name profilePicture role createdAt');
             topSellers = users.map(u => {
                 const agg = sellerAggregation.find(s => s._id.toString() === u._id.toString());
                 return {
@@ -100,9 +141,76 @@ export const getLocalityDetail = async (req, res) => {
                     name: u.name,
                     role: u.role,
                     profilePicture: u.profilePicture,
+                    createdAt: u.createdAt,
                     propertyCount: agg ? agg.propertyCount : 0
                 };
             }).sort((a, b) => b.propertyCount - a.propertyCount);
+        }
+
+        // 4b. Top Builders
+        // Step 1: Find builders active in this locality
+        const localBuilders = await Property.distinct('buyDetails.builderName', { 'address.area': regexLocality, status: 'approved' });
+        const cleanLocalBuilders = localBuilders.filter(b => b && b.trim() !== '');
+
+        const currentCity = insight ? insight.city : (properties.length > 0 ? properties[0].address.city : null);
+
+        // Fallback logic: If no local builders, fetch top builders in the city, or globally
+        let builderMatch = {};
+        if (cleanLocalBuilders.length > 0) {
+            builderMatch = { 'buyDetails.builderName': { $in: cleanLocalBuilders }, status: 'approved' };
+        } else if (currentCity) {
+            builderMatch = { 'address.city': new RegExp(`^${currentCity}$`, 'i'), status: 'approved', 'buyDetails.builderName': { $ne: null, $nin: ["", " "] } };
+        } else {
+            builderMatch = { status: 'approved', 'buyDetails.builderName': { $ne: null, $nin: ["", " "] } };
+        }
+
+        // Step 2: Aggregate their global stats (total views, total projects, total cities) to rank them
+        const builderAggregation = await Property.aggregate([
+            { $match: builderMatch },
+            { $group: { 
+                _id: "$buyDetails.builderName", 
+                propertyCount: { $sum: 1 }, 
+                totalViews: { $sum: "$views" },
+                cities: { $addToSet: "$address.city" }
+            } },
+            { $sort: { totalViews: -1, propertyCount: -1 } },
+            { $limit: 4 }
+        ]);
+        const topBuilders = builderAggregation.map(b => ({ 
+            name: b._id, 
+            propertyCount: b.propertyCount,
+            cityCount: b.cities.length || 1,
+            years: 15 // Placeholder since Builder entity doesn't track founding year yet
+        }));
+
+        // 6. Similar Localities (based on same city, excluding this locality)
+        let similarLocalities = [];
+        
+        if (currentCity) {
+            const cityRegex = new RegExp(`^${currentCity}$`, 'i');
+            const similarAgg = await Property.aggregate([
+                { $match: { 'address.city': cityRegex, 'address.area': { $not: regexLocality }, status: 'approved' } },
+                { $group: { _id: "$address.area", count: { $sum: 1 }, avgPrice: { $avg: "$price" } } },
+                { $sort: { count: -1 } },
+                { $limit: 4 }
+            ]);
+            
+            // If aggregation returns nothing, we need to fetch some random localities as fallback
+            let localSimilars = similarAgg;
+            if (localSimilars.length === 0) {
+                const fallbackInsights = await LocalityInsight.find({ city: cityRegex, locality: { $not: regexLocality } }).limit(4).lean();
+                localSimilars = fallbackInsights.map(f => ({
+                    _id: f.locality,
+                    count: 0,
+                    avgPrice: f.averagePricePerSqft ? f.averagePricePerSqft * 1200 : 8500000
+                }));
+            }
+            
+            similarLocalities = localSimilars.map(s => ({
+                locality: s._id,
+                propertyCount: s.count,
+                averagePropertyRate: s.avgPrice || 8500000
+            }));
         }
 
         // 5. Aggregate Property Types by Transaction Type (Buy/Rent)
@@ -192,6 +300,8 @@ export const getLocalityDetail = async (req, res) => {
                 popularProjects,
                 propertyTypes,
                 topSellers,
+                topBuilders,
+                similarLocalities,
                 reviews,
                 averageRating,
                 ratingBreakdown,
@@ -244,5 +354,95 @@ export const submitLocalityReview = async (req, res) => {
     } catch (error) {
         console.error("Error submitting review:", error);
         res.status(500).json({ success: false, message: "Failed to submit review." });
+    }
+};
+
+// @desc    Get demand (popular localities) by city based on property inventory
+// @route   GET /api/public/insights/demand/:city
+// @access  Public
+export const getDemandInCity = async (req, res) => {
+    try {
+        const { city } = req.params;
+        
+        if (!city) {
+            return res.status(400).json({ success: false, message: 'City is required' });
+        }
+
+        const cityRegex = new RegExp(`^${city}$`, 'i');
+
+        const demandPipeline = [
+            {
+                $match: {
+                    'address.city': cityRegex,
+                    status: 'approved',
+                    isLive: true
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        propertyType: "$propertyType",
+                        locality: "$address.area"
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $group: {
+                    _id: "$_id.propertyType",
+                    totalPropertiesForType: { $sum: "$count" },
+                    localities: {
+                        $push: {
+                            name: "$_id.locality",
+                            count: "$count"
+                        }
+                    }
+                }
+            }
+        ];
+
+        const aggregatedData = await Property.aggregate(demandPipeline);
+
+        // Generate URL slug helper
+        const generateSlug = (text) => text?.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, '') || '';
+
+        const formattedData = aggregatedData.map(typeData => {
+            const sortedLocalities = typeData.localities
+                .filter(l => l.name) // Remove empty localities
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5); // Take top 5
+
+            const topLocalitiesWithPercentage = sortedLocalities.map((loc, index) => {
+                const percentage = typeData.totalPropertiesForType > 0 
+                    ? Math.round((loc.count / typeData.totalPropertiesForType) * 100) 
+                    : 0;
+                
+                return {
+                    rank: index + 1,
+                    name: loc.name,
+                    percentage: percentage,
+                    urlSlug: generateSlug(loc.name)
+                };
+            });
+
+            // Clean property type for subtitle
+            const propTypeStr = typeData._id || 'Properties';
+            
+            return {
+                propertyType: propTypeStr,
+                subtitle: `Most searched localities for ${propTypeStr}`,
+                localities: topLocalitiesWithPercentage
+            };
+        }).filter(data => data.localities.length > 0);
+
+        res.status(200).json({
+            success: true,
+            city,
+            demandData: formattedData
+        });
+
+    } catch (error) {
+        console.error('Error fetching demand in city:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch demand data' });
     }
 };

@@ -223,6 +223,22 @@ const PopularBuilders = ({ locality }) => {
         };
     }, [isHovered, loading, builders]);
 
+    // Restore Horizontal Scroll
+    React.useLayoutEffect(() => {
+        if (!loading && builders.length > 0 && scrollContainerRef.current) {
+            const savedScroll = sessionStorage.getItem(`scroll-left-builders-${locality || 'default'}`);
+            if (savedScroll) {
+                scrollContainerRef.current.scrollLeft = parseInt(savedScroll, 10);
+            }
+        }
+    }, [loading, builders, locality]);
+
+    const handleScroll = () => {
+        if (scrollContainerRef.current) {
+            sessionStorage.setItem(`scroll-left-builders-${locality || 'default'}`, scrollContainerRef.current.scrollLeft.toString());
+        }
+    };
+
     if (loading) {
         return (
             <div className="py-10 bg-white">
@@ -268,6 +284,7 @@ const PopularBuilders = ({ locality }) => {
                 {/* Auto sliding Carousel */}
                 <div 
                     ref={scrollContainerRef}
+                    onScroll={handleScroll}
                     className="flex gap-6 overflow-x-auto scrollbar-hide py-2 px-1 scroll-smooth snap-x"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >

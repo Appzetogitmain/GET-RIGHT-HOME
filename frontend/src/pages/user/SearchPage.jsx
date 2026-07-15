@@ -92,6 +92,7 @@ const SearchPage = () => {
         const landTypeFromUrl = searchParams.get('landType')?.split(',') || [];
         const subTypeFromUrl = searchParams.get('subType')?.split(',') || [];
         const availabilityFromUrl = searchParams.get('availability')?.split(',') || [];
+        const possessionYearFromUrl = searchParams.get('possessionYear') || '';
         const foodFromUrl = searchParams.get('foodIncluded') === 'true';
 
         if (foodFromUrl) amsFromUrl.push('Food');
@@ -204,6 +205,7 @@ const SearchPage = () => {
             bathrooms: parseInt(searchParams.get('bathrooms')) || 0,
             postedBy: searchParams.get('postedBy') || '',
             purchaseType: searchParams.get('purchaseType') || '',
+            possessionYear: possessionYearFromUrl,
             areas: areasFromUrl,
             builder: searchParams.get('builder') ? searchParams.get('builder').split(',').filter(Boolean) : []
         };
@@ -461,6 +463,7 @@ const SearchPage = () => {
         if (targetFilters.bathrooms) params.bathrooms = targetFilters.bathrooms;
         if (targetFilters.postedBy) params.postedBy = targetFilters.postedBy;
         if (targetFilters.purchaseType) params.purchaseType = targetFilters.purchaseType;
+        if (targetFilters.possessionYear) params.possessionYear = targetFilters.possessionYear;
         const targetAreas = Array.isArray(targetFilters.areas)
             ? targetFilters.areas
             : (typeof targetFilters.areas === 'string' ? targetFilters.areas.split(',').filter(Boolean) : []);
