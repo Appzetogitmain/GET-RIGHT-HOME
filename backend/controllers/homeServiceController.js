@@ -38,7 +38,7 @@ export const createCategory = async (req, res) => {
   try {
     const { title } = req.body;
     const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    
+
     // Check if slug already exists
     const existing = await HomeServiceCategory.findOne({ slug });
     if (existing) {
@@ -122,7 +122,7 @@ export const getPublicServices = async (req, res) => {
   try {
     const { categoryId, subCategoryId, cityId } = req.query;
     const filter = { isActive: true };
-    
+
     if (categoryId) filter.categoryId = categoryId;
     if (subCategoryId) filter.subCategoryId = subCategoryId;
     if (cityId) {
@@ -140,10 +140,10 @@ export const createSubCategory = async (req, res) => {
   try {
     const { title } = req.body;
     const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    
+
     // Ensure cityIds is an array and defaults to ['default']
     const cityIds = req.body.cityIds?.length > 0 ? req.body.cityIds : ['default'];
-    
+
     const subCategory = await HomeServiceSubCategory.create({
       ...req.body,
       slug,
@@ -211,7 +211,7 @@ export const updateService = async (req, res) => {
   try {
     const { id } = req.params;
     const { title } = req.body;
-    
+
     const updateData = { ...req.body };
     if (title) {
       updateData.slug = title.toLowerCase().replace(/\s+/g, '-');

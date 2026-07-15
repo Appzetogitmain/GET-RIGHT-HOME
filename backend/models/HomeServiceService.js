@@ -13,7 +13,12 @@ const homeServiceServiceSchema = new mongoose.Schema({
   basePrice: { type: Number, default: 0 },
   discountPrice: { type: Number },
   gstPercentage: { type: Number, default: 18 },
-  description: { type: String }
+  description: { type: String },
+  isTexture: { type: Boolean, default: false },
+  isIdea: { type: Boolean, default: false },
+  isRecentProject: { type: Boolean, default: false },
+  workerName: { type: String, default: "" },
+  projectImages: [{ type: String }]
 }, { timestamps: true });
 
 export default mongoose.model('HomeServiceService', homeServiceServiceSchema);

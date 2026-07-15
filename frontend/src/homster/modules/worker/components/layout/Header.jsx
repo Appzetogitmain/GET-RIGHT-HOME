@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiBell, FiSearch } from 'react-icons/fi';
+import { FiArrowLeft, FiBell, FiSearch, FiMapPin } from 'react-icons/fi';
 import { gsap } from 'gsap';
 import { workerTheme as themeColors } from '../../../../theme';
 import { animateLogo } from '../../../../utils/gsapAnimations';
@@ -13,7 +13,8 @@ const Header = ({
   showBack = true,
   showSearch = false,
   showNotifications = true,
-  notificationCount = 0
+  notificationCount = 0,
+  locationText
 }) => {
   const navigate = useNavigate();
   const logoRef = useRef(null);
@@ -147,23 +148,14 @@ const Header = ({
             </button>
           )}
 
-          {/* Test Push Notification Button */}
-          <button
-            className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-full hover:bg-emerald-700 active:scale-95 transition shadow-sm whitespace-nowrap"
-            onClick={async () => {
-              const { toast } = await import('react-hot-toast');
-              try {
-                toast.loading('Sending test push...', { id: 'test-push' });
-                await api.post('/workers/fcm-tokens/test');
-                toast.success('Push notification sent from server!', { id: 'test-push' });
-              } catch (error) {
-                console.error('Error sending test notification:', error);
-                toast.error('Failed to send test notification.', { id: 'test-push' });
-              }
-            }}
-          >
-            TEST PUSH
-          </button>
+          {locationText && (
+            <div className="flex items-center gap-1.5 text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 shadow-sm whitespace-nowrap">
+              <FiMapPin className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="text-xs font-bold tracking-wide">
+                {locationText}
+              </span>
+            </div>
+          )}
 
           {/* showNotifications && (
             <div

@@ -25,7 +25,7 @@ import {
     User,
     Crown
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCity } from '../../homster/context/CityContext';
 import CategoryModal from '../../homster/modules/user/pages/Home/components/CategoryModal';
@@ -44,6 +44,7 @@ const toAssetUrl = (url) => {
 
 const HomeServicesPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { currentCity } = useCity();
     const [searchQuery, setSearchQuery] = useState('');
     const [isScrolled, setIsScrolled] = useState(false);
@@ -132,6 +133,22 @@ const HomeServicesPage = () => {
             JSON.parse(localStorage.getItem('user') || 'null');
         if (stored) setUser(stored);
     }, []);
+
+    // Check location state for openCategory request
+    useEffect(() => {
+        if (location.state?.openCategory) {
+            const cat = location.state.openCategory;
+            // Clean up state so refresh doesn't reopen
+            window.history.replaceState({}, document.title);
+            if (cat.isDirectService) {
+                 // For direct services we don't open modal, we let them navigate but wait, direct services don't use modal.
+                 // Actually they do if we pass them, or maybe it's better to just call openCategoryModal(cat)
+                 openCategoryModal(cat);
+            } else {
+                 openCategoryModal(cat);
+            }
+        }
+    }, [location.state]);
 
     useEffect(() => {
         const fetchHomeData = async () => {
@@ -289,7 +306,7 @@ const HomeServicesPage = () => {
 
                 {/* Overlapping Floating Search Bar (Placed OUTSIDE overflow parent to prevent clipping) */}
                 <div className="absolute bottom-0 left-6 right-6 translate-y-1/2 z-30 max-w-xl mx-auto">
-                    <div className="flex items-center bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-lg shadow-gray-200/80 gap-2.5">
+                    <div className="flex items-center bg-white border border-gray-100 rounded-xl px-4 py-3.5 shadow-lg shadow-gray-200/80 gap-2.5">
                         <Search size={18} className="text-gray-400 flex-shrink-0 stroke-[3]" />
                         <input
                             type="text"
@@ -393,7 +410,7 @@ const HomeServicesPage = () => {
                                 return (
                                     <div
                                         key={idx}
-                                        className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200/40 bg-black group"
+                                        className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-xl relative overflow-hidden shadow-xl shadow-gray-200/40 bg-black group"
                                     >
                                         {isPlaying ? (
                                             <div className="absolute inset-0 w-full h-full">
@@ -457,7 +474,7 @@ const HomeServicesPage = () => {
                                             navigate(`/service/${item.slug}`);
                                         }
                                     }}
-                                    className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-[2.5rem] relative overflow-hidden shadow-xl shadow-gray-200/40 group bg-gray-900 cursor-pointer"
+                                    className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-xl relative overflow-hidden shadow-xl shadow-gray-200/40 group bg-gray-900 cursor-pointer"
                                 >
                                     <div className="relative h-full overflow-hidden">
                                         {item.gifUrl ? (
@@ -530,7 +547,7 @@ const HomeServicesPage = () => {
             {/* VIP Membership Section */}
             {homeData?.isVipEnabled !== false && (
                 <section className="mt-12 px-5 max-w-7xl mx-auto">
-                    <div className="bg-[#111111] bg-gradient-to-br from-[#181818] to-[#0a0a0a] border border-neutral-800/80 rounded-[1.5rem] p-5 shadow-2xl relative overflow-hidden">
+                    <div className="bg-[#111111] bg-gradient-to-br from-[#181818] to-[#0a0a0a] border border-neutral-800/80 rounded-xl p-5 shadow-2xl relative overflow-hidden">
                         {/* Shimmer text style injection */}
                         <style>{`
                             @keyframes vipFlashSweep {
