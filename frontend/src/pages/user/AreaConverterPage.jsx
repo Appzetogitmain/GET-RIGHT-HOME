@@ -322,8 +322,8 @@ const AreaConverterPage = () => {
                         
                         {/* State Dropdown */}
                         <div className="mb-6 relative border border-[#dfe1e6] rounded">
-                            <select className="w-full text-[14px] font-medium text-[#42526e] bg-transparent outline-none appearance-none cursor-pointer p-3 pr-8">
-                                <option value="" disabled selected>Select state</option>
+                            <select defaultValue="" className="w-full text-[14px] font-medium text-[#42526e] bg-transparent outline-none appearance-none cursor-pointer p-3 pr-8">
+                                <option value="" disabled>Select state</option>
                                 {indianStates.map(state => (
                                     <option key={state} value={state}>{state}</option>
                                 ))}
