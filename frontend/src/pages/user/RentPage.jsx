@@ -126,20 +126,6 @@ const RentPage = () => {
                 </div>
             </div>
 
-            {/* Clear Navigation Header */}
-            <div className="bg-white px-4 md:px-6 lg:px-8 2xl:px-12 py-6 border-b border-indigo-100 mb-6 shadow-sm">
-                <div className="w-full mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-                            Explore Properties for <span className="text-violet-600">Rent & PG</span>
-                        </h1>
-                        <p className="text-sm text-gray-500 mt-1">
-                            Find your perfect rental or co-living space in {searchCity || 'Bengaluru'} with zero hassle.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
             {/* 1. Offers Section */}
             <ExclusiveOffers />
 

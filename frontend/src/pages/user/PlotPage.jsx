@@ -114,22 +114,8 @@ const PlotPage = () => {
                 </div>
             </div>
 
-            {/* Clear Navigation Header */}
-            <div className="bg-white px-4 md:px-6 lg:px-8 2xl:px-12 py-6 border-b border-amber-100 mb-6 shadow-sm">
-                <div className="w-full mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-                            Explore Premium <span className="text-amber-600">Plots & Land</span>
-                        </h1>
-                        <p className="text-sm text-gray-500 mt-1">
-                            Find the perfect land for your dream project in {searchCity || 'Bengaluru'}.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
             {/* 1. Offers Section */}
-            <div id="video-curations-section" className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto -mt-8 mb-6">
+            <div id="video-curations-section" className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mt-4 mb-6">
                  <PropertyVideoCurations pageType="plot" />
             </div>
 

@@ -54,10 +54,13 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter }) => {
   return (
     <div id={`grh-section-${cacheKey.replace(/\s+/g, '-')}`} className="py-6 border-b border-gray-100 last:border-0 relative">
       {/* Section Header */}
-      <div className="flex justify-between items-end px-5 md:px-0 mb-4">
+      <div className="flex justify-between items-end px-5 md:px-0 mb-2">
         <div>
-          <h2 className="text-[17px] sm:text-xl md:text-2xl font-serif font-bold text-gray-900 tracking-tight whitespace-nowrap truncate">{title}</h2>
-           {subtitle && <p className="text-[11px] sm:text-xs text-gray-400 sm:text-gray-500 mt-0.5 font-normal">{subtitle}</p>}
+          <div className="flex items-center gap-2 mb-0.5">
+            <div className="w-1 h-5 bg-emerald-500 rounded-full" />
+            <h2 className="text-xl md:text-2xl font-black text-gray-900 whitespace-nowrap truncate">{title}</h2>
+          </div>
+          {subtitle && <p className="text-sm text-gray-500 mt-1 ml-3 font-normal">{subtitle}</p>}
         </div>
         <button
           onClick={handleViewMore}

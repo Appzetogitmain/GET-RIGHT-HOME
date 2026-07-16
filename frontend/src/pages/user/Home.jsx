@@ -60,8 +60,11 @@ const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onType
     <div id={`home-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
         <div className="flex justify-between items-end px-5 md:px-0 mb-2">
             <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{title}</h2>
-                {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+                <div className="flex items-center gap-2 mb-0.5">
+                    <div className="w-1 h-5 bg-emerald-500 rounded-full" />
+                    <h2 className="text-xl md:text-2xl font-black text-gray-900">{title}</h2>
+                </div>
+                {subtitle && <p className="text-sm text-gray-500 mt-1 ml-3">{subtitle}</p>}
             </div>
             <button
                 onClick={() => {
@@ -184,7 +187,7 @@ const Home = () => {
 
 
             {/* Property Videos */}
-            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto -mt-8 mb-6">
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mt-4 mb-6">
                  <PropertyVideoCurations pageType="home" />
             </div>
 
