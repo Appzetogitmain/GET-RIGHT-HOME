@@ -22,15 +22,18 @@ const RentPGSection = ({ title, typeId, subtitle, extraFilters, onTypeSelect, ty
     <div className="py-4 border-b border-gray-100 last:border-0 relative">
         <div className="flex justify-between items-end px-5 md:px-0 mb-2">
             <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{title}</h2>
-                {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+                <div className="flex items-center gap-2 mb-0.5">
+                    <div className="w-1 h-5 bg-violet-500 rounded-full" />
+                    <h2 className="text-xl md:text-2xl font-black text-gray-900">{title}</h2>
+                </div>
+                {subtitle && <p className="text-sm text-gray-500 mt-1 ml-3">{subtitle}</p>}
             </div>
             <button
                 onClick={() => {
                     onTypeSelect(typeId, typeLabel, extraFilters);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+                className="text-sm font-bold text-violet-600 hover:text-violet-700 hover:underline"
             >
                 View All
             </button>
@@ -127,16 +130,16 @@ const RentPage = () => {
             </div>
 
             {/* 1. Offers Section */}
-            <ExclusiveOffers />
+            <ExclusiveOffers themeColor="violet" />
 
             {/* Property Videos */}
-            <div id="video-curations-section" className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto -mt-8 mb-6">
-                 <PropertyVideoCurations pageType="rent" />
+            <div id="video-curations-section" className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mt-4 mb-6">
+                <PropertyVideoCurations pageType="rent" themeColor="violet" />
             </div>
 
             {/* 2. Handpicked Projects */}
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto">
-                <AdminPropertiesSection searchCity={searchCity} transactionType="rent,pg" />
+                <AdminPropertiesSection searchCity={searchCity} transactionType="rent,pg" themeColor="violet" />
             </div>
 
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-6">
@@ -188,7 +191,7 @@ const RentPage = () => {
                 <ReelSection category="Rent" />
 
                 {/* 11. Popular Builders (Existing) */}
-                <PopularBuilders />
+                <PopularBuilders themeColor="violet" />
 
             </div>
 

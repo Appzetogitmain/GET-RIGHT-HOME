@@ -13,6 +13,7 @@ import PostedByChoice from '../../components/user/PostedByChoice';
 import RecommendInsights from '../../components/user/RecommendInsights';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 import DemandInCitySection from '../../components/user/DemandInCitySection';
+import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import PopularToolsSection from '../../components/user/PopularToolsSection';
 
 // Theme for Buy Page
@@ -79,15 +80,21 @@ const BuyPage = () => {
                 </div>
             </div>
 
-            {/* 1. Offers Section */}
+            {/* 1. Offers Section (Removed per request) */}
+
             <div id="video-curations-section" className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mt-4 mb-6">
-                 <PropertyVideoCurations pageType="buy" />
+                 <PropertyVideoCurations pageType="buy" themeColor="blue" />
+            </div>
+
+            {/* 2. Handpicked Projects */}
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mb-8">
+                <AdminPropertiesSection searchCity={searchCity} transactionType="buy" themeColor="blue" />
             </div>
 
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-6">
                 {/* 3. Recommend Insights */}
                 <div id="recommended-insights-section">
-                    <RecommendInsights transactionType="Buy" />
+                    <RecommendInsights transactionType="Buy" themeColor="blue" />
                 </div>
 
                 {/* 4. Reels (Buy Context) */}
@@ -97,7 +104,7 @@ const BuyPage = () => {
 
                 {/* 5. Demand in [City] Section */}
                 <div id="demand-city-section">
-                    <DemandInCitySection city={searchCity || 'Bengaluru'} />
+                    <DemandInCitySection city={searchCity || 'Bengaluru'} themeColor="blue" />
                 </div>
 
 
@@ -123,7 +130,7 @@ const BuyPage = () => {
 
                 {/* 11. Popular Builders (Existing) */}
                 <div id="popular-builders-section">
-                    <PopularBuilders />
+                    <PopularBuilders themeColor="blue" />
                 </div>
 
                 {/* 12. Popular Tools Placeholder */}

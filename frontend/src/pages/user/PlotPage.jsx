@@ -28,8 +28,11 @@ const PlotSection = ({ title, subtitle, extraFilters, plotCategoryId }) => {
         <div className="py-4 border border-amber-100 relative bg-white rounded-3xl p-6 shadow-sm mb-6">
             <div className="flex justify-between items-end mb-4">
                 <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">{title}</h2>
-                    {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <div className="w-1 h-5 bg-amber-500 rounded-full" />
+                        <h2 className="text-xl md:text-2xl font-black text-gray-900">{title}</h2>
+                    </div>
+                    {subtitle && <p className="text-sm text-gray-500 mt-1 ml-3">{subtitle}</p>}
                 </div>
                 <button
                     onClick={() => {
@@ -116,13 +119,13 @@ const PlotPage = () => {
 
             {/* 1. Offers Section */}
             <div id="video-curations-section" className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mt-4 mb-6">
-                 <PropertyVideoCurations pageType="plot" />
+                 <PropertyVideoCurations pageType="plot" themeColor="amber" />
             </div>
 
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-6">
                 {/* 3. Recommend Insights */}
                 <div id="recommended-insights-section">
-                    <RecommendInsights transactionType="Plot" />
+                    <RecommendInsights transactionType="Plot" themeColor="amber" />
                 </div>
 
                 {/* Plot Feeds */}
@@ -168,7 +171,7 @@ const PlotPage = () => {
 
                 {/* 5. Demand in [City] Section */}
                 <div id="demand-city-section">
-                    <DemandInCitySection city={searchCity || 'Bengaluru'} />
+                    <DemandInCitySection city={searchCity || 'Bengaluru'} themeColor="amber" />
                 </div>
 
                 {/* 6. Posted By */}
@@ -178,7 +181,7 @@ const PlotPage = () => {
 
                 {/* 7. Popular Builders */}
                 <div id="popular-builders-section">
-                    <PopularBuilders />
+                    <PopularBuilders themeColor="amber" />
                 </div>
 
                 {/* 8. Popular Tools */}

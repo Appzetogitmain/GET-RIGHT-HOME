@@ -4,11 +4,19 @@ import { Map, ArrowRight, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/apiService';
 
-const RecommendInsights = ({ transactionType }) => {
+const RecommendInsights = ({ transactionType, themeColor = 'emerald' }) => {
     const navigate = useNavigate();
     const [insights, setInsights] = useState([]);
     const [loading, setLoading] = useState(true);
     const scrollContainerRef = React.useRef(null);
+
+    const themeMap = {
+        emerald: { bg: 'bg-emerald-500' },
+        violet: { bg: 'bg-violet-500' },
+        blue: { bg: 'bg-blue-500' },
+        amber: { bg: 'bg-amber-500' },
+    };
+    const t = themeMap[themeColor] || themeMap.emerald;
 
     useEffect(() => {
         const fetchInsights = async () => {
@@ -76,11 +84,14 @@ const RecommendInsights = ({ transactionType }) => {
     return (
         <div id="buy-recommended-insights-section" className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mt-2 scroll-mt-24">
             {/* Header section matching 99acres style */}
-            <div className="mb-6">
-                <h2 className="text-xl md:text-2xl font-black text-[#0B1A3A] tracking-tight">
-                    Recommended Insights
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
+            <div className="mb-6 px-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                    <div className={`w-1 h-5 ${t.bg} rounded-full`} />
+                    <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">
+                        Recommended Insights
+                    </h2>
+                </div>
+                <p className="text-sm text-gray-500 mt-1 ml-3">
                     based on your search results & history
                 </p>
             </div>

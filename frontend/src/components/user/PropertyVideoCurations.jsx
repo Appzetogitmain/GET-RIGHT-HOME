@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { propertyVideoService } from '../../services/apiService';
 import { motion } from 'framer-motion';
 
-const PropertyVideoCurations = ({ pageType }) => {
+const PropertyVideoCurations = ({ pageType, themeColor = 'emerald' }) => {
     const navigate = useNavigate();
     const [videos, setVideos] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -49,13 +49,21 @@ const PropertyVideoCurations = ({ pageType }) => {
         return null; // Don't render anything if no videos are assigned to this page
     }
 
+    const themeMap = {
+        emerald: { bg: 'bg-emerald-500', text: 'text-emerald-600' },
+        violet: { bg: 'bg-violet-500', text: 'text-violet-600' },
+        blue: { bg: 'bg-blue-500', text: 'text-blue-600' },
+        amber: { bg: 'bg-amber-500', text: 'text-amber-600' },
+    };
+    const t = themeMap[themeColor] || themeMap.emerald;
+
     return (
         <section className="py-4 border-b border-gray-100 last:border-0 relative">
             <div className="flex flex-col mb-4 px-5 md:px-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                    <div className="w-1 h-5 bg-emerald-500 rounded-full" />
+                    <div className={`w-1 h-5 ${t.bg} rounded-full`} />
                     <h2 className="text-xl md:text-2xl font-black text-gray-900">
-                        Exclusive Property <span className="text-emerald-600">Tours</span>
+                        Exclusive Property <span className={t.text}>Tours</span>
                     </h2>
                 </div>
                 <p className="text-sm text-gray-500 mt-1 ml-3">
@@ -160,7 +168,7 @@ const PropertyVideoCurations = ({ pageType }) => {
                         <div
                             key={idx}
                             className={`h-1.5 rounded-full transition-all duration-300 ${
-                                currentIdx === idx ? 'w-6 bg-emerald-500' : 'w-1.5 bg-gray-200'
+                                currentIdx === idx ? `w-6 ${t.bg}` : 'w-1.5 bg-gray-200'
                             }`}
                         />
                     ))}

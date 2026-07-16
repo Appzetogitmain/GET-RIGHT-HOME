@@ -213,7 +213,7 @@ const adminPropertiesCache = {
 };
 
 /* ─── Main Component ─── */
-const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }) => {
+const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, themeColor = 'emerald' }) => {
     const navigate = useNavigate();
     
     const [availableCities, setAvailableCities] = useState(() => adminPropertiesCache.cities || []);
@@ -487,6 +487,14 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }
     const defaultTitle = "Handpicked Projects";
     const defaultSubtitle = `Featured projects in ${selectedCity || 'your city'}`;
 
+    const themeMap = {
+        emerald: { bg: 'bg-emerald-500', text: 'text-emerald-600', hoverText: 'hover:text-emerald-700' },
+        violet: { bg: 'bg-violet-500', text: 'text-violet-600', hoverText: 'hover:text-violet-700' },
+        blue: { bg: 'bg-blue-500', text: 'text-blue-600', hoverText: 'hover:text-blue-700' },
+        amber: { bg: 'bg-amber-500', text: 'text-amber-600', hoverText: 'hover:text-amber-700' },
+    };
+    const t = themeMap[themeColor] || themeMap.emerald;
+
     return (
         <section id="admin-properties-section" className="py-8 border-b border-gray-100">
 
@@ -495,7 +503,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }
                 <div className="flex justify-between items-end mb-2">
                     <div>
                         <div className="flex items-center gap-2 mb-0.5">
-                            <div className="w-1 h-5 bg-emerald-500 rounded-full" />
+                            <div className={`w-1 h-5 ${t.bg} rounded-full`} />
                             <h2 className="text-xl md:text-2xl font-black text-gray-900">
                                 {title || defaultTitle}
                             </h2>
@@ -516,7 +524,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle }
                                 navigate(url);
                                 window.scrollTo(0, 0);
                             }}
-                            className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+                            className={`text-sm font-bold ${t.text} ${t.hoverText} hover:underline`}
                         >
                             View All
                         </button>

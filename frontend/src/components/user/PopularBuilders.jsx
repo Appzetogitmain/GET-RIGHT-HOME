@@ -168,10 +168,18 @@ const BUILDERS_DATA = [
 ];
 
 
-const PopularBuilders = ({ locality }) => {
+const PopularBuilders = ({ locality, themeColor = 'emerald' }) => {
     const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
     const autoScrollTimer = useRef(null);
+
+    const themeMap = {
+        emerald: { bg: 'bg-emerald-500' },
+        violet: { bg: 'bg-violet-500' },
+        blue: { bg: 'bg-blue-500' },
+        amber: { bg: 'bg-amber-500' },
+    };
+    const t = themeMap[themeColor] || themeMap.emerald;
     const [isHovered, setIsHovered] = useState(false);
     const [builders, setBuilders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -268,7 +276,7 @@ const PopularBuilders = ({ locality }) => {
         >
             <div className="flex flex-col mb-4 px-5 md:px-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                    <div className="w-1 h-5 bg-emerald-500 rounded-full" />
+                    <div className={`w-1 h-5 ${t.bg} rounded-full`} />
                     <h2 className="text-xl md:text-2xl font-black text-gray-900">
                         Popular builders
                     </h2>

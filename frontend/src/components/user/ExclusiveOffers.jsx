@@ -5,11 +5,19 @@ import { useNavigate } from 'react-router-dom';
 import { offerService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 
-const ExclusiveOffers = () => {
+const ExclusiveOffers = ({ themeColor = 'emerald' }) => {
     const navigate = useNavigate();
     const [offers, setOffers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    const themeMap = {
+        emerald: { bg: 'bg-emerald-500', bgLight: 'bg-emerald-100', text: 'text-emerald-600' },
+        violet: { bg: 'bg-violet-500', bgLight: 'bg-violet-100', text: 'text-violet-600' },
+        blue: { bg: 'bg-blue-500', bgLight: 'bg-blue-100', text: 'text-blue-600' },
+        amber: { bg: 'bg-amber-500', bgLight: 'bg-amber-100', text: 'text-amber-600' },
+    };
+    const t = themeMap[themeColor] || themeMap.emerald;
 
     useEffect(() => {
         const fetchOffers = async () => {
@@ -48,13 +56,18 @@ const ExclusiveOffers = () => {
     }
 
     return (
-        <section className="py-2 pl-5 mt-2">
-            <h2 className="text-xl font-bold text-emerald-900 mb-4 flex items-center gap-2">
-                Exclusive offers for you
-                <div className="bg-emerald-100 px-2 py-0.5 rounded text-[10px] font-bold text-emerald-600">NEW</div>
-            </h2>
+        <section className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto py-4 mt-2 border-b border-gray-100 mb-6">
+            <div className="flex flex-col mb-4">
+                <div className="flex items-center gap-2 mb-0.5">
+                    <div className={`w-1 h-5 ${t.bg} rounded-full`} />
+                    <h2 className="text-xl md:text-2xl font-black text-gray-900 flex items-center gap-2">
+                        Exclusive offers for you
+                        <div className={`${t.bgLight} px-2 py-0.5 rounded text-[10px] font-bold ${t.text}`}>NEW</div>
+                    </h2>
+                </div>
+            </div>
 
-            <div className="flex gap-4 overflow-x-auto pb-4 pr-5 snap-x no-scrollbar">
+            <div className="flex gap-4 overflow-x-auto pb-4 snap-x no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
                 {offers.map((offer) => (
                     <motion.div
                         key={offer._id || offer.id}
@@ -67,13 +80,14 @@ const ExclusiveOffers = () => {
                         }}
                         className={`
                             relative 
-                            min-w-[280px] md:min-w-[320px] 
-                            h-[160px] 
+                            min-w-[280px] md:min-w-[340px] lg:min-w-[420px] xl:min-w-[480px]
+                            h-[160px] md:h-[180px] lg:h-[220px] xl:h-[260px]
                             rounded-2xl 
                             overflow-hidden 
                             snap-center 
                             shadow-md shadow-gray-200/50
                             cursor-pointer
+                            shrink-0
                         `}
                     >
                         {/* Background Image */}
@@ -84,20 +98,20 @@ const ExclusiveOffers = () => {
                         />
 
                         {/* Dark Gradient Overlay */}
-                        <div className={`absolute inset-0 bg-gradient-to-r from-emerald-950/80 via-emerald-900/40 to-transparent flex flex-col justify-center p-5 text-white items-start`}>
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="bg-emerald-500 text-[8px] font-black px-1.5 py-0.5 rounded tracking-widest uppercase shadow-sm">
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent flex flex-col justify-center p-5 lg:p-8 text-white items-start">
+                            <div className="flex items-center gap-2 mb-1 lg:mb-2">
+                                <span className={`${t.bg} text-[8px] lg:text-[10px] font-black px-1.5 py-0.5 lg:px-2 lg:py-1 rounded tracking-widest uppercase shadow-sm`}>
                                     {offer.discountType === 'percentage' ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`}
                                 </span>
                             </div>
-                            <h3 className="text-xl font-black leading-tight max-w-[80%] drop-shadow-md">{offer.title}</h3>
-                            <p className="text-[10px] font-semibold text-gray-300 mt-1 max-w-[70%] leading-relaxed drop-shadow-md line-clamp-2">{offer.subtitle}</p>
+                            <h3 className="text-xl lg:text-3xl font-black leading-tight max-w-[80%] drop-shadow-md">{offer.title}</h3>
+                            <p className="text-[10px] lg:text-[12px] font-semibold text-gray-300 mt-1 lg:mt-2 max-w-[70%] leading-relaxed drop-shadow-md line-clamp-2">{offer.subtitle}</p>
 
-                            <div className="mt-3 flex items-center gap-2">
-                                <button className="px-4 py-1.5 bg-white text-black text-[10px] font-black rounded-lg hover:shadow-xl transition-all shadow-md active:scale-95">
+                            <div className="mt-3 lg:mt-5 flex items-center gap-2 lg:gap-3">
+                                <button className="px-4 py-1.5 lg:px-6 lg:py-2.5 bg-white text-black text-[10px] lg:text-xs font-black rounded-lg hover:shadow-xl transition-all shadow-md active:scale-95">
                                     {offer.btnText || "Copy Code"}
                                 </button>
-                                <span className="text-[9px] text-white/60 font-medium border-l border-white/20 pl-2">Code: <span className="text-white font-bold">{offer.code}</span></span>
+                                <span className="text-[9px] lg:text-xs text-white/60 font-medium border-l border-white/20 pl-2 lg:pl-3">Code: <span className="text-white font-bold">{offer.code}</span></span>
                             </div>
                         </div>
 
