@@ -66,7 +66,7 @@ const RecommendInsights = ({ transactionType }) => {
                 </div>
                 <div className="flex gap-4">
                     {[1, 2, 3, 4].map(i => (
-                        <div key={i} className="min-w-[160px] md:min-w-[200px] aspect-[4/5] bg-slate-100 rounded-xl shrink-0"></div>
+                        <div key={i} className="min-w-[160px] md:min-w-[220px] lg:min-w-[280px] xl:min-w-[320px] aspect-[4/5] bg-slate-100 rounded-xl shrink-0"></div>
                     ))}
                 </div>
             </div>
@@ -96,7 +96,7 @@ const RecommendInsights = ({ transactionType }) => {
                         key={insight._id}
                         whileHover={{ y: -2 }}
                         onClick={() => navigate(`/insights/${insight.locality}`)}
-                        className="min-w-[160px] md:min-w-[200px] snap-center shrink-0 cursor-pointer group flex flex-col"
+                        className="min-w-[160px] md:min-w-[220px] lg:min-w-[280px] xl:min-w-[320px] snap-center shrink-0 cursor-pointer group flex flex-col"
                     >
                         {/* Map Background Card */}
                         <div className="w-full aspect-square bg-[#E9EDE9] rounded-xl relative overflow-hidden flex flex-col items-center justify-center p-4 border border-transparent group-hover:border-blue-100 transition-colors">
@@ -109,7 +109,7 @@ const RecommendInsights = ({ transactionType }) => {
                             </div>
 
                             {/* Circular Image */}
-                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-white shadow-md overflow-hidden relative z-10 mb-3 group-hover:scale-105 transition-transform duration-300">
+                            <div className="w-16 h-16 md:w-24 md:h-24 lg:w-32 lg:h-32 rounded-full border-[3px] border-white shadow-md overflow-hidden relative z-10 mb-3 group-hover:scale-105 transition-transform duration-300">
                                 <img 
                                     src={insight.coverImage} 
                                     alt={insight.locality}
@@ -118,20 +118,20 @@ const RecommendInsights = ({ transactionType }) => {
                             </div>
 
                             {/* Locality Text Inside Card */}
-                            <h3 className="font-bold text-gray-900 text-center text-[15px] relative z-10 leading-tight">
+                            <h3 className="font-bold text-gray-900 text-center text-[15px] md:text-[18px] lg:text-[20px] relative z-10 leading-tight">
                                 {insight.locality}
                             </h3>
-                            <p className="text-xs text-gray-500 text-center relative z-10 mt-0.5">
+                            <p className="text-xs md:text-sm text-gray-500 text-center relative z-10 mt-0.5">
                                 {insight.city}
                             </p>
                         </div>
 
                         {/* Text Below Card */}
-                        <div className="mt-3">
-                            <h4 className="text-sm font-bold text-gray-900 truncate">
+                        <div className="mt-3 lg:mt-4">
+                            <h4 className="text-sm md:text-base lg:text-lg font-bold text-gray-900 truncate">
                                 {insight.locality} Insights
                             </h4>
-                            <p className="text-xs text-gray-500 mt-0.5">
+                            <p className="text-xs md:text-sm text-gray-500 mt-0.5">
                                 Locality Insight
                             </p>
                         </div>
