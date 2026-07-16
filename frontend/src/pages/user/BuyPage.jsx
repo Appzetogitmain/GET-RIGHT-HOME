@@ -80,8 +80,8 @@ const BuyPage = () => {
             </div>
 
             {/* Clear Navigation Header */}
-            <div className="bg-white px-4 py-6 border-b border-blue-100 mb-6 shadow-sm">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-white px-4 md:px-6 lg:px-8 2xl:px-12 py-6 border-b border-blue-100 mb-6 shadow-sm">
+                <div className="w-full mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
                             Explore Properties for <span className="text-blue-600">Buy</span>
@@ -94,11 +94,11 @@ const BuyPage = () => {
             </div>
 
             {/* 1. Offers Section */}
-            <div id="video-curations-section" className="max-w-7xl mx-auto -mt-8 mb-6">
+            <div id="video-curations-section" className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto -mt-8 mb-6">
                  <PropertyVideoCurations pageType="buy" />
             </div>
 
-            <div className="mt-2 max-w-7xl mx-auto flex flex-col gap-4 px-4 md:px-0">
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-6">
                 {/* 3. Recommend Insights */}
                 <div id="recommended-insights-section">
                     <RecommendInsights transactionType="Buy" />

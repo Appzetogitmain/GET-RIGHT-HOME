@@ -184,21 +184,21 @@ const Home = () => {
 
 
             {/* Property Videos */}
-            <div className="max-w-7xl mx-auto -mt-8 mb-6">
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto -mt-8 mb-6">
                  <PropertyVideoCurations pageType="home" />
             </div>
 
             {/* Admin Curated Properties - Location Based */}
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto">
                 <AdminPropertiesSection searchCity={homeSearchCity} />
             </div>
 
 
 
-            <div className="mt-2 max-w-7xl mx-auto">
+            <div className="mt-2 w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-4">
                 {(!selectedType.id || selectedType.label === 'All') ? (
                     // Show Categorized Sections when "All" is selected
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-4">
                         {sectionIds.pg && (
                             <HomeSection
                                 title="Scholar & Professional Stays"
@@ -266,7 +266,7 @@ const Home = () => {
                     </div>
                 ) : (
                     // Show Filtered Grid when a specific property category is selected
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-4">
                         {/* 1. Latest Projects Banner for the category */}
                         <LatestProjectsBanner
                             categoryId={selectedType.id}
@@ -291,7 +291,7 @@ const Home = () => {
             </div>
             
             {/* Test Push Notification Button */}
-            <div className="max-w-7xl mx-auto px-5 md:px-0 py-8 flex justify-center">
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 py-8 flex justify-center">
                 <button
                     onClick={async () => {
                         try {

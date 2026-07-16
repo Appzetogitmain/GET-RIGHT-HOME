@@ -238,7 +238,8 @@ const SupportSection = () => {
     }
   };
   return (
-    <div className="w-full bg-[#f8fafc] pt-8 pb-4 px-6 border-t border-slate-100 font-sans max-w-4xl mx-auto">
+    <div className="w-full bg-[#f8fafc] pt-12 pb-8 px-4 md:px-6 lg:px-8 2xl:px-12 border-t border-slate-100 font-sans mx-auto">
+      <div className="max-w-7xl mx-auto">
       {/* 1. Feedback Card */}
       <div className="bg-gradient-to-br from-[#FFF9F2] to-[#FFF0DF] rounded-[24px] p-6 shadow-sm border border-[#FFE7CD] mb-8 relative overflow-hidden">
         {/* Decorative subtle shine */}
@@ -392,6 +393,7 @@ const SupportSection = () => {
           <Phone size={14} className="fill-white" />
           <span>Request a callback</span>
         </button>
+      </div>
       </div>
 
       {/* LAZY LOGIN / OTP drawer MODAL */}
