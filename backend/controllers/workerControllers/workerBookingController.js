@@ -1265,7 +1265,7 @@ const generateEstimate = async (req, res) => {
 
     // Token logic: 30% of total estimate
     const tokenAmount = Math.round(Number(estimatedAmount) * 0.3);
-    const adminCommission = Math.round(tokenAmount * 0.2); // 20% of token
+    const adminCommission = Math.round(Number(estimatedAmount) * 0.2); // 20% of total
     const workerAdvance = tokenAmount - adminCommission;
 
     booking.estimate = {

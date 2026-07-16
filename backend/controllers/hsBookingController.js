@@ -1293,7 +1293,7 @@ const approveEstimate = async (req, res) => {
     
     // Status can remain visited or go to in_progress depending on business logic
     // Let's set it to IN_PROGRESS so the worker can start the job
-    booking.status = 'IN_PROGRESS';
+    booking.status = BOOKING_STATUS.IN_PROGRESS;
 
     await booking.save();
 
