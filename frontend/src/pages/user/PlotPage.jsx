@@ -11,12 +11,48 @@ import RecommendInsights from '../../components/user/RecommendInsights';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 import DemandInCitySection from '../../components/user/DemandInCitySection';
 import PopularToolsSection from '../../components/user/PopularToolsSection';
+import PropertyFeed from '../../components/user/PropertyFeed';
+import { ArrowRight } from 'lucide-react';
 
 // Theme for Plot Page (Amber style from Home.jsx)
 const THEME = {
     darkBg: 'linear-gradient(135deg, #78350F 0%, #92400E 100%)', // Amber
     pageBg: '#FFFBEB',
     accent: '#F59E0B'
+};
+
+const PlotSection = ({ title, subtitle, extraFilters, plotCategoryId }) => {
+    const navigate = useNavigate();
+    
+    return (
+        <div className="py-4 border border-amber-100 relative bg-white rounded-3xl p-6 shadow-sm mb-6">
+            <div className="flex justify-between items-end mb-4">
+                <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">{title}</h2>
+                    {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+                </div>
+                <button
+                    onClick={() => {
+                        const params = new URLSearchParams();
+                        params.set('transactionType', 'plot');
+                        if (extraFilters) {
+                            Object.entries(extraFilters).forEach(([key, value]) => {
+                                params.set(key, value);
+                            });
+                        }
+                        navigate(`/search?${params.toString()}`);
+                        window.scrollTo(0, 0);
+                    }}
+                    className="text-sm font-bold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1"
+                >
+                    View All <ArrowRight size={16} />
+                </button>
+            </div>
+            {plotCategoryId && (
+                <PropertyFeed selectedType={plotCategoryId} viewMode="carousel" limit={8} extraFilters={extraFilters} />
+            )}
+        </div>
+    );
 };
 
 const PlotPage = () => {
@@ -102,6 +138,42 @@ const PlotPage = () => {
                 <div id="recommended-insights-section">
                     <RecommendInsights transactionType="Plot" />
                 </div>
+
+                {/* Plot Feeds */}
+                <PlotSection
+                    title="Premium Plots & Land"
+                    subtitle="Exclusive and high-end plots in prime locations"
+                    extraFilters={{ propertyCategory: 'Premium' }}
+                    plotCategoryId={plotCategoryId}
+                />
+
+                <PlotSection
+                    title="Plots Under 50 Lacs"
+                    subtitle="Budget-friendly investment options"
+                    extraFilters={{ maxPrice: '5000000' }}
+                    plotCategoryId={plotCategoryId}
+                />
+
+                <PlotSection
+                    title="Plots Under 1 Cr"
+                    subtitle="Mid-range residential and commercial plots"
+                    extraFilters={{ maxPrice: '10000000' }}
+                    plotCategoryId={plotCategoryId}
+                />
+
+                <PlotSection
+                    title="Residential Plots"
+                    subtitle="Build your dream home"
+                    extraFilters={{ propertyCategory: 'Residential' }}
+                    plotCategoryId={plotCategoryId}
+                />
+
+                <PlotSection
+                    title="Commercial Plots"
+                    subtitle="Strategic locations for your business"
+                    extraFilters={{ propertyCategory: 'Commercial' }}
+                    plotCategoryId={plotCategoryId}
+                />
 
                 {/* 4. Reels (Plot Context) */}
                 <div id="plot-reels-section">
