@@ -112,7 +112,7 @@ const AdminPropertyVideos = () => {
             <Video className="w-6 h-6 text-blue-500" />
             Property Videos
           </h1>
-          <p className="text-gray-500 text-sm mt-1">Manage videos shown on Home, Buy, and Rent pages</p>
+          <p className="text-gray-500 text-sm mt-1">Manage videos shown on Home, Buy, Rent, and Plot pages</p>
         </div>
         <button
           onClick={() => handleOpenModal()}
@@ -234,7 +234,7 @@ const AdminPropertyVideos = () => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Visible On</label>
                   <div className="flex gap-3">
-                    {['home', 'buy', 'rent'].map(page => (
+                    {['home', 'buy', 'rent', 'plot'].map(page => (
                       <button
                         key={page}
                         type="button"

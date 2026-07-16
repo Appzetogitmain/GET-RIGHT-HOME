@@ -6,7 +6,7 @@ const propertyVideoSchema = new mongoose.Schema({
     propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', default: null },
     visibility: {
         type: [String],
-        enum: ['home', 'buy', 'rent'],
+        enum: ['home', 'buy', 'rent', 'plot'],
         required: true,
         default: ['home']
     },
