@@ -3,7 +3,7 @@ import { Lightbulb, Calculator, Map, Building, IndianRupee, ArrowRight } from 'l
 import { useNavigate, useLocation } from 'react-router-dom';
 import PopularToolsModals from './PopularToolsModals';
 
-const PopularToolsSection = () => {
+const PopularToolsSection = ({ hideViewAll = false }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [activeTool, setActiveTool] = useState(null);
@@ -69,7 +69,14 @@ const PopularToolsSection = () => {
                             <p className="text-[13px] text-slate-500 mt-0.5">Go from browsing to buying</p>
                         </div>
                     </div>
-                    <button className="text-[#1A65EB] font-bold text-sm hover:underline">View All</button>
+                    {!hideViewAll && (
+                        <button 
+                            onClick={() => navigate('/tools-and-insights')}
+                            className="text-[#1A65EB] font-bold text-sm hover:underline"
+                        >
+                            View All
+                        </button>
+                    )}
                 </div>
 
                 {/* Horizontally scrolling list on mobile, grid on desktop */}

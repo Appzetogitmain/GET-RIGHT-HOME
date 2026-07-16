@@ -31,6 +31,7 @@ const UserSignup = React.lazy(() => import('./pages/auth/UserSignup'));
 const SearchPage = React.lazy(() => import('./pages/user/SearchPage'));
 const BuyPage = React.lazy(() => import('./pages/user/BuyPage'));
 const RentPage = React.lazy(() => import('./pages/user/RentPage'));
+const PlotPage = React.lazy(() => import('./pages/user/PlotPage'));
 const LocalityDetail = React.lazy(() => import('./pages/user/LocalityDetail'));
 const LocalityReviewsPage = React.lazy(() => import('./pages/user/LocalityReviewsPage'));
 const BookingsPage = React.lazy(() => import('./pages/user/BookingsPage'));
@@ -71,6 +72,7 @@ const BuilderProfilePage = React.lazy(() => import('./pages/user/BuilderProfileP
 const EmiCalculatorPage = React.lazy(() => import('./pages/user/EmiCalculatorPage'));
 const HomeLoanEligibilityPage = React.lazy(() => import('./pages/user/HomeLoanEligibilityPage'));
 const AreaConverterPage = React.lazy(() => import('./pages/user/AreaConverterPage'));
+const ToolsAndInsightsPage = React.lazy(() => import('./pages/user/ToolsAndInsightsPage'));
 const CartPage = React.lazy(() => import('./homster/modules/user/pages/Cart'));
 const HomeServiceCheckoutPage = React.lazy(() => import('./homster/modules/user/pages/Checkout'));
 const HomeServiceBookingsPage = React.lazy(() => import('./homster/modules/user/pages/MyBookings'));
@@ -500,9 +502,9 @@ function App() {
                     <Route path="/search" element={<SearchPage />} />
                     <Route path="/rent" element={<Navigate to="/rent-pg" replace />} />
                     <Route path="/rent-pg" element={<RentPage />} />
-                    <Route path="/plot" element={<SearchPage />} />
                     <Route path="/pg-coliving" element={<Navigate to="/rent-pg" replace />} />
                     <Route path="/buy" element={<BuyPage />} />
+                    <Route path="/plot" element={<PlotPage />} />
                     <Route path="/insights/:locality" element={<LocalityDetail />} />
                     <Route path="/insights/:locality/reviews" element={<LocalityReviewsPage />} />
                     <Route path="/locality-insights/:city/:locality" element={<LocalityDetail />} />
@@ -511,6 +513,7 @@ function App() {
                     <Route path="/home-loan-emi-calculator" element={<EmiCalculatorPage />} />
                     <Route path="/home-loan-eligibility-calculator" element={<HomeLoanEligibilityPage />} />
                     <Route path="/area-converter" element={<AreaConverterPage />} />
+                    <Route path="/tools-and-insights" element={<ToolsAndInsightsPage />} />
                     <Route path="/listings" element={<Navigate to="/search" replace />} />
                     <Route path="/partner-landing" element={<PartnerLandingPage />} />
                     <Route path="/about" element={<AboutPage />} />

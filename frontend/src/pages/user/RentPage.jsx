@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HeroSection from '../../components/user/HeroSection';
+import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
 import ExclusiveOffers from '../../components/user/ExclusiveOffers';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import ReelSection from '../../components/user/ReelSection';
 import PopularBuilders from '../../components/user/PopularBuilders';
 import SupportSection from '../../components/user/SupportSection';
 import { categoryService } from '../../services/categoryService';
-import BHKChoice from '../../components/user/BHKChoice';
-import PostedByChoice from '../../components/user/PostedByChoice';
-import RecommendInsights from '../../components/user/RecommendInsights';
 import PropertyFeed from '../../components/user/PropertyFeed';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 
@@ -29,7 +27,7 @@ const RentPGSection = ({ title, typeId, subtitle, extraFilters, onTypeSelect, ty
             </div>
             <button
                 onClick={() => {
-                    onTypeSelect(typeId, typeLabel);
+                    onTypeSelect(typeId, typeLabel, extraFilters);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
@@ -75,8 +73,32 @@ const RentPage = () => {
         fetchIds();
     }, []);
 
-    const handleTypeSelect = (id, label) => {
-        navigate('/search', { state: { categoryTab: label } });
+    const handleTypeSelect = (id, label, extraFilters = {}) => {
+        const queryParams = new URLSearchParams();
+        
+        // Add all extra filters to the query params
+        Object.entries(extraFilters).forEach(([key, value]) => {
+            queryParams.append(key, value);
+        });
+
+        // Set the transactionType based on the label so SearchPage can apply the global filter
+        if (label === 'PG/Co-Living') {
+            queryParams.append('transactionType', 'PG');
+        } else if (label === 'Rent') {
+            queryParams.append('transactionType', 'Rent');
+        }
+
+        const queryString = queryParams.toString();
+        
+        navigate(`/search${queryString ? `?${queryString}` : ''}`);
+    };
+
+    const handleCategoryTabSelect = (id, label) => {
+        if (label === 'All') navigate('/');
+        else if (label === 'Rent' || label === 'Rent/PG' || label === 'PG/Co-Living' || label === 'PG') navigate('/rent-pg');
+        else if (label === 'Plot') navigate('/plot');
+        else if (label === 'Home Service') navigate('/home-services');
+        else if (label === 'Buy') navigate('/buy');
     };
 
     return (
@@ -91,8 +113,16 @@ const RentPage = () => {
                         theme={THEME} 
                         selectedType={selectedType} 
                         onSearch={(city) => setSearchCity(city)}
-                        hideGetStarted={true}
                     />
+
+                    {/* Filter Bar at bottom of hero */}
+                    <div className="bg-white pt-2">
+                        <PropertyTypeFilter
+                            selectedType={selectedType.id}
+                            onSelectType={handleCategoryTabSelect}
+                            theme={THEME}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -145,43 +175,34 @@ const RentPage = () => {
                         onTypeSelect={handleTypeSelect}
                     />
                 )}
-                {/* 3. Recommend Insights */}
-                <RecommendInsights transactionType="Rent" />
+
+                {sectionIds.pg && (
+                    <RentPGSection
+                        title="PGs for boys"
+                        subtitle="Top rated Boys PGs and Hostels near you"
+                        typeId={sectionIds.pg}
+                        extraFilters={{ gender: 'Boys' }}
+                        typeLabel="PG/Co-Living"
+                        onTypeSelect={handleTypeSelect}
+                    />
+                )}
+
+                {sectionIds.pg && (
+                    <RentPGSection
+                        title="PGs for Girls"
+                        subtitle="Top rated Girls PGs and Hostels near you"
+                        typeId={sectionIds.pg}
+                        extraFilters={{ gender: 'Girls' }}
+                        typeLabel="PG/Co-Living"
+                        onTypeSelect={handleTypeSelect}
+                    />
+                )}
 
                 {/* 4. Reels (Rent Context) */}
                 <ReelSection category="Rent" />
 
-                {/* 5. Demand in [City] Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Demand in {searchCity || 'Bengaluru'}</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Dynamic grid of top localities]</p>
-                </div>
-
-                {/* 7. BHK Choice */}
-                <BHKChoice transactionType="Rent" />
-                <PostedByChoice transactionType="Rent" />
-
-                {/* 8. Move In Timeline Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Move in Timeline</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Filters for Ready to move, Under construction]</p>
-                </div>
-
-
-                {/* 10. Future Dealers Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Future Dealers</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Avatar carousel of top rated dealers]</p>
-                </div>
-
                 {/* 11. Popular Builders (Existing) */}
                 <PopularBuilders />
-
-                {/* 12. Popular Tools Placeholder */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 className="text-xl font-bold mb-2">Use Popular Tools</h2>
-                    <p className="text-sm text-slate-500">[To be implemented: Icons for EMI calculator, etc.]</p>
-                </div>
 
             </div>
 

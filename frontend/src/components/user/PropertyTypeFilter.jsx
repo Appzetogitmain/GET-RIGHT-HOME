@@ -56,12 +56,6 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
 
         const staticList = [
           {
-            id: 'homeservice',
-            label: 'Home Service',
-            icon: LucideIcons.Sparkles,
-            isDynamic: false
-          },
-          {
             id: buyIds.length > 0 ? buyIds.join(',') : 'buy',
             label: 'Buy',
             icon: LucideIcons.Landmark,
@@ -72,6 +66,12 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
             label: 'Rent/PG',
             icon: LucideIcons.Home,
             isDynamic: true
+          },
+          {
+            id: 'homeservice',
+            label: 'Home Service',
+            icon: LucideIcons.Sparkles,
+            isDynamic: false
           },
           {
             id: plotIds.length > 0 ? plotIds.join(',') : 'plot',
@@ -87,9 +87,9 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
         console.error("Error loading categories:", error);
         // Fallback to static list without IDs if fetch fails
         setAllTypes([ALL_OPTION,
-          { id: 'homeservice', label: 'Home Service', icon: LucideIcons.Sparkles, isDynamic: false },
           { label: 'Buy', icon: LucideIcons.Landmark, id: 'buy' },
           { label: 'Rent/PG', icon: LucideIcons.Home, id: 'rent,pg' },
+          { id: 'homeservice', label: 'Home Service', icon: LucideIcons.Sparkles, isDynamic: false },
           { label: 'Plot', icon: LucideIcons.TreePine, id: 'plot' }
         ]);
       }
