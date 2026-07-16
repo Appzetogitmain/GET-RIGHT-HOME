@@ -17,7 +17,7 @@ const GenerateEstimateModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
 
     if (amount > 0) {
       const tokenAmount = Math.round(amount * 0.3); // 30% Token
-      const adminCommission = Math.round(tokenAmount * 0.2); // 20% of Token
+      const adminCommission = Math.round(amount * 0.2); // 20% of Total Amount
       const workerAdvance = tokenAmount - adminCommission;
       setBreakdown({ tokenAmount, adminCommission, workerAdvance });
     } else {
@@ -195,7 +195,7 @@ const GenerateEstimateModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
                     <span className="text-sm font-black text-gray-900">₹{breakdown.tokenAmount}</span>
                   </div>
                   <div className="flex justify-between items-center text-gray-500">
-                    <span className="text-xs font-medium">Platform Commission (20% of token):</span>
+                    <span className="text-xs font-medium">Platform Commission (20% of total):</span>
                     <span className="text-xs font-bold text-rose-500">-₹{breakdown.adminCommission}</span>
                   </div>
                   

@@ -128,11 +128,13 @@ const SubCategoryPage = () => {
     const [selectedTexture, setSelectedTexture] = useState(null);
     const [selectedIdea, setSelectedIdea] = useState(null);
     const [expandedFaq, setExpandedFaq] = useState(null);
-    
+
+    const isPaintingCategory = category?.title?.toLowerCase().includes('painting') || subCategory?.title?.toLowerCase().includes('painting');
+
     const toggleFaq = (index) => {
         setExpandedFaq(expandedFaq === index ? null : index);
     };
-    
+
     // Story Viewer State
     const [storyViewerOpen, setStoryViewerOpen] = useState(false);
     const [currentProjectIndex, setCurrentProjectIndex] = useState(0);
@@ -227,7 +229,7 @@ const SubCategoryPage = () => {
                     if (prev >= 100) {
                         const currentProject = recentProjects[currentProjectIndex];
                         const totalImages = currentProject.projectImages?.length || (currentProject.imageUrl ? 1 : 0);
-                        
+
                         if (currentImageIndex < totalImages - 1) {
                             setCurrentImageIndex(idx => idx + 1);
                             return 0;
@@ -687,7 +689,7 @@ const SubCategoryPage = () => {
                                         </div>
                                         <div className="bg-[#e8f7f5] p-2 sm:p-3 border-r border-b border-gray-200 flex flex-col items-center justify-center gap-1.5">
                                             <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-[8px] sm:text-[10px] shadow-sm">%</div>
-                                            <span className="leading-tight text-[9px] sm:text-xs text-[#0F172A] font-extrabold">GetRightHome<br/>Promise</span>
+                                            <span className="leading-tight text-[9px] sm:text-xs text-[#0F172A] font-extrabold">GetRightHome<br />Promise</span>
                                         </div>
                                         <div className="bg-[#f1f5f9] text-gray-600 p-2 sm:p-3 border-b border-gray-200 flex flex-col items-center justify-center gap-1.5">
                                             <div className="relative">
@@ -697,7 +699,7 @@ const SubCategoryPage = () => {
                                             <span className="leading-tight text-[9px] sm:text-xs font-semibold">Local Vendor</span>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Rows */}
                                     {[
                                         "Genuine Branded Paints",
@@ -738,7 +740,7 @@ const SubCategoryPage = () => {
                                         <div className="absolute -top-4 -left-4 w-24 h-24 bg-[#ffe6d4] rounded-full opacity-60 z-0"></div>
                                         <div className="relative z-10">
                                             <CalendarCheck className="w-8 h-8 text-gray-700 stroke-[1.5] mb-3" />
-                                            <h3 className="text-sm font-bold text-gray-800 leading-tight mb-2">Book Home<br/>Inspection</h3>
+                                            <h3 className="text-sm font-bold text-gray-800 leading-tight mb-2">Book Home<br />Inspection</h3>
                                             <p className="text-[10px] sm:text-[11px] text-gray-600 leading-tight">Tell us preferred time to book</p>
                                         </div>
                                         <div className="absolute bottom-2 right-3 text-2xl font-black text-[#ffaa70]/70 z-10">1</div>
@@ -748,7 +750,7 @@ const SubCategoryPage = () => {
                                         <div className="absolute top-8 -left-6 w-24 h-24 bg-[#e7f5cc] rounded-full opacity-60 z-0"></div>
                                         <div className="relative z-10">
                                             <Ruler className="w-8 h-8 text-gray-700 stroke-[1.5] mb-3" />
-                                            <h3 className="text-sm font-bold text-gray-800 leading-tight mb-2">Measure &<br/>Estimation</h3>
+                                            <h3 className="text-sm font-bold text-gray-800 leading-tight mb-2">Measure &<br />Estimation</h3>
                                             <p className="text-[10px] sm:text-[11px] text-gray-600 leading-tight">Get accurate quotes with laser measurements</p>
                                         </div>
                                         <div className="absolute bottom-2 right-3 text-2xl font-black text-[#a6d844]/70 z-10">2</div>
@@ -758,7 +760,7 @@ const SubCategoryPage = () => {
                                         <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-[#dbeafe] rounded-full opacity-60 z-0"></div>
                                         <div className="relative z-10">
                                             <Paintbrush className="w-8 h-8 text-gray-700 stroke-[1.5] mb-3" />
-                                            <h3 className="text-sm font-bold text-gray-800 leading-tight mb-2">Painting<br/>Execution</h3>
+                                            <h3 className="text-sm font-bold text-gray-800 leading-tight mb-2">Painting<br />Execution</h3>
                                             <p className="text-[10px] sm:text-[11px] text-gray-600 leading-tight">Professionals begin work safely and on time</p>
                                         </div>
                                         <div className="absolute bottom-2 right-3 text-2xl font-black text-[#93c5fd]/70 z-10">3</div>
@@ -768,7 +770,7 @@ const SubCategoryPage = () => {
                                         <div className="absolute top-0 right-0 w-24 h-24 bg-[#fae8ff] rounded-full opacity-60 z-0"></div>
                                         <div className="relative z-10">
                                             <Sparkles className="w-8 h-8 text-gray-700 stroke-[1.5] mb-3" />
-                                            <h3 className="text-sm font-bold text-gray-800 leading-tight mb-2">Post-Cleanup &<br/>Handover</h3>
+                                            <h3 className="text-sm font-bold text-gray-800 leading-tight mb-2">Post-Cleanup &<br />Handover</h3>
                                             <p className="text-[10px] sm:text-[11px] text-gray-600 leading-tight">We clean up and hand over a fresh home</p>
                                         </div>
                                         <div className="absolute bottom-2 right-3 text-2xl font-black text-[#f0abfc]/70 z-10">4</div>
@@ -787,13 +789,13 @@ const SubCategoryPage = () => {
                                 </h2>
                                 <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x">
                                     {textureServices.map((texture) => (
-                                        <div 
+                                        <div
                                             key={texture.id || texture._id}
                                             onClick={() => setSelectedTexture(texture)}
                                             className="min-w-[190px] w-[190px] sm:min-w-[240px] sm:w-[240px] h-[130px] sm:h-[160px] rounded-xl overflow-hidden relative cursor-pointer group shadow-sm flex-shrink-0 snap-start"
                                         >
-                                            <img 
-                                                src={toAssetUrl(texture.imageUrl || texture.icon)} 
+                                            <img
+                                                src={toAssetUrl(texture.imageUrl || texture.icon)}
                                                 alt={texture.title}
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                             />
@@ -820,13 +822,13 @@ const SubCategoryPage = () => {
                                 </div>
                                 <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x">
                                     {ideaServices.map((idea) => (
-                                        <div 
+                                        <div
                                             key={idea.id || idea._id}
                                             onClick={() => setSelectedIdea(idea)}
                                             className="min-w-[240px] w-[240px] sm:min-w-[320px] sm:w-[320px] h-[170px] sm:h-[220px] rounded-xl overflow-hidden relative cursor-pointer group shadow-sm flex-shrink-0 snap-start"
                                         >
-                                            <img 
-                                                src={toAssetUrl(idea.imageUrl || idea.icon)} 
+                                            <img
+                                                src={toAssetUrl(idea.imageUrl || idea.icon)}
                                                 alt={idea.title}
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                             />
@@ -856,7 +858,7 @@ const SubCategoryPage = () => {
                                             <p className="text-[13px] text-gray-500 mt-0.5">Tell us preferred time to book</p>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="relative pl-8 sm:pl-10">
                                         <div className="absolute -left-[17px] top-0 w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center shadow-sm">
                                             <Ruler className="w-4 h-4 text-indigo-600" />
@@ -893,22 +895,19 @@ const SubCategoryPage = () => {
                         {/* Tour our Recent Projects */}
                         {recentProjects.length > 0 && (
                             <div className="mt-8 mb-6 px-1">
-                                <div className="flex justify-between items-center mb-3">
+                                <div className="flex items-center mb-3">
                                     <h2 className="text-base sm:text-lg font-bold text-[#1E293B] flex items-center gap-2">
                                         Tour our Recent Projects
                                         <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-sm">New</span>
                                     </h2>
-                                    <button className="text-xs font-bold text-emerald-600 border border-emerald-200 px-3 py-1 rounded-lg hover:bg-emerald-50 transition-colors">
-                                        See All
-                                    </button>
                                 </div>
                                 <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x">
                                     {recentProjects.map((project, idx) => {
                                         const totalImages = project.projectImages?.length || (project.imageUrl ? 1 : 0);
                                         const displayImage = project.projectImages?.[0] || project.imageUrl || '';
-                                        
+
                                         return (
-                                            <div 
+                                            <div
                                                 key={project.id || project._id}
                                                 onClick={() => {
                                                     setCurrentProjectIndex(idx);
@@ -918,19 +917,19 @@ const SubCategoryPage = () => {
                                                 }}
                                                 className="w-full min-w-[calc(100%-1rem)] sm:w-[380px] sm:min-w-[380px] h-[220px] sm:h-[240px] rounded-2xl flex-shrink-0 relative overflow-hidden snap-start cursor-pointer group shadow-sm"
                                             >
-                                                <img 
-                                                    src={toAssetUrl(displayImage)} 
-                                                    alt={project.title} 
+                                                <img
+                                                    src={toAssetUrl(displayImage)}
+                                                    alt={project.title}
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                                 />
                                                 {/* Gradient overlay */}
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/20" />
-                                                
+
                                                 {/* Top Right Expand Icon */}
                                                 <div className="absolute top-2 right-2 w-8 h-8 bg-black/40 rounded-full flex items-center justify-center backdrop-blur-md">
                                                     <Maximize2 className="text-white w-4 h-4" />
                                                 </div>
-                                                
+
                                                 {/* Bottom Content */}
                                                 <div className="absolute bottom-3 left-3 right-3 flex flex-col gap-2">
                                                     <div className="flex items-center justify-between">
@@ -972,7 +971,7 @@ const SubCategoryPage = () => {
                                 </h2>
                                 <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x">
                                     {exploreCategories.map((cat, idx) => (
-                                        <div 
+                                        <div
                                             key={cat.id || cat._id}
                                             onClick={() => {
                                                 navigate('/home-services', {
@@ -982,8 +981,8 @@ const SubCategoryPage = () => {
                                             }}
                                             className="w-[160px] min-w-[160px] sm:w-[200px] sm:min-w-[200px] h-[200px] sm:h-[240px] rounded-xl overflow-hidden relative cursor-pointer group shadow-sm flex-shrink-0 snap-start"
                                         >
-                                            <img 
-                                                src={toAssetUrl(cat.imageUrl || cat.icon || cat.homeIconUrl)} 
+                                            <img
+                                                src={toAssetUrl(cat.imageUrl || cat.icon || cat.homeIconUrl)}
                                                 alt={cat.title}
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                             />
@@ -995,7 +994,7 @@ const SubCategoryPage = () => {
                                                     <h3 className="text-white font-bold text-sm sm:text-base leading-tight">
                                                         {cat.title.split(' ').map((word, i, arr) => (
                                                             <React.Fragment key={i}>
-                                                                {word}{i !== arr.length - 1 && <br/>}
+                                                                {word}{i !== arr.length - 1 && <br />}
                                                             </React.Fragment>
                                                         ))}
                                                     </h3>
@@ -1010,83 +1009,88 @@ const SubCategoryPage = () => {
                             </div>
                         )}
 
-                        {/* Customer Reviews */}
-                        <div className="mt-6 mb-10 px-3">
-                            <h2 className="text-base sm:text-lg font-bold text-[#1E293B] mb-5">
-                                Customer Reviews
-                            </h2>
-                            <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-6 snap-x">
-                                {CUSTOMER_REVIEWS.map((review) => (
-                                    <div 
-                                        key={review.id}
-                                        className="w-[280px] min-w-[280px] sm:w-[320px] sm:min-w-[320px] bg-white rounded-2xl p-5 border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex-shrink-0 snap-center flex flex-col gap-4"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
-                                                <img src={review.avatar} alt={review.name} className="w-full h-full object-cover" />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <h3 className="font-bold text-[#1E293B] text-sm">{review.name}</h3>
-                                                    <div className="w-3.5 h-3.5 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center">
-                                                        <Check size={9} strokeWidth={4} />
+                        {/* Customer Reviews & FAQs (Only for Painting) */}
+                        {isPaintingCategory && (
+                            <>
+                                {/* Customer Reviews */}
+                                <div className="mt-6 mb-10 px-3">
+                                    <h2 className="text-base sm:text-lg font-bold text-[#1E293B] mb-5">
+                                        Customer Reviews
+                                    </h2>
+                                    <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-6 snap-x">
+                                        {CUSTOMER_REVIEWS.map((review) => (
+                                            <div
+                                                key={review.id}
+                                                className="w-[280px] min-w-[280px] sm:w-[320px] sm:min-w-[320px] bg-white rounded-2xl p-5 border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex-shrink-0 snap-center flex flex-col gap-4"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
+                                                        <img src={review.avatar} alt={review.name} className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center gap-1.5 mb-1">
+                                                            <h3 className="font-bold text-[#1E293B] text-sm">{review.name}</h3>
+                                                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center">
+                                                                <Check size={9} strokeWidth={4} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <Star size={10} className="fill-amber-400 text-amber-400" />
+                                                            <span className="text-xs font-bold text-gray-500">{review.rating}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-1">
-                                                    <Star size={10} className="fill-amber-400 text-amber-400" />
-                                                    <span className="text-xs font-bold text-gray-500">{review.rating}</span>
-                                                </div>
+                                                <p className="text-[13px] text-gray-600 leading-relaxed font-medium">
+                                                    {review.review}
+                                                </p>
                                             </div>
-                                        </div>
-                                        <p className="text-[13px] text-gray-600 leading-relaxed font-medium">
-                                            {review.review}
-                                        </p>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-                        </div>
+                                </div>
 
-                        {/* Frequently Asked Questions */}
-                        <div className="mt-2 mb-10 px-4">
-                            <h2 className="text-xl sm:text-2xl font-bold text-[#1E293B] mb-6">
-                                Frequently asked questions
-                            </h2>
-                            <div className="flex flex-col border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                                {FAQS.map((faq, idx) => {
-                                    const isOpen = expandedFaq === idx;
-                                    return (
-                                        <div key={idx} className={`border-b border-gray-100 last:border-b-0 ${isOpen ? 'bg-gray-50/50' : 'bg-white'} transition-colors duration-300`}>
-                                            <button
-                                                onClick={() => toggleFaq(idx)}
-                                                className="w-full flex items-center justify-between p-4 sm:p-5 text-left focus:outline-none"
-                                            >
-                                                <span className={`text-[14px] sm:text-[15px] font-medium pr-4 ${isOpen ? 'text-teal-700' : 'text-teal-600 hover:text-teal-700'} transition-colors`}>
-                                                    {faq.question}
-                                                </span>
-                                                <div className="flex-shrink-0 text-gray-400">
-                                                    {isOpen ? <X size={18} strokeWidth={2.5} className="text-gray-700" /> : <X size={18} strokeWidth={2.5} className="text-gray-700 rotate-45 transition-transform" />}
-                                                </div>
-                                            </button>
-                                            <AnimatePresence>
-                                                {isOpen && (
-                                                    <motion.div
-                                                        initial={{ height: 0, opacity: 0 }}
-                                                        animate={{ height: "auto", opacity: 1 }}
-                                                        exit={{ height: 0, opacity: 0 }}
-                                                        transition={{ duration: 0.2 }}
-                                                        className="overflow-hidden"
+                                {/* Frequently Asked Questions */}
+                                <div className="mt-2 mb-10 px-4">
+                                    <h2 className="text-xl sm:text-2xl font-bold text-[#1E293B] mb-6">
+                                        Frequently asked questions
+                                    </h2>
+                                    <div className="flex flex-col border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                                        {FAQS.map((faq, idx) => {
+                                            const isOpen = expandedFaq === idx;
+                                            return (
+                                                <div key={idx} className={`border-b border-gray-100 last:border-b-0 ${isOpen ? 'bg-gray-50/50' : 'bg-white'} transition-colors duration-300`}>
+                                                    <button
+                                                        onClick={() => toggleFaq(idx)}
+                                                        className="w-full flex items-center justify-between p-4 sm:p-5 text-left focus:outline-none"
                                                     >
-                                                        <div className="px-4 sm:px-5 pb-5 text-[13px] sm:text-[14px] text-gray-700 leading-relaxed font-medium">
-                                                            {faq.answer}
+                                                        <span className={`text-[14px] sm:text-[15px] font-medium pr-4 ${isOpen ? 'text-teal-700' : 'text-teal-600 hover:text-teal-700'} transition-colors`}>
+                                                            {faq.question}
+                                                        </span>
+                                                        <div className="flex-shrink-0 text-gray-400">
+                                                            {isOpen ? <X size={18} strokeWidth={2.5} className="text-gray-700" /> : <X size={18} strokeWidth={2.5} className="text-gray-700 rotate-45 transition-transform" />}
                                                         </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                                                    </button>
+                                                    <AnimatePresence>
+                                                        {isOpen && (
+                                                            <motion.div
+                                                                initial={{ height: 0, opacity: 0 }}
+                                                                animate={{ height: "auto", opacity: 1 }}
+                                                                exit={{ height: 0, opacity: 0 }}
+                                                                transition={{ duration: 0.2 }}
+                                                                className="overflow-hidden"
+                                                            >
+                                                                <div className="px-4 sm:px-5 pb-5 text-[13px] sm:text-[14px] text-gray-700 leading-relaxed font-medium">
+                                                                    {faq.answer}
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </div>
@@ -1131,8 +1135,8 @@ const SubCategoryPage = () => {
 
                         {/* Image */}
                         <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-                            <img 
-                                src={toAssetUrl(selectedTexture.imageUrl || selectedTexture.icon)} 
+                            <img
+                                src={toAssetUrl(selectedTexture.imageUrl || selectedTexture.icon)}
                                 alt={selectedTexture.title}
                                 className="w-full h-auto max-h-[70vh] object-contain rounded-lg shadow-2xl"
                             />
@@ -1183,8 +1187,8 @@ const SubCategoryPage = () => {
 
                         {/* Image */}
                         <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-                            <img 
-                                src={toAssetUrl(selectedIdea.imageUrl || selectedIdea.icon)} 
+                            <img
+                                src={toAssetUrl(selectedIdea.imageUrl || selectedIdea.icon)}
                                 alt={selectedIdea.title}
                                 className="w-full h-auto max-h-[70vh] object-contain rounded-lg shadow-2xl"
                             />
@@ -1240,27 +1244,27 @@ const SubCategoryPage = () => {
                                 const images = currentProject.projectImages?.length ? currentProject.projectImages : [currentProject.imageUrl];
                                 const currentImage = images[currentImageIndex];
                                 const totalImages = images.length;
-                                
+
                                 return (
                                     <>
-                                        <img 
-                                            src={toAssetUrl(currentImage)} 
+                                        <img
+                                            src={toAssetUrl(currentImage)}
                                             alt={currentProject.title}
                                             className="w-full h-full object-cover sm:object-contain rounded-lg"
                                         />
-                                        
+
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40" />
 
                                         {/* Progress Bars Overlay */}
                                         <div className="absolute top-16 left-4 right-4 flex gap-1 z-20">
                                             {Array.from({ length: totalImages }).map((_, idx) => (
                                                 <div key={idx} className="h-1 rounded-full flex-1 bg-white/30 overflow-hidden">
-                                                    <div 
+                                                    <div
                                                         className="h-full bg-white transition-all duration-75 ease-linear"
-                                                        style={{ 
-                                                            width: idx < currentImageIndex 
-                                                                ? '100%' 
-                                                                : (idx === currentImageIndex ? `${storyProgress}%` : '0%') 
+                                                        style={{
+                                                            width: idx < currentImageIndex
+                                                                ? '100%'
+                                                                : (idx === currentImageIndex ? `${storyProgress}%` : '0%')
                                                         }}
                                                     />
                                                 </div>
@@ -1268,8 +1272,8 @@ const SubCategoryPage = () => {
                                         </div>
 
                                         {/* Tap Areas for Navigation */}
-                                        <div 
-                                            className="absolute top-20 bottom-32 left-0 w-1/3 z-10" 
+                                        <div
+                                            className="absolute top-20 bottom-32 left-0 w-1/3 z-10"
                                             onClick={() => {
                                                 if (currentImageIndex > 0) {
                                                     setCurrentImageIndex(i => i - 1);
@@ -1283,8 +1287,8 @@ const SubCategoryPage = () => {
                                                 }
                                             }}
                                         />
-                                        <div 
-                                            className="absolute top-20 bottom-32 right-0 w-2/3 z-10" 
+                                        <div
+                                            className="absolute top-20 bottom-32 right-0 w-2/3 z-10"
                                             onClick={() => setStoryProgress(100)} // Force skip
                                         />
 
@@ -1302,12 +1306,12 @@ const SubCategoryPage = () => {
                                                 <div>
                                                     <div className="text-white text-sm font-bold">{currentProject.workerName || 'Expert Painter'}</div>
                                                     <div className="flex items-center gap-1 text-white/80 text-xs font-medium">
-                                                        <Star size={12} className="fill-amber-400 text-amber-400" /> 
+                                                        <Star size={12} className="fill-amber-400 text-amber-400" />
                                                         5 <span className="mx-1">•</span> {subCategory?.title}
                                                     </div>
                                                 </div>
                                             </div>
-                                            
+
                                             <p className="text-white/90 text-sm font-medium leading-snug drop-shadow-md line-clamp-3">
                                                 {currentProject.description || "I couldn't be happier with the painting service I received. The team was professional, prompt, and their attention to detail was impeccable. My home looks absolutely stunning now, thanks to their expertise."}
                                             </p>
