@@ -2,8 +2,7 @@ import mongoose from 'mongoose';
 
 const bannerSchema = new mongoose.Schema({
   title: { 
-    type: String, 
-    required: true 
+    type: String
   },
   imageUrl: { 
     type: String, 
@@ -15,6 +14,16 @@ const bannerSchema = new mongoose.Schema({
   link: { 
     type: String,
     default: ''
+  },
+  linkedItemType: {
+    type: String,
+    enum: ['Property', 'Project', null],
+    default: null
+  },
+  linkedItem: {
+    type: mongoose.Schema.Types.ObjectId,
+    refPath: 'linkedItemType',
+    default: null
   },
   order: { 
     type: Number, 

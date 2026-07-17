@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -9,6 +10,7 @@ const BannerCarousel = () => {
     const [banners, setBanners] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchBanners = async () => {
@@ -40,6 +42,18 @@ const BannerCarousel = () => {
         setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length);
     };
 
+    const handleBannerClick = (banner) => {
+        if (banner.linkedItem && banner.linkedItem._id) {
+            navigate(`/property/${banner.linkedItem._id}`);
+        } else if (banner.link) {
+            if (banner.link.startsWith('http')) {
+                window.open(banner.link, '_blank');
+            } else {
+                navigate(banner.link);
+            }
+        }
+    };
+
     if (loading || banners.length === 0) return null;
 
     return (
@@ -51,7 +65,8 @@ const BannerCarousel = () => {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.6, ease: "easeInOut" }}
-                    className="absolute inset-0 w-full h-full"
+                    className={`absolute inset-0 w-full h-full ${banners[currentIndex]?.link || banners[currentIndex]?.linkedItem ? 'cursor-pointer' : ''}`}
+                    onClick={() => handleBannerClick(banners[currentIndex])}
                 >
                     <img
                         src={banners[currentIndex].imageUrl}
@@ -59,7 +74,14 @@ const BannerCarousel = () => {
                         className="w-full h-full object-cover"
                     />
                     {/* Optional Overlay Gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent md:bg-gradient-to-r md:from-black/10 md:to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent md:bg-gradient-to-r md:from-black/10 md:to-transparent pointer-events-none" />
+                    
+                    {/* Explore Now Button */}
+                    <div className="absolute bottom-8 right-6 md:bottom-12 md:right-16 z-20 pointer-events-none">
+                        <span className="inline-flex items-center justify-center border border-white text-white px-5 py-2 md:px-7 md:py-2.5 text-sm md:text-base font-medium backdrop-blur-sm bg-black/10 transition-colors duration-300 shadow-sm group-hover:bg-white group-hover:text-black">
+                            Explore Now <span className="ml-2 font-bold">➔</span>
+                        </span>
+                    </div>
                 </motion.div>
             </AnimatePresence>
 
