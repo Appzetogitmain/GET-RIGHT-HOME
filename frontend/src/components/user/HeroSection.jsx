@@ -22,7 +22,9 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     const [selectedCity, setSelectedCity] = useState('Bengaluru');
     const [selectedDistrict, setSelectedDistrict] = useState(null);
     const [detectingLocation, setDetectingLocation] = useState(false);
-    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+    const [isSearchModalOpen, setIsSearchModalOpen] = useState(() => {
+        return sessionStorage.getItem('grh_search_modal_open') === 'true';
+    });
     const searchInputRef = useRef(null);
     // Track the Y position where the search box sits to trigger sticky correctly
     const searchBoxRef = useRef(null);
@@ -42,6 +44,11 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         }, 3000);
         return () => clearInterval(interval);
     }, []);
+
+    // Persist modal state
+    useEffect(() => {
+        sessionStorage.setItem('grh_search_modal_open', isSearchModalOpen);
+    }, [isSearchModalOpen]);
 
     // Scroll Listener — becomes sticky when search box scrolls past top
     useEffect(() => {
@@ -64,7 +71,14 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         if (filters.categoryTab) queryParams.set('categoryTab', filters.categoryTab);
         if (filters.propertyCategory) queryParams.set('propertyCategory', filters.propertyCategory);
         if (filters.areas && filters.areas.length > 0) queryParams.set('areas', filters.areas.join(','));
+        sessionStorage.removeItem('grh_search_modal_open'); // Clear on submit
+        sessionStorage.removeItem('grh_search_draft'); // Clear draft
         navigate(`/search?${queryParams.toString()}`);
+    };
+
+    const handleCloseModal = () => {
+        setIsSearchModalOpen(false);
+        sessionStorage.removeItem('grh_search_modal_open');
     };
 
     const handleCitySelect = ({ city, district }) => {
@@ -325,7 +339,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             {/* Mobile Search Overlay Modal */}
             <MobileSearchOverlay 
                 isOpen={isSearchModalOpen}
-                onClose={() => setIsSearchModalOpen(false)}
+                onClose={handleCloseModal}
                 initialFilters={{
                     categoryTab: selectedType?.label || 'Sell',
                     propertyCategory: 'Residential'
