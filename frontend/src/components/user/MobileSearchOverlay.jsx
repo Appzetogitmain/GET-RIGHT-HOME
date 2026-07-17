@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X, MapPin, History, Crosshair, ChevronDown, Building, Home, Building2, Map, LayoutGrid, CheckCircle2, Construction, Clock, Briefcase, Factory, Warehouse, Hotel } from 'lucide-react';
 import { bengaluruAreas } from '../../data/locationData';
 
@@ -97,7 +98,11 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             if (initialFilters.areas && initialFilters.areas.length > 0) {
                 setSelectedLocations(initialFilters.areas);
             }
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
         }
+        return () => { document.body.style.overflow = ''; };
     }, [isOpen, initialFilters]);
 
     if (!isOpen) return null;
@@ -1061,11 +1066,13 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
         </div>
     );
 
-    return (
-        <div className="fixed inset-0 z-[200] bg-white flex flex-col h-[100dvh]">
+    const modalContent = (
+        <div className="fixed inset-0 z-[9999] bg-white flex flex-col h-[100dvh]">
             {step === 1 ? renderStep1() : renderStep2()}
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };
 
 export default MobileSearchOverlay;
