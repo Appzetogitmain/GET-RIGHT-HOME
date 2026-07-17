@@ -27,8 +27,8 @@ const PlotSection = ({ title, subtitle, extraFilters, plotCategoryId }) => {
     const navigate = useNavigate();
     
     return (
-        <div className="py-4 border border-amber-100 relative bg-white rounded-3xl p-6 shadow-sm mb-6">
-            <div className="flex justify-between items-end mb-4">
+        <div className="py-4 border-b border-gray-100 last:border-0 relative">
+            <div className="flex justify-between items-end px-5 md:px-0 mb-2">
                 <div>
                     <div className="flex items-center gap-2 mb-0.5">
                         <div className="w-1 h-5 bg-amber-500 rounded-full" />
