@@ -63,7 +63,7 @@ const THEME_MAP = {
     },
     default: {
         heroBg: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', // Light Emerald
-        pageBg: '#f8fafc',
+        pageBg: '#ecfdf5', // Changed from #f8fafc to theme-matching Light Emerald
         accent: '#10B981',
         text: 'text-emerald-600',
         bgLight: 'bg-emerald-500/10'

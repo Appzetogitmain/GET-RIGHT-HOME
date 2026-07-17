@@ -157,7 +157,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                         <span className="text-[14px] font-black tracking-tighter text-[#111827] uppercase leading-none">
                             GET RIGHT <span className={textClass}>HOME</span>
                         </span>
-                        <div className={`h-0.5 w-4 ${bgLightClass} rounded-full mt-0.5`} />
+                        <div className={`h-0.5 w-6 rounded-full mt-0.5`} style={{ backgroundColor: accentColor }} />
                     </div>
                 </div>
                 

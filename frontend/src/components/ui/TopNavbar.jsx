@@ -11,30 +11,30 @@ const TopNavbar = () => {
     const location = useLocation();
 
     // Determine theme based on route
-    let themeBg = 'bg-white/95';
-    let themeBorder = 'border-gray-100';
+    let themeBg = 'bg-emerald-50/95';
+    let themeBorder = 'border-emerald-100';
     let themeText = 'text-emerald-600';
     let themeBtn = 'bg-emerald-600';
     let themeBtnHover = 'hover:bg-emerald-700';
-    let themeLogoColor = 'text-orange-600';
+    let themeLogoColor = 'text-emerald-600';
 
     if (location.pathname === '/buy') {
-        themeBg = 'bg-blue-50/90';
-        themeBorder = 'border-blue-100';
+        themeBg = 'bg-blue-100/95';
+        themeBorder = 'border-blue-200';
         themeText = 'text-blue-600';
         themeBtn = 'bg-blue-600';
         themeBtnHover = 'hover:bg-blue-700';
         themeLogoColor = 'text-blue-600';
     } else if (location.pathname === '/rent-pg' || location.pathname === '/rent') {
-        themeBg = 'bg-violet-50/90';
-        themeBorder = 'border-violet-100';
+        themeBg = 'bg-violet-100/95';
+        themeBorder = 'border-violet-200';
         themeText = 'text-violet-600';
         themeBtn = 'bg-violet-600';
         themeBtnHover = 'hover:bg-violet-700';
         themeLogoColor = 'text-violet-600';
     } else if (location.pathname === '/plot') {
-        themeBg = 'bg-amber-50/90';
-        themeBorder = 'border-amber-100';
+        themeBg = 'bg-amber-100/95';
+        themeBorder = 'border-amber-200';
         themeText = 'text-amber-600';
         themeBtn = 'bg-amber-500';
         themeBtnHover = 'hover:bg-amber-600';
