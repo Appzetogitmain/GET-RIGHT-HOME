@@ -131,6 +131,15 @@ const PropertyTypeFilter = ({ selectedType, selectedLabel, onSelectType, theme }
             // Calculate exactly where to scroll the container without affecting the window
             const scrollLeft = el.offsetLeft - container.offsetLeft - (container.clientWidth / 2) + (el.clientWidth / 2);
             container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+
+            // Restore the "smooth jump to section" effect exclusively for desktop (web)
+            if (window.innerWidth >= 1024) {
+              // Scroll so the tabs are at the absolute BOTTOM of the viewport
+              // This leaves the banner & search bar fully visible above, and hides the youtube section below
+              const containerTop = container.getBoundingClientRect().top + window.scrollY;
+              const offsetTop = containerTop + container.clientHeight - window.innerHeight; // Removed 40px buffer to show more banner
+              window.scrollTo({ top: Math.max(0, offsetTop), behavior: 'smooth' });
+            }
           }
         }, 50);
       }

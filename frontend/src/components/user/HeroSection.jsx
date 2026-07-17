@@ -142,7 +142,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     };
 
     return (
-        <motion.section className="relative w-full pt-1 pb-2 flex flex-col bg-transparent">
+        <motion.section className="relative w-full pt-0 pb-2 flex flex-col bg-transparent">
 
             {/* ─── Mobile Top Bar (Menu + Brand + Post Property) ─── */}
             <div className="px-2 flex lg:hidden items-center justify-between h-12 mb-0">
