@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
 import { categoryService } from '../../services/categoryService';
@@ -19,14 +19,21 @@ const PREMIUM_IMAGES = {
   'Plot': 'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?auto=format&fit=crop&w=120&q=80'
 };
 
-const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
-  const accentColor = theme?.accent || '#059669';
+let cachedFilterTypes = null;
+
+const PropertyTypeFilter = ({ selectedType, selectedLabel, onSelectType, theme }) => {
+  const accentColor = theme?.accent || '#005B9F';
+  const textClass = theme?.text || 'text-[#005B9F]';
+  const bgLightClass = theme?.bgLight || 'bg-blue-50/20';
   const STATIC_TYPES = [];
 
-  const [allTypes, setAllTypes] = useState([ALL_OPTION, ...STATIC_TYPES]);
+  const [allTypes, setAllTypes] = useState(cachedFilterTypes || [ALL_OPTION, ...STATIC_TYPES]);
   const [imageError, setImageError] = useState({});
+  const scrollContainerRef = useRef(null);
 
   useEffect(() => {
+    if (cachedFilterTypes) return; // Prevent millisecond glitch by using cache
+
     const fetchDynamicCategories = async () => {
       try {
         const categories = await categoryService.getActiveCategories();
@@ -81,7 +88,8 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
           }
         ];
 
-        setAllTypes([ALL_OPTION, ...staticList]);
+        cachedFilterTypes = [ALL_OPTION, ...staticList];
+        setAllTypes(cachedFilterTypes);
 
       } catch (error) {
         console.error("Error loading categories:", error);
@@ -98,17 +106,53 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
     fetchDynamicCategories();
   }, []);
 
+  // Auto-scroll the active tab into view on mobile
+  useEffect(() => {
+    if (selectedType !== undefined || selectedLabel) {
+      const activeTab = allTypes.find(type => {
+        if (selectedLabel && type.label) {
+          return selectedLabel === type.label;
+        }
+        if (selectedType === null && type.id === null) return true;
+        if (selectedType && type.id) {
+          if (selectedType === type.id) return true;
+          const typeIds = type.id.split(',').map(id => id.trim());
+          const selectedIds = selectedType.split(',').map(id => id.trim());
+          return typeIds.some(id => selectedIds.includes(id)) || selectedIds.some(id => typeIds.includes(id));
+        }
+        return false;
+      });
+      if (activeTab) {
+        // Small delay to ensure rendering is complete
+        setTimeout(() => {
+          const el = document.getElementById(`tab-${activeTab.label.replace(/\s+/g, '-')}`);
+          const container = scrollContainerRef.current;
+          if (el && container) {
+            // Calculate exactly where to scroll the container without affecting the window
+            const scrollLeft = el.offsetLeft - container.offsetLeft - (container.clientWidth / 2) + (el.clientWidth / 2);
+            container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+          }
+        }, 50);
+      }
+    }
+  }, [selectedType, allTypes]);
+
   return (
     <motion.div
-      className="relative w-full border-b border-gray-100 bg-white"
+      className="relative w-full transition-colors duration-700"
     >
       {/* Web: centered & larger; Mobile: scrollable as before */}
-      <div className="flex gap-4 overflow-x-auto px-6 py-4 md:py-1.5 no-scrollbar relative max-w-7xl mx-auto items-center justify-start sm:justify-center md:justify-center md:flex-wrap md:gap-8 md:overflow-visible">
+      <div 
+        ref={scrollContainerRef}
+        className="flex gap-4 overflow-x-auto px-6 py-4 md:py-1.5 no-scrollbar relative max-w-7xl mx-auto items-center justify-start sm:justify-center md:justify-center md:flex-wrap md:gap-8 md:overflow-visible"
+      >
         {allTypes.map((type) => {
           const Icon = type.icon;
-          // Handle selection: null for "All", exact match, or if IDs overlap (for grouped categories)
+          // Handle selection: by label first for synchronous matching, then fallback to ID
           let isSelected = false;
-          if (selectedType === null && type.id === null) {
+          if (selectedLabel && type.label) {
+            isSelected = selectedLabel === type.label;
+          } else if (selectedType === null && type.id === null) {
             isSelected = true;
           } else if (selectedType && type.id) {
             if (selectedType === type.id) {
@@ -124,24 +168,27 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
           return (
             <button
               key={type.id || 'all'}
+              id={`tab-${type.label.replace(/\s+/g, '-')}`}
               onClick={() => onSelectType(type.id, type.label)}
               className={`
                 flex flex-col items-center justify-between p-1.5 pb-2.5 min-w-[85px] w-[85px] h-[115px] rounded-[1.25rem] border transition-all shrink-0 group
-                ${isSelected ? 'border-[#005B9F] shadow-md bg-blue-50/20 scale-[1.02]' : 'border-gray-100 bg-white hover:border-gray-200'}
+                ${isSelected ? `shadow-md ${bgLightClass} scale-[1.02]` : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'}
               `}
+              style={{ borderColor: isSelected ? accentColor : undefined }}
             >
               {/* Image Container */}
               <div
                 className={`
                   w-full h-[62px] rounded-xl overflow-hidden relative transition-all duration-300 border
-                  ${isSelected ? 'border-[#005B9F]/30 shadow-sm' : 'border-transparent'}
+                  ${isSelected ? 'shadow-sm' : 'border-transparent'}
                 `}
+                style={{ borderColor: isSelected ? `${accentColor}4D` : undefined }}
               >
                 {imageError[type.label] || !PREMIUM_IMAGES[type.label] ? (
-                  <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-[#005B9F]' : 'bg-[#EAF2FA]'}`}>
+                  <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: isSelected ? accentColor : '#f1f5f9' }}>
                     <Icon
                       className="w-5 h-5 transition-colors"
-                      style={{ color: isSelected ? '#FFFFFF' : '#005B9F' }}
+                      style={{ color: isSelected ? '#FFFFFF' : '#94a3b8' }}
                       strokeWidth={2.5}
                     />
                   </div>
@@ -160,7 +207,7 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
               {/* Title Text */}
               <span
                 className={`text-[9px] md:text-[10px] font-black uppercase tracking-tight text-center leading-tight mt-1.5 px-0.5 transition-colors
-                  ${isSelected ? 'text-[#005B9F]' : 'text-gray-700 group-hover:text-gray-900'}
+                  ${isSelected ? textClass : 'text-gray-700 group-hover:text-gray-900'}
                 `}
               >
                 {type.label}
@@ -169,7 +216,7 @@ const PropertyTypeFilter = ({ selectedType, onSelectType, theme }) => {
           );
         })}
       </div>
-    </motion.div>
+</motion.div>
   );
 };
 

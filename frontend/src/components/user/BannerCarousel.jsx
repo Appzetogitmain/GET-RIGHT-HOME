@@ -6,16 +6,24 @@ import { useNavigate } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
+let cachedBanners = null;
+
 const BannerCarousel = () => {
-    const [banners, setBanners] = useState([]);
+    const [banners, setBanners] = useState(cachedBanners || []);
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!cachedBanners);
     const navigate = useNavigate();
 
     useEffect(() => {
+        if (cachedBanners && cachedBanners.length > 0) {
+            setLoading(false);
+            return;
+        }
+
         const fetchBanners = async () => {
             try {
                 const response = await axios.get(`${API_URL}/banners`);
+                cachedBanners = response.data;
                 setBanners(response.data);
             } catch (error) {
                 console.error('Failed to fetch banners', error);
@@ -54,10 +62,22 @@ const BannerCarousel = () => {
         }
     };
 
-    if (loading || banners.length === 0) return null;
+    if (loading) {
+        return (
+            <div className="relative w-full h-[220px] md:h-[300px] lg:h-[420px] xl:h-[480px] overflow-hidden rounded-none bg-gray-200 animate-pulse" />
+        );
+    }
+
+    if (banners.length === 0) {
+        return (
+            <div className="relative w-full h-[220px] md:h-[300px] lg:h-[420px] xl:h-[480px] overflow-hidden rounded-none bg-gray-50 flex items-center justify-center">
+                <span className="text-gray-400 text-sm font-medium">No banners available</span>
+            </div>
+        );
+    }
 
     return (
-        <div className="relative w-full h-[220px] md:h-[300px] overflow-hidden rounded-none group">
+        <div className="relative w-full h-[220px] md:h-[300px] lg:h-[420px] xl:h-[480px] overflow-hidden rounded-none group">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={currentIndex}

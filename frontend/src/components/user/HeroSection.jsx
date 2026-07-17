@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 
 const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) => {
     const accentColor = theme?.accent || '#10B981';
+    const textClass = theme?.text || 'text-emerald-600';
+    const bgLightClass = theme?.bgLight || 'bg-emerald-500/10';
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -153,9 +155,9 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                     </button>
                     <div className="flex flex-col cursor-pointer" onClick={() => navigate('/')}>
                         <span className="text-[14px] font-black tracking-tighter text-[#111827] uppercase leading-none">
-                            GET RIGHT <span className="text-orange-600">HOME</span>
+                            GET RIGHT <span className={textClass}>HOME</span>
                         </span>
-                        <div className="h-0.5 w-4 bg-orange-600/30 rounded-full mt-0.5" />
+                        <div className={`h-0.5 w-4 ${bgLightClass} rounded-full mt-0.5`} />
                     </div>
                 </div>
                 

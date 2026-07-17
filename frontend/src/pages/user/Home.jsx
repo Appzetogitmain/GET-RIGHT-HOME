@@ -17,42 +17,56 @@ import SupportSection from '../../components/user/SupportSection';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 
 
-// Category Theme Map - Professional palettes inspired by Housing.com
+// Category Theme Map - Professional light palettes inspired by modern premium designs
 const THEME_MAP = {
     Hotel: {
-        darkBg: 'linear-gradient(135deg, #064E3B 0%, #065F46 100%)', // Emerald
-        pageBg: '#F8FAFC',
-        accent: '#10B981'
+        heroBg: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', // Light Emerald
+        pageBg: '#f8fafc',
+        accent: '#10B981',
+        text: 'text-emerald-600',
+        bgLight: 'bg-emerald-500/10'
     },
     'PG/Co-Living': {
-        darkBg: 'linear-gradient(135deg, #881337 0%, #9F1239 100%)', // Rose
-        pageBg: '#FFF1F2',
-        accent: '#E11D48'
+        heroBg: 'linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%)', // Light Fuchsia
+        pageBg: '#faf5ff',
+        accent: '#d946ef',
+        text: 'text-fuchsia-600',
+        bgLight: 'bg-fuchsia-500/10'
     },
     Rent: {
-        darkBg: 'linear-gradient(135deg, #4C1D95 0%, #5B21B6 100%)', // Violet
-        pageBg: '#F5F3FF',
-        accent: '#8B5CF6'
+        heroBg: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', // Light Violet
+        pageBg: '#f8fafc',
+        accent: '#8B5CF6',
+        text: 'text-violet-600',
+        bgLight: 'bg-violet-500/10'
     },
     Buy: {
-        darkBg: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)', // Blue
-        pageBg: '#EFF6FF',
-        accent: '#3B82F6'
+        heroBg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', // Light Blue
+        pageBg: '#f8fafc',
+        accent: '#3B82F6',
+        text: 'text-blue-600',
+        bgLight: 'bg-blue-500/10'
     },
     Plot: {
-        darkBg: 'linear-gradient(135deg, #78350F 0%, #92400E 100%)', // Amber
-        pageBg: '#FFFBEB',
-        accent: '#F59E0B'
+        heroBg: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', // Light Amber
+        pageBg: '#f8fafc',
+        accent: '#F59E0B',
+        text: 'text-amber-600',
+        bgLight: 'bg-amber-500/10'
     },
     'Home Service': {
-        darkBg: 'linear-gradient(135deg, #065F46 0%, #047857 100%)', // Dark Emerald
-        pageBg: '#F0FDF4',
-        accent: '#10B981'
+        heroBg: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', // Light Green
+        pageBg: '#f8fafc',
+        accent: '#22c55e',
+        text: 'text-green-600',
+        bgLight: 'bg-green-500/10'
     },
     default: {
-        darkBg: 'linear-gradient(135deg, #064E3B 0%, #065F46 100%)', // Emerald
-        pageBg: '#F8FAFC',
-        accent: '#10B981'
+        heroBg: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', // Light Emerald
+        pageBg: '#f8fafc',
+        accent: '#10B981',
+        text: 'text-emerald-600',
+        bgLight: 'bg-emerald-500/10'
     }
 };
 
@@ -149,15 +163,14 @@ const Home = () => {
         setPgFilters({ gender: undefined, occupancy: undefined, foodIncluded: undefined });
     };
 
-    const pageBg = '#FFFFFF';
-
+    const pageBg = activeTheme.pageBg;
 
     return (
         <main className="transition-colors duration-700 w-full overflow-x-hidden" style={{ backgroundColor: pageBg }}>
-            {/* Hero: dark background only (no images), changes per category */}
+            {/* Hero: light premium background, changes per category */}
             {/* Hero section — no overflow-hidden so floating search box is not clipped */}
-            <div className="relative min-h-[280px] md:min-h-[340px] bg-gray-50/50">
-                <div className="absolute inset-0 w-full h-full bg-white" />
+            <div className="relative min-h-[280px] md:min-h-[340px]">
+                <div className="absolute inset-0 w-full h-full transition-all duration-700" style={{ background: activeTheme.heroBg }} />
 
                 {/* Bottom fade */}
                 <div className="absolute bottom-0 left-0 right-0 h-24 z-[1]" style={{ background: `linear-gradient(to top, ${pageBg}, transparent)` }} />
@@ -174,9 +187,10 @@ const Home = () => {
                     <div className="pt-0 flex-shrink-0 md:pt-1 md:min-h-0" />
 
                     {/* Filter Bar at bottom of hero */}
-                    <div className="bg-white pt-2">
+                    <div className="pt-2 pb-6 border-b border-gray-100">
                         <PropertyTypeFilter
                             selectedType={selectedType.id}
+                            selectedLabel={selectedType.label}
                             onSelectType={handleTypeSelect}
                             theme={activeTheme}
                         />

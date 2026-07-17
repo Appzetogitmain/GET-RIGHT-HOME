@@ -18,9 +18,11 @@ import PopularToolsSection from '../../components/user/PopularToolsSection';
 
 // Theme for Buy Page
 const THEME = {
-    darkBg: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)', // Blue
-    pageBg: '#EFF6FF',
-    accent: '#3B82F6'
+    heroBg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', // Light Blue
+    pageBg: '#f8fafc',
+    accent: '#3B82F6',
+    text: 'text-blue-600',
+    bgLight: 'bg-blue-500/10'
 };
 
 const BuyPage = () => {
@@ -58,8 +60,8 @@ const BuyPage = () => {
     return (
         <main className="transition-colors duration-700 w-full overflow-x-hidden min-h-screen" style={{ backgroundColor: THEME.pageBg }}>
             {/* Hero Section */}
-            <div className="relative min-h-[280px] md:min-h-[340px] bg-gray-50/50">
-                <div className="absolute inset-0 w-full h-full bg-white" />
+            <div className="relative min-h-[280px] md:min-h-[340px]">
+                <div className="absolute inset-0 w-full h-full transition-all duration-700" style={{ background: THEME.heroBg }} />
                 <div className="absolute bottom-0 left-0 right-0 h-24 z-[1]" style={{ background: `linear-gradient(to top, ${THEME.pageBg}, transparent)` }} />
                 
                 <div className="relative z-40 flex flex-col min-h-[280px] md:min-h-[340px]">
@@ -69,10 +71,10 @@ const BuyPage = () => {
                         onSearch={(city) => setSearchCity(city)}
                     />
 
-                    {/* Filter Bar at bottom of hero */}
-                    <div className="bg-white pt-2">
+                    <div className="pt-2 pb-6 border-b border-gray-100">
                         <PropertyTypeFilter
                             selectedType={selectedType.id}
+                            selectedLabel={selectedType.label}
                             onSelectType={handleTypeSelect}
                             theme={THEME}
                         />

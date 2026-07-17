@@ -106,10 +106,10 @@ const PlotPage = () => {
                         onSearch={(city) => setSearchCity(city)}
                     />
 
-                    {/* Filter Bar at bottom of hero */}
-                    <div className="bg-white pt-2">
+                    <div className="pt-2 pb-6 border-b border-gray-100">
                         <PropertyTypeFilter
                             selectedType={selectedType.id}
+                            selectedLabel={selectedType.label}
                             onSelectType={handleTypeSelect}
                             theme={THEME}
                         />
