@@ -16,9 +16,11 @@ import { ArrowRight } from 'lucide-react';
 
 // Theme for Plot Page (Amber style from Home.jsx)
 const THEME = {
-    darkBg: 'linear-gradient(135deg, #78350F 0%, #92400E 100%)', // Amber
-    pageBg: '#FFFBEB',
-    accent: '#F59E0B'
+    heroBg: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', // Light Amber
+    pageBg: '#fffbeb', // Amber theme background
+    accent: '#F59E0B',
+    text: 'text-amber-600',
+    bgLight: 'bg-amber-500/10'
 };
 
 const PlotSection = ({ title, subtitle, extraFilters, plotCategoryId }) => {
@@ -95,8 +97,8 @@ const PlotPage = () => {
     return (
         <main className="transition-colors duration-700 w-full overflow-x-hidden min-h-screen" style={{ backgroundColor: THEME.pageBg }}>
             {/* Hero Section */}
-            <div className="relative min-h-[280px] md:min-h-[340px] bg-gray-50/50">
-                <div className="absolute inset-0 w-full h-full bg-white" />
+            <div className="relative min-h-[280px] md:min-h-[340px]">
+                <div className="absolute inset-0 w-full h-full transition-all duration-700" style={{ background: THEME.heroBg }} />
                 <div className="absolute bottom-0 left-0 right-0 h-24 z-[1]" style={{ background: `linear-gradient(to top, ${THEME.pageBg}, transparent)` }} />
                 
                 <div className="relative z-40 flex flex-col min-h-[280px] md:min-h-[340px]">
