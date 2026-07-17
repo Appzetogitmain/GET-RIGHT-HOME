@@ -19,7 +19,7 @@ import PopularToolsSection from '../../components/user/PopularToolsSection';
 // Theme for Buy Page
 const THEME = {
     heroBg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', // Light Blue
-    pageBg: '#f8fafc',
+    pageBg: '#eff6ff', // Changed from #f8fafc to match the blue theme
     accent: '#3B82F6',
     text: 'text-blue-600',
     bgLight: 'bg-blue-500/10'
