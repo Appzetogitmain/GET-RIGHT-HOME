@@ -13,9 +13,11 @@ import PropertyVideoCurations from '../../components/user/PropertyVideoCurations
 
 // Theme for Rent Page
 const THEME = {
-    darkBg: 'linear-gradient(135deg, #4C1D95 0%, #5B21B6 100%)', // Violet
-    pageBg: '#F5F3FF',
-    accent: '#8B5CF6'
+    heroBg: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', // Light Violet
+    pageBg: '#f5f3ff', // Violet theme background
+    accent: '#8B5CF6',
+    text: 'text-violet-600',
+    bgLight: 'bg-violet-500/10'
 };
 
 const RentPGSection = ({ title, typeId, subtitle, extraFilters, onTypeSelect, typeLabel }) => (
@@ -107,8 +109,8 @@ const RentPage = () => {
     return (
         <main className="transition-colors duration-700 w-full overflow-x-hidden min-h-screen" style={{ backgroundColor: THEME.pageBg }}>
             {/* Hero Section */}
-            <div className="relative min-h-[280px] md:min-h-[340px] bg-gray-50/50">
-                <div className="absolute inset-0 w-full h-full bg-white" />
+            <div className="relative min-h-[280px] md:min-h-[340px]">
+                <div className="absolute inset-0 w-full h-full transition-all duration-700" style={{ background: THEME.heroBg }} />
                 <div className="absolute bottom-0 left-0 right-0 h-24 z-[1]" style={{ background: `linear-gradient(to top, ${THEME.pageBg}, transparent)` }} />
                 
                 <div className="relative z-40 flex flex-col min-h-[280px] md:min-h-[340px]">
