@@ -44,8 +44,11 @@ const AdminBanners = () => {
                 (p.transactionType || '').toLowerCase() === 'project' ||
                 (p.propertyCategory || '').toLowerCase() === 'project';
             
-            if (filterType === 'project') return matchesSearch && isProject;
-            if (filterType === 'property') return matchesSearch && !isProject;
+            // TEMP: Hide projects from banner linking for now
+            if (isProject) return false;
+            
+            // if (filterType === 'project') return matchesSearch && isProject;
+            // if (filterType === 'property') return matchesSearch && !isProject;
             return matchesSearch;
         });
     }, [properties, searchTerm, filterType]);
@@ -296,12 +299,13 @@ const AdminBanners = () => {
 
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                            <label className="text-sm font-black text-gray-700 uppercase tracking-wider ml-1">Link to Property / Project</label>
-                            <div className="flex gap-2 bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
+                            <label className="text-sm font-black text-gray-700 uppercase tracking-wider ml-1">Link to Property</label>
+                            {/* TEMP: Hide filters until projects are separated */}
+                            {/* <div className="flex gap-2 bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
                                 <button type="button" onClick={() => setFilterType('all')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filterType === 'all' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>All</button>
                                 <button type="button" onClick={() => setFilterType('property')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filterType === 'property' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>Properties</button>
                                 <button type="button" onClick={() => setFilterType('project')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filterType === 'project' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>Projects</button>
-                            </div>
+                            </div> */}
                         </div>
                         
                         <div className="relative" ref={dropdownRef}>
@@ -317,7 +321,7 @@ const AdminBanners = () => {
                                     }
                                 }}
                                 onFocus={() => setIsDropdownOpen(true)}
-                                placeholder="Search & select a property or project..."
+                                placeholder="Search & select a property..."
                                 className="w-full pl-12 pr-10 py-4 bg-white border border-gray-200 rounded-2xl text-base font-medium focus:border-black focus:ring-4 focus:ring-black/5 outline-none transition-all shadow-sm cursor-text"
                             />
                             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
