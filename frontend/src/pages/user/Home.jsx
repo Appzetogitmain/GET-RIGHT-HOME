@@ -62,20 +62,22 @@ const THEME_MAP = {
         bgLight: 'bg-green-500/10'
     },
     default: {
-        heroBg: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', // Light Emerald
-        pageBg: '#ecfdf5', // Changed from #f8fafc to theme-matching Light Emerald
-        accent: '#10B981',
-        text: 'text-emerald-600',
-        bgLight: 'bg-emerald-500/10'
+        heroBg: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', // Light Orange
+        pageBg: '#fff7ed', // Light Orange theme matching hero
+        accent: '#f97316', // orange-500
+        text: 'text-orange-600',
+        hoverText: 'hover:text-orange-700',
+        bg: 'bg-orange-500',
+        bgLight: 'bg-orange-500/10'
     }
 };
 
-const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onTypeSelect }) => (
+const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onTypeSelect, theme }) => (
     <div id={`home-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
         <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
             <div className="flex-1 min-w-0 pr-2">
                 <div className="flex items-start gap-1.5 md:gap-2 mb-0.5">
-                    <div className="w-1 h-4 md:h-5 bg-emerald-500 rounded-full mt-1 md:mt-0 shrink-0" />
+                    <div className={`w-1 h-4 md:h-5 ${theme?.bg || 'bg-emerald-500'} rounded-full mt-1 md:mt-0 shrink-0`} />
                     <h2 className="text-[17px] md:text-[22px] font-black text-gray-900 leading-tight">{title}</h2>
                 </div>
                 {subtitle && <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 truncate">{subtitle}</p>}
@@ -91,7 +93,7 @@ const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onType
                     onTypeSelect(typeId, labelMap[typeId] || 'All');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="text-[12px] md:text-[14px] font-bold text-emerald-600 hover:text-emerald-700 hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0"
+                className={`text-[12px] md:text-[14px] font-bold ${theme?.text || 'text-emerald-600'} ${theme?.hoverText || 'hover:text-emerald-700'} hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0`}
             >
                 View All
             </button>
@@ -223,6 +225,7 @@ const Home = () => {
                                 typeId={sectionIds.pg}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                theme={activeTheme}
                             />
                         )}
 
@@ -243,6 +246,7 @@ const Home = () => {
                                 extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                theme={activeTheme}
                             />
                         )}
                         {sectionIds.buy && (
@@ -253,6 +257,7 @@ const Home = () => {
                                 extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                theme={activeTheme}
                             />
                         )}
                         {sectionIds.plot && (
@@ -262,6 +267,7 @@ const Home = () => {
                                 typeId={sectionIds.plot}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                theme={activeTheme}
                             />
                         )}
 
@@ -275,11 +281,13 @@ const Home = () => {
                             title="Pre Launch Properties"
                             subtitle="Exclusive early-stage launch offers"
                             availabilityFilter="Pre Launch"
+                            theme={activeTheme}
                         />
                         <GRHHomeSection
                             title="Ready to Move Properties"
                             subtitle="Verified titles & immediate occupancy"
                             availabilityFilter="Ready to move"
+                            theme={activeTheme}
                         />
                     </div>
                 ) : (

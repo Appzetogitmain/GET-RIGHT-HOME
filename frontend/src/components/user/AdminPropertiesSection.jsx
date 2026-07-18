@@ -174,7 +174,7 @@ const AdminPropertyCard = ({ property, index, theme }) => {
                         </div>
 
                         {/* Title */}
-                        <h3 className={`font-black text-sm text-gray-900 text-center line-clamp-1 mb-1 transition-colors duration-300 ${theme?.hoverText || 'group-hover:text-emerald-700'}`}>
+                        <h3 className={`font-black text-sm text-gray-900 text-center line-clamp-1 mb-1 transition-colors duration-300 ${theme?.hoverText ? theme.hoverText.replace('hover:', 'group-hover:') : 'group-hover:text-emerald-700'}`}>
                             {displayName}
                         </h3>
 

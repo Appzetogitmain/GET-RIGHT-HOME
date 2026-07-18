@@ -143,7 +143,7 @@ const ReelItem = ({ reel, navigate, theme }) => {
 
             {/* Info Below Card */}
             <div className="mt-2.5 px-0.5">
-                <h3 className={`text-gray-900 text-[11px] md:text-xs font-bold line-clamp-2 leading-[1.3] transition-colors ${theme?.hoverText || 'group-hover:text-emerald-700'}`}>
+                <h3 className={`text-gray-900 text-[11px] md:text-xs font-bold line-clamp-2 leading-[1.3] transition-colors ${theme?.hoverText ? theme.hoverText.replace('hover:', 'group-hover:') : 'group-hover:text-emerald-700'}`}>
                     {reel.title || reel.caption || 'Property Tour'}
                 </h3>
                 <div className="flex items-center justify-between mt-1">

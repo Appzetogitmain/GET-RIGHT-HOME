@@ -7,7 +7,7 @@ import PropertyQuickViewModal from './PropertyQuickViewModal';
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
 
-const GRHPropertyCard = ({ property, data }) => {
+const GRHPropertyCard = ({ property, data, theme }) => {
   const navigate = useNavigate();
   const item = property || data;
   const [isSaved, setIsSaved] = useState(false);
@@ -821,7 +821,7 @@ const GRHPropertyCard = ({ property, data }) => {
               <>
                 {/* Title */}
                 <div className="flex flex-col mt-1.5">
-                  <h3 className="text-sm font-medium text-gray-900 line-clamp-1 group-hover:text-violet-600 transition-colors">
+                  <h3 className={`text-sm font-medium text-gray-900 line-clamp-1 transition-colors ${theme?.hoverText ? theme.hoverText.replace('hover:', 'group-hover:') : 'group-hover:text-emerald-600'}`}>
                     {displayName}
                   </h3>
                   {builderName && (
@@ -852,7 +852,7 @@ const GRHPropertyCard = ({ property, data }) => {
 
                 {/* Title */}
                 <div className="flex flex-col mt-0.5">
-                  <h3 className="text-sm font-medium text-gray-700 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                  <h3 className={`text-sm font-medium text-gray-700 line-clamp-1 transition-colors ${theme?.hoverText ? theme.hoverText.replace('hover:', 'group-hover:') : 'group-hover:text-emerald-600'}`}>
                     {displayName}
                   </h3>
                   {builderName && (

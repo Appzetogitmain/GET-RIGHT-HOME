@@ -11,12 +11,12 @@ const TopNavbar = () => {
     const location = useLocation();
 
     // Determine theme based on route
-    let themeBg = 'bg-emerald-50/95';
-    let themeBorder = 'border-emerald-100';
-    let themeText = 'text-emerald-600';
-    let themeBtn = 'bg-emerald-600';
-    let themeBtnHover = 'hover:bg-emerald-700';
-    let themeLogoColor = 'text-emerald-600';
+    let themeBg = 'bg-orange-50/95';
+    let themeBorder = 'border-orange-100';
+    let themeText = 'text-orange-600';
+    let themeBtn = 'bg-orange-600';
+    let themeBtnHover = 'hover:bg-orange-700';
+    let themeLogoColor = 'text-orange-600';
 
     if (location.pathname === '/buy') {
         themeBg = 'bg-blue-100/95';
