@@ -821,7 +821,7 @@ const GRHPropertyCard = ({ property, data, theme }) => {
               <>
                 {/* Title */}
                 <div className="flex flex-col mt-1.5">
-                  <h3 className={`text-sm font-medium text-gray-900 line-clamp-1 transition-colors ${theme?.hoverText ? theme.hoverText.replace('hover:', 'group-hover:') : 'group-hover:text-emerald-600'}`}>
+                  <h3 className={`text-sm font-medium text-gray-900 line-clamp-1 transition-colors ${theme?.groupHoverText || 'group-hover:text-emerald-600'}`}>
                     {displayName}
                   </h3>
                   {builderName && (
@@ -852,7 +852,7 @@ const GRHPropertyCard = ({ property, data, theme }) => {
 
                 {/* Title */}
                 <div className="flex flex-col mt-0.5">
-                  <h3 className={`text-sm font-medium text-gray-700 line-clamp-1 transition-colors ${theme?.hoverText ? theme.hoverText.replace('hover:', 'group-hover:') : 'group-hover:text-emerald-600'}`}>
+                  <h3 className={`text-sm font-medium text-gray-700 line-clamp-1 transition-colors ${theme?.groupHoverText || 'group-hover:text-emerald-600'}`}>
                     {displayName}
                   </h3>
                   {builderName && (

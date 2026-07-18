@@ -38,6 +38,8 @@ const THEME_MAP = {
         pageBg: '#f8fafc',
         accent: '#8B5CF6',
         text: 'text-violet-600',
+        hoverText: 'hover:text-violet-700',
+        groupHoverText: 'group-hover:text-violet-700',
         bgLight: 'bg-violet-500/10'
     },
     Buy: {
@@ -45,6 +47,8 @@ const THEME_MAP = {
         pageBg: '#f8fafc',
         accent: '#3B82F6',
         text: 'text-blue-600',
+        hoverText: 'hover:text-blue-700',
+        groupHoverText: 'group-hover:text-blue-700',
         bgLight: 'bg-blue-500/10'
     },
     Plot: {
@@ -52,6 +56,8 @@ const THEME_MAP = {
         pageBg: '#f8fafc',
         accent: '#F59E0B',
         text: 'text-amber-600',
+        hoverText: 'hover:text-amber-700',
+        groupHoverText: 'group-hover:text-amber-700',
         bgLight: 'bg-amber-500/10'
     },
     'Home Service': {
@@ -59,14 +65,17 @@ const THEME_MAP = {
         pageBg: '#f8fafc',
         accent: '#22c55e',
         text: 'text-green-600',
+        hoverText: 'hover:text-green-700',
+        groupHoverText: 'group-hover:text-green-700',
         bgLight: 'bg-green-500/10'
     },
     default: {
-        heroBg: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', // Light Orange
-        pageBg: '#fff7ed', // Light Orange theme matching hero
+        heroBg: 'linear-gradient(135deg, #ffffff 0%, #fff7ed 100%)', // Very Light Orange/White
+        pageBg: '#f8fafc', // Clean white background for the rest
         accent: '#f97316', // orange-500
         text: 'text-orange-600',
         hoverText: 'hover:text-orange-700',
+        groupHoverText: 'group-hover:text-orange-700',
         bg: 'bg-orange-500',
         bgLight: 'bg-orange-500/10'
     }
@@ -204,7 +213,7 @@ const Home = () => {
 
             {/* Property Videos */}
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mt-4 mb-6">
-                 <PropertyVideoCurations pageType="home" />
+                 <PropertyVideoCurations pageType="home" theme={activeTheme} />
             </div>
 
             {/* Admin Curated Properties - Location Based */}

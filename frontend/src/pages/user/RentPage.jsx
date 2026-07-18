@@ -18,6 +18,7 @@ const THEME = {
     accent: '#8B5CF6',
     text: 'text-violet-600',
     hoverText: 'hover:text-violet-700',
+    groupHoverText: 'group-hover:text-violet-700',
     bg: 'bg-violet-500',
     bgLight: 'bg-violet-500/10'
 };

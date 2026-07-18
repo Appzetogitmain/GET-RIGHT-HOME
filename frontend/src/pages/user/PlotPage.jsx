@@ -21,6 +21,7 @@ const THEME = {
     accent: '#F59E0B',
     text: 'text-amber-600',
     hoverText: 'hover:text-amber-700',
+    groupHoverText: 'group-hover:text-amber-700',
     bg: 'bg-amber-500',
     bgLight: 'bg-amber-500/10'
 };
