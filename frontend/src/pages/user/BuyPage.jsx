@@ -90,7 +90,7 @@ const BuyPage = () => {
 
             {/* 2. Handpicked Projects */}
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mb-8">
-                <AdminPropertiesSection searchCity={searchCity} transactionType="buy" themeColor="blue" />
+                <AdminPropertiesSection searchCity={searchCity} transactionType="buy" themeColor="blue" theme={THEME} />
             </div>
 
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-6">
@@ -101,7 +101,7 @@ const BuyPage = () => {
 
                 {/* 4. Reels (Buy Context) */}
                 <div id="buy-reels-section">
-                    <ReelSection category="Buy" />
+                    <ReelSection category="Buy" theme={THEME} />
                 </div>
 
                 {/* 5. Demand in [City] Section */}

@@ -207,7 +207,7 @@ const Home = () => {
 
             {/* Admin Curated Properties - Location Based */}
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto">
-                <AdminPropertiesSection searchCity={homeSearchCity} />
+                <AdminPropertiesSection searchCity={homeSearchCity} theme={activeTheme} />
             </div>
 
 
@@ -233,7 +233,7 @@ const Home = () => {
                         <PopularBuilders />
 
                         {/* YouTube style Reels Section */}
-                        <ReelSection category={selectedType.label} />
+                        <ReelSection category={selectedType.label} theme={activeTheme} />
 
                         {sectionIds.rent && (
                             <HomeSection
@@ -269,6 +269,7 @@ const Home = () => {
                             title="Under Construction Properties"
                             subtitle="Flexible payments & high value growth"
                             availabilityFilter="Under construction"
+                            theme={activeTheme}
                         />
                         <GRHHomeSection
                             title="Pre Launch Properties"

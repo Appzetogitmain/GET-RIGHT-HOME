@@ -15,7 +15,7 @@ const PROPERTY_TYPE_ICONS = {
 };
 
 /* ─── Property Card ─── */
-const AdminPropertyCard = ({ property, index }) => {
+const AdminPropertyCard = ({ property, index, theme }) => {
     const navigate = useNavigate();
     const [isSaved, setIsSaved] = useState(false);
     const typeIcon = PROPERTY_TYPE_ICONS[property.propertyType] || '🏠';
@@ -174,7 +174,7 @@ const AdminPropertyCard = ({ property, index }) => {
                         </div>
 
                         {/* Title */}
-                        <h3 className="font-black text-sm text-gray-900 text-center line-clamp-1 mb-1 group-hover:text-emerald-700 transition-colors duration-300">
+                        <h3 className={`font-black text-sm text-gray-900 text-center line-clamp-1 mb-1 transition-colors duration-300 ${theme?.hoverText || 'group-hover:text-emerald-700'}`}>
                             {displayName}
                         </h3>
 
@@ -213,7 +213,7 @@ const adminPropertiesCache = {
 };
 
 /* ─── Main Component ─── */
-const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, themeColor = 'emerald' }) => {
+const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, themeColor = 'emerald', theme }) => {
     const navigate = useNavigate();
     
     const [availableCities, setAvailableCities] = useState(() => adminPropertiesCache.cities || []);
@@ -493,7 +493,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
         blue: { bg: 'bg-blue-500', text: 'text-blue-600', hoverText: 'hover:text-blue-700' },
         amber: { bg: 'bg-amber-500', text: 'text-amber-600', hoverText: 'hover:text-amber-700' },
     };
-    const t = themeMap[themeColor] || themeMap.emerald;
+    const themeConfig = theme || themeMap[themeColor] || themeMap.emerald;
 
     return (
         <section id="admin-properties-section" className="py-8 border-b border-gray-100">
@@ -503,7 +503,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
                 <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
                     <div className="flex-1 min-w-0 pr-2">
                         <div className="flex items-start gap-1.5 md:gap-2 mb-0.5">
-                            <div className={`w-1 h-4 md:h-5 ${t.bg} rounded-full mt-1 md:mt-0 shrink-0`} />
+                            <div className={`w-1 h-4 md:h-5 ${themeConfig.bg} rounded-full mt-1 md:mt-0 shrink-0`} />
                             <h2 className="text-[17px] md:text-[22px] font-black text-gray-900 leading-tight">
                                 {title || defaultTitle}
                             </h2>
@@ -524,7 +524,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
                                 navigate(url);
                                 window.scrollTo(0, 0);
                             }}
-                            className={`text-[12px] md:text-[14px] font-bold ${t.text} ${t.hoverText} hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0`}
+                            className={`text-[12px] md:text-[14px] font-bold ${themeConfig.text} ${themeConfig.hoverText} hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0`}
                         >
                             View All
                         </button>
@@ -585,8 +585,8 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
             <div className="md:px-0">
                 {!selectedCity ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-4 border border-emerald-100">
-                            <MapPin size={28} className="text-emerald-400" />
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 border ${theme?.text?.replace('text-', 'bg-').replace('600', '50') || 'bg-emerald-50'} ${theme?.text?.replace('text-', 'border-').replace('600', '100') || 'border-emerald-100'}`}>
+                            <MapPin size={28} className={theme?.text?.replace('600', '400') || 'text-emerald-400'} />
                         </div>
                         <p className="text-sm font-bold text-gray-500">Select a city above to see properties</p>
                     </div>
@@ -644,7 +644,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
                             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                         >
                             {displayProperties.slice(0, 8).map((property, index) => (
-                                <AdminPropertyCard key={property._id} property={property} index={index} />
+                                <AdminPropertyCard key={property._id} property={property} index={index} theme={themeConfig} />
                             ))}
                         </motion.div>
                     </AnimatePresence>

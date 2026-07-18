@@ -141,7 +141,7 @@ const RentPage = () => {
 
             {/* 2. Handpicked Projects */}
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto">
-                <AdminPropertiesSection searchCity={searchCity} transactionType="rent,pg" themeColor="violet" />
+                <AdminPropertiesSection searchCity={searchCity} transactionType="rent,pg" themeColor="violet" theme={THEME} />
             </div>
 
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-6">
@@ -190,7 +190,7 @@ const RentPage = () => {
                 )}
 
                 {/* 4. Reels (Rent Context) */}
-                <ReelSection category="Rent" />
+                <ReelSection category="Rent" theme={THEME} />
 
                 {/* 11. Popular Builders (Existing) */}
                 <PopularBuilders themeColor="violet" />

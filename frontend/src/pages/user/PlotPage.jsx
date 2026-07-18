@@ -168,7 +168,7 @@ const PlotPage = () => {
 
                 {/* 4. Reels (Plot Context) */}
                 <div id="plot-reels-section">
-                    <ReelSection category="Plot" />
+                    <ReelSection category="Plot" theme={THEME} />
                 </div>
 
                 {/* 5. Demand in [City] Section */}

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Loader2 } from 'lucide-react';
 import { reelService } from '../../services/reelService';
 
-const ReelItem = ({ reel, navigate }) => {
+const ReelItem = ({ reel, navigate, theme }) => {
     const containerRef = useRef(null);
     const videoRef = useRef(null);
     const [isIntersecting, setIsIntersecting] = useState(false);
@@ -143,7 +143,7 @@ const ReelItem = ({ reel, navigate }) => {
 
             {/* Info Below Card */}
             <div className="mt-2.5 px-0.5">
-                <h3 className="text-gray-900 text-[11px] md:text-xs font-bold line-clamp-2 leading-[1.3] group-hover:text-emerald-700 transition-colors">
+                <h3 className={`text-gray-900 text-[11px] md:text-xs font-bold line-clamp-2 leading-[1.3] transition-colors ${theme?.hoverText || 'group-hover:text-emerald-700'}`}>
                     {reel.title || reel.caption || 'Property Tour'}
                 </h3>
                 <div className="flex items-center justify-between mt-1">
@@ -156,7 +156,7 @@ const ReelItem = ({ reel, navigate }) => {
     );
 };
 
-const ReelSection = ({ category }) => {
+const ReelSection = ({ category, theme }) => {
     const navigate = useNavigate();
     const [reels, setReels] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -219,7 +219,7 @@ const ReelSection = ({ category }) => {
                 </div>
                 <button
                     onClick={() => navigate('/reels')}
-                    className="text-[12px] md:text-[14px] font-bold text-emerald-600 hover:text-emerald-700 shrink-0 whitespace-nowrap mt-1 md:mt-0"
+                    className={`text-[12px] md:text-[14px] font-bold ${theme?.text || 'text-emerald-600'} ${theme?.hoverText || 'hover:text-emerald-700'} shrink-0 whitespace-nowrap mt-1 md:mt-0`}
                 >
                     View All
                 </button>
@@ -231,7 +231,7 @@ const ReelSection = ({ category }) => {
                 className="flex overflow-x-auto gap-2 pb-2 px-5 no-scrollbar snap-x snap-mandatory"
             >
                 {reels.map((reel) => (
-                    <ReelItem key={reel._id} reel={reel} navigate={navigate} />
+                    <ReelItem key={reel._id} reel={reel} navigate={navigate} theme={theme} />
                 ))}
                 <div className="w-1 shrink-0" />
             </div>
