@@ -59,20 +59,20 @@ const PopularToolsSection = ({ hideViewAll = false }) => {
     return (
         <section id="popular-tools-section" className="mb-6 w-full md:px-0 scroll-mt-20">
             <div className="bg-[#F4F7F9] md:rounded-3xl py-6 pl-6 border border-slate-100">
-                <div className="flex items-center justify-between mb-6 pr-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#1A65EB] rounded-[10px] flex items-center justify-center text-white shadow-sm">
+                <div className="flex items-start justify-between mb-6 pr-6">
+                    <div className="flex items-start gap-3 flex-1 min-w-0 pr-2">
+                        <div className="w-10 h-10 bg-[#1A65EB] rounded-[10px] flex items-center justify-center text-white shadow-sm shrink-0">
                             <Lightbulb size={20} strokeWidth={2.5} />
                         </div>
-                        <div>
-                            <h2 className="text-[18px] font-bold text-[#0B1A3A] leading-tight">Use popular tools</h2>
-                            <p className="text-[13px] text-slate-500 mt-0.5">Go from browsing to buying</p>
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-[17px] md:text-[18px] font-bold text-[#0B1A3A] leading-tight truncate">Use popular tools</h2>
+                            <p className="text-[11px] md:text-[13px] text-slate-500 mt-0.5 truncate">Go from browsing to buying</p>
                         </div>
                     </div>
                     {!hideViewAll && (
                         <button 
                             onClick={() => navigate('/tools-and-insights')}
-                            className="text-[#1A65EB] font-bold text-sm hover:underline"
+                            className="text-[#1A65EB] font-bold text-[12px] md:text-sm hover:underline shrink-0 whitespace-nowrap mt-1"
                         >
                             View All
                         </button>

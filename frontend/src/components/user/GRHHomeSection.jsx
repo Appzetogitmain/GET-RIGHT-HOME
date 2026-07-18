@@ -54,17 +54,17 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter }) => {
   return (
     <div id={`grh-section-${cacheKey.replace(/\s+/g, '-')}`} className="py-6 border-b border-gray-100 last:border-0 relative">
       {/* Section Header */}
-      <div className="flex justify-between items-end px-5 md:px-0 mb-2">
-        <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <div className="w-1 h-5 bg-emerald-500 rounded-full" />
-            <h2 className="text-xl md:text-2xl font-black text-gray-900 whitespace-nowrap truncate">{title}</h2>
+      <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
+        <div className="flex-1 min-w-0 pr-2">
+          <div className="flex items-start gap-1.5 md:gap-2 mb-0.5">
+            <div className="w-1 h-4 md:h-5 bg-emerald-500 rounded-full mt-1 md:mt-0 shrink-0" />
+            <h2 className="text-[17px] md:text-[22px] font-black text-gray-900 leading-tight">{title}</h2>
           </div>
-          {subtitle && <p className="text-sm text-gray-500 mt-1 ml-3 font-normal">{subtitle}</p>}
+          {subtitle && <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 font-normal truncate">{subtitle}</p>}
         </div>
         <button
           onClick={handleViewMore}
-          className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline whitespace-nowrap shrink-0"
+          className="text-[12px] md:text-[14px] font-bold text-emerald-600 hover:text-emerald-700 hover:underline whitespace-nowrap shrink-0 mt-1 md:mt-0"
         >
           View All
         </button>

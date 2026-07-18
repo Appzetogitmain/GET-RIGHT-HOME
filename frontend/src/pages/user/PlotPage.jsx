@@ -27,32 +27,32 @@ const PlotSection = ({ title, subtitle, extraFilters, plotCategoryId }) => {
     const navigate = useNavigate();
     
     return (
-        <div className="py-4 border-b border-gray-100 last:border-0 relative">
-            <div className="flex justify-between items-end px-5 md:px-0 mb-2">
-                <div>
-                    <div className="flex items-center gap-2 mb-0.5">
-                        <div className="w-1 h-5 bg-amber-500 rounded-full" />
-                        <h2 className="text-xl md:text-2xl font-black text-gray-900">{title}</h2>
-                    </div>
-                    {subtitle && <p className="text-sm text-gray-500 mt-1 ml-3">{subtitle}</p>}
+    <div className="py-4 border-b border-gray-100 last:border-0 relative">
+        <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
+            <div className="flex-1 min-w-0 pr-2">
+                <div className="flex items-start gap-1.5 md:gap-2 mb-0.5">
+                    <div className="w-1 h-4 md:h-5 bg-amber-500 rounded-full mt-1 md:mt-0 shrink-0" />
+                    <h2 className="text-[17px] md:text-[22px] font-black text-gray-900 leading-tight">{title}</h2>
                 </div>
-                <button
-                    onClick={() => {
-                        const params = new URLSearchParams();
-                        params.set('transactionType', 'plot');
-                        if (extraFilters) {
-                            Object.entries(extraFilters).forEach(([key, value]) => {
-                                params.set(key, value);
-                            });
-                        }
-                        navigate(`/search?${params.toString()}`);
-                        window.scrollTo(0, 0);
-                    }}
-                    className="text-sm font-bold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1"
-                >
-                    View All <ArrowRight size={16} />
-                </button>
+                {subtitle && <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 truncate">{subtitle}</p>}
             </div>
+            <button
+                onClick={() => {
+                    const params = new URLSearchParams();
+                    params.set('transactionType', 'plot');
+                    if (extraFilters) {
+                        Object.entries(extraFilters).forEach(([key, value]) => {
+                            params.set(key, value);
+                        });
+                    }
+                    navigate(`/search?${params.toString()}`);
+                    window.scrollTo(0, 0);
+                }}
+                className="text-[12px] md:text-[14px] font-bold text-amber-600 hover:text-amber-700 hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0"
+            >
+                View All
+            </button>
+        </div>
             {plotCategoryId && (
                 <PropertyFeed selectedType={plotCategoryId} viewMode="carousel" limit={8} extraFilters={extraFilters} />
             )}
