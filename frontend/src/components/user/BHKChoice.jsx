@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Building2 } from 'lucide-react';
 import { propertyService } from '../../services/propertyService';
 
-const BHKChoice = ({ transactionType = 'buy' }) => {
+const BHKChoice = ({ transactionType = 'buy', theme }) => {
     const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
     const [titleOpacity, setTitleOpacity] = useState(1);
@@ -132,7 +132,7 @@ const BHKChoice = ({ transactionType = 'buy' }) => {
                                     <h3 className="font-bold text-slate-800 text-[14px] md:text-[15px] lg:text-[17px] xl:text-[18px] mb-0.5">
                                         {opt.label}
                                     </h3>
-                                    <p className="text-[11px] md:text-[12px] lg:text-[13px] text-gray-500 font-medium truncate">
+                                    <p className={`text-[11px] md:text-[12px] lg:text-[13px] text-gray-500 font-medium truncate transition-colors duration-300 ${theme?.hoverText ? theme.hoverText.replace('hover:', 'group-hover:') : 'group-hover:text-blue-600'} group-hover:underline`}>
                                         {bhkCounts[opt.countKey] > 0 ? `${bhkCounts[opt.countKey]}+ Properties` : 'Explore Options'}
                                     </p>
                                 </div>

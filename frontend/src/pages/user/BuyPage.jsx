@@ -22,6 +22,8 @@ const THEME = {
     pageBg: '#eff6ff', // Changed from #f8fafc to match the blue theme
     accent: '#3B82F6',
     text: 'text-blue-600',
+    hoverText: 'hover:text-blue-700',
+    bg: 'bg-blue-500',
     bgLight: 'bg-blue-500/10'
 };
 

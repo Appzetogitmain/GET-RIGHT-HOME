@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Users } from 'lucide-react';
 import { propertyService } from '../../services/propertyService';
 
-const PostedByChoice = ({ transactionType = 'buy' }) => {
+const PostedByChoice = ({ transactionType = 'buy', theme }) => {
     const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
     const [titleOpacity, setTitleOpacity] = useState(1);
@@ -149,7 +149,7 @@ const PostedByChoice = ({ transactionType = 'buy' }) => {
                                     <h3 className="font-bold text-slate-800 text-[14px] md:text-[15px] lg:text-[17px] xl:text-[18px] mb-0.5">
                                         {opt.label}
                                     </h3>
-                                    <p className="text-[11px] md:text-[12px] lg:text-[13px] text-gray-500 font-medium truncate">
+                                    <p className={`text-[11px] md:text-[12px] lg:text-[13px] text-gray-500 font-medium truncate transition-colors duration-300 ${theme?.hoverText ? theme.hoverText.replace('hover:', 'group-hover:') : 'group-hover:text-blue-600'} group-hover:underline`}>
                                         {postedByCounts[opt.countKey] > 0 ? `${postedByCounts[opt.countKey]} Properties` : 'Explore Options'}
                                     </p>
                                 </div>

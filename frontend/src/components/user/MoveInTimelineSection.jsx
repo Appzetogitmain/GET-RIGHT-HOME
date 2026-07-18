@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { CalendarDays } from 'lucide-react';
 import { propertyService } from '../../services/propertyService';
 
-const MoveInTimelineSection = ({ transactionType = 'buy' }) => {
+const MoveInTimelineSection = ({ transactionType = 'buy', theme }) => {
     const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
     const [titleOpacity, setTitleOpacity] = useState(1);
@@ -140,7 +140,7 @@ const MoveInTimelineSection = ({ transactionType = 'buy' }) => {
                                     <h3 className="font-bold text-slate-800 text-[15px] md:text-[16px] lg:text-[18px] xl:text-[20px] mb-0.5 leading-tight w-full">
                                         {opt.label}
                                     </h3>
-                                    <p className="text-[11px] md:text-[12px] lg:text-[13px] text-slate-500 font-medium mt-1">
+                                    <p className={`text-[11px] md:text-[12px] lg:text-[13px] text-slate-500 font-medium mt-1 transition-colors duration-300 ${theme?.hoverText ? theme.hoverText.replace('hover:', 'group-hover:') : 'group-hover:text-blue-600'} group-hover:underline`}>
                                         {timelineCounts[opt.countKey] > 0 ? `${timelineCounts[opt.countKey]}+ Properties` : 'Explore Options'}
                                     </p>
                                 </div>
