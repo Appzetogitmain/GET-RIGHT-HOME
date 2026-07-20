@@ -14,13 +14,11 @@ const ScrollToTop = () => {
 
     if (action === 'PUSH' || action === 'REPLACE') {
       // FORWARD NAVIGATION: Start at top exactly
-      if (window.lenis) window.lenis.stop();
       
       const goToTop = () => {
         window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         if (window.lenis) {
             window.lenis.scrollTo(0, { immediate: true });
-            window.lenis.start();
         }
       };
       
@@ -28,7 +26,6 @@ const ScrollToTop = () => {
       setTimeout(goToTop, 50);
 
     } else if (action === 'POP') {
-      // BACK NAVIGATION: Anchor to exact section if clicked, else restore pixel position
       const lastSectionId = sessionStorage.getItem(`last-clicked-section-${pathname}`);
       const savedPosition = sessionStorage.getItem(`scrollPos-${pathname}`);
       
@@ -46,12 +43,13 @@ const ScrollToTop = () => {
           if (success) return;
           const el = document.getElementById(lastSectionId);
           if (el) {
-            const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 80);
-            if (window.lenis) window.lenis.stop();
-            window.scrollTo({ top: y, left: 0, behavior: 'instant' });
-            if (window.lenis) {
-              window.lenis.scrollTo(y, { immediate: true });
-              window.lenis.start();
+            if (Math.abs(el.getBoundingClientRect().top - 80) > 5) {
+                if (window.lenis) {
+                    window.lenis.scrollTo(el, { offset: -80, immediate: true });
+                } else {
+                    const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 80);
+                    window.scrollTo({ top: y, left: 0, behavior: 'instant' });
+                }
             }
             success = true; // We found it and scrolled!
           }
@@ -73,13 +71,12 @@ const ScrollToTop = () => {
             attempts++;
             const el = document.getElementById(lastSectionId);
             if (el) {
-                const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 80);
-                if (Math.abs(window.scrollY - y) > 5) {
-                    if (window.lenis) window.lenis.stop();
-                    window.scrollTo({ top: y, left: 0, behavior: 'instant' });
+                if (Math.abs(el.getBoundingClientRect().top - 80) > 5) {
                     if (window.lenis) {
-                        window.lenis.scrollTo(y, { immediate: true });
-                        window.lenis.start();
+                        window.lenis.scrollTo(el, { offset: -80, immediate: true });
+                    } else {
+                        const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 80);
+                        window.scrollTo({ top: y, left: 0, behavior: 'instant' });
                     }
                 }
             }
@@ -111,11 +108,12 @@ const ScrollToTop = () => {
           const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
           const posToScroll = Math.min(targetPos, maxScroll);
           
-          if (window.lenis) window.lenis.stop();
-          window.scrollTo({ top: posToScroll, left: 0, behavior: 'instant' });
-          if (window.lenis) {
-            window.lenis.scrollTo(posToScroll, { immediate: true });
-            window.lenis.start();
+          const currentPos = window.lenis ? window.lenis.scroll : window.scrollY;
+          if (Math.abs(currentPos - posToScroll) > 5) {
+              window.scrollTo({ top: posToScroll, left: 0, behavior: 'instant' });
+              if (window.lenis) {
+                window.lenis.scrollTo(posToScroll, { immediate: true });
+              }
           }
 
           if (maxScroll >= targetPos - 10) success = true;

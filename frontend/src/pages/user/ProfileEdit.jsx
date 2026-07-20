@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut } from 'lucide-react';
+import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText } from 'lucide-react';
 import { authService } from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -55,6 +55,7 @@ const ProfileEdit = () => {
   const [loading, setLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [docUploading, setDocUploading] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -77,13 +78,20 @@ const ProfileEdit = () => {
     builderProfile: {
       companyName: '',
       brandLogo: '',
+      officeAddress: '',
+      cinNumber: '',
       reraRegistrationNumber: '',
+      reraCertificate: '',
       gstNumber: '',
+      gstCertificate: '',
+      companyRegistrationCertificate: '',
       description: '',
       establishedYear: '',
       activeProjects: 0,
       completedProjects: 0,
-      awards: []
+      awards: [],
+      builderApprovalStatus: 'pending',
+      builderVerificationMessage: ''
     }
   });
 
@@ -119,13 +127,20 @@ const ProfileEdit = () => {
           builderProfile: {
             companyName: user.builderProfile?.companyName || '',
             brandLogo: user.builderProfile?.brandLogo || '',
+            officeAddress: user.builderProfile?.officeAddress || '',
+            cinNumber: user.builderProfile?.cinNumber || '',
             reraRegistrationNumber: user.builderProfile?.reraRegistrationNumber || '',
+            reraCertificate: user.builderProfile?.reraCertificate || '',
             gstNumber: user.builderProfile?.gstNumber || '',
+            gstCertificate: user.builderProfile?.gstCertificate || '',
+            companyRegistrationCertificate: user.builderProfile?.companyRegistrationCertificate || '',
             description: user.builderProfile?.description || '',
             establishedYear: user.builderProfile?.establishedYear || '',
             activeProjects: user.builderProfile?.activeProjects || 0,
             completedProjects: user.builderProfile?.completedProjects || 0,
-            awards: user.builderProfile?.awards || []
+            awards: user.builderProfile?.awards || [],
+            builderApprovalStatus: user.builderProfile?.builderApprovalStatus || 'pending',
+            builderVerificationMessage: user.builderProfile?.builderVerificationMessage || ''
           }
         });
       } catch (error) {
@@ -486,6 +501,47 @@ const ProfileEdit = () => {
     }
   };
 
+  const handleBuilderDocUpload = async (e, fieldName, docLabel) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(`${docLabel} size must be less than 5MB`);
+      return;
+    }
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Only JPG, PNG, WebP and PDF supported');
+      return;
+    }
+
+    const uploadData = new FormData();
+    uploadData.append('files', file);
+
+    try {
+      setDocUploading(true);
+      const response = await authService.uploadDocs(uploadData);
+
+      if (response && response.files && response.files.length > 0) {
+        const { url } = response.files[0];
+        setFormData(prev => ({
+          ...prev,
+          builderProfile: {
+            ...prev.builderProfile,
+            [fieldName]: url
+          }
+        }));
+        toast.success(`${docLabel} uploaded successfully`);
+      }
+    } catch (error) {
+      console.error(`${docLabel} upload failed:`, error);
+      toast.error(`Failed to upload ${docLabel}`);
+    } finally {
+      setDocUploading(false);
+    }
+  };
+
   const handleCameraClick = () => {
     if (isFlutterApp()) {
       handleCameraCapture();
@@ -831,6 +887,38 @@ const ProfileEdit = () => {
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Builder Profile Details</h3>
               </div>
 
+              {/* Verification Status Banner */}
+              {formData.builderProfile?.builderApprovalStatus && (
+                <div className={`p-4 rounded-xl border ${
+                  formData.builderProfile.builderApprovalStatus === 'approved' ? 'bg-emerald-50 border-emerald-200' :
+                  formData.builderProfile.builderApprovalStatus === 'rejected' ? 'bg-red-50 border-red-200' :
+                  'bg-amber-50 border-amber-200'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    {formData.builderProfile.builderApprovalStatus === 'approved' ? <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={18} /> :
+                     formData.builderProfile.builderApprovalStatus === 'rejected' ? <XCircle className="text-red-500 shrink-0 mt-0.5" size={18} /> :
+                     <Clock className="text-amber-500 shrink-0 mt-0.5" size={18} />}
+                    <div>
+                      <h4 className={`text-sm font-bold ${
+                        formData.builderProfile.builderApprovalStatus === 'approved' ? 'text-emerald-800' :
+                        formData.builderProfile.builderApprovalStatus === 'rejected' ? 'text-red-800' :
+                        'text-amber-800'
+                      }`}>
+                        Verification {formData.builderProfile.builderApprovalStatus.charAt(0).toUpperCase() + formData.builderProfile.builderApprovalStatus.slice(1)}
+                      </h4>
+                      {formData.builderProfile.builderApprovalStatus === 'pending' && (
+                        <p className="text-xs text-amber-700 mt-1">Your profile is currently under review by our admin team.</p>
+                      )}
+                      {formData.builderProfile.builderApprovalStatus === 'rejected' && formData.builderProfile.builderVerificationMessage && (
+                        <p className="text-xs font-semibold text-red-700 mt-1 bg-red-100 p-2 rounded-lg inline-block">
+                          Admin Note: {formData.builderProfile.builderVerificationMessage}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Company Name */}
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Company Name</label>
@@ -845,65 +933,128 @@ const ProfileEdit = () => {
                 </div>
               </div>
 
-              {/* Brand Logo */}
+              {/* Office Address */}
               <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Brand Logo</label>
-                <div className="flex items-center gap-4 py-2">
-                  {formData.builderProfile?.brandLogo && (
-                    <div className="w-16 h-16 rounded-xl border border-gray-200 p-1 shrink-0 overflow-hidden bg-gray-50 flex items-center justify-center">
-                      <img src={formData.builderProfile.brandLogo} alt="Logo preview" className="w-full h-full object-contain" />
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => logoInputRef.current?.click()}
-                    disabled={logoUploading}
-                    className="flex-1 flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors relative"
-                  >
-                    {logoUploading ? (
-                      <Loader2 size={20} className="animate-spin text-emerald-600" />
-                    ) : (
-                      <>
-                        <span className="text-[10px] font-bold text-emerald-600 uppercase">Click to upload logo</span>
-                      </>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Registered Office Address</label>
+                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+                  <textarea
+                    rows={2}
+                    value={formData.builderProfile?.officeAddress || ''}
+                    onChange={(e) => handleBuilderProfileChange('officeAddress', e.target.value)}
+                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent resize-none"
+                    placeholder="Full office address..."
+                  />
+                </div>
+              </div>
+
+              {/* CIN Number & Registration Doc */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Company Registration (CIN) Number</label>
+                  <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors bg-white px-2 rounded-t-md">
+                    <input
+                      type="text"
+                      value={formData.builderProfile?.cinNumber || ''}
+                      onChange={(e) => handleBuilderProfileChange('cinNumber', e.target.value)}
+                      className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent uppercase"
+                      placeholder="L12345MH2000PLC123456"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Upload Company Registration</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id="cin-upload"
+                      className="hidden"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleBuilderDocUpload(e, 'companyRegistrationCertificate', 'Company Registration')}
+                      disabled={docUploading}
+                    />
+                    <label htmlFor="cin-upload" className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-emerald-600 hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <FileText size={14} /> Upload Doc
+                    </label>
+                    {formData.builderProfile?.companyRegistrationCertificate && (
+                      <a href={formData.builderProfile.companyRegistrationCertificate} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline font-semibold flex items-center gap-1">
+                        <CheckCircle2 size={12} className="text-emerald-500" /> Uploaded
+                      </a>
                     )}
-                  </button>
-                  <input
-                    type="file"
-                    ref={logoInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    disabled={logoUploading}
-                  />
+                  </div>
                 </div>
               </div>
 
-              {/* RERA Number */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">RERA Number</label>
-                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
-                  <input
-                    type="text"
-                    value={formData.builderProfile?.reraRegistrationNumber || ''}
-                    onChange={(e) => handleBuilderProfileChange('reraRegistrationNumber', e.target.value)}
-                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent uppercase"
-                    placeholder="PR/GJ/..."
-                  />
+              {/* RERA Number & Certificate */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">RERA Number</label>
+                  <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors bg-white px-2 rounded-t-md">
+                    <input
+                      type="text"
+                      value={formData.builderProfile?.reraRegistrationNumber || ''}
+                      onChange={(e) => handleBuilderProfileChange('reraRegistrationNumber', e.target.value)}
+                      className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent uppercase"
+                      placeholder="PR/GJ/..."
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Upload RERA Certificate</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id="rera-upload"
+                      className="hidden"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleBuilderDocUpload(e, 'reraCertificate', 'RERA Certificate')}
+                      disabled={docUploading}
+                    />
+                    <label htmlFor="rera-upload" className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-emerald-600 hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <FileText size={14} /> Upload Doc
+                    </label>
+                    {formData.builderProfile?.reraCertificate && (
+                      <a href={formData.builderProfile.reraCertificate} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline font-semibold flex items-center gap-1">
+                        <CheckCircle2 size={12} className="text-emerald-500" /> Uploaded
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* GST Number */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">GST Number</label>
-                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
-                  <input
-                    type="text"
-                    value={formData.builderProfile?.gstNumber || ''}
-                    onChange={(e) => handleBuilderProfileChange('gstNumber', e.target.value)}
-                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent uppercase"
-                    placeholder="22AAAAA0000A1Z5"
-                  />
+              {/* GST Number & Certificate */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">GST Number</label>
+                  <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors bg-white px-2 rounded-t-md">
+                    <input
+                      type="text"
+                      value={formData.builderProfile?.gstNumber || ''}
+                      onChange={(e) => handleBuilderProfileChange('gstNumber', e.target.value)}
+                      className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent uppercase"
+                      placeholder="22AAAAA0000A1Z5"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Upload GST Certificate</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id="gst-upload"
+                      className="hidden"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleBuilderDocUpload(e, 'gstCertificate', 'GST Certificate')}
+                      disabled={docUploading}
+                    />
+                    <label htmlFor="gst-upload" className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-emerald-600 hover:bg-emerald-50 cursor-pointer transition-colors">
+                      <FileText size={14} /> Upload Doc
+                    </label>
+                    {formData.builderProfile?.gstCertificate && (
+                      <a href={formData.builderProfile.gstCertificate} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline font-semibold flex items-center gap-1">
+                        <CheckCircle2 size={12} className="text-emerald-500" /> Uploaded
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
 

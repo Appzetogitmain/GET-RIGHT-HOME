@@ -81,7 +81,7 @@ const THEME_MAP = {
     }
 };
 
-const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onTypeSelect, theme }) => (
+const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onTypeSelect, theme, onViewAll }) => (
     <div id={`home-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
         <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
             <div className="flex-1 min-w-0 pr-2">
@@ -93,14 +93,18 @@ const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onType
             </div>
             <button
                 onClick={() => {
-                    const labelMap = {
-                        [sectionIds.pg]: 'PG/Co-Living',
-                        [sectionIds.rent]: 'Rent',
-                        [sectionIds.buy]: 'Buy',
-                        [sectionIds.plot]: 'Plot'
-                    };
-                    onTypeSelect(typeId, labelMap[typeId] || 'All');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    if (onViewAll) {
+                        onViewAll();
+                    } else {
+                        const labelMap = {
+                            [sectionIds.pg]: 'PG/Co-Living',
+                            [sectionIds.rent]: 'Rent',
+                            [sectionIds.buy]: 'Buy',
+                            [sectionIds.plot]: 'Plot'
+                        };
+                        onTypeSelect(typeId, labelMap[typeId] || 'All');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
                 }}
                 className={`text-[12px] md:text-[14px] font-bold ${theme?.text || 'text-emerald-600'} ${theme?.hoverText || 'hover:text-emerald-700'} hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0`}
             >
@@ -234,6 +238,7 @@ const Home = () => {
                                 typeId={sectionIds.pg}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                onViewAll={() => navigate(`/search?transactionType=pg&type=${sectionIds.pg}`)}
                                 theme={activeTheme}
                             />
                         )}
@@ -255,6 +260,7 @@ const Home = () => {
                                 extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                onViewAll={() => navigate(`/search?transactionType=rent&type=${sectionIds.rent}`)}
                                 theme={activeTheme}
                             />
                         )}
@@ -266,6 +272,7 @@ const Home = () => {
                                 extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                onViewAll={() => navigate(`/search?transactionType=sell&type=${sectionIds.buy}`)}
                                 theme={activeTheme}
                             />
                         )}
@@ -276,6 +283,7 @@ const Home = () => {
                                 typeId={sectionIds.plot}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                onViewAll={() => navigate(`/search?transactionType=sell&type=${sectionIds.plot}&subType=Plot+%2F+Land`)}
                                 theme={activeTheme}
                             />
                         )}

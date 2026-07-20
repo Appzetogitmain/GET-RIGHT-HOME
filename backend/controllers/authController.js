@@ -302,10 +302,18 @@ export const verifyOtp = async (req, res) => {
       if (finalRole === 'builder') {
         newUserObj.builderProfile = {
           companyName: req.body.companyName || '',
+          officeAddress: req.body.officeAddress || '',
+          cinNumber: req.body.cinNumber || '',
           reraRegistrationNumber: req.body.reraRegistrationNumber || '',
+          reraCertificate: req.body.reraCertificate || '',
           gstNumber: req.body.gstNumber || '',
+          gstCertificate: req.body.gstCertificate || '',
+          companyRegistrationCertificate: req.body.companyRegistrationCertificate || '',
           description: req.body.description || '',
           establishedYear: req.body.establishedYear || null,
+          brandLogo: req.body.brandLogo || '',
+          activeProjects: req.body.activeProjects || 0,
+          completedProjects: req.body.completedProjects || 0,
           awards: req.body.awards || []
         };
       }
@@ -639,9 +647,11 @@ export const updateProfile = async (req, res) => {
     if (req.body.vipExpiry !== undefined) user.vipExpiry = req.body.vipExpiry;
 
     if (req.body.builderProfile && user.role === 'builder') {
+      const { approvalStatus, verificationMessage, ...safeBuilderProfile } = req.body.builderProfile;
       user.builderProfile = {
         ...(user.builderProfile ? user.builderProfile.toObject() : {}),
-        ...req.body.builderProfile
+        ...safeBuilderProfile,
+        approvalStatus: 'pending' // Force pending on update so admin re-verifies
       };
     }
 

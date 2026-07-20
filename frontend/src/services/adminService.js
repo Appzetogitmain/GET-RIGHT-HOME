@@ -304,12 +304,20 @@ const adminService = {
     const response = await axiosInstance.get('/admin/builders', { params });
     return response.data;
   },
+  getPendingBuilders: async () => {
+    const response = await axiosInstance.get('/admin/builders/pending');
+    return response.data;
+  },
   addBuilder: async (data) => {
     const response = await axiosInstance.post('/admin/builders', data);
     return response.data;
   },
   updateBuilder: async (id, data) => {
     const response = await axiosInstance.put(`/admin/builders/${id}`, data);
+    return response.data;
+  },
+  verifyBuilder: async (id, data) => {
+    const response = await axiosInstance.put(`/admin/builders/${id}/verify`, data);
     return response.data;
   },
   deleteBuilder: async (id) => {

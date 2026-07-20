@@ -26,8 +26,13 @@ const AdminBuilders = () => {
         email: '',
         phone: '',
         companyName: '',
+        officeAddress: '',
+        cinNumber: '',
         reraRegistrationNumber: '',
+        reraCertificate: '',
         gstNumber: '',
+        gstCertificate: '',
+        companyRegistrationCertificate: '',
         description: '',
         establishedYear: '',
         activeProjects: 0,
@@ -63,8 +68,13 @@ const AdminBuilders = () => {
                 email: builder.email || '',
                 phone: builder.phone || '',
                 companyName: builder.builderProfile?.companyName || '',
+                officeAddress: builder.builderProfile?.officeAddress || '',
+                cinNumber: builder.builderProfile?.cinNumber || '',
                 reraRegistrationNumber: builder.builderProfile?.reraRegistrationNumber || '',
+                reraCertificate: builder.builderProfile?.reraCertificate || '',
                 gstNumber: builder.builderProfile?.gstNumber || '',
+                gstCertificate: builder.builderProfile?.gstCertificate || '',
+                companyRegistrationCertificate: builder.builderProfile?.companyRegistrationCertificate || '',
                 description: builder.builderProfile?.description || '',
                 establishedYear: builder.builderProfile?.establishedYear || '',
                 activeProjects: builder.builderProfile?.activeProjects || 0,
@@ -141,6 +151,37 @@ const AdminBuilders = () => {
         }
     };
 
+    const handleDocumentUpload = async (e, fieldName, docLabel) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error(`${docLabel} size must be less than 5MB`);
+            return;
+        }
+
+        try {
+            toast.loading(`Uploading ${docLabel}...`, { id: fieldName });
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64Data = reader.result;
+                const payload = {
+                    images: [{ base64: base64Data, fileName: file.name }]
+                };
+                const response = await adminService.uploadImageBase64(payload);
+                if (response.success) {
+                    const uploadedUrl = response.urls ? response.urls[0] : response.url;
+                    setFormData(prev => ({ ...prev, [fieldName]: uploadedUrl }));
+                    toast.success(`${docLabel} uploaded successfully`, { id: fieldName });
+                }
+            };
+        } catch (error) {
+            console.error('Upload Error', error);
+            toast.error(`Failed to upload ${docLabel}`, { id: fieldName });
+        }
+    };
+
     const handleSaveBuilder = async (e) => {
         e.preventDefault();
         
@@ -204,12 +245,17 @@ const AdminBuilders = () => {
                 phone: formData.phone,
                 builderProfile: {
                     companyName: formData.companyName,
+                    officeAddress: formData.officeAddress,
+                    cinNumber: formData.cinNumber,
                     reraRegistrationNumber: formData.reraRegistrationNumber,
+                    reraCertificate: formData.reraCertificate,
                     gstNumber: formData.gstNumber,
+                    gstCertificate: formData.gstCertificate,
+                    companyRegistrationCertificate: formData.companyRegistrationCertificate,
                     description: formData.description,
-                    establishedYear: Number(formData.establishedYear),
-                    activeProjects: Number(formData.activeProjects),
-                    completedProjects: Number(formData.completedProjects),
+                    establishedYear: Number(formData.establishedYear) || undefined,
+                    activeProjects: Number(formData.activeProjects) || 0,
+                    completedProjects: Number(formData.completedProjects) || 0,
                     brandLogo: formData.brandLogo
                 }
             };
@@ -234,8 +280,13 @@ const AdminBuilders = () => {
             email: '',
             phone: '',
             companyName: '',
+            officeAddress: '',
+            cinNumber: '',
             reraRegistrationNumber: '',
+            reraCertificate: '',
             gstNumber: '',
+            gstCertificate: '',
+            companyRegistrationCertificate: '',
             description: '',
             establishedYear: '',
             activeProjects: 0,
@@ -475,13 +526,45 @@ const AdminBuilders = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">RERA Number</label>
-                                                <input type="text" value={formData.reraRegistrationNumber} onChange={e => handleInputChange('reraRegistrationNumber', e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium uppercase" placeholder="PR/GJ/..." />
+                                            <div className="space-y-1 md:col-span-2">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Registered Office Address</label>
+                                                <textarea rows="2" value={formData.officeAddress} onChange={e => handleInputChange('officeAddress', e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium resize-none" placeholder="Full office address..." />
                                             </div>
-                                            <div className="space-y-1">
+
+                                            <div className="space-y-1 md:col-span-2">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Company Registration (CIN)</label>
+                                                <div className="flex items-center gap-2">
+                                                    <input type="text" value={formData.cinNumber} onChange={e => handleInputChange('cinNumber', e.target.value)} className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium uppercase" placeholder="L12345MH2000PLC123456" />
+                                                    <label className="shrink-0 px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-200 flex items-center gap-2 text-gray-600 transition-colors">
+                                                        <UploadCloud size={16} className={formData.companyRegistrationCertificate ? 'text-green-500' : ''} />
+                                                        <span className="text-[10px] font-bold uppercase">{formData.companyRegistrationCertificate ? 'Uploaded' : 'Upload Doc'}</span>
+                                                        <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => handleDocumentUpload(e, 'companyRegistrationCertificate', 'Company Registration')} />
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1 md:col-span-2">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">RERA Number</label>
+                                                <div className="flex items-center gap-2">
+                                                    <input type="text" value={formData.reraRegistrationNumber} onChange={e => handleInputChange('reraRegistrationNumber', e.target.value)} className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium uppercase" placeholder="PR/GJ/..." />
+                                                    <label className="shrink-0 px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-200 flex items-center gap-2 text-gray-600 transition-colors">
+                                                        <UploadCloud size={16} className={formData.reraCertificate ? 'text-green-500' : ''} />
+                                                        <span className="text-[10px] font-bold uppercase">{formData.reraCertificate ? 'Uploaded' : 'Upload Doc'}</span>
+                                                        <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => handleDocumentUpload(e, 'reraCertificate', 'RERA Certificate')} />
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1 md:col-span-2">
                                                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">GST Number</label>
-                                                <input type="text" value={formData.gstNumber} onChange={e => handleInputChange('gstNumber', e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium uppercase" placeholder="22AAAAA0000A1Z5" />
+                                                <div className="flex items-center gap-2">
+                                                    <input type="text" value={formData.gstNumber} onChange={e => handleInputChange('gstNumber', e.target.value)} className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-black outline-none font-medium uppercase" placeholder="22AAAAA0000A1Z5" />
+                                                    <label className="shrink-0 px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-200 flex items-center gap-2 text-gray-600 transition-colors">
+                                                        <UploadCloud size={16} className={formData.gstCertificate ? 'text-green-500' : ''} />
+                                                        <span className="text-[10px] font-bold uppercase">{formData.gstCertificate ? 'Uploaded' : 'Upload Doc'}</span>
+                                                        <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => handleDocumentUpload(e, 'gstCertificate', 'GST Certificate')} />
+                                                    </label>
+                                                </div>
                                             </div>
 
                                             <div className="space-y-1 md:col-span-2">
