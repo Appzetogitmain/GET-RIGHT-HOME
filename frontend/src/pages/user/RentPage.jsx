@@ -24,7 +24,7 @@ const THEME = {
 };
 
 const RentPGSection = ({ title, typeId, subtitle, extraFilters, onTypeSelect, typeLabel }) => (
-    <div className="py-4 border-b border-gray-100 last:border-0 relative">
+    <div id={`rent-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
         <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
             <div className="flex-1 min-w-0 pr-2">
                 <div className="flex items-start gap-1.5 md:gap-2 mb-0.5">

@@ -4,6 +4,7 @@ import InfoPage from '../models/InfoPage.js';
 import ContactMessage from '../models/ContactMessage.js';
 import PlatformSettings from '../models/PlatformSettings.js';
 import Property from '../models/Property.js';
+import Project from '../models/Project.js';
 import RoomType from '../models/RoomType.js';
 import Booking from '../models/Booking.js';
 import PropertyDocument from '../models/PropertyDocument.js';
@@ -372,6 +373,105 @@ export const getAllHotels = async (req, res) => {
     res.status(200).json({ success: true, hotels, total, page, limit });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error fetching hotels' });
+  }
+};
+
+export const getAllProjects = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const { search, status, type, builder } = req.query;
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { propertyName: { $regex: search, $options: 'i' } },
+        { 'address.city': { $regex: search, $options: 'i' } },
+        { 'address.state': { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (status) query.status = status;
+    if (type) query.propertyType = String(type).toLowerCase();
+    if (builder) query.userId = builder;
+
+    const total = await Project.countDocuments(query);
+    const projects = await Project.find(query)
+      .populate('userId', 'name email phone companyName')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({ success: true, projects, total, page, limit });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Server error fetching projects' });
+  }
+};
+
+export const getProjectDetails = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id)
+      .populate('userId', 'name email phone companyName builderProfile');
+    
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    res.status(200).json({ success: true, project });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching project details' });
+  }
+};
+
+export const createAdminProject = async (req, res) => {
+  try {
+    const projectData = req.body;
+    projectData.isAddedByAdmin = true;
+    projectData.status = 'approved';
+    projectData.isLive = true;
+
+    const newProject = new Project(projectData);
+    await newProject.save();
+
+    res.status(201).json({ success: true, message: 'Project created successfully', project: newProject });
+  } catch (error) {
+    console.error('Error creating admin project:', error);
+    res.status(500).json({ success: false, message: 'Failed to create project', error: error.message });
+  }
+};
+
+export const updateAdminProject = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const projectData = req.body;
+
+    const updatedProject = await Project.findByIdAndUpdate(id, projectData, { new: true });
+    
+    if (!updatedProject) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    res.status(200).json({ success: true, message: 'Project updated successfully', project: updatedProject });
+  } catch (error) {
+    console.error('Error updating admin project:', error);
+    res.status(500).json({ success: false, message: 'Failed to update project', error: error.message });
+  }
+};
+
+export const deleteProject = async (req, res) => {
+  try {
+    const { projectId } = req.body;
+    const project = await Project.findByIdAndDelete(projectId);
+    
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    res.status(200).json({ success: true, message: 'Project deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ success: false, message: 'Server error deleting project' });
   }
 };
 

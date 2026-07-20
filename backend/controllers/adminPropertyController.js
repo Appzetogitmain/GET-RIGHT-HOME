@@ -1,4 +1,5 @@
 import Property from '../models/Property.js';
+import Project from '../models/Project.js';
 import User from '../models/User.js';
 import FeaturedPlan from '../models/FeaturedPlan.js';
 
@@ -9,12 +10,12 @@ export const getAdminFeaturedProperties = async (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     const skip = (page - 1) * limit;
 
-    const query = {};
+    const query = { status: 'approved' };
     if (req.query.isFeatured === 'true') {
       query['featuredDetails.isFeatured'] = true;
     }
 // fghjk
-    const properties = await Property.find(query)
+    const projects = await Project.find(query)
       .populate('userId', 'name email role')
       .populate('partnerId', 'name email role')
       .populate('featuredDetails.planId')
@@ -22,11 +23,11 @@ export const getAdminFeaturedProperties = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    const total = await Property.countDocuments(query);
+    const total = await Project.countDocuments(query);
 
     res.status(200).json({
       success: true,
-      properties,
+      projects,
       meta: {
         total,
         page,
@@ -46,8 +47,8 @@ export const updateFeaturedProperty = async (req, res) => {
     const { id } = req.params;
     const { isFeatured, planId, durationDays, adminNotes } = req.body;
 
-    const property = await Property.findById(id);
-    if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+    const project = await Project.findById(id);
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
 
     let planName = 'None';
     if (planId) {
@@ -55,36 +56,36 @@ export const updateFeaturedProperty = async (req, res) => {
        if (plan) planName = plan.name;
     }
 
-    if (!property.featuredDetails) {
-      property.featuredDetails = {};
+    if (!project.featuredDetails) {
+      project.featuredDetails = {};
     }
 
-    property.isFeatured = isFeatured; // Sync backward compatibility
-    property.featuredDetails.isFeatured = isFeatured;
-    property.featuredDetails.planId = planId || null;
-    property.featuredDetails.planName = planName;
-    property.featuredDetails.adminNotes = adminNotes || '';
+    project.isFeatured = isFeatured; // Sync backward compatibility
+    project.featuredDetails.isFeatured = isFeatured;
+    project.featuredDetails.planId = planId || null;
+    project.featuredDetails.planName = planName;
+    project.featuredDetails.adminNotes = adminNotes || '';
 
     if (isFeatured) {
-      property.featuredDetails.startDate = new Date();
+      project.featuredDetails.startDate = new Date();
       if (durationDays) {
-        property.featuredDetails.durationDays = durationDays;
+        project.featuredDetails.durationDays = durationDays;
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + durationDays);
-        property.featuredDetails.endDate = endDate;
+        project.featuredDetails.endDate = endDate;
       } else {
-        property.featuredDetails.durationDays = null;
-        property.featuredDetails.endDate = null;
+        project.featuredDetails.durationDays = null;
+        project.featuredDetails.endDate = null;
       }
-      property.featuredDetails.status = 'active';
+      project.featuredDetails.status = 'active';
     } else {
-      property.featuredDetails.status = 'expired';
-      property.featuredDetails.endDate = new Date();
+      project.featuredDetails.status = 'expired';
+      project.featuredDetails.endDate = new Date();
     }
 
-    await property.save();
+    await project.save();
 
-    res.status(200).json({ success: true, message: 'Featured status updated successfully', property });
+    res.status(200).json({ success: true, message: 'Featured status updated successfully', project });
   } catch (error) {
     console.error('Error updating featured property:', error);
     res.status(500).json({ success: false, message: 'Server error' });

@@ -512,6 +512,8 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
                             {subtitle || defaultSubtitle}
                         </p>
                     </div>
+                    {/* Temporary hide View All for Projects until a dedicated /projects search page is built */}
+                    {/*
                     {displayProperties.length > 0 && (
                         <button
                             onClick={() => {
@@ -529,6 +531,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
                             View All
                         </button>
                     )}
+                    */}
                 </div>
             </div>
 

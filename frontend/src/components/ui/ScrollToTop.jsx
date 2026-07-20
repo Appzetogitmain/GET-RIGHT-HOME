@@ -46,9 +46,8 @@ const ScrollToTop = () => {
           if (success) return;
           const el = document.getElementById(lastSectionId);
           if (el) {
-            if (window.lenis) window.lenis.stop();
-            // Scroll to the element, offset by 80px for header
             const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 80);
+            if (window.lenis) window.lenis.stop();
             window.scrollTo({ top: y, left: 0, behavior: 'instant' });
             if (window.lenis) {
               window.lenis.scrollTo(y, { immediate: true });
@@ -61,18 +60,26 @@ const ScrollToTop = () => {
         tryScrollToElement();
         [50, 150, 300, 600].forEach(time => setTimeout(tryScrollToElement, time));
 
+        let userInteracted = false;
+        const abortLock = () => { userInteracted = true; observer.disconnect(); };
+        window.addEventListener('wheel', abortLock, { passive: true, once: true });
+        window.addEventListener('touchstart', abortLock, { passive: true, once: true });
+        window.addEventListener('click', abortLock, { passive: true, once: true });
+
         // Use ResizeObserver to keep the camera locked on the section while skeletons load
         const observer = new ResizeObserver(() => {
-          if (attempts < 30) {
+          if (userInteracted) return;
+          if (attempts < 50) {
             attempts++;
             const el = document.getElementById(lastSectionId);
             if (el) {
                 const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 80);
-                // Only scroll if there is a meaningful shift (prevent micro-jitter)
                 if (Math.abs(window.scrollY - y) > 5) {
+                    if (window.lenis) window.lenis.stop();
                     window.scrollTo({ top: y, left: 0, behavior: 'instant' });
                     if (window.lenis) {
                         window.lenis.scrollTo(y, { immediate: true });
+                        window.lenis.start();
                     }
                 }
             }
@@ -80,13 +87,24 @@ const ScrollToTop = () => {
         });
         
         observer.observe(document.body);
-        setTimeout(() => observer.disconnect(), 2500);
+        setTimeout(() => {
+            observer.disconnect();
+            window.removeEventListener('wheel', abortLock);
+            window.removeEventListener('touchstart', abortLock);
+            window.removeEventListener('click', abortLock);
+        }, 8000);
 
       } else if (savedPosition && !isReload) {
         // --- FALLBACK PIXEL LOGIC (Only for back-button, not refresh) ---
         const targetPos = parseInt(savedPosition, 10);
         let attempts = 0;
         let success = false;
+
+        let userInteracted = false;
+        const abortLock = () => { userInteracted = true; observer.disconnect(); };
+        window.addEventListener('wheel', abortLock, { passive: true, once: true });
+        window.addEventListener('touchstart', abortLock, { passive: true, once: true });
+        window.addEventListener('click', abortLock, { passive: true, once: true });
 
         const tryRestore = () => {
           if (success) return;
@@ -107,13 +125,19 @@ const ScrollToTop = () => {
         [50, 150, 300, 600].forEach(time => setTimeout(tryRestore, time));
 
         const observer = new ResizeObserver(() => {
-          if (!success && attempts < 20) {
+          if (userInteracted) return;
+          if (!success && attempts < 50) {
             attempts++;
             tryRestore();
           }
         });
         observer.observe(document.body);
-        setTimeout(() => observer.disconnect(), 2500);
+        setTimeout(() => {
+            observer.disconnect();
+            window.removeEventListener('wheel', abortLock);
+            window.removeEventListener('touchstart', abortLock);
+            window.removeEventListener('click', abortLock);
+        }, 8000);
       }
     }
   }, [pathname, action]);

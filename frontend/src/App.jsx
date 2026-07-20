@@ -100,6 +100,7 @@ const AdminSettings = React.lazy(() => import('./app/admin/pages/AdminSettings')
 const AdminOffers = React.lazy(() => import('./app/admin/pages/AdminOffers'));
 const AdminProtectedRoute = React.lazy(() => import('./app/admin/AdminProtectedRoute'));
 const AdminProperties = React.lazy(() => import('./app/admin/pages/AdminProperties'));
+const AdminProjects = React.lazy(() => import('./app/admin/pages/AdminProjects'));
 const AdminAddProperty = React.lazy(() => import('./app/admin/pages/AdminAddProperty'));
 
 const AdminLegalPages = React.lazy(() => import('./app/admin/pages/AdminLegalPages'));
@@ -617,12 +618,15 @@ function App() {
                         <Route path="properties" element={<AdminProperties />} />
                         <Route path="properties/add" element={<AdminAddProperty />} />
                         <Route path="properties/:id" element={<AdminHotelDetail />} />
+                        <Route path="projects" element={<AdminProjects />} />
+                        <Route path="projects/add" element={<AdminAddProperty />} />
+                        <Route path="projects/:id" element={<AdminHotelDetail />} />
 
                         <Route path="offers" element={<AdminOffers />} />
                         <Route path="notifications" element={<AdminNotifications />} />
                         <Route path="faqs" element={<AdminFaqs />} />
                         <Route path="categories" element={<AdminCategories />} />
-                        <Route path="featured-properties" element={<AdminFeaturedProperties />} />
+                        <Route path="featured-projects" element={<AdminFeaturedProperties />} />
                         <Route path="subscriptions" element={<AdminSubscriptions />} />
                         <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                         <Route path="banners" element={<AdminBanners />} />
@@ -652,10 +656,12 @@ function App() {
                         <Route path="partners/:id" element={<AdminPartnerDetail />} />
                         <Route path="builders" element={<AdminBuilders />} />
 
-                        {/* Property Management */}
+                        {/* Property & Project Management */}
                         <Route path="properties" element={<AdminProperties />} />
                         <Route path="properties/add" element={<AdminAddProperty />} />
                         <Route path="properties/:id" element={<AdminHotelDetail />} />
+                        <Route path="projects" element={<AdminProjects />} />
+                        <Route path="projects/:id" element={<AdminHotelDetail />} />
 
                         {/* Bookings & Enquiries */}
                         <Route path="bookings" element={<AdminBookings />} />
@@ -664,7 +670,7 @@ function App() {
 
                         {/* Content & Catalog */}
                         <Route path="categories" element={<AdminCategories />} />
-                        <Route path="featured-properties" element={<AdminFeaturedProperties />} />
+                        <Route path="featured-projects" element={<AdminFeaturedProperties />} />
                         <Route path="banners" element={<AdminBanners />} />
                         <Route path="property-forms" element={<AdminPropertyFormManager />} />
                         <Route path="property-videos" element={<AdminPropertyVideos />} />

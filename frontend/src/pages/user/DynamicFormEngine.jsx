@@ -81,7 +81,9 @@ const DynamicFormEngine = () => {
       return initialForm;
     }
     const saved = localStorage.getItem(storageKey);
-    return saved ? JSON.parse(saved) : {};
+    const parsed = saved ? JSON.parse(saved) : {};
+    if (!parsed.country) parsed.country = 'India';
+    return parsed;
   });
 
   // Fetch Template
@@ -596,13 +598,17 @@ const DynamicFormEngine = () => {
 
       case 'multiselect_pill':
         const selectedPills = Array.isArray(formData[field.name]) ? formData[field.name] : [];
+        const baseOptions = field.options || [];
+        const customPills = selectedPills.filter(p => !baseOptions.includes(p));
+        const allPills = [...baseOptions, ...customPills];
+
         return (
           <div key={field.name} id={`field-${field.name}`} className="mb-6">
             <label className="block text-[14px] font-semibold text-slate-800 mb-2">
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </label>
             <div className="flex flex-wrap gap-2">
-              {field.options?.map(opt => {
+              {allPills.map(opt => {
                 const isSelected = selectedPills.includes(opt);
                 return (
                   <button
@@ -613,10 +619,8 @@ const DynamicFormEngine = () => {
                       const isNoneOpt = ['not available', 'none', 'no washroom', 'no parking'].includes(opt.toLowerCase());
                       
                       if (isNoneOpt) {
-                        // Selecting "Not Available" clears all other selections
                         next = isSelected ? [] : [opt];
                       } else {
-                        // Selecting anything else filters out any "Not Available" option
                         const filtered = selectedPills.filter(o => 
                           !['not available', 'none', 'no washroom', 'no parking'].includes(o.toLowerCase())
                         );
@@ -639,6 +643,39 @@ const DynamicFormEngine = () => {
                   </button>
                 );
               })}
+            </div>
+            
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                placeholder={`Add custom ${field.label.toLowerCase()}...`}
+                id={`custom-input-${field.name}`}
+                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-[13px] outline-none focus:border-blue-500 w-full md:w-64"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.target.value.trim();
+                    if (val && !selectedPills.includes(val)) {
+                      handleChange(field.name, [...selectedPills, val]);
+                    }
+                    e.target.value = '';
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const inputEl = document.getElementById(`custom-input-${field.name}`);
+                  const val = inputEl?.value?.trim();
+                  if (val && !selectedPills.includes(val)) {
+                    handleChange(field.name, [...selectedPills, val]);
+                  }
+                  if (inputEl) inputEl.value = '';
+                }}
+                className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[13px] font-bold rounded-xl transition-colors shrink-0"
+              >
+                Add
+              </button>
             </div>
             {errors[field.name] && <p className="text-red-500 text-[10px] mt-2 ml-1">{errors[field.name]}</p>}
           </div>
@@ -728,8 +765,7 @@ const DynamicFormEngine = () => {
                     toast.error(err.message || 'Upload failed', { id: uploadToastId });
                   }
                 }}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                style={{ position: 'relative', marginTop: '-80px', height: '100px' }}
+                className="absolute inset-0 z-10 w-full h-full opacity-0 cursor-pointer"
               />
             </div>
 
@@ -825,7 +861,7 @@ const DynamicFormEngine = () => {
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </label>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-              {field.options?.map(opt => {
+              {Array.from(new Set([...(field.options || []), ...(selectedOptions.filter(o => !(field.options || []).includes(o)))])).map(opt => {
                 const isChecked = selectedOptions.includes(opt);
                 return (
                   <button
@@ -851,101 +887,134 @@ const DynamicFormEngine = () => {
                 );
               })}
             </div>
+
+            <div className="mt-4 flex gap-2">
+              <input
+                type="text"
+                placeholder={`Add custom ${field.label.toLowerCase()}...`}
+                id={`custom-cbx-${field.name}`}
+                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-[13px] outline-none focus:border-blue-500 w-full md:w-64"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.target.value.trim();
+                    if (val && !selectedOptions.includes(val)) {
+                      handleChange(field.name, [...selectedOptions, val]);
+                    }
+                    e.target.value = '';
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const inputEl = document.getElementById(`custom-cbx-${field.name}`);
+                  const val = inputEl?.value?.trim();
+                  if (val && !selectedOptions.includes(val)) {
+                    handleChange(field.name, [...selectedOptions, val]);
+                  }
+                  if (inputEl) inputEl.value = '';
+                }}
+                className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[13px] font-bold rounded-xl transition-colors shrink-0"
+              >
+                Add
+              </button>
+            </div>
             {errors[field.name] && <p className="text-red-500 text-[10px] mt-2 ml-1">{errors[field.name]}</p>}
           </div>
         );
 
       case 'nearby_places':
-        const places = Array.isArray(formData[field.name]) ? formData[field.name] : [];
-        return (
-          <div key={field.name} id={`field-${field.name}`} className="mb-6 border border-slate-100 bg-slate-50/50 p-4 rounded-2xl">
-            <label className="block text-[14px] font-semibold text-slate-800 mb-2">
-              {field.label} {field.required && <span className="text-red-500">*</span>}
-            </label>
-            
-            {places.length > 0 && (
-              <div className="space-y-2 mb-4">
-                {places.map((place, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm text-[12px] font-medium">
-                    <div>
-                      <span className="text-slate-800 font-bold">{place.name}</span>
-                      <span className="text-slate-400 mx-2">|</span>
-                      <span className="text-slate-500 font-medium capitalize">{place.type}</span>
-                      <span className="text-slate-400 mx-2">|</span>
-                      <span className="text-slate-600 font-bold">{place.distanceKm} km</span>
+        const NearbyPlacesField = () => {
+          const places = Array.isArray(formData[field.name]) ? formData[field.name] : [];
+          const [name, setName] = React.useState('');
+          const [customType, setCustomType] = React.useState('');
+          const [distance, setDistance] = React.useState('');
+
+          const handleAdd = () => {
+            const distNum = Number(distance);
+            if (!name.trim() || !customType.trim() || !distNum) {
+              toast.error('Please enter name, category and distance');
+              return;
+            }
+            const newPlace = { name: name.trim(), type: customType.trim(), distanceKm: distNum };
+            handleChange(field.name, [...places, newPlace]);
+            setName('');
+            setCustomType('');
+            setDistance('');
+          };
+
+          return (
+            <div key={field.name} id={`field-${field.name}`} className="mb-6 border border-slate-100 bg-slate-50/50 p-4 rounded-2xl">
+              <label className="block text-[14px] font-semibold text-slate-800 mb-2">
+                {field.label} {field.required && <span className="text-red-500">*</span>}
+              </label>
+              
+              {places.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {places.map((place, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm text-[12px] font-medium">
+                      <div>
+                        <span className="text-slate-800 font-bold">{place.name}</span>
+                        <span className="text-slate-400 mx-2">|</span>
+                        <span className="text-slate-500 font-medium capitalize">{place.type}</span>
+                        <span className="text-slate-400 mx-2">|</span>
+                        <span className="text-slate-600 font-bold">{place.distanceKm} km</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = places.filter((_, i) => i !== idx);
+                          handleChange(field.name, next);
+                        }}
+                        className="text-red-500 hover:text-red-600 font-black text-sm px-2"
+                      >
+                        ×
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = places.filter((_, i) => i !== idx);
-                        handleChange(field.name, next);
-                      }}
-                      className="text-red-500 hover:text-red-600 font-black text-sm px-2"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-              <input
-                type="text"
-                placeholder="Place name (e.g. Metro Station)"
-                id="nearby-name"
-                className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-blue-500"
-              />
-              <select
-                id="nearby-type"
-                className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[12px] outline-none"
-              >
-                <option value="metro">Metro</option>
-                <option value="school">School</option>
-                <option value="hospital">Hospital</option>
-                <option value="market">Market</option>
-                <option value="mall">Mall</option>
-                <option value="airport">Airport</option>
-                <option value="railway">Railway</option>
-              </select>
-              <div className="flex gap-2">
+                  ))}
+                </div>
+              )}
+              
+              <div className="flex flex-col md:flex-row gap-2">
                 <input
-                  type="number"
-                  placeholder="Distance (km)"
-                  id="nearby-dist"
-                  className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[12px] outline-none w-full"
+                  type="text"
+                  placeholder="Place name (e.g. Apollo)"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-blue-500 flex-1 min-w-0"
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nameInput = document.getElementById('nearby-name');
-                    const typeInput = document.getElementById('nearby-type');
-                    const distInput = document.getElementById('nearby-dist');
-                    
-                    const name = nameInput?.value?.trim();
-                    const type = typeInput?.value;
-                    const distanceKm = Number(distInput?.value || 0);
-                    
-                    if (!name || !distanceKm) {
-                      toast.error('Please enter both name and distance');
-                      return;
-                    }
-                    
-                    const newPlace = { name, type, distanceKm };
-                    handleChange(field.name, [...places, newPlace]);
-                    
-                    if (nameInput) nameInput.value = '';
-                    if (distInput) distInput.value = '';
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-[12px] font-bold uppercase transition-all shadow-sm shrink-0"
-                >
-                  Add
-                </button>
+                
+                <input
+                  type="text"
+                  placeholder="Category (e.g. Hospital)"
+                  value={customType}
+                  onChange={(e) => setCustomType(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-blue-500 flex-1 min-w-0"
+                />
+
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    placeholder="Distance (km)"
+                    value={distance}
+                    onChange={(e) => setDistance(e.target.value)}
+                    className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[12px] outline-none w-28 shrink-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAdd}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-[12px] font-bold uppercase transition-all shadow-sm shrink-0"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
+              {errors[field.name] && <p className="text-red-500 text-[10px] mt-2 ml-1">{errors[field.name]}</p>}
             </div>
-            {errors[field.name] && <p className="text-red-500 text-[10px] mt-2 ml-1">{errors[field.name]}</p>}
-          </div>
-        );
+          );
+        };
+        return <NearbyPlacesField key={field.name} />;
 
       case 'repeater':
         const repeaterItems = Array.isArray(formData[field.name]) ? formData[field.name] : [];
@@ -977,9 +1046,9 @@ const DynamicFormEngine = () => {
                          return (
                            <div key={subF.name} className="flex flex-col">
                              <label className="text-[12px] font-semibold text-slate-600 mb-1">{subF.label}</label>
-                             <div className="flex gap-2">
+                             <div className="flex flex-col gap-2 items-start w-full">
                                <input type="text" placeholder="Image URL..." 
-                                 className="border rounded-lg px-3 py-2 text-[13px] flex-1 outline-none focus:border-blue-500"
+                                 className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
                                  value={item[subF.name] || ''}
                                  onChange={(e) => {
                                     const next = [...repeaterItems];
@@ -987,8 +1056,8 @@ const DynamicFormEngine = () => {
                                     handleChange(field.name, next);
                                  }}
                                />
-                               <label className="bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer whitespace-nowrap flex items-center transition-colors">
-                                 Upload
+                               <label className="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg text-[12px] font-bold cursor-pointer transition-colors w-fit">
+                                 Upload Image
                                  <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
                                     const file = e.target.files[0];
                                     if (!file) return;
@@ -1182,12 +1251,9 @@ const DynamicFormEngine = () => {
                     handleChange('district', district);
                     handleChange('city', city);
                   }}
+                  errors={errors}
                   required
                 />
-                {errors.country && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.country}</p>}
-                {errors.state && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.state}</p>}
-                {errors.district && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.district}</p>}
-                {errors.city && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.city}</p>}
               </div>
             )}
 
@@ -1195,7 +1261,7 @@ const DynamicFormEngine = () => {
             {currentStep.fields
               .sort((a,b) => a.order - b.order)
               .filter(field => {
-                const isLocationField = currentStep?.title?.toLowerCase().includes('location') && ['city', 'state', 'district', 'country'].includes(field.name);
+                const isLocationField = currentStep?.title?.toLowerCase().includes('location') && ['city', 'state', 'district', 'country'].includes(field.name.toLowerCase());
                 const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
                 const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
                 

@@ -39,11 +39,12 @@ const getBuilderStep2Fields = (category, propertyType, isRent) => {
         { name: 'bathrooms', label: 'No. of Bathrooms (Standard Unit)', type: 'pill', options: ['1', '2', '3', '4+'], required: true, order: 6 },
         { name: 'balconies', label: 'Balconies (Standard Unit)', type: 'pill', options: ['0', '1', '2', '3+'], required: false, order: 7 },
         { name: 'furnishing', label: 'Furnishing Status (Standard Unit)', type: 'pill', options: ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'], required: true, order: 8 },
-        { name: 'totalFloors', label: 'Total Floors in Building', type: 'number', placeholder: 'e.g. 10', required: true, order: 9 },
-        { name: 'floorNumber', label: 'Property on Floor', type: 'number', placeholder: 'e.g. 4', required: true, order: 10 },
-        { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 11 },
-        { name: 'carpetArea', label: 'Carpet Area (sq.ft)', type: 'number', placeholder: 'e.g. 1200', required: true, order: 12 },
-        { name: 'carpetAreaUnit', label: 'Carpet Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], default: 'sq.ft.', required: true, order: 13 },
+        ...(propertyType === 'Independent House / Villa' ? [] : [
+          { name: 'totalFloors', label: 'Total Floors in Building', type: 'number', placeholder: 'e.g. 10', required: true, order: 9 },
+          { name: 'floorNumber', label: 'Property on Floor', type: 'number', placeholder: 'e.g. 4', required: true, order: 10 },
+        ]),
+        { name: 'carpetArea', label: 'Carpet Area (sq.ft)', type: 'number', placeholder: 'e.g. 1200', required: false, order: 12 },
+        { name: 'carpetAreaUnit', label: 'Carpet Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], default: 'sq.ft.', required: false, order: 13 },
         { name: 'superArea', label: 'Super Built-up Area (sq.ft)', type: 'number', placeholder: 'e.g. 1500', required: false, order: 14 },
         { name: 'superAreaUnit', label: 'Super Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], default: 'sq.ft.', required: false, order: 15 },
         { name: 'gatedCommunity', label: 'Gated Community?', type: 'pill', options: ['Yes', 'No'], required: true, order: 16 },
@@ -89,8 +90,8 @@ const getBuilderStep2Fields = (category, propertyType, isRent) => {
     } else if (isOffice) {
       return [
         ...commonScaleFields,
-        { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 2000', required: true, order: 4 },
-        { name: 'carpetAreaUnit', label: 'Carpet Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], required: true, order: 5 },
+        { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 2000', required: false, order: 4 },
+        { name: 'carpetAreaUnit', label: 'Carpet Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], required: false, order: 5 },
         { name: 'superArea', label: 'Super Built-up Area', type: 'number', placeholder: 'e.g. 2500', required: false, order: 6 },
         { name: 'superAreaUnit', label: 'Super Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], required: false, order: 7 },
         { name: 'furnishing', label: 'Furnishing Status', type: 'pill', options: ['Bare Shell', 'Unfurnished', 'Semi-Furnished', 'Fully Furnished'], required: true, order: 8 },
@@ -182,12 +183,13 @@ const createBuilderSteps = (isRent, category, propertyType) => [
         order: 2,
         subFields: [
           { name: 'planName', label: 'Payment Plan Name (e.g. CLP)', type: 'text', required: true, order: 1 },
+          { name: 'paymentPlanUrl', label: 'Payment Plan Document / Image URL', type: 'text', placeholder: 'e.g. https://...', required: false, order: 2 },
           {
             name: 'milestones',
             label: 'Milestones',
             type: 'repeater',
             required: false,
-            order: 2,
+            order: 3,
             subFields: [
               { name: 'percentage', label: 'Percentage (%)', type: 'number', required: true, order: 1 },
               { name: 'description', label: 'Milestone Stage Description', type: 'text', required: true, order: 2 }
@@ -291,7 +293,6 @@ const createBuilderSteps = (isRent, category, propertyType) => [
           { name: 'answer', label: 'Answer Description', type: 'textarea', required: true, order: 2 }
         ]
       },
-      { name: 'bpd_possessionStatus', label: 'Builder Possession Status', type: 'pill', options: ['Ongoing', 'Ready To Move', 'New Launch'], required: false, order: 4 },
       { name: 'bpd_possessionYear', label: 'Possession Year', type: 'number', placeholder: 'e.g. 2026', required: false, order: 5 },
       { name: 'bpd_constructionQuality', label: 'Construction Quality Rating (1-5)', type: 'number', placeholder: 'e.g. 4.5', required: false, order: 6 },
       { name: 'bpd_aiSummary', label: 'AI Quality Summary', type: 'textarea', placeholder: 'e.g. High quality materials used with modern architectural standards...', required: false, order: 7 },
@@ -484,7 +485,6 @@ const createBuilderPGSteps = () => [
           { name: 'answer', label: 'Answer Description', type: 'textarea', required: true, order: 2 }
         ]
       },
-      { name: 'bpd_possessionStatus', label: 'Builder Possession Status', type: 'pill', options: ['Ongoing', 'Ready To Move', 'New Launch'], required: false, order: 4 },
       { name: 'bpd_possessionYear', label: 'Possession Year', type: 'number', placeholder: 'e.g. 2026', required: false, order: 5 },
       { name: 'bpd_constructionQuality', label: 'Construction Quality Rating (1-5)', type: 'number', placeholder: 'e.g. 4.5', required: false, order: 6 },
       { name: 'bpd_aiSummary', label: 'AI Quality Summary', type: 'textarea', placeholder: 'e.g. High quality materials used with modern architectural standards...', required: false, order: 7 },
@@ -515,9 +515,9 @@ const generateAllTemplates = () => {
     { cat: 'Hospitality', sub: 'Guest-House/Banquet-Halls' }
   ];
 
-  // 1. Sell & Rent/Lease - Residential & Commercial
-  ['Sell', 'Rent / Lease'].forEach(txn => {
-    const isRent = txn === 'Rent / Lease';
+  // 1. Sell - Residential & Commercial
+  ['Sell'].forEach(txn => {
+    const isRent = false;
     
     sellResTypes.forEach(type => {
       templates.push({ transactionType: txn, category: 'Residential', propertyType: type, steps: createBuilderSteps(isRent, 'Residential', type) });
@@ -535,12 +535,6 @@ const generateAllTemplates = () => {
       propertyType: 'Other',
       steps: createBuilderSteps(isRent, 'Commercial', 'Other')
     });
-  });
-
-  // 2. Paying Guest
-  const pgTypes = ['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK / Studio Apartment', 'Serviced Apartment'];
-  pgTypes.forEach(type => {
-    templates.push({ transactionType: 'Paying Guest', category: 'Residential', propertyType: type, steps: createBuilderPGSteps() });
   });
 
   return templates;

@@ -74,7 +74,11 @@ const AdminAddProperty = () => {
       return initialForm;
     }
     const saved = sessionStorage.getItem('adminPropDraft');
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (!parsed.country) parsed.country = 'India';
+      return parsed;
+    }
     return {
       country: 'India', state: '', district: '', city: '', locality: '', houseNumber: '', pincode: ''
     };
@@ -87,7 +91,7 @@ const AdminAddProperty = () => {
 
   const [isBuilderProject, setIsBuilderProject] = useState(() => {
     const hasDetails = existingProperty?.builderProjectDetails && Object.keys(existingProperty.builderProjectDetails).length > 0;
-    return !!(existingProperty?.builderProject || hasDetails || sessionStorage.getItem('adminPropIsBuilder') === 'true');
+    return !!(location.pathname.includes('/projects/add') || existingProperty?.builderProject || hasDetails || sessionStorage.getItem('adminPropIsBuilder') === 'true');
   });
 
   useEffect(() => {
@@ -414,10 +418,18 @@ const AdminAddProperty = () => {
       }
 
       let res;
-      if (isEditing) {
-        res = await adminService.updateProperty(existingProperty._id, payload);
+      if (isBuilderProject) {
+        if (isEditing) {
+          res = await adminService.updateProject(existingProperty._id, payload);
+        } else {
+          res = await adminService.createProject(payload);
+        }
       } else {
-        res = await adminService.createProperty(payload);
+        if (isEditing) {
+          res = await adminService.updateProperty(existingProperty._id, payload);
+        } else {
+          res = await adminService.createProperty(payload);
+        }
       }
 
       if (res.success) {
@@ -428,8 +440,8 @@ const AdminAddProperty = () => {
         sessionStorage.removeItem('adminPropBuilder');
         sessionStorage.removeItem('adminPropStep');
         sessionStorage.removeItem('adminPropIsBuilder');
-        toast.success(isEditing ? 'Property updated successfully!' : 'Admin property published successfully!');
-        navigate(`${basePath}/properties`);
+        toast.success(isEditing ? 'Saved successfully!' : 'Published successfully!');
+        navigate(isBuilderProject ? `${basePath}/projects` : `${basePath}/properties`);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Publishing failed');
@@ -445,10 +457,9 @@ const AdminAddProperty = () => {
       return null;
     }
 
-    // Skip duplicate location fields in the location step
     const currentStep = template.steps[currentStepIndex];
     const isLocationStep = currentStep?.title?.toLowerCase().includes('location');
-    if (isLocationStep && ['country', 'state', 'district', 'city', 'locality', 'houseNumber', 'pincode'].includes(field.name)) {
+    if (isLocationStep && ['country', 'state', 'district', 'city', 'locality', 'housenumber', 'pincode'].includes(field.name.toLowerCase())) {
       return null;
     }
 
@@ -590,13 +601,17 @@ const AdminAddProperty = () => {
 
       case 'multiselect_pill':
         const selectedPills = Array.isArray(formData[field.name]) ? formData[field.name] : [];
+        const baseOptions = field.options || [];
+        const customPills = selectedPills.filter(p => !baseOptions.includes(p));
+        const allPills = [...baseOptions, ...customPills];
+
         return (
           <div key={field.name} id={`field-${field.name}`} className="mb-6">
             <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </label>
             <div className="flex flex-wrap gap-2">
-              {field.options?.map(opt => {
+              {allPills.map(opt => {
                 const isSelected = selectedPills.includes(opt);
                 return (
                   <button
@@ -605,27 +620,63 @@ const AdminAddProperty = () => {
                     onClick={() => {
                       let next;
                       const isNoneOpt = ['not available', 'none', 'no washroom', 'no parking'].includes(opt.toLowerCase());
+                      
                       if (isNoneOpt) {
                         next = isSelected ? [] : [opt];
                       } else {
                         const filtered = selectedPills.filter(o => 
                           !['not available', 'none', 'no washroom', 'no parking'].includes(o.toLowerCase())
                         );
-                        next = isSelected ? filtered.filter(o => o !== opt) : [...filtered, opt];
+                        next = isSelected 
+                          ? filtered.filter(o => o !== opt) 
+                          : [...filtered, opt];
                       }
                       handleChange(field.name, next);
                     }}
-                    className={`px-4 py-2 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                    className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all border whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 ${
                       isSelected
-                        ? 'bg-blue-50 text-blue-600 border-blue-600 shadow-sm'
-                        : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                        ? 'bg-blue-50 text-blue-600 border-blue-500 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <span>{isSelected ? '✓' : '+'}</span>
+                    <span className="text-sm leading-none">{isSelected ? '✓' : '+'}</span>
                     <span>{opt}</span>
                   </button>
                 );
               })}
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                placeholder={`Add custom ${field.label.toLowerCase()}...`}
+                id={`admin-custom-input-${field.name}`}
+                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-[13px] outline-none focus:border-blue-500 w-full md:w-64 font-bold"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.target.value.trim();
+                    if (val && !selectedPills.includes(val)) {
+                      handleChange(field.name, [...selectedPills, val]);
+                    }
+                    e.target.value = '';
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const inputEl = document.getElementById(`admin-custom-input-${field.name}`);
+                  const val = inputEl?.value?.trim();
+                  if (val && !selectedPills.includes(val)) {
+                    handleChange(field.name, [...selectedPills, val]);
+                  }
+                  if (inputEl) inputEl.value = '';
+                }}
+                className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[13px] font-bold rounded-xl transition-colors shrink-0"
+              >
+                Add
+              </button>
             </div>
             {errors[field.name] && <p className="text-red-500 text-xs mt-2 ml-1">{errors[field.name]}</p>}
           </div>
@@ -691,7 +742,7 @@ const AdminAddProperty = () => {
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {field.options?.map(opt => {
+              {Array.from(new Set([...(field.options || []), ...(selectedOptions.filter(o => !(field.options || []).includes(o)))])).map(opt => {
                 const isChecked = selectedOptions.includes(opt);
                 return (
                   <button
@@ -716,6 +767,39 @@ const AdminAddProperty = () => {
                   </button>
                 );
               })}
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <input
+                type="text"
+                placeholder={`Add custom ${field.label.toLowerCase()}...`}
+                id={`admin-cbx-${field.name}`}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-slate-800 focus:bg-white w-full md:w-64"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.target.value.trim();
+                    if (val && !selectedOptions.includes(val)) {
+                      handleChange(field.name, [...selectedOptions, val]);
+                    }
+                    e.target.value = '';
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const inputEl = document.getElementById(`admin-cbx-${field.name}`);
+                  const val = inputEl?.value?.trim();
+                  if (val && !selectedOptions.includes(val)) {
+                    handleChange(field.name, [...selectedOptions, val]);
+                  }
+                  if (inputEl) inputEl.value = '';
+                }}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-colors shrink-0"
+              >
+                Add
+              </button>
             </div>
           </div>
         );
@@ -780,70 +864,96 @@ const AdminAddProperty = () => {
         );
 
       case 'nearby_places':
-        const places = Array.isArray(formData[field.name]) ? formData[field.name] : [];
-        return (
-          <div key={field.name} id={`field-${field.name}`} className="mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">
-              {field.label} {field.required && <span className="text-red-500">*</span>}
-            </label>
-            
-            {places.length > 0 && (
-              <div className="space-y-2 mb-4">
-                {places.map((place, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm text-xs font-bold">
-                    <span>{place.name} ({place.type}) - {place.distanceKm} km</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = places.filter((_, i) => i !== idx);
-                        handleChange(field.name, next);
-                      }}
-                      className="text-red-500 hover:text-red-600 text-sm font-black"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <input type="text" placeholder="Name" id="nearby-name-admin" className="p-2 border rounded-lg text-xs" />
-              <select id="nearby-type-admin" className="p-2 border rounded-lg text-xs bg-white">
-                <option value="metro">Metro</option>
-                <option value="school">School</option>
-                <option value="hospital">Hospital</option>
-                <option value="market">Market</option>
-              </select>
-              <div className="flex gap-2">
-                <input type="number" placeholder="Km" id="nearby-dist-admin" className="p-2 border rounded-lg text-xs w-full" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nameEl = document.getElementById('nearby-name-admin');
-                    const typeEl = document.getElementById('nearby-type-admin');
-                    const distEl = document.getElementById('nearby-dist-admin');
-                    const name = nameEl?.value?.trim();
-                    const type = typeEl?.value;
-                    const distanceKm = Number(distEl?.value || 0);
+        const NearbyPlacesField = () => {
+          const places = Array.isArray(formData[field.name]) ? formData[field.name] : [];
+          const [name, setName] = React.useState('');
+          const [customType, setCustomType] = React.useState('');
+          const [distance, setDistance] = React.useState('');
 
-                    if (!name || !distanceKm) {
-                      toast.error('Enter name and distance');
-                      return;
-                    }
+          const handleAdd = () => {
+            const distNum = Number(distance);
+            if (!name.trim() || !customType.trim() || !distNum) {
+              toast.error('Please enter name, category and distance');
+              return;
+            }
+            const newPlace = { name: name.trim(), type: customType.trim(), distanceKm: distNum };
+            handleChange(field.name, [...places, newPlace]);
+            setName('');
+            setCustomType('');
+            setDistance('');
+          };
 
-                    handleChange(field.name, [...places, { name, type, distanceKm }]);
-                    if (nameEl) nameEl.value = '';
-                    if (distEl) distEl.value = '';
-                  }}
-                  className="bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold"
-                >
-                  Add
-                </button>
+          return (
+            <div key={field.name} id={`field-${field.name}`} className="mb-6 border border-slate-200 bg-slate-50 p-4 rounded-xl">
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-3 ml-1">
+                {field.label} {field.required && <span className="text-red-500">*</span>}
+              </label>
+              
+              {places.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {places.map((place, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm text-[12px] font-bold text-slate-700">
+                      <div>
+                        <span>{place.name}</span>
+                        <span className="text-slate-300 mx-2">|</span>
+                        <span className="text-slate-500 capitalize">{place.type}</span>
+                        <span className="text-slate-300 mx-2">|</span>
+                        <span className="text-blue-600">{place.distanceKm} km</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = places.filter((_, i) => i !== idx);
+                          handleChange(field.name, next);
+                        }}
+                        className="text-red-500 hover:text-red-600 font-black text-sm px-2"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="flex flex-col md:flex-row gap-2">
+                <input
+                  type="text"
+                  placeholder="Place name (e.g. Apollo)"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-[12px] font-bold outline-none focus:border-blue-500 flex-1 min-w-0"
+                />
+                
+                <input
+                  type="text"
+                  placeholder="Category (e.g. Hospital)"
+                  value={customType}
+                  onChange={(e) => setCustomType(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-[12px] font-bold outline-none focus:border-blue-500 flex-1 min-w-0"
+                />
+
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    placeholder="Distance (km)"
+                    value={distance}
+                    onChange={(e) => setDistance(e.target.value)}
+                    className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-[12px] font-bold outline-none w-28 shrink-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAdd}
+                    className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all shadow-sm shrink-0"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
+              {errors[field.name] && <p className="text-red-500 text-xs mt-2 ml-1">{errors[field.name]}</p>}
             </div>
-          </div>
-        );
+          );
+        };
+        return <NearbyPlacesField key={field.name} />;
 
       case 'repeater':
         const repeaterItems = Array.isArray(formData[field.name]) ? formData[field.name] : [];
@@ -875,9 +985,9 @@ const AdminAddProperty = () => {
                          return (
                            <div key={subF.name} className="flex flex-col">
                              <label className="text-[12px] font-semibold text-slate-600 mb-1">{subF.label}</label>
-                             <div className="flex gap-2">
+                             <div className="flex flex-col gap-2 items-start w-full">
                                <input type="text" placeholder="Image URL..." 
-                                 className="border rounded-lg px-3 py-2 text-[13px] flex-1 outline-none focus:border-blue-500"
+                                 className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
                                  value={item[subF.name] || ''}
                                  onChange={(e) => {
                                     const next = [...repeaterItems];
@@ -885,8 +995,8 @@ const AdminAddProperty = () => {
                                     handleChange(field.name, next);
                                  }}
                                />
-                               <label className="bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer whitespace-nowrap flex items-center transition-colors">
-                                 Upload
+                               <label className="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg text-[12px] font-bold cursor-pointer transition-colors w-fit">
+                                 Upload Image
                                  <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
                                     const file = e.target.files[0];
                                     if (!file) return;
@@ -1135,8 +1245,17 @@ const AdminAddProperty = () => {
                         district,
                         city
                       }));
+                      setErrors(prev => {
+                        const updated = { ...prev };
+                        delete updated.country;
+                        delete updated.state;
+                        delete updated.district;
+                        delete updated.city;
+                        return updated;
+                      });
                     }}
                     required
+                    errors={errors}
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1175,7 +1294,16 @@ const AdminAddProperty = () => {
 
               {/* Step fields */}
               <div>
-                {template.steps[currentStepIndex].fields.map(renderField)}
+                {template.steps[currentStepIndex].fields
+                  .sort((a,b) => a.order - b.order)
+                  .filter(field => {
+                    const isLocationField = template.steps[currentStepIndex]?.title?.toLowerCase().includes('location') && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber', 'pincode'].includes(field.name.toLowerCase());
+                    const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
+                    const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
+                    
+                    return !isLocationField && !isUnitField && !isCustomPricingField;
+                  })
+                  .map(renderField)}
               </div>
 
             </div>
