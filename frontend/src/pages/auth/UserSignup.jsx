@@ -506,11 +506,11 @@ const UserSignup = () => {
                                                 </div>
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">Active Projects</label>
-                                                    <input type="number" min="0" value={formData.activeProjects || ''} onChange={e => setFormData({ ...formData, activeProjects: Math.max(0, parseInt(e.target.value) || 0) })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all" />
+                                                    <input type="number" min="0" value={formData.activeProjects !== undefined ? formData.activeProjects : 0} onChange={e => setFormData({ ...formData, activeProjects: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0) })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all" />
                                                 </div>
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">Completed Projects</label>
-                                                    <input type="number" min="0" value={formData.completedProjects || ''} onChange={e => setFormData({ ...formData, completedProjects: Math.max(0, parseInt(e.target.value) || 0) })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all" />
+                                                    <input type="number" min="0" value={formData.completedProjects !== undefined ? formData.completedProjects : 0} onChange={e => setFormData({ ...formData, completedProjects: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0) })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all" />
                                                 </div>
                                             </div>
                                         </motion.div>

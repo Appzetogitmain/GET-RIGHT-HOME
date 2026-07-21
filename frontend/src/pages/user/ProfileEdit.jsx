@@ -1080,7 +1080,7 @@ const ProfileEdit = () => {
                 <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
                   <input
                     type="number"
-                    value={formData.builderProfile?.activeProjects || 0}
+                    value={formData.builderProfile?.activeProjects !== undefined ? formData.builderProfile.activeProjects : 0}
                     onChange={(e) => handleBuilderProfileChange('activeProjects', e.target.value)}
                     className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
                   />
@@ -1093,7 +1093,7 @@ const ProfileEdit = () => {
                 <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
                   <input
                     type="number"
-                    value={formData.builderProfile?.completedProjects || 0}
+                    value={formData.builderProfile?.completedProjects !== undefined ? formData.builderProfile.completedProjects : 0}
                     onChange={(e) => handleBuilderProfileChange('completedProjects', e.target.value)}
                     className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
                   />
