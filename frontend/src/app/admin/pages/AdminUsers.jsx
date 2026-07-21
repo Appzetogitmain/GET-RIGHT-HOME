@@ -51,7 +51,7 @@ const AdminUsers = () => {
                 page,
                 limit,
                 search: currentFilters.search,
-                role: 'user',
+                role: currentFilters.role,
                 status: currentFilters.status
             };
             const data = await adminService.getUsers(params);
@@ -213,7 +213,10 @@ const AdminUsers = () => {
                     >
                         <option value="">All Roles</option>
                         <option value="user">User</option>
-                        <option value="partner">Partner</option>
+                        <option value="builder">Builder</option>
+                        <option value="broker">Broker</option>
+                        <option value="owner">Owner</option>
+                        <option value="manager">Manager</option>
                         <option value="admin">Admin</option>
                     </select>
                     <select
@@ -224,6 +227,9 @@ const AdminUsers = () => {
                         <option value="">All Status</option>
                         <option value="active">Active</option>
                         <option value="blocked">Blocked</option>
+                        <option value="pending">Pending (Verification)</option>
+                        <option value="approved">Approved (Verification)</option>
+                        <option value="rejected">Rejected (Verification)</option>
                     </select>
                 </div>
             </div>

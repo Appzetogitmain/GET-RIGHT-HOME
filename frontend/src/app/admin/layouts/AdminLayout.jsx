@@ -80,7 +80,7 @@ const AdminLayout = () => {
             items: [
                 { icon: Users, label: 'User Management', path: '/admin/users' },
                 { icon: ShieldCheck, label: 'Manager Management', path: '/admin/managers' },
-                { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
+                // { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
                 { icon: Building2, label: 'Builder Management', path: '/admin/builders' },
                 { icon: ShieldCheck, label: 'Builder Verification', path: '/admin/builder-verification' },
                 { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },

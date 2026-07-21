@@ -260,7 +260,7 @@ export const getAllUsers = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { search, status } = req.query;
+    const { search, status, role } = req.query;
 
     let query = {};
     if (search) {
@@ -276,7 +276,18 @@ export const getAllUsers = async (req, res) => {
         query.isBlocked = true;
       } else if (status === 'active') {
         query.isBlocked = { $ne: true };
+      } else if (['pending', 'approved', 'rejected'].includes(status)) {
+        query.$or = [
+          { partnerApprovalStatus: status },
+          { 'builderProfile.approvalStatus': status }
+        ];
       }
+    }
+
+    if (role) {
+      query.role = role;
+    } else {
+      query.role = { $ne: 'partner' }; // Default to not showing partner role if unspecified
     }
 
     const total = await User.countDocuments(query);
