@@ -51,11 +51,8 @@ initIO(io);
 app.set('io', io);
 // Middleware
 app.use(morgan('dev'));
-// Middleware to log request start
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] Incoming Request: ${req.method} ${req.url}`);
-  next();
-});
+// Middleware to log request start is handled by morgan
+
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -256,13 +253,6 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
 
       console.log('✅ MongoDB connected successfully');
 
-      // Seed the templates dynamically on startup
-      try {
-        await seedOnStartup();
-      } catch (seedErr) {
-        console.error('❌ Auto-seeding failed on startup:', seedErr.message);
-      }
-
       // Seed subscription tiers dynamically on startup
       try {
         const SubscriptionTier = (await import('./models/SubscriptionTier.js')).default;
@@ -285,25 +275,9 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
         console.error('❌ Auto-seeding tiers failed on startup:', tierErr.message);
       }
 
-      // Seed admin user on startup
-      try {
-        await seedAdminOnStartup();
-      } catch (adminErr) {
-        console.error('❌ Auto-seeding admin failed on startup:', adminErr.message);
-      }
+      // Migration scripts can be run via npm run commands from the backend/scripts/ folder.
 
-      // Run builder details migration once on startup
-      try {
-        const { runMigrationOnStartup } = await import('./scripts/migrateBuilderProjectDetails.js');
-        await runMigrationOnStartup();
-      } catch (migrationErr) {
-        console.error('❌ Builder details migration failed on startup:', migrationErr.message);
-      }
-
-      // Debug: Check Admin counts
-      const adminCount = await mongoose.connection.db.collection('admins').countDocuments();
-      const userCount = await mongoose.connection.db.collection('users').countDocuments();
-      console.log(`📊 DB Status - Admins: ${adminCount}, Users: ${userCount}`);
+      // Server startup initialized
 
       // Start server only after successful DB connection
       server.listen(PORT, () => {

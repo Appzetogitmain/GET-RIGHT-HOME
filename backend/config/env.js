@@ -8,6 +8,4 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-dotenv.config({ path: join(__dirname, '../.env') });
-
-console.log('[ENV] Loaded MONGODB_URL:', process.env.MONGODB_URL ? 'YES ✅' : 'MISSING ❌');
+dotenv.config({ path: join(__dirname, '../.env'), quiet: true });
