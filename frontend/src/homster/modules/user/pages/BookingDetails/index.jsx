@@ -440,21 +440,66 @@ const BookingDetails = () => {
   };
 
   const handlePayToken = async (amount) => {
+    if (paying) return;
+
     try {
-      toast.loading('Processing token payment...');
-      // MOCK: Auto-approve estimate upon clicking Pay Token
-      const response = await bookingService.approveEstimate(booking._id || booking.id);
+      setPaying(true);
+      toast.loading('Creating payment order...');
+      const orderResponse = await paymentService.createOrder(booking._id || booking.id, true); // true for isEstimateToken
       toast.dismiss();
 
-      if (response.success) {
-        toast.success('Token paid! Estimate approved.');
-        loadBooking();
-      } else {
-        toast.error(response.message || 'Failed to approve estimate');
+      if (!orderResponse.success) {
+        toast.error(orderResponse.message || 'Failed to create payment order');
+        setPaying(false);
+        return;
       }
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: orderResponse.order.amount,
+        currency: orderResponse.order.currency || 'INR',
+        order_id: orderResponse.order.id,
+        name: 'GetRight Home',
+        description: `Token Payment for ${booking.serviceName}`,
+        handler: async function (response) {
+          toast.loading('Verifying payment...');
+          const verifyResponse = await paymentService.verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            bookingId: booking._id || booking.id,
+            isEstimateToken: true
+          });
+          toast.dismiss();
+
+          if (verifyResponse.success) {
+            toast.success('Token paid! Estimate approved.');
+            loadBooking();
+          } else {
+            toast.error('Payment verification failed');
+          }
+          setPaying(false);
+        },
+        modal: {
+          ondismiss: function () {
+            setPaying(false);
+          }
+        },
+        prefill: {
+          name: 'User',
+          contact: ''
+        },
+        theme: {
+          color: themeColors.button
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
     } catch (error) {
       toast.dismiss();
       toast.error('Payment failed');
+      setPaying(false);
     }
   };
 
@@ -1039,20 +1084,29 @@ const BookingDetails = () => {
                           <div className="flex flex-col gap-1 w-full">
                             <div className="flex justify-between items-center bg-white/10 rounded-lg px-3 py-2">
                               <span className="text-xs font-bold text-orange-100">Pay Online:</span>
-                              <span className="text-lg font-black">₹{(
-                                (booking.bill?.finalOnlineAmount > 0 ? booking.bill.finalOnlineAmount : null) ||
-                                booking.finalOnlineAmount ||
-                                booking.finalAmount ||
-                                0
-                              ).toLocaleString('en-IN')}</span>
+                              <span className="text-lg font-black">₹{
+                                (() => {
+                                  const base = (booking.bill?.finalOnlineAmount > 0 ? booking.bill.finalOnlineAmount : null) || booking.finalOnlineAmount || booking.finalAmount || 0;
+                                  const isEstimate = booking.isEstimateBased;
+                                  const token = isEstimate ? (Number(booking.estimate?.tokenAmount) || 0) : 0;
+                                  return Math.max(0, base - token).toLocaleString('en-IN');
+                                })()
+                              }</span>
                             </div>
                             <div className="flex justify-between items-center bg-white/5 rounded-lg px-3 py-2">
                               <span className="text-xs font-medium text-orange-200">Pay Cash:</span>
-                              <span className="text-sm font-bold text-orange-50">₹{(
-                                (booking.bill?.finalCashAmount > 0 ? booking.bill.finalCashAmount : null) ||
-                                booking.finalCashAmount ||
-                                0
-                              ).toLocaleString('en-IN')}</span>
+                              <span className="text-sm font-bold text-orange-50">₹{
+                                (() => {
+                                  const isEstimate = booking.isEstimateBased;
+                                  if (isEstimate) {
+                                    const base = (booking.bill?.finalOnlineAmount > 0 ? booking.bill.finalOnlineAmount : null) || booking.finalOnlineAmount || booking.finalAmount || 0;
+                                    const token = (Number(booking.estimate?.tokenAmount) || 0);
+                                    return Math.max(0, base - token).toLocaleString('en-IN');
+                                  }
+                                  const baseCash = (booking.bill?.finalCashAmount > 0 ? booking.bill.finalCashAmount : null) || booking.finalCashAmount || 0;
+                                  return baseCash.toLocaleString('en-IN');
+                                })()
+                              }</span>
                             </div>
                           </div>
                         )
@@ -1194,13 +1248,15 @@ const BookingDetails = () => {
                         {(() => {
                           // Extract values
                           const mainServiceTitle = booking.serviceName || booking.serviceCategory || 'Service';
-                          const platformFlatFee = bill?.adminCommission ?? 20;
-                          const cashFee = bill?.cashCollectionFee ?? 20;
+                          const isEstimate = booking.isEstimateBased;
+                          const platformFlatFee = isEstimate ? 0 : (bill?.adminCommission ?? 20);
+                          const cashFee = isEstimate ? 0 : (bill?.cashCollectionFee ?? 20);
+                          const tokenPaid = isEstimate ? (booking.estimate?.tokenAmount || 0) : 0;
                           
                           // Use bill.originalServiceBase (correct field) or fallback to booking.basePrice
                           const rawBase = bill?.originalServiceBase || parseFloat(booking.basePrice) || 0;
-                          // Don't subtract platformFlatFee from service display — show actual service price
-                          const basePriceToDisplay = rawBase;
+                          // For estimates, strictly use the estimate amount to avoid legacy platform fee deduction issues
+                          const basePriceToDisplay = (isEstimate && booking.estimate?.amount) ? parseFloat(booking.estimate.amount) : rawBase;
                           
                           const allPartsAndCustom = [...parts, ...customItems, ...(booking.extraCharges || [])];
 
@@ -1223,7 +1279,7 @@ const BookingDetails = () => {
                           
                           // bill.grandTotal = originalBase + transport = finalOnlineAmount (platform fee is baked into originalBase)
                           // Do NOT add adminCommission to grandTotal — it would double-count
-                          const totalOnline = (billFinalOnline != null && billFinalOnline > 0)
+                          const baseTotalOnline = (billFinalOnline != null && billFinalOnline > 0)
                             ? billFinalOnline
                             : (billGrandTotal != null && billGrandTotal > 0)
                               ? billGrandTotal
@@ -1231,9 +1287,12 @@ const BookingDetails = () => {
                           
                           const billFinalCash = bill?.finalCashAmount ?? null;
                           const bookingFinalCash = booking.finalCashAmount || null;
-                          const totalCash = (billFinalCash != null && billFinalCash > 0)
+                          const baseTotalCash = (billFinalCash != null && billFinalCash > 0)
                             ? billFinalCash
-                            : (bookingFinalCash || (totalOnline > 0 ? totalOnline + cashFee : 0) || 0);
+                            : (bookingFinalCash || (baseTotalOnline > 0 ? baseTotalOnline + cashFee : 0) || 0);
+
+                          const totalOnline = isEstimate ? Math.max(0, baseTotalOnline - tokenPaid) : baseTotalOnline;
+                          const totalCash = isEstimate ? totalOnline : baseTotalCash;
 
                           return (
                             <>
@@ -1298,13 +1357,25 @@ const BookingDetails = () => {
                                 </div>
                               )}
 
+                              {isEstimate && tokenPaid > 0 && (
+                                <div className="flex justify-between items-center text-emerald-600 text-sm font-medium mt-2 pt-2 border-t border-gray-100">
+                                  <div className="flex items-center gap-2">
+                                    <span>Advance Token Paid</span>
+                                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <FiCheckCircle className="w-3 h-3" /> PAID
+                                    </span>
+                                  </div>
+                                  <span>-₹{tokenPaid.toFixed(2)}</span>
+                                </div>
+                              )}
+
                               <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
                                 <div className="flex justify-between font-black text-gray-900">
-                                  <span>Total Online Bill</span>
+                                  <span>{isEstimate ? 'Pending Online Bill' : 'Total Online Bill'}</span>
                                   <span>₹{totalOnline.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between font-black text-emerald-600">
-                                  <span>Total Cash Bill</span>
+                                  <span>{isEstimate ? 'Pending Cash Bill' : 'Total Cash Bill'}</span>
                                   <span>₹{totalCash.toFixed(2)}</span>
                                 </div>
                               </div>
@@ -1356,14 +1427,25 @@ const BookingDetails = () => {
                   <span className="text-sm font-bold text-emerald-700">Required Token (30%)</span>
                   <span className="text-xl font-black text-emerald-600">₹{booking.estimate?.tokenAmount}</span>
                 </div>
-                <button
-                  onClick={() => handlePayToken(booking.estimate?.tokenAmount)}
-                  className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
-                  style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
-                >
-                  <FiDollarSign className="w-5 h-5" />
-                  Pay Token & Approve
-                </button>
+                {booking.estimate?.amount > 0 ? (
+                  <button
+                    onClick={() => handlePayToken(booking.estimate?.tokenAmount)}
+                    className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
+                    style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
+                  >
+                    <FiDollarSign className="w-5 h-5" />
+                    Pay Token & Approve
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg cursor-not-allowed opacity-70"
+                    style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
+                  >
+                    <FiDollarSign className="w-5 h-5" />
+                    Partner Preparing Estimate
+                  </button>
+                )}
               </div>
             </div>
           )}

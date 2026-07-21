@@ -48,7 +48,7 @@ try {
  */
 export const createPaymentOrder = async (req, res) => {
   try {
-    const { bookingId } = req.body;
+    const { bookingId, isEstimateToken } = req.body;
     let booking = await Booking.findById(bookingId);
     let isHomeService = false;
     
@@ -61,10 +61,22 @@ export const createPaymentOrder = async (req, res) => {
       }
     }
     
-    if (booking.paymentStatus === 'paid' || booking.paymentStatus === 'SUCCESS') return res.status(400).json({ message: 'Booking already paid' });
+    if (!isEstimateToken && (booking.paymentStatus === 'paid' || booking.paymentStatus === 'SUCCESS')) return res.status(400).json({ message: 'Booking already paid' });
 
-    // Use finalOnlineAmount for home services if available, else totalAmount, else finalAmount
-    const baseAmount = isHomeService ? (booking.finalOnlineAmount || booking.finalAmount || booking.totalAmount || 0) : booking.totalAmount;
+    // Use token amount if isEstimateToken is true, else use final amount
+    let baseAmount = 0;
+    if (isEstimateToken && isHomeService) {
+      if (!booking.isEstimateBased || booking.estimate?.status !== 'PENDING') {
+        return res.status(400).json({ message: 'No pending estimate found' });
+      }
+      baseAmount = booking.estimate.tokenAmount;
+    } else {
+      baseAmount = isHomeService ? (booking.finalOnlineAmount || booking.finalAmount || booking.totalAmount || 0) : booking.totalAmount;
+      if (isHomeService && booking.isEstimateBased && booking.estimate?.tokenAmount) {
+        baseAmount = Math.max(0, baseAmount - booking.estimate.tokenAmount);
+      }
+    }
+    
     let amountInPaise = Math.round(baseAmount * 100);
     
     if (!amountInPaise || amountInPaise <= 0) return res.status(400).json({ message: 'Invalid booking amount' });
@@ -122,7 +134,7 @@ export const createPaymentOrder = async (req, res) => {
  */
 export const verifyPayment = async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId, isEstimateToken } = req.body;
 
     // 1. Verify Signature
     const sign = razorpay_order_id + '|' + razorpay_payment_id;
@@ -158,6 +170,57 @@ export const verifyPayment = async (req, res) => {
 
       if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
+      if (isEstimateToken && isHomeService) {
+        booking.estimate.status = 'APPROVED';
+        booking.basePrice = booking.estimate.amount;
+        booking.finalAmount = booking.estimate.amount;
+        booking.userPayableAmount = booking.estimate.amount - booking.estimate.tokenAmount;
+        booking.status = 'in_progress';
+        
+        await booking.save();
+        
+        // Add to wallet: cut admin commission of 20% of total estimate
+        const adminCommission = booking.estimate.amount * 0.20;
+        const workerPayout = booking.estimate.tokenAmount - adminCommission;
+        
+        try {
+            if (workerPayout > 0 && booking.workerId) {
+                const Worker = mongoose.model('Worker');
+                const workerDoc = await Worker.findById(booking.workerId);
+                if (workerDoc) {
+                    workerDoc.wallet = workerDoc.wallet || {};
+                    workerDoc.wallet.balance = (workerDoc.wallet.balance || 0) + workerPayout;
+                    workerDoc.wallet.earnings = (workerDoc.wallet.earnings || 0) + workerPayout;
+                    await workerDoc.save();
+                    
+                    const Transaction = mongoose.model('Transaction');
+                    await Transaction.create({
+                        workerId: booking.workerId,
+                        amount: workerPayout,
+                        type: 'earnings_credit',
+                        category: 'estimate_token',
+                        status: 'completed',
+                        description: `Token Payment received for Booking #${booking.bookingNumber}`
+                    });
+                }
+            }
+        } catch (walletErr) {
+            console.error("Worker Wallet Credit Failed:", walletErr);
+        }
+        
+        // Let socket know
+        const io = req.app?.get('io');
+        if (io) {
+            io.to(`worker_${String(booking.workerId)}`).emit('booking_updated', {
+                bookingId: booking._id,
+                status: booking.status,
+                estimateStatus: 'APPROVED'
+            });
+        }
+        
+        return res.json({ success: true, message: 'Token payment verified and estimate approved', booking });
+      }
+
       if (isHomeService) {
         booking.paymentStatus = 'paid';
         booking.paymentMethod = 'online';
@@ -174,7 +237,10 @@ export const verifyPayment = async (req, res) => {
         try {
           const bill = await VendorBill.findOne({ bookingId: booking._id });
           if (bill) {
-            const payout = bill.vendorTotalEarning || 0;
+            let payout = bill.vendorTotalEarning || 0;
+            if (booking.isEstimateBased && booking.estimate?.tokenAmount) {
+              payout = Math.max(0, payout - booking.estimate.tokenAmount);
+            }
             const workerId = booking.workerId;
             
             if (payout > 0 && workerId) {
@@ -225,14 +291,14 @@ export const verifyPayment = async (req, res) => {
         // Let socket know
         const io = req.app?.get('io');
         if (io) {
-          io.to(`user_${booking.userId}`).emit('payment_success', {
+          io.to(`user_${String(booking.userId?._id || booking.userId)}`).emit('payment_success', {
             bookingId: booking._id,
             paymentStatus: 'paid',
             status: 'completed',
             paymentMethod: 'online',
             type: 'payment_success'
           });
-          io.to(`worker_${booking.workerId}`).emit('payment_success', {
+          io.to(`worker_${String(booking.workerId?._id || booking.workerId)}`).emit('payment_success', {
             bookingId: booking._id,
             paymentStatus: 'paid',
             status: 'completed',

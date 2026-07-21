@@ -81,8 +81,14 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
   const totalGST = originalGST + extraServiceGST + partsGST;
 
   // Final Totals
-  const onlineTotal = bill?.finalOnlineAmount || booking.finalOnlineAmount || bill?.grandTotal || booking.finalAmount || 0;
-  const cashTotal = bill?.finalCashAmount || booking.finalCashAmount || (booking.finalAmount ? booking.finalAmount + (bill?.cashCollectionFee ?? 20) : null) || bill?.grandTotal || booking.finalAmount || 0;
+  const isEstimate = booking.isEstimateBased;
+  const tokenPaid = isEstimate ? (Number(booking.estimate?.tokenAmount) || 0) : 0;
+
+  const baseOnlineTotal = bill?.finalOnlineAmount || booking.finalOnlineAmount || bill?.grandTotal || booking.finalAmount || 0;
+  const baseCashTotal = bill?.finalCashAmount || booking.finalCashAmount || (booking.finalAmount ? booking.finalAmount + (isEstimate ? 0 : (bill?.cashCollectionFee ?? 20)) : null) || bill?.grandTotal || booking.finalAmount || 0;
+
+  const onlineTotal = isEstimate ? Math.max(0, baseOnlineTotal - tokenPaid) : baseOnlineTotal;
+  const cashTotal = isEstimate ? onlineTotal : baseCashTotal;
   const isDualPricing = onlineTotal !== cashTotal;
 
   // --- 2. Identity Helpers ---
