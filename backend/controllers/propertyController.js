@@ -1106,8 +1106,11 @@ export const getPublicProperties = async (req, res) => {
         } else {
           matchConditions.$or = residentialCondition.$or;
         }
-      } else if (propertyCategory.toLowerCase() === 'project') {
+      } else if (propertyCategory.toLowerCase() === 'project' || propertyCategory.toLowerCase() === 'projects') {
         matchConditions.propertyCategory = /^Project$/i;
+      } else if (propertyCategory.toLowerCase() === 'property' || propertyCategory.toLowerCase() === 'properties') {
+        // A "Property" is any listing that is NOT explicitly a Builder Project
+        matchConditions.propertyCategory = { $not: /^Project$/i };
       }
     }
 
