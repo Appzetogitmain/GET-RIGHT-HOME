@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft,
@@ -10,23 +10,45 @@ import {
     Info,
     Star,
     ChevronRight,
+    ChevronLeft,
     Layers,
     Check,
     X,
     User,
     CalendarCheck,
+    MapPin,
     Ruler,
     Paintbrush,
     Sparkles,
     Smartphone,
     PlayCircle,
     Maximize2,
+    XCircle,
+    ChevronDown,
+    Truck,
+    Package,
+    Coins,
+    ShieldCheck,
+    Clock,
+    HeartHandshake,
+    Trophy,
+    Laptop,
+    FileText,
+    UserCheck,
+    PackageCheck,
+    Wallet,
+    Award,
+    CalendarClock,
+    Headset,
+    Users
 } from 'lucide-react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
+import { toast } from 'react-hot-toast';
+import CustomDatePicker from '../../components/user/CustomDatePicker';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCart } from '../../homster/context/CartContext';
 import { useCity } from '../../homster/context/CityContext';
-import { toast } from 'react-hot-toast';
 
 const toAssetUrl = (url) => {
     if (!url) return '';
@@ -110,6 +132,975 @@ const FAQS = [
     }
 ];
 
+const POPULAR_CITIES = [
+    { name: 'Bangalore', image: '/cities/bangalore.png' },
+    { name: 'Mumbai', image: '/cities/mumbai.png' },
+    { name: 'Pune', image: '/cities/pune.png' },
+    { name: 'Chennai', image: '/cities/chennai.png' },
+    { name: 'Hyderabad', image: '/cities/hyderabad.png' },
+    { name: 'Delhi NCR', image: '/cities/delhi_ncr.png' },
+    { name: 'Kolkata', image: '/cities/kolkata.png' },
+    { name: 'Surat', image: '/cities/surat.png' },
+    { name: 'Indore', image: '/cities/indore.png' },
+    { name: 'Jaipur', image: '/cities/jaipur.png' },
+    { name: 'Coimbatore', image: '/cities/coimbatore.png' },
+    { name: 'Ahmedabad', image: '/cities/ahmedabad.png' },
+];
+
+const GOOGLE_MAPS_LIBRARIES = ['places', 'geometry'];
+
+const RECENT_TRIPS = [
+    { name: 'Banupriya', date: '16 Jul 2026', from: 'BANGALORE', to: 'SRINIVASPUR', type: 'BETWEEN CITY', rating: 5.0 },
+    { name: 'Dinesh kumar', date: '16 Jul 2026', from: 'BANGALORE', to: 'HOSUR', type: 'BETWEEN CITY', rating: 5.0 },
+    { name: 'Ayesha', date: '15 Jul 2026', from: 'MUMBAI', to: 'PUNE', type: 'BETWEEN CITY', rating: 4.8 },
+    { name: 'Rajesh', date: '14 Jul 2026', from: 'DELHI', to: 'NOIDA', type: 'WITHIN CITY', rating: 4.9 },
+];
+
+const PM_CUSTOMER_REVIEWS = [
+    {
+        name: "Sid Patil",
+        rating: 5.0,
+        text: "Best experience throughout the process and very good 😊👍",
+        avatar: "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=150&h=150&fit=crop&crop=faces"
+    },
+    {
+        name: "Smriti Singh",
+        rating: 5.0,
+        text: "The experience was seamless! From the booked the service, the team was very professional and took care of everything. Highly recommended!",
+        avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop&crop=faces"
+    },
+    {
+        name: "Rahul Verma",
+        rating: 4.8,
+        text: "Very good service. The packing was excellent and nothing was damaged during the transit. Would definitely use again.",
+        avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=faces"
+    }
+];
+
+const COMPARISON_DATA = [
+    { label: "Vehicle Assurance", grh: true, local: true },
+    { label: "Verified Professional Partners", grh: true, local: false },
+    { label: "Safe & Cautious Handling", grh: true, local: false },
+    { label: "Bubble / foam wrap", grh: true, local: false },
+    { label: "Furniture Disassembly and Reassembly", grh: true, local: true },
+    { label: "On Demand Warehouse Storage", grh: true, local: false },
+    { label: "Dedicated Customer Support", grh: true, local: false }
+];
+
+const PM_FAQS = [
+    { category: "Price", q: "Why should I pay a token in advance before the move?", a: "The token is used to confirm slot bookings and avoid any last-minute delays or inconvenience. The token amount will be adjusted in the final payment of your quotation." },
+    { category: "Price", q: "Why are weekend and month-end prices higher?", a: "Weekend and month-end prices for Packers and Movers are typically higher due to increased demand during these periods, which leads to limited availability and increased pricing." },
+    { category: "Price", q: "Can I get a price breakup for my move?", a: "Our summary page provides a detailed price breakup covering base charges, packaging, unpacking, dismantling, and service charges." },
+    { category: "Price", q: "Will I be charged extra for higher floors?", a: "Our service includes door-to-door shifting. However, there might be additional charges if you live in a high-rise with no service lift. You can specify your floor details while booking to get an accurate quote." },
+    { category: "Packaging", q: "How do I estimate the number of carton boxes required?", a: "Our system suggests an estimated number of cartons for packing loose and minor inventory items. You can adjust the number at the inventory stage based on your needs. If needed, you can also request a call back." },
+    { category: "Process", q: "Is a preliminary inspection required before booking the movement?", a: "If you’re unsure about the items to be moved, we recommend a video inspection for a clear understanding." },
+    { category: "Packaging", q: "How are my items packed, and what packing materials are used?", a: "We provide different levels of packaging based on the selected service. Our “Know How We Pack Your Items” section includes videos demonstrating the packing process for local shifting along with a payment link. For intercity packers and movers, it includes detailed videos showcasing the packing procedures." },
+    { category: "Price", q: "Are the packing materials included in the package? Are there any hidden charges?", a: "Yes, all packing materials and labour costs are included in the package with no hidden charges." },
+    { category: "Service", q: "I have large furniture that may need rope pulling. Is this included?", a: "Rope pulling is not included by default, but you can add it as an extra service based on the floor and item size." },
+    { category: "Service", q: "Can I get a call from GetRightHome to clarify my doubts?", a: "Yes! If you have questions about our services, inventory, or pricing, simply click the “Get a Call” button while booking, and our team will contact you." },
+    { category: "Service", q: "Who can I contact if I have questions or concerns regarding my house shifting?", a: "You can contact us via live chat support for any questions or concerns or simply on click on “Get a Call” button." },
+    { category: "Rescheduling", q: "Can I reschedule my movement after I have paid the token amount?", a: "Yes, you can change your date up to 48 hours before the scheduled booking date. Changes are applicable for weekday-to-weekday or month-end-to-month-end shifts." },
+    { category: "Rescheduling", q: "Can you handle last-minute moves?", a: "Yes, we can handle last-minute moves with a notice of at least 3 hours in advance." },
+    { category: "Service", q: "Do you conduct background checks on your moving staff?", a: "Yes, we conduct strict background checks on all our moving staff. Every team member is verified and registered on our platform, and only those who clear these checks are assigned to any move." },
+    { category: "Process", q: "Do I need to be physically present during the packing and loading?", a: "While our team, along with a supervisor, will handle the packing and loading of your goods, it is recommended that you be present on the day of the move. This ensures the proper handling of your valuable and delicate items." },
+    { category: "Process", q: "Will my items be shared with other customers in the same truck (shared load)?", a: "For local moves, your items will be transported in a dedicated truck and not shared with other customers’ items. For intercity shifting, it depends on your chosen load type. If you select a separate load, your items will not be shared with others in the same truck. However, if you opt for shared load, your items may be transported alongside other customers’ goods." },
+    { category: "Process", q: "Will the truck be sealed before leaving and opened only at the destination?", a: "For local moves, the truck is sealed after packing and loading and is only opened upon arrival at the destination. For intercity moves, this depends on the load type you choose. With a separate load, the truck is sealed before departure and opened only at the destination. With a shared load, items may be unloaded at a warehouse near the pickup city and reloaded at a warehouse near the delivery city." },
+    { category: "Service", q: "What should I do if something is damaged or lost during the move?", a: "We offer 90% compensation in case of damage or loss of the items during the move." },
+    { category: "Process", q: "What is the exact claim process in case of damage or loss?", a: "Please submit your claim within 48 hours of delivery. Before submitting, ensure you have the cost of each inventory item in the packing list. Your move manager will arrange the packaging list after you register the claim." },
+    { category: "Service", q: "What is your process for handling complaints?", a: "You can reach out to our live chat support or email grievances to grievanceofficer@getrighthome.in." },
+    { category: "Service", q: "What steps do you take to improve your relocation services continuously?", a: "Our partner selection rate is just 3%, and we continuously increase the job assignment cut-off rating to ensure top-quality services. So you can rest assured that we have picked the best experts for your packing and moving needs." },
+    { category: "Process", q: "How do you handle moves during extreme weather conditions?", a: "We use closed containers and robust packaging to protect your belongings." },
+    { category: "Process", q: "What should I do with my pets on moving day?", a: "It’s best to take your pets with you during the move." },
+    { category: "Service", q: "Can you move my plants?", a: "Yes, we can move your plants to your new place." }
+];
+
+const FAQ_TABS = ["All", "Price", "Rescheduling", "Packaging", "Process", "Service"];
+
+const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCategories = [] }) => {
+    const navigate = useNavigate();
+    const { addToCart } = useCart();
+    const { currentCity } = useCity();
+    const reviewsScrollRef = useRef(null);
+
+    const scrollReviews = (direction) => {
+        if (reviewsScrollRef.current) {
+            const scrollAmount = 260; // Card width + gap
+            reviewsScrollRef.current.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    };
+
+    // Determine current tab based on subCategory title
+    const isWithinCity = subCategory?.title?.toLowerCase().includes('within') || !subCategory?.title?.toLowerCase().includes('between');
+
+    // Find the actual subcategories for navigation
+    const withinCitySubCat = relatedSubCategories.find(s => s.title?.toLowerCase().includes('within'));
+    const betweenCitySubCat = relatedSubCategories.find(s => s.title?.toLowerCase().includes('between'));
+
+    const [shiftingFrom, setShiftingFrom] = useState('');
+    const [shiftingTo, setShiftingTo] = useState('');
+    const [shiftingDate, setShiftingDate] = useState('');
+
+    // Autocomplete & City Selection State
+    const [selectedCity, setSelectedCity] = useState(currentCity?.name || 'Select City');
+    const [showCityDropdown, setShowCityDropdown] = useState(false);
+    const [autocompleteFrom, setAutocompleteFrom] = useState(null);
+    const [autocompleteTo, setAutocompleteTo] = useState(null);
+    
+    // Protection Modal State
+    const [showProtectionModal, setShowProtectionModal] = useState(false);
+
+    // FAQ State
+    const [activeFaqTab, setActiveFaqTab] = useState("All");
+    const [openFaq, setOpenFaq] = useState(0);
+    const [searchFaqQuery, setSearchFaqQuery] = useState("");
+    const [isFaqSearchActive, setIsFaqSearchActive] = useState(false);
+
+    let filteredFaqs = PM_FAQS;
+    if (isFaqSearchActive && searchFaqQuery.trim()) {
+        filteredFaqs = PM_FAQS.filter(faq => 
+            faq.q.toLowerCase().includes(searchFaqQuery.toLowerCase()) || 
+            faq.a.toLowerCase().includes(searchFaqQuery.toLowerCase())
+        );
+    } else {
+        filteredFaqs = activeFaqTab === "All" ? PM_FAQS : PM_FAQS.filter(faq => faq.category === activeFaqTab);
+    }
+
+    const { isLoaded } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+        libraries: GOOGLE_MAPS_LIBRARIES
+    });
+
+    const onLoadFrom = (autocomplete) => setAutocompleteFrom(autocomplete);
+    const onLoadTo = (autocomplete) => setAutocompleteTo(autocomplete);
+
+    const onPlaceChangedFrom = () => {
+        if (autocompleteFrom !== null) {
+            const place = autocompleteFrom.getPlace();
+            if (place) {
+                setShiftingFrom(place.formatted_address || place.name || '');
+            }
+        }
+    };
+
+    const onPlaceChangedTo = () => {
+        if (autocompleteTo !== null) {
+            const place = autocompleteTo.getPlace();
+            if (place) {
+                setShiftingTo(place.formatted_address || place.name || '');
+            }
+        }
+    };
+
+    const handleCheckPrices = () => {
+        if (isWithinCity && (!selectedCity || selectedCity === 'Select City')) {
+            toast.error('Please select your City first');
+            return;
+        }
+        if (!shiftingFrom || !shiftingTo) {
+            toast.error('Please enter both pickup and drop locations');
+            return;
+        }
+        if (!shiftingDate) {
+            toast.error('Please select your shifting date');
+            return;
+        }
+
+        const customService = {
+            _id: `estimate-${Date.now()}`,
+            title: isWithinCity ? 'Within City Relocation' : 'Between Cities Relocation',
+            description: `City: ${selectedCity}\nFrom: ${shiftingFrom} \nTo: ${shiftingTo}\nDate: ${shiftingDate}`,
+            price: 0,
+            basePrice: 0,
+            discountPrice: 0,
+            isEstimateBased: true
+        };
+
+        const cartItemData = {
+            serviceId: customService._id,
+            categoryId: category?.id || category?._id,
+            subCategoryId: subCategory?.id || subCategory?._id,
+            title: customService.title,
+            description: customService.description,
+            icon: subCategory?.iconUrl || '',
+            category: category?.title,
+            subCategory: subCategory?.title,
+            price: 0,
+            unitPrice: 0,
+            serviceCount: 1,
+            isEstimateBased: true
+        };
+
+        addToCart(cartItemData).then(response => {
+            if (response.success) {
+                toast.success('Estimate request added to cart!');
+            } else {
+                toast.error(response.message || 'Failed to add estimate request');
+            }
+        });
+    };
+
+    const handleProceed = handleCheckPrices;
+
+    return (
+        <>
+            <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 mb-6">
+            {!subCategory?.title?.toLowerCase().includes('vehicle') && (
+                <div className="bg-gray-100 p-1 flex items-center justify-between mx-4 mt-4 rounded-xl">
+                    <div 
+                        onClick={() => {
+                            if (withinCitySubCat && subCategory?._id !== withinCitySubCat._id) {
+                                navigate('/home-services/sub-category', {
+                                    state: { category, subCategory: withinCitySubCat }
+                                });
+                                window.scrollTo(0, 0);
+                            }
+                        }}
+                        className={`flex-1 text-center py-2.5 rounded-lg text-sm font-bold cursor-pointer transition-all duration-300 ${isWithinCity ? 'bg-[#008b74] text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Within City
+                    </div>
+                    <div 
+                        onClick={() => {
+                            if (betweenCitySubCat && subCategory?._id !== betweenCitySubCat._id) {
+                                navigate('/home-services/sub-category', {
+                                    state: { category, subCategory: betweenCitySubCat }
+                                });
+                                window.scrollTo(0, 0);
+                            }
+                        }}
+                        className={`flex-1 text-center py-2.5 rounded-lg text-sm font-bold cursor-pointer transition-all duration-300 ${!isWithinCity ? 'bg-[#008b74] text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Between Cities
+                    </div>
+                </div>
+            )}
+
+            <div className="p-5 space-y-6">
+                {isWithinCity ? (
+                    <>
+                        {/* Dynamic City Selector */}
+                        <div className="space-y-1 relative">
+                            <label className="text-sm font-bold text-gray-900">Select City</label>
+                            <div
+                                onClick={() => setShowCityDropdown(!showCityDropdown)}
+                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 flex justify-between items-center text-gray-800 text-[14px] font-normal cursor-pointer shadow-sm hover:border-emerald-500 transition-colors"
+                            >
+                                {selectedCity}
+                                <ChevronDown className={`text-gray-400 transition-transform ${showCityDropdown ? 'rotate-180' : ''}`} size={18} />
+                            </div>
+
+                            {/* City Dropdown Menu */}
+                            <AnimatePresence>
+                                {showCityDropdown && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute z-50 top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 p-4"
+                                    >
+                                        <div className="text-xs font-semibold text-gray-400 mb-3 ml-2 uppercase tracking-wider">Select your city</div>
+                                        <div className="grid grid-cols-3 gap-4 max-h-60 overflow-y-auto px-2 pb-2">
+                                            {POPULAR_CITIES.map((city, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => {
+                                                        setSelectedCity(city.name);
+                                                        setShowCityDropdown(false);
+                                                    }}
+                                                    className="flex flex-col items-center justify-center cursor-pointer group"
+                                                >
+                                                    <div className={`w-14 h-14 rounded-full overflow-hidden mb-2 border-2 transition-all ${selectedCity === city.name ? 'border-emerald-500 shadow-md scale-105' : 'border-transparent group-hover:border-emerald-200'}`}>
+                                                        <img src={city.image} alt={city.name} className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <span className={`text-xs font-semibold text-center ${selectedCity === city.name ? 'text-emerald-600' : 'text-gray-600 group-hover:text-emerald-500'}`}>{city.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-sm font-bold text-gray-900">Select pickup and drop location</label>
+                            <div className="relative border border-gray-200 rounded-xl bg-white overflow-hidden shadow-sm">
+                                {/* Shifting From (Google Autocomplete) */}
+                                <div className="flex items-center border-b border-gray-200 px-3 py-2.5 relative">
+                                    <div className="w-2 h-2 rounded-full bg-red-500 ring-2 ring-red-100 mr-3 shrink-0" />
+                                    {isLoaded ? (
+                                        <Autocomplete onLoad={onLoadFrom} onPlaceChanged={onPlaceChangedFrom} className="flex-1 w-full mr-6">
+                                            <input
+                                                type="text"
+                                                placeholder="Shifting From"
+                                                className="w-full outline-none text-xs font-normal text-gray-600 placeholder:text-gray-400 placeholder:font-normal bg-transparent text-ellipsis"
+                                                value={shiftingFrom}
+                                                onChange={(e) => setShiftingFrom(e.target.value)}
+                                            />
+                                        </Autocomplete>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            placeholder="Loading Maps..."
+                                            className="flex-1 outline-none text-[10px] font-normal text-gray-600 placeholder:text-gray-400 placeholder:font-normal bg-transparent mr-6"
+                                            disabled
+                                        />
+                                    )}
+                                    {shiftingFrom && (
+                                        <X size={16} className="text-gray-400 cursor-pointer hover:text-gray-600 absolute right-4" onClick={() => setShiftingFrom('')} />
+                                    )}
+                                </div>
+                                <div className="absolute left-5 top-8 bottom-8 w-px bg-gray-200" />
+
+                                {/* Shifting To (Google Autocomplete) */}
+                                <div className="flex items-center px-3 py-2.5 relative">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-100 mr-3 shrink-0" />
+                                    {isLoaded ? (
+                                        <Autocomplete onLoad={onLoadTo} onPlaceChanged={onPlaceChangedTo} className="flex-1 w-full mr-6">
+                                            <input
+                                                type="text"
+                                                placeholder="Shifting To"
+                                                className="w-full outline-none text-xs font-normal text-gray-600 placeholder:text-gray-400 placeholder:font-normal bg-transparent text-ellipsis"
+                                                value={shiftingTo}
+                                                onChange={(e) => setShiftingTo(e.target.value)}
+                                            />
+                                        </Autocomplete>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            placeholder="Loading Maps..."
+                                            className="flex-1 outline-none text-[10px] font-normal text-gray-600 placeholder:text-gray-400 placeholder:font-normal bg-transparent mr-6"
+                                            disabled
+                                        />
+                                    )}
+                                    {shiftingTo && (
+                                        <X size={16} className="text-gray-400 cursor-pointer hover:text-gray-600 absolute right-4" onClick={() => setShiftingTo('')} />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-sm font-bold text-gray-900">Select Shifting Date</label>
+                            <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 bg-white relative shadow-sm hover:border-emerald-500 transition-colors">
+                                <CalendarCheck className="text-gray-500 mr-3 shrink-0" size={18} />
+                                <CustomDatePicker 
+                                    selectedDate={shiftingDate} 
+                                    onChange={(date) => setShiftingDate(date)} 
+                                />
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="space-y-1">
+                            <label className="text-sm font-bold text-gray-900">{subCategory?.title?.toLowerCase().includes('vehicle') ? 'Where are you going to relocate?' : 'Search your City'}</label>
+                            <div className="relative border border-gray-200 rounded-xl bg-white overflow-hidden shadow-sm">
+                                {/* Source City */}
+                                <div className="flex items-center border-b border-gray-200 px-3 py-2.5 relative">
+                                    <MapPin className="text-gray-400 mr-3 shrink-0" size={18} />
+                                    {isLoaded ? (
+                                        <Autocomplete onLoad={onLoadFrom} onPlaceChanged={onPlaceChangedFrom} className="flex-1 w-full mr-6">
+                                            <input
+                                                type="text"
+                                                placeholder="Search Source City"
+                                                className="w-full outline-none text-xs font-normal text-gray-600 placeholder:text-gray-400 placeholder:font-normal bg-transparent text-ellipsis"
+                                                value={shiftingFrom}
+                                                onChange={(e) => setShiftingFrom(e.target.value)}
+                                            />
+                                        </Autocomplete>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            placeholder="Loading Maps..."
+                                            className="flex-1 outline-none text-[10px] font-normal text-gray-600 placeholder:text-gray-400 placeholder:font-normal bg-transparent mr-6"
+                                            disabled
+                                        />
+                                    )}
+                                    {shiftingFrom && (
+                                        <X size={16} className="text-gray-400 cursor-pointer hover:text-gray-600 absolute right-4" onClick={() => setShiftingFrom('')} />
+                                    )}
+                                </div>
+                                <div className="absolute left-6 top-8 bottom-8 w-px border-l border-dashed border-gray-300" />
+
+                                {/* Destination City */}
+                                <div className="flex items-center px-3 py-2.5 relative">
+                                    <MapPin className="text-gray-400 mr-3 shrink-0" size={18} />
+                                    {isLoaded ? (
+                                        <Autocomplete onLoad={onLoadTo} onPlaceChanged={onPlaceChangedTo} className="flex-1 w-full mr-6">
+                                            <input
+                                                type="text"
+                                                placeholder="Search Destination City"
+                                                className="w-full outline-none text-xs font-normal text-gray-600 placeholder:text-gray-400 placeholder:font-normal bg-transparent text-ellipsis"
+                                                value={shiftingTo}
+                                                onChange={(e) => setShiftingTo(e.target.value)}
+                                            />
+                                        </Autocomplete>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            placeholder="Loading Maps..."
+                                            className="flex-1 outline-none text-[10px] font-normal text-gray-600 placeholder:text-gray-400 placeholder:font-normal bg-transparent mr-6"
+                                            disabled
+                                        />
+                                    )}
+                                    {shiftingTo && (
+                                        <X size={16} className="text-gray-400 cursor-pointer hover:text-gray-600 absolute right-4" onClick={() => setShiftingTo('')} />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-sm font-bold text-gray-900">Select Shifting Date</label>
+                            <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 bg-white relative">
+                                <CalendarCheck className="text-gray-500 mr-3" size={18} />
+                                <CustomDatePicker 
+                                    selectedDate={shiftingDate} 
+                                    onChange={(date) => setShiftingDate(date)} 
+                                />
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                <div className="flex items-center justify-center gap-4 py-2 text-xs font-semibold text-gray-500">
+                    <span className="flex items-center gap-1.5"><Check className="text-emerald-500" size={14} /> Professional Handling</span>
+                    <span className="text-gray-300">|</span>
+                    <span className="flex items-center gap-1.5"><Check className="text-emerald-500" size={14} /> Transparent Pricing</span>
+                </div>
+
+                <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleProceed}
+                    className="w-full py-4 bg-[#00695C] hover:bg-[#004D40] text-white font-black uppercase tracking-widest text-sm rounded-xl shadow-lg shadow-[#00695C]/40 transition-all"
+                >
+                    Get Estimate
+                </motion.button>
+            </div>
+        </div>
+
+        {/* Damage & Delay Protection Banner */}
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl p-4 flex items-center justify-between shadow-sm mt-2">
+            <div className="pr-4 max-w-[65%]">
+                <p className="text-[11px] text-gray-700 leading-snug mb-3 font-medium">
+                    Let GetRightHome Packers & Movers do the heavy lifting like other <span className="text-emerald-700 font-bold">15,35,426</span> homes across India!
+                </p>
+                <button 
+                    onClick={() => setShowProtectionModal(true)}
+                    className="border border-emerald-600 text-emerald-700 bg-white px-3 py-1.5 rounded-md text-[10px] font-bold flex items-center gap-1 hover:bg-emerald-100 transition-colors"
+                >
+                    Know More <ChevronRight size={14} strokeWidth={3} />
+                </button>
+            </div>
+            <div className="shrink-0 relative w-[90px] h-[90px] flex items-center justify-center -mr-2">
+                {/* Stylized Badge Background (Emerald Theme) */}
+                <div className="absolute inset-2 bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg transform rotate-3" style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }} />
+                <div className="absolute inset-2 bg-gradient-to-b from-teal-700 to-emerald-900 shadow-inner transform -rotate-6" style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }} />
+                
+                {/* Inner Content */}
+                <div className="relative z-10 flex flex-col items-center justify-center transform -rotate-6 pt-1">
+                    <span className="text-[9px] font-black text-white leading-none text-center shadow-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>DAMAGE<br/>AND DELAY</span>
+                    <div className="bg-yellow-400 text-emerald-900 text-[7px] font-black px-1.5 py-0.5 mt-0.5 rounded shadow-sm uppercase tracking-wider">
+                        Protection
+                    </div>
+                    <Package className="text-white/90 w-5 h-5 mt-1 drop-shadow-md" />
+                </div>
+            </div>
+        </div>
+
+        {/* What sets GetRightHome apart */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-4">
+            <h2 className="text-[14px] font-bold text-gray-800 mb-5">
+                What sets GetRightHome apart in {selectedCity ? selectedCity.split(',')[0] : ''} ?
+            </h2>
+            
+            <div className="space-y-6">
+                {/* 1 */}
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-[#f8f9fa] rounded-xl flex items-center justify-center shrink-0">
+                        <HeartHandshake className="text-[#644db8] w-6 h-6" strokeWidth={1.5} />
+                    </div>
+                    <div>
+                        <h3 className="text-[13px] font-semibold text-gray-800 leading-snug">
+                            15 Lakh+ Satisfied Customers In 100+ Cities
+                        </h3>
+                    </div>
+                </div>
+                
+                {/* 2 */}
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-[#f8f9fa] rounded-xl flex items-center justify-center shrink-0">
+                        <Package className="text-[#644db8] w-6 h-6" strokeWidth={1.5} />
+                    </div>
+                    <div>
+                        <h3 className="text-[13px] font-semibold text-gray-800 leading-snug">
+                            100% Damage & Delay Protection
+                        </h3>
+                    </div>
+                </div>
+                
+                {/* 3 */}
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-[#f8f9fa] rounded-xl flex items-center justify-center shrink-0">
+                        <Trophy className="text-[#644db8] w-6 h-6" strokeWidth={1.5} />
+                    </div>
+                    <div>
+                        <h3 className="text-[13px] font-semibold text-gray-800 leading-snug">
+                            Awards & Recognitions
+                        </h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* House Relocation Services We Offer Near You */}
+        {relatedSubCategories && relatedSubCategories.filter(sc => (sc.id || sc._id) !== (subCategory?.id || subCategory?._id)).length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-4">
+                <h2 className="text-[14px] font-bold text-gray-800 mb-4">
+                    House Relocation Services We Offer Near You
+                </h2>
+                <div className="flex flex-col gap-4">
+                    {relatedSubCategories.filter(sc => (sc.id || sc._id) !== (subCategory?.id || subCategory?._id)).map(subcat => (
+                        <div 
+                            key={subcat._id || subcat.id}
+                            onClick={() => {
+                                navigate('/home-services/sub-category', {
+                                    state: { category, subCategory: subcat }
+                                });
+                                window.scrollTo(0, 0);
+                            }}
+                            className="border border-gray-100 rounded-xl p-3 flex gap-4 cursor-pointer hover:shadow-md hover:border-emerald-200 transition-all group"
+                        >
+                            <div className="flex-1 flex flex-col justify-center">
+                                <h3 className="font-bold text-gray-800 text-[13px] mb-1 group-hover:text-emerald-700 transition-colors">{subcat.title}</h3>
+                                <p className="text-gray-500 text-[10px] leading-snug mb-2 line-clamp-2">
+                                    {subcat.description || `Have to move your ${subcat.title.split(' ')[0].toLowerCase()}? We've got you covered!`}
+                                </p>
+                                <span className="text-emerald-600 text-[11px] font-bold flex items-center gap-0.5 mt-auto">
+                                    Explore <ChevronRight size={12} strokeWidth={2.5} />
+                                </span>
+                            </div>
+                            <div className="w-[85px] h-[75px] shrink-0 rounded-lg overflow-hidden bg-gray-50">
+                                <img src={toAssetUrl(subcat.imageUrl)} alt={subcat.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* How it Works Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-4">
+            <h2 className="text-[14px] font-bold text-gray-800 mb-6 leading-snug">
+                How GetRightHome Packers and Movers Near You Works?
+            </h2>
+            
+            <div className="relative">
+                {/* Vertical Dashed Line */}
+                <div className="absolute left-6 top-8 bottom-8 w-px border-l border-dashed border-gray-300 z-0"></div>
+                
+                <div className="space-y-6">
+                    {/* Step 1 */}
+                    <div className="flex gap-4 relative z-10">
+                        <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                             <Laptop className="text-orange-500 w-6 h-6" strokeWidth={1.5} />
+                        </div>
+                        <div className="pt-0.5">
+                             <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Share your Shifting Requirement</h3>
+                             <p className="text-[11px] text-gray-500 leading-snug">Help us by providing when and where do you want to move</p>
+                        </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="flex gap-4 relative z-10">
+                        <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                             <FileText className="text-amber-500 w-6 h-6" strokeWidth={1.5} />
+                        </div>
+                        <div className="pt-0.5">
+                             <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Receive Free Instant Quote</h3>
+                             <p className="text-[11px] text-gray-500 leading-snug">Get guaranteed lowest priced quote for your shifting instantly</p>
+                        </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="flex gap-4 relative z-10">
+                        <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                             <UserCheck className="text-red-500 w-6 h-6" strokeWidth={1.5} />
+                        </div>
+                        <div className="pt-0.5">
+                             <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Assign Quality Service Expert</h3>
+                             <p className="text-[11px] text-gray-500 leading-snug">To ensure safe relocation quality service expert will be allotted for your movement</p>
+                        </div>
+                    </div>
+
+                    {/* Step 4 */}
+                    <div className="flex gap-4 relative z-10">
+                        <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                             <PackageCheck className="text-emerald-500 w-6 h-6" strokeWidth={1.5} />
+                        </div>
+                        <div className="pt-0.5">
+                             <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Leave the Heavy Lifting to Us</h3>
+                             <p className="text-[11px] text-gray-500 leading-snug">Enjoy hassle-free on time movement of your household goods</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {/* Recent Trips Section */}
+        <div className="bg-transparent mt-8 mb-4 px-2">
+            <div className="flex items-center gap-4 mb-5">
+                <div className="h-px bg-gray-200 flex-1"></div>
+                <h2 className="text-[13px] font-bold text-[#1a3b99] tracking-tight">15 lakh+ trips completed all over India</h2>
+                <div className="h-px bg-gray-200 flex-1"></div>
+            </div>
+            
+            <div className="flex gap-4 overflow-x-auto pb-4 snap-x" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <style>{`
+                    .overflow-x-auto::-webkit-scrollbar { display: none; }
+                `}</style>
+                {RECENT_TRIPS.map((trip, idx) => (
+                    <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 min-w-[210px] max-w-[210px] snap-start shrink-0">
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-100">
+                                <Star size={10} className="fill-emerald-700" /> {trip.rating.toFixed(1)}
+                            </div>
+                            <div className="border border-gray-200 text-gray-500 text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                {trip.type}
+                            </div>
+                        </div>
+                        
+                        <h3 className="text-[14px] font-bold text-gray-800 leading-tight mb-1 truncate">{trip.name}</h3>
+                        <p className="text-[10px] text-gray-500 mb-4">Completed On {trip.date}</p>
+                        
+                        <div className="relative pl-1.5">
+                            <div className="absolute left-[4px] top-[10px] bottom-[12px] w-[1.5px] bg-gray-200 z-0"></div>
+                            <div className="flex items-center gap-3 mb-3 relative z-10">
+                                <div className="w-2 h-2 rounded-full border-[1.5px] border-red-500 bg-white shadow-sm shrink-0"></div>
+                                <span className="text-[10px] font-bold text-gray-700 uppercase truncate tracking-wide">{trip.from}</span>
+                            </div>
+                            <div className="flex items-center gap-3 relative z-10">
+                                <div className="w-2 h-2 rounded-full border-[1.5px] border-emerald-500 bg-white shadow-sm shrink-0"></div>
+                                <span className="text-[10px] font-bold text-gray-700 uppercase truncate tracking-wide">{trip.to}</span>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+        
+        {/* Why Choose Us Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-4 mb-6">
+            <h2 className="text-[14px] font-bold text-gray-800 mb-6 leading-snug">
+                Why Choose GetRightHome Packers and Movers for House Shifting?
+            </h2>
+            
+            <div className="space-y-6">
+                {/* 1 */}
+                <div className="flex gap-4 items-start">
+                    <div className="w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                         <Wallet className="text-amber-600 w-5 h-5" strokeWidth={1.5} />
+                    </div>
+                    <div className="pt-0.5">
+                         <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Lowest Price Guarantee</h3>
+                         <p className="text-[11px] text-gray-500 leading-snug">Moving at a price you can afford - we'll match any competitor's quote</p>
+                    </div>
+                </div>
+
+                {/* 2 */}
+                <div className="flex gap-4 items-start">
+                    <div className="w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                         <Award className="text-blue-500 w-5 h-5" strokeWidth={1.5} />
+                    </div>
+                    <div className="pt-0.5">
+                         <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Best Quality Service</h3>
+                         <p className="text-[11px] text-gray-500 leading-snug">Safe and Reliable Packaging and Moving Services</p>
+                    </div>
+                </div>
+
+                {/* 3 */}
+                <div className="flex gap-4 items-start">
+                    <div className="w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                         <CalendarClock className="text-emerald-600 w-5 h-5" strokeWidth={1.5} />
+                    </div>
+                    <div className="pt-0.5">
+                         <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Reschedule your shifting anytime</h3>
+                         <p className="text-[11px] text-gray-500 leading-snug">Change your shifting date as per your convenience.</p>
+                    </div>
+                </div>
+
+                {/* 4 */}
+                <div className="flex gap-4 items-start">
+                    <div className="w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                         <Headset className="text-red-500 w-5 h-5" strokeWidth={1.5} />
+                    </div>
+                    <div className="pt-0.5">
+                         <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Support Assistance</h3>
+                         <p className="text-[11px] text-gray-500 leading-snug">Dedicated support assistance for quick query resolution</p>
+                    </div>
+                </div>
+
+                {/* 5 */}
+                <div className="flex gap-4 items-start">
+                    <div className="w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                         <Users className="text-purple-500 w-5 h-5" strokeWidth={1.5} />
+                    </div>
+                    <div className="pt-0.5">
+                         <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Professional Labour</h3>
+                         <p className="text-[11px] text-gray-500 leading-snug">Expertly packing and moving your belongings</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {/* Customer Reviews Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+            <h2 className="text-[14px] font-bold text-gray-800 mb-4">Customer Reviews</h2>
+            
+            <div className="flex items-end justify-between mb-5 px-1">
+                <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Star.png" alt="Star" className="w-9 h-9 drop-shadow-sm" />
+                        <span className="text-3xl font-extrabold text-[#b8860b] tracking-tight">4.8</span>
+                    </div>
+                    <p className="text-[12px] text-[#4f709c] font-medium pl-1">Average rating based on 90,445 reviews</p>
+                </div>
+                
+                <div className="flex items-center gap-2 pb-1 pr-1">
+                    <button onClick={() => scrollReviews('left')} className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors shadow-sm bg-white">
+                        <ChevronLeft size={18} strokeWidth={2} />
+                    </button>
+                    <button onClick={() => scrollReviews('right')} className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors shadow-sm bg-white">
+                        <ChevronRight size={18} strokeWidth={2} />
+                    </button>
+                </div>
+            </div>
+            
+            <div ref={reviewsScrollRef} className="flex gap-4 overflow-x-auto pb-2 snap-x scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <style>{`
+                    .overflow-x-auto::-webkit-scrollbar { display: none; }
+                `}</style>
+                {PM_CUSTOMER_REVIEWS.map((review, idx) => (
+                    <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 min-w-[240px] max-w-[240px] snap-start shrink-0">
+                        <div className="flex items-center gap-3 mb-3">
+                            <img src={review.avatar} alt={review.name} className="w-10 h-10 rounded-full object-cover bg-gray-100" />
+                            <div className="flex-1">
+                                <h3 className="text-[12px] font-bold text-gray-800 leading-tight">{review.name}</h3>
+                                <div className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-max mt-1 border border-emerald-100">
+                                    <Star size={8} className="fill-emerald-700" /> {review.rating.toFixed(1)}
+                                </div>
+                            </div>
+                            <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                                {/* Simple colored G icon for Google */}
+                                <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <p className="text-[11px] text-gray-600 leading-relaxed line-clamp-3">
+                            {review.text}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </div>
+        
+        {/* Comparison Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+            <h2 className="text-[14px] font-bold text-gray-800 mb-5">GetRightHome compared to local vendors</h2>
+            
+            <div className="overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="border-b border-gray-100">
+                            <th className="py-3 px-2 text-[11px] font-medium text-gray-500 w-[50%] align-bottom">Services</th>
+                            <th className="py-3 px-1 text-[11px] font-medium text-[#1a3b99] text-center w-[25%] border-l border-gray-100 align-bottom">GetRightHome</th>
+                            <th className="py-3 px-1 text-[11px] font-medium text-gray-500 text-center w-[25%] border-l border-gray-100 align-bottom leading-tight">Local<br/>Vendors</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {COMPARISON_DATA.map((row, idx) => (
+                            <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="py-4 px-2 text-[11px] text-gray-700 font-medium pr-4">{row.label}</td>
+                                <td className="py-4 px-1 border-l border-gray-100 text-center align-middle">
+                                    {row.grh ? <Check size={16} strokeWidth={2.5} className="text-emerald-500 mx-auto" /> : <X size={16} strokeWidth={2.5} className="text-red-500 mx-auto" />}
+                                </td>
+                                <td className="py-4 px-1 border-l border-gray-100 text-center align-middle">
+                                    {row.local ? <Check size={16} strokeWidth={2.5} className="text-emerald-500 mx-auto" /> : <X size={16} strokeWidth={2.5} className="text-red-500 mx-auto" />}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        {/* FAQs Section */}
+        <div className="bg-white rounded-[16px] shadow-[0px_3px_10px_-1px_#1A1A1A1F] p-5 mb-6">
+            <h2 className="font-bold text-[15px] text-gray-800 mb-5">FaQs- House Shifting Services in {selectedCity !== 'Select City' ? selectedCity : 'India'}</h2>
+            
+            <div className="flex items-center gap-3 overflow-x-auto pb-3 snap-x mb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <style>{`
+                    .overflow-x-auto::-webkit-scrollbar { display: none; }
+                `}</style>
+                <div 
+                    onClick={() => setIsFaqSearchActive(true)}
+                    className={`flex items-center justify-center shrink-0 w-[38px] h-[32px] rounded-[20px] cursor-pointer bg-white border ${isFaqSearchActive ? 'border-[#6045A4] text-[#6045A4]' : 'border-gray-200 text-gray-700'} transition-colors`}
+                >
+                    <Search size={15} strokeWidth={2} />
+                </div>
+                <div className="h-[22px] border-r border-gray-200 shrink-0"></div>
+                
+                {isFaqSearchActive ? (
+                    <div className="flex-1 flex items-center h-[32px] rounded-[20px] border border-[#6045A4] px-3 bg-white relative min-w-[200px]">
+                        <input
+                            autoFocus
+                            type="text"
+                            placeholder="Search FAQs..."
+                            value={searchFaqQuery}
+                            onChange={(e) => setSearchFaqQuery(e.target.value)}
+                            className="w-full h-full outline-none text-[13px] bg-transparent text-gray-800 pr-6"
+                        />
+                        <button 
+                            onClick={() => {
+                                setIsFaqSearchActive(false);
+                                setSearchFaqQuery("");
+                            }}
+                            className="absolute right-3 text-gray-400 hover:text-gray-600"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                ) : (
+                    FAQ_TABS.map(tab => (
+                        <button 
+                            key={tab}
+                            onClick={() => {
+                                setActiveFaqTab(tab);
+                                setOpenFaq(-1);
+                            }}
+                            className={`shrink-0 h-[32px] px-4 rounded-[20px] whitespace-nowrap text-[13px] transition-colors border ${
+                                activeFaqTab === tab 
+                                    ? 'border-[#6045A4] text-[#6045A4] font-semibold' 
+                                    : 'border-gray-200 text-gray-700 font-medium hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                        >
+                            {tab}
+                        </button>
+                    ))
+                )}
+            </div>
+
+            <div className="flex flex-col">
+                {filteredFaqs.length > 0 ? filteredFaqs.map((faq, idx) => (
+                    <div key={idx} className="border-b border-gray-100 last:border-0">
+                        <div 
+                            className="flex items-center justify-between cursor-pointer py-4 gap-4 group"
+                            onClick={() => setOpenFaq(openFaq === idx ? -1 : idx)}
+                        >
+                            <h3 className="font-medium text-[13px] text-gray-800 flex-1 leading-snug group-hover:text-[#6045A4] transition-colors">{faq.q}</h3>
+                            <ChevronDown 
+                                size={18} 
+                                strokeWidth={2}
+                                className={`text-gray-500 shrink-0 transition-transform duration-300 ${openFaq === idx ? 'rotate-180' : ''}`} 
+                            />
+                        </div>
+                        <AnimatePresence>
+                            {openFaq === idx && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="text-[12.5px] leading-[1.6] text-gray-600 pb-4 pr-4">
+                                        {faq.a}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                )) : (
+                    <div className="py-8 text-center text-gray-400 text-sm">No FAQs found for this category.</div>
+                )}
+            </div>
+        </div>
+        
+        {/* Protection Modal Overlay */}
+            <AnimatePresence>
+                {showProtectionModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowProtectionModal(false)}
+                            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        />
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="bg-[#f2f6fc] relative z-10 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-gray-100"
+                        >
+                            <button 
+                                onClick={() => setShowProtectionModal(false)}
+                                className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors p-1 z-20"
+                            >
+                                <X size={20} />
+                            </button>
+                            
+                            <div className="p-7">
+                                {/* Stylized Shield Badge for Modal (Emerald Theme) */}
+                                <div className="mb-6 relative w-20 h-20">
+                                    <div className="absolute inset-0 bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg transform rotate-3" style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }} />
+                                    <div className="absolute inset-0 bg-gradient-to-b from-teal-700 to-emerald-900 shadow-inner transform -rotate-6" style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }} />
+                                    <div className="relative z-10 flex flex-col items-center justify-center h-full transform -rotate-6">
+                                        <span className="text-[9px] font-black text-white leading-none text-center drop-shadow-md">DAMAGE<br/>AND DELAY</span>
+                                        <div className="bg-yellow-400 text-emerald-900 text-[7px] font-black px-1.5 py-0.5 mt-1 rounded shadow-sm uppercase tracking-wider">
+                                            Protection
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <h3 className="text-gray-800 font-bold text-lg leading-tight mb-7 pr-4">
+                                    With GetRightHome's Damage & Delay Protection, you get:
+                                </h3>
+                                
+                                <div className="space-y-6">
+                                    <div className="flex items-start gap-4">
+                                        <Truck className="text-emerald-600 shrink-0 w-6 h-6 mt-0.5" strokeWidth={1.5} />
+                                        <p className="text-[13px] text-gray-700 font-medium leading-snug">100% coverage against damages during packing, transit, or unloading</p>
+                                    </div>
+                                    <div className="flex items-start gap-4">
+                                        <Clock className="text-emerald-600 shrink-0 w-6 h-6 mt-0.5" strokeWidth={1.5} />
+                                        <p className="text-[13px] text-gray-700 font-medium leading-snug">Professional packing & handling by trained service partners</p>
+                                    </div>
+                                    <div className="flex items-start gap-4">
+                                        <Package className="text-emerald-600 shrink-0 w-6 h-6 mt-0.5" strokeWidth={1.5} />
+                                        <p className="text-[13px] text-gray-700 font-medium leading-snug">Transparent pricing with no hidden conditions</p>
+                                    </div>
+                                    <div className="flex items-start gap-4">
+                                        <Coins className="text-emerald-600 shrink-0 w-6 h-6 mt-0.5" strokeWidth={1.5} />
+                                        <p className="text-[13px] text-gray-700 font-medium leading-snug">On-time pickup and delivery commitment</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+        </>
+    );
+};
+
 const SubCategoryPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -121,6 +1112,7 @@ const SubCategoryPage = () => {
 
     const [services, setServices] = useState([]);
     const [exploreCategories, setExploreCategories] = useState([]);
+    const [relatedSubCategories, setRelatedSubCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [redirecting, setRedirecting] = useState(false);
@@ -130,6 +1122,7 @@ const SubCategoryPage = () => {
     const [expandedFaq, setExpandedFaq] = useState(null);
 
     const isPaintingCategory = category?.title?.toLowerCase().includes('painting') || subCategory?.title?.toLowerCase().includes('painting');
+    const isPackersAndMovers = category?.title?.toLowerCase().includes('packer') || category?.slug?.includes('packer');
 
     const toggleFaq = (index) => {
         setExpandedFaq(expandedFaq === index ? null : index);
@@ -206,6 +1199,12 @@ const SubCategoryPage = () => {
             if (catRes?.success) {
                 const allCats = catRes.categories || catRes.data || [];
                 setExploreCategories(allCats.filter(c => (c.id || c._id) !== catId));
+            }
+            
+            const relatedRes = await publicCatalogService.getSubCategories({ categoryId: catId, cityId });
+            if (relatedRes?.success) {
+                const allRelated = relatedRes.subCategories || relatedRes.data || [];
+                setRelatedSubCategories(allRelated); // Keep all subcategories for tab navigation
             }
         } catch (error) {
             console.error('Failed to load services:', error);
@@ -355,37 +1354,46 @@ const SubCategoryPage = () => {
                     </div>
 
                     {/* Overlaid Banner Typography */}
-                    <div className="absolute bottom-12 left-6 right-6 text-white z-20">
-                        {category?.slug === 'home-painting' ? (
-                            <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide drop-shadow-md leading-snug">
-                                Best House Painting Services in Your Area | Expert Painters
-                            </h2>
-                        ) : (
-                            <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight drop-shadow-md">
-                                {subCategory.title}
-                            </h2>
-                        )}
-                        {category?.title && (
-                            <span className="text-[9px] font-semibold uppercase tracking-widest bg-emerald-500/90 text-white py-1 px-3 rounded-full mt-2 inline-block shadow-sm max-w-[55%] truncate">
-                                {category.title}
-                            </span>
-                        )}
+                    <div className="absolute bottom-12 left-6 right-6 text-white z-20 flex justify-between items-start">
+                        <div className="flex-1 pr-4">
+                            {category?.slug === 'home-painting' ? (
+                                <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide drop-shadow-md leading-snug">
+                                    Best House Painting Services in Your Area | Expert Painters
+                                </h2>
+                            ) : (
+                                <h2 className="text-xl sm:text-2xl font-bold uppercase tracking-tight drop-shadow-md">
+                                    {subCategory.title}
+                                </h2>
+                            )}
+                            {category?.title && (
+                                <span className="text-[9px] font-semibold uppercase tracking-widest bg-emerald-500/90 text-white py-1 px-3 rounded-full mt-2 inline-block shadow-sm max-w-[55%] truncate">
+                                    {category.title}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/20 px-2.5 py-1.5 rounded-xl shadow-sm">
+                            <Star size={12} className="fill-emerald-400 text-emerald-400" />
+                            <span className="text-xs font-black text-white">4.7</span>
+                        </div>
                     </div>
                 </div>
 
                 {/* Overlapping Floating Search Bar (Placed OUTSIDE the overflow-hidden parent to prevent clipping) */}
-                <div className="absolute bottom-0 left-6 right-6 translate-y-1/2 z-30 max-w-xl mx-auto">
-                    <div className="flex items-center bg-white border border-gray-100 rounded-xl px-4 py-3.5 shadow-lg shadow-gray-200/80 gap-2.5">
-                        <Search size={18} className="text-gray-400 flex-shrink-0 stroke-[3]" />
-                        <input
-                            type="text"
-                            placeholder={placeholderText || `Search in ${subCategory?.title || 'services'}...`}
-                            className="bg-transparent border-none outline-none w-full text-sm font-semibold text-gray-700 placeholder:text-gray-400"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                {!isPackersAndMovers && (
+                    <div className="absolute bottom-0 left-6 right-6 translate-y-1/2 z-30 max-w-xl mx-auto">
+                        <div className="flex items-center bg-white border border-gray-100 rounded-xl px-4 py-3.5 shadow-lg shadow-gray-200/80 gap-2.5">
+                            <Search size={18} className="text-gray-400 flex-shrink-0 stroke-[3]" />
+                            <input
+                                type="text"
+                                placeholder={placeholderText || `Search in ${subCategory?.title || 'services'}...`}
+                                className="bg-transparent border-none outline-none w-full text-sm font-semibold text-gray-700 placeholder:text-gray-400"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Quick Services Nav */}
@@ -428,8 +1436,15 @@ const SubCategoryPage = () => {
             )}
 
             {/* Services List Content Section */}
-            <div className="max-w-3xl mx-auto px-4 mt-6 pt-2">
-                {loading ? (
+            <div className={`max-w-3xl mx-auto px-4 ${isPackersAndMovers ? '-mt-12 relative z-30' : 'mt-6 pt-2'}`}>
+                {isPackersAndMovers ? (
+                    <PackersAndMoversForm 
+                        category={category}
+                        subCategory={subCategory}
+                        services={regularServices}
+                        relatedSubCategories={relatedSubCategories}
+                    />
+                ) : loading ? (
                     <div className="space-y-4">
                         {[1, 2, 3, 4].map(i => (
                             <div key={i} className="bg-white rounded-xl border border-gray-100 p-5 flex gap-4 animate-pulse">

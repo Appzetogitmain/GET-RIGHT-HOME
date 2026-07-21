@@ -134,7 +134,18 @@ export const SocketProvider = ({ children }) => {
     }
 
     // Use HTTP URL for socket.io client - it handles WS upgrade automatically
-    const socketBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
+    let socketBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '');
+    
+    // If VITE_API_BASE_URL was accidentally baked in as localhost during a production build, override it
+    if (socketBaseUrl && socketBaseUrl.includes('localhost') && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      socketBaseUrl = window.location.origin;
+    } else if (!socketBaseUrl) {
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        socketBaseUrl = 'http://localhost:5000';
+      } else {
+        socketBaseUrl = window.location.origin;
+      }
+    }
 
     const newSocket = io(socketBaseUrl, {
       auth: {

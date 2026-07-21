@@ -4,8 +4,8 @@ class PaymentService {
   /**
    * Create Razorpay order for booking payment
    */
-  async createOrder(bookingId) {
-    const response = await apiService.post('/payments/create-order', { bookingId });
+  async createOrder(bookingId, isEstimateToken = false) {
+    const response = await apiService.post('/payments/create-order', { bookingId, isEstimateToken });
     return response.data;
   }
 

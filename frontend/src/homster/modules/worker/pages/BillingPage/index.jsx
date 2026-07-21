@@ -349,8 +349,10 @@ const BillingPage = () => {
     const promoDiscount = Number(job.promoDiscount) || 0;
     const totalDiscount = baseDiscount + promoDiscount;
 
+    const isEstimate = job.isEstimateBased;
     // Platform fee from admin settings (e.g. 20)
-    const originalPlatformFee = platformFees?.platformFlatFee || 0;
+    const originalPlatformFee = isEstimate ? 0 : (platformFees?.platformFlatFee || 0);
+    const cashCollectionFee = isEstimate ? 0 : (platformFees?.cashCollectionFee || 0);
 
     // Worker sees: basePrice - platformFee = 100 - 20 = 80
     const originalBase = isPlanBooking ? 0 : Math.max(0, (Number(job.basePrice) || 0) - originalPlatformFee);
@@ -400,7 +402,7 @@ const BillingPage = () => {
 
     // Final online = worker's earnings + adjusted platform fee = 80 + 10 = 90
     const finalOnlineAmount = parseFloat((totalValue + adjustedPlatformFee).toFixed(2));
-    const finalCashAmount = parseFloat((finalOnlineAmount + (platformFees?.cashCollectionFee || 0)).toFixed(2));
+    const finalCashAmount = parseFloat((finalOnlineAmount + cashCollectionFee).toFixed(2));
 
     // Worker earnings = totalValue (their service cut)
     const totalWorkerEarnings = totalValue;
@@ -409,7 +411,12 @@ const BillingPage = () => {
 
     // Calculate Prepaid Amount (if user already paid during booking)
     const isAlreadyPaid = job.paymentStatus === 'paid' || job.paymentStatus === 'SUCCESS';
-    const prepaidAmount = isAlreadyPaid ? (Number(job.totalAmount) || 0) : 0;
+    const tokenPaid = isEstimate ? (Number(job.estimate?.tokenAmount) || 0) : 0;
+    const hasPrepaid = isAlreadyPaid || tokenPaid > 0;
+    
+    // If already fully paid, the prepaid amount equals the full online amount
+    const prepaidAmount = isAlreadyPaid ? finalOnlineAmount : tokenPaid;
+    
     const finalBillAmount = Math.max(0, parseFloat((finalOnlineAmount - prepaidAmount).toFixed(2)));
     const finalCashCollectAmount = Math.max(0, parseFloat((finalCashAmount - prepaidAmount).toFixed(2)));
 
@@ -429,7 +436,9 @@ const BillingPage = () => {
       finalOnlineAmount,
       finalCashAmount,
       prepaidAmount,
-      isAlreadyPaid,
+      isAlreadyPaid: hasPrepaid,
+      isEstimate,
+      tokenPaid,
       finalBillAmount,
       finalCashCollectAmount,
       totalWorkerEarnings,
@@ -438,7 +447,7 @@ const BillingPage = () => {
       servicePayoutPct,
       partsPayoutPct,
       platformFlatFee: adjustedPlatformFee,
-      cashCollectionFee: platformFees?.cashCollectionFee || 0
+      cashCollectionFee
     };
   }, [job, selectedServices, selectedParts, customItems, transportCharges, payoutSettings, applyPartsGST, platformFees]);
 
@@ -832,11 +841,11 @@ const BillingPage = () => {
                 <div className="grid grid-cols-2 gap-4 divide-x divide-gray-800">
                   <div className="flex flex-col items-center justify-center">
                     <span className="text-gray-400 text-[10px] mb-1">ONLINE PAY</span>
-                    <span className="text-3xl font-black text-blue-400">₹{calculations.finalOnlineAmount.toFixed(2)}</span>
+                    <span className="text-3xl font-black text-blue-400">₹{calculations.finalBillAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex flex-col items-center justify-center pl-4">
                     <span className="text-gray-400 text-[10px] mb-1">CASH PAY</span>
-                    <span className="text-3xl font-black text-emerald-400">₹{calculations.finalCashAmount.toFixed(2)}</span>
+                    <span className="text-3xl font-black text-emerald-400">₹{calculations.finalCashCollectAmount.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -912,14 +921,21 @@ const BillingPage = () => {
                             </div>
                           )}
 
+                          {calculations.prepaidAmount > 0 && (
+                            <div className="flex justify-between text-emerald-600 text-sm font-bold border-t border-gray-100 pt-2 mt-2">
+                              <span>{calculations.isAlreadyPaid ? 'Already Paid Online' : 'Advance Token Paid'}</span>
+                              <span>-₹{calculations.prepaidAmount.toFixed(2)}</span>
+                            </div>
+                          )}
+
                           <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
                             <div className="flex justify-between font-black text-gray-900">
                               <span>Total Online Bill</span>
-                              <span>₹{calculations.finalOnlineAmount.toFixed(2)}</span>
+                              <span>₹{calculations.finalBillAmount.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between font-black text-emerald-600">
                               <span>Total Cash Bill</span>
-                              <span>₹{calculations.finalCashAmount.toFixed(2)}</span>
+                              <span>₹{calculations.finalCashCollectAmount.toFixed(2)}</span>
                             </div>
                           </div>
                         </>
@@ -936,14 +952,6 @@ const BillingPage = () => {
                     <div className="flex justify-between text-sm pl-2 text-gray-600">
                       <span>GST (18%)</span>
                       <span>₹{calculations.totalGST.toFixed(2)}</span>
-                    </div>
-                  </div>
-                )}
-                {calculations.isAlreadyPaid && (
-                  <div className="bg-emerald-50/50 p-4 rounded-2xl border border-dashed border-emerald-200">
-                    <div className="flex justify-between text-sm font-bold text-emerald-700">
-                      <span>Already Paid Online</span>
-                      <span>-₹{calculations.prepaidAmount.toFixed(2)}</span>
                     </div>
                   </div>
                 )}

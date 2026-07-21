@@ -91,11 +91,28 @@ const createBooking = async (req, res) => {
       serviceId = serviceId._id;
     }
 
-    // 1. Parallel Fetching: Service and User
-    const [service, user] = await Promise.all([
-      Service.findById(serviceId).select('title basePrice discountPrice description images iconUrl categoryId category categoryIds').lean(),
-      User.findById(userId).select('name phone wallet plans')
-    ]);
+    let service = null;
+    let user = await User.findById(userId).select('name phone wallet plans');
+
+    if (mongoose.Types.ObjectId.isValid(serviceId)) {
+      service = await Service.findById(serviceId).select('title basePrice discountPrice description images iconUrl categoryId category categoryIds').lean();
+    } else if (String(serviceId).startsWith('estimate-') || (bookedItems && bookedItems.length > 0)) {
+      const item = bookedItems && bookedItems[0] ? bookedItems[0] : {};
+      const categoryMatch = await HomeServiceCategory.findOne({ title: reqServiceCategory }).select('_id title icon').lean();
+      
+      service = {
+        _id: serviceId,
+        title: item.card?.title || item.title || 'Estimate Service',
+        basePrice: item.card?.price || item.price || 0,
+        discountPrice: 0,
+        description: item.card?.description || item.description || '',
+        images: item.card?.imageUrl ? [item.card.imageUrl] : [],
+        iconUrl: item.card?.iconUrl || reqCategoryIcon || (categoryMatch ? categoryMatch.icon : ''),
+        categoryId: categoryMatch ? categoryMatch._id : null,
+        category: categoryMatch ? categoryMatch.title : reqServiceCategory,
+        isEstimateBased: true
+      };
+    }
 
     if (!service) {
       return res.status(404).json({
@@ -318,11 +335,13 @@ const createBooking = async (req, res) => {
       brandIcon = formattedBookedItems[0].brandIcon || null;
     }
 
+    const safeServiceId = mongoose.Types.ObjectId.isValid(serviceId) ? serviceId : new mongoose.Types.ObjectId();
+
     const booking = await HomeServiceBooking.create({
       bookingNumber,
       userId,
       vendorId: null, // Will be assigned when vendor accepts
-      serviceId,
+      serviceId: safeServiceId,
       categoryId: finalCategory?._id || categoryId,
       serviceName: service.title,
       serviceCategory: reqServiceCategory || finalCategory?.title || service.category || 'General',
@@ -405,10 +424,13 @@ const createBooking = async (req, res) => {
           .populate('userId', 'name phone email')
           .populate('serviceId', 'title iconUrl')
           .populate('categoryId', 'title slug');
-        const serviceForBackground = await Service.findById(serviceId); // Re-fetch service if needed
+        const serviceForBackground = await Service.findById(bookingForBackground.serviceId) || {
+          title: bookingForBackground.serviceName,
+          category: bookingForBackground.serviceCategory
+        };
 
-        if (!userForBackground || !bookingForBackground || !serviceForBackground) {
-          console.error('[CreateBooking] Background task failed: User, Booking or Service not found after initial creation.');
+        if (!userForBackground || !bookingForBackground) {
+          console.error('[CreateBooking] Background task failed: User or Booking not found after initial creation.');
           return;
         }
 

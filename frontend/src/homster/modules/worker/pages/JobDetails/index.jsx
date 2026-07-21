@@ -383,6 +383,30 @@ const JobDetails = () => {
             </button>
           )}
 
+          {job.isEstimateBased && job.estimate?.status === 'PENDING' && job.status === 'estimate_provided' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 text-center">
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <FiClock className="w-6 h-6 text-amber-600 animate-pulse" />
+              </div>
+              <h3 className="font-bold text-amber-800 text-lg">Waiting for Customer Approval</h3>
+              <p className="text-sm text-amber-600 mt-1">
+                You have sent an estimate of ₹{job.estimate.amount}. Waiting for the customer to review and pay the advance token (₹{job.estimate.tokenAmount}).
+              </p>
+            </div>
+          )}
+
+          {job.isEstimateBased && job.estimate?.status === 'APPROVED' && job.status === 'in_progress' && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-4 text-center">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <FiCheckCircle className="w-6 h-6 text-emerald-600" />
+              </div>
+              <h3 className="font-bold text-emerald-800 text-lg">Token Paid Successfully!</h3>
+              <p className="text-sm text-emerald-600 mt-1">
+                The customer has paid the advance token (₹{job.estimate.tokenAmount}) and approved your estimate. You can now complete the work.
+              </p>
+            </div>
+          )}
+
           {((job.status === 'visited' && !job.isEstimateBased) || job.status === 'in_progress') && (
             <button
               onClick={() => handleStatusUpdate('complete')}

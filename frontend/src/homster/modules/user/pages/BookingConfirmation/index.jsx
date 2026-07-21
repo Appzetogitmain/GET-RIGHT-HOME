@@ -484,8 +484,19 @@ const BookingConfirmation = () => {
           </div>
 
           {/* Payment Summary - Professional Card */}
-          <div className="bg-white border-2 border-slate-100 rounded-2xl p-5 mb-6 shadow-sm overflow-hidden relative">
-            <div className="absolute top-0 left-0 right-0 h-1" style={{ background: themeColors.gradient || themeColors.button }}></div>
+          {booking.isEstimateBased && (!booking.estimate || booking.estimate.status === 'PENDING') ? (
+            <div className="bg-white border-2 border-amber-100 rounded-2xl p-5 mb-6 shadow-sm overflow-hidden relative">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-2 rounded-lg bg-amber-50">
+                  <FiDollarSign className="w-5 h-5 text-amber-600" />
+                </div>
+                <h3 className="text-lg font-bold text-amber-900">Estimate Pending</h3>
+              </div>
+              <p className="text-sm text-amber-700">The final price will be shared by the professional after evaluating the requirements.</p>
+            </div>
+          ) : (
+            <div className="bg-white border-2 border-slate-100 rounded-2xl p-5 mb-6 shadow-sm overflow-hidden relative">
+              <div className="absolute top-0 left-0 right-0 h-1" style={{ background: themeColors.gradient || themeColors.button }}></div>
 
             <div className="flex items-center gap-2 mb-4">
               <div className={`p-2 rounded-lg ${booking.paymentMethod === 'plan_benefit' ? 'bg-amber-100' : 'bg-slate-100'}`}>
@@ -576,6 +587,7 @@ const BookingConfirmation = () => {
               </div>
             )}
           </div>
+          )}
 
           {/* Action Buttons */}
           <div className="space-y-3">

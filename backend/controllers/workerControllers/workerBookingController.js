@@ -626,8 +626,9 @@ const createBill = async (req, res) => {
     const totalDiscount = baseDiscount + promoDiscount;
     
     // Fetch Platform Settings
-    const platformFlatFee = platformSettings?.platformFlatFee ?? 20;
-    const cashExtraFee = platformSettings?.cashCollectionFee ?? 20;
+    const isEstimate = booking.isEstimateBased;
+    const platformFlatFee = isEstimate ? 0 : (platformSettings?.platformFlatFee ?? 20);
+    const cashExtraFee = isEstimate ? 0 : (platformSettings?.cashCollectionFee ?? 20);
 
     // Worker sees: basePrice - platformFee = 100 - 20 = 80
     const originalServiceBase = Math.max(0, trueOriginalServiceBase - platformFlatFee);

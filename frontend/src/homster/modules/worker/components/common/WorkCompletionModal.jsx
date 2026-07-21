@@ -60,6 +60,11 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
       return job?.extraChargesTotal || 0;
     }
 
+    // For Estimate Based Services, strictly use the estimate amount as the true total bill value
+    if (job?.isEstimateBased && job?.estimate?.amount) {
+      return Number(job.estimate.amount);
+    }
+
     // For normal bookings, prefer finalAmount (even if 0)
     if (typeof job?.finalAmount === 'number') {
       return job.finalAmount;
