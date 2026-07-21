@@ -277,16 +277,18 @@ export const getAllUsers = async (req, res) => {
       } else if (status === 'active') {
         query.isBlocked = { $ne: true };
       } else if (['pending', 'approved', 'rejected'].includes(status)) {
-        query.$or = [
-          { partnerApprovalStatus: status },
-          { 'builderProfile.approvalStatus': status }
-        ];
+        if (status === 'pending') {
+          query['builderProfile.approvalStatus'] = { $in: ['pending', null, undefined] };
+        } else {
+          query['builderProfile.approvalStatus'] = status;
+        }
+        query.role = 'builder'; // Enforce builder role
       }
     }
 
     if (role) {
       query.role = role;
-    } else {
+    } else if (!query.role) {
       query.role = { $ne: 'partner' }; // Default to not showing partner role if unspecified
     }
 

@@ -79,7 +79,16 @@ const AdminUsers = () => {
 
     // Handlers
     const handleFilterChange = (key, value) => {
-        setFilters(prev => ({ ...prev, [key]: value }));
+        setFilters(prev => {
+            const next = { ...prev, [key]: value };
+            // Auto-clear builder-specific statuses if switching away from builder/all-roles
+            if (key === 'role' && value !== 'builder' && value !== '') {
+                if (['pending', 'approved', 'rejected'].includes(next.status)) {
+                    next.status = '';
+                }
+            }
+            return next;
+        });
         setCurrentPage(1); // Reset to first page on filter change
     };
 
@@ -216,8 +225,6 @@ const AdminUsers = () => {
                         <option value="builder">Builder</option>
                         <option value="broker">Broker</option>
                         <option value="owner">Owner</option>
-                        <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
                     </select>
                     <select
                         value={filters.status}
@@ -227,9 +234,13 @@ const AdminUsers = () => {
                         <option value="">All Status</option>
                         <option value="active">Active</option>
                         <option value="blocked">Blocked</option>
-                        <option value="pending">Pending (Verification)</option>
-                        <option value="approved">Approved (Verification)</option>
-                        <option value="rejected">Rejected (Verification)</option>
+                        {(!filters.role || filters.role === 'builder') && (
+                            <>
+                                <option value="pending">Pending (Builder Only)</option>
+                                <option value="approved">Approved (Builder Only)</option>
+                                <option value="rejected">Rejected (Builder Only)</option>
+                            </>
+                        )}
                     </select>
                 </div>
             </div>

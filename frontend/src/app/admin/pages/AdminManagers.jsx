@@ -402,7 +402,7 @@ const AdminManagers = () => {
                         onChange={(e) => handleFilterChange('isActive', e.target.value)}
                         className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
                     >
-                        <option value="">All Statuses</option>
+                        <option value="">All Status</option>
                         <option value="true">Active Only</option>
                         <option value="false">Deactivated Only</option>
                     </select>
