@@ -204,7 +204,7 @@ export const getDashboardStats = async (req, res) => {
       .limit(5);
 
     const recentPropertyRequests = await Property.find({ status: 'pending' })
-      .populate('partnerId', 'name email')
+
       .populate('userId', 'name email')
       .sort({ createdAt: -1 })
       .limit(5);
@@ -377,7 +377,7 @@ export const getAllHotels = async (req, res) => {
     const total = await Property.countDocuments(query);
 
     const hotels = await Property.find(query)
-      .populate('partnerId', 'name email phone')
+
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -614,7 +614,7 @@ export const getAllBookings = async (req, res) => {
 export const getPropertyRequests = async (req, res) => {
   try {
     const hotels = await Property.find({ status: 'pending' })
-      .populate('partnerId', 'name email phone')
+
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 });
     res.status(200).json({ success: true, hotels });
@@ -671,7 +671,7 @@ export const verifyPropertyDocuments = async (req, res) => {
       property.isLive = true;
 
       // NOTIFICATION: Property Live
-      notificationService.sendToUser(property.partnerId, {
+      notificationService.sendToUser(property.userId, {
         title: 'Property Live!',
         body: `Your property ${property.propertyName} is LIVE now!`
       }, { type: 'property_verified', propertyId: property._id }, 'partner').catch(e => console.error(e));
@@ -684,7 +684,7 @@ export const verifyPropertyDocuments = async (req, res) => {
       property.isLive = false;
 
       // Notify Rejection?
-      notificationService.sendToUser(property.partnerId, {
+      notificationService.sendToUser(property.userId, {
         title: 'Property Documents Rejected',
         body: `Your property ${property.propertyName} documents were rejected. reason: ${adminRemark || 'Review needed'}`
       }, { type: 'property_rejected', propertyId: property._id }, 'partner').catch(e => console.error(e));
@@ -910,7 +910,7 @@ export const getPartnerDetails = async (req, res) => {
     const partner = await Partner.findById(id).populate('subscription.planId');
     if (!partner) return res.status(404).json({ success: false, message: 'Partner not found' });
 
-    const properties = await Property.find({ partnerId: id });
+    const properties = await Property.find({ userId: id });
     res.status(200).json({ success: true, partner, properties });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching partner details' });
@@ -921,7 +921,7 @@ export const getHotelDetails = async (req, res) => {
   try {
     const { id } = req.params;
     const property = await Property.findById(id)
-      .populate('partnerId', 'name email phone')
+
       .populate('userId', 'name email phone');
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
 
@@ -1621,7 +1621,7 @@ export const getAllEnquiries = async (req, res) => {
       .populate('userId', 'name email phone avatar')
       .populate({
         path: 'propertyId',
-        select: 'propertyName coverImage address buyDetails rentDetails plotDetails propertyType partnerId userId'
+        select: 'propertyName coverImage address buyDetails rentDetails plotDetails propertyType userId'
       })
       .sort({ createdAt: -1 })
       .skip(skip)
