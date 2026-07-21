@@ -7,18 +7,24 @@ import { useNavigate } from 'react-router-dom';
 import BannerCarousel from './BannerCarousel';
 import CityDropdown from './CityDropdown';
 import toast from 'react-hot-toast';
+import MobileSearchOverlay from './MobileSearchOverlay';
 
 
 const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) => {
     const accentColor = theme?.accent || '#10B981';
+    const textClass = theme?.text || 'text-emerald-600';
+    const bgLightClass = theme?.bgLight || 'bg-emerald-500/10';
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [isSticky, setIsSticky] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCity, setSelectedCity] = useState(null);
+    const [selectedCity, setSelectedCity] = useState('Bengaluru');
     const [selectedDistrict, setSelectedDistrict] = useState(null);
     const [detectingLocation, setDetectingLocation] = useState(false);
+    const [isSearchModalOpen, setIsSearchModalOpen] = useState(() => {
+        return sessionStorage.getItem('grh_search_modal_open') === 'true';
+    });
     const searchInputRef = useRef(null);
     // Track the Y position where the search box sits to trigger sticky correctly
     const searchBoxRef = useRef(null);
@@ -39,6 +45,11 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         return () => clearInterval(interval);
     }, []);
 
+    // Persist modal state
+    useEffect(() => {
+        sessionStorage.setItem('grh_search_modal_open', isSearchModalOpen);
+    }, [isSearchModalOpen]);
+
     // Scroll Listener — becomes sticky when search box scrolls past top
     useEffect(() => {
         const handleScroll = () => {
@@ -52,11 +63,22 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     }, []);
 
     const handleSearch = () => {
-        const q = searchQuery.trim();
-        const cityQ = selectedDistrict || selectedCity;
-        const combined = [cityQ, q].filter(Boolean).join(' ');
+        setIsSearchModalOpen(true);
+    };
 
-        navigate(`/search?search=${encodeURIComponent(combined)}`);
+    const handleApplyFilters = (filters) => {
+        const queryParams = new URLSearchParams();
+        if (filters.categoryTab) queryParams.set('categoryTab', filters.categoryTab);
+        if (filters.propertyCategory) queryParams.set('propertyCategory', filters.propertyCategory);
+        if (filters.areas && filters.areas.length > 0) queryParams.set('areas', filters.areas.join(','));
+        sessionStorage.removeItem('grh_search_modal_open'); // Clear on submit
+        sessionStorage.removeItem('grh_search_draft'); // Clear draft
+        navigate(`/search?${queryParams.toString()}`);
+    };
+
+    const handleCloseModal = () => {
+        setIsSearchModalOpen(false);
+        sessionStorage.removeItem('grh_search_modal_open');
     };
 
     const handleCitySelect = ({ city, district }) => {
@@ -140,7 +162,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     };
 
     return (
-        <motion.section className="relative w-full pt-1 pb-2 flex flex-col bg-transparent">
+        <motion.section className="relative w-full pt-0 pb-2 flex flex-col bg-transparent">
 
             {/* ─── Mobile Top Bar (Menu + Brand + Post Property) ─── */}
             <div className="px-2 flex lg:hidden items-center justify-between h-12 mb-0">
@@ -153,9 +175,9 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                     </button>
                     <div className="flex flex-col cursor-pointer" onClick={() => navigate('/')}>
                         <span className="text-[14px] font-black tracking-tighter text-[#111827] uppercase leading-none">
-                            GET RIGHT <span className="text-orange-600">HOME</span>
+                            GET RIGHT <span className={textClass}>HOME</span>
                         </span>
-                        <div className="h-0.5 w-4 bg-orange-600/30 rounded-full mt-0.5" />
+                        <div className={`h-0.5 w-4 rounded-full mt-0.5`} style={{ backgroundColor: accentColor }} />
                     </div>
                 </div>
                 
@@ -204,14 +226,13 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                         <Search size={19} strokeWidth={2} className="text-gray-400 shrink-0" />
 
                         {/* Animated placeholder / real input */}
-                        <div className="flex-1 relative h-6 overflow-hidden cursor-text" onClick={() => searchInputRef.current?.focus()}>
+                        <div className="flex-1 relative h-6 overflow-hidden cursor-text" onClick={() => setIsSearchModalOpen(true)}>
                             <input
                                 ref={searchInputRef}
                                 type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                className="absolute inset-0 w-full text-[14px] text-gray-800 outline-none bg-transparent z-10"
+                                readOnly
+                                value=""
+                                className="absolute inset-0 w-full text-[14px] text-gray-800 outline-none bg-transparent z-10 cursor-pointer"
                                 style={{ caretColor: accentColor }}
                             />
                             {/* Animated placeholder — hidden when typing */}
@@ -272,11 +293,11 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                                 <Search size={13} className="text-gray-400 shrink-0" />
                                 <input
                                     type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                    readOnly
+                                    value=""
+                                    onClick={() => setIsSearchModalOpen(true)}
                                     placeholder="Search properties..."
-                                    className="flex-1 min-w-0 text-[11px] text-gray-800 outline-none placeholder-gray-400 bg-transparent"
+                                    className="flex-1 min-w-0 text-[11px] text-gray-800 outline-none placeholder-gray-400 bg-transparent cursor-pointer"
                                 />
                                 <LucideIcons.MapPin 
                                     size={13} 
@@ -315,6 +336,16 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 
+            {/* Mobile Search Overlay Modal */}
+            <MobileSearchOverlay 
+                isOpen={isSearchModalOpen}
+                onClose={handleCloseModal}
+                initialFilters={{
+                    categoryTab: selectedType?.label || 'Sell',
+                    propertyCategory: 'Residential'
+                }}
+                onApplyFilters={handleApplyFilters}
+            />
         </motion.section>
     );
 };

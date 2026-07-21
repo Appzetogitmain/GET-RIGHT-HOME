@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Property from '../models/Property.js';
+import Project from '../models/Project.js';
 import RoomType from '../models/RoomType.js';
 import PropertyCategory from '../models/PropertyCategory.js';
 import PropertyDocument from '../models/PropertyDocument.js';
@@ -1663,12 +1664,36 @@ export const getMyProperties = async (req, res) => {
 export const getPropertyDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await Property.findByIdAndUpdate(
+    let property = await Property.findByIdAndUpdate(
       id,
       { $inc: { views: 1 } },
       { new: true }
     ).populate('partnerId').populate('userId').populate('builderProjectDetails');
-    if (!property) return res.status(404).json({ message: 'Property not found' });
+    
+    // Fallback to Project collection if not found in Property
+    if (!property) {
+      property = await Project.findByIdAndUpdate(
+        id,
+        { $inc: { views: 1 } },
+        { new: true }
+      ).populate('partnerId').populate('userId');
+      
+      // If found in project, map embedded fields to builderProjectDetails for frontend compatibility
+      if (property) {
+        // We create a virtual builderProjectDetails object to satisfy the frontend expectation
+        const projectObj = property.toObject();
+        projectObj.builderProjectDetails = {
+          possessionStatus: projectObj.possessionStatus,
+          possessionYear: projectObj.possessionYear,
+          ratings: projectObj.ratings,
+          priceHistory: projectObj.priceHistory,
+          paymentPlanUrl: projectObj.paymentPlanUrl
+        };
+        property = projectObj;
+      }
+    }
+
+    if (!property) return res.status(404).json({ message: 'Property/Project not found' });
     const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
     const documents = await PropertyDocument.findOne({ propertyId: id });
     res.json({ success: true, property, roomTypes, documents });
@@ -1891,7 +1916,7 @@ export const getAdminPropertiesByLocation = async (req, res) => {
       query['address.state'] = { $regex: new RegExp(state, 'i') };
     }
 
-    const properties = await Property.find(query)
+    const properties = await Project.find(query)
       .populate('featuredDetails.planId')
       .populate('userId', 'role')
       .populate('partnerId', 'role')
@@ -1931,8 +1956,8 @@ export const getAdminPropertyCities = async (req, res) => {
     const builders = await User.find({ role: 'builder' }).select('_id');
     const builderIds = builders.map(b => b._id);
 
-    // Step 1: Aggregate all properties to get cities with count
-    const result = await Property.aggregate([
+    // Step 1: Aggregate all projects to get cities with count
+    const result = await Project.aggregate([
       {
         $match: {
           status: 'approved',

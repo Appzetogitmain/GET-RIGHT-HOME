@@ -6,10 +6,9 @@ import { Search, Star, Crown, Clock, X, Plus, Edit, Trash2 } from 'lucide-react'
 const AdminFeaturedProperties = () => {
   const [activeTab, setActiveTab] = useState('properties'); // 'properties' | 'plans'
   
-  // Properties State
-  const [properties, setProperties] = useState([]);
+  // Projects State
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [roleFilter, setRoleFilter] = useState('admin'); // 'admin', 'builder', 'broker_owner'
   const [searchQuery, setSearchQuery] = useState('');
   
   // Plans State
@@ -51,36 +50,26 @@ const AdminFeaturedProperties = () => {
   const fetchProperties = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/admin/featured-properties?limit=500'); // Fetch enough for client-side filtering
+      const res = await api.get('/admin/featured-projects?limit=500'); // Fetch enough for client-side filtering
       if (res.data.success) {
-        setProperties(res.data.properties);
+        setProjects(res.data.projects);
       }
     } catch (err) {
-      toast.error('Failed to load properties');
+      toast.error('Failed to load projects');
     } finally {
       setLoading(false);
     }
   };
 
-  // --- Filtering Logic for Properties ---
-  const filteredProperties = properties.filter(p => {
-    // 1. Role Filtering
-    let isRoleMatch = false;
-    const isAddedByAdmin = p.isAddedByAdmin && !p.userId && !p.partnerId;
-    const role = p.userId?.role || p.partnerId?.role || 'owner';
-    
-    if (roleFilter === 'admin' && isAddedByAdmin) isRoleMatch = true;
-    if (roleFilter === 'builder' && role === 'builder' && !isAddedByAdmin) isRoleMatch = true;
-    if (roleFilter === 'broker_owner' && (role === 'broker' || role === 'owner') && !isAddedByAdmin) isRoleMatch = true;
-
-    if (!isRoleMatch) return false;
+  // --- Filtering Logic for Projects ---
+  const filteredProjects = projects.filter(p => {
 
     // 2. Search Query Filtering (Property Name, Type, Owner Name)
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const ownerName = (p.userId?.name || p.partnerId?.name || 'Get-Right-Home').toLowerCase();
-      const propName = (p.propertyName || '').toLowerCase();
-      const propType = (p.propertyType || '').toLowerCase();
+      const propName = (p.projectName || p.propertyName || '').toLowerCase();
+      const propType = (p.projectType || p.propertyType || '').toLowerCase();
       
       if (!propName.includes(q) && !ownerName.includes(q) && !propType.includes(q)) {
         return false;
@@ -107,7 +96,7 @@ const AdminFeaturedProperties = () => {
         adminNotes: adminNotes
       };
 
-      const res = await api.put(`/admin/featured-properties/${selectedProperty._id}`, payload);
+      const res = await api.put(`/admin/featured-projects/${selectedProperty._id}`, payload);
       if (res.data.success) {
         toast.success('Featured status updated!');
         setIsPropModalOpen(false);
@@ -167,7 +156,7 @@ const AdminFeaturedProperties = () => {
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-            <Star className="text-amber-500 fill-amber-500" /> Featured Property Hub
+            <Star className="text-amber-500 fill-amber-500" /> Featured Projects Hub
           </h1>
           <p className="text-sm text-slate-500 mt-1 font-medium">Manage handpicked tags and dynamic plan tiers.</p>
         </div>
@@ -191,22 +180,7 @@ const AdminFeaturedProperties = () => {
       {activeTab === 'properties' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
           {/* Filters & Search */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex bg-slate-100 p-1 rounded-lg">
-              {[
-                { id: 'admin', label: "Admin Listings" },
-                { id: 'builder', label: "Builder Projects" },
-                { id: 'broker_owner', label: "Broker & Owners" }
-              ].map(r => (
-                <button
-                  key={r.id}
-                  onClick={() => setRoleFilter(r.id)}
-                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${roleFilter === r.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-end">
 
             <div className="relative w-full md:w-80">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -226,7 +200,7 @@ const AdminFeaturedProperties = () => {
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
                   <tr>
-                    <th className="p-4 font-bold">Property Details</th>
+                    <th className="p-4 font-bold">Project Details</th>
                     <th className="p-4 font-bold">Listed By</th>
                     <th className="p-4 font-bold">Current Tag</th>
                     <th className="p-4 font-bold">Duration</th>
@@ -236,13 +210,13 @@ const AdminFeaturedProperties = () => {
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr><td colSpan="5" className="p-8 text-center text-slate-400">Loading...</td></tr>
-                  ) : filteredProperties.length === 0 ? (
-                    <tr><td colSpan="5" className="p-8 text-center text-slate-400">No properties found for this category.</td></tr>
-                  ) : filteredProperties.map(p => (
+                  ) : filteredProjects.length === 0 ? (
+                    <tr><td colSpan="5" className="p-8 text-center text-slate-400">No projects found.</td></tr>
+                  ) : filteredProjects.map(p => (
                     <tr key={p._id} className="hover:bg-slate-50">
                       <td className="p-4">
-                        <p className="font-bold text-slate-800 truncate max-w-[200px]">{p.propertyName}</p>
-                        <p className="text-xs text-slate-500">{p.propertyType}</p>
+                        <p className="font-bold text-slate-800 truncate max-w-[200px]">{p.projectName || p.propertyName}</p>
+                        <p className="text-xs text-slate-500">{p.projectType || p.propertyType}</p>
                       </td>
                       <td className="p-4">
                         <p className="text-xs font-bold text-slate-800">
@@ -321,7 +295,7 @@ const AdminFeaturedProperties = () => {
             <div className="p-5 border-b border-slate-100 flex justify-between items-center">
               <div>
                 <h3 className="text-lg font-bold text-slate-800">Assign Featured Plan</h3>
-                <p className="text-xs text-slate-500">{selectedProperty?.propertyName}</p>
+                <p className="text-xs text-slate-500">{selectedProperty?.projectName || selectedProperty?.propertyName}</p>
               </div>
               <button onClick={() => setIsPropModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>

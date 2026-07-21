@@ -5,7 +5,7 @@ const expandedAmenities = [
 ];
 
 // Helper to create 4 steps for standard residential properties (Apartments, Villas, etc)
-const createResidentialSteps = (isRent) => [
+const createResidentialSteps = (isRent, isVilla = false) => [
   {
     stepNumber: 1,
     title: 'Property & Location Details',
@@ -27,11 +27,13 @@ const createResidentialSteps = (isRent) => [
       { name: 'bathrooms', label: 'No. of Bathrooms', type: 'pill', options: ['1', '2', '3', '4+'], required: true, order: 2 },
       { name: 'balconies', label: 'Balconies', type: 'pill', options: ['0', '1', '2', '3+'], required: false, order: 3 },
       { name: 'furnishing', label: 'Furnishing Status', type: 'pill', options: ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'], required: true, order: 4 },
-      { name: 'totalFloors', label: 'Total Floors in Building', type: 'number', placeholder: 'e.g. 10', required: true, order: 5 },
-      { name: 'floorNumber', label: 'Property on Floor', type: 'number', placeholder: 'e.g. 4', required: true, order: 6 },
-      { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 7 },
-      { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 1200', required: true, order: 8 },
-      { name: 'carpetAreaUnit', label: 'Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres', 'marla', 'cents', 'bigha', 'kottah', 'kanal', 'grounds', 'ares', 'biswa', 'guntha', 'aankadam', 'hectares', 'rood', 'chataks', 'perch'], required: true, order: 9 },
+      ...(isVilla ? [] : [
+        { name: 'totalFloors', label: 'Total Floors in Building', type: 'number', placeholder: 'e.g. 10', required: true, order: 5 },
+        { name: 'floorNumber', label: 'Property on Floor', type: 'number', placeholder: 'e.g. 4', required: true, order: 6 }
+      ]),
+      ...(isRent ? [] : [{ name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 7 }]),
+      { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 1200', required: false, order: 8 },
+      { name: 'carpetAreaUnit', label: 'Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres', 'marla', 'cents', 'bigha', 'kottah', 'kanal', 'grounds', 'ares', 'biswa', 'guntha', 'aankadam', 'hectares', 'rood', 'chataks', 'perch'], required: false, order: 9 },
       { name: 'superArea', label: 'Super Built-up Area', type: 'number', placeholder: 'e.g. 1500', required: false, order: 10 },
       { name: 'superAreaUnit', label: 'Super Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], required: false, order: 11 }
     ]
@@ -152,8 +154,8 @@ const createRetailSteps = (isRent, subType) => [
     title: 'Retail Profile & Area',
     description: 'Add layout, area and sizing details',
     fields: [
-      { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 1700', required: true, order: 1 },
-      { name: 'carpetAreaUnit', label: 'Carpet Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres', 'marla', 'cents', 'bigha', 'kottah', 'kanal', 'grounds', 'ares', 'biswa', 'guntha', 'aankadam', 'hectares', 'rood', 'chataks', 'perch'], required: true, order: 2 },
+      { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 1700', required: false, order: 1 },
+      { name: 'carpetAreaUnit', label: 'Carpet Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres', 'marla', 'cents', 'bigha', 'kottah', 'kanal', 'grounds', 'ares', 'biswa', 'guntha', 'aankadam', 'hectares', 'rood', 'chataks', 'perch'], required: false, order: 2 },
       { name: 'builtUpArea', label: 'Built-up Area (Optional)', type: 'number', placeholder: 'e.g. 2000', required: false, order: 3 },
       { name: 'builtUpAreaUnit', label: 'Built-up Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], required: false, order: 4 },
       { name: 'entranceWidth', label: 'Entrance Width (Optional)', type: 'number', placeholder: 'e.g. 15', required: false, order: 5 },
@@ -173,10 +175,10 @@ const createRetailSteps = (isRent, subType) => [
       { name: 'priceNegotiable', label: 'Price Negotiable?', type: 'pill', options: ['Yes', 'No'], required: true, order: 2 },
       { name: 'taxExcluded', label: 'Tax and Govt. charges excluded?', type: 'pill', options: ['Yes', 'No'], required: true, order: 3 },
       { name: 'maintenanceCharges', label: 'Monthly Maintenance (₹) (Optional)', type: 'number', placeholder: 'e.g. 5000', required: false, order: 4 },
-      { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 5 },
+      ...(isRent ? [] : [{ name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 5 }]),
       ...(isRent ? [{ name: 'availableFrom', label: 'Available from', type: 'date', required: true, order: 6 }] : []),
-      { name: 'propertyAge', label: 'Age of Property', type: 'pill', options: ['0-1 Years', '1-5 Years', '5-10 Years', '10+ Years'], required: true, dependsOn: { field: 'availability', value: 'Ready to move' }, order: 7 },
-      { name: 'expectedBy', label: 'Expected By', type: 'dropdown', options: ['Within 3 Months', 'Within 6 Months', 'By 2026', 'By 2027', 'By 2028', 'By 2029'], required: true, dependsOn: { field: 'availability', value: 'Under construction' }, order: 8 },
+      { name: 'propertyAge', label: 'Age of Property', type: 'pill', options: ['0-1 Years', '1-5 Years', '5-10 Years', '10+ Years'], required: true, ...(isRent ? {} : { dependsOn: { field: 'availability', value: 'Ready to move' } }), order: 7 },
+      ...(isRent ? [] : [{ name: 'expectedBy', label: 'Expected By', type: 'dropdown', options: ['Within 3 Months', 'Within 6 Months', 'By 2026', 'By 2027', 'By 2028', 'By 2029'], required: true, dependsOn: { field: 'availability', value: 'Under construction' }, order: 8 }]),
       { name: 'isPreLeased', label: 'Is it Pre-leased / Pre-Rented?', type: 'pill', options: ['Yes', 'No'], required: true, order: 9 },
       { name: 'currentRent', label: 'Current Rent Per Month (₹)', type: 'number', placeholder: 'e.g. 45000', required: true, dependsOn: { field: 'isPreLeased', value: 'Yes' }, order: 10 },
       { name: 'leaseTenure', label: 'Lease Tenure in Years', type: 'number', placeholder: 'e.g. 5', required: true, dependsOn: { field: 'isPreLeased', value: 'Yes' }, order: 11 },
@@ -231,8 +233,8 @@ const createCommercialSteps = (isRent, commType, subType) => {
       title: 'Commercial Profile & Area',
       description: `Add details and dimensions about the commercial space`,
       fields: [
-        { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 2000', required: true, order: 1 },
-        { name: 'carpetAreaUnit', label: 'Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres', 'marla', 'cents', 'bigha', 'kottah', 'kanal', 'grounds', 'ares', 'biswa', 'guntha', 'aankadam', 'hectares', 'rood', 'chataks', 'perch'], required: true, order: 2 },
+        { name: 'carpetArea', label: 'Carpet Area', type: 'number', placeholder: 'e.g. 2000', required: false, order: 1 },
+        { name: 'carpetAreaUnit', label: 'Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres', 'marla', 'cents', 'bigha', 'kottah', 'kanal', 'grounds', 'ares', 'biswa', 'guntha', 'aankadam', 'hectares', 'rood', 'chataks', 'perch'], required: false, order: 2 },
         { name: 'superArea', label: 'Super Built-up Area', type: 'number', placeholder: 'e.g. 2500', required: false, order: 3 },
         { name: 'superAreaUnit', label: 'Super Area Unit', type: 'dropdown', options: ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'], required: false, order: 4 },
         { name: 'furnishing', label: 'Furnishing Status', type: 'pill', options: ['Bare Shell', 'Unfurnished', 'Semi-Furnished', 'Fully Furnished'], required: true, order: 5 },
@@ -245,7 +247,7 @@ const createCommercialSteps = (isRent, commType, subType) => {
           { name: 'cabinsCount', label: 'Number of Cabins (Optional)', type: 'number', placeholder: 'e.g. 3', required: false, order: 11 },
           { name: 'meetingRoomsCount', label: 'Meeting Rooms / Conference Rooms (Optional)', type: 'number', placeholder: 'e.g. 1', required: false, order: 12 },
           { name: 'propertyAge', label: 'Age of Property', type: 'pill', options: ['0-1 Years', '1-5 Years', '5-10 Years', '10+ Years'], required: true, order: 13 },
-          { name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 14 },
+          ...(isRent ? [] : [{ name: 'availability', label: 'Availability Status', type: 'pill', options: ['Ready to move', 'Under construction', 'Pre Launch'], required: true, order: 14 }]),
           { name: 'isPreLeased', label: 'Is Pre-Leased / Pre-Rented?', type: 'pill', options: ['Yes', 'No'], required: true, order: 15 },
           { name: 'suitableFor', label: 'Suitable For', type: 'checkbox_group', options: ['IT/ITES', 'Back Office', 'Call Center/BPO', 'Corporate Office', 'Co-Working Space', 'Clinic/Hospital', 'Consultancy Office', 'Any/General Office'], required: true, order: 16 },
           { name: 'operatingHours', label: 'Operating Hours (Optional)', type: 'pill', options: ['24x7 Allowed', 'Normal Business Hours'], required: false, order: 17 },
@@ -374,14 +376,14 @@ const generateAllTemplates = () => {
   // 1. Sell - Residential
   const sellResTypes = ['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Other'];
   sellResTypes.forEach(type => {
-    templates.push({ transactionType: 'Sell', category: 'Residential', propertyType: type, steps: createResidentialSteps(false) });
+    templates.push({ transactionType: 'Sell', category: 'Residential', propertyType: type, steps: createResidentialSteps(false, type === 'Independent House / Villa') });
   });
   templates.push({ transactionType: 'Sell', category: 'Residential', propertyType: 'Plot / Land', steps: createPlotSteps(false, false) });
 
   // 2. Rent - Residential
   const rentResTypes = ['Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse', 'Other'];
   rentResTypes.forEach(type => {
-    templates.push({ transactionType: 'Rent / Lease', category: 'Residential', propertyType: type, steps: createResidentialSteps(true) });
+    templates.push({ transactionType: 'Rent / Lease', category: 'Residential', propertyType: type, steps: createResidentialSteps(true, type === 'Independent House / Villa') });
   });
 
   // 3. PG - Residential

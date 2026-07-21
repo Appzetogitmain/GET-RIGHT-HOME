@@ -17,64 +17,96 @@ import SupportSection from '../../components/user/SupportSection';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 
 
-// Category Theme Map - Professional palettes inspired by Housing.com
+// Category Theme Map - Professional light palettes inspired by modern premium designs
 const THEME_MAP = {
     Hotel: {
-        darkBg: 'linear-gradient(135deg, #064E3B 0%, #065F46 100%)', // Emerald
-        pageBg: '#F8FAFC',
-        accent: '#10B981'
+        heroBg: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', // Light Emerald
+        pageBg: '#f8fafc',
+        accent: '#10B981',
+        text: 'text-emerald-600',
+        bgLight: 'bg-emerald-500/10'
     },
     'PG/Co-Living': {
-        darkBg: 'linear-gradient(135deg, #881337 0%, #9F1239 100%)', // Rose
-        pageBg: '#FFF1F2',
-        accent: '#E11D48'
+        heroBg: 'linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%)', // Light Fuchsia
+        pageBg: '#faf5ff',
+        accent: '#d946ef',
+        text: 'text-fuchsia-600',
+        bgLight: 'bg-fuchsia-500/10'
     },
     Rent: {
-        darkBg: 'linear-gradient(135deg, #4C1D95 0%, #5B21B6 100%)', // Violet
-        pageBg: '#F5F3FF',
-        accent: '#8B5CF6'
+        heroBg: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', // Light Violet
+        pageBg: '#f8fafc',
+        accent: '#8B5CF6',
+        text: 'text-violet-600',
+        hoverText: 'hover:text-violet-700',
+        groupHoverText: 'group-hover:text-violet-700',
+        bgLight: 'bg-violet-500/10'
     },
     Buy: {
-        darkBg: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)', // Blue
-        pageBg: '#EFF6FF',
-        accent: '#3B82F6'
+        heroBg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', // Light Blue
+        pageBg: '#f8fafc',
+        accent: '#3B82F6',
+        text: 'text-blue-600',
+        hoverText: 'hover:text-blue-700',
+        groupHoverText: 'group-hover:text-blue-700',
+        bgLight: 'bg-blue-500/10'
     },
     Plot: {
-        darkBg: 'linear-gradient(135deg, #78350F 0%, #92400E 100%)', // Amber
-        pageBg: '#FFFBEB',
-        accent: '#F59E0B'
+        heroBg: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', // Light Amber
+        pageBg: '#f8fafc',
+        accent: '#F59E0B',
+        text: 'text-amber-600',
+        hoverText: 'hover:text-amber-700',
+        groupHoverText: 'group-hover:text-amber-700',
+        bgLight: 'bg-amber-500/10'
     },
     'Home Service': {
-        darkBg: 'linear-gradient(135deg, #065F46 0%, #047857 100%)', // Dark Emerald
-        pageBg: '#F0FDF4',
-        accent: '#10B981'
+        heroBg: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', // Light Green
+        pageBg: '#f8fafc',
+        accent: '#22c55e',
+        text: 'text-green-600',
+        hoverText: 'hover:text-green-700',
+        groupHoverText: 'group-hover:text-green-700',
+        bgLight: 'bg-green-500/10'
     },
     default: {
-        darkBg: 'linear-gradient(135deg, #064E3B 0%, #065F46 100%)', // Emerald
-        pageBg: '#F8FAFC',
-        accent: '#10B981'
+        heroBg: 'linear-gradient(135deg, #ffffff 0%, #fff7ed 100%)', // Very Light Orange/White
+        pageBg: '#f8fafc', // Clean white background for the rest
+        accent: '#f97316', // orange-500
+        text: 'text-orange-600',
+        hoverText: 'hover:text-orange-700',
+        groupHoverText: 'group-hover:text-orange-700',
+        bg: 'bg-orange-500',
+        bgLight: 'bg-orange-500/10'
     }
 };
 
-const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onTypeSelect }) => (
+const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onTypeSelect, theme, onViewAll }) => (
     <div id={`home-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
-        <div className="flex justify-between items-end px-5 md:px-0 mb-2">
-            <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{title}</h2>
-                {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+        <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
+            <div className="flex-1 min-w-0 pr-2">
+                <div className="flex items-start gap-1.5 md:gap-2 mb-0.5">
+                    <div className={`w-1 h-4 md:h-5 ${theme?.bg || 'bg-emerald-500'} rounded-full mt-1 md:mt-0 shrink-0`} />
+                    <h2 className="text-[17px] md:text-[22px] font-black text-gray-900 leading-tight">{title}</h2>
+                </div>
+                {subtitle && <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 truncate">{subtitle}</p>}
             </div>
             <button
                 onClick={() => {
-                    const labelMap = {
-                        [sectionIds.pg]: 'PG/Co-Living',
-                        [sectionIds.rent]: 'Rent',
-                        [sectionIds.buy]: 'Buy',
-                        [sectionIds.plot]: 'Plot'
-                    };
-                    onTypeSelect(typeId, labelMap[typeId] || 'All');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    if (onViewAll) {
+                        onViewAll();
+                    } else {
+                        const labelMap = {
+                            [sectionIds.pg]: 'PG/Co-Living',
+                            [sectionIds.rent]: 'Rent',
+                            [sectionIds.buy]: 'Buy',
+                            [sectionIds.plot]: 'Plot'
+                        };
+                        onTypeSelect(typeId, labelMap[typeId] || 'All');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
                 }}
-                className="text-sm font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+                className={`text-[12px] md:text-[14px] font-bold ${theme?.text || 'text-emerald-600'} ${theme?.hoverText || 'hover:text-emerald-700'} hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0`}
             >
                 View All
             </button>
@@ -146,15 +178,14 @@ const Home = () => {
         setPgFilters({ gender: undefined, occupancy: undefined, foodIncluded: undefined });
     };
 
-    const pageBg = '#FFFFFF';
-
+    const pageBg = activeTheme.pageBg;
 
     return (
         <main className="transition-colors duration-700 w-full overflow-x-hidden" style={{ backgroundColor: pageBg }}>
-            {/* Hero: dark background only (no images), changes per category */}
+            {/* Hero: light premium background, changes per category */}
             {/* Hero section — no overflow-hidden so floating search box is not clipped */}
-            <div className="relative min-h-[280px] md:min-h-[340px] bg-gray-50/50">
-                <div className="absolute inset-0 w-full h-full bg-white" />
+            <div className="relative min-h-[280px] md:min-h-[340px]">
+                <div className="absolute inset-0 w-full h-full transition-all duration-700" style={{ background: activeTheme.heroBg }} />
 
                 {/* Bottom fade */}
                 <div className="absolute bottom-0 left-0 right-0 h-24 z-[1]" style={{ background: `linear-gradient(to top, ${pageBg}, transparent)` }} />
@@ -171,9 +202,10 @@ const Home = () => {
                     <div className="pt-0 flex-shrink-0 md:pt-1 md:min-h-0" />
 
                     {/* Filter Bar at bottom of hero */}
-                    <div className="bg-white pt-2">
+                    <div className="pt-2 pb-6 border-b border-gray-100">
                         <PropertyTypeFilter
                             selectedType={selectedType.id}
+                            selectedLabel={selectedType.label}
                             onSelectType={handleTypeSelect}
                             theme={activeTheme}
                         />
@@ -184,21 +216,21 @@ const Home = () => {
 
 
             {/* Property Videos */}
-            <div className="max-w-7xl mx-auto -mt-8 mb-6">
-                 <PropertyVideoCurations pageType="home" />
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mt-4 mb-6">
+                 <PropertyVideoCurations pageType="home" theme={activeTheme} />
             </div>
 
             {/* Admin Curated Properties - Location Based */}
-            <div className="max-w-7xl mx-auto">
-                <AdminPropertiesSection searchCity={homeSearchCity} />
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto">
+                <AdminPropertiesSection searchCity={homeSearchCity} theme={activeTheme} />
             </div>
 
 
 
-            <div className="mt-2 max-w-7xl mx-auto">
+            <div className="mt-2 w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-4">
                 {(!selectedType.id || selectedType.label === 'All') ? (
                     // Show Categorized Sections when "All" is selected
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-4">
                         {sectionIds.pg && (
                             <HomeSection
                                 title="Scholar & Professional Stays"
@@ -206,6 +238,8 @@ const Home = () => {
                                 typeId={sectionIds.pg}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                onViewAll={() => navigate(`/search?transactionType=pg&type=${sectionIds.pg}`)}
+                                theme={activeTheme}
                             />
                         )}
 
@@ -216,7 +250,7 @@ const Home = () => {
                         <PopularBuilders />
 
                         {/* YouTube style Reels Section */}
-                        <ReelSection category={selectedType.label} />
+                        <ReelSection category={selectedType.label} theme={activeTheme} />
 
                         {sectionIds.rent && (
                             <HomeSection
@@ -226,6 +260,8 @@ const Home = () => {
                                 extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                onViewAll={() => navigate(`/search?transactionType=rent&type=${sectionIds.rent}`)}
+                                theme={activeTheme}
                             />
                         )}
                         {sectionIds.buy && (
@@ -236,6 +272,8 @@ const Home = () => {
                                 extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                onViewAll={() => navigate(`/search?transactionType=sell&type=${sectionIds.buy}`)}
+                                theme={activeTheme}
                             />
                         )}
                         {sectionIds.plot && (
@@ -245,28 +283,33 @@ const Home = () => {
                                 typeId={sectionIds.plot}
                                 sectionIds={sectionIds}
                                 onTypeSelect={handleTypeSelect}
+                                onViewAll={() => navigate(`/search?transactionType=sell&type=${sectionIds.plot}&subType=Plot+%2F+Land`)}
+                                theme={activeTheme}
                             />
                         )}
 
                         <GRHHomeSection
                             title="Under Construction Properties"
-                            subtitle="Competitive Pricing • Adaptive Payment Schedules • High Value Growth"
+                            subtitle="Flexible payments & high value growth"
                             availabilityFilter="Under construction"
+                            theme={activeTheme}
                         />
                         <GRHHomeSection
                             title="Pre Launch Properties"
-                            subtitle="Early-Stage Rates • Exclusive Launch Offers • Select Premium Units"
+                            subtitle="Exclusive early-stage launch offers"
                             availabilityFilter="Pre Launch"
+                            theme={activeTheme}
                         />
                         <GRHHomeSection
                             title="Ready to Move Properties"
-                            subtitle="Immediate Occupancy • Verified Clear Titles • Ready-to-Move Residences"
+                            subtitle="Verified titles & immediate occupancy"
                             availabilityFilter="Ready to move"
+                            theme={activeTheme}
                         />
                     </div>
                 ) : (
                     // Show Filtered Grid when a specific property category is selected
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-4">
                         {/* 1. Latest Projects Banner for the category */}
                         <LatestProjectsBanner
                             categoryId={selectedType.id}
@@ -291,7 +334,7 @@ const Home = () => {
             </div>
             
             {/* Test Push Notification Button */}
-            <div className="max-w-7xl mx-auto px-5 md:px-0 py-8 flex justify-center">
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 py-8 flex justify-center">
                 <button
                     onClick={async () => {
                         try {

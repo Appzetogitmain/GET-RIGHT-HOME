@@ -2,18 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
+let cachedBanners = null;
+
 const BannerCarousel = () => {
-    const [banners, setBanners] = useState([]);
+    const [banners, setBanners] = useState(cachedBanners || []);
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!cachedBanners);
+    const navigate = useNavigate();
 
     useEffect(() => {
+        if (cachedBanners && cachedBanners.length > 0) {
+            setLoading(false);
+            return;
+        }
+
         const fetchBanners = async () => {
             try {
                 const response = await axios.get(`${API_URL}/banners`);
+                cachedBanners = response.data;
                 setBanners(response.data);
             } catch (error) {
                 console.error('Failed to fetch banners', error);
@@ -40,10 +50,34 @@ const BannerCarousel = () => {
         setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length);
     };
 
-    if (loading || banners.length === 0) return null;
+    const handleBannerClick = (banner) => {
+        if (banner.linkedItem && banner.linkedItem._id) {
+            navigate(`/property/${banner.linkedItem._id}`);
+        } else if (banner.link) {
+            if (banner.link.startsWith('http')) {
+                window.open(banner.link, '_blank');
+            } else {
+                navigate(banner.link);
+            }
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="relative w-full h-[220px] md:h-[300px] lg:h-[420px] xl:h-[480px] overflow-hidden rounded-none bg-gray-200 animate-pulse" />
+        );
+    }
+
+    if (banners.length === 0) {
+        return (
+            <div className="relative w-full h-[220px] md:h-[300px] lg:h-[420px] xl:h-[480px] overflow-hidden rounded-none bg-gray-50 flex items-center justify-center">
+                <span className="text-gray-400 text-sm font-medium">No banners available</span>
+            </div>
+        );
+    }
 
     return (
-        <div className="relative w-full h-[220px] md:h-[300px] overflow-hidden rounded-none group">
+        <div className="relative w-full h-[220px] md:h-[300px] lg:h-[420px] xl:h-[480px] overflow-hidden rounded-none group">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={currentIndex}
@@ -51,7 +85,8 @@ const BannerCarousel = () => {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.6, ease: "easeInOut" }}
-                    className="absolute inset-0 w-full h-full"
+                    className={`absolute inset-0 w-full h-full ${banners[currentIndex]?.link || banners[currentIndex]?.linkedItem ? 'cursor-pointer' : ''}`}
+                    onClick={() => handleBannerClick(banners[currentIndex])}
                 >
                     <img
                         src={banners[currentIndex].imageUrl}
@@ -59,7 +94,14 @@ const BannerCarousel = () => {
                         className="w-full h-full object-cover"
                     />
                     {/* Optional Overlay Gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent md:bg-gradient-to-r md:from-black/10 md:to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent md:bg-gradient-to-r md:from-black/10 md:to-transparent pointer-events-none" />
+                    
+                    {/* Explore Now Button */}
+                    <div className="absolute bottom-8 right-6 md:bottom-12 md:right-16 z-20 pointer-events-none">
+                        <span className="inline-flex items-center justify-center border border-white text-white px-5 py-2 md:px-7 md:py-2.5 text-sm md:text-base font-medium backdrop-blur-sm bg-black/10 transition-colors duration-300 shadow-sm group-hover:bg-white group-hover:text-black">
+                            Explore Now <span className="ml-2 font-bold">➔</span>
+                        </span>
+                    </div>
                 </motion.div>
             </AnimatePresence>
 

@@ -9,10 +9,9 @@ import {
 
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
-import { categoryService } from '../../../services/categoryService';
 import toast from 'react-hot-toast';
 
-const PropertyStatusBadge = ({ status }) => {
+const ProjectStatusBadge = ({ status }) => {
     const styles = {
         approved: 'bg-green-100 text-green-700 border-green-200 font-bold',
         pending: 'bg-amber-100 text-amber-700 border-amber-200 font-bold',
@@ -37,13 +36,13 @@ const PropertyStatusBadge = ({ status }) => {
     );
 };
 
-const AdminProperties = () => {
+const AdminProjects = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
-    const [properties, setProperties] = useState([]);
+    const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [totalProperties, setTotalProperties] = useState(0);
+    const [totalProjects, setTotalProjects] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [limit] = useState(10);
@@ -51,27 +50,30 @@ const AdminProperties = () => {
     const [filters, setFilters] = useState({
         search: '',
         status: '',
-        type: ''
+        type: '',
+        builder: ''
     });
 
-    const [dynamicCategories, setDynamicCategories] = useState([]);
+    const [builders, setBuilders] = useState([]);
 
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
 
     useEffect(() => {
-        const fetchCategories = async () => {
+        const fetchBuilders = async () => {
             try {
-                const cats = await categoryService.getActiveCategories();
-                setDynamicCategories(cats || []);
+                const res = await adminService.getBuilders();
+                if (res.success) {
+                    setBuilders(res.builders || []);
+                }
             } catch (err) {
-                console.error("Failed to fetch categories:", err);
+                console.error("Failed to fetch builders:", err);
             }
         };
-        fetchCategories();
+        fetchBuilders();
     }, []);
 
-    const fetchProperties = useCallback(async (page, currentFilters) => {
+    const fetchProjects = useCallback(async (page, currentFilters) => {
         const token = localStorage.getItem('adminToken');
         if (!token) return;
 
@@ -82,22 +84,23 @@ const AdminProperties = () => {
                 limit,
                 search: currentFilters.search,
                 status: currentFilters.status,
-                type: currentFilters.type || undefined
+                type: currentFilters.type || undefined,
+                builder: currentFilters.builder || undefined
             };
-            const data = await adminService.getHotels(params);
+            const data = await adminService.getProjects(params);
             if (data.success) {
-                setProperties(data.hotels || []);
-                setTotalProperties(data.total || 0);
+                setProjects(data.projects || []);
+                setTotalProjects(data.total || 0);
                 setTotalPages(Math.ceil((data.total || 0) / limit));
             } else {
-                setProperties([]);
-                setTotalProperties(0);
+                setProjects([]);
+                setTotalProjects(0);
                 setTotalPages(0);
             }
         } catch (error) {
             if (error.response?.status !== 401) {
-                console.error('Error fetching properties:', error);
-                toast.error('Failed to load properties');
+                console.error('Error fetching projects:', error);
+                toast.error('Failed to load projects');
             }
         } finally {
             setLoading(false);
@@ -106,32 +109,32 @@ const AdminProperties = () => {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchProperties(currentPage, filters);
+            fetchProjects(currentPage, filters);
         }, 300);
         return () => clearTimeout(timer);
-    }, [currentPage, filters, fetchProperties]);
+    }, [currentPage, filters, fetchProjects]);
 
     const handleFilterChange = (key, value) => {
         setFilters(prev => ({ ...prev, [key]: value }));
         setCurrentPage(1);
     };
 
-    const handleAction = (action, property) => {
+    const handleAction = (action, project) => {
         setActiveDropdown(null);
         if (action === 'approve' || action === 'reject') {
             const newStatus = action === 'approve' ? 'approved' : 'rejected';
             setModalConfig({
                 isOpen: true,
-                title: `${action.charAt(0).toUpperCase() + action.slice(1)} Property?`,
-                message: `Are you sure you want to ${action} "${property.propertyName}"?`,
+                title: `${action.charAt(0).toUpperCase() + action.slice(1)} Project?`,
+                message: `Are you sure you want to ${action} "${project.propertyName}"?`,
                 type: action === 'approve' ? 'success' : 'warning',
                 confirmText: action.charAt(0).toUpperCase() + action.slice(1),
                 onConfirm: async () => {
                     try {
-                        const res = await adminService.updateHotelStatus(property._id, newStatus);
+                        const res = await adminService.updateHotelStatus(project._id, newStatus); // Uses same endpoint for now, or we can make a new one updateProjectStatus
                         if (res.success) {
-                            toast.success(`Property ${action}ed successfully`);
-                            fetchProperties(currentPage, filters);
+                            toast.success(`Project ${action}ed successfully`);
+                            fetchProjects(currentPage, filters);
                         }
                     } catch {
                         toast.error('Failed to update status');
@@ -141,19 +144,19 @@ const AdminProperties = () => {
         } else if (action === 'delete') {
             setModalConfig({
                 isOpen: true,
-                title: 'Delete Property?',
-                message: `Are you sure you want to delete "${property.propertyName}"? This action cannot be undone and all data related to this property (including bookings) will be affected.`,
+                title: 'Delete Project?',
+                message: `Are you sure you want to delete "${project.propertyName}"? This action cannot be undone.`,
                 type: 'danger',
-                confirmText: 'Delete Property',
+                confirmText: 'Delete Project',
                 onConfirm: async () => {
                     try {
-                        const res = await adminService.deleteHotel(property._id);
+                        const res = await adminService.deleteProject(project._id);
                         if (res.success) {
-                            toast.success('Property deleted successfully');
-                            fetchProperties(currentPage, filters);
+                            toast.success('Project deleted successfully');
+                            fetchProjects(currentPage, filters);
                         }
                     } catch {
-                        toast.error('Failed to delete property');
+                        toast.error('Failed to delete project');
                     }
                 }
             });
@@ -161,25 +164,24 @@ const AdminProperties = () => {
     };
 
     const handleExportCSV = () => {
-        if (properties.length === 0) {
+        if (projects.length === 0) {
             toast.error('No data to export');
             return;
         }
 
-        const headers = ['ID', 'Property Name', 'Type', 'Owner/Creator', 'Role', 'Status', 'City'];
+        const headers = ['ID', 'Project Name', 'Type', 'Builder', 'Status', 'City', 'RERA Number'];
         const csvContent = [
             headers.join(','),
-            ...properties.map(h => {
-                const creator = h.userId || h.partnerId;
-                const role = h.userId ? (h.userId.role || 'owner') : 'partner';
+            ...projects.map(p => {
+                const creator = p.userId;
                 return [
-                    h._id,
-                    `"${h.propertyName}"`,
-                    `"${h.propertyType}"`,
+                    p._id,
+                    `"${p.propertyName}"`,
+                    `"${p.propertyType}"`,
                     `"${creator?.name || ''}"`,
-                    `"${role}"`,
-                    h.status,
-                    `"${h.address?.city || ''}"`
+                    p.status,
+                    `"${p.address?.city || ''}"`,
+                    `"${p.reraNumber || 'N/A'}"`
                 ].join(',');
             })
         ].join('\n');
@@ -188,7 +190,7 @@ const AdminProperties = () => {
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', `properties-export-${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `projects-export-${new Date().toISOString().split('T')[0]}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -206,8 +208,8 @@ const AdminProperties = () => {
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">Property Management ({totalProperties})</h2>
-                    <p className="text-gray-500 text-[10px] font-bold uppercase tracking-tight">Manage listings, approvals, and quality control.</p>
+                    <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">Projects Management ({totalProjects})</h2>
+                    <p className="text-gray-500 text-[10px] font-bold uppercase tracking-tight">Manage builder projects, approvals, and quality control.</p>
                 </div>
                 <div className="flex gap-2">
                     <button
@@ -216,11 +218,12 @@ const AdminProperties = () => {
                     >
                         <Download size={14} /> Export CSV
                     </button>
+                    {/* Assuming we will add an Add Project page later */}
                     <Link
-                        to={`${basePath}/properties/add`}
+                        to={`${basePath}/projects/add`}
                         className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-[10px] font-bold uppercase hover:bg-gray-800 transition-colors shadow-lg shadow-black/10"
                     >
-                        <Plus size={14} /> Add Property
+                        <Plus size={14} /> Add Project
                     </Link>
                 </div>
 
@@ -231,7 +234,7 @@ const AdminProperties = () => {
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Search properties by name or city..."
+                        placeholder="Search projects by name or city..."
                         value={filters.search}
                         onChange={(e) => handleFilterChange('search', e.target.value)}
                         className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl text-xs font-bold uppercase focus:bg-white focus:border-black outline-none transition-all tracking-tight"
@@ -255,14 +258,21 @@ const AdminProperties = () => {
                         className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
                     >
                         <option value="">All Types</option>
-                        <option value="hotel">Hotel</option>
+                        <option value="flat/apartment">Flat/Apartment</option>
                         <option value="villa">Villa</option>
-                        <option value="hostel">Hostel</option>
-                        <option value="pg">PG</option>
-                        <option value="resort">Resort</option>
-                        <option value="homestay">Homestay</option>
-                        {dynamicCategories.map(cat => (
-                            <option key={cat._id} value={cat._id}>{cat.displayName}</option>
+                        <option value="plot">Plot</option>
+                        <option value="commercial">Commercial</option>
+                    </select>
+                    <select
+                        value={filters.builder}
+                        onChange={(e) => handleFilterChange('builder', e.target.value)}
+                        className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
+                    >
+                        <option value="">All Builders</option>
+                        {builders.map(b => (
+                            <option key={b._id} value={b._id}>
+                                {b.builderProfile?.companyName || b.name}
+                            </option>
                         ))}
                     </select>
                 </div>
@@ -273,9 +283,9 @@ const AdminProperties = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-500 font-bold">
-                                <th className="p-4">Property Name</th>
+                                <th className="p-4">Project Name</th>
                                 <th className="p-4">Type</th>
-                                <th className="p-4">Owner</th>
+                                <th className="p-4">Builder</th>
                                 <th className="p-4">Status</th>
                                 <th className="p-4 text-center">Actions</th>
                             </tr>
@@ -289,10 +299,10 @@ const AdminProperties = () => {
                                 ))
                             ) : (
                                 <AnimatePresence>
-                                    {properties.length > 0 ? (
-                                        properties.map((property, index) => (
+                                    {projects.length > 0 ? (
+                                        projects.map((project, index) => (
                                             <motion.tr
-                                                key={property._id}
+                                                key={project._id}
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, scale: 0.9 }}
@@ -300,98 +310,88 @@ const AdminProperties = () => {
                                                 className="hover:bg-gray-50/50 transition-colors group relative"
                                             >
                                                  <td className="p-4">
-                                                    <Link to={`${basePath}/properties/${property._id}`} className="flex items-center gap-3">
+                                                    <Link to={`${basePath}/projects/${project._id}`} className="flex items-center gap-3">
                                                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border shadow-sm ${
-                                                            property.isAddedByAdmin
+                                                            project.isAddedByAdmin
                                                                 ? 'bg-purple-700 border-purple-500 text-white'
                                                                 : 'bg-black border-white text-white'
                                                         }`}>
-                                                            {property.isAddedByAdmin ? <Sparkles size={16} /> : <Building2 size={18} />}
+                                                            {project.isAddedByAdmin ? <Sparkles size={16} /> : <Building2 size={18} />}
                                                         </div>
                                                         <div>
                                                             <div className="flex items-center gap-2 flex-wrap">
-                                                                <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{property.propertyName || 'Untitled'}</p>
-                                                                {property.isAddedByAdmin && (
+                                                                <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{project.propertyName || 'Untitled'}</p>
+                                                                {(project.featuredDetails?.isFeatured || project.isFeatured) && (
                                                                     <span className="flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide">
                                                                         <Sparkles size={7} className="fill-purple-500" /> Handpicked
-                                                                    </span>
-                                                                )}
-                                                                {property.avgRating > 0 && (
-                                                                    <span className="flex items-center bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded text-[9px] font-black border border-yellow-100">
-                                                                        <Star size={8} className="fill-yellow-500 text-yellow-500 mr-0.5" />
-                                                                        {property.avgRating?.toFixed(1)}
                                                                     </span>
                                                                 )}
                                                             </div>
                                                             <div className="flex items-center text-[10px] text-gray-400 font-bold mt-0.5 uppercase tracking-tighter">
                                                                 <MapPin size={10} className="mr-1" />
-                                                                {property.address?.city || 'No Address'}, {property.address?.state || ''}
+                                                                {project.address?.city || 'No Address'}, {project.address?.state || ''}
                                                             </div>
                                                         </div>
                                                     </Link>
                                                 </td>
                                                 <td className="p-4">
                                                     <p className="text-[10px] text-gray-700 font-bold uppercase">
-                                                        {property.dynamicCategory?.displayName || property.propertyType || 'N/A'}
+                                                        {project.propertyType || 'N/A'}
                                                     </p>
                                                 </td>
                                                 <td className="p-4">
                                                     {(() => {
-                                                        const creator = property.userId || property.partnerId;
-                                                        const creatorType = property.userId ? (property.userId.role || 'owner') : 'partner';
+                                                        if (project.isAddedByAdmin) {
+                                                            return (
+                                                                <>
+                                                                    <p className="text-[10px] text-gray-700 font-bold uppercase mb-0.5">ADMIN</p>
+                                                                    <p className="text-[10px] text-gray-500 font-medium normal-case tracking-tight">System Admin</p>
+                                                                </>
+                                                            );
+                                                        }
+                                                        const creator = project.userId;
                                                         return (
                                                             <>
-                                                                <p className="text-[10px] text-gray-700 font-bold uppercase mb-0.5">{creator?.name || 'Unknown Creator'}</p>
+                                                                <p className="text-[10px] text-gray-700 font-bold uppercase mb-0.5">{creator?.name || 'Unknown Builder'}</p>
                                                                 <p className="text-[10px] text-gray-500 font-medium normal-case tracking-tight">{creator?.email || 'No Email'}</p>
-                                                                <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">Role: {creatorType}</p>
                                                             </>
                                                         );
                                                     })()}
                                                 </td>
                                                 <td className="p-4">
-                                                    <PropertyStatusBadge status={property.status} />
+                                                    <ProjectStatusBadge status={project.status} />
                                                 </td>
                                                 <td className="p-4 text-center relative">
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === property._id ? null : property._id); }}
+                                                        onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === project._id ? null : project._id); }}
                                                         className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-black transition-colors"
                                                     >
                                                         <MoreVertical size={16} />
                                                     </button>
 
-                                                    {activeDropdown === property._id && (
+                                                    {activeDropdown === project._id && (
                                                         <div className="absolute right-8 top-8 w-40 bg-white border border-gray-200 rounded-lg shadow-xl z-20 py-1 text-left">
-                                                            <Link to={`${basePath}/properties/${property._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
+                                                            <Link to={`${basePath}/projects/${project._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
-                                                            {property.isAddedByAdmin && (
-                                                                <a
-                                                                    href={`/handpicked/${property._id}`}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="flex items-center gap-2 px-4 py-2 hover:bg-purple-50 text-[10px] font-bold uppercase text-purple-700"
-                                                                >
-                                                                    <ExternalLink size={14} /> Preview Premium
-                                                                </a>
-                                                            )}
-                                                            {property.isAddedByAdmin && property.dynamicCategory && (
-                                                                <button onClick={() => navigate(`${basePath}/properties/add`, { state: { existingProperty: property } })} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
-                                                                    <Edit size={14} /> Edit Property
+                                                            {project.isAddedByAdmin && (
+                                                                <button onClick={() => navigate(`${basePath}/projects/add`, { state: { existingProject: project } })} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
+                                                                    <Edit size={14} /> Edit Project
                                                                 </button>
                                                             )}
-                                                            {property.status === 'pending' && (
+                                                            {project.status === 'pending' && (
                                                                 <>
-                                                                    <button onClick={() => handleAction('approve', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-green-50 text-[10px] font-bold uppercase text-green-700">
+                                                                    <button onClick={() => handleAction('approve', project)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-green-50 text-[10px] font-bold uppercase text-green-700">
                                                                         <CheckCircle size={14} /> Approve
                                                                     </button>
-                                                                    <button onClick={() => handleAction('reject', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
+                                                                    <button onClick={() => handleAction('reject', project)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
                                                                         <XCircle size={14} /> Reject
                                                                     </button>
                                                                 </>
                                                             )}
                                                             <div className="h-px bg-gray-100 my-1"></div>
-                                                            <button onClick={() => handleAction('delete', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
-                                                                <Trash2 size={14} /> Delete Property
+                                                            <button onClick={() => handleAction('delete', project)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
+                                                                <Trash2 size={14} /> Delete Project
                                                             </button>
                                                         </div>
                                                     )}
@@ -403,7 +403,7 @@ const AdminProperties = () => {
                                             <td colSpan="6" className="p-8 text-center text-gray-500">
                                                 <div className="flex flex-col items-center gap-2">
                                                     <Building2 size={32} className="text-gray-300" />
-                                                    <p className="text-xs font-bold uppercase">No properties found</p>
+                                                    <p className="text-xs font-bold uppercase">No projects found</p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -443,4 +443,4 @@ const AdminProperties = () => {
     );
 };
 
-export default AdminProperties;
+export default AdminProjects;

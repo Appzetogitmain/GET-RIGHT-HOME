@@ -21,6 +21,27 @@ const adminService = {
     return response.data;
   },
 
+  getProjects: async (params) => {
+    const response = await axiosInstance.get('/admin/projects', { params });
+    return response.data;
+  },
+  getProjectDetails: async (projectId) => {
+    const response = await axiosInstance.get(`/admin/project-details/${projectId}`);
+    return response.data;
+  },
+  createProject: async (data) => {
+    const response = await axiosInstance.post('/admin/projects', data);
+    return response.data;
+  },
+  updateProject: async (id, data) => {
+    const response = await axiosInstance.put(`/admin/projects/${id}`, data);
+    return response.data;
+  },
+  deleteProject: async (projectId) => {
+    const response = await axiosInstance.delete('/admin/delete-project', { data: { projectId } });
+    return response.data;
+  },
+
   getPropertyRequests: async () => {
     const response = await axiosInstance.get('/admin/property-requests');
     return response.data;
@@ -283,12 +304,20 @@ const adminService = {
     const response = await axiosInstance.get('/admin/builders', { params });
     return response.data;
   },
+  getPendingBuilders: async () => {
+    const response = await axiosInstance.get('/admin/builders/pending');
+    return response.data;
+  },
   addBuilder: async (data) => {
     const response = await axiosInstance.post('/admin/builders', data);
     return response.data;
   },
   updateBuilder: async (id, data) => {
     const response = await axiosInstance.put(`/admin/builders/${id}`, data);
+    return response.data;
+  },
+  verifyBuilder: async (id, data) => {
+    const response = await axiosInstance.put(`/admin/builders/${id}/verify`, data);
     return response.data;
   },
   deleteBuilder: async (id) => {

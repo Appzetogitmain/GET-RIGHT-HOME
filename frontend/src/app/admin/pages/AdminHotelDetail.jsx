@@ -12,9 +12,20 @@ import toast from 'react-hot-toast';
 
 // --- Tab Components ---
 
-const OverviewTab = ({ hotel }) => {
+const OverviewTab = ({ hotel, isProject }) => {
     const creator = hotel.userId || hotel.partnerId;
-    const creatorType = hotel.userId ? (hotel.userId.role || 'Owner') : 'Partner';
+    
+    let creatorName = creator?.name || 'N/A';
+    let creatorType = creator?.role || 'Partner';
+    if (isProject) {
+        if (hotel.isAddedByAdmin) {
+            creatorName = 'System Admin';
+            creatorType = 'Admin';
+        } else {
+            creatorName = creator?.name || creator?.companyName || 'Unknown Builder';
+            creatorType = 'Builder';
+        }
+    }
 
     return (
         <div className="space-y-6">
@@ -115,43 +126,81 @@ const OverviewTab = ({ hotel }) => {
             </div>
 
         {hotel.dynamicData && Object.keys(hotel.dynamicData).length > 0 && (
-            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mt-6">
-                <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
-                    <FileText size={14} /> Additional Form Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 text-sm">
-                    {Object.entries(hotel.dynamicData).map(([key, val]) => {
-                        if (val === undefined || val === null || val === '') return null;
-                        
-                        // Skip system fields and builder project details we already show
-                        if (['propertyName', 'description', 'country', 'state', 'district', 'city', 'locality', 'houseNumber', 'pincode'].includes(key) || key.startsWith('bpd_')) {
-                            return null;
-                        }
-
-                        // Format key to start case
-                        const formattedKey = key
-                            .replace(/([A-Z])/g, ' $1')
-                            .replace(/^./, (str) => str.toUpperCase());
+            <>
+                <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mt-6">
+                    <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
+                        <FileText size={14} /> Additional Form Details
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 text-sm">
+                        {Object.entries(hotel.dynamicData).map(([key, val]) => {
+                            if (val === undefined || val === null || val === '') return null;
                             
-                        // Format value
-                        let displayVal = val;
-                        if (Array.isArray(val)) {
-                            displayVal = val.join(', ');
-                        } else if (typeof val === 'boolean') {
-                            displayVal = val ? 'Yes' : 'No';
-                        } else if (typeof val === 'object') {
-                            return null; // Skip nested objects for simplicity
-                        }
+                            // Skip system fields, media arrays, objects, and spec fields
+                            if (['propertyName', 'description', 'country', 'state', 'district', 'city', 'locality', 'houseNumber', 'pincode', 'photos', 'images', 'propertyImages', 'propertyVideos', 'floorPlans', 'paymentPlans', 'faqs', 'localityPros', 'localityCons', 'amenities', 'highlights', 'nearbyPlaces'].includes(key) || key.startsWith('bpd_') || key.startsWith('spec_') || key.startsWith('spec')) {
+                                return null;
+                            }
 
-                        return (
-                            <div key={key} className="flex justify-between border-b border-gray-100 pb-2">
-                                <span className="text-gray-500 font-bold uppercase text-[10px] pr-4">{formattedKey}</span>
-                                <span className="font-bold text-gray-900 text-right">{displayVal.toString()}</span>
-                            </div>
-                        );
-                    })}
+                            if (typeof val === 'object') return null; // Safe fallback for any other objects
+
+                            const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+                            
+                            return (
+                                <div key={key} className="flex justify-between border-b border-gray-100 pb-2">
+                                    <span className="text-gray-500 font-bold uppercase text-[10px] pr-4 whitespace-nowrap">{formattedKey}</span>
+                                    <span className="font-bold text-gray-900 text-right break-words max-w-[200px]">{typeof val === 'boolean' ? (val ? 'Yes' : 'No') : val.toString()}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
+
+                {Object.keys(hotel.dynamicData).some(k => k.toLowerCase().startsWith('spec')) && (
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 mt-6 shadow-sm">
+                        <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
+                            <Building2 size={14} /> Specifications
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {Object.entries(hotel.dynamicData)
+                                .filter(([key]) => key.toLowerCase().startsWith('spec'))
+                                .map(([key, val]) => {
+                                    if (!val || typeof val === 'object') return null;
+                                    const formattedKey = key.replace(/^spec_?/i, '').replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+                                    return (
+                                        <div key={key} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                            <span className="text-gray-500 font-bold uppercase text-[10px] block mb-2">{formattedKey}</span>
+                                            <span className="font-bold text-gray-900 text-xs break-words">{val.toString()}</span>
+                                        </div>
+                                    );
+                                })}
+                        </div>
+                    </div>
+                )}
+
+                {['faqs', 'localityPros', 'localityCons'].map(field => {
+                    const arr = hotel.dynamicData[field];
+                    if (!Array.isArray(arr) || arr.length === 0) return null;
+                    const isFaq = field === 'faqs';
+                    return (
+                        <div key={field} className="bg-white p-6 rounded-xl border border-gray-200 mt-6 shadow-sm">
+                            <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
+                                {isFaq ? <MessageSquare size={14} /> : <MapPin size={14} />} 
+                                {field.replace(/([A-Z])/g, ' $1').toUpperCase()}
+                            </h3>
+                            <div className="space-y-3">
+                                {arr.map((item, i) => {
+                                    if (!item || typeof item !== 'object') return null;
+                                    return (
+                                        <div key={i} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                            <h4 className="text-xs font-bold text-gray-900 mb-1">{isFaq ? item.question : item.title || item.heading || 'Point'}</h4>
+                                            <p className="text-[10px] font-bold uppercase text-gray-500 tracking-tight">{isFaq ? item.answer : item.description || item.detail}</p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </>
         )}
 
         {hotel.builderProjectDetails && 
@@ -339,24 +388,27 @@ const OverviewTab = ({ hotel }) => {
             null
         )}
 
-        {hotel.propertyType !== 'plot' && (
-            <div>
-                <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-3">Amenities</h3>
-                <div className="flex flex-wrap gap-3">
-                    {hotel.amenities && hotel.amenities.length > 0 ? (
-                        hotel.amenities.map((amenity, i) => (
-                            <div key={i} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase text-gray-700">
+        {['amenities', 'highlights'].map(field => {
+            const schemaArr = Array.isArray(hotel[field]) ? hotel[field] : [];
+            const dynArr = Array.isArray(hotel.dynamicData?.[field]) ? hotel.dynamicData[field] : [];
+            const mergedArr = [...new Set([...schemaArr, ...dynArr])];
+            
+            if (mergedArr.length === 0) return null;
+            
+            return (
+                <div key={field} className="mt-6">
+                    <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-3">{field.toUpperCase()}</h3>
+                    <div className="flex flex-wrap gap-3">
+                        {mergedArr.map((item, i) => (
+                            <span key={i} className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase text-gray-700 flex items-center gap-2 shadow-sm">
                                 <CheckCircle size={12} className="text-green-500" />
-                                {amenity.replace(/_/g, ' ')}
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-xs text-gray-400 font-bold uppercase">No amenities listed</p>
-                    )}
+                                {item.replace(/_/g, ' ')}
+                            </span>
+                        ))}
+                    </div>
                 </div>
-            </div>
-        )
-        }
+            );
+        })}
 
         {
             hotel.propertyType === 'plot' && (
@@ -421,7 +473,7 @@ const OverviewTab = ({ hotel }) => {
     );
 };
 
-const GalleryTab = ({ hotel }) => {
+const GalleryTab = ({ hotel, isProject }) => {
     const allImages = [];
     if (hotel.coverImage) allImages.push(hotel.coverImage);
     if (hotel.images?.cover) allImages.push(hotel.images.cover);
@@ -434,28 +486,62 @@ const GalleryTab = ({ hotel }) => {
     // Remove duplicates
     const uniqueImages = [...new Set(allImages.map(img => typeof img === 'string' ? img : img?.url).filter(Boolean))];
 
-    return (
-        <div className="space-y-10">
-            {/* Section: Property Wide Images */}
-            <div>
-                <div className="flex items-center gap-2 mb-4">
-                    <Building2 size={20} className="text-blue-600" />
-                    <h3 className="text-lg font-bold text-gray-900 uppercase">General Property Photos</h3>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {uniqueImages.length > 0 ? (
-                        uniqueImages.map((img, i) => (
-                            <div key={i} className="aspect-square bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md">
-                                <img src={img} alt={`Property ${i}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                            </div>
-                        ))
-                    ) : (
-                        <div className="col-span-full py-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                            <p className="text-gray-400 font-bold uppercase text-xs">No General Photos</p>
-                        </div>
-                    )}
-                </div>
+    // Collect Videos
+    const allVideos = [];
+    if (hotel.videoUrl) allVideos.push(hotel.videoUrl);
+    if (Array.isArray(hotel.dynamicData?.propertyVideos)) allVideos.push(...hotel.dynamicData.propertyVideos);
+    const uniqueVideos = [...new Set(allVideos.filter(Boolean))];
+
+    // Collect Plans
+    const floorPlans = Array.isArray(hotel.dynamicData?.floorPlans) ? hotel.dynamicData.floorPlans : [];
+    const paymentPlans = Array.isArray(hotel.dynamicData?.paymentPlans) ? hotel.dynamicData.paymentPlans : [];
+
+    const MediaGrid = ({ items, title, isVideo = false }) => (
+        <div className="mb-10">
+            <div className="flex items-center gap-2 mb-4">
+                <Building2 size={20} className="text-blue-600" />
+                <h3 className="text-lg font-bold text-gray-900 uppercase">{title}</h3>
             </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {items.length > 0 ? (
+                    items.map((item, i) => {
+                        const url = typeof item === 'string' ? item : item?.url || item?.fileUrl || item?.image;
+                        if (!url) return null;
+                        
+                        return (
+                            <div key={i} className="aspect-square bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md">
+                                {isVideo ? (
+                                    <video src={url} controls className="w-full h-full object-cover" />
+                                ) : (
+                                    <img src={url} alt={`${title} ${i}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                )}
+                            </div>
+                        )
+                    })
+                ) : (
+                    <div className="col-span-full py-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                        <p className="text-gray-400 font-bold uppercase text-xs">No {title} Available</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="space-y-4">
+            <MediaGrid items={uniqueImages} title="General Property Photos" />
+            
+            {uniqueVideos.length > 0 && (
+                <MediaGrid items={uniqueVideos} title="Property Videos" isVideo={true} />
+            )}
+
+            {floorPlans.length > 0 && (
+                <MediaGrid items={floorPlans} title="Floor Plans" />
+            )}
+
+            {paymentPlans.length > 0 && (
+                <MediaGrid items={paymentPlans} title="Payment Plans" />
+            )}
         </div>
     );
 };
@@ -862,27 +948,32 @@ const AdminHotelDetail = () => {
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
     const [verifying, setVerifying] = useState(false);
 
+    const isProject = location.pathname.includes('/projects/');
+
     const fetchHotelDetails = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await adminService.getHotelDetails(id);
+            const data = isProject 
+                ? await adminService.getProjectDetails(id)
+                : await adminService.getHotelDetails(id);
+
             if (data.success) {
-                setHotel(data.hotel);
+                setHotel(isProject ? data.project : data.hotel);
                 setDocuments(data.documents || null);
                 
-                // Fetch enquiries for this property
+                // Fetch enquiries for this property/project
                 const enqData = await adminService.getEnquiries({ propertyId: id });
                 if (enqData.success) {
                     setEnquiries(enqData.enquiries || []);
                 }
             }
         } catch (error) {
-            console.error('Error fetching hotel details:', error);
-            toast.error('Failed to load hotel information');
+            console.error('Error fetching details:', error);
+            toast.error(isProject ? 'Failed to load project information' : 'Failed to load property information');
         } finally {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, isProject]);
 
     useEffect(() => {
         fetchHotelDetails();
@@ -978,7 +1069,7 @@ const AdminHotelDetail = () => {
             />
 
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-gray-500 mb-2">
-                <Link to={`${basePath}/properties`} className="hover:text-black transition-colors">Properties</Link>
+                <Link to={isProject ? `${basePath}/projects` : `${basePath}/properties`} className="hover:text-black transition-colors">{isProject ? 'Projects' : 'Properties'}</Link>
                 <span>/</span>
                 <span className="text-black font-bold">{hotel.propertyName}</span>
             </div>
@@ -1009,7 +1100,7 @@ const AdminHotelDetail = () => {
                         <p className="text-gray-500 text-[10px] font-bold uppercase mt-1 flex items-center">
                             <MapPin size={12} className="mr-1 text-gray-400" /> {hotel.address?.city}, {hotel.address?.state}
                             <span className="mx-2 text-gray-300">|</span>
-                            Owner/Broker: {creator?.name || 'N/A'} ({creatorType})
+                            {isProject ? (hotel.isAddedByAdmin ? 'Added By: System Admin' : `Builder: ${hotel.userId?.name || 'Unknown Builder'}`) : `Owner/Broker: ${hotel.userId?.name || hotel.partnerId?.name || 'N/A'}`}
                         </p>
                     </div>
                 </div>
@@ -1056,8 +1147,8 @@ const AdminHotelDetail = () => {
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
                 >
-                    {activeTab === 'overview' && <OverviewTab hotel={hotel} />}
-                    {activeTab === 'gallery' && <GalleryTab hotel={hotel} />}
+                    {activeTab === 'overview' && <OverviewTab hotel={hotel} isProject={isProject} />}
+                    {activeTab === 'gallery' && <GalleryTab hotel={hotel} isProject={isProject} />}
                     {activeTab === 'documents' && (
                         <DocumentsTab
                             hotel={hotel}

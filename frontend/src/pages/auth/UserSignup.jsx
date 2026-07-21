@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Mail, ArrowRight, Loader2, Shield, User } from 'lucide-react';
+import { Phone, Mail, ArrowRight, Loader2, Shield, User, UploadCloud } from 'lucide-react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import logo from '../../assets/grh-logo.png';
 import { authService, userService } from '../../services/apiService';
@@ -25,6 +25,8 @@ const UserSignup = () => {
     const [errors, setErrors] = useState({});
     const [resendTimer, setResendTimer] = useState(120);
     const [canResend, setCanResend] = useState(false);
+    const [uploadingFiles, setUploadingFiles] = useState({});
+    const [uploadedFileNames, setUploadedFileNames] = useState({});
 
     // Pre-fill phone if coming from login
     useEffect(() => {
@@ -45,6 +47,48 @@ const UserSignup = () => {
         }
         return () => clearInterval(interval);
     }, [step, resendTimer === 0]); // Re-run when step changes or timer hits 0
+
+    const handleDocumentUpload = async (e, fieldName, docLabel) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error(`${docLabel} size must be less than 5MB`);
+            return;
+        }
+
+        try {
+            setUploadingFiles(prev => ({ ...prev, [fieldName]: true }));
+            toast.loading(`Uploading ${docLabel}...`, { id: fieldName });
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                try {
+                    const base64Data = reader.result;
+                    // Using authService.uploadDocsBase64 which is public route
+                    const response = await authService.uploadDocsBase64([{ base64: base64Data, fileName: file.name }]);
+                    if (response.success) {
+                        const uploadedUrl = response.urls ? response.urls[0] : response.url;
+                        setFormData(prev => ({ ...prev, [fieldName]: uploadedUrl }));
+                        setUploadedFileNames(prev => ({ ...prev, [fieldName]: file.name }));
+                        toast.success(`${docLabel} uploaded successfully`, { id: fieldName });
+                    }
+                } catch (err) {
+                    toast.error(`Failed to upload ${docLabel}`, { id: fieldName });
+                } finally {
+                    setUploadingFiles(prev => ({ ...prev, [fieldName]: false }));
+                }
+            };
+            reader.onerror = () => {
+                toast.error(`Failed to read ${docLabel}`, { id: fieldName });
+                setUploadingFiles(prev => ({ ...prev, [fieldName]: false }));
+            };
+        } catch (error) {
+            console.error('Upload Error', error);
+            toast.error(`Failed to start upload for ${docLabel}`, { id: fieldName });
+            setUploadingFiles(prev => ({ ...prev, [fieldName]: false }));
+        }
+    };
 
     const handleSendOTP = async (e) => {
         e.preventDefault();
@@ -158,8 +202,18 @@ const UserSignup = () => {
                 email: formData.email || undefined,
                 role: formData.role,
                 companyName: formData.companyName,
+                officeAddress: formData.officeAddress,
+                cinNumber: formData.cinNumber,
                 reraRegistrationNumber: formData.reraRegistrationNumber,
-                gstNumber: formData.gstNumber
+                reraCertificate: formData.reraCertificate,
+                gstNumber: formData.gstNumber,
+                gstCertificate: formData.gstCertificate,
+                companyRegistrationCertificate: formData.companyRegistrationCertificate,
+                brandLogo: formData.brandLogo,
+                description: formData.description,
+                establishedYear: formData.establishedYear,
+                activeProjects: formData.activeProjects,
+                completedProjects: formData.completedProjects
             });
 
             // Update FCM Token after successful registration
@@ -359,30 +413,104 @@ const UserSignup = () => {
                                                 {errors.companyName && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.companyName}</p>}
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Brand Logo (Max 2MB)</label>
+                                                    <div className="flex items-center gap-4">
+                                                        {formData.brandLogo && (
+                                                            <div className="w-16 h-16 rounded-xl border border-gray-200 p-1 shrink-0 overflow-hidden bg-gray-50">
+                                                                <img src={formData.brandLogo} alt="Logo preview" className="w-full h-full object-contain" />
+                                                            </div>
+                                                        )}
+                                                        <label className="flex-1 flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors relative">
+                                                            {uploadingFiles.brandLogo ? (
+                                                                <span className="text-xs font-bold text-gray-500 flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Uploading...</span>
+                                                            ) : (
+                                                                <>
+                                                                    <UploadCloud size={20} className="text-gray-400 mb-1" />
+                                                                    <span className="text-[10px] font-bold text-gray-600 uppercase">Click to upload logo</span>
+                                                                </>
+                                                            )}
+                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleDocumentUpload(e, 'brandLogo', 'Brand Logo')} disabled={uploadingFiles.brandLogo} />
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Registered Office Address</label>
+                                                    <textarea rows="2" value={formData.officeAddress || ''} onChange={e => setFormData({ ...formData, officeAddress: e.target.value })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all resize-none" placeholder="Full office address..." />
+                                                </div>
+
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Company Registration (CIN)</label>
+                                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                                        <input type="text" value={formData.cinNumber || ''} onChange={e => setFormData({ ...formData, cinNumber: e.target.value })} className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all uppercase" placeholder="CIN Number" />
+                                                        <label className="sm:w-auto w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 flex items-center justify-center gap-2 transition-colors relative overflow-hidden">
+                                                            {uploadingFiles.companyRegistrationCertificate ? (
+                                                                <Loader2 size={16} className="animate-spin text-amber-600" />
+                                                            ) : (
+                                                                <UploadCloud size={16} className={formData.companyRegistrationCertificate ? 'text-green-500' : 'text-gray-500'} />
+                                                            )}
+                                                            <span className="text-xs font-bold text-gray-600 uppercase truncate max-w-[150px]">
+                                                                {uploadingFiles.companyRegistrationCertificate ? 'Uploading...' : (uploadedFileNames.companyRegistrationCertificate || (formData.companyRegistrationCertificate ? 'Uploaded' : 'Upload'))}
+                                                            </span>
+                                                            <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => handleDocumentUpload(e, 'companyRegistrationCertificate', 'Company Registration')} disabled={uploadingFiles.companyRegistrationCertificate} />
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">RERA No.</label>
+                                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                                        <input type="text" value={formData.reraRegistrationNumber || ''} onChange={e => setFormData({ ...formData, reraRegistrationNumber: e.target.value })} className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all uppercase" placeholder="RERA Number" />
+                                                        <label className="sm:w-auto w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 flex items-center justify-center gap-2 transition-colors relative overflow-hidden">
+                                                            {uploadingFiles.reraCertificate ? (
+                                                                <Loader2 size={16} className="animate-spin text-amber-600" />
+                                                            ) : (
+                                                                <UploadCloud size={16} className={formData.reraCertificate ? 'text-green-500' : 'text-gray-500'} />
+                                                            )}
+                                                            <span className="text-xs font-bold text-gray-600 uppercase truncate max-w-[150px]">
+                                                                {uploadingFiles.reraCertificate ? 'Uploading...' : (uploadedFileNames.reraCertificate || (formData.reraCertificate ? 'Uploaded' : 'Upload'))}
+                                                            </span>
+                                                            <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => handleDocumentUpload(e, 'reraCertificate', 'RERA Certificate')} disabled={uploadingFiles.reraCertificate} />
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">GST No.</label>
+                                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                                        <input type="text" value={formData.gstNumber || ''} onChange={e => setFormData({ ...formData, gstNumber: e.target.value })} className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all uppercase" placeholder="GSTIN" />
+                                                        <label className="sm:w-auto w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 flex items-center justify-center gap-2 transition-colors relative overflow-hidden">
+                                                            {uploadingFiles.gstCertificate ? (
+                                                                <Loader2 size={16} className="animate-spin text-amber-600" />
+                                                            ) : (
+                                                                <UploadCloud size={16} className={formData.gstCertificate ? 'text-green-500' : 'text-gray-500'} />
+                                                            )}
+                                                            <span className="text-xs font-bold text-gray-600 uppercase truncate max-w-[150px]">
+                                                                {uploadingFiles.gstCertificate ? 'Uploading...' : (uploadedFileNames.gstCertificate || (formData.gstCertificate ? 'Uploaded' : 'Upload'))}
+                                                            </span>
+                                                            <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => handleDocumentUpload(e, 'gstCertificate', 'GST Certificate')} disabled={uploadingFiles.gstCertificate} />
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
+                                                    <textarea rows="3" value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all resize-none" placeholder="Brief description about the builder's history..." />
+                                                </div>
+
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                        RERA No.
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={formData.reraRegistrationNumber || ''}
-                                                        onChange={(e) => setFormData({ ...formData, reraRegistrationNumber: e.target.value })}
-                                                        placeholder="RERA Number"
-                                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
-                                                    />
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Established Year</label>
+                                                    <input type="number" min="1800" max={new Date().getFullYear()} value={formData.establishedYear || ''} onChange={e => setFormData({ ...formData, establishedYear: Math.max(0, parseInt(e.target.value) || '') })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all" placeholder="1995" />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                        GST No.
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={formData.gstNumber || ''}
-                                                        onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value })}
-                                                        placeholder="GSTIN"
-                                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
-                                                    />
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Active Projects</label>
+                                                    <input type="number" min="0" value={formData.activeProjects !== undefined ? formData.activeProjects : 0} onChange={e => setFormData({ ...formData, activeProjects: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0) })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Completed Projects</label>
+                                                    <input type="number" min="0" value={formData.completedProjects !== undefined ? formData.completedProjects : 0} onChange={e => setFormData({ ...formData, completedProjects: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0) })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all" />
                                                 </div>
                                             </div>
                                         </motion.div>

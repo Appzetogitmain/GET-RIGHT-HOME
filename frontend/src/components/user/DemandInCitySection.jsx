@@ -5,11 +5,19 @@ import { Info } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const DemandInCitySection = ({ city }) => {
+const DemandInCitySection = ({ city, themeColor = 'emerald' }) => {
     const navigate = useNavigate();
     const [demandData, setDemandData] = useState([]);
     const [loading, setLoading] = useState(true);
     const scrollRef = React.useRef(null);
+
+    const themeMap = {
+        emerald: { bg: 'bg-emerald-500' },
+        violet: { bg: 'bg-violet-500' },
+        blue: { bg: 'bg-blue-500' },
+        amber: { bg: 'bg-amber-500' },
+    };
+    const t = themeMap[themeColor] || themeMap.emerald;
 
     React.useLayoutEffect(() => {
         if (!loading && demandData.length > 0 && scrollRef.current) {
@@ -74,13 +82,14 @@ const DemandInCitySection = ({ city }) => {
     return (
         <div className="py-2 mb-6">
             <div className="mb-4">
-                <div className="flex items-center gap-2">
-                    <h2 className="text-[22px] md:text-2xl font-bold text-[#091E42]">
+                <div className="flex items-center gap-2 mb-0.5">
+                    <div className={`w-1 h-5 ${t.bg} rounded-full`} />
+                    <h2 className="text-[22px] md:text-2xl font-black text-[#091E42]">
                         Demand in {city}
                     </h2>
                     <Info className="w-5 h-5 text-slate-400 cursor-pointer" />
                 </div>
-                <p className="text-[14px] text-[#42526E] mt-1">
+                <p className="text-[14px] text-[#42526E] mt-1 ml-3">
                     Where are buyers searching in {city}
                 </p>
             </div>

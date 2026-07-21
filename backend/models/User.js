@@ -117,13 +117,29 @@ const userSchema = new mongoose.Schema({
   builderProfile: {
     companyName: { type: String, trim: true },
     brandLogo: { type: String }, // URL to logo
+    officeAddress: { type: String, trim: true },
+    cinNumber: { type: String, trim: true }, // Company Registration
     reraRegistrationNumber: { type: String, trim: true },
+    reraCertificate: { type: String }, // URL
     gstNumber: { type: String, trim: true },
+    gstCertificate: { type: String }, // URL
+    companyRegistrationCertificate: { type: String }, // URL
     description: { type: String, trim: true },
     establishedYear: { type: Number },
     activeProjects: { type: Number, default: 0 },
     completedProjects: { type: Number, default: 0 },
-    awards: [{ type: String }] // Added awards array
+    awards: [{ type: String }],
+    
+    // Admin Verification Workflow
+    approvalStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
+    },
+    verificationMessage: {
+      type: String,
+      default: '' // Reason for rejection or requested docs
+    }
   },
 
   // Status tracking

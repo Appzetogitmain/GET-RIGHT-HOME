@@ -939,8 +939,23 @@ const AddDynamicWizard = () => {
       }
       setStep(step + 1);
     } else if (currentKey === 'location') {
-      // nextFromLocation logic inline or called
-      if (!propertyForm.address.fullAddress) { setError('Address required'); return; }
+      const { country, state, district, city, fullAddress } = propertyForm.address;
+      const newFieldErrors = {};
+      let hasError = false;
+
+      if (!country) { newFieldErrors.country = 'Country is required'; hasError = true; }
+      if (!state) { newFieldErrors.state = 'State is required'; hasError = true; }
+      if (!district) { newFieldErrors.district = 'District is required'; hasError = true; }
+      if (!city) { newFieldErrors.city = 'City is required'; hasError = true; }
+
+      if (hasError) {
+        setFieldErrors(newFieldErrors);
+        setError('Please fix the location validation errors below');
+        return;
+      }
+      
+      setFieldErrors({}); // Clear specific errors if fixed
+      if (!fullAddress) { setError('Address required'); return; }
       setStep(step + 1);
     } else if (currentKey === 'amenities') {
       setStep(step + 1);
@@ -1404,6 +1419,12 @@ const AddDynamicWizard = () => {
                   updatePropertyForm(['address', 'city'], city);
                 }}
                 required
+                errors={{
+                  country: fieldErrors.country,
+                  state: fieldErrors.state,
+                  district: fieldErrors.district,
+                  city: fieldErrors.city
+                }}
               />
 
               {/* ─── Area / Locality & Pincode ─── */}

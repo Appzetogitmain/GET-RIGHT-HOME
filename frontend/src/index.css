@@ -6,14 +6,14 @@
   --color-background: #F8FAFC;
   /* Clean slate-50 background */
 
-  --color-surface: #059669;
-  /* Emerald 600 - Primary brand color */
-  --color-accent: #10B981;
-  /* Emerald 500 - Accent highlights */
-  --color-textLight: #F0FDF4;
-  /* Very light emerald text */
-  --color-textDark: #064E3B;
-  /* Emerald 900 - Dark professional text */
+  --color-surface: #ea580c;
+  /* Orange 600 - Primary brand color */
+  --color-accent: #f97316;
+  /* Orange 500 - Accent highlights */
+  --color-textLight: #fff7ed;
+  /* Very light orange text/bg */
+  --color-textDark: #7c2d12;
+  /* Orange 900 - Dark professional text */
 
   --color-honey: #F59E0B;
   --color-cardWhite: #FFFFFF;

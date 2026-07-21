@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Loader2 } from 'lucide-react';
 import { reelService } from '../../services/reelService';
 
-const ReelItem = ({ reel, navigate }) => {
+const ReelItem = ({ reel, navigate, theme }) => {
     const containerRef = useRef(null);
     const videoRef = useRef(null);
     const [isIntersecting, setIsIntersecting] = useState(false);
@@ -143,7 +143,7 @@ const ReelItem = ({ reel, navigate }) => {
 
             {/* Info Below Card */}
             <div className="mt-2.5 px-0.5">
-                <h3 className="text-gray-900 text-[11px] md:text-xs font-bold line-clamp-2 leading-[1.3] group-hover:text-emerald-700 transition-colors">
+                <h3 className={`text-gray-900 text-[11px] md:text-xs font-bold line-clamp-2 leading-[1.3] transition-colors ${theme?.groupHoverText || 'group-hover:text-emerald-700'}`}>
                     {reel.title || reel.caption || 'Property Tour'}
                 </h3>
                 <div className="flex items-center justify-between mt-1">
@@ -156,7 +156,7 @@ const ReelItem = ({ reel, navigate }) => {
     );
 };
 
-const ReelSection = ({ category }) => {
+const ReelSection = ({ category, theme }) => {
     const navigate = useNavigate();
     const [reels, setReels] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -207,19 +207,19 @@ const ReelSection = ({ category }) => {
 
     return (
         <div className="py-6 border-b border-gray-100 bg-gray-50/30">
-            <div className="px-5 md:px-0 mb-4 flex items-center justify-between">
-                <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        <span className="bg-red-600 p-1 rounded-lg">
+            <div className="px-3 md:px-2 mb-4 flex items-start md:items-center justify-between">
+                <div className="flex-1 min-w-0 pr-2">
+                    <h2 className="text-[17px] md:text-[22px] font-bold text-gray-900 flex items-center gap-2 leading-tight">
+                        <span className="bg-red-600 p-1 rounded-lg shrink-0">
                             <Play size={16} className="text-white fill-white" />
                         </span>
                         Reels
                     </h2>
-                    <p className="text-sm text-gray-500 mt-1">Short video tours and updates</p>
+                    <p className="text-[11px] md:text-[13px] text-gray-500 mt-1 truncate">Short video tours and updates</p>
                 </div>
                 <button
                     onClick={() => navigate('/reels')}
-                    className="text-sm font-bold text-emerald-600 hover:text-emerald-700"
+                    className={`text-[12px] md:text-[14px] font-bold ${theme?.text || 'text-emerald-600'} ${theme?.hoverText || 'hover:text-emerald-700'} shrink-0 whitespace-nowrap mt-1 md:mt-0`}
                 >
                     View All
                 </button>
@@ -231,7 +231,7 @@ const ReelSection = ({ category }) => {
                 className="flex overflow-x-auto gap-2 pb-2 px-5 no-scrollbar snap-x snap-mandatory"
             >
                 {reels.map((reel) => (
-                    <ReelItem key={reel._id} reel={reel} navigate={navigate} />
+                    <ReelItem key={reel._id} reel={reel} navigate={navigate} theme={theme} />
                 ))}
                 <div className="w-1 shrink-0" />
             </div>

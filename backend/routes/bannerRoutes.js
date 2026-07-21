@@ -32,6 +32,10 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 });
 
 // Admin / Manager routes
+router.get('/properties', protect, authorizedRoles('admin', 'superadmin', 'manager'), checkManagerPermission('banners', 'view'), async (req, res, next) => {
+  const { getPropertiesForBanners } = await import('../controllers/bannerController.js');
+  getPropertiesForBanners(req, res, next);
+});
 router.get('/admin', protect, authorizedRoles('admin', 'superadmin', 'manager'), checkManagerPermission('banners', 'view'), getAllBannersAdmin);
 router.post('/', protect, authorizedRoles('admin', 'superadmin', 'manager'), checkManagerPermission('banners', 'add'), createBanner);
 router.put('/:id', protect, authorizedRoles('admin', 'superadmin', 'manager'), checkManagerPermission('banners', 'edit'), updateBanner);

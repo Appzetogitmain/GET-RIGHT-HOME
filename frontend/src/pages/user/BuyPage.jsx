@@ -13,13 +13,19 @@ import PostedByChoice from '../../components/user/PostedByChoice';
 import RecommendInsights from '../../components/user/RecommendInsights';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 import DemandInCitySection from '../../components/user/DemandInCitySection';
+import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import PopularToolsSection from '../../components/user/PopularToolsSection';
 
 // Theme for Buy Page
 const THEME = {
-    darkBg: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)', // Blue
-    pageBg: '#EFF6FF',
-    accent: '#3B82F6'
+    heroBg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', // Light Blue
+    pageBg: '#eff6ff', // Changed from #f8fafc to match the blue theme
+    accent: '#3B82F6',
+    text: 'text-blue-600',
+    hoverText: 'hover:text-blue-700',
+    groupHoverText: 'group-hover:text-blue-700',
+    bg: 'bg-blue-500',
+    bgLight: 'bg-blue-500/10'
 };
 
 const BuyPage = () => {
@@ -57,8 +63,8 @@ const BuyPage = () => {
     return (
         <main className="transition-colors duration-700 w-full overflow-x-hidden min-h-screen" style={{ backgroundColor: THEME.pageBg }}>
             {/* Hero Section */}
-            <div className="relative min-h-[280px] md:min-h-[340px] bg-gray-50/50">
-                <div className="absolute inset-0 w-full h-full bg-white" />
+            <div className="relative min-h-[280px] md:min-h-[340px]">
+                <div className="absolute inset-0 w-full h-full transition-all duration-700" style={{ background: THEME.heroBg }} />
                 <div className="absolute bottom-0 left-0 right-0 h-24 z-[1]" style={{ background: `linear-gradient(to top, ${THEME.pageBg}, transparent)` }} />
                 
                 <div className="relative z-40 flex flex-col min-h-[280px] md:min-h-[340px]">
@@ -68,10 +74,10 @@ const BuyPage = () => {
                         onSearch={(city) => setSearchCity(city)}
                     />
 
-                    {/* Filter Bar at bottom of hero */}
-                    <div className="bg-white pt-2">
+                    <div className="pt-2 pb-6 border-b border-gray-100">
                         <PropertyTypeFilter
                             selectedType={selectedType.id}
+                            selectedLabel={selectedType.label}
                             onSelectType={handleTypeSelect}
                             theme={THEME}
                         />
@@ -79,39 +85,31 @@ const BuyPage = () => {
                 </div>
             </div>
 
-            {/* Clear Navigation Header */}
-            <div className="bg-white px-4 py-6 border-b border-blue-100 mb-6 shadow-sm">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-                            Explore Properties for <span className="text-blue-600">Buy</span>
-                        </h1>
-                        <p className="text-sm text-gray-500 mt-1">
-                            Find your dream home in {searchCity || 'Bengaluru'} with zero hassle.
-                        </p>
-                    </div>
-                </div>
+            {/* 1. Offers Section (Removed per request) */}
+
+            <div id="video-curations-section" className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mt-4 mb-6">
+                 <PropertyVideoCurations pageType="buy" themeColor="blue" />
             </div>
 
-            {/* 1. Offers Section */}
-            <div id="video-curations-section" className="max-w-7xl mx-auto -mt-8 mb-6">
-                 <PropertyVideoCurations pageType="buy" />
+            {/* 2. Handpicked Projects */}
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mb-8">
+                <AdminPropertiesSection searchCity={searchCity} transactionType="buy" themeColor="blue" theme={THEME} />
             </div>
 
-            <div className="mt-2 max-w-7xl mx-auto flex flex-col gap-4 px-4 md:px-0">
+            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-6">
                 {/* 3. Recommend Insights */}
                 <div id="recommended-insights-section">
-                    <RecommendInsights transactionType="Buy" />
+                    <RecommendInsights transactionType="Buy" themeColor="blue" />
                 </div>
 
                 {/* 4. Reels (Buy Context) */}
                 <div id="buy-reels-section">
-                    <ReelSection category="Buy" />
+                    <ReelSection category="Buy" theme={THEME} />
                 </div>
 
                 {/* 5. Demand in [City] Section */}
                 <div id="demand-city-section">
-                    <DemandInCitySection city={searchCity || 'Bengaluru'} />
+                    <DemandInCitySection city={searchCity || 'Bengaluru'} themeColor="blue" />
                 </div>
 
 
@@ -137,7 +135,7 @@ const BuyPage = () => {
 
                 {/* 11. Popular Builders (Existing) */}
                 <div id="popular-builders-section">
-                    <PopularBuilders />
+                    <PopularBuilders themeColor="blue" />
                 </div>
 
                 {/* 12. Popular Tools Placeholder */}

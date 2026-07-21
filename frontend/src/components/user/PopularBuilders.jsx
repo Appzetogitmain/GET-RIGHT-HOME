@@ -168,10 +168,18 @@ const BUILDERS_DATA = [
 ];
 
 
-const PopularBuilders = ({ locality }) => {
+const PopularBuilders = ({ locality, themeColor = 'emerald' }) => {
     const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
     const autoScrollTimer = useRef(null);
+
+    const themeMap = {
+        emerald: { bg: 'bg-emerald-500' },
+        violet: { bg: 'bg-violet-500' },
+        blue: { bg: 'bg-blue-500' },
+        amber: { bg: 'bg-amber-500' },
+    };
+    const t = themeMap[themeColor] || themeMap.emerald;
     const [isHovered, setIsHovered] = useState(false);
     const [builders, setBuilders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -262,30 +270,27 @@ const PopularBuilders = ({ locality }) => {
 
     return (
         <section 
-            className="py-10 border-b border-gray-50 bg-white"
+            className="py-4 border-b border-gray-100 last:border-0 relative"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            <div className="max-w-7xl mx-auto px-4">
-                
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-1">
-                        <div className="w-1 h-5 bg-indigo-600 rounded-full" />
-                        <h2 className="text-xl md:text-2xl font-black text-gray-900">
-                            Popular builders
-                        </h2>
-                    </div>
-                    <p className="text-xs md:text-sm text-gray-400 font-bold uppercase tracking-wider ml-3">
-                        {locality ? `In ${locality}` : 'In Bangalore East & major hubs'}
-                    </p>
+            <div className="flex flex-col mb-4 px-5 md:px-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                    <div className={`w-1 h-5 ${t.bg} rounded-full`} />
+                    <h2 className="text-xl md:text-2xl font-black text-gray-900">
+                        Popular builders
+                    </h2>
                 </div>
+                <p className="text-sm text-gray-500 mt-1 ml-3 normal-case tracking-normal font-normal">
+                    {locality ? `In ${locality}` : 'In Bangalore East & major hubs'}
+                </p>
+            </div>
 
                 {/* Auto sliding Carousel */}
                 <div 
                     ref={scrollContainerRef}
                     onScroll={handleScroll}
-                    className="flex gap-6 overflow-x-auto scrollbar-hide py-2 px-1 scroll-smooth snap-x"
+                    className="flex gap-6 overflow-x-auto scrollbar-hide py-2 px-5 md:px-0 scroll-smooth snap-x"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                     {builders.map((builder) => (
@@ -337,8 +342,6 @@ const PopularBuilders = ({ locality }) => {
                         </div>
                     ))}
                 </div>
-            </div>
-
         </section>
     );
 };

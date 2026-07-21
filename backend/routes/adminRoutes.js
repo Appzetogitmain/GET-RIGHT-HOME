@@ -6,6 +6,11 @@ import {
   getAllUsers,
   getAllPartners,
   getAllHotels,
+  getAllProjects,
+  getProjectDetails,
+  createAdminProject,
+  updateAdminProject,
+  deleteProject,
   getAllBookings,
   getPropertyRequests,
   updateHotelStatus,
@@ -82,8 +87,8 @@ import {
   deleteFeaturedPlan 
 } from '../controllers/adminPropertyController.js';
 
-router.get('/featured-properties', checkManagerPermission('properties', 'view'), getAdminFeaturedProperties);
-router.put('/featured-properties/:id', checkManagerPermission('properties', 'edit'), updateFeaturedProperty);
+router.get('/featured-projects', checkManagerPermission('properties', 'view'), getAdminFeaturedProperties);
+router.put('/featured-projects/:id', checkManagerPermission('properties', 'edit'), updateFeaturedProperty);
 
 router.get('/featured-plans', checkManagerPermission('properties', 'view'), getFeaturedPlans);
 router.post('/featured-plans', checkManagerPermission('properties', 'edit'), createFeaturedPlan);
@@ -107,6 +112,14 @@ router.get('/partners', checkManagerPermission('partners', 'view'), getAllPartne
 router.get('/hotels', checkManagerPermission('properties', 'view'), getAllHotels);
 router.post('/properties', checkManagerPermission('properties', 'add'), createAdminProperty);
 router.put('/properties/:id', checkManagerPermission('properties', 'edit'), updateAdminProperty);
+
+// Projects
+router.get('/projects', checkManagerPermission('properties', 'view'), getAllProjects);
+router.get('/project-details/:id', checkManagerPermission('properties', 'view'), getProjectDetails);
+router.post('/projects', checkManagerPermission('properties', 'add'), createAdminProject);
+router.put('/projects/:id', checkManagerPermission('properties', 'edit'), updateAdminProject);
+router.delete('/delete-project', checkManagerPermission('properties', 'delete'), deleteProject);
+
 router.get('/bookings', checkManagerPermission('bookings', 'view'), getAllBookings);
 
 router.get('/property-requests', checkManagerPermission('properties', 'view'), getPropertyRequests);

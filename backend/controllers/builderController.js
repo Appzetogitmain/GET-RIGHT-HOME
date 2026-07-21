@@ -16,6 +16,47 @@ export const getBuilders = async (req, res) => {
   }
 };
 
+// @desc    Get pending builders
+// @route   GET /api/admin/builders/pending
+// @access  Private (Admin/Manager)
+export const getPendingBuilders = async (req, res) => {
+  try {
+    const builders = await User.find({ 
+      role: 'builder',
+      'builderProfile.approvalStatus': { $in: ['pending', null, undefined] } 
+    }).sort({ createdAt: -1 });
+    res.json({ success: true, builders });
+  } catch (error) {
+    console.error('Get Pending Builders Error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching pending builders' });
+  }
+};
+
+// @desc    Verify builder
+// @route   PUT /api/admin/builders/:id/verify
+// @access  Private (Admin/Manager)
+export const verifyBuilder = async (req, res) => {
+  try {
+    const { status, message } = req.body;
+    const builder = await User.findById(req.params.id);
+    if (!builder || builder.role !== 'builder') {
+      return res.status(404).json({ success: false, message: 'Builder not found' });
+    }
+
+    builder.builderProfile = {
+      ...(builder.builderProfile ? builder.builderProfile.toObject() : {}),
+      approvalStatus: status,
+      verificationMessage: message || ''
+    };
+
+    await builder.save();
+    res.json({ success: true, builder, message: `Builder ${status} successfully` });
+  } catch (error) {
+    console.error('Verify Builder Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Server error verifying builder' });
+  }
+};
+
 // @desc    Add new builder (from admin)
 // @route   POST /api/admin/builders
 // @access  Private (Admin/Manager)

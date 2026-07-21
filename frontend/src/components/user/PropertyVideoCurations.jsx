@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { propertyVideoService } from '../../services/apiService';
 import { motion } from 'framer-motion';
 
-const PropertyVideoCurations = ({ pageType }) => {
+const PropertyVideoCurations = ({ pageType, theme }) => {
     const navigate = useNavigate();
     const [videos, setVideos] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -50,16 +50,17 @@ const PropertyVideoCurations = ({ pageType }) => {
     }
 
     return (
-        <section className="mt-12 px-5 max-w-7xl mx-auto">
-            <div className="flex flex-col mb-8">
-                <div className="flex items-center gap-2 mb-1.5">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_12px_rgba(59,130,246,0.8)]" />
-                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.25em]">Featured Showcases</span>
+        <section className="py-4 border-b border-gray-100 last:border-0 relative">
+            <div className="flex flex-col mb-4 px-5 md:px-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                    <div className={`w-1 h-5 ${theme?.bg || 'bg-emerald-500'} rounded-full`} />
+                    <h2 className="text-xl md:text-2xl font-black text-gray-900">
+                        Exclusive Property <span className={theme?.text || 'text-emerald-600'}>Tours</span>
+                    </h2>
                 </div>
-                <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
-                    Exclusive Property <span className="text-blue-600">Tours</span>
-                </h2>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Discover your next dream home</p>
+                <p className="text-sm text-gray-500 mt-1 ml-3">
+                    Featured Showcases • Discover your next dream home
+                </p>
             </div>
 
             <div
@@ -71,7 +72,7 @@ const PropertyVideoCurations = ({ pageType }) => {
                     setCurrentIdx(index);
                     sessionStorage.setItem(`scroll-left-videos-${pageType}`, scrollLeft.toString());
                 }}
-                className="flex overflow-x-auto gap-5 no-scrollbar pb-6 -mx-1 px-1 snap-x snap-mandatory"
+                className="flex overflow-x-auto gap-5 no-scrollbar pb-6 px-5 md:px-0 snap-x snap-mandatory"
             >
                 {videos.map((item, idx) => {
                     const youtubeId = getYoutubeId(item.youtubeUrl);
@@ -159,7 +160,7 @@ const PropertyVideoCurations = ({ pageType }) => {
                         <div
                             key={idx}
                             className={`h-1.5 rounded-full transition-all duration-300 ${
-                                currentIdx === idx ? 'w-6 bg-blue-500' : 'w-1.5 bg-gray-200'
+                                currentIdx === idx ? `w-6 ${theme?.bg || 'bg-emerald-500'}` : 'w-1.5 bg-gray-200'
                             }`}
                         />
                     ))}

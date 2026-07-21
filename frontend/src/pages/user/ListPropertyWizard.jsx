@@ -63,7 +63,7 @@ const ListPropertyWizard = () => {
   }, []);
 
   // Static Base Options for Step 1
-  const intentOptions = ['Sell', 'Rent / Lease', 'Paying Guest'];
+  const intentOptions = user?.role === 'builder' ? ['Sell'] : ['Sell', 'Rent / Lease', 'Paying Guest'];
   const categoryOptions = ['Residential', 'Commercial'];
 
   const residentialTypes = [
@@ -128,7 +128,10 @@ const ListPropertyWizard = () => {
     setShowMoreTypes(false);
     setSelectedType('');
     setSelectedSubType('');
-  }, [intent, propertyCategory]);
+    if (user?.role === 'builder') {
+      setIntent('Sell');
+    }
+  }, [intent, propertyCategory, user?.role]);
 
   const visibleTypes = showMoreTypes ? currentTypes : currentTypes.slice(0, 5);
   const hiddenCount = currentTypes.length - 5;
@@ -265,6 +268,8 @@ const ListPropertyWizard = () => {
     });
   };
 
+  const entityType = user?.role === 'builder' ? 'project' : 'property';
+
   return (
     <div className="min-h-screen bg-white pb-10 font-sans antialiased text-slate-800">
       {/* Header */}
@@ -276,7 +281,7 @@ const ListPropertyWizard = () => {
 
       <div className="max-w-2xl mx-auto px-5 pt-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Add Basic Details</h1>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-10">STEP 1 OF 4</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-10">STEP 1 OF {user?.role === 'builder' ? '7' : '4'}</p>
 
         {/* Intent Selection */}
         <section className="mb-10">
@@ -303,7 +308,7 @@ const ListPropertyWizard = () => {
 
         {/* Property Category */}
         <section className="mb-10">
-          <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">What kind of property?</h2>
+          <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">What kind of {entityType}?</h2>
           <div className="flex gap-2.5">
             {categoryOptions.map((opt) => (
               <button
@@ -324,7 +329,7 @@ const ListPropertyWizard = () => {
 
         {/* Property Type Grid */}
         <section className="mb-8">
-          <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">Select Property Type</h2>
+          <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">Select {entityType.charAt(0).toUpperCase() + entityType.slice(1)} Type</h2>
           <div className="flex flex-wrap gap-2">
             {visibleTypes.map((type) => (
               <button
@@ -382,7 +387,7 @@ const ListPropertyWizard = () => {
                   {user.name ? user.name.charAt(0).toUpperCase() : <User size={18} />}
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold text-slate-800">Posting property as {user.name}</p>
+                  <p className="text-[13px] font-bold text-slate-800">Posting {entityType} as {user.name}</p>
                   <p className="text-[11px] text-slate-500 font-semibold">+91 {user.phone}</p>
                 </div>
               </div>

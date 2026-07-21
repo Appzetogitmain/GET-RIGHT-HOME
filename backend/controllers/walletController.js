@@ -13,12 +13,6 @@ import Joi from 'joi';
 // Initialize Razorpay
 let razorpay;
 try {
-  console.log("Razorpay Keys Debug:", {
-    keyId: PaymentConfig.razorpayKeyId ? "Present" : "Missing",
-    keySecret: PaymentConfig.razorpayKeySecret ? "Present" : "Missing",
-    accNumber: PaymentConfig.razorpayAccountNumber ? "Present" : "Missing"
-  });
-
   if (PaymentConfig.razorpayKeyId && PaymentConfig.razorpayKeySecret) {
     razorpay = new Razorpay({
       key_id: PaymentConfig.razorpayKeyId,

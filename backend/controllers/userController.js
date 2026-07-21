@@ -125,9 +125,11 @@ export const updateUserProfile = async (req, res) => {
       if (req.body.addresses !== undefined) user.addresses = req.body.addresses;
 
       if (req.body.builderProfile && user.role === 'builder') {
+        const { builderApprovalStatus, builderVerificationMessage, ...safeBuilderProfile } = req.body.builderProfile;
         user.builderProfile = {
           ...(user.builderProfile ? user.builderProfile.toObject() : {}),
-          ...req.body.builderProfile
+          ...safeBuilderProfile,
+          builderApprovalStatus: 'pending' // Force re-verification upon edit
         };
       }
 

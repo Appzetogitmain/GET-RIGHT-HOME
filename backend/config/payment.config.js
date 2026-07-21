@@ -48,6 +48,6 @@ export const PaymentConfig = {
   }
 };
 
-console.log("💳 Payment Config - KeyID:", PaymentConfig.razorpayKeyId ? "OK" : "MISSING", "AccNo:", PaymentConfig.razorpayAccountNumber || "MISSING");
-
+// Razorpay Configuration Check
+console.log("💳 Razorpay Config - KeyID:", PaymentConfig.razorpayKeyId ? "OK ✅" : "MISSING ❌", "| AccNo:", PaymentConfig.razorpayAccountNumber ? "OK ✅" : "MISSING ❌");
 export default PaymentConfig;

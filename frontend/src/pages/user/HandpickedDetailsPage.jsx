@@ -1107,16 +1107,16 @@ const HandpickedDetailsPage = () => {
 
               {/* Locality Amenities Section with Lead-Gen photos card */}
               <div className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg md:text-xl font-bold text-slate-900">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <h2 className="text-[17px] md:text-xl font-bold text-slate-900 truncate">
                       Premium Curated Amenities
                     </h2>
-                    <p className="text-slate-500 text-sm mt-1">Premium facilities, rare options, and high-end services</p>
+                    <p className="text-[11px] md:text-sm text-slate-500 mt-0.5 truncate">Premium facilities, rare options, and high-end services</p>
                   </div>
                   <button
                     onClick={() => setShowAllAmenities(true)}
-                    className="text-blue-600 hover:text-purple-700 text-xs font-bold transition-all"
+                    className="text-blue-600 hover:text-purple-700 text-[12px] md:text-xs font-bold transition-all shrink-0 mt-1 md:mt-0"
                   >
                     View All
                   </button>

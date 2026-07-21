@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X, MapPin, History, Crosshair, ChevronDown, Building, Home, Building2, Map, LayoutGrid, CheckCircle2, Construction, Clock, Briefcase, Factory, Warehouse, Hotel } from 'lucide-react';
 import { bengaluruAreas } from '../../data/locationData';
+import toast from 'react-hot-toast';
 
 const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }) => {
-    const [step, setStep] = useState(1);
-    const [txnType, setTxnType] = useState('Buy');
-    const [searchInput, setSearchInput] = useState('');
-    const [selectedLocations, setSelectedLocations] = useState([]);
+    // Load initial draft from session storage if exists
+    const draft = JSON.parse(sessionStorage.getItem('grh_search_draft') || '{}');
+    const [selectedCity, setSelectedCity] = useState(draft.selectedCity !== undefined ? draft.selectedCity : 'Bengaluru');
+    
+    const [step, setStep] = useState(draft.step || 1);
+    const [txnType, setTxnType] = useState(draft.txnType || 'Buy');
+    const [searchInput, setSearchInput] = useState(draft.searchInput || '');
+    const [selectedLocations, setSelectedLocations] = useState(draft.selectedLocations || []);
     
     // Common Filters
     const [minBudget, setMinBudget] = useState('No Min');
@@ -65,8 +71,37 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
     const [cwCovidReadiness, setCwCovidReadiness] = useState([]);
 
     const [showAdvanced, setShowAdvanced] = useState(false);
-
+    const [detectingLocation, setDetectingLocation] = useState(false);
+    
     const [recentSearches, setRecentSearches] = useState([]);
+    const [dynamicCities, setDynamicCities] = useState([]);
+
+    // Save draft on every change
+    useEffect(() => {
+        if (isOpen) {
+            sessionStorage.setItem('grh_search_draft', JSON.stringify({
+                selectedCity,
+                selectedLocations,
+                txnType,
+                searchInput,
+                step
+            }));
+        }
+    }, [selectedCity, selectedLocations, txnType, searchInput, step, isOpen]);
+
+    // Fetch dynamic cities from backend
+    useEffect(() => {
+        if (isOpen && dynamicCities.length === 0) {
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/cities/public`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.success && data.cities) {
+                        setDynamicCities(data.cities.map(c => c.name));
+                    }
+                })
+                .catch(err => console.error("Error fetching cities:", err));
+        }
+    }, [isOpen, dynamicCities.length]);
 
     useEffect(() => {
         try {
@@ -97,7 +132,11 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             if (initialFilters.areas && initialFilters.areas.length > 0) {
                 setSelectedLocations(initialFilters.areas);
             }
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
         }
+        return () => { document.body.style.overflow = ''; };
     }, [isOpen, initialFilters]);
 
     if (!isOpen) return null;
@@ -107,10 +146,114 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
         'Devanahalli', 'Doddaballapura', 'Hosakote', 'Nelamangala', 'Indiranagar', 'Koramangala', 'Whitefield', 
         'HSR Layout', 'Electronic City', 'Marathahalli', 'Jayanagar', 'JP Nagar', 'Bellandur'
     ];
-    
-    const suggestedLocations = searchInput 
-        ? bengaluruAreas.filter(a => a.toLowerCase().includes(searchInput.toLowerCase())).slice(0, 8)
-        : [];
+
+    const mockProjects = ['Prestige Falcon City', 'Brigade Gateway', 'Sobha Dream Acres', 'Godrej Splendour', 'Salarpuria Sattva'];
+    const mockProperties = ['3 BHK in Whitefield', '2 BHK in Indiranagar', '4 BHK Villa in Yelahanka', 'Studio in Koramangala'];
+    const mockCities = dynamicCities.length > 0 ? dynamicCities : ['Bengaluru']; // Fallback to Bengaluru if fetch fails
+
+    let categorizedSuggestions = [];
+    if (searchInput) {
+        const query = searchInput.toLowerCase();
+        if (!selectedCity) {
+            // Search for City
+            categorizedSuggestions = mockCities
+                .filter(c => c.toLowerCase().includes(query))
+                .map(c => ({ text: c, type: 'City' }));
+        } else {
+            // Search for Locality, Projects, Properties within the chosen city
+            const localities = bengaluruAreas.filter(a => a.toLowerCase().includes(query)).slice(0, 4).map(l => ({ text: l, type: 'Locality' }));
+            const projects = mockProjects.filter(p => p.toLowerCase().includes(query)).slice(0, 3).map(p => ({ text: p, type: 'Project' }));
+            const properties = mockProperties.filter(p => p.toLowerCase().includes(query)).slice(0, 2).map(p => ({ text: p, type: 'Property' }));
+            
+            categorizedSuggestions = [...localities, ...projects, ...properties];
+        }
+    }
+
+    const handleLiveLocationDetect = () => {
+        if (!navigator.geolocation) {
+            toast.error("Geolocation is not supported by your browser");
+            return;
+        }
+
+        const toastId = toast.loading("Detecting your exact locality...", {
+            style: {
+                minWidth: '250px',
+                padding: '12px 16px',
+            },
+        });
+        setDetectingLocation(true);
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    const apiKey = import.meta.env.VITE_GOOGLE_MAP_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+                    if (!apiKey) {
+                        throw new Error("Google Maps API key is missing in environment variables.");
+                    }
+                    
+                    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`);
+                    const data = await res.json();
+                    
+                    if (data.status === 'OK' && data.results.length > 0) {
+                        let locality = '';
+                        let city = '';
+                        
+                        // Parse address components
+                        const components = data.results[0].address_components;
+                        for (let comp of components) {
+                            if (comp.types.includes('sublocality_level_1') || comp.types.includes('sublocality')) {
+                                locality = comp.long_name;
+                            }
+                            if (comp.types.includes('locality')) {
+                                city = comp.long_name;
+                            }
+                        }
+
+                        // Fallbacks
+                        if (!locality) locality = city;
+                        if (!locality) locality = data.results[0].formatted_address.split(',')[0];
+
+                        toast.dismiss(toastId);
+                        
+                        if (locality) {
+                            toast.success(`Found location: ${locality}`);
+                            handleSelectLocation(locality);
+                        } else {
+                            toast.error("Could not determine specific locality.");
+                        }
+                    } else {
+                        throw new Error("Geocoding failed");
+                    }
+                } catch (err) {
+                    console.error("Geocoding error:", err);
+                    toast.dismiss(toastId);
+                    toast.error("Failed to pinpoint exact locality. Please search manually.");
+                } finally {
+                    setDetectingLocation(false);
+                }
+            },
+            (err) => {
+                toast.dismiss(toastId);
+                if (err.code === 1) toast.error("Please allow location access to use this feature.");
+                else toast.error("Failed to detect location.");
+                setDetectingLocation(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    };
+
+    const handleSelectSuggestion = (suggestion) => {
+        if (suggestion.type === 'City') {
+            setSelectedCity(suggestion.text);
+            setSelectedLocations([]);
+        } else {
+            if (!selectedLocations.includes(suggestion.text)) {
+                setSelectedLocations([...selectedLocations, suggestion.text]);
+            }
+        }
+        setSearchInput('');
+    };
 
     const handleSelectLocation = (loc) => {
         if (!selectedLocations.includes(loc)) {
@@ -333,6 +476,18 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                 {/* Search Input Box */}
                 <div className="relative bg-white rounded-lg p-1.5 flex items-center shadow-md">
                     <div className="flex-1 flex flex-wrap gap-1 px-2 items-center">
+                        {/* City Pill */}
+                        {selectedCity && (
+                            <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-md text-[11px] font-bold border border-blue-200">
+                                <MapPin size={10} className="shrink-0" />
+                                {selectedCity}
+                                <X size={10} className="cursor-pointer hover:text-red-500 ml-1" onClick={() => {
+                                    setSelectedCity('');
+                                    setSelectedLocations([]);
+                                }} />
+                            </div>
+                        )}
+
                         {selectedLocations.map(loc => (
                             <div key={loc} className="flex items-center gap-1 bg-surface/10 text-surface px-2 py-1 rounded-md text-[11px] font-semibold">
                                 {loc}
@@ -341,22 +496,28 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         ))}
                         <input 
                             type="text" 
-                            placeholder={selectedLocations.length === 0 ? "Search Locality, Projects, Landmarks.." : ""}
-                            className="flex-1 min-w-[120px] outline-none text-[12px] text-gray-800 py-1"
+                            placeholder={!selectedCity ? "Search for your City..." : selectedLocations.length === 0 ? "Search Locality, Projects, Landmarks.." : ""}
+                            className="flex-1 min-w-[120px] outline-none text-[12px] text-gray-800 py-1 bg-transparent"
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' && searchInput.trim()) {
-                                    handleSelectLocation(searchInput.trim());
+                                    if (!selectedCity) {
+                                        handleSelectSuggestion({ text: searchInput.trim(), type: 'City' });
+                                    } else {
+                                        handleSelectLocation(searchInput.trim());
+                                    }
                                 }
                             }}
                         />
                     </div>
                     <button 
-                        onClick={() => handleSelectLocation('Current Location')}
-                        className="p-2 text-surface hover:bg-surface/10 rounded-full transition-colors"
+                        onClick={handleLiveLocationDetect}
+                        className={`p-2 rounded-full transition-colors ${detectingLocation ? 'text-blue-500 animate-pulse bg-blue-50' : 'text-surface hover:bg-surface/10'}`}
+                        title="Detect live location using GPS"
+                        disabled={detectingLocation}
                     >
-                        <Crosshair size={18} />
+                        <Crosshair size={18} className={detectingLocation ? 'animate-spin-slow' : ''} />
                     </button>
                 </div>
             </div>
@@ -365,19 +526,51 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             <div className="flex-1 overflow-y-auto bg-slate-50 pb-20">
                 {searchInput ? (
                     <div className="bg-white">
-                        {suggestedLocations.map(loc => (
-                            <div 
-                                key={loc} 
-                                className="flex items-center gap-3 p-4 border-b border-slate-100 cursor-pointer hover:bg-slate-50"
-                                onClick={() => handleSelectLocation(loc)}
-                            >
-                                <MapPin size={16} className="text-slate-400" />
-                                <div>
-                                    <div className="text-[12px] font-semibold text-slate-800">{loc}</div>
-                                    <div className="text-[10px] text-slate-500">Locality</div>
+                        {categorizedSuggestions.length > 0 ? (
+                            categorizedSuggestions.map((suggestion, idx) => (
+                                <div 
+                                    key={idx} 
+                                    className="flex items-center gap-3 p-4 border-b border-slate-100 cursor-pointer hover:bg-slate-50"
+                                    onClick={() => handleSelectSuggestion(suggestion)}
+                                >
+                                    {suggestion.type === 'City' && <MapPin size={16} className="text-blue-500" />}
+                                    {suggestion.type === 'Locality' && <MapPin size={16} className="text-slate-400" />}
+                                    {suggestion.type === 'Project' && <Building size={16} className="text-emerald-500" />}
+                                    {suggestion.type === 'Property' && <Home size={16} className="text-amber-500" />}
+                                    
+                                    <div>
+                                        <div className="text-[12px] font-semibold text-slate-800">{suggestion.text}</div>
+                                        <div className="text-[10px] font-medium" style={{
+                                            color: suggestion.type === 'City' ? '#3b82f6' :
+                                                   suggestion.type === 'Project' ? '#10b981' :
+                                                   suggestion.type === 'Property' ? '#f59e0b' : '#64748b'
+                                        }}>{suggestion.type}</div>
+                                    </div>
                                 </div>
+                            ))
+                        ) : (
+                            <div className="p-6 text-center text-slate-500 text-[12px]">No results found.</div>
+                        )}
+                    </div>
+                ) : !selectedCity ? (
+                    <div className="p-4 flex flex-col items-start h-full space-y-3 pt-6">
+                        <div className="w-full">
+                            <h3 className="font-bold text-slate-800 text-[14px] mb-3">Popular cities in India</h3>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                {mockCities.map(city => (
+                                    <button 
+                                        key={city}
+                                        onClick={() => {
+                                            setSelectedCity(city);
+                                            setSelectedLocations([]);
+                                        }}
+                                        className="py-2 px-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-colors text-center shadow-sm"
+                                    >
+                                        {city}
+                                    </button>
+                                ))}
                             </div>
-                        ))}
+                        </div>
                     </div>
                 ) : (
                     <div className="p-4 space-y-6">
@@ -1061,11 +1254,13 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
         </div>
     );
 
-    return (
-        <div className="fixed inset-0 z-[200] bg-white flex flex-col h-[100dvh]">
+    const modalContent = (
+        <div className="fixed inset-0 z-[9999] bg-white flex flex-col h-[100dvh]">
             {step === 1 ? renderStep1() : renderStep2()}
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };
 
 export default MobileSearchOverlay;
