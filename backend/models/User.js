@@ -131,12 +131,12 @@ const userSchema = new mongoose.Schema({
     awards: [{ type: String }],
     
     // Admin Verification Workflow
-    builderApprovalStatus: {
+    approvalStatus: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],
       default: 'pending'
     },
-    builderVerificationMessage: {
+    verificationMessage: {
       type: String,
       default: '' // Reason for rejection or requested docs
     }

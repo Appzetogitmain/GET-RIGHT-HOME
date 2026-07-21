@@ -469,6 +469,11 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     const displayPostedName = postedByName === 'Owner' ? 'Owner Listing' : postedByName;
     const postedByNameTruncated = displayPostedName.length > 18 ? `${displayPostedName.slice(0, 18)}...` : displayPostedName;
 
+    const isVerifiedBuilder = item.user?.builderProfile?.approvalStatus === 'approved' || 
+                              item.userId?.builderProfile?.approvalStatus === 'approved' || 
+                              item.partner?.builderProfile?.approvalStatus === 'approved' ||
+                              item.partnerId?.builderProfile?.approvalStatus === 'approved';
+
     const getPostedTimeStr = () => {
       if (!item.createdAt) return 'recently';
       const diffMs = new Date() - new Date(item.createdAt);
@@ -643,9 +648,16 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
             {/* Row 4: Builder Info & Action CTA Row */}
             <div className="flex items-center justify-between mt-1 pt-1">
               <div className="flex flex-col min-w-0 max-w-[42%]">
-                <span className="font-extrabold text-xs text-gray-900 truncate" title={displayPostedName}>
-                  {postedByNameTruncated}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="font-extrabold text-xs text-gray-900 truncate" title={displayPostedName}>
+                    {postedByNameTruncated}
+                  </span>
+                  {isVerifiedBuilder && (
+                    <div title="Verified Builder" className="shrink-0 flex items-center justify-center w-3.5 h-3.5 bg-gradient-to-r from-amber-400 to-yellow-600 rounded-full shadow-sm">
+                      <BadgeCheck size={8} className="text-white fill-amber-100" />
+                    </div>
+                  )}
+                </div>
                 <span className="text-[10px] text-gray-500 font-medium">
                   {postedByRole} • {getPostedTimeStr()}
                 </span>

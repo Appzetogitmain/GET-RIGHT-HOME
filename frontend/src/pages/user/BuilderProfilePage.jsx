@@ -224,7 +224,14 @@ const BuilderProfilePage = () => {
       {/* ── Title & Statistics Block ── */}
       <div className="bg-white px-4 pt-4 pb-4 border-b border-slate-100">
         <div className="max-w-5xl mx-auto">
-          <h1 className="text-xl font-extrabold text-slate-900">{builder.companyName || builder.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-extrabold text-slate-900">{builder.companyName || builder.name}</h1>
+            {builder.approvalStatus === 'approved' && (
+              <div title="Verified Builder" className="flex items-center justify-center w-5 h-5 bg-gradient-to-r from-amber-400 to-yellow-600 rounded-full shadow-sm">
+                <CheckCircle2 size={12} className="text-white fill-amber-100" />
+              </div>
+            )}
+          </div>
           
           <div className="flex gap-12 mt-3">
             <div>

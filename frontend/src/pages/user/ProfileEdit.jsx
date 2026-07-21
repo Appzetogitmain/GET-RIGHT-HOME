@@ -90,8 +90,8 @@ const ProfileEdit = () => {
       activeProjects: 0,
       completedProjects: 0,
       awards: [],
-      builderApprovalStatus: 'pending',
-      builderVerificationMessage: ''
+      approvalStatus: 'pending',
+      verificationMessage: ''
     }
   });
 
@@ -139,8 +139,8 @@ const ProfileEdit = () => {
             activeProjects: user.builderProfile?.activeProjects || 0,
             completedProjects: user.builderProfile?.completedProjects || 0,
             awards: user.builderProfile?.awards || [],
-            builderApprovalStatus: user.builderProfile?.builderApprovalStatus || 'pending',
-            builderVerificationMessage: user.builderProfile?.builderVerificationMessage || ''
+            approvalStatus: user.builderProfile?.approvalStatus || 'pending',
+            verificationMessage: user.builderProfile?.verificationMessage || ''
           }
         });
       } catch (error) {
@@ -888,31 +888,33 @@ const ProfileEdit = () => {
               </div>
 
               {/* Verification Status Banner */}
-              {formData.builderProfile?.builderApprovalStatus && (
+              {formData.builderProfile?.approvalStatus && (
                 <div className={`p-4 rounded-xl border ${
-                  formData.builderProfile.builderApprovalStatus === 'approved' ? 'bg-emerald-50 border-emerald-200' :
-                  formData.builderProfile.builderApprovalStatus === 'rejected' ? 'bg-red-50 border-red-200' :
+                  formData.builderProfile.approvalStatus === 'approved' ? 'bg-emerald-50 border-emerald-200' :
+                  formData.builderProfile.approvalStatus === 'rejected' ? 'bg-red-50 border-red-200' :
                   'bg-amber-50 border-amber-200'
                 }`}>
                   <div className="flex items-start gap-3">
-                    {formData.builderProfile.builderApprovalStatus === 'approved' ? <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={18} /> :
-                     formData.builderProfile.builderApprovalStatus === 'rejected' ? <XCircle className="text-red-500 shrink-0 mt-0.5" size={18} /> :
+                    {formData.builderProfile.approvalStatus === 'approved' ? <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={18} /> :
+                     formData.builderProfile.approvalStatus === 'rejected' ? <XCircle className="text-red-500 shrink-0 mt-0.5" size={18} /> :
                      <Clock className="text-amber-500 shrink-0 mt-0.5" size={18} />}
                     <div>
                       <h4 className={`text-sm font-bold ${
-                        formData.builderProfile.builderApprovalStatus === 'approved' ? 'text-emerald-800' :
-                        formData.builderProfile.builderApprovalStatus === 'rejected' ? 'text-red-800' :
+                        formData.builderProfile.approvalStatus === 'approved' ? 'text-emerald-800' :
+                        formData.builderProfile.approvalStatus === 'rejected' ? 'text-red-800' :
                         'text-amber-800'
                       }`}>
-                        Verification {formData.builderProfile.builderApprovalStatus.charAt(0).toUpperCase() + formData.builderProfile.builderApprovalStatus.slice(1)}
+                        Verification {formData.builderProfile.approvalStatus.charAt(0).toUpperCase() + formData.builderProfile.approvalStatus.slice(1)}
                       </h4>
-                      {formData.builderProfile.builderApprovalStatus === 'pending' && (
+                      {formData.builderProfile.approvalStatus === 'pending' && (
                         <p className="text-xs text-amber-700 mt-1">Your profile is currently under review by our admin team.</p>
                       )}
-                      {formData.builderProfile.builderApprovalStatus === 'rejected' && formData.builderProfile.builderVerificationMessage && (
-                        <p className="text-xs font-semibold text-red-700 mt-1 bg-red-100 p-2 rounded-lg inline-block">
-                          Admin Note: {formData.builderProfile.builderVerificationMessage}
-                        </p>
+                      {formData.builderProfile.approvalStatus === 'rejected' && formData.builderProfile.verificationMessage && (
+                        <div className="mt-2 p-3 bg-red-100 rounded-lg border border-red-200">
+                          <p className="text-xs font-bold text-red-800 uppercase tracking-wider mb-1">Admin Note:</p>
+                          <p className="text-xs font-semibold text-red-700">{formData.builderProfile.verificationMessage}</p>
+                          <p className="text-[10px] text-red-600 mt-2 font-medium">Please update your documents below and save profile to request re-verification.</p>
+                        </div>
                       )}
                     </div>
                   </div>
