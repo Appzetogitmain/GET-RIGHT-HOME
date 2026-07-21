@@ -12,7 +12,10 @@ const AdminBuilders = () => {
     const location = useLocation();
     const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
     const [builders, setBuilders] = useState([]);
+    const [filteredBuilders, setFilteredBuilders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [filterStatus, setFilterStatus] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => {} });
 
@@ -59,6 +62,30 @@ const AdminBuilders = () => {
     useEffect(() => {
         fetchBuilders();
     }, [fetchBuilders]);
+
+    useEffect(() => {
+        let result = builders;
+        
+        if (filterStatus !== 'all') {
+            result = result.filter(b => {
+                const status = b.builderProfile?.approvalStatus || 'pending';
+                return status === filterStatus;
+            });
+        }
+        
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(b => 
+                (b.builderProfile?.companyName || b.name || '').toLowerCase().includes(query) ||
+                (b.email || '').toLowerCase().includes(query) ||
+                (b.phone || '').toLowerCase().includes(query) ||
+                (b.builderProfile?.reraRegistrationNumber || '').toLowerCase().includes(query) ||
+                (b.builderProfile?.gstNumber || '').toLowerCase().includes(query)
+            );
+        }
+        
+        setFilteredBuilders(result);
+    }, [builders, filterStatus, searchQuery]);
 
     const handleAction = (action, builder) => {
         setActiveDropdown(null);
@@ -323,6 +350,38 @@ const AdminBuilders = () => {
                 </div>
             </div>
 
+            {/* Filters Row */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="relative w-full md:w-96">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Search by name, company, email, RERA..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-black transition-colors"
+                    />
+                </div>
+                <div className="flex gap-2 w-full md:w-auto overflow-x-auto hide-scrollbar">
+                    {['all', 'pending', 'approved', 'rejected'].map(status => (
+                        <button
+                            key={status}
+                            onClick={() => setFilterStatus(status)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${
+                                filterStatus === status 
+                                    ? (status === 'approved' ? 'bg-green-600 text-white' : 
+                                       status === 'rejected' ? 'bg-red-600 text-white' : 
+                                       status === 'pending' ? 'bg-yellow-500 text-white' : 
+                                       'bg-black text-white') 
+                                    : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-100'
+                            }`}
+                        >
+                            {status}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             {/* Table Card */}
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden min-h-[400px]">
                 <div className="overflow-x-auto">
@@ -346,8 +405,8 @@ const AdminBuilders = () => {
                                 ))
                             ) : (
                                 <AnimatePresence>
-                                    {builders.length > 0 ? (
-                                        builders.map((builder, index) => (
+                                    {filteredBuilders.length > 0 ? (
+                                        filteredBuilders.map((builder, index) => (
                                             <motion.tr
                                                 key={builder._id}
                                                 initial={{ opacity: 0, y: 10 }}
@@ -367,7 +426,16 @@ const AdminBuilders = () => {
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{builder.builderProfile?.companyName || 'N/A'}</p>
-                                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Est. {builder.builderProfile?.establishedYear || 'N/A'}</p>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Est. {builder.builderProfile?.establishedYear || 'N/A'}</span>
+                                                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                                                                    (builder.builderProfile?.approvalStatus || 'pending') === 'approved' ? 'bg-green-100 text-green-700' :
+                                                                    (builder.builderProfile?.approvalStatus || 'pending') === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                                    'bg-yellow-100 text-yellow-700'
+                                                                }`}>
+                                                                    {builder.builderProfile?.approvalStatus || 'pending'}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
