@@ -231,8 +231,7 @@ const Layout = ({ children }) => {
   // 3. NAVBAR VISIBILITY
   const showUserNavs = !isPartnerApp;
 
-  // Specific user pages where BottomNav is hidden (reels = full-screen experience)
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/property/', '/handpicked/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/property/', '/handpicked/', '/project/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
   const isReelsPage = location.pathname.startsWith('/reels');
 
@@ -533,6 +532,7 @@ function App() {
                     <Route path="/property/:id/reviews" element={<ReviewsPage />} />
                     <Route path="/property/:id/offers" element={<OffersPage />} />
                     <Route path="/handpicked/:id" element={<HandpickedDetailsPage />} />
+                    <Route path="/project/:id" element={<HandpickedDetailsPage />} />
                     <Route path="/partner/:id" element={<PartnerProfilePage />} />
 
                     {/* User Property Listing (C2C) Routes (Public/Self-Authenticating) */}
