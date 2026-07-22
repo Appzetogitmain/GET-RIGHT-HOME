@@ -178,7 +178,6 @@ const AdminAddProperty = () => {
         if (res.data.success) {
           const sortedSteps = res.data.template.steps.sort((a, b) => a.stepNumber - b.stepNumber);
           setTemplate({ ...res.data.template, steps: sortedSteps });
-          setCurrentStepIndex(0);
           setErrors({});
         }
       } catch (err) {
@@ -402,8 +401,6 @@ const AdminAddProperty = () => {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      const errorFields = Object.keys(newErrors).join(', ');
-      toast.error(`Please fix errors in the following fields: ${errorFields}`);
       if (firstErrorField) {
         const errorElement = document.getElementById(`field-${firstErrorField}`);
         if (errorElement) {
