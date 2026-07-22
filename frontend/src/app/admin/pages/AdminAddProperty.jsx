@@ -42,8 +42,9 @@ const AdminAddProperty = () => {
   const [selectedCat, setSelectedCat] = useState(() => existingProperty?.propertyCategory || sessionStorage.getItem('adminPropCat') || '');
   const [selectedPropType, setSelectedPropType] = useState(() => existingProperty?.propertyType || sessionStorage.getItem('adminPropType') || '');
   
-  const [builders, setBuilders] = useState([]);
-  const [selectedBuilder, setSelectedBuilder] = useState(() => existingProperty?.userId || sessionStorage.getItem('adminPropBuilder') || '');
+  const [creators, setCreators] = useState([]);
+  const [selectedCreator, setSelectedCreator] = useState(() => existingProperty?.userId || sessionStorage.getItem('adminPropCreator') || '');
+  const [creatorSearch, setCreatorSearch] = useState('');
   
   const [template, setTemplate] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(() => {
@@ -105,11 +106,11 @@ const AdminAddProperty = () => {
       sessionStorage.setItem('adminPropTxn', selectedTxn);
       sessionStorage.setItem('adminPropCat', selectedCat);
       sessionStorage.setItem('adminPropType', selectedPropType);
-      sessionStorage.setItem('adminPropBuilder', selectedBuilder);
+      sessionStorage.setItem('adminPropCreator', selectedCreator);
       sessionStorage.setItem('adminPropStep', currentStepIndex.toString());
       sessionStorage.setItem('adminPropIsBuilder', isBuilderProject.toString());
     }
-  }, [selectedTxn, selectedCat, selectedPropType, selectedBuilder, currentStepIndex, isBuilderProject, isEditing]);
+  }, [selectedTxn, selectedCat, selectedPropType, selectedCreator, currentStepIndex, isBuilderProject, isEditing]);
 
   // Fetch Category combinations and Builders on load
   useEffect(() => {
@@ -117,9 +118,16 @@ const AdminAddProperty = () => {
       try {
         setLoading(true);
         const configsEndpoint = isBuilderProject ? '/builder-forms/configs' : '/property-forms/configs';
-        const [configsRes, buildersRes] = await Promise.all([
+        let creatorsPromise;
+        if (isBuilderProject) {
+          creatorsPromise = adminService.getBuilders({ limit: 1000 });
+        } else {
+          creatorsPromise = adminService.getUsers({ role: 'owner,broker', limit: 1000 });
+        }
+
+        const [configsRes, creatorsRes] = await Promise.all([
           api.get(configsEndpoint),
-          adminService.getBuilders()
+          creatorsPromise
         ]);
         
         if (configsRes.data.success) {
@@ -130,8 +138,16 @@ const AdminAddProperty = () => {
             setSelectedPropType('');
           }
         }
-        if (buildersRes.success) {
-          setBuilders(buildersRes.builders || []);
+        if (creatorsRes.success) {
+          const fetchedCreators = isBuilderProject 
+            ? (creatorsRes.builders || []).filter(b => b.builderProfile?.approvalStatus === 'approved') 
+            : (creatorsRes.users || []);
+          setCreators(fetchedCreators);
+          const initialCreatorId = existingProperty?.userId?._id || existingProperty?.userId || sessionStorage.getItem('adminPropCreator');
+          if (initialCreatorId) {
+             const found = fetchedCreators.find(c => c._id === initialCreatorId);
+             if (found) setCreatorSearch(isBuilderProject ? (found.builderProfile?.companyName || found.name) : found.name);
+          }
         }
       } catch (err) {
         toast.error('Failed to load initial data');
@@ -210,6 +226,11 @@ const AdminAddProperty = () => {
 
   // Step Validation
   const validateStep = () => {
+    if (currentStepIndex === 0 && !selectedCreator) {
+      toast.error(`You must select an existing ${isBuilderProject ? 'Builder' : 'Owner/Broker'} to proceed.`);
+      return false;
+    }
+
     const currentStep = template.steps[currentStepIndex];
     let newErrors = {};
     let firstErrorField = null;
@@ -398,8 +419,8 @@ const AdminAddProperty = () => {
         }
       }
 
-      if (selectedBuilder) {
-        payload.userId = selectedBuilder;
+      if (selectedCreator) {
+        payload.userId = selectedCreator;
       }
 
       if (isBuilderProject) {
@@ -437,7 +458,7 @@ const AdminAddProperty = () => {
         sessionStorage.removeItem('adminPropTxn');
         sessionStorage.removeItem('adminPropCat');
         sessionStorage.removeItem('adminPropType');
-        sessionStorage.removeItem('adminPropBuilder');
+        sessionStorage.removeItem('adminPropCreator');
         sessionStorage.removeItem('adminPropStep');
         sessionStorage.removeItem('adminPropIsBuilder');
         toast.success(isEditing ? 'Saved successfully!' : 'Published successfully!');
@@ -1180,22 +1201,36 @@ const AdminAddProperty = () => {
             </div>
           )}
 
-          {/* Builder Dropdown */}
-          <div className="space-y-1">
-            <label className="block text-[10px] font-bold text-slate-400 uppercase">Associate Builder</label>
-            <select
-              value={selectedBuilder}
-              onChange={(e) => setSelectedBuilder(e.target.value)}
+          {/* Creator Dropdown / Search */}
+          <div className="space-y-1 relative">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase">Associate {isBuilderProject ? 'Builder' : 'Owner/Broker'} *</label>
+            <input
+              list="creators-list"
+              value={creatorSearch}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCreatorSearch(val);
+                const found = creators.find(c => {
+                   const cName = isBuilderProject ? (c.builderProfile?.companyName || c.name) : c.name;
+                   return cName === val;
+                });
+                setSelectedCreator(found ? found._id : '');
+              }}
               disabled={isEditing || currentStepIndex > 0}
-              className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''}`}
-            >
-              <option value="">Admin/Manager (Self)</option>
-              {builders.map(b => (
-                <option key={b._id} value={b._id}>{b.builderProfile?.companyName || b.name}</option>
-              ))}
-            </select>
+              placeholder={`Search & Select ${isBuilderProject ? 'Builder' : 'Creator'}...`}
+              className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''} ${(!selectedCreator && creatorSearch) ? 'ring-1 ring-red-500' : ''}`}
+            />
+            <datalist id="creators-list">
+              {creators.map(c => {
+                 const cName = isBuilderProject ? (c.builderProfile?.companyName || c.name) : c.name;
+                 return <option key={c._id} value={cName} />;
+              })}
+            </datalist>
+            {!selectedCreator && creatorSearch && (
+               <p className="text-red-500 text-[10px] mt-1">Please select an existing user from the list.</p>
+            )}
             <p className="text-[10px] text-slate-500 mt-1 leading-tight">
-              * Select a real Builder to enable the "View Details" profile navigation. If left as Admin/Manager, the profile page will not be available.
+              * Required. Must be a registered {isBuilderProject ? 'Builder' : 'Owner or Broker'}.
             </p>
           </div>
 

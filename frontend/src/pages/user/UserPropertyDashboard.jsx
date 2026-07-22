@@ -312,11 +312,14 @@ const UserPropertyDashboard = () => {
                         { icon: BarChart2, label: 'Boost Property Visibility', path: '/my-subscriptions', color: 'text-violet-600', bg: 'bg-violet-50' },
                         { icon: Wallet, label: 'My Wallet & Earnings', path: '/wallet', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                         { icon: Edit3, label: 'Edit This Property', path: getPropertyEditPath(), color: 'text-gray-700', bg: 'bg-gray-100' },
+                        { icon: Eye, label: 'Preview Listing', path: property.isBuilderProject ? `/project/${property._id}` : `/property/${property._id}`, color: 'text-blue-600', bg: 'bg-blue-50', external: true },
                     ].map((action, i) => (
                         <button
                             key={i}
                             onClick={() => {
-                                if (action.label === 'Edit This Property') {
+                                if (action.external) {
+                                    window.open(action.path, '_blank');
+                                } else if (action.label === 'Edit This Property') {
                                     handleEdit();
                                 } else {
                                     navigate(action.path);

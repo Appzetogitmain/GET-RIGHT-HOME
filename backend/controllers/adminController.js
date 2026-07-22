@@ -287,7 +287,11 @@ export const getAllUsers = async (req, res) => {
     }
 
     if (role) {
-      query.role = role;
+      if (role.includes(',')) {
+        query.role = { $in: role.split(',') };
+      } else {
+        query.role = role;
+      }
     } else if (!query.role) {
       query.role = { $ne: 'partner' }; // Default to not showing partner role if unspecified
     }

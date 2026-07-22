@@ -311,11 +311,7 @@ const AdminProperties = () => {
                                                         <div>
                                                             <div className="flex items-center gap-2 flex-wrap">
                                                                 <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{property.propertyName || 'Untitled'}</p>
-                                                                {property.isAddedByAdmin && (
-                                                                    <span className="flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide">
-                                                                        <Sparkles size={7} className="fill-purple-500" /> Handpicked
-                                                                    </span>
-                                                                )}
+                                                                {/* Handpicked tag removed as it is strictly for Projects now */}
                                                                 {property.avgRating > 0 && (
                                                                     <span className="flex items-center bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded text-[9px] font-black border border-yellow-100">
                                                                         <Star size={8} className="fill-yellow-500 text-yellow-500 mr-0.5" />
@@ -364,16 +360,14 @@ const AdminProperties = () => {
                                                             <Link to={`${basePath}/properties/${property._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
-                                                            {property.isAddedByAdmin && (
-                                                                <a
-                                                                    href={`/handpicked/${property._id}`}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="flex items-center gap-2 px-4 py-2 hover:bg-purple-50 text-[10px] font-bold uppercase text-purple-700"
-                                                                >
-                                                                    <ExternalLink size={14} /> Preview Premium
-                                                                </a>
-                                                            )}
+                                                            <a
+                                                                href={`/property/${property._id}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center gap-2 px-4 py-2 hover:bg-purple-50 text-[10px] font-bold uppercase text-purple-700"
+                                                            >
+                                                                <ExternalLink size={14} /> Preview
+                                                            </a>
                                                             {property.isAddedByAdmin && property.dynamicCategory && (
                                                                 <button onClick={() => navigate(`${basePath}/properties/add`, { state: { existingProperty: property } })} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                     <Edit size={14} /> Edit Property
