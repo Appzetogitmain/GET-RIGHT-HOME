@@ -133,9 +133,12 @@ const AdminAddProperty = () => {
         if (configsRes.data.success) {
           setConfigs(configsRes.data.configs);
           if (!isEditing) {
-            setSelectedTxn('');
-            setSelectedCat('');
-            setSelectedPropType('');
+            // Only clear if nothing was loaded from session storage
+            if (!sessionStorage.getItem('adminPropTxn')) {
+              setSelectedTxn('');
+              setSelectedCat('');
+              setSelectedPropType('');
+            }
           }
         }
         if (creatorsRes.success) {
@@ -238,6 +241,25 @@ const AdminAddProperty = () => {
     setTemplate(null);
   };
 
+  const handleResetSelection = () => {
+    if (isEditing) return;
+    setSelectedTxn('');
+    setSelectedCat('');
+    setSelectedPropType('');
+    setSelectedCreator('');
+    setCreatorSearch('');
+    setFormData({});
+    setErrors({});
+    setCurrentStepIndex(0);
+    setTemplate(null);
+    sessionStorage.removeItem('adminPropTxn');
+    sessionStorage.removeItem('adminPropCat');
+    sessionStorage.removeItem('adminPropType');
+    sessionStorage.removeItem('adminPropCreator');
+    sessionStorage.removeItem('adminPropStep');
+    sessionStorage.removeItem('adminPropDraft');
+  };
+
   // Step Validation
   const validateStep = () => {
     if (currentStepIndex === 0 && !selectedCreator) {
@@ -265,7 +287,8 @@ const AdminAddProperty = () => {
     currentStep.fields.forEach(field => {
       const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
       const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
-      if (isUnitField || isCustomPricingField) return;
+      const isLocationField = isLocationStep && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber', 'pincode'].includes(field.name.toLowerCase());
+      if (isUnitField || isCustomPricingField || isLocationField) return;
 
       let isVisible = true;
       if (field.dependsOn?.field) {
@@ -327,6 +350,36 @@ const AdminAddProperty = () => {
               }
             }
           }
+        }
+
+        // Check repeater subfields and URL fields
+        if (field.type === 'repeater' && Array.isArray(value)) {
+          value.forEach((item, index) => {
+            if (field.subFields) {
+              field.subFields.forEach(subF => {
+                if (subF.type === 'repeater') return; // Skip nested repeaters
+                let isSubVisible = true;
+                if (subF.dependsOn?.field) {
+                  isSubVisible = item[subF.dependsOn.field] === subF.dependsOn.value;
+                }
+                if (isSubVisible && subF.required) {
+                  const subVal = item[subF.name];
+                  const isSubEmpty = subVal === undefined || subVal === null || subVal === '';
+                  if (isSubEmpty) {
+                    newErrors[`${field.name}_${index}_${subF.name}`] = `${subF.label} is required`;
+                    if (!firstErrorField) firstErrorField = field.name;
+                  }
+                }
+              });
+            }
+
+            ['planImageOrUrl', 'floorPlanImage'].forEach(key => {
+               if (item[key] && !item[key].startsWith('http')) {
+                  newErrors[`${field.name}_${index}_${key}`] = 'Please provide a valid image URL (must start with http or https) or upload an image.';
+                  if (!firstErrorField) firstErrorField = field.name;
+               }
+            });
+          });
         }
       }
     });
@@ -1018,10 +1071,19 @@ const AdminAddProperty = () => {
                   </button>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                     {field.subFields?.map(subF => {
+                      // Add dependency check
+                      let isSubVisible = true;
+                      if (subF.dependsOn?.field) {
+                        isSubVisible = item[subF.dependsOn.field] === subF.dependsOn.value;
+                      }
+                      if (!isSubVisible) return null;
+
                       if (subF.type === 'file') {
                          return (
                            <div key={subF.name} className="flex flex-col">
-                             <label className="text-[12px] font-semibold text-slate-600 mb-1">{subF.label}</label>
+                             <label className="text-[12px] font-semibold text-slate-600 mb-1">
+                               {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                             </label>
                              <div className="flex flex-col gap-2 items-start w-full">
                                <input type="text" placeholder="Image URL..." 
                                  className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
@@ -1055,12 +1117,74 @@ const AdminAddProperty = () => {
                                </label>
                              </div>
                              {item[subF.name] && <img src={item[subF.name]} alt="preview" className="h-12 w-auto mt-2 rounded border" />}
+                             {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-2 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
                            </div>
                          );
                       }
+
+                      if (subF.type === 'pill') {
+                        return (
+                          <div key={subF.name} className="flex flex-col col-span-1 md:col-span-2">
+                            <label className="text-[12px] font-semibold text-slate-600 mb-2">
+                              {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              {subF.options?.map(opt => (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => {
+                                    const next = [...repeaterItems];
+                                    next[index] = { ...next[index], [subF.name]: opt };
+                                    handleChange(field.name, next);
+                                  }}
+                                  className={`px-4 py-2 text-[12px] font-medium rounded-full border transition-all ${
+                                    item[subF.name] === opt 
+                                      ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:bg-blue-50'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                            {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
+                          </div>
+                        );
+                      }
+                      
+                      if (subF.type === 'dropdown') {
+                        return (
+                          <div key={subF.name} className="flex flex-col">
+                            <label className="text-[12px] font-semibold text-slate-600 mb-1">
+                              {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <select
+                              value={item[subF.name] || ''}
+                              onChange={(e) => {
+                                const next = [...repeaterItems];
+                                next[index] = { ...next[index], [subF.name]: e.target.value };
+                                handleChange(field.name, next);
+                              }}
+                              className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500 bg-white"
+                            >
+                              <option value="">Select an option</option>
+                              {subF.options?.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                            {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
+                          </div>
+                        );
+                      }
+
+                      if (subF.type === 'repeater') return null; // Prevent deep nesting issues if we don't handle it yet
+
                       return (
                         <div key={subF.name} className="flex flex-col">
-                          <label className="text-[12px] font-semibold text-slate-600 mb-1">{subF.label}</label>
+                          <label className="text-[12px] font-semibold text-slate-600 mb-1">
+                            {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                          </label>
                           <input 
                             type={subF.type === 'number' ? 'number' : 'text'}
                             className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
@@ -1085,6 +1209,7 @@ const AdminAddProperty = () => {
                               handleChange(field.name, next);
                             }}
                           />
+                          {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
                         </div>
                       )
                     })}
@@ -1171,9 +1296,7 @@ const AdminAddProperty = () => {
               {!isEditing && currentStepIndex > 0 && (
                 <button
                   type="button"
-                  onClick={() => {
-                    handleTypeChange(isBuilderProject);
-                  }}
+                  onClick={handleResetSelection}
                   className="text-[9px] font-bold text-red-500 uppercase hover:underline"
                 >
                   Reset Selection
@@ -1358,6 +1481,63 @@ const AdminAddProperty = () => {
                     />
                     {errors.houseNumber && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.houseNumber}</p>}
                   </div>
+                </div>
+              )}
+
+              {/* Builder Logo */}
+              {currentStepIndex === 0 && isBuilderProject && (
+                <div id="field-logo" className="mb-6 p-5 border-2 border-dashed border-slate-200 bg-slate-50 rounded-2xl">
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">
+                    Project Logo <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-[11px] text-slate-400 mb-4 ml-1">
+                    Upload a logo to display on the project card listings.
+                  </p>
+                  
+                  {formData.logo ? (
+                    <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-slate-200 group">
+                      <img src={formData.logo} alt="Project Logo" className="w-full h-full object-contain bg-white" />
+                      <button
+                        type="button"
+                        onClick={() => handleChange('logo', '')}
+                        className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`relative w-full h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-all ${
+                      errors.logo ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-white hover:border-slate-400 cursor-pointer'
+                    }`}>
+                      <div className="text-slate-400 mb-2">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                      </div>
+                      <p className="text-[12px] text-slate-500 font-bold">Click to upload logo</p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const uploadToastId = toast.loading('Uploading logo...');
+                            try {
+                              const fd = new FormData();
+                              fd.append('images', file);
+                              const res = await hotelService.uploadImages(fd);
+                              if (res?.urls && res.urls.length > 0) {
+                                handleChange('logo', res.urls[0]);
+                                toast.success('Logo uploaded successfully!', { id: uploadToastId });
+                              }
+                            } catch (err) {
+                              toast.error('Upload failed', { id: uploadToastId });
+                            }
+                          }
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </div>
+                  )}
+                  {errors.logo && <p className="text-red-500 text-[10px] mt-2 ml-1">{errors.logo}</p>}
                 </div>
               )}
 
