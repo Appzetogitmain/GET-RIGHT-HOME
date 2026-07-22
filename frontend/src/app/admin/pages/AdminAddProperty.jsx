@@ -224,6 +224,20 @@ const AdminAddProperty = () => {
     return found ? found.propertyTypes : [];
   };
 
+  const handleTypeChange = (isBuilder) => {
+    if (isEditing || currentStepIndex > 0) return;
+    setIsBuilderProject(isBuilder);
+    setSelectedTxn('');
+    setSelectedCat('');
+    setSelectedPropType('');
+    setSelectedCreator('');
+    setCreatorSearch('');
+    setFormData({});
+    setErrors({});
+    setCurrentStepIndex(0);
+    setTemplate(null);
+  };
+
   // Step Validation
   const validateStep = () => {
     if (currentStepIndex === 0 && !selectedCreator) {
@@ -335,6 +349,8 @@ const AdminAddProperty = () => {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      const errorFields = Object.keys(newErrors).join(', ');
+      toast.error(`Please fix errors in the following fields: ${errorFields}`);
       if (firstErrorField) {
         const errorElement = document.getElementById(`field-${firstErrorField}`);
         if (errorElement) {
@@ -1124,7 +1140,7 @@ const AdminAddProperty = () => {
             <div className="flex bg-slate-100 p-1 rounded-lg">
               <button
                 type="button"
-                onClick={() => !isEditing && currentStepIndex === 0 && setIsBuilderProject(false)}
+                onClick={() => handleTypeChange(false)}
                 className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
                   !isBuilderProject ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                 } ${(isEditing || currentStepIndex > 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -1134,7 +1150,7 @@ const AdminAddProperty = () => {
               </button>
               <button
                 type="button"
-                onClick={() => !isEditing && currentStepIndex === 0 && setIsBuilderProject(true)}
+                onClick={() => handleTypeChange(true)}
                 className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
                   isBuilderProject ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                 } ${(isEditing || currentStepIndex > 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -1149,8 +1165,21 @@ const AdminAddProperty = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           
           {/* Level 1 selector */}
-          <div className="space-y-1">
-            <label className="block text-[10px] font-bold text-slate-400 uppercase">Level 1 Category</label>
+          <div className="space-y-1 relative">
+            <div className="flex items-center justify-between">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase">Level 1 Category</label>
+              {!isEditing && currentStepIndex > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleTypeChange(isBuilderProject);
+                  }}
+                  className="text-[9px] font-bold text-red-500 uppercase hover:underline"
+                >
+                  Reset Selection
+                </button>
+              )}
+            </div>
             <select
               value={selectedTxn}
               onChange={(e) => {
@@ -1202,7 +1231,8 @@ const AdminAddProperty = () => {
           )}
 
           {/* Creator Dropdown / Search */}
-          <div className="space-y-1 relative">
+          {selectedPropType && (
+            <div className="space-y-1 relative">
             <label className="block text-[10px] font-bold text-slate-400 uppercase">Associate {isBuilderProject ? 'Builder' : 'Owner/Broker'} *</label>
             <input
               list="creators-list"
@@ -1233,12 +1263,13 @@ const AdminAddProperty = () => {
               * Required. Must be a registered {isBuilderProject ? 'Builder' : 'Owner or Broker'}.
             </p>
           </div>
+          )}
 
         </div>
       </div>
 
       {/* Main Dynamic Wizard Form */}
-      {template ? (
+      {template && selectedCreator ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           
           {/* Main Form Fields Column */}
@@ -1300,8 +1331,9 @@ const AdminAddProperty = () => {
                         value={formData.locality || ''}
                         onChange={(e) => handleChange('locality', e.target.value)}
                         placeholder="e.g. Indiranagar"
-                        className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all"
+                        className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all ${errors.locality ? 'border-red-300' : 'border-transparent'}`}
                       />
+                      {errors.locality && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.locality}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Pincode</label>
@@ -1310,8 +1342,9 @@ const AdminAddProperty = () => {
                         value={formData.pincode || ''}
                         onChange={(e) => handleChange('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
                         placeholder="e.g. 560038"
-                        className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all"
+                        className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all ${errors.pincode ? 'border-red-300' : 'border-transparent'}`}
                       />
+                      {errors.pincode && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.pincode}</p>}
                     </div>
                   </div>
                   <div>
@@ -1321,8 +1354,9 @@ const AdminAddProperty = () => {
                       value={formData.houseNumber || ''}
                       onChange={(e) => handleChange('houseNumber', e.target.value)}
                       placeholder="e.g. Flat 402, Royal Apartments, 12th Main"
-                      className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all"
+                      className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all ${errors.houseNumber ? 'border-red-300' : 'border-transparent'}`}
                     />
+                    {errors.houseNumber && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.houseNumber}</p>}
                   </div>
                 </div>
               )}
@@ -1393,13 +1427,18 @@ const AdminAddProperty = () => {
 
         </div>
       ) : (
-        selectedPropType && !loading && (
-          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-200">
+        selectedPropType && !selectedCreator ? (
+          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-200 mt-6">
+            <h4 className="text-base font-bold text-slate-800">Select {isBuilderProject ? 'Builder' : 'Owner/Broker'}</h4>
+            <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1">Please select the creator from the dropdown above to begin filling out the property details.</p>
+          </div>
+        ) : selectedPropType && !loading ? (
+          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-200 mt-6">
             <Info size={32} className="text-slate-400 mx-auto mb-4 animate-bounce" />
             <h4 className="text-base font-bold text-slate-800">No template configured for this combination.</h4>
             <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1">Configure steps and fields for this type in the Property Form Manager CMS first.</p>
           </div>
-        )
+        ) : null
       )}
 
     </div>
