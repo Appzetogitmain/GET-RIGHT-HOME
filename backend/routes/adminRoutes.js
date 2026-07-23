@@ -87,18 +87,18 @@ import {
   deleteFeaturedPlan 
 } from '../controllers/adminPropertyController.js';
 
-router.get('/featured-projects', checkManagerPermission('projects', 'view'), getAdminFeaturedProperties);
-router.put('/featured-projects/:id', checkManagerPermission('projects', 'edit'), updateFeaturedProperty);
+router.get('/featured-projects', checkManagerPermission('featured_projects', 'view'), getAdminFeaturedProperties);
+router.put('/featured-projects/:id', checkManagerPermission('featured_projects', 'edit'), updateFeaturedProperty);
 
-router.get('/featured-plans', checkManagerPermission('properties', 'view'), getFeaturedPlans);
-router.post('/featured-plans', checkManagerPermission('properties', 'edit'), createFeaturedPlan);
-router.put('/featured-plans/:id', checkManagerPermission('properties', 'edit'), updateFeaturedPlan);
-router.delete('/featured-plans/:id', checkManagerPermission('properties', 'delete'), deleteFeaturedPlan);
+router.get('/featured-plans', checkManagerPermission('featured_projects', 'view'), getFeaturedPlans);
+router.post('/featured-plans', checkManagerPermission('featured_projects', 'add'), createFeaturedPlan);
+router.put('/featured-plans/:id', checkManagerPermission('featured_projects', 'edit'), updateFeaturedPlan);
+router.delete('/featured-plans/:id', checkManagerPermission('featured_projects', 'delete'), deleteFeaturedPlan);
 
 // Notifications
 router.get('/notifications', checkManagerPermission('notifications', 'view'), getAdminNotifications);
 router.post('/notifications/send', checkManagerPermission('notifications', 'add'), createBroadcastNotification);
-router.put('/notifications/read-all', checkManagerPermission('notifications', 'edit'), markAllAdminNotificationsRead);
+router.put('/notifications/read-all', checkManagerPermission('notifications', 'view'), markAllAdminNotificationsRead);
 router.delete('/notifications', checkManagerPermission('notifications', 'delete'), deleteAdminNotifications);
 router.get('/abandoned-carts', checkManagerPermission('notifications', 'view'), getAbandonedCarts);
 router.post('/notifications/send-targeted', checkManagerPermission('notifications', 'add'), sendTargetedNotification);

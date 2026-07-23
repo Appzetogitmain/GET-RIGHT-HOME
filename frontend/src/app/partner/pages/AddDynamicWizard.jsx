@@ -920,7 +920,6 @@ const AddDynamicWizard = () => {
     } else if (currentKey === 'details') {
       // Validate specific details
       if (Object.keys(fieldErrors).length > 0) {
-        setError('Please fix all validation errors before proceeding');
         return;
       }
       if (isRent) {
@@ -950,7 +949,6 @@ const AddDynamicWizard = () => {
 
       if (hasError) {
         setFieldErrors(newFieldErrors);
-        setError('Please fix the location validation errors below');
         return;
       }
       

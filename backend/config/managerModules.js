@@ -20,25 +20,19 @@ export const MANAGER_MODULES = [
     key: 'users',
     label: 'User Management',
     group: 'MANAGEMENT',
-    actions: ['view', 'edit', 'delete', 'export'],
-  },
-  {
-    key: 'partners',
-    label: 'Partner Management',
-    group: 'MANAGEMENT',
-    actions: ['view', 'edit', 'approve', 'delete'],
+    actions: ['view', 'edit', 'delete', 'suspend', 'export'],
   },
   {
     key: 'builders',
     label: 'Builder Management',
     group: 'MANAGEMENT',
-    actions: ['view', 'add', 'edit', 'delete'],
+    actions: ['view', 'add', 'edit', 'delete', 'suspend'],
   },
   {
     key: 'builder_verification',
     label: 'Builder Verification',
     group: 'MANAGEMENT',
-    actions: ['view', 'approve'],
+    actions: ['view', 'approve', 'reject'],
   },
   {
     key: 'subscriptions',
@@ -50,13 +44,25 @@ export const MANAGER_MODULES = [
     key: 'properties',
     label: 'Property Management',
     group: 'MANAGEMENT',
-    actions: ['view', 'add', 'edit', 'delete', 'approve', 'export'],
+    actions: ['view', 'add', 'edit', 'delete', 'approve', 'reject', 'export'],
   },
   {
     key: 'projects',
     label: 'Projects Management',
     group: 'MANAGEMENT',
-    actions: ['view', 'add', 'edit', 'delete', 'approve', 'export'],
+    actions: ['view', 'add', 'edit', 'delete', 'approve', 'reject', 'export'],
+  },
+  {
+    key: 'featured_projects',
+    label: 'Featured Projects Hub',
+    group: 'MANAGEMENT',
+    actions: ['view', 'edit', 'delete'],
+  },
+  {
+    key: 'property_videos',
+    label: 'Property Videos',
+    group: 'MANAGEMENT',
+    actions: ['view', 'add', 'edit', 'delete'],
   },
   {
     key: 'categories',
@@ -83,12 +89,6 @@ export const MANAGER_MODULES = [
     actions: ['view', 'edit', 'delete', 'export'],
   },
   {
-    key: 'bookings',
-    label: 'Bookings',
-    group: 'MANAGEMENT',
-    actions: ['view', 'edit', 'approve', 'export'],
-  },
-  {
     key: 'reviews',
     label: 'Reviews',
     group: 'MANAGEMENT',
@@ -97,6 +97,12 @@ export const MANAGER_MODULES = [
   {
     key: 'banners',
     label: 'Banner Management',
+    group: 'MANAGEMENT',
+    actions: ['view', 'add', 'edit', 'delete'],
+  },
+  {
+    key: 'locality_insights',
+    label: 'Locality Insights',
     group: 'MANAGEMENT',
     actions: ['view', 'add', 'edit', 'delete'],
   },

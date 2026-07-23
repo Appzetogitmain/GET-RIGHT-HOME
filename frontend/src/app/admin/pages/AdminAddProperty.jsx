@@ -112,6 +112,28 @@ const AdminAddProperty = () => {
     }
   }, [selectedTxn, selectedCat, selectedPropType, selectedCreator, currentStepIndex, isBuilderProject, isEditing]);
 
+  // Restore template if we are past step 0 on mount
+  useEffect(() => {
+    const fetchTemplate = async () => {
+      if (currentStepIndex > 0 && !template && selectedTxn && selectedCat && selectedPropType) {
+        try {
+          const endpoint = isBuilderProject ? '/builder-forms' : '/admin/property-forms';
+          const res = await api.get(endpoint, {
+            params: { transactionType: selectedTxn, category: selectedCat, propertyType: selectedPropType }
+          });
+          if (res.data.success && res.data.data.length > 0) {
+            setTemplate(res.data.data[0]);
+          } else {
+            setCurrentStepIndex(0);
+          }
+        } catch (err) {
+          setCurrentStepIndex(0);
+        }
+      }
+    };
+    fetchTemplate();
+  }, [currentStepIndex, template, selectedTxn, selectedCat, selectedPropType, isBuilderProject]);
+
   // Fetch Category combinations and Builders on load
   useEffect(() => {
     const fetchData = async () => {

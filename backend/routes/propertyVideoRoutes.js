@@ -1,6 +1,7 @@
 import express from 'express';
 import { getVideos, getAllVideos, createVideo, updateVideo, deleteVideo } from '../controllers/propertyVideoController.js';
 import { protect } from '../middlewares/authMiddleware.js';
+import { checkManagerPermission } from '../middlewares/managerPermission.js';
 
 const router = express.Router();
 
@@ -8,14 +9,10 @@ router.get('/', getVideos);
 
 // Admin / Manager routes
 router.use(protect);
-// Assuming 'admin' and 'manager' roles exist and authorize supports arrays
-// If authorize is just for admin, we might need custom logic, but usually it's authorize('admin', 'manager')
-// Let's just use protect for now, and rely on standard role check if needed, or simply protect.
-// In this system, adminRoutes.js might handle admin only. Wait, I'll just leave it protected.
 
-router.get('/all', getAllVideos);
-router.post('/', createVideo);
-router.put('/:id', updateVideo);
-router.delete('/:id', deleteVideo);
+router.get('/all', checkManagerPermission('property_videos', 'view'), getAllVideos);
+router.post('/', checkManagerPermission('property_videos', 'add'), createVideo);
+router.put('/:id', checkManagerPermission('property_videos', 'edit'), updateVideo);
+router.delete('/:id', checkManagerPermission('property_videos', 'delete'), deleteVideo);
 
 export default router;

@@ -17,7 +17,6 @@ export const getAdminFeaturedProperties = async (req, res) => {
 // fghjk
     const projects = await Project.find(query)
       .populate('userId', 'name email role')
-      .populate('partnerId', 'name email role')
       .populate('featuredDetails.planId')
       .sort({ createdAt: -1 })
       .skip(skip)

@@ -1506,8 +1506,8 @@ export const getFinanceStats = async (req, res) => {
       .populate('userId', 'name email')
       .populate({
         path: 'propertyId',
-        select: 'propertyName partnerId',
-        populate: { path: 'partnerId', select: 'name email' } // Get Partner Info
+        select: 'propertyName userId',
+        populate: { path: 'userId', select: 'name email' } // Get Creator Info
       })
       .sort({ createdAt: -1 })
       .limit(50); // Limit to last 50 for now
