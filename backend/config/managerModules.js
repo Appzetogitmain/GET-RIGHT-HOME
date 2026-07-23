@@ -35,6 +35,12 @@ export const MANAGER_MODULES = [
     actions: ['view', 'add', 'edit', 'delete'],
   },
   {
+    key: 'builder_verification',
+    label: 'Builder Verification',
+    group: 'MANAGEMENT',
+    actions: ['view', 'approve'],
+  },
+  {
     key: 'subscriptions',
     label: 'Subscriptions',
     group: 'MANAGEMENT',
@@ -43,6 +49,12 @@ export const MANAGER_MODULES = [
   {
     key: 'properties',
     label: 'Property Management',
+    group: 'MANAGEMENT',
+    actions: ['view', 'add', 'edit', 'delete', 'approve', 'export'],
+  },
+  {
+    key: 'projects',
+    label: 'Projects Management',
     group: 'MANAGEMENT',
     actions: ['view', 'add', 'edit', 'delete', 'approve', 'export'],
   },

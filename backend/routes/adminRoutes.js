@@ -87,8 +87,8 @@ import {
   deleteFeaturedPlan 
 } from '../controllers/adminPropertyController.js';
 
-router.get('/featured-projects', checkManagerPermission('properties', 'view'), getAdminFeaturedProperties);
-router.put('/featured-projects/:id', checkManagerPermission('properties', 'edit'), updateFeaturedProperty);
+router.get('/featured-projects', checkManagerPermission('projects', 'view'), getAdminFeaturedProperties);
+router.put('/featured-projects/:id', checkManagerPermission('projects', 'edit'), updateFeaturedProperty);
 
 router.get('/featured-plans', checkManagerPermission('properties', 'view'), getFeaturedPlans);
 router.post('/featured-plans', checkManagerPermission('properties', 'edit'), createFeaturedPlan);
@@ -114,11 +114,11 @@ router.post('/properties', checkManagerPermission('properties', 'add'), createAd
 router.put('/properties/:id', checkManagerPermission('properties', 'edit'), updateAdminProperty);
 
 // Projects
-router.get('/projects', checkManagerPermission('properties', 'view'), getAllProjects);
-router.get('/project-details/:id', checkManagerPermission('properties', 'view'), getProjectDetails);
-router.post('/projects', checkManagerPermission('properties', 'add'), createAdminProject);
-router.put('/projects/:id', checkManagerPermission('properties', 'edit'), updateAdminProject);
-router.delete('/delete-project', checkManagerPermission('properties', 'delete'), deleteProject);
+router.get('/projects', checkManagerPermission('projects', 'view'), getAllProjects);
+router.get('/project-details/:id', checkManagerPermission('projects', 'view'), getProjectDetails);
+router.post('/projects', checkManagerPermission('projects', 'add'), createAdminProject);
+router.put('/projects/:id', checkManagerPermission('projects', 'edit'), updateAdminProject);
+router.delete('/delete-project', checkManagerPermission('projects', 'delete'), deleteProject);
 
 router.get('/bookings', checkManagerPermission('bookings', 'view'), getAllBookings);
 

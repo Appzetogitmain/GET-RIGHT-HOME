@@ -29,8 +29,8 @@ const PropertyDetailsDispatcher = () => {
           const p = response.property;
           
           // Determine if it is a Project (Builder project) or a standard Property
-          // A project will either have builderProjectDetails, or the creator is a builder, or it's added by admin
-          const isProject = p.builderProjectDetails || p.userId?.role === 'builder' || p.isAddedByAdmin;
+          // A project will either have builderProjectDetails, builderName, or the creator is a builder
+          const isProject = p.builderProjectDetails || p.builderName || p.userId?.role === 'builder';
           
           if (isProject) {
             setIsHandpicked(true);
