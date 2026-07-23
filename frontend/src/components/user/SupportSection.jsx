@@ -366,23 +366,6 @@ const SupportSection = () => {
             </div>
           </div>
 
-          {/* Email Support Option */}
-          <div className="p-5 flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Email Support</span>
-              <a href={`mailto:${supportEmail}`} className="text-base font-extrabold text-[#0d6efd] hover:underline mt-1 block">{supportEmail}</a>
-            </div>
-            <button
-              onClick={() => handleSupportAction('email')}
-              className="w-12 h-12 rounded-[14px] bg-[#EEF2F6]/80 hover:bg-[#E2E8F0] flex items-center justify-center transition-all cursor-pointer"
-              title="Email Support"
-            >
-              <svg viewBox="0 0 24 24" width="22" height="22" className="fill-none stroke-[#0d6efd] stroke-[2] stroke-linecap-round stroke-linejoin-round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                <polyline points="22,6 12,13 2,6"></polyline>
-              </svg>
-            </button>
-          </div>
         </div>
 
         {/* Request Callback CTA */}
