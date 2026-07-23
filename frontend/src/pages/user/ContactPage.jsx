@@ -12,15 +12,60 @@ const ContactPage = () => {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
-  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  // Support details state
+  const [supportEmail, setSupportEmail] = useState('getrighthome7@gmail.com');
+  const [supportPhone, setSupportPhone] = useState('+91-6304471791');
+
+  React.useEffect(() => {
+    const fetchContactInfo = async () => {
+      try {
+        const res = await legalService.getAdminContact();
+        if (res && res.success) {
+          setSupportEmail(res.email || 'getrighthome7@gmail.com');
+          // Format phone
+          const digits = res.phone.replace(/\D/g, '');
+          if (digits.length === 12 && digits.startsWith('91')) {
+            setSupportPhone(`+91-${digits.slice(2, 7)}${digits.slice(7)}`);
+          } else if (digits.length === 10) {
+            setSupportPhone(`+91-${digits.slice(0, 5)}${digits.slice(5)}`);
+          } else {
+            setSupportPhone(res.phone);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch contact details:', err);
+      }
+    };
+    fetchContactInfo();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setFieldErrors({});
     setSuccess('');
 
-    if (!name || !subject || !message) {
-      setError('Please fill all required fields.');
+    let errors = {};
+
+    if (!name.trim()) errors.name = 'Full name is required';
+    if (!subject.trim()) errors.subject = 'Subject is required';
+    if (!message.trim()) errors.message = 'Message is required';
+
+    if (!email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    if (!phone) {
+      errors.phone = 'Mobile number is required';
+    } else if (!/^[6-9]\d{9}$/.test(phone)) {
+      errors.phone = 'Mobile must be 10 digits starting with 6-9';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -40,7 +85,7 @@ const ContactPage = () => {
       setSubject('');
       setMessage('');
     } catch (e) {
-      setError(e?.message || 'Failed to send message. Please try again.');
+      setFieldErrors({ submit: e?.message || 'Failed to send message. Please try again.' });
     } finally {
       setSubmitting(false);
     }
@@ -64,30 +109,30 @@ const ContactPage = () => {
       </div>
 
       <div className="px-5 -mt-6 relative z-10 pb-28 space-y-4">
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-surface/5 flex items-center justify-center text-surface">
+        <div className="flex flex-col sm:flex-row gap-3 mt-4">
+          <a href={`mailto:${supportEmail}`} className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3 overflow-hidden hover:bg-gray-50 transition cursor-pointer">
+            <div className="w-9 h-9 shrink-0 rounded-full bg-surface/5 flex items-center justify-center text-surface">
               <Mail size={18} />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Email</p>
-              <p className="text-xs text-gray-500">support@getrighthome.in</p>
+              <p className="text-xs text-gray-500 truncate" title={supportEmail}>{supportEmail}</p>
             </div>
-          </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-surface/5 flex items-center justify-center text-surface">
+          </a>
+          <a href={`tel:${supportPhone.replace(/\D/g, '')}`} className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3 overflow-hidden hover:bg-gray-50 transition cursor-pointer">
+            <div className="w-9 h-9 shrink-0 rounded-full bg-surface/5 flex items-center justify-center text-surface">
               <Phone size={18} />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Phone</p>
-              <p className="text-xs text-gray-500">+91-6232314147</p>
+              <p className="text-xs text-gray-500 truncate" title={supportPhone}>{supportPhone}</p>
             </div>
-          </div>
+          </a>
         </div>
 
-        {error && (
+        {fieldErrors.submit && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl px-4 py-2">
-            {error}
+            {fieldErrors.submit}
           </div>
         )}
         {success && (
@@ -103,30 +148,42 @@ const ContactPage = () => {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-surface/60"
+              className={`w-full px-3 py-2.5 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-surface/60 ${fieldErrors.name ? 'border-red-500' : 'border-gray-200'}`}
               placeholder="Enter your name"
             />
+            {fieldErrors.name && <p className="text-red-500 text-[10px] mt-1 font-bold">{fieldErrors.name}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">Email</label>
+              <label className="block text-xs font-bold text-gray-600 mb-1">Email *</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-surface/60"
+                className={`w-full px-3 py-2.5 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-surface/60 ${fieldErrors.email ? 'border-red-500' : 'border-gray-200'}`}
                 placeholder="you@example.com"
               />
+              {fieldErrors.email && <p className="text-red-500 text-[10px] mt-1 font-bold">{fieldErrors.email}</p>}
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">Phone</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-surface/60"
-                placeholder="+91"
-              />
+              <label className="block text-xs font-bold text-gray-600 mb-1">Phone *</label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 border border-r-0 border-gray-200 rounded-l-xl bg-gray-50 text-gray-500 text-sm font-bold">
+                    +91
+                </span>
+                <input
+                  type="tel"
+                  maxLength="10"
+                  value={phone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setPhone(val);
+                  }}
+                  className={`w-full px-3 py-2.5 border rounded-r-xl text-sm outline-none focus:ring-2 focus:ring-surface/60 ${fieldErrors.phone ? 'border-red-500' : 'border-gray-200'}`}
+                  placeholder="Enter 10-digit number"
+                />
+              </div>
+              {fieldErrors.phone && <p className="text-red-500 text-[10px] mt-1 font-bold">{fieldErrors.phone}</p>}
             </div>
           </div>
           <div>
@@ -135,9 +192,10 @@ const ContactPage = () => {
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-surface/60"
+              className={`w-full px-3 py-2.5 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-surface/60 ${fieldErrors.subject ? 'border-red-500' : 'border-gray-200'}`}
               placeholder="What do you need help with?"
             />
+            {fieldErrors.subject && <p className="text-red-500 text-[10px] mt-1 font-bold">{fieldErrors.subject}</p>}
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-600 mb-1">Message *</label>
@@ -146,11 +204,12 @@ const ContactPage = () => {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={4}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-surface/60 resize-none"
+                className={`w-full px-3 py-2.5 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-surface/60 resize-none ${fieldErrors.message ? 'border-red-500' : 'border-gray-200'}`}
                 placeholder="Share details so we can assist you faster."
               />
-              <MessageSquare size={16} className="absolute right-3 bottom-3 text-gray-300" />
+              <MessageSquare size={16} className={`absolute right-3 bottom-3 ${fieldErrors.message ? 'text-red-300' : 'text-gray-300'}`} />
             </div>
+            {fieldErrors.message && <p className="text-red-500 text-[10px] mt-1 font-bold">{fieldErrors.message}</p>}
           </div>
           <button
             type="submit"

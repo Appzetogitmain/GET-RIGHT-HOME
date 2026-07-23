@@ -57,6 +57,18 @@ const platformSettingsSchema = new mongoose.Schema(
     freeTrialDurationDays: {
       type: Number,
       default: 30
+    },
+    supportEmail: {
+      type: String,
+      default: 'getrighthome7@gmail.com'
+    },
+    supportPhone: {
+      type: String,
+      default: '+91 63044 71791'
+    },
+    supportWhatsapp: {
+      type: String,
+      default: '+916304471791'
     }
   },
   { timestamps: true }

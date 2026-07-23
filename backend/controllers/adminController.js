@@ -1137,7 +1137,10 @@ export const updatePlatformSettings = async (req, res) => {
       freeTrialListingLimit,
       freeTrialDurationDays,
       platformFlatFee,
-      cashCollectionFee
+      cashCollectionFee,
+      supportEmail,
+      supportPhone,
+      supportWhatsapp
     } = req.body;
 
     const settings = await PlatformSettings.getSettings();
@@ -1147,6 +1150,10 @@ export const updatePlatformSettings = async (req, res) => {
     if (typeof bookingDisabledMessage === 'string') settings.bookingDisabledMessage = bookingDisabledMessage;
     if (typeof maintenanceTitle === 'string') settings.maintenanceTitle = maintenanceTitle;
     if (typeof maintenanceMessage === 'string') settings.maintenanceMessage = maintenanceMessage;
+    
+    if (typeof supportEmail === 'string') settings.supportEmail = supportEmail;
+    if (typeof supportPhone === 'string') settings.supportPhone = supportPhone;
+    if (typeof supportWhatsapp === 'string') settings.supportWhatsapp = supportWhatsapp;
 
     if (defaultCommission !== undefined) settings.defaultCommission = Number(defaultCommission);
     if (taxRate !== undefined) settings.taxRate = Number(taxRate);
