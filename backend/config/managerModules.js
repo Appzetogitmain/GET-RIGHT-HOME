@@ -20,7 +20,7 @@ export const MANAGER_MODULES = [
     key: 'users',
     label: 'User Management',
     group: 'MANAGEMENT',
-    actions: ['view', 'edit', 'delete', 'suspend', 'export'],
+    actions: ['view', 'add', 'edit', 'delete', 'suspend', 'export'],
   },
   {
     key: 'builders',

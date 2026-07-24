@@ -1752,3 +1752,52 @@ export const updateAdminPassword = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error updating password', error: error.message });
   }
 };
+
+export const createAdminBroker = async (req, res) => {
+  try {
+    const { name, email, phone } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, message: 'Name and phone are required' });
+    }
+
+    // Check if phone or email already exists
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
+      return res.status(400).json({ success: false, message: 'Phone number is already registered' });
+    }
+
+    if (email) {
+      const existingEmail = await User.findOne({ email });
+      if (existingEmail) {
+        return res.status(400).json({ success: false, message: 'Email is already registered' });
+      }
+    }
+
+    // Create broker. Bypassing OTP logic for now as requested.
+    const newBroker = new User({
+      name,
+      email: email || undefined,
+      phone,
+      role: 'broker',
+      isVerified: true // Mocking verification for now
+    });
+
+    await newBroker.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Broker created successfully',
+      user: {
+        _id: newBroker._id,
+        name: newBroker.name,
+        email: newBroker.email,
+        phone: newBroker.phone,
+        role: newBroker.role
+      }
+    });
+  } catch (error) {
+    console.error('Error creating admin broker:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};

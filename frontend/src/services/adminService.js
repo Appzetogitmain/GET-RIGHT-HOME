@@ -11,6 +11,11 @@ const adminService = {
     return response.data;
   },
 
+  createBroker: async (data) => {
+    const response = await axiosInstance.post('/admin/users/create-broker', data);
+    return response.data;
+  },
+
   getPartners: async (params) => {
     const response = await axiosInstance.get('/admin/partners', { params });
     return response.data;

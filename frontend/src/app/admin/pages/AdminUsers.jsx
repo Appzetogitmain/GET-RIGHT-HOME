@@ -22,6 +22,196 @@ const UserStatusBadge = ({ status }) => {
     );
 };
 
+const AddBrokerModal = ({ isOpen, onClose, onSuccess }) => {
+    const [step, setStep] = useState(1);
+    const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
+    const [otp, setOtp] = useState('');
+    const [errors, setErrors] = useState({});
+    const [loading, setLoading] = useState(false);
+
+    if (!isOpen) return null;
+
+    const validateFields = () => {
+        const newErrors = {};
+        if (!formData.name.trim()) newErrors.name = 'Full Name is required.';
+        
+        if (!formData.phone.trim()) {
+            newErrors.phone = 'Phone Number is required.';
+        } else if (!/^[6-9]\d{9}$/.test(formData.phone.trim())) {
+            newErrors.phone = 'Enter a valid 10-digit number starting with 6-9.';
+        }
+
+        if (!formData.email.trim()) {
+            newErrors.email = 'Email is required.';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+            newErrors.email = 'Enter a valid email address.';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleNext = (e) => {
+        e.preventDefault();
+        if (validateFields()) {
+            setStep(2);
+        }
+    };
+
+    const handleSubmitOtp = async (e) => {
+        e.preventDefault();
+        if (otp !== '123456') {
+            setErrors({ otp: 'Invalid OTP. Please enter 123456.' });
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const payload = {
+                ...formData,
+                phone: formData.phone.trim()
+            };
+            const res = await adminService.createBroker(payload);
+            if (res.success) {
+                toast.success('Broker created successfully');
+                setFormData({ name: '', email: '', phone: '' });
+                setStep(1);
+                setOtp('');
+                onSuccess();
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to create broker');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                    <h3 className="font-bold text-lg text-gray-900 uppercase">
+                        {step === 1 ? 'Add Broker' : 'Verify OTP'}
+                    </h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+                        <span className="text-xl leading-none">&times;</span>
+                    </button>
+                </div>
+
+                {step === 1 ? (
+                    <form onSubmit={handleNext} className="p-6 space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-tight mb-1">Full Name *</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => {
+                                    setFormData({ ...formData, name: e.target.value });
+                                    if (errors.name) setErrors({ ...errors, name: '' });
+                                }}
+                                className={`w-full px-4 py-2 bg-gray-50 border ${errors.name ? 'border-red-500' : 'border-transparent'} rounded-xl text-sm font-bold focus:bg-white focus:border-black outline-none transition-all`}
+                                placeholder="John Doe"
+                            />
+                            {errors.name && <p className="text-red-500 text-[10px] font-bold mt-1 uppercase tracking-tight">{errors.name}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-tight mb-1">Phone Number *</label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-500 border-r pr-2 border-gray-300">+91</span>
+                                <input
+                                    type="tel"
+                                    maxLength="10"
+                                    value={formData.phone}
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/\D/g, '');
+                                        setFormData({ ...formData, phone: val });
+                                        if (errors.phone) setErrors({ ...errors, phone: '' });
+                                    }}
+                                    className={`w-full pl-16 pr-4 py-2 bg-gray-50 border ${errors.phone ? 'border-red-500' : 'border-transparent'} rounded-xl text-sm font-bold focus:bg-white focus:border-black outline-none transition-all`}
+                                    placeholder="9876543210"
+                                />
+                            </div>
+                            {errors.phone && <p className="text-red-500 text-[10px] font-bold mt-1 uppercase tracking-tight">{errors.phone}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-tight mb-1">Email *</label>
+                            <input
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => {
+                                    setFormData({ ...formData, email: e.target.value });
+                                    if (errors.email) setErrors({ ...errors, email: '' });
+                                }}
+                                className={`w-full px-4 py-2 bg-gray-50 border ${errors.email ? 'border-red-500' : 'border-transparent'} rounded-xl text-sm font-bold focus:bg-white focus:border-black outline-none transition-all`}
+                                placeholder="john@example.com"
+                            />
+                            {errors.email && <p className="text-red-500 text-[10px] font-bold mt-1 uppercase tracking-tight">{errors.email}</p>}
+                        </div>
+                        <div className="pt-4 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold uppercase text-xs hover:bg-gray-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="flex-1 px-4 py-2 bg-black text-white rounded-xl font-bold uppercase text-xs hover:bg-gray-900 transition-colors"
+                            >
+                                Continue
+                            </button>
+                        </div>
+                    </form>
+                ) : (
+                    <form onSubmit={handleSubmitOtp} className="p-6 space-y-4">
+                        <div className="text-center mb-6">
+                            <p className="text-sm font-bold text-gray-600">Enter OTP sent to +91 {formData.phone}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">(Bypass: enter 123456)</p>
+                        </div>
+                        <div>
+                            <input
+                                type="text"
+                                maxLength="6"
+                                value={otp}
+                                onChange={(e) => {
+                                    setOtp(e.target.value.replace(/\D/g, ''));
+                                    if (errors.otp) setErrors({ ...errors, otp: '' });
+                                }}
+                                className={`w-full text-center tracking-[0.5em] px-4 py-3 bg-gray-50 border ${errors.otp ? 'border-red-500' : 'border-transparent'} rounded-xl text-xl font-bold focus:bg-white focus:border-black outline-none transition-all`}
+                                placeholder="------"
+                            />
+                            {errors.otp && <p className="text-red-500 text-[10px] font-bold mt-2 uppercase tracking-tight text-center">{errors.otp}</p>}
+                        </div>
+                        <div className="pt-4 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setStep(1)}
+                                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold uppercase text-xs hover:bg-gray-200 transition-colors"
+                            >
+                                Back
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={loading || otp.length < 6}
+                                className="flex-1 px-4 py-2 bg-black text-white rounded-xl font-bold uppercase text-xs hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {loading && <Loader2 size={14} className="animate-spin" />}
+                                Verify & Create
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </motion.div>
+        </div>
+    );
+};
+
 const AdminUsers = () => {
     const location = useLocation();
     const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
@@ -40,6 +230,7 @@ const AdminUsers = () => {
 
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
+    const [isAddBrokerModalOpen, setIsAddBrokerModalOpen] = useState(false);
 
     const fetchUsers = useCallback(async (page, currentFilters) => {
         const token = localStorage.getItem('adminToken');
@@ -185,6 +376,19 @@ const AdminUsers = () => {
                 onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
                 {...modalConfig}
             />
+            
+            <AnimatePresence>
+                {isAddBrokerModalOpen && (
+                    <AddBrokerModal
+                        isOpen={isAddBrokerModalOpen}
+                        onClose={() => setIsAddBrokerModalOpen(false)}
+                        onSuccess={() => {
+                            setIsAddBrokerModalOpen(false);
+                            fetchUsers(1, filters);
+                        }}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -193,6 +397,12 @@ const AdminUsers = () => {
                     <p className="text-gray-500 text-[10px] font-bold uppercase tracking-tight">View, track, and manage registered guests and partners.</p>
                 </div>
                 <div className="flex gap-2">
+                    <button
+                        onClick={() => setIsAddBrokerModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-[10px] font-bold uppercase hover:bg-gray-900 transition-colors shadow-sm"
+                    >
+                        + Add Broker
+                    </button>
                     <button
                         onClick={handleExportCSV}
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"

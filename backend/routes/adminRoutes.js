@@ -47,6 +47,7 @@ import {
   getAbandonedCarts,
   sendTargetedNotification,
   updateAdminProperty,
+  createAdminBroker,
   updateAdminPassword
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
@@ -108,6 +109,7 @@ router.get('/dashboard-stats', checkManagerPermission('dashboard', 'view'), getD
 router.get('/dashboard/revenue', checkManagerPermission('dashboard', 'view'), getDashboardRevenue);
 router.get('/finance', checkManagerPermission('finance', 'view'), getFinanceStats);
 router.get('/users', checkManagerPermission('users', 'view'), getAllUsers);
+router.post('/users/create-broker', checkManagerPermission('users', 'add'), createAdminBroker);
 router.get('/partners', checkManagerPermission('partners', 'view'), getAllPartners);
 router.get('/hotels', checkManagerPermission('properties', 'view'), getAllHotels);
 router.post('/properties', checkManagerPermission('properties', 'add'), createAdminProperty);
