@@ -20,6 +20,8 @@ import logo from './assets/grh-logo.png';
 import { CityProvider } from './homster/context/CityContext';
 import { CartProvider } from './homster/context/CartContext';
 import { SocketProvider } from './homster/context/SocketContext';
+import { EnquiryModalProvider } from './context/EnquiryModalContext';
+import GlobalEnquiryModal from './components/ui/GlobalEnquiryModal';
 
 // Lazy Imports - User Pages
 const Home = React.lazy(() => import('./pages/user/Home'));
@@ -483,6 +485,7 @@ function App() {
             <ScrollToTop />
             <Toaster position="top-center" reverseOrder={false} />
             <SocketProvider>
+              <EnquiryModalProvider>
               <Layout>
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
@@ -733,6 +736,8 @@ function App() {
                   </Routes>
                 </Suspense>
               </Layout>
+              <GlobalEnquiryModal />
+              </EnquiryModalProvider>
             </SocketProvider>
           </Router>
         </AuthProvider>

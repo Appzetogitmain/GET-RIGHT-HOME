@@ -16,6 +16,7 @@ import {
     Loader2
 } from 'lucide-react';
 import PropertyFeed from '../../components/user/PropertyFeed';
+import { useEnquiryModal } from '../../context/EnquiryModalContext';
 
 const BrokerProfilePage = () => {
     const { id } = useParams();
@@ -23,6 +24,32 @@ const BrokerProfilePage = () => {
     const [broker, setBroker] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const { openEnquiryModal } = useEnquiryModal();
+
+    const handleContact = (actionType) => {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            openEnquiryModal({
+                targetId: id,
+                targetType: 'Broker',
+                actionType,
+                onSuccess: () => {
+                    executeAction(actionType);
+                }
+            });
+            return;
+        }
+        executeAction(actionType);
+    };
+
+    const executeAction = (actionType) => {
+        if (!broker) return;
+        if (actionType === 'call') {
+            window.location.href = `tel:${broker.phone || ''}`;
+        } else if (actionType === 'whatsapp') {
+            window.open(`https://wa.me/${(broker.whatsapp || broker.phone || '').replace(/\D/g, '')}`, '_blank');
+        }
+    };
 
     useEffect(() => {
         const fetchBroker = async () => {
@@ -183,13 +210,13 @@ const BrokerProfilePage = () => {
                             {/* Actions (Desktop only, Mobile is fixed bottom) */}
                             <div className="hidden md:flex gap-3 pt-4">
                                 <button 
-                                    onClick={() => window.location.href = `tel:${broker.phone || ''}`}
+                                    onClick={() => handleContact('call')}
                                     className="flex-1 bg-black hover:bg-gray-900 text-white py-3 px-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-transform active:scale-95"
                                 >
                                     <Phone size={18} /> Call Now
                                 </button>
                                 <button 
-                                    onClick={() => window.open(`https://wa.me/${(broker.phone || '').replace(/\D/g, '')}`, '_blank')}
+                                    onClick={() => handleContact('whatsapp')}
                                     className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 px-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-transform active:scale-95"
                                 >
                                     <MessageCircle size={18} /> WhatsApp
@@ -219,13 +246,13 @@ const BrokerProfilePage = () => {
             {/* Mobile Fixed Action Bar */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pb-safe flex gap-3 z-[60] shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
                 <button 
-                    onClick={() => window.location.href = `tel:${broker.phone || ''}`}
+                    onClick={() => handleContact('call')}
                     className="flex-1 bg-blue-500 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-blue-500/20"
                 >
                     <Phone size={18} /> Call Now
                 </button>
                 <button 
-                    onClick={() => window.open(`https://wa.me/${(broker.phone || '').replace(/\D/g, '')}`, '_blank')}
+                    onClick={() => handleContact('whatsapp')}
                     className="flex-1 bg-emerald-500 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-emerald-500/20"
                 >
                     <MessageCircle size={18} /> WhatsApp

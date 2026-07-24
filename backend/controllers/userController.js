@@ -658,6 +658,8 @@ export const getRecommendedBrokers = async (req, res) => {
 export const getBrokerProfile = async (req, res) => {
   try {
     const brokerId = req.params.id;
+    const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
+    const settings = await PlatformSettings.getSettings();
     
     // Validate if it's a valid ObjectId (import mongoose in controller or use generic error handling)
     if (!brokerId || brokerId.length !== 24) {
@@ -729,7 +731,8 @@ export const getBrokerProfile = async (req, res) => {
           totalListings: 1,
           verifiedListings: 1,
           expertLocalities: 1,
-          memberSince: 1
+          memberSince: 1,
+          activeSubscription: 1
         }
       }
     ]);
@@ -738,7 +741,16 @@ export const getBrokerProfile = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Broker not found' });
     }
     
-    res.json({ success: true, broker: brokerData[0] });
+    let broker = brokerData[0];
+    
+    if (!broker.activeSubscription || broker.activeSubscription.length === 0) {
+      broker.isSubscriptionExpired = true;
+      broker.originalPhone = broker.phone; // Optional: keep for debugging, but we overwrite phone
+      broker.phone = settings.supportPhone || '+916304471791';
+      broker.whatsapp = settings.supportWhatsapp || '+916304471791';
+    }
+
+    res.json({ success: true, broker });
   } catch (error) {
     console.error('Error fetching broker profile:', error);
     res.status(500).json({ success: false, message: 'Server Error' });

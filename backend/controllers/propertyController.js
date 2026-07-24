@@ -1780,10 +1780,14 @@ export const revealContact = async (req, res) => {
       }
 
       if (!isSubscriptionActive && !isTrialActive) {
-        return res.status(403).json({
-          success: false,
-          message: `Seller subscription has expired or is inactive. Please ask them to subscribe.`,
-          subscriptionExpired: true
+        const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
+        const settings = await PlatformSettings.getSettings();
+
+        return res.status(200).json({
+          success: true,
+          subscriptionExpired: true,
+          message: `This seller's subscription has expired. Their contact details are currently unavailable.`,
+          contactNumber: settings.supportPhone || '+916304471791'
         });
       }
 
