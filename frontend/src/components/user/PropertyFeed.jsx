@@ -9,6 +9,11 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
   const [savedHotelIds, setSavedHotelIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isPaginating, setIsPaginating] = useState(false);
+  const itemsPerPage = 12;
 
   const carouselRef = React.useRef(null);
   const cacheKey = selectedType || 'all';
@@ -73,6 +78,7 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
         }
 
         setProperties(filteredData);
+        setCurrentPage(1); // Reset page on new data
       } catch (err) {
         console.error("Failed to fetch properties:", err);
         setError("Could not load properties. Please try again.");
@@ -83,6 +89,16 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
 
     fetchPropertiesAndSaved();
   }, [selectedType, selectedCity, JSON.stringify(extraFilters)]);
+
+  const handlePageChange = (newPage) => {
+    setIsPaginating(true);
+    // Fake a small delay for skeleton loading UX if requested
+    setTimeout(() => {
+      setCurrentPage(newPage);
+      setIsPaginating(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 300);
+  };
 
   if (loading) {
     return (
@@ -108,9 +124,49 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
     );
   }
 
-  const displayedProperties = limit ? properties.slice(0, limit) : properties;
+  const isPaginatedView = viewMode === 'list' && !limit && properties.length > itemsPerPage;
+  
+  let displayedProperties = properties;
+  
+  if (limit && viewMode === 'carousel') {
+    displayedProperties = properties.slice(0, limit);
+  } else if (isPaginatedView) {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    displayedProperties = properties.slice(startIndex, startIndex + itemsPerPage);
+  }
 
+  const totalPages = Math.ceil(properties.length / itemsPerPage);
 
+  const renderSkeletons = () => (
+    Array(itemsPerPage).fill(0).map((_, i) => (
+      <div key={`sk-${i}`} className="w-full md:max-w-[340px] h-[350px] bg-gray-100 animate-pulse rounded-[1.5rem]" />
+    ))
+  );
+
+  const renderPagination = () => {
+    if (!isPaginatedView) return null;
+    return (
+      <div className="flex justify-center items-center gap-2 mt-8 mb-4 w-full">
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold disabled:opacity-50 hover:bg-gray-50"
+        >
+          Previous
+        </button>
+        <span className="text-sm font-medium text-gray-500">
+          Page {currentPage} of {totalPages}
+        </span>
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold disabled:opacity-50 hover:bg-gray-50"
+        >
+          Next
+        </button>
+      </div>
+    );
+  };
 
   if (viewMode === 'carousel') {
     return (
@@ -134,30 +190,38 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
   }
   if (viewMode === 'list') {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-5 justify-items-center bg-gray-100 md:bg-transparent pb-4 md:pb-0 -mx-4 md:mx-0">
-        {displayedProperties.map(property => (
-          <div key={property._id} className="w-full md:max-w-[340px] flex justify-center bg-white md:bg-transparent">
-             <PropertyCard
-               data={property}
-               isSaved={savedHotelIds.includes(property._id)}
-               isSearchPage={true}
-               className="!w-full !rounded-none md:!rounded-[1.5rem] border-y-0 md:border border-gray-100 shadow-sm"
-             />
-          </div>
-        ))}
+      <div className="flex flex-col w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-5 justify-items-center bg-gray-100 md:bg-transparent pb-4 md:pb-0 -mx-4 md:mx-0">
+          {isPaginating ? renderSkeletons() : displayedProperties.map(property => (
+            <div key={property._id} className="w-full md:max-w-[340px] flex justify-center bg-white md:bg-transparent">
+               <PropertyCard
+                 data={property}
+                 isSaved={savedHotelIds.includes(property._id)}
+                 isSearchPage={true}
+                 className="!w-full !rounded-none md:!rounded-[1.5rem] border-y-0 md:border border-gray-100 shadow-sm"
+               />
+            </div>
+          ))}
+        </div>
+        {renderPagination()}
       </div>
     );
   }
 
   return (
-    <div className="px-3.5 md:px-5 pb-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-      {displayedProperties.map(property => (
-        <PropertyCard
-          key={property._id}
-          data={property}
-          isSaved={savedHotelIds.includes(property._id)}
-        />
-      ))}
+    <div className="flex flex-col w-full">
+      <div className="px-3.5 md:px-5 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+        {isPaginating ? renderSkeletons() : displayedProperties.map(property => (
+          <PropertyCard
+            key={property._id}
+            data={property}
+            isSaved={savedHotelIds.includes(property._id)}
+          />
+        ))}
+      </div>
+      <div className="pb-24">
+        {renderPagination()}
+      </div>
     </div>
   );
 };

@@ -628,16 +628,24 @@ export const getRecommendedBrokers = async (req, res) => {
         }
       },
       
-      // Sort: highest ranking weight first, then most listings
-      { $sort: { rankingWeight: -1, totalListings: -1, _id: -1 } },
+      // Filter out brokers with 0 listings
+      { $match: { totalListings: { $gt: 0 } } },
       
-      { $skip: skip },
-      { $limit: limit }
+      // Sort: most listings first, then highest ranking weight
+      { $sort: { totalListings: -1, rankingWeight: -1, _id: -1 } },
+      
+      {
+        $facet: {
+          metadata: [{ $count: 'totalCount' }],
+          data: [{ $skip: skip }, { $limit: limit }]
+        }
+      }
     ]);
     
-    const totalCount = await User.countDocuments({ role: 'broker' });
+    const totalCount = brokers[0].metadata[0] ? brokers[0].metadata[0].totalCount : 0;
+    const paginatedBrokers = brokers[0].data;
     
-    res.json({ success: true, brokers, total: totalCount, page, pages: Math.ceil(totalCount / limit) });
+    res.json({ success: true, brokers: paginatedBrokers, total: totalCount, page, pages: Math.ceil(totalCount / limit) });
   } catch (error) {
     console.error('Error fetching recommended brokers:', error);
     res.status(500).json({ success: false, message: 'Server Error' });
