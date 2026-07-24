@@ -41,6 +41,7 @@ const AddDynamicWizard = () => {
   const isEditMode = !!(existingProperty || id);
   const initialStep = location.state?.initialStep || 1;
   const [step, setStep] = useState(initialStep);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [createdProperty, setCreatedProperty] = useState(null);
@@ -2540,10 +2541,28 @@ const AddDynamicWizard = () => {
                 <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center transition-all animate-bounce">
                   <CheckCircle size={48} />
                 </div>
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-extrabold text-gray-900">Registration Submitted!</h2>
-                  <p className="text-gray-500 max-w-sm mx-auto">Your property registration has been sent for verification. Our team will review it and get back to you shortly.</p>
-                </div>
+                {(user?.userType === 'builder' || user?.role === 'builder') ? (
+                  <div className="space-y-4 max-w-lg mx-auto bg-blue-50 border border-blue-200 p-6 rounded-2xl shadow-sm">
+                    <h2 className="text-2xl font-black text-blue-900">Project Submitted Successfully!</h2>
+                    <p className="text-blue-800 text-sm font-medium">Your project is now <span className="font-bold">Pending Approval</span>.</p>
+                    <div className="bg-white p-4 rounded-xl shadow-sm text-left border border-blue-100">
+                      <p className="text-gray-600 text-sm mb-3">
+                        For <span className="font-bold text-gray-800">plan estimations</span>, <span className="font-bold text-gray-800">lead generation packages</span>, and <span className="font-bold text-gray-800">quick approval</span>, please connect with our Admin/Manager.
+                      </p>
+                      <button 
+                        onClick={() => navigate('/contact')}
+                        className="w-full px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Contact Support Now
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <h2 className="text-3xl font-extrabold text-gray-900">Registration Submitted!</h2>
+                    <p className="text-gray-500 max-w-sm mx-auto">Your property registration has been sent for verification. Our team will review it and get back to you shortly.</p>
+                  </div>
+                )}
                 <button
                   onClick={() => {
                     if (location.pathname.startsWith('/list-property')) {
@@ -2552,9 +2571,9 @@ const AddDynamicWizard = () => {
                       navigate('/hotel/properties');
                     }
                   }}
-                  className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
+                  className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 mt-4"
                 >
-                  Go to My Properties
+                  Go to My {user?.userType === 'builder' ? 'Projects' : 'Properties'}
                 </button>
               </div>
             )

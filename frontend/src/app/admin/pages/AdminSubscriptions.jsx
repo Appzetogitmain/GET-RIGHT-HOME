@@ -16,10 +16,10 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
         isActive: true,
         tier: 'silver',
         leadCap: 0,
-        hasVerifiedTag: false,
         bannerType: 'none',
         rankingWeight: 1,
-        pauseDaysAllowed: 0
+        pauseDaysAllowed: 0,
+        targetRole: 'owner'
     });
     const [tiersList, setTiersList] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -52,10 +52,10 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
                 isActive: plan.isActive !== undefined ? plan.isActive : true,
                 tier: plan.tier || 'silver',
                 leadCap: plan.leadCap || 0,
-                hasVerifiedTag: plan.hasVerifiedTag || false,
                 bannerType: plan.bannerType || 'none',
                 rankingWeight: plan.rankingWeight || 1,
-                pauseDaysAllowed: plan.pauseDaysAllowed || 0
+                pauseDaysAllowed: plan.pauseDaysAllowed || 0,
+                targetRole: plan.targetRole || 'owner'
             });
         }
     }, [plan]);
@@ -115,7 +115,7 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
                                     required
                                     min="1"
                                     value={formData.maxProperties}
-                                    onChange={(e) => setFormData({ ...formData, maxProperties: Number(e.target.value) })}
+                                    onChange={(e) => setFormData({ ...formData, maxProperties: e.target.value === '' ? '' : Number(e.target.value) })}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none"
                                 />
                             </div>
@@ -127,7 +127,7 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
                                     required
                                     min="1"
                                     value={formData.durationDays}
-                                    onChange={(e) => setFormData({ ...formData, durationDays: Number(e.target.value) })}
+                                    onChange={(e) => setFormData({ ...formData, durationDays: e.target.value === '' ? '' : Number(e.target.value) })}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none"
                                 />
                             </div>
@@ -143,7 +143,7 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
                                     required
                                     min="0"
                                     value={formData.price}
-                                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                                    onChange={(e) => setFormData({ ...formData, price: e.target.value === '' ? '' : Number(e.target.value) })}
                                     className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none"
                                 />
                             </div>
@@ -167,6 +167,22 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
                                 </select>
                             </div>
                             <div>
+                                <label className="block text-sm font-bold text-gray-800">Target Role</label>
+                                <span className="text-[10px] text-gray-400 font-bold block mb-1">Who can see and buy this plan.</span>
+                                <select
+                                    value={formData.targetRole}
+                                    onChange={(e) => setFormData({ ...formData, targetRole: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none font-bold capitalize"
+                                >
+                                    <option value="owner">Owner</option>
+                                    <option value="broker">Broker</option>
+                                    <option value="builder">Builder</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
                                 <label className="block text-sm font-bold text-gray-800">Banner Type</label>
                                 <span className="text-[10px] text-gray-400 font-bold block mb-1">Where listing banners will rotate.</span>
                                 <select
@@ -188,7 +204,7 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
                                 <input
                                     type="number"
                                     value={formData.leadCap}
-                                    onChange={(e) => setFormData({ ...formData, leadCap: Number(e.target.value) })}
+                                    onChange={(e) => setFormData({ ...formData, leadCap: e.target.value === '' ? '' : Number(e.target.value) })}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none"
                                 />
                             </div>
@@ -200,7 +216,7 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
                                     min="1"
                                     max="5"
                                     value={formData.rankingWeight}
-                                    onChange={(e) => setFormData({ ...formData, rankingWeight: Number(e.target.value) })}
+                                    onChange={(e) => setFormData({ ...formData, rankingWeight: e.target.value === '' ? '' : Number(e.target.value) })}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none"
                                 />
                             </div>
@@ -209,11 +225,11 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-bold text-gray-800">Pause Days</label>
-                                <span className="text-[10px] text-gray-400 font-bold block mb-1">Allowed pause days for user.</span>
+                                <span className="text-[10px] text-gray-400 font-bold block mb-1">Max days user can pause their plan (e.g. while away). 0 means no pausing allowed.</span>
                                 <input
                                     type="number"
                                     value={formData.pauseDaysAllowed}
-                                    onChange={(e) => setFormData({ ...formData, pauseDaysAllowed: Number(e.target.value) })}
+                                    onChange={(e) => setFormData({ ...formData, pauseDaysAllowed: e.target.value === '' ? '' : Number(e.target.value) })}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none"
                                 />
                             </div>
@@ -378,7 +394,7 @@ const TierModal = ({ tier, onClose, onSuccess }) => {
 };
 
 const AdminSubscriptions = () => {
-    const [activeTab, setActiveTab] = useState('plans'); // 'plans' or 'tiers'
+    const [activeTab, setActiveTab] = useState('owner_plans'); // 'owner_plans', 'broker_plans', 'builder_plans', or 'tiers'
     const [plans, setPlans] = useState([]);
     const [tiers, setTiers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -398,12 +414,20 @@ const AdminSubscriptions = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            if (activeTab === 'plans') {
-                const data = await subscriptionService.getAllPlans();
-                if (data.success) setPlans(data.plans);
-            } else {
+            if (activeTab === 'tiers') {
                 const data = await subscriptionService.getAdminTiers();
                 if (data.success) setTiers(data.tiers);
+            } else {
+                const data = await subscriptionService.getAllPlans();
+                if (data.success) {
+                    const roleMap = {
+                        'owner_plans': 'owner',
+                        'broker_plans': 'broker',
+                        'builder_plans': 'builder'
+                    };
+                    const role = roleMap[activeTab];
+                    setPlans(data.plans.filter(p => p.targetRole === role));
+                }
             }
         } catch (error) {
             toast.error('Failed to load subscription workspace');
@@ -491,7 +515,7 @@ const AdminSubscriptions = () => {
                     </h1>
                     <p className="text-gray-500 text-sm mt-1">Configure subscription packages, tier tags, limits, and pricing strategy.</p>
                 </div>
-                {activeTab === 'plans' ? (
+                {activeTab !== 'tiers' ? (
                     <button
                         onClick={handleCreatePlan}
                         className="bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-800 transition-all shadow-lg active:scale-95 shrink-0"
@@ -510,16 +534,33 @@ const AdminSubscriptions = () => {
                 )}
             </div>
 
-            {/* Tabs Navigation */}
-            <div className="flex border-b border-gray-200 mb-6 gap-6">
+            <div className="flex border-b border-gray-200 mb-6 gap-6 overflow-x-auto custom-scrollbar whitespace-nowrap">
                 <button
-                    onClick={() => setActiveTab('plans')}
+                    onClick={() => setActiveTab('owner_plans')}
                     className={`pb-3 font-bold text-sm uppercase flex items-center gap-2 transition-all relative ${
-                        activeTab === 'plans' ? 'text-black border-b-2 border-black' : 'text-gray-400 hover:text-gray-600'
+                        activeTab === 'owner_plans' ? 'text-black border-b-2 border-black' : 'text-gray-400 hover:text-gray-600'
                     }`}
                 >
                     <Package size={16} />
-                    Plans Directory
+                    Owner Plans
+                </button>
+                <button
+                    onClick={() => setActiveTab('broker_plans')}
+                    className={`pb-3 font-bold text-sm uppercase flex items-center gap-2 transition-all relative ${
+                        activeTab === 'broker_plans' ? 'text-black border-b-2 border-black' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                >
+                    <Package size={16} />
+                    Broker Plans
+                </button>
+                <button
+                    onClick={() => setActiveTab('builder_plans')}
+                    className={`pb-3 font-bold text-sm uppercase flex items-center gap-2 transition-all relative ${
+                        activeTab === 'builder_plans' ? 'text-black border-b-2 border-black' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                >
+                    <Package size={16} />
+                    Builder Plans
                 </button>
                 <button
                     onClick={() => setActiveTab('tiers')}
@@ -538,7 +579,7 @@ const AdminSubscriptions = () => {
                     <div className="p-12 flex justify-center">
                         <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
                     </div>
-                ) : activeTab === 'plans' ? (
+                ) : activeTab !== 'tiers' ? (
                     plans.length === 0 ? (
                         <div className="p-12 text-center text-gray-500 flex flex-col items-center">
                             <AlertCircle className="w-12 h-12 text-gray-300 mb-3" />

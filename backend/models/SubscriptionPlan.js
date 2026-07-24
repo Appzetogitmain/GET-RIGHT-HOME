@@ -56,6 +56,12 @@ const subscriptionPlanSchema = new mongoose.Schema({
     pauseDaysAllowed: {
         type: Number,
         default: 0
+    },
+    targetRole: {
+        type: String,
+        enum: ['owner', 'broker', 'builder'],
+        required: true,
+        default: 'owner'
     }
 }, { timestamps: true });
 
