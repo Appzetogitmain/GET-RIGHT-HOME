@@ -811,7 +811,8 @@ export const getPublicProperties = async (req, res) => {
       areas,
       builder,
       excludeAvailability,
-      possessionYear
+      possessionYear,
+      userId
     } = req.query;
 
     const pipeline = [];
@@ -1370,6 +1371,12 @@ export const getPublicProperties = async (req, res) => {
       const builderIds = builder.split(',').map(id => id.trim()).filter(id => mongoose.Types.ObjectId.isValid(id));
       if (builderIds.length > 0) {
         matchConditions.userId = { $in: builderIds.map(id => new mongoose.Types.ObjectId(id)) };
+      }
+    }
+
+    if (userId) {
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        matchConditions.userId = new mongoose.Types.ObjectId(userId);
       }
     }
 

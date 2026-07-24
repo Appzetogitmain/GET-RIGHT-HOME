@@ -24,7 +24,7 @@ const UserStatusBadge = ({ status }) => {
 
 const AddBrokerModal = ({ isOpen, onClose, onSuccess }) => {
     const [step, setStep] = useState(1);
-    const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
+    const [formData, setFormData] = useState({ name: '', email: '', phone: '', profileImage: '' });
     const [otp, setOtp] = useState('');
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
@@ -58,6 +58,17 @@ const AddBrokerModal = ({ isOpen, onClose, onSuccess }) => {
         }
     };
 
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData({ ...formData, profileImage: reader.result });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSubmitOtp = async (e) => {
         e.preventDefault();
         if (otp !== '123456') {
@@ -67,14 +78,28 @@ const AddBrokerModal = ({ isOpen, onClose, onSuccess }) => {
 
         setLoading(true);
         try {
+            let imageUrl = formData.profileImage;
+            
+            // If it's a base64 string, upload it first
+            if (imageUrl && imageUrl.startsWith('data:image')) {
+                const uploadRes = await adminService.uploadImageBase64({
+                    image: imageUrl,
+                    folder: 'broker_profiles'
+                });
+                if (uploadRes.success) {
+                    imageUrl = uploadRes.url;
+                }
+            }
+
             const payload = {
                 ...formData,
+                profileImage: imageUrl,
                 phone: formData.phone.trim()
             };
             const res = await adminService.createBroker(payload);
             if (res.success) {
                 toast.success('Broker created successfully');
-                setFormData({ name: '', email: '', phone: '' });
+                setFormData({ name: '', email: '', phone: '', profileImage: '' });
                 setStep(1);
                 setOtp('');
                 onSuccess();
@@ -151,6 +176,24 @@ const AddBrokerModal = ({ isOpen, onClose, onSuccess }) => {
                                 placeholder="john@example.com"
                             />
                             {errors.email && <p className="text-red-500 text-[10px] font-bold mt-1 uppercase tracking-tight">{errors.email}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-tight mb-1">Logo / Profile Picture (Optional)</label>
+                            <div className="flex items-center gap-4 mt-2">
+                                <div className="w-12 h-12 rounded-full border border-gray-200 overflow-hidden bg-gray-50 shrink-0 flex items-center justify-center">
+                                    {formData.profileImage ? (
+                                        <img src={formData.profileImage} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <Users className="text-gray-300" size={20} />
+                                    )}
+                                </div>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                    className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                                />
+                            </div>
                         </div>
                         <div className="pt-4 flex gap-3">
                             <button

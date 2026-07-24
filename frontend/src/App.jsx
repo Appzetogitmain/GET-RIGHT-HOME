@@ -69,6 +69,8 @@ const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPag
 const ListPropertyWizard = React.lazy(() => import('./pages/user/ListPropertyWizard'));
 const DynamicFormEngine = React.lazy(() => import('./pages/user/DynamicFormEngine'));
 const BuilderProfilePage = React.lazy(() => import('./pages/user/BuilderProfilePage'));
+const BrokerProfilePage = React.lazy(() => import('./pages/user/BrokerProfilePage'));
+const RecommendedBrokersPage = React.lazy(() => import('./pages/user/RecommendedBrokersPage'));
 const EmiCalculatorPage = React.lazy(() => import('./pages/user/EmiCalculatorPage'));
 const HomeLoanEligibilityPage = React.lazy(() => import('./pages/user/HomeLoanEligibilityPage'));
 const AreaConverterPage = React.lazy(() => import('./pages/user/AreaConverterPage'));
@@ -231,7 +233,7 @@ const Layout = ({ children }) => {
   // 3. NAVBAR VISIBILITY
   const showUserNavs = !isPartnerApp;
 
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/property/', '/handpicked/', '/project/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/property/', '/handpicked/', '/project/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/', '/broker/'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
   const isReelsPage = location.pathname.startsWith('/reels');
 
@@ -520,6 +522,8 @@ function App() {
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/builder/:id" element={<BuilderProfilePage />} />
+                    <Route path="/broker/:id" element={<BrokerProfilePage />} />
+                    <Route path="/recommended-brokers" element={<RecommendedBrokersPage />} />
 
                     {/* Unified Property Details (C2C & Hotel) - Public */}
                     <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />

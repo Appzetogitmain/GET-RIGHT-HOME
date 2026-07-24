@@ -543,7 +543,9 @@ export const validatePromo = async (req, res) => {
 // @access  Public
 export const getRecommendedBrokers = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 12;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
     
     // Aggregation pipeline to fetch brokers, join their properties, calculate stats, and sort by active plan ranking/listings count
     const brokers = await User.aggregate([
@@ -629,10 +631,13 @@ export const getRecommendedBrokers = async (req, res) => {
       // Sort: highest ranking weight first, then most listings
       { $sort: { rankingWeight: -1, totalListings: -1, _id: -1 } },
       
+      { $skip: skip },
       { $limit: limit }
     ]);
     
-    res.json({ success: true, brokers });
+    const totalCount = await User.countDocuments({ role: 'broker' });
+    
+    res.json({ success: true, brokers, total: totalCount, page, pages: Math.ceil(totalCount / limit) });
   } catch (error) {
     console.error('Error fetching recommended brokers:', error);
     res.status(500).json({ success: false, message: 'Server Error' });
