@@ -1,24 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { propertyService } from '../../services/apiService';
-import { BadgeCheck, Phone, ChevronRight, User, Star, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../../services/apiService';
+import { BadgeCheck, Phone, ChevronRight, User, Loader2 } from 'lucide-react';
 
-const RecommendedSellers = () => {
-    const [sellers, setSellers] = useState([]);
+const RecommendedBrokers = () => {
+    const [brokers, setBrokers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     useEffect(() => {
-        const fetchSellers = async () => {
+        const fetchBrokers = async () => {
             try {
-                const data = await propertyService.getRecommendedSellers();
-                setSellers(data || []);
+                // Using generic api instance since we added it to userRoutes.js
+                const res = await api.get('/users/recommended-brokers?limit=10');
+                if (res.data.success) {
+                    setBrokers(res.data.brokers || []);
+                }
             } catch (err) {
-                console.error("Failed to fetch recommended sellers:", err);
+                console.error("Failed to fetch recommended brokers:", err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchSellers();
+        fetchBrokers();
     }, []);
 
     if (loading) {
@@ -29,52 +34,66 @@ const RecommendedSellers = () => {
         );
     }
 
-    if (sellers.length === 0) return null;
+    if (brokers.length === 0) return null;
+
+    const calculateExperience = (dateStr) => {
+        if (!dateStr) return '0.5';
+        const joinDate = new Date(dateStr);
+        const diffYears = (new Date() - joinDate) / (1000 * 60 * 60 * 24 * 365);
+        return diffYears > 0.5 ? diffYears.toFixed(1) : '0.5';
+    };
 
     return (
         <div className="py-8 border-b border-gray-100 last:border-0 relative">
             <div className="flex justify-between items-end px-5 md:px-0 mb-6">
                 <div>
                     <h2 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">
-                        Recommended Sellers
+                        Recommended Brokers
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">Trusted partners with complete knowledge about locality</p>
                 </div>
+                <button
+                    onClick={() => navigate('/recommended-brokers')}
+                    className="text-xs font-bold text-indigo-600 uppercase tracking-wide hover:text-indigo-700 transition-colors"
+                >
+                    View All
+                </button>
             </div>
 
             <div className="flex overflow-x-auto gap-4 no-scrollbar pb-4 px-5 md:px-0 -mx-5 md:mx-0">
-                {sellers.map((seller) => (
+                {brokers.map((broker) => (
                     <motion.div
-                        key={seller._id}
+                        key={broker._id}
                         whileHover={{ y: -3 }}
-                        className="min-w-[250px] md:min-w-[270px] bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col"
+                        onClick={() => navigate(`/broker/${broker._id}`)}
+                        className="min-w-[250px] md:min-w-[270px] bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col cursor-pointer"
                     >
-                        {/* Header with Plan Color Indicator */}
-                        <div className={`h-1 w-full ${seller.plan?.tier === 'diamond' ? 'bg-blue-600' :
-                                seller.plan?.tier === 'platinum' ? 'bg-indigo-600' :
-                                    seller.plan?.tier === 'gold' ? 'bg-yellow-500' :
-                                        'bg-gray-300'
-                            }`} />
+                        {/* Header with Plan Color Indicator - Assuming higher weight is diamond etc for visual */ }
+                        <div className={`h-1 w-full ${
+                            broker.rankingWeight >= 80 ? 'bg-blue-600' :
+                            broker.rankingWeight >= 50 ? 'bg-indigo-600' :
+                            broker.rankingWeight >= 20 ? 'bg-yellow-500' : 'bg-gray-300'
+                        }`} />
 
                         <div className="p-3.5 flex flex-col h-full">
                             <div className="flex items-center gap-2.5 mb-3">
                                 <div className="w-11 h-11 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
-                                    {seller.profileImage ? (
-                                        <img src={seller.profileImage} alt={seller.name} className="w-full h-full object-cover" />
+                                    {broker.profileImage ? (
+                                        <img src={broker.profileImage} alt={broker.name} className="w-full h-full object-cover" />
                                     ) : (
                                         <User className="text-gray-300" size={24} />
                                     )}
                                 </div>
                                 <div className="flex flex-col">
                                     <h3 className="font-bold text-gray-900 text-[13px] flex items-center gap-1 line-clamp-1">
-                                        {seller.name}
-                                        {seller.plan?.hasVerifiedTag && (
+                                        {broker.name}
+                                        {broker.rankingWeight > 0 && (
                                             <BadgeCheck size={14} className="text-blue-500 fill-blue-50" />
                                         )}
                                     </h3>
                                     <div className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-bold uppercase tracking-tight mt-0.5">
                                         <ChevronRight size={10} className="-ml-0.5" />
-                                        {seller.plan?.name || 'Partner'}
+                                        {broker.planName}
                                     </div>
                                 </div>
                             </div>
@@ -84,36 +103,41 @@ const RecommendedSellers = () => {
                                 <div className="flex flex-col">
                                     <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Experience</span>
                                     <span className="text-[12px] font-black text-gray-800 mt-0.5">
-                                        {seller.experienceYears || '0.5'}+ Yrs
+                                        {calculateExperience(broker.memberSince)}+ Yrs
                                     </span>
                                 </div>
                                 <div className="flex flex-col border-l border-gray-200 pl-3">
                                     <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Listings</span>
                                     <span className="text-[12px] font-black text-gray-800 mt-0.5">
-                                        {seller.totalListings || 0}
+                                        {broker.totalListings || 0}
                                     </span>
                                 </div>
                             </div>
 
                             {/* Location Tags */}
                             <div className="flex flex-wrap gap-1 mb-4">
-                                {seller.address?.city && (
+                                {broker.expertLocalities && broker.expertLocalities.slice(0, 2).map((loc, idx) => (
+                                    <span key={idx} className="text-[9px] font-bold px-1.5 py-0.5 bg-white border border-gray-200 text-gray-500 rounded truncate max-w-[100px]">
+                                        {loc}
+                                    </span>
+                                ))}
+                                {broker.rankingWeight > 50 && (
                                     <span className="text-[9px] font-bold px-1.5 py-0.5 bg-white border border-gray-200 text-gray-500 rounded">
-                                        {seller.address.city}
+                                        Top Rated
                                     </span>
                                 )}
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 bg-white border border-gray-200 text-gray-500 rounded">
-                                    Top Rated
-                                </span>
                             </div>
 
                             {/* Action */}
                             <button
-                                onClick={() => window.location.href = `tel:${seller.phone}`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/broker/${broker._id}`);
+                                }}
                                 className="w-full mt-auto bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 group border border-indigo-100"
                             >
                                 <Phone size={14} className="group-hover:animate-bounce" />
-                                Show Contact
+                                Show Profile
                             </button>
                         </div>
                     </motion.div>
@@ -125,4 +149,4 @@ const RecommendedSellers = () => {
     );
 };
 
-export default RecommendedSellers;
+export default RecommendedBrokers;

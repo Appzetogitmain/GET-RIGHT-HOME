@@ -8,7 +8,7 @@ import PropertyFeed from '../../components/user/PropertyFeed';
 import CollectionSection from '../../components/user/CollectionSection';
 import ReelSection from '../../components/user/ReelSection';
 import LatestProjectsBanner from '../../components/user/LatestProjectsBanner';
-import RecommendedSellers from '../../components/user/RecommendedSellers';
+import RecommendedBrokers from '../../components/user/RecommendedBrokers';
 import PopularBuilders from '../../components/user/PopularBuilders';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import { categoryService } from '../../services/categoryService';
@@ -244,7 +244,7 @@ const Home = () => {
                         )}
 
                         {/* Recommendation for All view */}
-                        <RecommendedSellers />
+                        <RecommendedBrokers />
 
                         {/* Popular Builders Carousel */}
                         <PopularBuilders />
@@ -324,8 +324,8 @@ const Home = () => {
                         {/* 2. Reels for specific Category */}
                         <ReelSection category={selectedType.label} />
 
-                        {/* 3. Recommended Sellers for the category */}
-                        <RecommendedSellers />
+                        {/* 3. Recommended Brokers for the category */}
+                        <RecommendedBrokers />
 
                         {/* 4. Main Property Feed */}
                         <PropertyFeed selectedType={selectedType.id} viewMode="grid" extraFilters={pgFilters} />
