@@ -199,7 +199,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Top Orange Header */}
-      <div className="bg-[#E85D04] rounded-b-[40px] pt-8 pb-16 px-4 relative">
+      <div className="bg-[#3B82F6] rounded-b-[40px] pt-8 pb-16 px-4 relative">
         {/* Edit Profile Button */}
         <button
           onClick={() => navigate('/worker/profile/edit')}
@@ -223,7 +223,7 @@ const Profile = () => {
               )}
             </div>
             {/* Check badge */}
-            <div className="absolute bottom-0 right-1 w-6 h-6 bg-[#E85D04] rounded-full border-2 border-white flex items-center justify-center">
+            <div className="absolute bottom-0 right-1 w-6 h-6 bg-[#3B82F6] rounded-full border-2 border-white flex items-center justify-center">
               <FiStar className="w-3 h-3 text-white fill-white" />
             </div>
           </div>
@@ -284,7 +284,7 @@ const Profile = () => {
                 className={`flex items-center justify-between p-3 cursor-pointer active:bg-gray-50 rounded-2xl transition-colors ${index !== menuItems.length - 1 ? 'border-b border-gray-50' : ''}`}
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-[#FEF0D9] text-[#E85D04] flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#FEF0D9] text-[#3B82F6] flex items-center justify-center shrink-0">
                     <Icon className="w-5 h-5" />
                   </div>
                   <span className="text-[#1E3A8A] font-semibold text-sm">{item.label}</span>

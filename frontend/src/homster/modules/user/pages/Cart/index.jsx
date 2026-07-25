@@ -279,7 +279,7 @@ const Cart = () => {
                           e.target.style.opacity = '1';
                         }}
                       >
-                        Checkout
+                        Book Now
                       </button>
                     </div>
                   </div>

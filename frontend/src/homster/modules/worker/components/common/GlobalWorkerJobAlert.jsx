@@ -49,7 +49,7 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) 
   return (
     <div className="bg-white w-full sm:w-[320px] flex-none rounded-[2rem] overflow-hidden shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] relative snap-center">
       {/* Header Section */}
-      <div className="relative h-24 bg-gradient-to-br from-[#FF8C00] to-[#EF6B11] flex flex-col items-center justify-center pt-2 overflow-hidden">
+      <div className="relative h-24 bg-gradient-to-br from-[#60A5FA] to-[#3B82F6] flex flex-col items-center justify-center pt-2 overflow-hidden">
         <div className="absolute inset-0 opacity-10 pointer-events-none">
           <motion.div
             animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
@@ -75,18 +75,18 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) 
       {/* Body Section */}
       <div className="px-5 py-4">
         <div className="flex justify-center -mt-12 mb-3 relative z-20">
-          <div className="relative w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(239,107,17,0.3)] p-0.5 border-4 border-white">
+          <div className="relative w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(59,130,246,0.3)] p-0.5 border-4 border-white">
             <svg className="absolute inset-0 w-full h-full -rotate-90 transform" viewBox="0 0 60 60">
               <circle cx="30" cy="30" r={radius} fill="none" stroke="#FFF7ED" strokeWidth="4" />
               <motion.circle
                 cx="30" cy="30" r={radius} fill="none"
-                stroke={timeLeft <= 10 ? '#EF4444' : '#EF6B11'} strokeWidth="5"
+                stroke={timeLeft <= 10 ? '#EF4444' : '#3B82F6'} strokeWidth="5"
                 strokeDasharray={circumference} strokeDashoffset={dashoffset}
                 strokeLinecap="round" className="transition-all duration-1000 ease-linear"
               />
             </svg>
             <div className="text-center mt-0.5">
-              <span className={`text-xl font-black block leading-none ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-[#EF6B11]'}`}>{timeLeft}</span>
+              <span className={`text-xl font-black block leading-none ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-[#3B82F6]'}`}>{timeLeft}</span>
               <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter block -mt-1">Sec</span>
             </div>
           </div>
@@ -94,8 +94,8 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) 
 
         <div className="mb-4 space-y-2.5">
           {/* Service Details Card */}
-          <div className="bg-white rounded-[1rem] p-3 border border-orange-100 shadow-[0_8px_25px_-5px_rgba(239,107,17,0.12)] relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-[#EF6B11]" />
+          <div className="bg-white rounded-[1rem] p-3 border border-blue-100 shadow-[0_8px_25px_-5px_rgba(59,130,246,0.12)] relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-[#3B82F6]" />
             <div className="pl-3 flex flex-col h-full">
               <h4 className="text-[14px] font-black text-gray-900 leading-tight">
                 {booking.serviceName || booking.serviceType || 'Service Job'}
@@ -104,8 +104,8 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) 
               {/* Display Booked Items or Requirement Text */}
               <div className="mt-2 space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar">
                 {booking.isConsultancyRequest && booking.requirementText && (
-                  <p className="text-[11px] text-gray-600 bg-orange-50/50 p-2 rounded-lg border border-orange-100/50 italic leading-snug">
-                    <span className="font-bold text-orange-600 block mb-0.5 not-italic">Problem Description:</span>
+                  <p className="text-[11px] text-gray-600 bg-blue-50/50 p-2 rounded-lg border border-blue-100/50 italic leading-snug">
+                    <span className="font-bold text-blue-600 block mb-0.5 not-italic">Problem Description:</span>
                     "{booking.requirementText}"
                   </p>
                 )}
@@ -114,7 +114,7 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) 
                     {booking.bookedItems.map((item, idx) => (
                       <div key={idx} className="flex justify-between items-start text-[11px] border-b border-gray-50/50 pb-1 last:border-0 last:pb-0">
                         <span className="text-gray-700 font-medium leading-tight line-clamp-2 pr-2">
-                          <span className="font-bold text-[#EF6B11] mr-1">{item.quantity}x</span>
+                          <span className="font-bold text-[#3B82F6] mr-1">{item.quantity}x</span>
                           {item.brandName || item.card?.title || 'Service Item'}
                         </span>
                       </div>
@@ -152,7 +152,7 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) 
           <button
             disabled={!!loadingAction}
             onClick={() => handleAction(onAccept, 'accept')}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#FF8C00] to-[#EF6B11] text-white font-black text-sm shadow-[0_8px_20px_rgba(239,107,17,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 relative overflow-hidden group">
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#60A5FA] to-[#3B82F6] text-white font-black text-sm shadow-[0_8px_20px_rgba(59,130,246,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 relative overflow-hidden group">
             <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
             <span className="relative z-10 flex items-center gap-2">
               <FiCheck className="w-4 h-4" /> {loadingAction === 'accept' ? '...' : 'Accept Job'}
