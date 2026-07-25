@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText } from 'lucide-react';
+import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video } from 'lucide-react';
 import { authService } from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -568,15 +568,17 @@ const ProfileEdit = () => {
     <div className="min-h-screen bg-white flex flex-col items-center pt-safe-top px-6 pb-24 md:pb-12">
 
       {/* Sticky Header */}
-      <div className="sticky top-0 left-0 right-0 w-full z-20 bg-white/95 backdrop-blur-sm px-6 py-4 flex items-center justify-between border-b border-gray-100 shadow-sm mb-6">
-        <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100">
-          <ArrowLeft size={20} className="text-gray-700" />
-        </button>
-        <h1 className="text-lg font-bold text-gray-900">Edit Profile</h1>
-        <div className="w-10 text-right">
-          <button onClick={handleLogout} className="p-2 text-red-500 hover:bg-red-50 rounded-full" title="Logout">
-            <LogOut size={20} />
+      <div className="sticky top-0 left-0 right-0 w-full z-20 bg-white/95 backdrop-blur-sm shadow-sm mb-6">
+        <div className="w-full px-6 py-4 flex items-center justify-between">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
+            <ArrowLeft size={20} className="text-gray-700" />
           </button>
+          <h1 className="text-lg font-black text-gray-900 tracking-wide">Edit Profile</h1>
+          <div className="w-10 text-right">
+            <button onClick={handleLogout} className="p-2 -mr-2 text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Logout">
+              <LogOut size={20} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -621,44 +623,64 @@ const ProfileEdit = () => {
           <p className="mt-2 text-xs text-gray-400">Tap icon to change photo</p>
         </div>
 
-        {/* Host/Sell Card */}
-        <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-3xl p-5 text-white shadow-xl relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all duration-500" />
-          <div className="relative z-10">
-            <div className="flex items-start justify-between mb-4">
-              <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md">
-                <Home size={24} className="text-white" />
-              </div>
-              <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest">Post Free</span>
+        {/* New Action Cards Layout */}
+        <div className="flex flex-col gap-3">
+          {/* Post Property Card */}
+          <div 
+            onClick={() => navigate('/list-property')}
+            className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] cursor-pointer hover:shadow-md hover:border-blue-100 transition-all active:scale-[0.98] group"
+          >
+            <div className="flex flex-col">
+              <span className="text-[15px] font-semibold text-gray-900 mb-0.5">Post Property</span>
+              <span className="text-[12px] text-gray-500 font-medium">Sell/Rent your property faster</span>
             </div>
-            <h3 className="text-xl font-black mb-1">Sell or Rent Your Property</h3>
-            <p className="text-white/70 text-xs leading-relaxed mb-4 max-w-[200px]">
-              List your House, Villa, Plot or PG and connect with thousands of buyers.
-            </p>
-            <button
-              onClick={() => navigate('/list-property')}
-              className="w-full py-3 bg-white text-emerald-700 font-black text-sm rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-            >
-              Start Listing Now
-            </button>
+            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
+              <Home size={22} className="text-blue-500" strokeWidth={2} />
+            </div>
+          </div>
+
+          {/* Search Properties Card */}
+          <div 
+            onClick={() => navigate('/search')}
+            className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] cursor-pointer hover:shadow-md hover:border-orange-100 transition-all active:scale-[0.98] group"
+          >
+            <div className="flex flex-col">
+              <span className="text-[15px] font-semibold text-gray-900 mb-0.5">Search Properties</span>
+              <span className="text-[12px] text-gray-500 font-medium">Explore residential and commercial properties</span>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
+              <Search size={22} className="text-orange-500" strokeWidth={2} />
+            </div>
+          </div>
+
+          {/* My Properties Card */}
+          <div 
+            onClick={() => navigate('/my-properties')}
+            className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] cursor-pointer hover:shadow-md hover:border-emerald-100 transition-all active:scale-[0.98] group"
+          >
+            <div className="flex flex-col">
+              <span className="text-[15px] font-semibold text-gray-900 mb-0.5">My Properties</span>
+              <span className="text-[12px] text-gray-500 font-medium uppercase tracking-wider">Manage your active listings</span>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
+              <Building2 size={22} className="text-emerald-500" strokeWidth={2} />
+            </div>
+          </div>
+
+          {/* My Reels Card */}
+          <div 
+            onClick={() => navigate('/reels/my')}
+            className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] cursor-pointer hover:shadow-md hover:border-purple-100 transition-all active:scale-[0.98] group"
+          >
+            <div className="flex flex-col">
+              <span className="text-[15px] font-semibold text-gray-900 mb-0.5">My Reels</span>
+              <span className="text-[12px] text-gray-500 font-medium uppercase tracking-wider">Manage your property videos</span>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
+              <Video size={22} className="text-purple-500" strokeWidth={2} />
+            </div>
           </div>
         </div>
-        
-        <button
-          onClick={() => navigate('/my-properties')}
-          className="w-full py-4 px-5 bg-gray-50 border border-gray-100 rounded-3xl flex items-center justify-between group active:scale-[0.98] transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-2.5 bg-white rounded-2xl shadow-sm text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-              <Building2 size={20} />
-            </div>
-            <div className="text-left">
-              <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">My Properties</h4>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Manage your active listings</p>
-            </div>
-          </div>
-          <ChevronRight size={18} className="text-gray-300" />
-        </button>
 
         <form onSubmit={handleSubmit} className="space-y-6">
 
@@ -737,10 +759,10 @@ const ProfileEdit = () => {
           </div>
 
 
-          {/* Section: Delivery Address */}
+          {/* Section: My Address */}
           <div className="space-y-5 pt-4">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Delivery Address</h3>
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">My Address</h3>
               <button
                 type="button"
                 onClick={handleGetCurrentLocation}
