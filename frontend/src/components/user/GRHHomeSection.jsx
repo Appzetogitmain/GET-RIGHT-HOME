@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { propertyService } from '../../services/apiService';
+import { propertyService, userService } from '../../services/apiService';
 import GRHPropertyCard from './GRHPropertyCard';
 
 const grhCache = {};
@@ -12,6 +12,7 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
   
   // Synchronously initialize from cache to prevent DOM height jumping on back navigation
   const [properties, setProperties] = useState(grhCache[cacheKey] || []);
+  const [savedIds, setSavedIds] = useState([]);
   const [loading, setLoading] = useState(!grhCache[cacheKey]);
   const carouselRef = React.useRef(null);
 
@@ -35,9 +36,23 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
     const fetchProperties = async () => {
       if (!grhCache[cacheKey]) setLoading(true);
       try {
-        const data = await propertyService.getPublic({ availability: availabilityFilter });
+        const promises = [propertyService.getPublic({ availability: availabilityFilter })];
+        if (localStorage.getItem('user')) {
+          promises.push(userService.getSavedPlaces());
+        }
+        const [data, savedRes] = await Promise.all(promises);
+
         grhCache[cacheKey] = data || [];
         setProperties(data || []);
+
+        if (savedRes) {
+          const list = [
+            ...(savedRes.savedProperties || []),
+            ...(savedRes.savedProjects || []),
+            ...(savedRes.savedHotels || [])
+          ];
+          setSavedIds(list.map(h => (typeof h === 'object' ? (h._id || h.id) : h)));
+        }
       } catch (err) {
         console.error(`Failed to fetch properties for section ${title}:`, err);
       } finally {
@@ -100,6 +115,8 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
               key={property._id}
               data={property}
               theme={theme}
+              cardType="property"
+              initialIsSaved={savedIds.includes(property._id)}
             />
           ))}
           {/* Spacer for right padding */}

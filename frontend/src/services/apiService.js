@@ -703,19 +703,19 @@ export const userService = {
       throw error.response?.data || error.message;
     }
   },
-  // Get Saved Hotels
-  getSavedHotels: async () => {
+  // Get Saved Places
+  getSavedPlaces: async () => {
     try {
-      const response = await api.get('/users/saved-hotels');
+      const response = await api.get('/users/saved-places');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
-  // Toggle Saved Hotel
-  toggleSavedHotel: async (hotelId) => {
+  // Toggle Saved Place
+  toggleSavedPlace: async (id, type) => {
     try {
-      const response = await api.post(`/users/saved-hotels/${hotelId}`);
+      const response = await api.post(`/users/saved-places/toggle`, { id, type });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

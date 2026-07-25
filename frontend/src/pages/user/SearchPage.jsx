@@ -342,14 +342,18 @@ const SearchPage = () => {
 
             const promises = [propertyService.getPublicProperties(params)];
             if (isLoggedIn) {
-                promises.push(userService.getSavedHotels());
+                promises.push(userService.getSavedPlaces());
             }
 
             const [res, savedRes] = await Promise.all(promises);
 
             if (savedRes) {
-                const list = savedRes.savedHotels || [];
-                setSavedHotelIds(list.map(h => (typeof h === 'object' ? h._id : h)));
+                const list = [
+                  ...(savedRes.savedProperties || []),
+                  ...(savedRes.savedProjects || []),
+                  ...(savedRes.savedHotels || [])
+                ];
+                setSavedHotelIds(list.map(h => (typeof h === 'object' ? (h._id || h.id) : h)));
             }
 
             if (Array.isArray(res)) {

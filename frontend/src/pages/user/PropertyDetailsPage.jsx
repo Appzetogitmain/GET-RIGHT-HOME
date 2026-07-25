@@ -625,11 +625,15 @@ const PropertyDetailsPage = () => {
 
   useEffect(() => {
     if (localStorage.getItem('user')) {
-      userService.getSavedHotels()
+      userService.getSavedPlaces()
         .then(res => {
-          const list = res.data || res.savedHotels || [];
+          const list = [
+            ...(res.savedProperties || []),
+            ...(res.savedProjects || []),
+            ...(res.savedHotels || [])
+          ];
           if (Array.isArray(list)) {
-            const found = list.some(h => (typeof h === 'object' ? h._id : h) === id);
+            const found = list.some(h => (typeof h === 'object' ? (h._id || h.id) : h) === id);
             setIsSaved(found);
           }
         })
@@ -645,7 +649,7 @@ const PropertyDetailsPage = () => {
     try {
       const newState = !isSaved;
       setIsSaved(newState);
-      await userService.toggleSavedHotel(id);
+      await userService.toggleSavedPlace(id, 'property');
       toast.success(newState ? "Added to wishlist" : "Removed from wishlist");
     } catch (err) {
       setIsSaved(!isSaved);

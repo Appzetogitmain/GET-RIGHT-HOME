@@ -61,6 +61,14 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Property'
   }],
+  savedProperties: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Property'
+  }],
+  savedProjects: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project'
+  }],
   address: {
     street: { type: String, trim: true },
     city: { type: String, trim: true },

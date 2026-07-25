@@ -78,6 +78,7 @@ const EmiCalculatorPage = React.lazy(() => import('./pages/user/EmiCalculatorPag
 const HomeLoanEligibilityPage = React.lazy(() => import('./pages/user/HomeLoanEligibilityPage'));
 const AreaConverterPage = React.lazy(() => import('./pages/user/AreaConverterPage'));
 const ToolsAndInsightsPage = React.lazy(() => import('./pages/user/ToolsAndInsightsPage'));
+const PopularToolsPage = React.lazy(() => import('./pages/user/PopularToolsPage'));
 const CartPage = React.lazy(() => import('./homster/modules/user/pages/Cart'));
 const HomeServiceCheckoutPage = React.lazy(() => import('./homster/modules/user/pages/Checkout'));
 const HomeServiceBookingsPage = React.lazy(() => import('./homster/modules/user/pages/MyBookings'));
@@ -522,6 +523,7 @@ function App() {
                     <Route path="/home-loan-eligibility-calculator" element={<HomeLoanEligibilityPage />} />
                     <Route path="/area-converter" element={<AreaConverterPage />} />
                     <Route path="/tools-and-insights" element={<ToolsAndInsightsPage />} />
+                    <Route path="/popular-tools" element={<PopularToolsPage />} />
                     <Route path="/listings" element={<Navigate to="/search" replace />} />
                     <Route path="/partner-landing" element={<PartnerLandingPage />} />
                     <Route path="/about" element={<AboutPage />} />

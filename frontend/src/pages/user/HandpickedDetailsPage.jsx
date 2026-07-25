@@ -262,9 +262,14 @@ const HandpickedDetailsPage = () => {
     try {
       const userStr = localStorage.getItem('user');
       if (!userStr) return;
-      const res = await userService.getSavedHotels();
-      if (res && Array.isArray(res)) {
-        const saved = res.some(item => item._id === id);
+      const res = await userService.getSavedPlaces();
+      if (res) {
+        const list = [
+          ...(res.savedProperties || []),
+          ...(res.savedProjects || []),
+          ...(res.savedHotels || [])
+        ];
+        const saved = list.some(item => (typeof item === 'object' ? (item._id || item.id) : item) === id);
         setIsSaved(saved);
       }
     } catch (e) {
@@ -279,7 +284,7 @@ const HandpickedDetailsPage = () => {
         toast.error("Please login to save properties");
         return;
       }
-      const res = await userService.toggleSavedHotel(id);
+      const res = await userService.toggleSavedPlace(id, 'project');
       setIsSaved(!isSaved);
       toast.success(isSaved ? "Removed from saved" : "Saved to your profile!");
     } catch (e) {

@@ -159,86 +159,72 @@ export const updateUserProfile = async (req, res) => {
 };
 
 /**
- * @desc    Get user's saved hotels
- * @route   GET /api/users/saved-hotels
+ * @desc    Get user's saved places (Properties and Projects)
+ * @route   GET /api/users/saved-places
  * @access  Private
  */
-export const getSavedHotels = async (req, res) => {
+export const getSavedPlaces = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate({
-      path: 'savedHotels',
-      select: 'propertyName address coverImage avgRating totalReviews minPrice propertyType status isLive',
-      match: { status: 'approved' } // Only return approved hotels
-    });
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'savedProperties',
+        match: { status: 'approved' }
+      })
+      .populate({
+        path: 'savedProjects',
+        match: { status: 'approved' }
+      })
+      .populate({
+        path: 'savedHotels',
+        match: { status: 'approved' }
+      });
 
     if (!user) {
-      return res.json({
-        success: true,
-        savedHotels: []
-      });
+      return res.json({ success: true, savedProperties: [], savedProjects: [], savedHotels: [] });
     }
-
-    // Get minimum prices for these properties
-    const savedHotelIds = user.savedHotels.map(h => h._id);
-    const RoomType = (await import('../models/RoomType.js')).default;
-
-    const priceMap = await RoomType.aggregate([
-      { $match: { propertyId: { $in: savedHotelIds }, isActive: true } },
-      { $group: { _id: '$propertyId', minPrice: { $min: '$pricePerNight' } } }
-    ]);
-
-    const prices = {};
-    priceMap.forEach(p => {
-      prices[p._id.toString()] = p.minPrice;
-    });
-
-    // Format the response to match PropertyCard expectations
-    const savedHotels = user.savedHotels.map(hotel => ({
-      _id: hotel._id,
-      propertyName: hotel.propertyName,
-      address: hotel.address, // Pass full address object
-      coverImage: hotel.coverImage,
-      propertyType: hotel.propertyType,
-      avgRating: hotel.avgRating,
-      totalReviews: hotel.totalReviews,
-      minPrice: prices[hotel._id.toString()] || hotel.minPrice || 0,
-      status: hotel.status
-    }));
 
     res.json({
       success: true,
-      savedHotels
+      savedProperties: user.savedProperties || [],
+      savedProjects: user.savedProjects || [],
+      savedHotels: user.savedHotels || []
     });
 
   } catch (error) {
-    console.error('Get Saved Hotels Error:', error);
+    console.error('Get Saved Places Error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 /**
- * @desc    Toggle Saved Hotel (Wishlist)
- * @route   POST /api/users/saved-hotels/:id
+ * @desc    Toggle Saved Place (Wishlist)
+ * @route   POST /api/users/saved-places
  * @access  Private
  */
-export const toggleSavedHotel = async (req, res) => {
+export const toggleSavedPlace = async (req, res) => {
   try {
-    const hotelId = req.params.id;
+    const { id, type } = req.body;
     const user = await User.findById(req.user._id);
 
     if (!user) {
       return res.status(403).json({ message: 'Only standard users can save properties' });
     }
 
-    // Check if hotel is already saved
-    const isSaved = user.savedHotels.some(id => id.toString() === hotelId);
-
-    if (isSaved) {
-      // Remove
-      user.savedHotels = user.savedHotels.filter(id => id.toString() !== hotelId);
+    let isSaved = false;
+    if (type === 'project') {
+      isSaved = user.savedProjects.some(pid => pid.toString() === id);
+      if (isSaved) {
+        user.savedProjects = user.savedProjects.filter(pid => pid.toString() !== id);
+      } else {
+        user.savedProjects.push(id);
+      }
     } else {
-      // Add
-      user.savedHotels.push(hotelId);
+      isSaved = user.savedProperties.some(pid => pid.toString() === id);
+      if (isSaved) {
+        user.savedProperties = user.savedProperties.filter(pid => pid.toString() !== id);
+      } else {
+        user.savedProperties.push(id);
+      }
     }
 
     await user.save();
@@ -246,11 +232,12 @@ export const toggleSavedHotel = async (req, res) => {
     res.json({
       success: true,
       message: isSaved ? 'Removed from saved' : 'Added to saved',
-      savedHotels: user.savedHotels
+      savedProperties: user.savedProperties,
+      savedProjects: user.savedProjects
     });
 
   } catch (error) {
-    console.error('Toggle Saved Hotel Error:', error);
+    console.error('Toggle Saved Place Error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -267,30 +254,26 @@ export const updateFcmToken = async (req, res) => {
     }
 
     const targetPlatform = platform === 'app' ? 'app' : 'web';
+    const updateObj = {};
+    updateObj[`fcmTokens.${targetPlatform}`] = fcmToken;
 
-    // Try to find user first
-    let user = await User.findById(req.user._id);
+    let updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: updateObj },
+      { new: true, runValidators: true }
+    );
 
-    // If not found, check Partner model
-    if (!user) {
-      user = await Partner.findById(req.user._id);
+    if (!updatedUser) {
+      updatedUser = await Partner.findByIdAndUpdate(
+        req.user._id,
+        { $set: updateObj },
+        { new: true, runValidators: true }
+      );
     }
 
-    if (!user) {
+    if (!updatedUser) {
       return res.status(404).json({ message: 'User not found' });
     }
-
-    if (!user.fcmTokens) {
-      user.fcmTokens = {
-        app: null,
-        web: null
-      };
-    }
-
-    // Update the token for the specific platform
-    user.fcmTokens[targetPlatform] = fcmToken;
-    await user.save();
-
     res.json({
       success: true,
       message: `FCM token updated successfully for ${targetPlatform} platform`,
