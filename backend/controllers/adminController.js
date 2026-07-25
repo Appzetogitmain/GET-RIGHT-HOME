@@ -1138,7 +1138,6 @@ export const updatePlatformSettings = async (req, res) => {
       freeTrialDurationDays,
       platformFlatFee,
       cashCollectionFee,
-<<<<<<< HEAD
       targetTitle,
       monthlyTarget,
       monthlyTargetBonus,
@@ -1149,12 +1148,10 @@ export const updatePlatformSettings = async (req, res) => {
       trainingVideos,
       workerReferralBonusReferrer,
       workerReferralBonusReferee,
-      privacyPolicy
-=======
+      privacyPolicy,
       supportEmail,
       supportPhone,
       supportWhatsapp
->>>>>>> 0651423adb92374ff6536d525325cbfb3fdbfae1
     } = req.body;
 
     const settings = await PlatformSettings.getSettings();
