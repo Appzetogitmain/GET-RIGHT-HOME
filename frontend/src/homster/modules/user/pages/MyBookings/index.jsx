@@ -14,8 +14,20 @@ const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, confirmed, in-progress, completed, cancelled
+  const [activeBookingId, setActiveBookingId] = useState(null);
 
   useEffect(() => {
+    const checkActiveBooking = () => {
+      const stored = localStorage.getItem('activeAssignedBooking');
+      if (stored) {
+        setActiveBookingId(JSON.parse(stored).bookingId);
+      } else {
+        setActiveBookingId(null);
+      }
+    };
+    checkActiveBooking();
+    window.addEventListener('activeAssignedBookingUpdated', checkActiveBooking);
+
     const loadBookings = async () => {
       // Safety timeout: if API hangs, stop showing skeleton after 10s
       const timeout = setTimeout(() => {
@@ -33,7 +45,44 @@ const MyBookings = () => {
         const response = await bookingService.getUserBookings(params);
         clearTimeout(timeout);
         if (response.success) {
-          setBookings(response.data || []);
+          const fetchedBookings = response.data || [];
+          setBookings(fetchedBookings);
+          
+          // Sync active booking state
+          const stored = localStorage.getItem('activeAssignedBooking');
+          const activeData = stored ? JSON.parse(stored) : null;
+          
+          const activeStatuses = ['assigned', 'in_progress', 'in-progress', 'journey_started', 'visited'];
+          
+          const dismissedBookings = JSON.parse(localStorage.getItem('dismissedActiveBookings') || '[]');
+          const currentlyActive = fetchedBookings.find(b => 
+            activeStatuses.includes(b.status?.toLowerCase()) && 
+            !dismissedBookings.includes(b._id)
+          );
+
+          if (currentlyActive) {
+            if (!activeData || activeData.bookingId !== currentlyActive._id) {
+              localStorage.setItem('activeAssignedBooking', JSON.stringify({
+                bookingId: currentlyActive._id,
+                worker: currentlyActive.worker,
+                timestamp: Date.now()
+              }));
+              setActiveBookingId(currentlyActive._id);
+              window.dispatchEvent(new Event('activeAssignedBookingUpdated'));
+            } else if (activeData) {
+              setActiveBookingId(activeData.bookingId);
+            }
+          } else if (activeData) {
+            const activeMatch = fetchedBookings.find(b => b._id === activeData.bookingId);
+            if (activeMatch) {
+              const status = activeMatch.status?.toLowerCase();
+              if (['completed', 'cancelled', 'rejected', 'work_done'].includes(status)) {
+                localStorage.removeItem('activeAssignedBooking');
+                setActiveBookingId(null);
+                window.dispatchEvent(new Event('activeAssignedBookingUpdated'));
+              }
+            }
+          }
         } else {
           console.error('[MyBookings] API returned failure:', response.message);
           toast.error(response.message || 'Failed to load bookings');
@@ -57,6 +106,7 @@ const MyBookings = () => {
 
     return () => {
       window.removeEventListener('userBookingsUpdated', loadBookings);
+      window.removeEventListener('activeAssignedBookingUpdated', checkActiveBooking);
     };
   }, [filter]);
 
@@ -153,7 +203,13 @@ const MyBookings = () => {
   };
 
   const handleBookingClick = (booking) => {
-    navigate(`/user/booking/${booking._id || booking.id}`);
+    const clickedId = booking._id || booking.id;
+    if (clickedId === activeBookingId) {
+      localStorage.removeItem('activeAssignedBooking');
+      setActiveBookingId(null);
+      window.dispatchEvent(new Event('activeAssignedBookingUpdated'));
+    }
+    navigate(`/user/booking/${clickedId}`);
   };
 
   const formatDate = (dateString) => {
@@ -326,8 +382,14 @@ const MyBookings = () => {
                     }
                   }}
                   onClick={() => handleBookingClick(booking)}
-                  className={`group relative bg-white rounded-2xl p-5 border border-slate-200 border-l-4 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.08)] hover:border-blue-300 active:scale-[0.99] transition-all duration-300 cursor-pointer overflow-hidden ${getStatusBorderColor(booking.status)}`}
+                  className={`group relative rounded-2xl p-5 border border-l-4 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.08)] active:scale-[0.99] transition-all duration-300 cursor-pointer overflow-hidden ${getStatusBorderColor(booking.status)} ${(booking._id === activeBookingId || booking.id === activeBookingId) ? 'bg-blue-50/60 border-blue-400 ring-2 ring-blue-400 ring-opacity-50' : 'bg-white border-slate-200 hover:border-blue-300'}`}
                 >
+                  {/* Highlight Badge */}
+                  {(booking._id === activeBookingId || booking.id === activeBookingId) && (
+                    <div className="absolute top-0 right-0 bg-blue-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl z-20 shadow-sm animate-pulse">
+                      NEW ASSIGNMENT
+                    </div>
+                  )}
                   {/* Decorative Elements */}
                   <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-slate-50 via-transparent to-transparent -z-0 opacity-50" />
 

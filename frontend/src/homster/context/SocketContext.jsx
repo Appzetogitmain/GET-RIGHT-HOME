@@ -78,8 +78,7 @@ export const SocketProvider = ({ children }) => {
     if (path.startsWith('/vendor')) return 'vendor';
     if (path.startsWith('/worker')) return 'worker';
     if (path.startsWith('/admin')) return 'admin';
-    if (path.startsWith('/user')) return 'user';
-    return null;
+    return 'user';
   };
 
   const userType = getUserType(location.pathname);
@@ -273,10 +272,56 @@ export const SocketProvider = ({ children }) => {
     // Listen for real-time booking updates
     newSocket.on('booking_updated', (data) => {
       console.log(`[Socket] 📦 '${userType}' received BOOKING_UPDATED:`, data);
-      if (userType === 'user') window.dispatchEvent(new Event('userBookingsUpdated'));
+      
+      if (userType === 'user') {
+        const stored = localStorage.getItem('activeAssignedBooking');
+        if (stored) {
+          try {
+             const activeData = JSON.parse(stored);
+             const updatedBookingId = data.bookingId || data._id || (data.data && data.data._id);
+             const status = (data.status || (data.data && data.data.status))?.toLowerCase();
+             
+             if (activeData.bookingId === updatedBookingId && ['completed', 'cancelled', 'rejected', 'work_done'].includes(status)) {
+               localStorage.removeItem('activeAssignedBooking');
+               window.dispatchEvent(new Event('activeAssignedBookingUpdated'));
+             }
+          } catch(e) {}
+        }
+        window.dispatchEvent(new Event('userBookingsUpdated'));
+      }
+      
       if (userType === 'vendor') window.dispatchEvent(new Event('vendorJobsUpdated'));
       if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
     });
+
+    if (userType === 'user') {
+      newSocket.on('booking_accepted', (data) => {
+        console.log(`[Socket] 🎯 USER received BOOKING_ACCEPTED:`, data);
+        if (isSoundEnabled('user')) {
+          playNotificationSound();
+        }
+        
+        // Save active booking info to localStorage
+        localStorage.setItem('activeAssignedBooking', JSON.stringify({
+          bookingId: data.bookingId,
+          worker: data.worker,
+          timestamp: Date.now()
+        }));
+        
+        // Notify components
+        window.dispatchEvent(new Event('activeAssignedBookingUpdated'));
+        window.dispatchEvent(new Event('userBookingsUpdated'));
+
+        // Show toast
+        toast.success(
+          <div className="flex flex-col gap-1">
+            <span className="font-bold text-sm">Your expert has been assigned!</span>
+            <span className="text-xs opacity-90">{data.worker?.name || 'A professional'} is ready for your job.</span>
+          </div>,
+          { duration: 5000, position: 'top-center' }
+        );
+      });
+    }
 
     // Listen for special Vendor Booking Requests
     if (userType === 'vendor') {

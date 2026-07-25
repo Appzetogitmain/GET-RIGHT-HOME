@@ -331,7 +331,7 @@ const bookingSchema = new mongoose.Schema({
   },
   workerResponse: {
     type: String,
-    enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
+    enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'ADMIN_ASSIGNED'],
     default: 'PENDING'
   },
   // Timestamps

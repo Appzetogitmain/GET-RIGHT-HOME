@@ -39,6 +39,16 @@ export const adminBookingService = {
     } catch (error) {
       throw error.response?.data || { message: 'Failed to cancel booking' };
     }
+  },
+
+  // Assign worker manually
+  assignWorker: async (jobId, workerId) => {
+    try {
+      const response = await api.post(`/admin/workers/jobs/${jobId}/assign`, { workerId });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to assign worker' };
+    }
   }
 };
 

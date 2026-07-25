@@ -7,7 +7,7 @@ import { workerTheme as themeColors } from '../../../../theme';
 import { playAlertRing, stopAlertRing } from '../../../../utils/notificationSound';
 import workerService from '../../../../services/workerService';
 
-const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 120 }) => {
+const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) => {
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
   const [loadingAction, setLoadingAction] = useState(null);
 
@@ -143,7 +143,7 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 120 })
           <div className="flex items-start gap-2 pt-2 border-t border-gray-200">
             <FiClock className="text-gray-400 w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span className="font-bold text-gray-800">
-              {booking.timeSlot?.date || (booking.scheduledDate ? new Date(booking.scheduledDate).toLocaleDateString() : '')} {booking.timeSlot?.time || booking.scheduledTime || 'N/A'}
+              {booking.timeSlot?.date || (booking.scheduledDate ? new Date(booking.scheduledDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' : '')} {booking.timeSlot?.time || booking.scheduledTime || 'N/A'}
             </span>
           </div>
         </div>

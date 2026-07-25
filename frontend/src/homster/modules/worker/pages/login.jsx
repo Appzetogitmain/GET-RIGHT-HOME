@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FiPhone, FiArrowRight, FiChevronLeft, FiCheckCircle } from 'react-icons/fi';
+import { FiPhone, FiArrowRight, FiChevronLeft, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../theme';
 import { workerAuthService } from '../../../services/authService';
@@ -22,6 +22,7 @@ const WorkerLogin = () => {
   const [otpToken, setOtpToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
 
   // Timer countdown effect
   useEffect(() => {
@@ -65,6 +66,7 @@ const WorkerLogin = () => {
 
     const cleanPhone = phoneNumber.replace(/\D/g, '');
     setIsLoading(true);
+    setIsPendingApproval(false);
     try {
       const response = await workerAuthService.sendOTP(cleanPhone);
       if (response.success) {
@@ -79,7 +81,12 @@ const WorkerLogin = () => {
       }
     } catch (error) {
       setIsLoading(false);
-      toast.error(error.response?.data?.message || 'Failed to send OTP');
+      if (error.response?.data?.pendingApproval) {
+        setIsPendingApproval(true);
+        toast.error('Account pending approval');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to send OTP');
+      }
     }
   };
 
@@ -176,6 +183,25 @@ const WorkerLogin = () => {
         <div className="bg-white py-8 px-4 shadow-2xl shadow-gray-200/50 sm:rounded-2xl sm:px-10 border border-gray-100 relative overflow-hidden animate-slide-in-bottom">
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#347989] via-[#D68F35] to-[#BB5F36]" />
 
+          {isPendingApproval && (
+            <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg animate-fade-in shadow-sm">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 mt-0.5">
+                  <FiAlertCircle className="h-5 w-5 text-yellow-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-800 font-bold">
+                    Your account is pending admin approval.
+                  </p>
+                  <p className="mt-1 text-sm text-yellow-700 font-medium">
+                    Visit our office for approval:<br/>
+                    <span className="font-bold">2nd floor Lakshmi residency Navodaya colony housing board colony Anantapur Andhra Pradesh</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {step === 'phone' ? (
             <form onSubmit={handlePhoneSubmit} className="space-y-6">
               <div className="animate-stagger-1 animate-fade-in">
@@ -236,6 +262,7 @@ const WorkerLogin = () => {
                   setOtpToken('');
                   setStep('phone');
                   setResendTimer(0);
+                  setIsPendingApproval(false);
                 }}
                 className="flex items-center text-sm text-gray-500 hover:text-[#347989] transition-colors mb-4 animate-stagger-1 animate-fade-in"
               >
@@ -317,6 +344,13 @@ const WorkerLogin = () => {
           <Link to="/worker/signup" className="font-semibold text-[#347989] hover:text-[#D68F35] transition-colors duration-300">
             Register as Xpert
           </Link>
+        </p>
+        
+        <p className="mt-4 text-center text-xs text-gray-400 animate-fade-in animate-stagger-6 max-w-xs mx-auto">
+          By continuing, you agree to our{' '}
+          <Link to="/worker/privacy-policy" className="underline hover:text-gray-600 transition-colors">Privacy Policy</Link>
+          {' '}and{' '}
+          <Link to="/worker/support" className="underline hover:text-gray-600 transition-colors">Support</Link>
         </p>
       </div>
     </div>

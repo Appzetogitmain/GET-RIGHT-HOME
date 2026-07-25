@@ -40,6 +40,18 @@ const BottomNav = React.memo(() => {
   const navRef = useRef(null);
   const { cartCount } = useCart();
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const [hasActiveBooking, setHasActiveBooking] = useState(false);
+
+  useEffect(() => {
+    const checkActiveBooking = () => {
+      const stored = localStorage.getItem('activeAssignedBooking');
+      setHasActiveBooking(!!stored);
+    };
+    checkActiveBooking();
+
+    window.addEventListener('activeAssignedBookingUpdated', checkActiveBooking);
+    return () => window.removeEventListener('activeAssignedBookingUpdated', checkActiveBooking);
+  }, []);
 
   const navItems = useMemo(() => [
     { id: 'home', label: 'Home', icon: FiHome, filledIcon: HiHome, path: '/home-services' },
@@ -173,6 +185,13 @@ const BottomNav = React.memo(() => {
                       >
                         {cartCount > 9 ? '9+' : cartCount}
                       </motion.span>
+                    )}
+                    {item.id === 'bookings' && hasActiveBooking && (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute top-0 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full z-20 animate-pulse"
+                      />
                     )}
                   </motion.div>
                   <motion.span

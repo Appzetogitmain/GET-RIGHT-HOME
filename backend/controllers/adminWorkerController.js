@@ -1,7 +1,10 @@
+import PlatformSettings from '../models/PlatformSettings.js';
 import Worker from '../models/Worker.js';
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import Transaction from '../models/Transaction.js';
 import Withdrawal from '../models/Withdrawal.js';
+import { createNotification } from './notificationControllers/notificationController.js';
+import { BOOKING_STATUS } from '../utils/constants.js';
 
 export const getAllWorkers = async (req, res) => {
   try {
@@ -45,6 +48,83 @@ export const approveWorker = async (req, res) => {
       { new: true }
     );
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
+
+    // Process Referral Bonus
+    if (worker.referredBy && !worker.referralBonusCredited) {
+      const platformSettings = await PlatformSettings.getSettings();
+      const bonusReferrer = platformSettings.workerReferralBonusReferrer || 0;
+      const bonusReferee = platformSettings.workerReferralBonusReferee || 0;
+
+      if (bonusReferrer > 0 || bonusReferee > 0) {
+        const referrer = await Worker.findById(worker.referredBy);
+        
+        if (referrer) {
+          // 1. Credit Referrer
+          if (bonusReferrer > 0) {
+            if (!referrer.wallet) referrer.wallet = { balance: 0, earnings: 0, totalCashCollected: 0, totalWithdrawn: 0, dues: 0 };
+            referrer.wallet.balance = (referrer.wallet.balance || 0) + bonusReferrer;
+            referrer.wallet.earnings = (referrer.wallet.earnings || 0) + bonusReferrer;
+            await referrer.save();
+
+            await Transaction.create({
+              workerId: referrer._id,
+              modelType: 'Worker',
+              type: 'credit',
+              category: 'referral_bonus',
+              amount: bonusReferrer,
+              balanceAfter: referrer.wallet.balance,
+              description: `Referral bonus for inviting ${worker.name}`,
+              reference: `ref_${worker._id}`,
+              status: 'completed'
+            });
+
+            await createNotification({
+              userId: referrer._id,
+              type: 'wallet_credit',
+              title: 'Referral Bonus! 🎉',
+              message: `You received ₹${bonusReferrer} for referring ${worker.name}.`,
+              relatedId: referrer._id,
+              relatedType: 'wallet',
+              priority: 'high'
+            }).catch(e => console.error(e));
+          }
+
+          // 2. Credit Referee (New Worker)
+          if (bonusReferee > 0) {
+            if (!worker.wallet) worker.wallet = { balance: 0, earnings: 0, totalCashCollected: 0, totalWithdrawn: 0, dues: 0 };
+            worker.wallet.balance = (worker.wallet.balance || 0) + bonusReferee;
+            worker.wallet.earnings = (worker.wallet.earnings || 0) + bonusReferee;
+            
+            await Transaction.create({
+              workerId: worker._id,
+              modelType: 'Worker',
+              type: 'credit',
+              category: 'referral_bonus',
+              amount: bonusReferee,
+              balanceAfter: worker.wallet.balance,
+              description: `Welcome referral bonus via ${referrer.name}`,
+              reference: `ref_welcome_${worker._id}`,
+              status: 'completed'
+            });
+
+            await createNotification({
+              userId: worker._id,
+              type: 'wallet_credit',
+              title: 'Welcome Bonus! 🎉',
+              message: `You received ₹${bonusReferee} referral bonus for joining via ${referrer.name}.`,
+              relatedId: worker._id,
+              relatedType: 'wallet',
+              priority: 'high'
+            }).catch(e => console.error(e));
+          }
+        }
+        
+        // Mark as credited
+        worker.referralBonusCredited = true;
+        await worker.save();
+      }
+    }
+
     res.json({ success: true, message: 'Worker approved successfully', worker });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -422,5 +502,59 @@ export const rejectWorkerWithdrawal = async (req, res) => {
   } catch (error) {
     console.error('Reject Withdrawal Error:', error);
     res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+  }
+};
+
+export const assignWorkerToBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { workerId } = req.body;
+
+    const booking = await HomeServiceBooking.findById(id);
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+
+    const worker = await Worker.findById(workerId);
+    if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
+
+    if (booking.status === BOOKING_STATUS.COMPLETED || booking.status === BOOKING_STATUS.CANCELLED) {
+      return res.status(400).json({ success: false, message: `Cannot assign worker, booking is already ${booking.status}` });
+    }
+
+    booking.status = BOOKING_STATUS.ASSIGNED;
+    booking.workerId = worker._id;
+    booking.workerAcceptedAt = new Date();
+    booking.workerResponse = 'ADMIN_ASSIGNED';
+    
+    await booking.save();
+
+    // Notify User
+    await createNotification({
+      userId: booking.userId,
+      type: 'worker_assigned',
+      title: 'Worker Assigned',
+      message: `Admin has assigned ${worker.name} for your booking #${booking.bookingNumber}.`,
+      relatedId: booking._id,
+      relatedType: 'booking',
+      priority: 'high',
+      pushData: { type: 'worker_assigned', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${booking.userId}`).emit('booking_accepted', {
+        bookingId: booking._id,
+        status: booking.status,
+        worker: { id: worker._id, name: worker.name, phone: worker.phone }
+      });
+      io.to(`worker_${worker._id}`).emit('new_job_alert', {
+        type: 'job_assigned',
+        bookingId: booking._id,
+        message: 'Admin assigned a new job to you.'
+      });
+    }
+
+    res.json({ success: true, message: 'Worker successfully assigned to booking', data: booking });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

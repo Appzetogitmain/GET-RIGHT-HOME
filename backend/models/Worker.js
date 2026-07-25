@@ -43,6 +43,24 @@ const workerSchema = new mongoose.Schema({
       type: String, // Cloudinary URL (Back)
     }
   },
+  panCard: {
+    number: {
+      type: String,
+      trim: true
+    },
+    document: {
+      type: String, // Cloudinary URL
+    }
+  },
+  drivingLicense: {
+    number: {
+      type: String,
+      trim: true
+    },
+    document: {
+      type: String, // Cloudinary URL
+    }
+  },
   vendorId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Vendor',
@@ -134,6 +152,21 @@ const workerSchema = new mongoose.Schema({
       type: String,
       default: 'en'
     }
+  },
+  // Referral System
+  referralCode: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Worker',
+    default: null
+  },
+  referralBonusCredited: {
+    type: Boolean,
+    default: false
   },
   // Real-time Location
   location: {

@@ -44,7 +44,9 @@ const transactionSchema = new mongoose.Schema({
       'booking',
       'referral_bonus',
       'referral_penalty',
-      'cash_collected'
+      'cash_collected',
+      'target_bonus',
+      'achievement_bonus'
     ],
     required: true
   },

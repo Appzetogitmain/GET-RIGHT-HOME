@@ -582,6 +582,13 @@ const createBooking = async (req, res) => {
               message: `New booking request within ${partner.distance?.toFixed(1) || '?'}km!`
             });
           });
+          
+          // Notify user about Wave 1 searching
+          io.to(`user_${userId}`).emit('booking_updated', {
+            bookingId: bookingForBackground._id,
+            status: BOOKING_STATUS.SEARCHING,
+            message: `Searching professionals near you... (Wave 1)`
+          });
         }
 
         // 2. Send Firebase/FCM notifications

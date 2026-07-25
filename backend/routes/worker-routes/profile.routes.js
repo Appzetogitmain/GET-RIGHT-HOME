@@ -3,7 +3,7 @@ const router = express.Router();
 import {  body  } from 'express-validator';
 import {  authenticate  } from '../../middlewares/authMiddleware.js';
 import {  isWorker  } from '../../middlewares/authMiddleware.js';
-import {  getProfile, updateProfile, updateLocation, toggleOnline  } from '../../controllers/workerControllers/workerProfileController.js';
+import {  getProfile, updateProfile, updateLocation, toggleOnline, getReferrals  } from '../../controllers/workerControllers/workerProfileController.js';
 
 // Validation rules
 const updateProfileValidation = [
@@ -17,6 +17,7 @@ router.get('/profile', authenticate, isWorker, getProfile);
 router.put('/profile', authenticate, isWorker, updateProfileValidation, updateProfile);
 router.put('/profile/location', authenticate, isWorker, updateLocation);
 router.post('/toggle-online', authenticate, isWorker, toggleOnline);
+router.get('/referrals', authenticate, isWorker, getReferrals);
 
 export default router;
 

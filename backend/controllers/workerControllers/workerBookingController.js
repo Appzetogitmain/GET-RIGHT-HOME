@@ -11,6 +11,7 @@ import crypto from 'crypto';
 import PlatformSettings from '../../models/PlatformSettings.js';
 import Settings from '../../models/Settings.js';
 import VendorBill from '../../models/VendorBill.js';
+import { checkAndAwardTargetBonus } from '../../utils/targetBonusUtil.js';
 
 /**
  * Get assigned jobs for worker
@@ -194,6 +195,10 @@ const updateJobStatus = async (req, res) => {
     }
 
     await booking.save();
+
+    if (status === BOOKING_STATUS.WORK_DONE || status === BOOKING_STATUS.COMPLETED) {
+      checkAndAwardTargetBonus(booking.workerId).catch(err => console.error('[Target Bonus] error in updateJobStatus:', err));
+    }
 
     res.status(200).json({
       success: true,
@@ -726,6 +731,9 @@ const createBill = async (req, res) => {
       console.log('[Socket] ERROR: io is undefined in createBill');
     }
 
+    // Trigger target bonus evaluation asynchronously
+    checkAndAwardTargetBonus(booking.workerId).catch(err => console.error('[Target Bonus] error:', err));
+
     res.status(200).json({ success: true, bill, message: 'Bill created successfully' });
   } catch (error) {
     console.error('Create bill error:', error);
@@ -1051,14 +1059,24 @@ const respondToJob = async (req, res) => {
 
 
     } else if (status === 'REJECTED') {
+      // Find the specific request and mark it REJECTED
+      const reqEntry = await BookingRequest.findOne({ bookingId: id, workerId });
+      if (reqEntry) {
+        reqEntry.status = 'REJECTED';
+        reqEntry.respondedAt = new Date();
+        await reqEntry.save();
+      }
+
       booking.workerId = null;
-      booking.status = BOOKING_STATUS.CONFIRMED; // Revert to unassigned state
+      // Do NOT set to CONFIRMED. Keep it SEARCHING so the Wave Scheduler can pick it up.
+      // The only exception is if ALL waves have exhausted, which the scheduler will handle.
+      booking.status = BOOKING_STATUS.SEARCHING;
 
       await createNotification({
         vendorId: booking.vendorId,
         type: 'job_rejected',
         title: 'Worker Declined Job',
-        message: `Worker declined job ${booking.bookingNumber}`,
+        message: `A worker declined job ${booking.bookingNumber}, finding next available.`,
         relatedId: booking._id,
         relatedType: 'booking'
       });
@@ -1158,7 +1176,12 @@ const initiateCashCollection = async (req, res) => {
         customerConfirmationOTP: payOtp,
         paymentOtp: payOtp
       });
+    } else {
+      console.log('[Socket] ERROR: io is undefined in collectCash');
     }
+
+    // Trigger target bonus evaluation asynchronously
+    checkAndAwardTargetBonus(booking.workerId).catch(err => console.error('[Target Bonus] error:', err));
 
     res.status(200).json({ success: true, message: 'Cash collection initiated, OTP sent' });
   } catch (error) {

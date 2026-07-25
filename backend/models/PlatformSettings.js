@@ -58,6 +58,59 @@ const platformSettingsSchema = new mongoose.Schema(
       type: Number,
       default: 30
     },
+<<<<<<< HEAD
+    targetTitle: {
+      type: String,
+      default: 'Monthly Target'
+    },
+    monthlyTarget: {
+      type: Number,
+      default: 30
+    },
+    monthlyTargetBonus: {
+      type: Number,
+      default: 5000
+    },
+    targetStartDate: {
+      type: Date
+    },
+    targetEndDate: {
+      type: Date
+    },
+    workerAchievements: [{
+      title: String,
+      icon: {
+        type: String,
+        enum: ['FiStar', 'FiAward', 'FiClock', 'FiCheckCircle', 'FiTrendingUp', 'FiThumbsUp']
+      },
+      tier: {
+        type: String,
+        enum: ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond']
+      },
+      jobThreshold: Number
+    }],
+    supportContact: {
+      phone: { type: String, default: '+1234567890' },
+      email: { type: String, default: 'support@hoomzo.com' },
+      address: { type: String, default: 'Hoomzo Office, Address' }
+    },
+    privacyPolicy: {
+      type: String,
+      default: 'Privacy Policy terms will appear here.'
+    },
+    trainingVideos: [{
+      title: String,
+      youtubeUrl: String,
+      gifUrl: String
+    }],
+    workerReferralBonusReferrer: {
+      type: Number,
+      default: 0
+    },
+    workerReferralBonusReferee: {
+      type: Number,
+      default: 0
+=======
     supportEmail: {
       type: String,
       default: 'getrighthome7@gmail.com'
@@ -69,6 +122,7 @@ const platformSettingsSchema = new mongoose.Schema(
     supportWhatsapp: {
       type: String,
       default: '+916304471791'
+>>>>>>> 0651423adb92374ff6536d525325cbfb3fdbfae1
     }
   },
   { timestamps: true }

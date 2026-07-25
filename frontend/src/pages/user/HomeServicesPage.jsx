@@ -30,6 +30,7 @@ import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCity } from '../../homster/context/CityContext';
 import CategoryModal from '../../homster/modules/user/pages/Home/components/CategoryModal';
 import BottomNav from '../../homster/modules/user/components/layout/BottomNav';
+import ActiveBookingCard from '../../homster/modules/user/pages/Home/components/ActiveBookingCard';
 import { userService } from '../../services/apiService';
 import { toast } from 'react-hot-toast';
 import { createVipOrder, verifyVipPayment } from '../../homster/modules/user/services/planService';
@@ -1340,13 +1341,18 @@ const HomeServicesPage = () => {
             )}
 
             {/* Custom Bottom Nav for Home Services */}
-            <BottomNav />
+            {/* Category Modal */}
             <CategoryModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 category={selectedCategory}
                 currentCity={currentCity}
             />
+
+            {/* Active Booking Card (Shows when a worker is assigned) */}
+            <ActiveBookingCard />
+
+            <BottomNav />
         </div>
     );
 };

@@ -721,6 +721,7 @@ function App() {
                       <Route path="/saved-places" element={<SavedPlacesPage />} />
                       <Route path="/notifications" element={<NotificationsPage />} />
                       <Route path="/settings" element={<SettingsPage />} />
+                      <Route path="/user" element={<Navigate to="/home-services" replace />} />
                       <Route path="/user/cart" element={<CartPage />} />
                       <Route path="/user/home-services/checkout" element={<HomeServiceCheckoutPage />} />
                       <Route path="/user/home-services/bookings" element={<HomeServiceBookingsPage />} />

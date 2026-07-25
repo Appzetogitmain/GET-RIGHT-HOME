@@ -127,6 +127,22 @@ const adminWorkerService = {
   rejectWorkerWithdrawal: async (id, reason) => {
     const response = await api.put(`/admin/worker-withdrawals/${id}/reject`, { reason });
     return response.data;
+  },
+
+  /**
+   * Get all worker complaints
+   */
+  getComplaints: async (params = {}) => {
+    const response = await api.get('/admin/workers/complaints', { params });
+    return response.data;
+  },
+
+  /**
+   * Update complaint status
+   */
+  updateComplaintStatus: async (id, data) => {
+    const response = await api.patch(`/admin/workers/complaints/${id}/status`, data);
+    return response.data;
   }
 };
 

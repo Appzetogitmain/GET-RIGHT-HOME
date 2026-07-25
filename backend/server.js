@@ -51,6 +51,11 @@ const io = new Server(server, {
 
 initIO(io);
 app.set('io', io);
+
+// Start Wave Scheduler for dynamic booking routing
+import { startWaveScheduler } from './cron/waveScheduler.js';
+startWaveScheduler(io);
+
 // Middleware
 app.use(morgan('dev'));
 // Middleware to log request start is handled by morgan

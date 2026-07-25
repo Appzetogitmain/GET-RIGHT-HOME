@@ -19,9 +19,10 @@ import {
 import { bookingService } from '../../../../services/bookingService';
 import NotificationBell from '../../components/common/NotificationBell';
 import ConfirmDialog from '../../../../components/common/ConfirmDialog';
+import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 
 // Inline Searching Animation Component
-const SearchingAnimation = () => {
+const SearchingAnimation = ({ message }) => {
   const [dots, setDots] = useState('.');
 
   useEffect(() => {
@@ -76,7 +77,7 @@ const SearchingAnimation = () => {
       <div className="text-center relative z-20">
         <h3 className="text-lg font-bold text-gray-900 mb-2">Searching nearby experts</h3>
         <p className="text-gray-500 text-sm max-w-[240px] mx-auto leading-relaxed">
-          Searching within 10km radius{dots}
+          {message || `Searching within 10km radius${dots}`}
         </p>
       </div>
 
@@ -94,6 +95,8 @@ const BookingConfirmation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const socket = useAppNotifications('user');
+  const [socketMessage, setSocketMessage] = useState(null);
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(!location.state?.noVendorsFound); // Respect passed state
@@ -163,6 +166,31 @@ const BookingConfirmation = () => {
       window.removeEventListener('userBookingsUpdated', refreshBooking);
     };
   }, [id]);
+
+  // Socket Listener for real-time wave messages
+  useEffect(() => {
+    if (socket && id) {
+      socket.emit('join_tracking', id);
+      
+      const handleBookingUpdate = (data) => {
+        if (data.bookingId === id || data.relatedId === id || data.data?.bookingId === id) {
+          if (data.message) {
+            setSocketMessage(data.message);
+          }
+          if (data.status === 'NO_WORKERS' || data.status === 'no_workers' || data.status === 'NO_VENDORS' || data.status === 'no_vendors') {
+            setIsSearching(false);
+            setBooking(prev => ({ ...prev, status: data.status, message: data.message }));
+          }
+        }
+      };
+
+      socket.on('booking_updated', handleBookingUpdate);
+
+      return () => {
+        socket.off('booking_updated', handleBookingUpdate);
+      };
+    }
+  }, [socket, id]);
 
   useEffect(() => {
     if (booking) {
@@ -318,7 +346,7 @@ const BookingConfirmation = () => {
           {/* Searching Animation - Show at top when searching for vendor */}
           {isSearching && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-4 overflow-hidden">
-              <SearchingAnimation />
+              <SearchingAnimation message={socketMessage} />
             </div>
           )}
 
@@ -348,15 +376,17 @@ const BookingConfirmation = () => {
             </div>
           )}
 
-          {/* Failure Icon - Show when expired/cancelled/rejected */}
-          {!isSearching && ['expired', 'cancelled', 'rejected', 'failed', 'timeout'].includes(String(booking?.status || '').toLowerCase()) && (
-            <div className="flex flex-col items-center justify-center mb-6">
+          {/* Failure Icon - Show when expired/cancelled/rejected/no_workers */}
+          {!isSearching && ['expired', 'cancelled', 'rejected', 'failed', 'timeout', 'no_workers', 'no_vendors'].includes(String(booking?.status || '').toLowerCase()) && (
+            <div className="flex flex-col items-center justify-center mb-6 text-center">
               <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <FiXCircle className="w-12 h-12 text-red-600" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">No Expert Found</h1>
-              <p className="text-sm text-gray-500 text-center max-w-[260px] mb-6">
-                We couldn't find a nearby expert for your request at this moment.
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                {String(booking?.status || '').toLowerCase().includes('no_') ? 'All Experts Busy' : 'No Expert Found'}
+              </h1>
+              <p className="text-sm text-gray-500 max-w-[260px] mb-6 mx-auto">
+                {booking?.message || "We couldn't find a nearby expert for your request at this moment."}
               </p>
               <button
                 onClick={() => navigate('/')}

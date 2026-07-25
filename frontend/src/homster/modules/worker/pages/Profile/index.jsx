@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiPhone, FiMail, FiBriefcase, FiStar, FiChevronRight, FiTag, FiLogOut } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { workerTheme as themeColors } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
-import Header from '../../components/layout/Header';
+import workerService from '../../../../services/workerService';
 import BottomNav from '../../components/layout/BottomNav';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
@@ -14,6 +14,7 @@ const Profile = () => {
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [stats, setStats] = useState(null);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -37,7 +38,15 @@ const Profile = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await workerAuthService.getProfile();
+        const [response, statsRes] = await Promise.all([
+          workerAuthService.getProfile(),
+          workerService.getDashboardStats()
+        ]);
+        
+        if (statsRes.success) {
+          setStats(statsRes.data);
+        }
+
         if (response.success) {
           const workerData = response.worker;
           // Format address
@@ -148,200 +157,157 @@ const Profile = () => {
     return null;
   }
 
+  // Calculate dynamic values from stats if available, otherwise fallback to profile
+  const completedJobs = stats?.completedJobs ?? profile?.completedJobs ?? 0;
+  const cancelledJobs = stats?.cancelledJobs ?? 0;
+  const rating = stats?.rating ?? profile?.rating ?? 0;
+  
+  const completionPercentage = (completedJobs + cancelledJobs) > 0 
+    ? Math.round((completedJobs / (completedJobs + cancelledJobs)) * 100) 
+    : (profile?.totalJobs > 0 ? Math.round((profile.completedJobs / profile.totalJobs) * 100) : 100);
+
+  // Compute Highest Earned Achievement for the Badge
+  let highestAchievement = null;
+  if (stats?.workerAchievements && stats.workerAchievements.length > 0) {
+    const earned = stats.workerAchievements.filter(a => completedJobs >= a.jobThreshold);
+    if (earned.length > 0) {
+      highestAchievement = [...earned].sort((a, b) => a.jobThreshold - b.jobThreshold).pop();
+    }
+  }
+
+  const getTierColor = (tier) => {
+    switch (tier?.toLowerCase()) {
+      case 'bronze': return 'bg-[#CD7F32] text-white';
+      case 'silver': return 'bg-[#C0C0C0] text-gray-800';
+      case 'gold': return 'bg-[#F5B01B] text-white';
+      case 'platinum': return 'bg-[#E5E4E2] text-gray-800';
+      case 'diamond': return 'bg-[#b9f2ff] text-blue-800';
+      default: return 'bg-[#F5B01B] text-white';
+    }
+  };
+
+  const menuItems = [
+    { icon: FiCreditCard, label: 'Digital ID Card', path: '/worker/digital-id' },
+    { icon: FiFileText, label: 'My Documents', path: '/worker/documents' },
+    { icon: FiBookOpen, label: 'Training Center', path: '/worker/training' },
+    { icon: FiUsers, label: 'Referrals', path: '/worker/referrals' },
+    { icon: FiMessageSquare, label: 'Complaint Management', path: '/worker/complaints' },
+    { icon: FiHelpCircle, label: 'Help Center', path: '/worker/support' },
+    { icon: FiSettings, label: 'Settings', path: '/worker/settings' }
+  ];
+
   return (
-    <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
-      <Header title="Profile" />
-
-      <main className="px-4 pt-4 pb-6">
-        {/* Profile Header Card */}
-        <div
-          className="rounded-2xl p-5 mb-4 shadow-xl relative overflow-hidden"
-          style={{
-            background: themeColors.button,
-            border: `2px solid ${themeColors.button}`,
-          }}
-        >
-          {/* Decorative Pattern */}
-          <div
-            className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10"
-            style={{
-              background: `radial-gradient(circle, ${themeColors.button} 0%, transparent 70%)`,
-              transform: 'translate(30px, -30px)',
-            }}
-          />
-
-          <div className="relative z-10">
-            <div className="flex items-start gap-4">
-              <div
-                className="w-20 h-20 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.3)',
-                  border: '3px solid white',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                }}
-              >
-                {profile.photo ? (
-                  <img
-                    src={profile.photo}
-                    alt={profile.name}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  <FiUser className="w-10 h-10 text-white" />
-                )}
-              </div>
-              <div className="flex-1 pr-12">
-                <h2 className="text-xl font-bold text-white mb-0.5">{profile.name}</h2>
-                <div className="mb-2"></div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-lg backdrop-blur-sm">
-                    <FiStar className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300" />
-                    <span className="text-white text-sm font-bold">{profile.rating}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Edit Profile Button - Absolute Positioned */}
-            <button
-              onClick={() => navigate('/worker/profile/edit')}
-              className="absolute top-0 right-0 p-2.5 rounded-lg transition-all active:scale-95"
-              style={{
-                background: 'rgba(255, 255, 255, 0.25)',
-                backdropFilter: 'blur(10px)',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                border: '1.5px solid rgba(255, 255, 255, 0.3)',
-              }}
-            >
-              <FiEdit2 className="w-5 h-5 text-white" />
-            </button>
-          </div>
-        </div>
-
-        {/* Profile Details */}
-        <div
-          className="bg-white rounded-xl p-4 mb-4 shadow-md"
-          style={{
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <h3 className="font-bold text-gray-800 mb-4">Personal Information</h3>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <FiPhone className="w-5 h-5" style={{ color: themeColors.icon }} />
-              <div>
-                <p className="text-sm text-gray-600">Phone</p>
-                <p className="text-sm font-semibold text-gray-800">{profile.phone}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <FiMail className="w-5 h-5" style={{ color: themeColors.icon }} />
-              <div>
-                <p className="text-sm text-gray-600">Email</p>
-                <p className="text-sm font-semibold text-gray-800">{profile.email}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <FiMapPin className="w-5 h-5" style={{ color: themeColors.icon }} />
-              <div>
-                <p className="text-sm text-gray-600">Address</p>
-                <p className="text-sm font-semibold text-gray-800">{profile.address}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Service Category & Skills */}
-        <div
-          className="bg-white rounded-xl p-4 mb-4 shadow-md"
-          style={{
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <h3 className="font-bold text-gray-800 mb-4">Service Information</h3>
-          <div className="space-y-3">
-            {/* Service Categories */}
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg" style={{ background: `${themeColors.icon}15` }}>
-                <FiBriefcase className="w-5 h-5" style={{ color: themeColors.icon }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Service Categories</p>
-                {profile.serviceCategories && profile.serviceCategories.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {profile.serviceCategories.map((cat, idx) => (
-                      <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-sm font-medium border border-gray-200">
-                        {cat}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm font-semibold text-gray-800">Not Selected</p>
-                )}
-              </div>
-            </div>
-
-            {/* Removed Skills display */}
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div
-          className="bg-white rounded-xl p-4 mb-4 shadow-md"
-          style={{
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <h3 className="font-bold text-gray-800 mb-3">Statistics</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-600">Total Jobs</p>
-              <p className="text-2xl font-bold text-gray-800">{profile.totalJobs}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-gray-800">{profile.completedJobs}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Settings Button */}
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Top Orange Header */}
+      <div className="bg-[#E85D04] rounded-b-[40px] pt-8 pb-16 px-4 relative">
+        {/* Edit Profile Button */}
         <button
-          onClick={() => navigate('/worker/settings')}
-          className="w-full bg-white rounded-xl p-4 flex items-center justify-between shadow-md transition-all active:scale-95 mb-4"
-          style={{
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
+          onClick={() => navigate('/worker/profile/edit')}
+          className="absolute top-6 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur-sm transition-all active:scale-95 border border-white/20"
         >
-          <div className="flex items-center gap-3">
-            <FiEdit2 className="w-5 h-5" style={{ color: themeColors.button }} />
-            <span className="font-semibold text-gray-800">Settings</span>
-          </div>
-          <FiChevronRight className="w-5 h-5 text-gray-400" />
+          <FiEdit2 className="w-5 h-5 text-white" />
         </button>
 
-        {/* Logout Button */}
+        <div className="flex flex-col items-center">
+          {/* Profile Picture */}
+          <div className="relative mb-3">
+            <div className="w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
+              {profile.photo ? (
+                <img
+                  src={profile.photo}
+                  alt={profile.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <FiUser className="w-12 h-12 text-gray-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+              )}
+            </div>
+            {/* Check badge */}
+            <div className="absolute bottom-0 right-1 w-6 h-6 bg-[#E85D04] rounded-full border-2 border-white flex items-center justify-center">
+              <FiStar className="w-3 h-3 text-white fill-white" />
+            </div>
+          </div>
+
+          {/* Name & Badge */}
+          <h2 className="text-2xl font-extrabold text-white mb-2">{profile.name}</h2>
+          {highestAchievement ? (
+            <div className={`${getTierColor(highestAchievement.tier)} text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 mb-3`}>
+              <FiAward className="w-3 h-3" /> {highestAchievement.tier} Partner
+            </div>
+          ) : (
+            <div className="bg-[#CD7F32] text-white text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 mb-3">
+              <FiAward className="w-3 h-3" /> Bronze Partner
+            </div>
+          )}
+
+          {/* Categories & Location */}
+          <p className="text-white text-xs font-semibold mb-1">
+            {profile.serviceCategories && profile.serviceCategories.length > 0
+              ? profile.serviceCategories.join(' • ')
+              : 'Services not set'}
+          </p>
+          <div className="flex items-center gap-1 text-white text-xs opacity-90">
+            <FiMapPin className="w-3 h-3" /> {profile.address ? profile.address.split(' ')[0] : 'Location not set'}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards - Overlapping the header */}
+      <div className="px-4 -mt-10 relative z-10 mb-6">
+        <div className="flex justify-between gap-3">
+          <div className="flex-1 bg-white rounded-2xl p-3 flex flex-col items-center justify-center shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-gray-50">
+            <p className="text-xl font-bold text-[#1E3A8A] mb-1">{completedJobs}</p>
+            <p className="text-[10px] font-medium text-gray-500">Jobs Done</p>
+          </div>
+          <div className="flex-1 bg-white rounded-2xl p-3 flex flex-col items-center justify-center shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-gray-50">
+            <p className="text-xl font-bold text-[#1E3A8A] mb-1 flex items-center gap-1">
+              <FiStar className="w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B]" /> {rating ? rating.toFixed(1) : '0.0'}
+            </p>
+            <p className="text-[10px] font-medium text-gray-500">Rating</p>
+          </div>
+          <div className="flex-1 bg-white rounded-2xl p-3 flex flex-col items-center justify-center shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-gray-50">
+            <p className="text-xl font-bold text-[#1E3A8A] mb-1">{completionPercentage}%</p>
+            <p className="text-[10px] font-medium text-gray-500">Completion</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Menu List */}
+      <div className="px-4 pb-6">
+        <div className="bg-white rounded-3xl p-2 shadow-[0_4px_15px_rgba(0,0,0,0.02)] border border-gray-50">
+          {menuItems.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <div 
+                key={index}
+                onClick={() => navigate(item.path)}
+                className={`flex items-center justify-between p-3 cursor-pointer active:bg-gray-50 rounded-2xl transition-colors ${index !== menuItems.length - 1 ? 'border-b border-gray-50' : ''}`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-[#FEF0D9] text-[#E85D04] flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[#1E3A8A] font-semibold text-sm">{item.label}</span>
+                </div>
+                <FiChevronRight className="w-5 h-5 text-gray-400" />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Logout Button */}
+      <div className="px-4 pb-8">
         <button
-          type="button"
           onClick={(e) => {
             e.preventDefault();
-            e.stopPropagation();
             handleLogout();
           }}
-          className="w-full bg-white rounded-xl p-4 flex items-center justify-between shadow-md transition-all active:scale-95"
-          style={{
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-            cursor: 'pointer'
-          }}
+          className="w-full bg-[#FFE4E6] text-[#E11D48] rounded-2xl p-4 flex items-center justify-center gap-2 font-bold transition-all active:scale-95 border border-[#FECDD3]"
         >
-          <div className="flex items-center gap-3">
-            <FiLogOut className="w-5 h-5 text-red-500" />
-            <span className="font-semibold text-red-500">Logout</span>
-          </div>
-          <FiChevronRight className="w-5 h-5 text-gray-400" />
+          <FiLogOut className="w-5 h-5" /> Log Out
         </button>
-      </main>
+      </div>
 
       <BottomNav />
     </div>
