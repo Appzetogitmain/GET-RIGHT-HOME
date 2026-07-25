@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, ChevronRight, Loader2, MapPin,
     MessageSquare, Send, Crown, Sparkles, PhoneCall,
-    Calendar, Clock, FileText, User, Building
+    Calendar, Clock, FileText, User, Building, ChevronDown, Bell
 } from 'lucide-react';
 import { enquiryService, propertyService } from '../../services/apiService';
 import subscriptionService from '../../services/subscriptionService';
@@ -52,8 +52,8 @@ const parseEnquiryMessage = (raw = '') => {
 const MessageBlock = ({ message }) => {
     const parsed = parseEnquiryMessage(message);
     return (
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-1 text-slate-700">
-            <p className="text-[8px] font-black uppercase tracking-wider text-indigo-600 mb-1">{parsed.type}</p>
+        <div className="space-y-1 text-slate-700 mt-1">
+            <p className="text-[8px] font-black uppercase tracking-wider text-blue-600 mb-1">{parsed.type}</p>
             {parsed.date && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 py-0.5 border-b border-slate-200/40">
                     <span className="font-extrabold text-slate-400 uppercase tracking-wider text-[8px] shrink-0">Preferred Date:</span>
@@ -323,92 +323,72 @@ const UserReceivedEnquiriesPage = () => {
                     <button
                         onClick={() => setActiveTab('sent')}
                         className={`flex-1 py-3 text-center text-xs font-bold transition-all relative ${
-                            activeTab === 'sent' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-800'
+                            activeTab === 'sent' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
                         }`}
                     >
                         Sent Enquiries
                         {activeTab === 'sent' && (
                             <motion.div
                                 layoutId="activeTabUnderline"
-                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"
+                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"
                             />
                         )}
                     </button>
                     <button
                         onClick={() => setActiveTab('received')}
                         className={`flex-1 py-3 text-center text-xs font-bold transition-all relative ${
-                            activeTab === 'received' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-800'
+                            activeTab === 'received' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
                         }`}
                     >
                         Received Enquiries ({receivedEnquiries.length})
                         {activeTab === 'received' && (
                             <motion.div
                                 layoutId="activeTabUnderline"
-                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"
+                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"
                             />
                         )}
                     </button>
                 </div>
-
-                {/* Properties Carousel (Only for Received Tab & if properties exist) */}
-                {activeTab === 'received' && properties.length > 0 && (
-                    <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-none border-t border-slate-100 bg-slate-50/50">
-                        <button
-                            onClick={() => setSelectedPropertyId('All')}
-                            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold ${
-                                selectedPropertyId === 'All'
-                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                    : 'bg-white text-slate-600 border-slate-200'
-                            }`}
-                        >
-                            All Properties
-                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
-                                selectedPropertyId === 'All' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
-                            }`}>{properties.length}</span>
-                        </button>
-
-                        {properties.map(p => (
-                            <button
-                                key={p._id}
-                                onClick={() => setSelectedPropertyId(p._id)}
-                                className={`flex-shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all text-xs font-bold max-w-[200px] ${
-                                    selectedPropertyId === p._id
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                        : 'bg-white text-slate-700 border-slate-200'
-                                }`}
-                            >
-                                <div className="w-6 h-6 rounded-lg overflow-hidden bg-slate-100 shrink-0">
-                                    {p.coverImage
-                                        ? <img src={p.coverImage} className="w-full h-full object-cover" alt="" />
-                                        : <div className="w-full h-full flex items-center justify-center text-slate-400"><MapPin size={10} /></div>
-                                    }
-                                </div>
-                                <span className="truncate max-w-[100px]">{p.propertyName}</span>
-                            </button>
-                        ))}
-                    </div>
-                )}
             </div>
 
-            <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
+            <div className="px-4 py-4 w-full md:max-w-lg md:mx-auto space-y-4">
+                {/* Properties Dropdown (Only for Received Tab & if properties exist) */}
+                {activeTab === 'received' && properties.length > 0 && (
+                    <div className="relative">
+                        <select
+                            value={selectedPropertyId}
+                            onChange={(e) => setSelectedPropertyId(e.target.value)}
+                            className="w-full appearance-none bg-transparent border-0 text-slate-800 text-sm font-extrabold px-2 py-2 outline-none cursor-pointer"
+                        >
+                            <option value="All">All Properties ({properties.length})</option>
+                            {properties.map(p => (
+                                <option key={p._id} value={p._id}>
+                                    {p.propertyName}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown size={18} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                    </div>
+                )}
+
                 {/* Upgrade Promo for received tab */}
                 {activeTab === 'received' && (
                     <div
                         onClick={() => navigate('/my-subscriptions')}
-                        className="bg-indigo-50 border border-indigo-100 p-3.5 rounded-2xl flex items-center justify-between cursor-pointer active:scale-[0.99] transition-all shadow-sm"
+                        className="flex items-center justify-between cursor-pointer active:scale-[0.99] transition-all px-2"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shrink-0">
+                            <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0">
                                 <Crown size={16} />
                             </div>
                             <div>
-                                <h4 className="text-[12px] font-extrabold text-indigo-950 leading-tight">Want to sell faster?</h4>
-                                <p className="text-[10px] text-indigo-500 font-medium mt-0.5">
+                                <h4 className="text-[12px] font-extrabold text-slate-800 leading-tight">Want to sell faster?</h4>
+                                <p className="text-[10px] text-slate-500 font-bold mt-0.5">
                                     Stand out with our owner packages. Upgrade now
                                 </p>
                             </div>
                         </div>
-                        <ChevronRight size={15} className="text-indigo-400 shrink-0" />
+                        <ChevronRight size={15} className="text-slate-400 shrink-0" />
                     </div>
                 )}
 
@@ -445,15 +425,15 @@ const UserReceivedEnquiriesPage = () => {
                                             <button
                                                 key={f.key}
                                                 onClick={() => setSentFilter(f.key)}
-                                                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wide transition-all ${
+                                                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition-all ${
                                                     sentFilter === f.key
-                                                        ? 'bg-slate-900 text-white border-slate-900'
-                                                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                                                        ? 'bg-blue-50 text-blue-700'
+                                                        : 'bg-white text-slate-500 hover:bg-slate-50'
                                                 }`}
                                             >
                                                 {f.label}
                                                 <span className={`text-[8px] px-1 py-0.5 rounded-full font-black ${
-                                                    sentFilter === f.key ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                                                    sentFilter === f.key ? 'bg-blue-200 text-blue-800' : 'bg-slate-100 text-slate-500'
                                                 }`}>{count}</span>
                                             </button>
                                         );
@@ -461,8 +441,8 @@ const UserReceivedEnquiriesPage = () => {
                                 </div>
 
                                 {sentEnquiries.length === 0 ? (
-                                    <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
-                                        <div className="w-14 h-14 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-3 text-indigo-500">
+                                    <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">
+                                        <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3 text-blue-500">
                                             <Building size={24} />
                                         </div>
                                         <h4 className="font-extrabold text-slate-800 text-sm">No enquiries sent yet</h4>
@@ -471,7 +451,7 @@ const UserReceivedEnquiriesPage = () => {
                                         </p>
                                         <button
                                             onClick={() => navigate('/search')}
-                                            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors"
+                                            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors"
                                         >
                                             Browse Properties
                                         </button>
@@ -480,7 +460,7 @@ const UserReceivedEnquiriesPage = () => {
                                     (() => {
                                         const filtered = sentEnquiries.filter(item => sentFilter === 'ALL' || (item.status || 'new').toLowerCase() === sentFilter);
                                         if (filtered.length === 0) return (
-                                            <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
+                                            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">
                                                 <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                                                     <MessageSquare size={20} className="text-slate-300" />
                                                 </div>
@@ -499,44 +479,74 @@ const UserReceivedEnquiriesPage = () => {
                                         return (
                                             <div
                                                 key={item._id}
-                                                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3 cursor-pointer hover:border-indigo-200 hover:shadow-md transition-all"
+                                                className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3 cursor-pointer hover:border-blue-200 hover:shadow-md transition-all"
                                                 onClick={() => setSelectedEnquiry({ ...item, prop, hostName, hostPhone })}
                                             >
-                                                {/* Property Horizontal Header */}
-                                                <div className="flex gap-3 items-center">
-                                                    <div 
-                                                        className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-150 cursor-pointer" 
-                                                        onClick={() => prop._id && navigateToProperty(prop)}
-                                                    >
-                                                        {prop.coverImage ? (
-                                                            <img src={prop.coverImage} className="w-full h-full object-cover" alt="" />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50">
-                                                                <Building size={16} />
-                                                            </div>
-                                                        )}
+                                                {/* Header */}
+                                                <div className="flex gap-4 pt-1">
+                                                    {/* Left: Property thumbnail */}
+                                                    <div className="w-[80px] shrink-0" onClick={(e) => { e.stopPropagation(); prop._id && navigateToProperty(prop); }}>
+                                                        <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 border border-slate-150 shrink-0 shadow-sm mx-auto">
+                                                            {prop.coverImage ? (
+                                                                <img src={prop.coverImage} className="w-full h-full object-cover" alt="" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50">
+                                                                    <Building size={16} />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Right: Status, Enquiry Type, Date in one line with identical sizing */}
+                                                    <div className="flex-1 min-w-0 flex flex-wrap items-center justify-end gap-2 pt-0.5 content-start">
+                                                        {/* Status (Read-only for Sent) */}
+                                                        {(() => {
+                                                            const s = (item.status || item.inquiryMetadata?.status || 'new').toLowerCase();
+                                                            const colors = {
+                                                                contacted: 'bg-purple-50 text-purple-700 border-purple-200',
+                                                                new: 'bg-blue-50 text-blue-700 border-blue-200',
+                                                                scheduled: 'bg-amber-50 text-amber-700 border-amber-200',
+                                                                dropped: 'bg-red-50 text-red-700 border-red-200',
+                                                            };
+                                                            const colorClass = colors[s] || 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                                                            return (
+                                                                <div className={`flex items-center justify-center h-[24px] px-2 rounded-md border text-[10px] font-bold uppercase tracking-wider ${colorClass}`}>
+                                                                    {s}
+                                                                </div>
+                                                            );
+                                                        })()}
+
+                                                        {/* Type */}
+                                                        {(() => {
+                                                            const t = (item.enquiryType || 'callback').toLowerCase();
+                                                            if (t === 'callback') return <div className="flex items-center justify-center gap-1 h-[24px] px-2 bg-amber-50 text-amber-600 border border-amber-200 rounded-md text-[10px] font-bold uppercase"><Bell size={10}/> Callback</div>;
+                                                            if (t === 'whatsapp') return <div className="flex items-center justify-center gap-1 h-[24px] px-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-md text-[10px] font-bold uppercase"><MessageSquare size={10}/> WhatsApp</div>;
+                                                            if (t === 'contact') return <div className="flex items-center justify-center gap-1 h-[24px] px-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-md text-[10px] font-bold uppercase"><PhoneCall size={10}/> Contact</div>;
+                                                            return <div className="flex items-center justify-center gap-1 h-[24px] px-2 bg-slate-50 text-slate-600 border border-slate-200 rounded-md text-[10px] font-bold uppercase tracking-wider">{t}</div>;
+                                                        })()}
+
+                                                        {/* Date */}
+                                                        <div className="flex items-center justify-center h-[24px] px-2 bg-slate-50 text-slate-500 border border-slate-200 rounded-md text-[10px] font-bold">
+                                                            {fmtDate(item.createdAt)}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <hr className="border-t border-slate-100/80 w-full my-1" />
+
+                                                {/* Host and Property Names */}
+                                                <div className="flex gap-3 pt-1">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Host</p>
+                                                        <p className="font-extrabold text-[10px] text-slate-700 truncate">{hostName}</p>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-start justify-between gap-2">
-                                                            <h3 
-                                                                className="font-extrabold text-slate-900 text-sm leading-snug hover:text-indigo-650 cursor-pointer truncate" 
-                                                                onClick={() => prop._id && navigateToProperty(prop)}
-                                                            >
-                                                                {prop.propertyName || 'Deleted Property'}
-                                                            </h3>
-                                                            <div className="flex items-center gap-1.5 shrink-0">
-                                                                <LeadTypeBadge type={item.enquiryType || 'callback'} />
-                                                                <EnquiryStatusBadge status={item.status || item.inquiryMetadata?.status} />
-                                                            </div>
-                                                        </div>
-                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
-                                                            {prop.propertyType || 'Property'} • {fmtDate(item.createdAt)}
-                                                        </p>
+                                                        <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Property</p>
+                                                        <p className="font-extrabold text-[10px] text-slate-700 truncate">{prop.propertyName || 'Deleted Property'}</p>
                                                     </div>
                                                 </div>
 
                                                 {/* Specs */}
-                                                <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs">
+                                                <div className="text-xs pt-2">
                                                     <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Property Specs</p>
                                                     <p className="font-bold text-slate-700">{getSpecs(prop)}</p>
                                                 </div>
@@ -601,10 +611,10 @@ const UserReceivedEnquiriesPage = () => {
                                         <button
                                             key={f}
                                             onClick={() => setActiveFilter(f)}
-                                            className={`flex-1 py-2.5 text-center rounded-xl text-[9px] font-black uppercase tracking-wide transition-all border ${
+                                            className={`flex-1 py-2.5 text-center rounded-lg text-[9px] font-black uppercase tracking-wide transition-all ${
                                                 activeFilter === f
-                                                    ? 'bg-slate-900 text-white border-slate-900'
-                                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                                                    ? 'bg-blue-50 text-blue-700'
+                                                    : 'bg-white text-slate-500 hover:bg-slate-50'
                                             }`}
                                         >
                                             {f} ({getCount(f)})
@@ -613,7 +623,7 @@ const UserReceivedEnquiriesPage = () => {
                                 </div>
 
                                 {filteredReceived.length === 0 ? (
-                                    <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
+                                    <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">
                                         <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                                             <MessageSquare className="text-slate-350" size={22} />
                                         </div>
@@ -632,65 +642,77 @@ const UserReceivedEnquiriesPage = () => {
                                         const recvProp = item.propertyId || {};
 
                                         return (
-                                            <div key={item._id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
-                                                {/* Header: thumbnail + buyer avatar */}
-                                                <div className="flex items-center gap-3">
-                                                    {/* Property thumbnail */}
-                                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-150">
-                                                        {recvProp.coverImage
-                                                            ? <img src={recvProp.coverImage} className="w-full h-full object-cover" alt="" />
-                                                            : <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50"><Building size={14} /></div>
-                                                        }
-                                                    </div>
-                                                    {/* Buyer info + status select */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-start justify-between gap-2">
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="flex items-center gap-1.5 mb-1 min-w-0">
-                                                                    <h3 className="font-extrabold text-slate-900 text-xs leading-none truncate min-w-0 flex-shrink">{buyerName}</h3>
-                                                                    <div className="flex-shrink-0"><LeadTypeBadge type={item.enquiryType || 'callback'} /></div>
-                                                                </div>
-                                                                <span className="text-[9px] text-slate-400 font-semibold">{fmtDate(item.createdAt)}</span>
-                                                            </div>
-                                                            <select
-                                                                value={status}
-                                                                onChange={(e) => handleUpdateStatus(item._id, e.target.value)}
-                                                                className={`font-black rounded-md border outline-none cursor-pointer uppercase shrink-0 transition-all ${
-                                                                    status === 'contacted' ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                                                    : status === 'new' ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                                                    : status === 'scheduled' ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                                                    : status === 'dropped' ? 'bg-red-50 text-red-700 border-red-200'
-                                                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                                }`}
-                                                                style={{ 
-                                                                     height: '20px', 
-                                                                     fontSize: '10px', 
-                                                                     paddingTop: '0px', 
-                                                                     paddingBottom: '0px', 
-                                                                     paddingLeft: '6px', 
-                                                                     paddingRight: '6px', 
-                                                                     lineHeight: '20px',
-                                                                     appearance: 'none',
-                                                                     WebkitAppearance: 'none',
-                                                                     MozAppearance: 'none',
-                                                                     textAlign: 'center'
-                                                                 }}
-                                                            >
-                                                                <option value="new">New</option>
-                                                                <option value="contacted">Contacted</option>
-                                                                <option value="scheduled">Scheduled</option>
-                                                                <option value="closed">Closed</option>
-                                                                <option value="dropped">Dropped</option>
-                                                            </select>
+                                            <div key={item._id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3">
+                                                {/* Header */}
+                                                <div className="flex gap-4 pt-1">
+                                                    {/* Left: Property thumbnail */}
+                                                    <div className="w-[80px] shrink-0">
+                                                        <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 border border-slate-150 shrink-0 shadow-sm mx-auto">
+                                                            {recvProp.coverImage
+                                                                ? <img src={recvProp.coverImage} className="w-full h-full object-cover" alt="" />
+                                                                : <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50"><Building size={16} /></div>
+                                                            }
                                                         </div>
-                                                        {recvProp.propertyName && (
-                                                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 truncate">{recvProp.propertyName}</p>
-                                                        )}
+                                                    </div>
+
+                                                    {/* Right: Status, Enquiry Type, Date in one line with identical sizing */}
+                                                    <div className="flex-1 min-w-0 flex flex-wrap items-center justify-end gap-2 pt-0.5 content-start">
+                                                        <select
+                                                            value={status}
+                                                            onChange={(e) => handleUpdateStatus(item._id, e.target.value)}
+                                                            className={`text-[10px] font-bold rounded-md border outline-none cursor-pointer uppercase transition-all ${
+                                                                status === 'contacted' ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                                                : status === 'new' ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                                                : status === 'scheduled' ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                                                : status === 'dropped' ? 'bg-red-50 text-red-700 border-red-200'
+                                                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                            }`}
+                                                            style={{ 
+                                                                 height: '24px', 
+                                                                 paddingLeft: '8px', 
+                                                                 paddingRight: '8px', 
+                                                                 appearance: 'none',
+                                                                 WebkitAppearance: 'none',
+                                                                 MozAppearance: 'none',
+                                                                 textAlign: 'center'
+                                                             }}
+                                                        >
+                                                            <option value="new" className="text-slate-800 bg-white text-[10px]">New</option>
+                                                            <option value="contacted" className="text-slate-800 bg-white text-[10px]">Contacted</option>
+                                                            <option value="scheduled" className="text-slate-800 bg-white text-[10px]">Scheduled</option>
+                                                            <option value="closed" className="text-slate-800 bg-white text-[10px]">Closed</option>
+                                                            <option value="dropped" className="text-slate-800 bg-white text-[10px]">Dropped</option>
+                                                        </select>
+
+                                                        {(() => {
+                                                            const t = (item.enquiryType || 'callback').toLowerCase();
+                                                            if (t === 'callback') return <div className="flex items-center justify-center gap-1 h-[24px] px-2 bg-amber-50 text-amber-600 border border-amber-200 rounded-md text-[10px] font-bold uppercase"><Bell size={10}/> Callback</div>;
+                                                            if (t === 'whatsapp') return <div className="flex items-center justify-center gap-1 h-[24px] px-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-md text-[10px] font-bold uppercase"><MessageSquare size={10}/> WhatsApp</div>;
+                                                            if (t === 'contact') return <div className="flex items-center justify-center gap-1 h-[24px] px-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-md text-[10px] font-bold uppercase"><PhoneCall size={10}/> Contact</div>;
+                                                            return <div className="flex items-center justify-center gap-1 h-[24px] px-2 bg-slate-50 text-slate-600 border border-slate-200 rounded-md text-[10px] font-bold uppercase tracking-wider">{t}</div>;
+                                                        })()}
+
+                                                        <div className="flex items-center justify-center h-[24px] px-2 bg-slate-50 text-slate-500 border border-slate-200 rounded-md text-[10px] font-bold">
+                                                            {fmtDate(item.createdAt)}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <hr className="border-t border-slate-100/80 w-full my-1" />
+
+                                                {/* Buyer and Property Names */}
+                                                <div className="flex gap-3 pt-1">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Buyer</p>
+                                                        <p className="font-extrabold text-[10px] text-slate-700 truncate">{buyerName}</p>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Property</p>
+                                                        <p className="font-extrabold text-[10px] text-slate-700 truncate">{recvProp.propertyName || 'Property'}</p>
                                                     </div>
                                                 </div>
 
                                                 {/* Specs */}
-                                                <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs">
+                                                <div className="text-xs pt-2">
                                                     <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Property Specs</p>
                                                     <p className="font-bold text-slate-700">{getSpecs(item.propertyId)}</p>
                                                 </div>
@@ -704,13 +726,13 @@ const UserReceivedEnquiriesPage = () => {
                                                         <a
                                                             href={`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=Hello%20${encodeURIComponent(buyerName)},%20thank%20you%20for%20enquiring.`}
                                                             target="_blank" rel="noopener noreferrer"
-                                                            className="flex-1 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs font-bold border border-emerald-100"
+                                                            className="flex-1 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center gap-1.5 transition-all text-xs font-bold border border-emerald-100"
                                                         >
                                                             <Send size={12} /> WhatsApp
                                                         </a>
                                                         <a
                                                             href={`tel:${phone}`}
-                                                            className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs font-bold shadow-sm"
+                                                            className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-1.5 transition-all text-xs font-bold shadow-sm"
                                                         >
                                                             <PhoneCall size={12} /> Call Buyer
                                                         </a>
