@@ -43,6 +43,7 @@ export default function MyReelsPage() {
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [previewReel, setPreviewReel] = useState(null);
+  const [deleteReelId, setDeleteReelId] = useState(null);
 
   // Stats
   const [totalViews, setTotalViews] = useState(0);
@@ -71,9 +72,9 @@ export default function MyReelsPage() {
 
   const fileInputRef = useRef(null);
 
-  const fetchMyReels = async () => {
+  const fetchMyReels = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const res = await reelService.getFeed({ creatorOnly: 'true', limit: 100 });
       if (res.success && res.reels) {
         setReels(res.reels);
@@ -96,45 +97,29 @@ export default function MyReelsPage() {
     fetchMyReels();
   }, []);
 
-  const handleDeleteReel = async (id, e) => {
+  const confirmDeleteReel = (id, e) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this reel?')) return;
+    setDeleteReelId(id);
+  };
+
+  const handleDeleteReel = async () => {
+    if (!deleteReelId) return;
     try {
-      await reelService.deleteReel(id);
+      await reelService.deleteReel(deleteReelId);
       toast.success('Reel deleted successfully');
-      setReels(prev => prev.filter(r => r._id !== id));
-      fetchMyReels(); // Refresh stats
+      setReels(prev => prev.filter(r => r._id !== deleteReelId));
+      fetchMyReels(false); // Refresh stats silently in the background
     } catch (error) {
       console.error('Failed to delete reel:', error);
       toast.error('Failed to delete reel');
+    } finally {
+      setDeleteReelId(null);
     }
   };
 
   const handleEditClick = (reel, e) => {
     e.stopPropagation();
-    setEditingReel(reel);
-    setSelectedCity(reel.city || '');
-    setSelectedBudget(reel.budgetRange || '');
-    setVideoType(reel.videoType || 'url');
-    setVideoUrl(reel.videoUrl || '');
-    setSelectedFile(null);
-    setSelectedFileName('');
-    setTitle(reel.title || '');
-    setAddress(reel.address || '');
-    setStatus(reel.status || 'Ready to move');
-    setPropertyType(reel.propertyType || 'Apartment');
-    setContactNumber(reel.contactNumber || '');
-    setCaption(reel.caption || '');
-
-    const bhks = {};
-    if (reel.configurations && Array.isArray(reel.configurations)) {
-      reel.configurations.forEach(config => {
-        bhks[config.bhk] = config.price;
-      });
-    }
-    setBhkSelections(bhks);
-    setUploadOpen(true);
-    setUploadStep(1);
+    navigate('/reels/add', { state: { reel } });
   };
 
   const handleOpenCreateModal = () => {
@@ -323,7 +308,7 @@ export default function MyReelsPage() {
 
         <button
           type="button"
-          onClick={handleOpenCreateModal}
+          onClick={() => navigate('/reels/add')}
           className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-blue-500/20"
         >
           <Plus size={14} />
@@ -366,7 +351,7 @@ export default function MyReelsPage() {
             <p className="text-xs text-white/50 mt-1.5 max-w-[280px] mx-auto">Create and publish promotional video reels to reach out to potential home buyers!</p>
             <button
               type="button"
-              onClick={handleOpenCreateModal}
+              onClick={() => navigate('/reels/add')}
               className="mt-6 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg"
             >
               Publish First Reel
@@ -436,7 +421,7 @@ export default function MyReelsPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => handleDeleteReel(reel._id, e)}
+                      onClick={(e) => confirmDeleteReel(reel._id, e)}
                       className="p-2 rounded-xl bg-red-600/90 text-white hover:bg-red-600 transition-all border border-red-500/20 shadow-md"
                       title="Delete Reel"
                     >
@@ -844,6 +829,35 @@ export default function MyReelsPage() {
         className="hidden"
         onChange={handleFileChange}
       />
+
+      {/* Custom Delete Confirmation Modal */}
+      {deleteReelId && (
+        <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-neutral-900 border border-white/10 rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="text-red-500 w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-black text-white mb-2 uppercase tracking-wider">Delete Reel?</h3>
+            <p className="text-xs text-white/60 mb-6 font-medium">This action cannot be undone. This reel will be permanently removed.</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteReelId(null)}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-widest hover:bg-white/5 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteReel}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest shadow-lg transition-all"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

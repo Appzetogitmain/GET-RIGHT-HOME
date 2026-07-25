@@ -59,6 +59,7 @@ const ProfileEdit = React.lazy(() => import('./pages/user/ProfileEdit'));
 const BookingCheckoutPage = React.lazy(() => import('./pages/user/BookingCheckoutPage'));
 const ReelsPage = React.lazy(() => import('./pages/user/ReelsPage'));
 const MyReelsPage = React.lazy(() => import('./pages/user/MyReelsPage'));
+const ReelUploadPage = React.lazy(() => import('./pages/user/ReelUploadPage'));
 const MyProperties = React.lazy(() => import('./pages/user/MyProperties'));
 const HomeServicesPage = React.lazy(() => import('./pages/user/HomeServicesPage'));
 const SubCategoryPage = React.lazy(() => import('./pages/user/SubCategoryPage'));
@@ -704,6 +705,7 @@ function App() {
                     {/* Protected User Pages */}
                     <Route element={<UserProtectedRoute />}>
                       <Route path="/reels/my" element={<MyReelsPage />} />
+                      <Route path="/reels/add" element={<ReelUploadPage />} />
                       <Route path="/profile" element={<ProfileEdit />} />
                       <Route path="/bookings" element={<BookingsPage />} />
                       <Route path="/my-reviews" element={<UserMyReviewsPage />} />
