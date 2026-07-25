@@ -821,11 +821,8 @@ const Dashboard = () => {
 
         {/* Achievements Section */}
         <div className="px-4 pt-2 pb-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center mb-3">
             <h2 className="text-[#1E3A8A] text-lg font-bold">Achievements</h2>
-            <button className="text-[#E85D04] text-[13px] font-bold flex items-center gap-0.5">
-              View all <FiChevronRight className="w-4 h-4" />
-            </button>
           </div>
 
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
