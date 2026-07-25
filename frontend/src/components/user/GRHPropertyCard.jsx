@@ -3,17 +3,41 @@ import { MapPin, Phone, MessageCircle, Share2, Heart, ChevronRight, Building } f
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import PropertyQuickViewModal from './PropertyQuickViewModal';
+import { userService } from '../../services/apiService';
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
 
-const GRHPropertyCard = ({ property, data, theme }) => {
+const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onToggleSave, cardType = 'project' }) => {
   const navigate = useNavigate();
   const item = property || data;
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(initialIsSaved);
+  const [saveLoading, setSaveLoading] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
   if (!item) return null;
+
+  const handleToggleSave = async (e) => {
+    e.stopPropagation();
+    if (!localStorage.getItem('user')) {
+      toast.error("Please login to save projects");
+      return;
+    }
+    if (saveLoading) return;
+    setSaveLoading(true);
+    const newState = !isSaved;
+    setIsSaved(newState);
+    try {
+      await userService.toggleSavedPlace(_id || item.id, cardType);
+      toast.success(newState ? "Added to wishlist!" : "Removed from wishlist!");
+      if (onToggleSave) onToggleSave(newState);
+    } catch (error) {
+      setIsSaved(!newState);
+      toast.error("Failed to update wishlist");
+    } finally {
+      setSaveLoading(false);
+    }
+  };
 
   const {
     _id,
@@ -310,15 +334,7 @@ const GRHPropertyCard = ({ property, data, theme }) => {
 
             {/* Floating Heart Button */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsSaved(!isSaved);
-                if (!isSaved) {
-                  toast.success('Added to wishlist!');
-                } else {
-                  toast.success('Removed from wishlist!');
-                }
-              }}
+              onClick={handleToggleSave}
               className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-md active:scale-90 transition-transform z-20"
             >
               <Heart
@@ -473,15 +489,7 @@ const GRHPropertyCard = ({ property, data, theme }) => {
 
             {/* Floating Heart Button */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsSaved(!isSaved);
-                if (!isSaved) {
-                  toast.success('Added to wishlist!');
-                } else {
-                  toast.success('Removed from wishlist!');
-                }
-              }}
+              onClick={handleToggleSave}
               className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow-md active:scale-90 transition-transform z-20"
             >
               <Heart
@@ -624,15 +632,7 @@ const GRHPropertyCard = ({ property, data, theme }) => {
 
             {/* Floating Heart Button */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsSaved(!isSaved);
-                if (!isSaved) {
-                  toast.success('Added to wishlist!');
-                } else {
-                  toast.success('Removed from wishlist!');
-                }
-              }}
+              onClick={handleToggleSave}
               className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow-md active:scale-90 transition-transform z-20"
             >
               <Heart
@@ -785,15 +785,7 @@ const GRHPropertyCard = ({ property, data, theme }) => {
           )}
           {/* Floating Heart Button */}
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsSaved(!isSaved);
-              if (!isSaved) {
-                toast.success('Added to wishlist!');
-              } else {
-                toast.success('Removed from wishlist!');
-              }
-            }}
+            onClick={handleToggleSave}
             className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md active:scale-90 transition-transform z-20"
           >
             <Heart

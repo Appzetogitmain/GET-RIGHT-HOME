@@ -12,7 +12,7 @@ const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.
 const LOGO_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'><rect width='100%' height='100%' fill='%23E2E8F0'/><text x='50%' y='50%' font-family='sans-serif' font-size='14' font-weight='bold' fill='%2364748B' dominant-baseline='middle' text-anchor='middle'>GRH</text></svg>";
 
 
-const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved, isSearchPage = false }) => {
+const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved, isSearchPage = false, onToggleSave }) => {
   const navigate = useNavigate();
   const { navigateToProperty, getPropertyPath } = usePropertyNavigate();
   const { openEnquiryModal } = useEnquiryModal();
@@ -45,8 +45,9 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     const newState = !isSaved;
     setIsSaved(newState);
     try {
-      await userService.toggleSavedHotel(_id || item.id);
+      await userService.toggleSavedPlace(_id || item.id, 'property');
       toast.success(newState ? "Added to wishlist" : "Removed from wishlist");
+      if (onToggleSave) onToggleSave(newState);
     } catch (error) {
       setIsSaved(!newState);
       toast.error("Failed to update wishlist");
@@ -697,21 +698,16 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
               <span>{propertyType || 'PLOT'}</span>
             </div>
 
-            {/* Carousel Dots on right */}
-            {propertyImagesList.length > 1 && (
-              <div className="absolute top-3.5 right-3.5 flex gap-1 bg-black/30 px-1.5 py-1 rounded-full backdrop-blur-sm z-20">
-                {propertyImagesList.slice(0, 5).map((_, idx) => (
-                  <span
-                    key={idx}
-                    className={`w-1 h-1 rounded-full transition-all duration-300 ${
-                      idx === (currentImageIndex % Math.min(propertyImagesList.length, 5))
-                        ? 'bg-white scale-125'
-                        : 'bg-white/50'
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
+            {/* Top Right Action Icons */}
+            <div className="absolute top-3 right-3 flex flex-col gap-2 z-20">
+              {/* Heart Icon */}
+              <button 
+                onClick={handleToggleSave}
+                className="w-8 h-8 rounded-full bg-black/40 hover:bg-black/65 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
+              >
+                <Heart size={15} className={isSaved ? 'text-red-500 fill-red-500' : 'text-white'} />
+              </button>
+            </div>
           </div>
 
           {/* Overlapping Floating White Container */}

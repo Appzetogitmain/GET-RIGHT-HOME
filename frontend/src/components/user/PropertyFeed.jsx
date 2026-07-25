@@ -54,14 +54,18 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
         // Fetch properties and saved status in parallel if logged in
         const promises = [propertyService.getPublic(filters)];
         if (localStorage.getItem('user')) {
-          promises.push(userService.getSavedHotels());
+          promises.push(userService.getSavedPlaces());
         }
 
         const [data, savedRes] = await Promise.all(promises);
 
         if (savedRes) {
-          const list = savedRes.savedHotels || [];
-          setSavedHotelIds(list.map(h => (typeof h === 'object' ? h._id : h)));
+          const list = [
+            ...(savedRes.savedProperties || []),
+            ...(savedRes.savedProjects || []),
+            ...(savedRes.savedHotels || [])
+          ];
+          setSavedHotelIds(list.map(h => (typeof h === 'object' ? (h._id || h.id) : h)));
         }
 
         let filteredData = data;
