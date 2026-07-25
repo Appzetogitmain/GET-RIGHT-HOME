@@ -108,8 +108,8 @@ const BottomNav = memo(() => {
                 <div
                   className="absolute -top-2 w-10 h-1 rounded-b-full"
                   style={{
-                    background: themeColors.gradient,
-                    boxShadow: `0 2px 8px ${themeColors.brand.teal}4D`,
+                    background: '#EF6B11',
+                    boxShadow: '0 2px 8px rgba(239, 107, 17, 0.3)',
                   }}
                 />
               )}
@@ -118,7 +118,7 @@ const BottomNav = memo(() => {
               {isActive && (
                 <div
                   className="absolute inset-0 rounded-xl scale-90"
-                  style={{ backgroundColor: `${themeColors.brand.teal}0A` }}
+                  style={{ backgroundColor: 'rgba(239, 107, 17, 0.05)' }}
                 />
               )}
 
@@ -130,8 +130,8 @@ const BottomNav = memo(() => {
                     }}
                     className={`w-6 h-6 transition-all duration-300 ${isActive ? 'scale-110' : 'text-gray-400 group-hover:text-gray-600'}`}
                     style={{
-                      color: isActive ? themeColors.button : '#9CA3AF',
-                      filter: isActive ? `drop-shadow(0 2px 4px ${themeColors.brand.teal}1A)` : 'none'
+                      color: isActive ? '#EF6B11' : '#9CA3AF',
+                      filter: isActive ? 'drop-shadow(0 2px 4px rgba(239, 107, 17, 0.2))' : 'none'
                     }}
                   />
                   {item.badge !== undefined && item.badge > 0 && (
@@ -157,7 +157,7 @@ const BottomNav = memo(() => {
                 <span
                   className={`text-[10px] transition-colors duration-300 ${isActive ? 'font-bold' : 'font-medium text-gray-500'}`}
                   style={{
-                    color: isActive ? themeColors.button : '#6B7280',
+                    color: isActive ? '#EF6B11' : '#6B7280',
                   }}
                 >
                   {item.label}

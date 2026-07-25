@@ -127,8 +127,7 @@ const AssignedJobs = () => {
               placeholder="Search jobs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-0"
-              style={{ focusRingColor: themeColors.button }}
+              className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             />
           </div>
         </div>
@@ -151,8 +150,8 @@ const AssignedJobs = () => {
               style={
                 filter === filterOption.id
                   ? {
-                    background: themeColors.button,
-                    boxShadow: `0 2px 8px ${themeColors.button}40`,
+                    background: '#EF6B11',
+                    boxShadow: '0 4px 12px rgba(239, 107, 17, 0.4)',
                   }
                   : {
                     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
@@ -237,9 +236,9 @@ const AssignedJobs = () => {
                       <div
                         className="px-3 py-2 rounded-lg font-bold text-lg"
                         style={{
-                          background: `linear-gradient(135deg, ${themeColors.button}15 0%, ${themeColors.button}10 100%)`,
-                          color: themeColors.button,
-                          border: `1px solid ${hexToRgba(themeColors.button, 0.2)}`,
+                          background: 'rgba(239, 107, 17, 0.1)',
+                          color: '#EF6B11',
+                          border: '1px solid rgba(239, 107, 17, 0.2)',
                         }}
                       >
                         ₹{job.finalAmount}

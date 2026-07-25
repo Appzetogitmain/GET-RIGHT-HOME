@@ -57,6 +57,7 @@ const Support = lazyLoad(() => import('../pages/Support'));
 const Referrals = lazyLoad(() => import('../pages/Referrals'));
 const Complaints = lazyLoad(() => import('../pages/Complaints'));
 const PrivacyPolicy = lazyLoad(() => import('../pages/PrivacyPolicy'));
+const DigitalId = lazyLoad(() => import('../pages/DigitalId'));
 
 // Loading fallback component
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -116,6 +117,7 @@ const WorkerRoutes = () => {
                 <Route path="/support" element={<Support />} />
                 <Route path="/referrals" element={<ProtectedRoute userType="worker"><Referrals /></ProtectedRoute>} />
                 <Route path="/complaints" element={<ProtectedRoute userType="worker"><Complaints /></ProtectedRoute>} />
+                <Route path="/digital-id" element={<ProtectedRoute userType="worker"><DigitalId /></ProtectedRoute>} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               </Routes>
             </PageTransition>
