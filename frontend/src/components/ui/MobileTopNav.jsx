@@ -25,8 +25,8 @@ const MobileTopNav = () => {
     if (!isAllowed) return null;
 
     // Theme logic based on TopNavbar/HeroSection
-    let accentColor = '#10B981';
-    let textClass = 'text-emerald-600';
+    let accentColor = '#EA580C'; // orange-600
+    let textClass = 'text-orange-600';
 
     if (location.pathname === '/buy') {
         accentColor = '#3B82F6';

@@ -55,20 +55,20 @@ const SavedPlacesPage = () => {
     const totalSaved = savedProperties.length + savedProjects.length;
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-[72px]">
+        <div className="min-h-screen bg-gray-50 pt-[130px]">
             {/* Header */}
-            <div className="bg-surface text-white p-6 pb-8 rounded-b-[30px] shadow-lg fixed top-0 w-full z-30">
-                <div className="flex items-center gap-4 mb-4">
-                    <button onClick={() => navigate(-1)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
-                        <ArrowLeft size={20} />
+            <div className="bg-surface text-white p-4 pb-6 rounded-b-[20px] shadow-lg fixed top-0 w-full z-30">
+                <div className="flex items-center gap-3 mb-2">
+                    <button onClick={() => navigate(-1)} className="p-1.5 bg-white/10 rounded-full hover:bg-white/20 transition">
+                        <ArrowLeft size={18} />
                     </button>
-                    <h1 className="text-xl font-bold">Saved Places</h1>
+                    <h1 className="text-lg font-bold">Saved Places</h1>
                 </div>
-                <h2 className="text-2xl font-black">Your Favorites</h2>
-                <p className="text-sm text-white/70">Properties and projects you have loved and saved.</p>
+                <h2 className="text-xl font-black">Your Favorites</h2>
+                <p className="text-xs text-white/80 mt-0.5">Properties and projects you have loved and saved.</p>
             </div>
 
-            <div className="max-w-7xl mx-auto px-5 pt-8 pb-24">
+            <div className="max-w-7xl mx-auto px-5 pt-4 pb-24">
                 {loading ? (
                     <div className="flex justify-center items-center py-20">
                         <Loader2 size={32} className="animate-spin text-surface" />
