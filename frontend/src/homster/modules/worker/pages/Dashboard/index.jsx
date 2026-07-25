@@ -399,7 +399,7 @@ const Dashboard = () => {
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
       <main className="pt-0">
         {/* Profile & Status Section */}
-        <div className="bg-[#EF6B11] px-5 pt-10 pb-16 rounded-b-[2.5rem] relative mb-14 shadow-lg">
+        <div className="bg-[#3B82F6] px-5 pt-10 pb-16 rounded-b-[2.5rem] relative mb-14 shadow-lg">
           {/* Profile Info */}
           <div className="flex items-start gap-4 relative z-10">
             <div className="relative shrink-0">
@@ -419,7 +419,7 @@ const Dashboard = () => {
               </div>
               {/* Verified Badge */}
               <div className="absolute bottom-0 right-0 bg-white rounded-full p-[2px] shadow-sm">
-                <div className="bg-[#EF6B11] text-white rounded-full w-4 h-4 flex items-center justify-center">
+                <div className="bg-[#3B82F6] text-white rounded-full w-4 h-4 flex items-center justify-center">
                   <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
@@ -502,20 +502,20 @@ const Dashboard = () => {
             <div className="px-4 pt-2 -mb-2">
               <div
                 onClick={() => navigate('/worker/profile')}
-                className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r shadow-sm cursor-pointer hover:bg-orange-100 transition-colors"
+                className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r shadow-sm cursor-pointer hover:bg-blue-100 transition-colors"
               >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <FiClock className="h-5 w-5 text-orange-500" />
+                    <FiClock className="h-5 w-5 text-blue-500" />
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm font-bold text-orange-700">Profile Incomplete</p>
-                    <p className="text-sm text-orange-600">
+                    <p className="text-sm font-bold text-blue-700">Profile Incomplete</p>
+                    <p className="text-sm text-blue-600">
                       Complete your profile (Address and Category) to start receiving jobs.
                     </p>
                   </div>
                   <div className="ml-auto">
-                    <FiArrowRight className="h-4 w-4 text-orange-500" />
+                    <FiArrowRight className="h-4 w-4 text-blue-500" />
                   </div>
                 </div>
               </div>
@@ -559,7 +559,7 @@ const Dashboard = () => {
                   const { registerFCMToken } = await import('../../../../services/pushNotificationService');
                   registerFCMToken('worker', true);
                 }}
-                className="p-2 bg-orange-50 text-orange-600 rounded-lg text-[10px] font-bold hover:bg-orange-100 active:scale-95 transition-all"
+                className="p-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-100 active:scale-95 transition-all"
               >
                 RE-REGISTER
               </button>
@@ -579,7 +579,7 @@ const Dashboard = () => {
               <h2 className="text-[#1E3A8A] text-lg font-bold">Earnings</h2>
               <button
                 onClick={() => navigate('/worker/wallet')}
-                className="text-[#F06500] text-sm font-bold flex items-center gap-0.5 active:scale-95 transition-transform"
+                className="text-[#3B82F6] text-sm font-bold flex items-center gap-0.5 active:scale-95 transition-transform"
               >
                 History <FiChevronRight className="w-4 h-4" />
               </button>
@@ -602,14 +602,14 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="bg-[#FEF0D9] rounded-[16px] p-4 flex items-center justify-between border border-[#FDE0B2]">
+            <div className="bg-[#EFF6FF] rounded-[16px] p-4 flex items-center justify-between border border-[#DBEAFE]">
               <div>
-                <p className="text-[#E85D04] text-xs font-bold mb-1">Wallet Balance</p>
-                <p className="text-[#E85D04] text-[22px] font-extrabold tracking-tight leading-none">₹{stats.walletBalance.toLocaleString()}</p>
+                <p className="text-[#2563EB] text-xs font-bold mb-1">Wallet Balance</p>
+                <p className="text-[#2563EB] text-[22px] font-extrabold tracking-tight leading-none">₹{stats.walletBalance.toLocaleString()}</p>
               </div>
               <button
                 onClick={() => navigate('/worker/wallet')}
-                className="bg-[#F06500] text-white px-5 py-2.5 rounded-full text-[13px] font-bold flex items-center gap-1.5 shadow-[0_4px_12px_rgba(240,101,0,0.25)] active:scale-95 transition-transform"
+                className="bg-[#3B82F6] text-white px-5 py-2.5 rounded-full text-[13px] font-bold flex items-center gap-1.5 shadow-[0_4px_12px_rgba(59,130,246,0.25)] active:scale-95 transition-transform"
               >
                 <div className="flex items-center gap-0.5">
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -650,18 +650,18 @@ const Dashboard = () => {
                       <div>
                         <h3 className="text-[#2C3E50] font-bold text-[15px] leading-tight">{job.userId?.name || 'Customer'}</h3>
                         <div className="flex items-center text-[11px] text-gray-500 mt-0.5">
-                          <FiStar className="text-orange-400 fill-orange-400 w-3 h-3 mr-1" />
+                          <FiStar className="text-blue-400 fill-blue-400 w-3 h-3 mr-1" />
                           <span className="font-semibold text-gray-700 mr-1">5.0</span>
                           <span>• {job.address?.city || 'Location N/A'}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="text-[#E85D04] font-extrabold text-lg">
+                    <div className="text-[#2563EB] font-extrabold text-lg">
                       ₹{job.finalAmount?.toLocaleString()}
                     </div>
                   </div>
 
-                  <div className="inline-flex items-center gap-1.5 bg-[#FEF0D9] text-[#E85D04] px-2.5 py-1 rounded-lg text-xs font-bold mt-3">
+                  <div className="inline-flex items-center gap-1.5 bg-[#EFF6FF] text-[#2563EB] px-2.5 py-1 rounded-lg text-xs font-bold mt-3">
                     <FiTool className="w-3.5 h-3.5" />
                     Emergency {job.serviceId?.title || job.serviceName || 'Service'}
                   </div>
@@ -713,8 +713,8 @@ const Dashboard = () => {
             <div className="grid grid-cols-3 gap-3">
               {/* Pending */}
               <div className="bg-[#F8FAFC] rounded-[16px] p-3 border border-gray-100 flex flex-col items-start">
-                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center mb-2">
-                  <FiClock className="text-orange-400 w-4 h-4" />
+                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center mb-2">
+                  <FiClock className="text-blue-400 w-4 h-4" />
                 </div>
                 <p className="text-[#1E3A8A] text-[18px] font-bold leading-tight">{stats.pendingJobs || 0}</p>
                 <p className="text-gray-500 text-[11px] font-medium mt-0.5">Pending</p>
@@ -749,16 +749,16 @@ const Dashboard = () => {
               </div>
               {/* Rating */}
               <div className="bg-[#F8FAFC] rounded-[16px] p-3 border border-gray-100 flex flex-col items-start">
-                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center mb-2">
-                  <FiStar className="text-orange-400 fill-orange-400 w-4 h-4" />
+                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center mb-2">
+                  <FiStar className="text-blue-400 fill-blue-400 w-4 h-4" />
                 </div>
                 <p className="text-[#1E3A8A] text-[18px] font-bold leading-tight">{stats.rating ? stats.rating.toFixed(1) : '0.0'}</p>
                 <p className="text-gray-500 text-[11px] font-medium mt-0.5">Rating</p>
               </div>
               {/* Completion */}
               <div className="bg-[#F8FAFC] rounded-[16px] p-3 border border-gray-100 flex flex-col items-start">
-                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center mb-2">
-                  <div className="w-4 h-4 rounded-full border-2 border-orange-400 border-t-transparent border-l-transparent transform rotate-45" />
+                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center mb-2">
+                  <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent border-l-transparent transform rotate-45" />
                 </div>
                 <p className="text-[#1E3A8A] text-[18px] font-bold leading-tight">
                   {stats.completedJobs + (stats.cancelledJobs || 0) > 0
@@ -775,7 +775,7 @@ const Dashboard = () => {
         <div className="px-4 pt-2 pb-2">
           <div className="bg-white rounded-[24px] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-gray-50 mb-2 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-              <FiTarget className="w-32 h-32 text-[#E85D04] transform translate-x-4 -translate-y-4" />
+              <FiTarget className="w-32 h-32 text-[#2563EB] transform translate-x-4 -translate-y-4 animate-[spin_15s_linear_infinite]" />
             </div>
 
             <div className="relative z-10">
@@ -789,8 +789,8 @@ const Dashboard = () => {
                     </p>
                   )}
                 </div>
-                <div className="bg-[#FEF0D9] text-[#E85D04] px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm border border-[#FDE0B2]">
-                  <FiGift className="w-4 h-4" />
+                <div className="bg-[#EFF6FF] text-[#2563EB] px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm border border-[#DBEAFE]">
+                  <FiGift className="w-4 h-4 animate-[bounce_2s_infinite]" />
                   <span className="font-extrabold text-[15px]">₹{stats.monthlyTargetBonus.toLocaleString()}</span>
                 </div>
               </div>
@@ -831,9 +831,31 @@ const Dashboard = () => {
                 const Icon = ACHIEVEMENT_ICONS[achievement.icon] || FiStar;
                 const isEarned = stats.completedJobs >= achievement.jobThreshold;
 
+                const getTierColor = (tier) => {
+                  switch (tier?.toLowerCase()) {
+                    case 'bronze': return 'text-[#CD7F32]';
+                    case 'silver': return 'text-[#9CA3AF]';
+                    case 'gold': return 'text-[#F5B01B]';
+                    case 'platinum': return 'text-[#64748B]';
+                    case 'diamond': return 'text-[#06B6D4]';
+                    default: return 'text-[#2563EB]';
+                  }
+                };
+                
+                const getTierStyle = (tier) => {
+                  switch (tier?.toLowerCase()) {
+                    case 'bronze': return 'text-[#CD7F32] bg-[#CD7F32]/15';
+                    case 'silver': return 'text-[#9CA3AF] bg-[#9CA3AF]/15';
+                    case 'gold': return 'text-[#F5B01B] bg-[#F5B01B]/15';
+                    case 'platinum': return 'text-[#64748B] bg-[#64748B]/15';
+                    case 'diamond': return 'text-[#06B6D4] bg-[#06B6D4]/15';
+                    default: return 'text-[#2563EB] bg-[#EFF6FF]';
+                  }
+                };
+
                 return (
-                  <div key={idx} className={`min-w-[130px] rounded-2xl p-4 shadow-sm border flex flex-col items-center justify-center text-center transition-all ${isEarned ? 'bg-white border-gray-100' : 'bg-gray-50 border-gray-200 opacity-70'}`}>
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 relative ${isEarned ? 'bg-[#FEF0D9] text-[#E85D04]' : 'bg-gray-200 text-gray-400'}`}>
+                  <div key={idx} className={`group min-w-[130px] rounded-2xl p-4 shadow-sm border flex flex-col items-center justify-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer ${isEarned ? 'bg-white border-gray-100' : 'bg-gray-50 border-gray-200 opacity-70'}`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 relative transition-transform duration-300 group-hover:scale-110 ${isEarned ? getTierStyle(achievement.tier) : 'bg-gray-200 text-gray-400'}`}>
                       <Icon className={`w-6 h-6 ${isEarned && (achievement.icon === 'FiStar' || achievement.icon === 'FiCheckCircle') ? 'fill-current' : ''}`} />
                       {!isEarned && (
                         <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
@@ -842,7 +864,7 @@ const Dashboard = () => {
                       )}
                     </div>
                     <h3 className={`text-[13px] font-bold leading-tight mb-1 ${isEarned ? 'text-[#1E3A8A]' : 'text-gray-500'}`}>{achievement.title}</h3>
-                    <p className={`text-[11px] font-bold ${isEarned ? 'text-[#E85D04]' : 'text-gray-400'}`}>{achievement.tier}</p>
+                    <p className={`text-[11px] font-bold ${isEarned ? getTierColor(achievement.tier) : 'text-gray-400'}`}>{achievement.tier}</p>
                     {!isEarned && (
                       <p className="text-[9px] text-gray-400 font-medium mt-1">
                         {Math.max(0, achievement.jobThreshold - stats.completedJobs)} jobs left
@@ -863,7 +885,7 @@ const Dashboard = () => {
             <h2 className="text-[#1E3A8A] text-lg font-bold mb-4">Quick Actions</h2>
             <div className="grid grid-cols-4 gap-2">
               <div onClick={() => navigate('/worker/jobs')} className="flex flex-col items-center gap-2 cursor-pointer group">
-                <div className="w-14 h-14 rounded-2xl bg-[#FFF3ED] text-[#E85D04] flex items-center justify-center transition-transform group-hover:scale-105">
+                <div className="w-14 h-14 rounded-2xl bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center transition-transform group-hover:scale-105">
                   <FiClipboard className="w-6 h-6" />
                 </div>
                 <span className="text-[11px] font-bold text-[#1E3A8A] text-center leading-tight">My Jobs</span>
@@ -966,7 +988,7 @@ const Dashboard = () => {
               const Icon = announcement.icon;
               return (
                 <div key={announcement.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex gap-4 items-start">
-                  <div className="w-12 h-12 rounded-full bg-[#FEF0D9] text-[#E85D04] flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center shrink-0">
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -989,16 +1011,16 @@ const Dashboard = () => {
                 onClick={() => navigate('/worker/jobs')}
                 className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 active:scale-95 text-white"
                 style={{
-                  background: `linear-gradient(135deg, ${themeColors.button} 0%, ${themeColors.button}dd 100%)`,
-                  boxShadow: `0 4px 12px ${themeColors.button}40, 0 2px 6px ${themeColors.button}30`,
+                  background: `linear-gradient(135deg, ${'#3B82F6'} 0%, ${'#3B82F6'}dd 100%)`,
+                  boxShadow: `0 4px 12px ${'#3B82F6'}40, 0 2px 6px ${'#3B82F6'}30`,
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = `0 6px 16px ${themeColors.button}50, 0 3px 8px ${themeColors.button}40`;
+                  e.currentTarget.style.boxShadow = `0 6px 16px ${'#3B82F6'}50, 0 3px 8px ${'#3B82F6'}40`;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = `0 4px 12px ${themeColors.button}40, 0 2px 6px ${themeColors.button}30`;
+                  e.currentTarget.style.boxShadow = `0 4px 12px ${'#3B82F6'}40, 0 2px 6px ${'#3B82F6'}30`;
                 }}
               >
                 View All
@@ -1010,7 +1032,7 @@ const Dashboard = () => {
               {recentJobs.map((job, index) => {
                 // Alternating colors
                 const isDarkBlue = index % 2 === 0;
-                const accentColor = isDarkBlue ? '#3B82F6' : '#F97316';
+                const accentColor = isDarkBlue ? '#3B82F6' : '#60A5FA';
 
                 return (
                   <div
@@ -1071,7 +1093,7 @@ const Dashboard = () => {
                                 border: '1px solid rgba(0, 166, 166, 0.2)',
                               }}
                             >
-                              <FiMapPin className="w-3 h-3" style={{ color: themeColors.button }} />
+                              <FiMapPin className="w-3 h-3" style={{ color: '#3B82F6' }} />
                               <span className="text-xs font-semibold text-gray-700 truncate max-w-[100px]">{job.location}</span>
                             </div>
                             <div
@@ -1081,7 +1103,7 @@ const Dashboard = () => {
                                 border: '1px solid rgba(245, 158, 11, 0.2)',
                               }}
                             >
-                              <FiClock className="w-3 h-3 text-orange-500" />
+                              <FiClock className="w-3 h-3 text-blue-500" />
                               <span className="text-xs font-semibold text-gray-700">
                                 {job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' : ''}
                                 {job.scheduledTime || 'ASAP'}
@@ -1151,9 +1173,9 @@ const Dashboard = () => {
           onClick={handleTestPush}
           className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-all duration-200"
           style={{
-            background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)',
+            background: 'linear-gradient(135deg, #DBEAFE 0%, #3B82F6 100%)',
             border: '2px solid rgba(255, 255, 255, 0.3)',
-            boxShadow: '0 8px 16px rgba(245, 124, 0, 0.4)',
+            boxShadow: '0 8px 16px rgba(59, 130, 246, 0.4)',
           }}
           title="Test Push Notification"
         >

@@ -160,14 +160,15 @@ const WorkerWithdrawals = () => {
                     </td>
                     <td className="px-6 py-4">
                       {request.bankDetails ? (
-                        <div className="text-sm text-gray-900 max-w-xs">
-                          {request.bankDetails.upiId ? (
+                        <div className="text-sm text-gray-900 max-w-xs flex flex-col gap-1">
+                          {request.bankDetails.upiId && (
                             <div><span className="text-gray-500 text-xs">UPI:</span> <span className="font-medium">{request.bankDetails.upiId}</span></div>
-                          ) : (
+                          )}
+                          {(request.bankDetails.accountNumber || request.bankDetails.ifscCode) && (
                             <div className="flex flex-col gap-0.5">
-                              <div><span className="text-gray-500 text-xs">Acc:</span> <span className="font-medium">{request.bankDetails.accountNumber}</span></div>
-                              <div><span className="text-gray-500 text-xs">IFSC:</span> <span className="font-medium">{request.bankDetails.ifscCode}</span></div>
-                              <div className="truncate"><span className="text-gray-500 text-xs">Name:</span> <span className="font-medium">{request.bankDetails.accountHolderName}</span></div>
+                              {request.bankDetails.accountNumber && <div><span className="text-gray-500 text-xs">Acc:</span> <span className="font-medium">{request.bankDetails.accountNumber}</span></div>}
+                              {request.bankDetails.ifscCode && <div><span className="text-gray-500 text-xs">IFSC:</span> <span className="font-medium">{request.bankDetails.ifscCode}</span></div>}
+                              {request.bankDetails.accountHolderName && <div className="truncate"><span className="text-gray-500 text-xs">Name:</span> <span className="font-medium">{request.bankDetails.accountHolderName}</span></div>}
                             </div>
                           )}
                         </div>

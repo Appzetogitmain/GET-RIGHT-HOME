@@ -436,6 +436,23 @@ export const SocketProvider = ({ children }) => {
 
     // Listen for special Worker Job Assignments
     if (userType === 'worker') {
+      newSocket.on('job_cancelled', (data) => {
+        const bookingId = data.bookingId;
+        if (bookingId) {
+          // Remove from local storage
+          const pendingJobs = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
+          const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(bookingId));
+          localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
+
+          // Dispatch remove event so modal disappears immediately
+          window.dispatchEvent(new CustomEvent('removeWorkerJobAlert', { detail: { id: bookingId } }));
+          window.dispatchEvent(new Event('workerJobsUpdated'));
+          
+          import('react-hot-toast').then(({ toast }) => {
+            toast.error(data.message || 'Job cancelled by customer');
+          });
+        }
+      });
       newSocket.on('new_job_assigned', (data) => {
         // Play urgent alert ring
         playAlertRing();

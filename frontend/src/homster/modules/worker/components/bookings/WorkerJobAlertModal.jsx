@@ -111,7 +111,7 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
           className="bg-white w-full max-w-[320px] rounded-[2rem] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] relative"
         >
           {/* Compact Header */}
-          <div className="relative h-28 bg-gradient-to-br from-[#FF8C00] to-[#EF6B11] flex flex-col items-center justify-center pt-2 overflow-hidden">
+          <div className="relative h-28 bg-gradient-to-br from-[#60A5FA] to-[#3B82F6] flex flex-col items-center justify-center pt-2 overflow-hidden">
             <div className="absolute inset-0 opacity-10 pointer-events-none">
               <motion.div
                 animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
@@ -137,7 +137,7 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
           <div className="px-5 py-4">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-12">
-                <div className="w-10 h-10 border-4 border-[#EF6B11] border-t-transparent rounded-full animate-spin mb-4"></div>
+                <div className="w-10 h-10 border-4 border-[#3B82F6] border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Syncing details...</p>
               </div>
             ) : job ? (
@@ -148,12 +148,12 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
                   animate={{ scale: 1 }} 
                   className="flex justify-center -mt-12 mb-3 relative z-20"
                 >
-                  <div className="relative w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(239,107,17,0.3)] p-0.5 border-4 border-white">
+                  <div className="relative w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(59,130,246,0.3)] p-0.5 border-4 border-white">
                     <svg className="absolute inset-0 w-full h-full -rotate-90 transform" viewBox="0 0 80 80">
                       <circle cx="40" cy="40" r={radius} fill="none" stroke="#FFF7ED" strokeWidth="6" />
                       <motion.circle
                         cx="40" cy="40" r={radius} fill="none"
-                        stroke={timeLeft <= 10 ? '#EF4444' : '#EF6B11'} strokeWidth="6"
+                        stroke={timeLeft <= 10 ? '#EF4444' : '#3B82F6'} strokeWidth="6"
                         strokeDasharray={circumference} strokeDashoffset={dashoffset}
                         strokeLinecap="round" className="transition-all duration-1000 ease-linear"
                       />
@@ -163,7 +163,7 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
                         key={timeLeft}
                         initial={{ scale: 1.2, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className={`text-2xl font-black block leading-none ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-[#EF6B11]'}`}
+                        className={`text-2xl font-black block leading-none ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-[#3B82F6]'}`}
                       >
                         {timeLeft}
                       </motion.span>
@@ -173,20 +173,20 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
                 </motion.div>
 
                 {/* Distance/Location info */}
-                <div className="flex items-center justify-center mb-4 bg-orange-50/60 py-3 rounded-2xl border border-orange-100/60 shadow-sm">
+                <div className="flex items-center justify-center mb-4 bg-blue-50/60 py-3 rounded-2xl border border-blue-100/60 shadow-sm">
                   <div className="text-center">
                     <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.1em] mb-1 block">Travel Distance</span>
-                    <div className="text-xl font-black text-[#EF6B11] tracking-tight flex items-center gap-1.5 justify-center">
+                    <div className="text-xl font-black text-[#3B82F6] tracking-tight flex items-center gap-1.5 justify-center">
                       <FiMapPin className="w-4 h-4" />
                       {job.distance ? (typeof job.distance === 'number' ? `${job.distance.toFixed(1)} km` : job.distance) : 'Near You'}
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-[1.25rem] p-4 border border-orange-100 shadow-[0_8px_25px_-5px_rgba(239,107,17,0.12)] relative overflow-hidden mb-5">
-                  <div className="absolute top-0 left-0 w-1.5 h-full bg-[#EF6B11]" />
+                <div className="bg-white rounded-[1.25rem] p-4 border border-blue-100 shadow-[0_8px_25px_-5px_rgba(59,130,246,0.12)] relative overflow-hidden mb-5">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-[#3B82F6]" />
                   <div className="pl-3">
-                    <p className="text-[10px] font-black text-[#EF6B11]/80 uppercase tracking-[0.15em] mb-1">Service Requested</p>
+                    <p className="text-[10px] font-black text-[#3B82F6]/80 uppercase tracking-[0.15em] mb-1">Service Requested</p>
                     <h4 className="text-[16px] font-black text-gray-900 leading-snug">
                       {job.serviceType || job.serviceId?.title || 'Service Request'}
                     </h4>
@@ -200,7 +200,7 @@ const WorkerJobAlertModal = ({ isOpen, jobId, onClose, onJobAccepted }) => {
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={handleAccept}
-                    className="w-full py-4 rounded-xl bg-gradient-to-r from-[#FF8C00] to-[#EF6B11] text-white font-black text-base shadow-[0_8px_20px_rgba(239,107,17,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2 group relative overflow-hidden"
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-[#60A5FA] to-[#3B82F6] text-white font-black text-base shadow-[0_8px_20px_rgba(59,130,246,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2 group relative overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
                     <span className="relative z-10 flex items-center gap-2">

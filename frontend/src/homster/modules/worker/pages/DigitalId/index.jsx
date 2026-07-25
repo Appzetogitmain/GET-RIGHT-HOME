@@ -121,7 +121,7 @@ const DigitalId = () => {
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-4 border-[#EF6B11] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-[#3B82F6] border-t-transparent rounded-full animate-spin"></div>
         <p className="text-sm text-gray-500 font-medium">Loading...</p>
       </div>
     </div>
@@ -133,8 +133,8 @@ const DigitalId = () => {
 
       <main className="max-w-md mx-auto px-4 py-6 space-y-6">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center">
-          <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mb-4">
-            <FiCreditCard className="w-8 h-8 text-[#EF6B11]" />
+          <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+            <FiCreditCard className="w-8 h-8 text-[#3B82F6]" />
           </div>
           <h2 className="text-lg font-black text-gray-800 tracking-tight text-center mb-1">
             Upload Digital Card
@@ -173,7 +173,7 @@ const DigitalId = () => {
           <button
             onClick={handleSubmit}
             disabled={saving}
-            className="w-full py-4 bg-gradient-to-r from-[#FF8C00] to-[#EF6B11] text-white rounded-2xl font-black text-base shadow-[0_8px_20px_rgba(239,107,17,0.3)] active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="w-full py-4 bg-gradient-to-r from-[#60A5FA] to-[#3B82F6] text-white rounded-2xl font-black text-base shadow-[0_8px_20px_rgba(59,130,246,0.3)] active:scale-95 transition-all flex items-center justify-center gap-2"
           >
             {saving ? (
               <>

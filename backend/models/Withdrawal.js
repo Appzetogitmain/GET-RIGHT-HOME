@@ -31,6 +31,7 @@ const withdrawalSchema = new mongoose.Schema({
     default: 'pending'
   },
   bankDetails: {
+    upiId: String,
     accountNumber: String,
     ifscCode: String,
     accountHolderName: String,

@@ -794,19 +794,7 @@ const Checkout = () => {
       setBookingRequest(booking);
       toast.dismiss();
 
-      // Clear cart immediately as search starts (consumes items) - ONLY if vendors found
-      if (!bookingResponse.noVendorsFound) {
-        try {
-          if (category) {
-            await removeCategoryGlobal(category);
-          } else {
-            await clearCartGlobal();
-          }
-          setCartItems([]);
-        } catch (err) {
-          console.error('Failed to clear cart after search start', err);
-        }
-      }
+      // Cart will be cleared only after payment is confirmed or Pay At Home is confirmed
 
       // If no vendors found, redirect or refresh immediately
       if (bookingResponse.noVendorsFound) {

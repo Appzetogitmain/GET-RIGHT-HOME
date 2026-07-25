@@ -159,13 +159,7 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
               {searchMessage || `We couldn't find any available ${bookingModel}s in your area right now.`}
             </p>
 
-            <button
-              onClick={onRetry}
-              className="w-full text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 mb-4"
-              style={{ background: themeColors.button }}
-            >
-              Search Again
-            </button>
+
             <button
               onClick={onClose}
               className="w-full text-gray-400 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"

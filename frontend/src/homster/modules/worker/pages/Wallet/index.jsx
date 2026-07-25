@@ -29,6 +29,16 @@ const Wallet = () => {
     ifscCode: '',
     accountHolderName: ''
   });
+  const [lastSavedBankDetails, setLastSavedBankDetails] = useState(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('workerLastBankDetails');
+    if (saved) {
+      try {
+        setLastSavedBankDetails(JSON.parse(saved));
+      } catch (e) {}
+    }
+  }, []);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -291,6 +301,11 @@ const Wallet = () => {
     try {
       setPayoutLoading(true);
       await workerWalletService.requestWithdrawal(withdrawAmount, withdrawForm);
+      
+      // Save details for next time
+      localStorage.setItem('workerLastBankDetails', JSON.stringify(withdrawForm));
+      setLastSavedBankDetails(withdrawForm);
+
       toast.success('Withdrawal request submitted successfully');
       setWithdrawModalOpen(false);
       setWithdrawAmount('');
@@ -308,7 +323,7 @@ const Wallet = () => {
 
       <main className="px-4 py-6">
         {/* Balance Card */}
-        <div className="rounded-2xl p-6 shadow-xl relative overflow-hidden mb-6" style={{ background: '#EF6B11' }}>
+        <div className="rounded-2xl p-6 shadow-xl relative overflow-hidden mb-6" style={{ background: '#3B82F6' }}>
           <div className="relative z-10 text-white">
             <div className="flex justify-between items-start mb-6">
               <div>
@@ -319,7 +334,7 @@ const Wallet = () => {
                 onClick={() => setWithdrawModalOpen(true)}
                 disabled={wallet.balance <= 0}
                 className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center gap-2 ${wallet.balance > 0 ? 'bg-white' : 'bg-white/20 text-white/50 cursor-not-allowed'}`}
-                style={wallet.balance > 0 ? { color: '#EF6B11' } : {}}
+                style={wallet.balance > 0 ? { color: '#3B82F6' } : {}}
               >
                 <FiArrowUp className="w-4 h-4" />
                 Withdraw
@@ -376,8 +391,8 @@ const Wallet = () => {
               style={
                 filter === filterOption.id
                   ? {
-                    background: '#EF6B11',
-                    boxShadow: '0 4px 12px rgba(239, 107, 17, 0.4)',
+                    background: '#3B82F6',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
                   }
                   : {
                     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
@@ -433,14 +448,14 @@ const Wallet = () => {
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-400">{formatDate(txn.createdAt)}</span>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${txn.status === 'completed' ? 'bg-green-100 text-green-700' :
-                          txn.status === 'pending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
+                          txn.status === 'pending' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
                           }`}>
                           {txn.status}
                         </span>
                         {txn.category === 'withdrawal' && (
                           <div className="flex items-center gap-1">
-                            <span className="text-xs font-medium" style={{ color: '#EF6B11' }}>View details</span>
-                            <FiChevronRight className="w-3 h-3" style={{ color: '#EF6B11' }} />
+                            <span className="text-xs font-medium" style={{ color: '#3B82F6' }}>View details</span>
+                            <FiChevronRight className="w-3 h-3" style={{ color: '#3B82F6' }} />
                           </div>
                         )}
                       </div>
@@ -471,7 +486,7 @@ const Wallet = () => {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="sticky top-0 text-white px-6 py-5 rounded-t-3xl flex items-center justify-between" style={{ background: '#EF6B11' }}>
+              <div className="sticky top-0 text-white px-6 py-5 rounded-t-3xl flex items-center justify-between" style={{ background: '#3B82F6' }}>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                     <FiDollarSign className="w-6 h-6" />
@@ -593,7 +608,7 @@ const Wallet = () => {
                 <button
                   onClick={() => setSelectedTransaction(null)}
                   className="w-full py-4 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg hover:opacity-90"
-                  style={{ background: '#EF6B11' }}
+                  style={{ background: '#3B82F6' }}
                 >
                   Close
                 </button>
@@ -649,7 +664,7 @@ const Wallet = () => {
               className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden mb-20 sm:mb-0 max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="text-white px-6 py-5 flex items-center justify-between" style={{ background: '#EF6B11' }}>
+              <div className="text-white px-6 py-5 flex items-center justify-between" style={{ background: '#3B82F6' }}>
                 <div>
                   <h3 className="font-bold text-lg">Request Withdrawal</h3>
                   <p className="text-xs text-white/80">Funds will be sent to your bank/UPI</p>
@@ -689,7 +704,18 @@ const Wallet = () => {
                 </div>
 
                 <div className="pt-2">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-3 tracking-widest border-b border-gray-100 pb-2">Payout Method Details</p>
+                  <div className="flex justify-between items-end border-b border-gray-100 pb-2 mb-3">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0">Payout Method Details</p>
+                    {lastSavedBankDetails && (
+                      <button
+                        type="button"
+                        onClick={() => setWithdrawForm(lastSavedBankDetails)}
+                        className="text-[10px] font-bold text-[#3B82F6] bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                      >
+                        Use Last Saved Details
+                      </button>
+                    )}
+                  </div>
 
                   <div className="space-y-4">
                     <div className="space-y-1.5">
@@ -750,7 +776,7 @@ const Wallet = () => {
                   type="submit"
                   disabled={payoutLoading}
                   className="w-full py-4 text-white font-bold rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50 hover:opacity-90"
-                  style={{ background: '#EF6B11' }}
+                  style={{ background: '#3B82F6' }}
                 >
                   {payoutLoading ? (
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>

@@ -978,6 +978,28 @@ const cancelBooking = async (req, res) => {
 
     await booking.save();
 
+    // Find all pending booking requests for this booking to notify workers and clean up
+    try {
+      const io = getIO();
+      const pendingRequests = await BookingRequest.find({ bookingId: booking._id, status: 'PENDING' });
+      
+      for (const req of pendingRequests) {
+        // Emit cancellation to worker so their alert modal disappears
+        io.to(`worker_${req.workerId}`).emit('job_cancelled', {
+          bookingId: booking._id.toString(),
+          message: 'Booking cancelled by customer'
+        });
+      }
+
+      // Mark these requests as cancelled
+      await BookingRequest.updateMany(
+        { bookingId: booking._id, status: 'PENDING' },
+        { $set: { status: 'CANCELLED' } }
+      );
+    } catch (err) {
+      console.error('[CancelBooking] Error notifying workers about cancellation:', err);
+    }
+
     // Send notification to user
     await createNotification({
       userId,

@@ -150,8 +150,8 @@ const AssignedJobs = () => {
               style={
                 filter === filterOption.id
                   ? {
-                    background: '#EF6B11',
-                    boxShadow: '0 4px 12px rgba(239, 107, 17, 0.4)',
+                    background: '#3B82F6',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
                   }
                   : {
                     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
@@ -236,9 +236,9 @@ const AssignedJobs = () => {
                       <div
                         className="px-3 py-2 rounded-lg font-bold text-lg"
                         style={{
-                          background: 'rgba(239, 107, 17, 0.1)',
-                          color: '#EF6B11',
-                          border: '1px solid rgba(239, 107, 17, 0.2)',
+                          background: 'rgba(59, 130, 246, 0.1)',
+                          color: '#3B82F6',
+                          border: '1px solid rgba(59, 130, 246, 0.2)',
                         }}
                       >
                         ₹{job.finalAmount}
