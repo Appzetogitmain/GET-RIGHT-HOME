@@ -6,10 +6,11 @@ import { Clock, Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Eager Imports (Critical UI)
-import BottomNavbar from './components/ui/BottomNavbar';
 import TopNavbar from './components/ui/TopNavbar';
+import MobileTopNav from './components/ui/MobileTopNav';
+import BottomNavbar from './components/ui/BottomNavbar';
 import PartnerBottomNavbar from './app/partner/components/PartnerBottomNavbar';
-import ScrollToTop from './components/ui/ScrollToTop';
+import useScrollRestoration from './hooks/useScrollRestoration';
 
 // Hooks & Services
 import { useLenis } from './app/shared/hooks/useLenis';
@@ -175,6 +176,11 @@ const PartnerSubscriptions = React.lazy(() => import('./app/partner/pages/Partne
 const HotelLayout = React.lazy(() => import('./layouts/HotelLayout'));
 const AdminLayout = React.lazy(() => import('./app/admin/layouts/AdminLayout'));
 
+const ScrollHandler = () => {
+  useScrollRestoration();
+  return null;
+};
+
 // Loading Fallback Component
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
@@ -259,6 +265,7 @@ const Layout = ({ children }) => {
   return (
     <>
       {showUserNavs && !isReelsPage && !isHomeServicesPage && <TopNavbar />}
+      {showUserNavs && !isReelsPage && <MobileTopNav />}
 
       <div className={`min-h-screen ${showUserNavs && !isReelsPage ? 'lg:pt-20' : ''} ${showUserBottomNav || showPartnerBottomNav ? 'pb-20 md:pb-0' : ''}`}>
         {showMaintenanceOverlay ? (
@@ -485,7 +492,7 @@ function App() {
       <CartProvider>
         <AuthProvider>
           <Router>
-            <ScrollToTop />
+            <ScrollHandler />
             <Toaster position="top-center" reverseOrder={false} />
             <SocketProvider>
               <EnquiryModalProvider>

@@ -1263,10 +1263,10 @@ const PropertyDetailsPage = () => {
     : ['Frequent Traffic Jams', 'Frequent Parking Issues'];
 
   return (
-    <div className="bg-[#f8fafe] min-h-screen pb-32 text-gray-800 font-sans selection:bg-blue-100 antialiased">
+    <div className="bg-[#f8fafe] min-h-screen pb-32 pt-28 text-gray-800 font-sans selection:bg-blue-100 antialiased">
       
       {/* Premium Top Navigation Action Bar */}
-      <div className="sticky top-0 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 z-40 transition-all">
+      <div className="fixed top-0 w-full bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 z-40 transition-all">
         <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">

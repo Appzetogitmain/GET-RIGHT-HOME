@@ -617,8 +617,8 @@ const SearchPage = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-white pb-24">
-            <div className="sticky top-0 z-30 bg-white border-b border-gray-100 pb-2 pt-3 md:pt-4 px-4 shadow-sm">
+        <div className="min-h-screen bg-white pb-24 pt-[110px]">
+            <div className="fixed top-0 w-full z-50 bg-white border-b border-gray-100 pb-2 pt-3 md:pt-4 px-4 shadow-sm">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex items-center gap-3 mb-3">
                         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">

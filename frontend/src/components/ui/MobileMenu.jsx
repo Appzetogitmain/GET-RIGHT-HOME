@@ -6,11 +6,12 @@ import {
     Home, Star, CalendarCheck, PlusCircle, CreditCard, MessageSquare, Wrench, Lightbulb, IndianRupee, Calculator
 } from 'lucide-react';
 import { userService } from '../../services/apiService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const MobileMenu = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user, logout } = useAuth();
     const [unreadCount, setUnreadCount] = useState(0);
 
@@ -64,23 +65,26 @@ const MobileMenu = ({ isOpen, onClose }) => {
         navigate('/login');
     };
 
-    const MenuItem = ({ icon: Icon, label, path, badge }) => (
-        <button
-            onClick={() => handleNavigation(path)}
-            className="flex items-center gap-4 w-full p-2.5 hover:bg-gray-50 rounded-xl transition-all group active:scale-95"
-        >
-            <div className="w-8 h-8 rounded-full bg-surface/5 flex items-center justify-center group-hover:bg-surface/10 transition-colors">
-                <Icon size={16} className="text-surface" />
-            </div>
-            <span className="flex-1 text-left font-medium text-gray-700 text-sm">{label}</span>
-            {badge && (
-                <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mr-2">
-                    {badge}
+    const MenuItem = ({ icon: Icon, label, path, badge }) => {
+        const isActive = path && location.pathname === path;
+        return (
+            <button
+                onClick={() => handleNavigation(path)}
+                className={`flex items-center gap-4 w-full p-2.5 rounded-xl transition-all group active:scale-95 ${isActive ? 'bg-surface/10' : 'hover:bg-gray-50'}`}
+            >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isActive ? 'bg-surface' : 'bg-surface/5 group-hover:bg-surface/10'}`}>
+                    <Icon size={16} className={isActive ? 'text-white' : 'text-surface'} />
                 </div>
-            )}
-            <ChevronRight size={14} className="text-gray-300 group-hover:text-surface transition-colors" />
-        </button>
-    );
+                <span className={`flex-1 text-left text-sm ${isActive ? 'font-bold text-surface' : 'font-medium text-gray-700'}`}>{label}</span>
+                {badge && (
+                    <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mr-2">
+                        {badge}
+                    </div>
+                )}
+                <ChevronRight size={14} className={isActive ? 'text-surface' : 'text-gray-300 group-hover:text-surface transition-colors'} />
+            </button>
+        );
+    };
 
     // Section divider
     const SectionTitle = ({ title }) => (
