@@ -308,7 +308,7 @@ const Wallet = () => {
 
       <main className="px-4 py-6">
         {/* Balance Card */}
-        <div className="rounded-2xl p-6 shadow-xl relative overflow-hidden mb-6 bg-gradient-to-br from-teal-600 to-teal-800">
+        <div className="rounded-2xl p-6 shadow-xl relative overflow-hidden mb-6" style={{ background: '#EF6B11' }}>
           <div className="relative z-10 text-white">
             <div className="flex justify-between items-start mb-6">
               <div>
@@ -318,7 +318,8 @@ const Wallet = () => {
               <button
                 onClick={() => setWithdrawModalOpen(true)}
                 disabled={wallet.balance <= 0}
-                className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center gap-2 ${wallet.balance > 0 ? 'bg-white text-teal-700' : 'bg-white/20 text-white/50 cursor-not-allowed'}`}
+                className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center gap-2 ${wallet.balance > 0 ? 'bg-white' : 'bg-white/20 text-white/50 cursor-not-allowed'}`}
+                style={wallet.balance > 0 ? { color: '#EF6B11' } : {}}
               >
                 <FiArrowUp className="w-4 h-4" />
                 Withdraw
@@ -375,8 +376,8 @@ const Wallet = () => {
               style={
                 filter === filterOption.id
                   ? {
-                    background: themeColors.button,
-                    boxShadow: `0 2px 8px ${themeColors.button}40`,
+                    background: '#EF6B11',
+                    boxShadow: '0 4px 12px rgba(239, 107, 17, 0.4)',
                   }
                   : {
                     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
@@ -438,8 +439,8 @@ const Wallet = () => {
                         </span>
                         {txn.category === 'withdrawal' && (
                           <div className="flex items-center gap-1">
-                            <span className="text-xs text-teal-600 font-medium">View details</span>
-                            <FiChevronRight className="w-3 h-3 text-teal-600" />
+                            <span className="text-xs font-medium" style={{ color: '#EF6B11' }}>View details</span>
+                            <FiChevronRight className="w-3 h-3" style={{ color: '#EF6B11' }} />
                           </div>
                         )}
                       </div>
@@ -470,7 +471,7 @@ const Wallet = () => {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="sticky top-0 bg-gradient-to-br from-teal-600 to-teal-700 text-white px-6 py-5 rounded-t-3xl flex items-center justify-between">
+              <div className="sticky top-0 text-white px-6 py-5 rounded-t-3xl flex items-center justify-between" style={{ background: '#EF6B11' }}>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                     <FiDollarSign className="w-6 h-6" />
@@ -591,7 +592,8 @@ const Wallet = () => {
                 {/* Close Button */}
                 <button
                   onClick={() => setSelectedTransaction(null)}
-                  className="w-full py-4 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg"
+                  className="w-full py-4 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg hover:opacity-90"
+                  style={{ background: '#EF6B11' }}
                 >
                   Close
                 </button>
@@ -647,7 +649,7 @@ const Wallet = () => {
               className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden mb-20 sm:mb-0 max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-br from-teal-600 to-teal-700 text-white px-6 py-5 flex items-center justify-between">
+              <div className="text-white px-6 py-5 flex items-center justify-between" style={{ background: '#EF6B11' }}>
                 <div>
                   <h3 className="font-bold text-lg">Request Withdrawal</h3>
                   <p className="text-xs text-white/80">Funds will be sent to your bank/UPI</p>
@@ -747,7 +749,8 @@ const Wallet = () => {
                 <button
                   type="submit"
                   disabled={payoutLoading}
-                  className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
+                  className="w-full py-4 text-white font-bold rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50 hover:opacity-90"
+                  style={{ background: '#EF6B11' }}
                 >
                   {payoutLoading ? (
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
