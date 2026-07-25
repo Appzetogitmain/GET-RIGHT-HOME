@@ -38,6 +38,7 @@ const getProfile = async (req, res) => {
         isPhoneVerified: worker.isPhoneVerified || false,
         isEmailVerified: worker.isEmailVerified || false,
         isOnline: worker.isOnline || false,
+        aadhar: worker.aadhar || null,
         createdAt: worker.createdAt,
         updatedAt: worker.updatedAt
       }
@@ -66,7 +67,7 @@ const updateProfile = async (req, res) => {
     }
 
     const workerId = req.user.id;
-    const { name, serviceCategories, serviceCategory, skills, address, status, profilePhoto } = req.body;
+    const { name, serviceCategories, serviceCategory, skills, address, status, profilePhoto, aadharFront, aadharBack } = req.body;
 
     const worker = await Worker.findById(workerId);
 
@@ -111,6 +112,34 @@ const updateProfile = async (req, res) => {
       }
     }
 
+    // Update Aadhar Front
+    if (aadharFront !== undefined) {
+      if (aadharFront && aadharFront.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(aadharFront, { folder: 'workers/documents' });
+        if (uploadRes.success) {
+          if (!worker.aadhar) worker.aadhar = {};
+          worker.aadhar.document = uploadRes.url;
+        }
+      } else {
+        if (!worker.aadhar) worker.aadhar = {};
+        worker.aadhar.document = aadharFront;
+      }
+    }
+
+    // Update Aadhar Back
+    if (aadharBack !== undefined) {
+      if (aadharBack && aadharBack.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(aadharBack, { folder: 'workers/documents' });
+        if (uploadRes.success) {
+          if (!worker.aadhar) worker.aadhar = {};
+          worker.aadhar.backDocument = uploadRes.url;
+        }
+      } else {
+        if (!worker.aadhar) worker.aadhar = {};
+        worker.aadhar.backDocument = aadharBack;
+      }
+    }
+
     if (req.body.settings) {
       worker.settings = {
         notifications: req.body.settings.notifications !== undefined ? req.body.settings.notifications : (worker.settings?.notifications ?? true),
@@ -138,6 +167,7 @@ const updateProfile = async (req, res) => {
         completedJobs: worker.completedJobs,
         status: worker.status,
         profilePhoto: worker.profilePhoto, // Include in response
+        aadhar: worker.aadhar || null,
         settings: worker.settings,
         isPhoneVerified: worker.isPhoneVerified,
         isEmailVerified: worker.isEmailVerified
@@ -207,6 +237,10 @@ const toggleOnline = async (req, res) => {
       };
     }
 
+
+
+
+
     const worker = await Worker.findByIdAndUpdate(workerId, updateData, { new: true })
       .select('isOnline geoLocation location');
 
@@ -227,9 +261,43 @@ const toggleOnline = async (req, res) => {
   }
 };
 
+/**
+ * Get worker referrals
+ */
+const getReferrals = async (req, res) => {
+  try {
+    const workerId = req.user.id;
+    const worker = await Worker.findById(workerId);
+    
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    const referredWorkers = await Worker.find({ referredBy: workerId })
+      .select('name phone status approvalStatus createdAt profilePhoto')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        referralCode: worker.referralCode,
+        totalReferrals: referredWorkers.length,
+        referrals: referredWorkers
+      }
+    });
+  } catch (error) {
+    console.error('Get worker referrals error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch referrals'
+    });
+  }
+};
+
 export { 
   getProfile,
   updateProfile,
   updateLocation,
-  toggleOnline
+  toggleOnline,
+  getReferrals
  };

@@ -262,18 +262,17 @@ const AllWorkers = () => {
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Worker Details</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Subscription</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
                   <tr>
-                    <td colSpan="5" className="px-4 py-8 text-center text-xs text-gray-500">Loading workers...</td>
+                    <td colSpan="4" className="px-4 py-8 text-center text-xs text-gray-500">Loading workers...</td>
                   </tr>
                 ) : filteredWorkers.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-4 py-8 text-center text-xs text-gray-500">No workers found</td>
+                    <td colSpan="4" className="px-4 py-8 text-center text-xs text-gray-500">No workers found</td>
                   </tr>
                 ) : (
                   filteredWorkers.map((worker) => (
@@ -297,18 +296,6 @@ const AllWorkers = () => {
                           }`}>
                           {worker.approvalStatus}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {worker.subscription?.isActive ? (
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-purple-700">{worker.subscription.planName}</span>
-                            <span className="text-[9px] text-gray-500">Exp: {new Date(worker.subscription.expiryDate).toLocaleDateString()}</span>
-                          </div>
-                        ) : (
-                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-                            No Plan
-                          </span>
-                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">

@@ -25,8 +25,13 @@ const WorkerSignup = () => {
     email: '',
     phoneNumber: '',
     aadhar: '',
+    panCardNumber: '',
+    drivingLicenseNumber: '',
+    referralCode: '',
     aadharDocument: null,
-    aadharBackDocument: null
+    aadharBackDocument: null,
+    panCardDocument: null,
+    drivingLicenseDocument: null
   });
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpToken, setOtpToken] = useState('');
@@ -82,6 +87,30 @@ const WorkerSignup = () => {
     }));
   };
 
+  const handleAadharChange = (e) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 12) val = val.slice(0, 12);
+    let formatted = val;
+    if (val.length > 8) {
+      formatted = `${val.slice(0, 4)} ${val.slice(4, 8)} ${val.slice(8)}`;
+    } else if (val.length > 4) {
+      formatted = `${val.slice(0, 4)} ${val.slice(4)}`;
+    }
+    setFormData(p => ({ ...p, aadhar: formatted }));
+  };
+
+  const handlePanChange = (e) => {
+    let val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (val.length > 10) val = val.slice(0, 10);
+    setFormData(p => ({ ...p, panCardNumber: val }));
+  };
+
+  const handleDlChange = (e) => {
+    let val = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    if (val.length > 16) val = val.slice(0, 16);
+    setFormData(p => ({ ...p, drivingLicenseNumber: val }));
+  };
+
   const handleDocumentUpload = (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -99,7 +128,12 @@ const WorkerSignup = () => {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      const fieldName = type === 'aadhar' ? 'aadharDocument' : 'aadharBackDocument';
+      let fieldName = type;
+      if (type === 'aadhar') fieldName = 'aadharDocument';
+      else if (type === 'aadharBack') fieldName = 'aadharBackDocument';
+      else if (type === 'pan') fieldName = 'panCardDocument';
+      else if (type === 'dl') fieldName = 'drivingLicenseDocument';
+
       setFormData(prev => ({
         ...prev,
         [fieldName]: file
@@ -113,7 +147,12 @@ const WorkerSignup = () => {
   };
 
   const removeDocument = (type) => {
-    const fieldName = type === 'aadhar' ? 'aadharDocument' : 'aadharBackDocument';
+    let fieldName = type;
+    if (type === 'aadhar') fieldName = 'aadharDocument';
+    else if (type === 'aadharBack') fieldName = 'aadharBackDocument';
+    else if (type === 'pan') fieldName = 'panCardDocument';
+    else if (type === 'dl') fieldName = 'drivingLicenseDocument';
+
     setFormData(prev => ({
       ...prev,
       [fieldName]: null
@@ -127,12 +166,14 @@ const WorkerSignup = () => {
   const handleDetailsSubmit = async (e) => {
     e.preventDefault();
 
+    const cleanAadhar = formData.aadhar.replace(/\s/g, '');
+
     // Zod Validation
     const validationResult = workerSignupSchema.safeParse({
       name: formData.name,
       email: formData.email,
       phoneNumber: formData.phoneNumber,
-      aadhar: formData.aadhar
+      aadhar: cleanAadhar
     });
 
     if (!validationResult.success) {
@@ -150,6 +191,33 @@ const WorkerSignup = () => {
       toast.error('Please upload Aadhar Back document');
       return;
     }
+    
+    // Manual Check for PAN
+    if (!formData.panCardNumber) {
+      toast.error('Please enter PAN Card Number');
+      return;
+    }
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!panRegex.test(formData.panCardNumber)) {
+      toast.error('Invalid PAN Card format (e.g. ABCDE1234F)');
+      return;
+    }
+    if (!formData.panCardDocument && !documentPreview.pan) {
+      toast.error('Please upload PAN Card document');
+      return;
+    }
+    
+    // DL is optional, so no check needed unless we want to enforce either both or neither
+    if ((formData.drivingLicenseNumber && (!formData.drivingLicenseDocument && !documentPreview.dl)) || 
+        (!formData.drivingLicenseNumber && (formData.drivingLicenseDocument || documentPreview.dl))) {
+       toast.error('Please provide both DL Number and Document if you wish to add it.');
+       return;
+    }
+    if (formData.drivingLicenseNumber && formData.drivingLicenseNumber.length < 10) {
+      toast.error('Invalid Driving License format');
+      return;
+    }
+    
     e.preventDefault();
 
     // const errors = validateForm(); // undefined function 'validateForm', removed call as validation is done above via Zod (line 122) or not needed. 
@@ -163,14 +231,22 @@ const WorkerSignup = () => {
     if (verificationToken) {
       try {
         const aadharDoc = documentPreview.aadhar || null;
-        const aadharBackDoc = documentPreview.aadharBack || null; // Add this
+        const aadharBackDoc = documentPreview.aadharBack || null;
+        const panDoc = documentPreview.pan || null;
+        const dlDoc = documentPreview.dl || null;
+
         const registerData = {
           name: formData.name,
           email: formData.email,
           phone: formData.phoneNumber,
-          aadhar: formData.aadhar,
+          aadhar: cleanAadhar,
+          referralCode: formData.referralCode,
           aadharDocument: aadharDoc,
           aadharBackDocument: aadharBackDoc,
+          panCardNumber: formData.panCardNumber,
+          panCardDocument: panDoc,
+          drivingLicenseNumber: formData.drivingLicenseNumber,
+          drivingLicenseDocument: dlDoc,
           verificationToken
         };
 
@@ -253,13 +329,21 @@ const WorkerSignup = () => {
     try {
       const aadharDoc = documentPreview.aadhar || null;
       const aadharBackDoc = documentPreview.aadharBack || null;
+      const panDoc = documentPreview.pan || null;
+      const dlDoc = documentPreview.dl || null;
+
       const registerData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phoneNumber,
-        aadhar: formData.aadhar,
+        aadhar: formData.aadhar.replace(/\s/g, ''),
         aadharDocument: aadharDoc,
         aadharBackDocument: aadharBackDoc,
+        panCardNumber: formData.panCardNumber,
+        panCardDocument: panDoc,
+        drivingLicenseNumber: formData.drivingLicenseNumber,
+        drivingLicenseDocument: dlDoc,
+        referralCode: formData.referralCode,
         otp: otpValue,
         token: otpToken
       };
@@ -362,7 +446,23 @@ const WorkerSignup = () => {
                 </div>
               )}
 
-              <div className="animate-stagger-4 animate-fade-in">
+              {/* Referral Code */}
+              <div className="animate-stagger-4 animate-fade-in relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#347989] transition-colors">
+                  <FiUser className="h-5 w-5" />
+                </div>
+                <input
+                  type="text"
+                  name="referralCode"
+                  value={formData.referralCode}
+                  onChange={handleInputChange}
+                  className="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-offset-2 outline-none transition-all duration-300 hover:border-gray-300 bg-gray-50/50 focus:bg-white text-gray-900 placeholder-gray-400"
+                  style={{ '--tw-ring-color': themeColors.primary }}
+                  placeholder="Referral Code (Optional)"
+                />
+              </div>
+
+              <div className="animate-stagger-4-5 animate-fade-in mt-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Aadhar Number</label>
                 <div className="relative rounded-xl shadow-sm group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
@@ -372,10 +472,11 @@ const WorkerSignup = () => {
                     type="text"
                     required
                     value={formData.aadhar}
-                    onChange={(e) => setFormData(p => ({ ...p, aadhar: e.target.value.replace(/\D/g, '').slice(0, 12) }))}
+                    onChange={handleAadharChange}
                     className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 outline-none transition-all duration-300 hover:border-gray-400"
                     style={{ '--tw-ring-color': brandColor }}
-                    placeholder="12-digit Aadhar"
+                    placeholder="XXXX XXXX XXXX"
+                    maxLength={14}
                   />
                 </div>
               </div>
@@ -426,6 +527,91 @@ const WorkerSignup = () => {
                       </div>
                       <span className="text-xs text-gray-500 font-bold">Upload Back</span>
                       <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'aadharBack')} />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* PAN Card Section */}
+              <div className="animate-stagger-[5.6] animate-fade-in mt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">PAN Card Number</label>
+                <div className="relative rounded-xl shadow-sm group mb-2">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
+                    <FiFileText className="text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    name="panCardNumber"
+                    value={formData.panCardNumber}
+                    onChange={handlePanChange}
+                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 outline-none transition-all duration-300 hover:border-gray-400 uppercase"
+                    style={{ '--tw-ring-color': brandColor }}
+                    placeholder="e.g. ABCDE1234F"
+                    maxLength={10}
+                  />
+                </div>
+                
+                <label className="block text-sm font-medium text-gray-700 mb-2">PAN Card Upload</label>
+                {documentPreview.pan ? (
+                  <div className="relative group overflow-hidden rounded-xl">
+                    <img src={documentPreview.pan} className="w-full h-32 object-cover border transform group-hover:scale-110 transition-transform duration-500" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button type="button" onClick={() => removeDocument('pan')} className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors">
+                        <FiX size={20} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:border-[#347989] group bg-white">
+                    <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
+                      <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-2 hover:bg-blue-100 transition-colors">
+                        <FiUpload className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs text-gray-500 font-bold">Upload PAN Card</span>
+                      <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'pan')} />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Driving License Section (Optional) */}
+              <div className="animate-stagger-[5.7] animate-fade-in mt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Driving License Number (Optional)</label>
+                <div className="relative rounded-xl shadow-sm group mb-2">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
+                    <FiFileText className="text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    name="drivingLicenseNumber"
+                    value={formData.drivingLicenseNumber}
+                    onChange={handleDlChange}
+                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 outline-none transition-all duration-300 hover:border-gray-400 uppercase"
+                    style={{ '--tw-ring-color': brandColor }}
+                    placeholder="e.g. MH0420110062821"
+                    maxLength={16}
+                  />
+                </div>
+                
+                <label className="block text-sm font-medium text-gray-700 mb-2">Driving License Upload (Optional)</label>
+                {documentPreview.dl ? (
+                  <div className="relative group overflow-hidden rounded-xl">
+                    <img src={documentPreview.dl} className="w-full h-32 object-cover border transform group-hover:scale-110 transition-transform duration-500" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button type="button" onClick={() => removeDocument('dl')} className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors">
+                        <FiX size={20} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:border-[#347989] group bg-white">
+                    <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
+                      <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-2 hover:bg-blue-100 transition-colors">
+                        <FiUpload className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs text-gray-500 font-bold">Upload DL</span>
+                      <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'dl')} />
                     </label>
                   </div>
                 )}

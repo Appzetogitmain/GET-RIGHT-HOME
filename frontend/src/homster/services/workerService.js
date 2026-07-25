@@ -7,6 +7,11 @@ const workerService = {
     return response.data;
   },
 
+  getReferrals: async () => {
+    const response = await api.get('/workers/referrals');
+    return response.data;
+  },
+
   updateProfile: async (profileData) => {
     const response = await api.put('/workers/profile', profileData);
     return response.data;
@@ -23,6 +28,11 @@ const workerService = {
 
   getDashboardStats: async () => {
     const response = await api.get('/workers/stats');
+    return response.data;
+  },
+
+  getPublicSettings: async () => {
+    const response = await api.get('/workers/public-settings');
     return response.data;
   },
 
@@ -143,6 +153,16 @@ const workerService = {
 
   generateEstimate: async (jobId, data) => {
     const response = await api.patch(`/workers/jobs/${jobId}/estimate`, data);
+    return response.data;
+  },
+
+  getComplaints: async () => {
+    const response = await api.get('/workers/complaints');
+    return response.data;
+  },
+
+  createComplaint: async (data) => {
+    const response = await api.post('/workers/complaints', data);
     return response.data;
   }
 };

@@ -29,6 +29,7 @@ import LogoLoader from '../../../../components/common/LogoLoader';
 import AddressSelectionModal from '../Checkout/components/AddressSelectionModal';
 import ScrapPromotionCard from './components/ScrapPromotionCard';
 import DebugConsole from '../../components/common/DebugConsole';
+import ActiveBookingCard from './components/ActiveBookingCard';
 
 
 
@@ -1066,6 +1067,9 @@ const Home = () => {
           )}
         </main>
       </motion.div>
+
+      {/* Active Booking Floating Card */}
+      <ActiveBookingCard />
 
       {/* Bottom Navigation */}
       {!isAddressModalOpen && <BottomNav />}

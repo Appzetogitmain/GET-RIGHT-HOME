@@ -67,6 +67,13 @@ const getChildRoute = (parentRoute, childName) => {
       "Worker Analytics": "/admin/home-service/workers/analytics",
       "Worker Payments": "/admin/home-service/workers/payments",
       "Withdrawals": "/admin/home-service/workers/withdrawals",
+      "Monthly Target": "/admin/home-service/workers/monthly-target",
+      "Worker Achievements": "/admin/home-service/workers/achievements",
+      "Support Settings": "/admin/home-service/workers/support",
+      "Privacy Policy": "/admin/home-service/workers/privacy-policy",
+      "Worker Training": "/admin/home-service/workers/training",
+      "Refer and Earn": "/admin/home-service/workers/referrals",
+      "Complaint Management": "/admin/home-service/workers/complaints",
     },
     "/admin/home-service/bookings": {
       "All Bookings": "/admin/home-service/bookings",

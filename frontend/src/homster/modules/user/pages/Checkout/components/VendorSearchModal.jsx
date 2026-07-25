@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { themeColors } from '../../../../../theme';
 
-const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRetry, bookingModel = 'worker' }) => {
+const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRetry, bookingModel = 'worker', searchMessage }) => {
   const [dots, setDots] = useState('.');
 
   useEffect(() => {
@@ -76,7 +76,7 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
             <div className="text-center relative z-20 px-4 mb-4">
               <h3 className="text-xl font-black text-gray-900 mb-2">Searching nearby {bookingModel === 'worker' ? 'workers' : 'vendors'}</h3>
               <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
-                Searching within 10km radius{dots}
+                {searchMessage || `Searching within 10km radius${dots}`}
               </p>
             </div>
 
@@ -92,7 +92,7 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
               onClick={onClose}
               className="px-6 py-2.5 rounded-full border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-sm"
             >
-              Cancel Search
+              Cancel Booking
             </button>
 
           </div>
@@ -154,9 +154,9 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
               </svg>
             </div>
 
-            <h3 className="text-2xl font-black text-gray-900 mb-2 italic">NO {bookingModel.toUpperCase()} FOUND</h3>
-            <p className="text-gray-400 text-[10px] text-center mb-10 px-8 font-black uppercase tracking-widest leading-relaxed">
-              We couldn't find any available {bookingModel}s in your area right now.
+            <h3 className="text-2xl font-black text-gray-900 mb-2 italic text-center">ALL EXPERTS BUSY</h3>
+            <p className="text-gray-600 text-sm text-center mb-8 px-6 font-semibold leading-relaxed">
+              {searchMessage || `We couldn't find any available ${bookingModel}s in your area right now.`}
             </p>
 
             <button

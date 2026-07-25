@@ -57,6 +57,58 @@ const platformSettingsSchema = new mongoose.Schema(
     freeTrialDurationDays: {
       type: Number,
       default: 30
+    },
+    targetTitle: {
+      type: String,
+      default: 'Monthly Target'
+    },
+    monthlyTarget: {
+      type: Number,
+      default: 30
+    },
+    monthlyTargetBonus: {
+      type: Number,
+      default: 5000
+    },
+    targetStartDate: {
+      type: Date
+    },
+    targetEndDate: {
+      type: Date
+    },
+    workerAchievements: [{
+      title: String,
+      icon: {
+        type: String,
+        enum: ['FiStar', 'FiAward', 'FiClock', 'FiCheckCircle', 'FiTrendingUp', 'FiThumbsUp']
+      },
+      tier: {
+        type: String,
+        enum: ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond']
+      },
+      jobThreshold: Number
+    }],
+    supportContact: {
+      phone: { type: String, default: '+1234567890' },
+      email: { type: String, default: 'support@hoomzo.com' },
+      address: { type: String, default: 'Hoomzo Office, Address' }
+    },
+    privacyPolicy: {
+      type: String,
+      default: 'Privacy Policy terms will appear here.'
+    },
+    trainingVideos: [{
+      title: String,
+      youtubeUrl: String,
+      gifUrl: String
+    }],
+    workerReferralBonusReferrer: {
+      type: Number,
+      default: 0
+    },
+    workerReferralBonusReferee: {
+      type: Number,
+      default: 0
     }
   },
   { timestamps: true }

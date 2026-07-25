@@ -265,8 +265,11 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
                           >
                             <div className="flex-1 pr-4">
                               <h3 className="font-bold text-gray-900 text-base leading-tight mb-1">{svc.title}</h3>
-                              <div className="flex items-center gap-2">
-                                <span className="text-lg font-black text-emerald-600">₹{svc.discountPrice || svc.basePrice || svc.price}</span>
+                              <div className="flex items-baseline gap-2">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-lg font-black text-emerald-600">₹{svc.discountPrice || svc.basePrice || svc.price}</span>
+                                  {svc.pricingUnit && <span className="text-xs font-bold text-gray-500 lowercase"> / {svc.pricingUnit}</span>}
+                                </div>
                                 {(svc.discountPrice && svc.discountPrice < (svc.basePrice || svc.price)) && (
                                   <span className="text-[11px] text-gray-400 line-through font-bold">₹{svc.basePrice || svc.price}</span>
                                 )}

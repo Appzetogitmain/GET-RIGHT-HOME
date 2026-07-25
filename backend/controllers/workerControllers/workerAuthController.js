@@ -1,4 +1,4 @@
-﻿import Worker from '../../models/Worker.js';
+import Worker from '../../models/Worker.js';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 
@@ -41,6 +41,27 @@ const sendOTP = async (req, res) => {
     }
 
     const { phone, email } = req.body;
+
+    // Check if worker exists and their approval status before sending OTP
+    const worker = await Worker.findOne({ phone });
+    if (worker) {
+      if (!worker.isActive) {
+        return res.status(403).json({ success: false, message: 'Account deactivated.' });
+      }
+      if (worker.approvalStatus === 'pending') {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Your account is pending admin approval.',
+          pendingApproval: true
+        });
+      }
+      if (worker.approvalStatus === 'rejected') {
+        return res.status(403).json({ success: false, message: 'Your registration was rejected by the admin.' });
+      }
+      if (worker.approvalStatus === 'suspended') {
+        return res.status(403).json({ success: false, message: 'Your account has been suspended.' });
+      }
+    }
 
     // 1. Rate limit check
     const allowed = await checkRateLimit(phone);
@@ -142,7 +163,8 @@ const verifyLogin = async (req, res) => {
           email: worker.email,
           phone: worker.phone,
           status: worker.status,
-          serviceCategories: worker.serviceCategories || []
+          serviceCategories: worker.serviceCategories || [],
+          aadhar: worker.aadhar || null
         },
         ...tokens
       });
@@ -183,7 +205,12 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { name, email, verificationToken, aadharNumber, aadharDocument, aadharBackDocument } = req.body;
+    const { 
+      name, email, verificationToken, 
+      aadharNumber, aadharDocument, aadharBackDocument,
+      panCardNumber, panCardDocument,
+      drivingLicenseNumber, drivingLicenseDocument
+    } = req.body;
     let phone = req.body.phone;
 
     if (verificationToken) {
@@ -206,6 +233,23 @@ const register = async (req, res) => {
       });
     }
 
+    // Process Referral Code
+    let referredById = null;
+    if (req.body.referralCode) {
+      const referrer = await Worker.findOne({ referralCode: req.body.referralCode });
+      if (!referrer) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid referral code.'
+        });
+      }
+      referredById = referrer._id;
+    }
+
+    // Generate unique referral code for this new worker
+    const namePrefix = name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, 'W');
+    const newReferralCode = `GRH-${namePrefix}${Math.floor(1000 + Math.random() * 9000)}`;
+
     // Upload Aadhar
     let aadharUrl = aadharDocument || null;
     let aadharBackUrl = aadharBackDocument || null;
@@ -220,6 +264,20 @@ const register = async (req, res) => {
       if (uploadRes.success) aadharBackUrl = uploadRes.url;
     }
 
+    // Upload PAN Card
+    let panCardUrl = panCardDocument || null;
+    if (panCardUrl && panCardUrl.startsWith('data:')) {
+      const uploadRes = await cloudinaryService.uploadFile(panCardUrl, { folder: 'workers/documents' });
+      if (uploadRes.success) panCardUrl = uploadRes.url;
+    }
+
+    // Upload Driving License
+    let dlUrl = drivingLicenseDocument || null;
+    if (dlUrl && dlUrl.startsWith('data:')) {
+      const uploadRes = await cloudinaryService.uploadFile(dlUrl, { folder: 'workers/documents' });
+      if (uploadRes.success) dlUrl = uploadRes.url;
+    }
+
     // Create worker
     const worker = await Worker.create({
       name, email, phone,
@@ -229,6 +287,16 @@ const register = async (req, res) => {
         document: aadharUrl,
         backDocument: aadharBackUrl
       },
+      panCard: {
+        number: panCardNumber,
+        document: panCardUrl
+      },
+      drivingLicense: {
+        number: drivingLicenseNumber,
+        document: dlUrl
+      },
+      referralCode: newReferralCode,
+      referredBy: referredById,
       status: WORKER_STATUS.OFFLINE,
       approvalStatus: 'pending'
     });
@@ -242,7 +310,8 @@ const register = async (req, res) => {
         email: worker.email,
         phone: worker.phone,
         status: worker.status,
-        approvalStatus: worker.approvalStatus
+        approvalStatus: worker.approvalStatus,
+        aadhar: worker.aadhar || null
       }
     });
   } catch (error) {
@@ -323,7 +392,8 @@ const login = async (req, res) => {
         email: worker.email,
         phone: worker.phone,
         status: worker.status,
-        serviceCategories: worker.serviceCategories || []
+        serviceCategories: worker.serviceCategories || [],
+        aadhar: worker.aadhar || null
       },
       ...tokens
     });

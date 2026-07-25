@@ -1131,7 +1131,18 @@ export const updatePlatformSettings = async (req, res) => {
       freeTrialListingLimit,
       freeTrialDurationDays,
       platformFlatFee,
-      cashCollectionFee
+      cashCollectionFee,
+      targetTitle,
+      monthlyTarget,
+      monthlyTargetBonus,
+      targetStartDate,
+      targetEndDate,
+      workerAchievements,
+      supportContact,
+      trainingVideos,
+      workerReferralBonusReferrer,
+      workerReferralBonusReferee,
+      privacyPolicy
     } = req.body;
 
     const settings = await PlatformSettings.getSettings();
@@ -1150,6 +1161,20 @@ export const updatePlatformSettings = async (req, res) => {
     if (freeTrialDurationDays !== undefined) settings.freeTrialDurationDays = Number(freeTrialDurationDays);
     if (platformFlatFee !== undefined) settings.platformFlatFee = Number(platformFlatFee);
     if (cashCollectionFee !== undefined) settings.cashCollectionFee = Number(cashCollectionFee);
+    if (targetTitle !== undefined) settings.targetTitle = targetTitle;
+    if (monthlyTarget !== undefined) settings.monthlyTarget = Number(monthlyTarget);
+    if (monthlyTargetBonus !== undefined) settings.monthlyTargetBonus = Number(monthlyTargetBonus);
+    
+    // Dates can be explicitly null to clear them
+    if (targetStartDate !== undefined) settings.targetStartDate = targetStartDate;
+    if (targetEndDate !== undefined) settings.targetEndDate = targetEndDate;
+
+    if (workerAchievements !== undefined) settings.workerAchievements = workerAchievements;
+    if (supportContact !== undefined) settings.supportContact = supportContact;
+    if (trainingVideos !== undefined) settings.trainingVideos = trainingVideos;
+    if (workerReferralBonusReferrer !== undefined) settings.workerReferralBonusReferrer = Number(workerReferralBonusReferrer);
+    if (workerReferralBonusReferee !== undefined) settings.workerReferralBonusReferee = Number(workerReferralBonusReferee);
+    if (privacyPolicy !== undefined) settings.privacyPolicy = privacyPolicy;
 
     await settings.save();
     res.status(200).json({ success: true, settings });

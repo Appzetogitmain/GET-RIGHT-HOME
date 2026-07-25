@@ -61,6 +61,7 @@ const Checkout = () => {
   const [bookingRequest, setBookingRequest] = useState(null);
   const [searchingVendors, setSearchingVendors] = useState(false);
   const [showVendorModal, setShowVendorModal] = useState(false);
+  const [searchMessage, setSearchMessage] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('pay_at_home'); // 'online' | 'pay_at_home'
 
   const [loading, setLoading] = useState(true);
@@ -508,7 +509,7 @@ const Checkout = () => {
       try {
         const response = await bookingService.getById(bookingRequest._id || bookingRequest.id);
         if (response.success && response.data) {
-          const status = response.data.status;
+          const status = (response.data.status || '').toUpperCase();
           if (status === 'ASSIGNED' || status === 'ACCEPTED' || status === 'CONFIRMED' || response.data.workerId || response.data.vendorId) {
             const person = response.data.workerId || response.data.vendorId || {};
             const vendorData = {
@@ -532,15 +533,16 @@ const Checkout = () => {
                 replace: true
               });
             }, 2000);
-          } else if (status === 'NO_VENDORS' || status === 'CANCELLED') {
+          } else if (status === 'NO_VENDORS' || status === 'NO_WORKERS' || status === 'CANCELLED') {
             setSearchingVendors(false);
             setCurrentStep('failed');
-            toast.error('No professionals found nearby. Please try again later.');
+            setSearchMessage(response.data.message || 'No professionals found nearby. Please try again later.');
+            toast.error(response.data.message || 'No professionals found nearby. Please try again later.');
             
             setTimeout(() => {
               setShowVendorModal(false);
-              setCurrentStep('details');
-            }, 2000);
+              navigate('/user', { replace: true });
+            }, 10000);
           }
         }
       } catch (err) {
@@ -562,8 +564,9 @@ const Checkout = () => {
       if (userStr) {
         try {
           const user = JSON.parse(userStr);
-          if (user && user.id) {
-            socket.emit('join_tracking', `user_${user.id}`);
+          const uId = user._id || user.id;
+          if (uId) {
+            socket.emit('join_tracking', `user_${uId}`);
           }
         } catch(e) {}
       }
@@ -605,7 +608,8 @@ const Checkout = () => {
       if (data.bookingId === bookingRequest._id) {
         setSearchingVendors(false);
         setCurrentStep('failed');
-        toast.error(data.message || 'No vendors available at the moment.');
+        setSearchMessage(data.message || 'No professionals found nearby. Please try again later.');
+        toast.error(data.message || 'No professionals found nearby. Please try again later.');
 
         const handleAutoCancel = async () => {
           try {
@@ -621,6 +625,26 @@ const Checkout = () => {
           }
         };
         handleAutoCancel();
+      }
+    });
+
+    socket.on('booking_updated', (data) => {
+      if (data.bookingId === bookingRequest._id || data.relatedId === bookingRequest._id) {
+        const socketStatus = (data.status || '').toUpperCase();
+        if (data.message && socketStatus !== 'NO_WORKERS' && socketStatus !== 'NO_VENDORS') {
+          setSearchMessage(data.message);
+        }
+        if (socketStatus === 'NO_WORKERS' || socketStatus === 'NO_VENDORS') {
+          setSearchingVendors(false);
+          setCurrentStep('failed');
+          setSearchMessage(data.message || 'All professionals are currently busy.');
+          toast.error('All experts are busy.');
+          
+          setTimeout(() => {
+            setShowVendorModal(false);
+            navigate('/user', { replace: true });
+          }, 10000);
+        }
       }
     });
 
@@ -1979,6 +2003,7 @@ const Checkout = () => {
         currentStep={currentStep}
         acceptedVendor={acceptedVendor}
         bookingModel={bookingModel}
+        searchMessage={searchMessage}
         onRetry={() => {
           handleSearchVendors();
         }}

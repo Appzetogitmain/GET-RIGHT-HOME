@@ -44,6 +44,7 @@ const AssignedJobs = lazyLoad(() => import('../pages/AssignedJobs'));
 const JobDetails = lazyLoad(() => import('../pages/JobDetails'));
 const Profile = lazyLoad(() => import('../pages/Profile'));
 const EditProfile = lazyLoad(() => import('../pages/Profile/EditProfile'));
+const Documents = lazyLoad(() => import('../pages/Documents'));
 const Settings = lazyLoad(() => import('../pages/Settings'));
 const Notifications = lazyLoad(() => import('../pages/Notifications'));
 const JobMap = lazyLoad(() => import('../pages/JobMap'));
@@ -51,6 +52,11 @@ const JobTimeline = lazyLoad(() => import('../pages/JobTimeline'));
 const Wallet = lazyLoad(() => import('../pages/Wallet'));
 const BillingPage = lazyLoad(() => import('../pages/BillingPage'));
 const Subscription = lazyLoad(() => import('../pages/Subscription'));
+const Training = lazyLoad(() => import('../pages/Training'));
+const Support = lazyLoad(() => import('../pages/Support'));
+const Referrals = lazyLoad(() => import('../pages/Referrals'));
+const Complaints = lazyLoad(() => import('../pages/Complaints'));
+const PrivacyPolicy = lazyLoad(() => import('../pages/PrivacyPolicy'));
 
 // Loading fallback component
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -69,7 +75,9 @@ const WorkerRoutes = () => {
   // useAppNotifications('worker');
 
   // Check if current route should hide bottom nav
+  const isAuthenticated = !!localStorage.getItem('workerAccessToken');
   const shouldHideBottomNav =
+    !isAuthenticated ||
     location.pathname === '/worker/login' ||
     location.pathname === '/worker/signup' ||
     location.pathname.endsWith('/map') ||
@@ -99,10 +107,16 @@ const WorkerRoutes = () => {
                 <Route path="/job/:id/billing" element={<ProtectedRoute userType="worker"><BillingPage /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute userType="worker"><Profile /></ProtectedRoute>} />
                 <Route path="/profile/edit" element={<ProtectedRoute userType="worker"><EditProfile /></ProtectedRoute>} />
+                <Route path="/documents" element={<ProtectedRoute userType="worker"><Documents /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute userType="worker"><Settings /></ProtectedRoute>} />
                 <Route path="/notifications" element={<ProtectedRoute userType="worker"><Notifications /></ProtectedRoute>} />
                 <Route path="/wallet" element={<ProtectedRoute userType="worker"><Wallet /></ProtectedRoute>} />
                 <Route path="/subscription" element={<ProtectedRoute userType="worker"><Subscription /></ProtectedRoute>} />
+                <Route path="/training" element={<ProtectedRoute userType="worker"><Training /></ProtectedRoute>} />
+                <Route path="/support" element={<Support />} />
+                <Route path="/referrals" element={<ProtectedRoute userType="worker"><Referrals /></ProtectedRoute>} />
+                <Route path="/complaints" element={<ProtectedRoute userType="worker"><Complaints /></ProtectedRoute>} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               </Routes>
             </PageTransition>
           </Suspense>

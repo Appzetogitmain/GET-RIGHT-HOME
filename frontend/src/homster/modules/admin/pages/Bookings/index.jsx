@@ -7,6 +7,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { adminBookingService } from '../../../../services/adminBookingService';
 import { getDashboardStats } from '../../../../services/adminDashboardService';
+import AssignWorkerModal from './components/AssignWorkerModal';
 
 const BookingStatsCard = ({ title, count, icon: Icon, colorClass, bgClass }) => (
   <div className={`p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between ${bgClass}`}>
@@ -21,6 +22,22 @@ const BookingStatsCard = ({ title, count, icon: Icon, colorClass, bgClass }) => 
   </div>
 );
 
+const getStatusColor = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'completed': return 'bg-green-100 text-green-700';
+    case 'cancelled': return 'bg-red-100 text-red-700';
+    case 'no_workers':
+    case 'no_vendors': return 'bg-red-50 text-red-600 border border-red-200';
+    case 'searching': return 'bg-blue-50 text-blue-600 border border-blue-200 animate-pulse';
+    case 'in_progress': return 'bg-purple-100 text-purple-700';
+    case 'pending': return 'bg-orange-100 text-orange-700';
+    case 'assigned':
+    case 'accepted':
+    case 'confirmed': return 'bg-teal-100 text-teal-700';
+    default: return 'bg-yellow-100 text-yellow-700';
+  }
+};
+
 const Bookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +51,9 @@ const Bookings = () => {
   // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Assign Worker Modal
+  const [selectedAssignBooking, setSelectedAssignBooking] = useState(null);
 
   // Stats
   const [stats, setStats] = useState({
@@ -245,13 +265,15 @@ const Bookings = () => {
                       <span className="font-bold text-gray-900 text-xs">₹{booking.finalAmount?.toLocaleString()}</span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider
-                            ${booking.status === 'completed' ? 'bg-green-100 text-green-700' :
-                          booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                            booking.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
-                              'bg-yellow-100 text-yellow-700'}`}>
-                        {booking.status?.replace('_', ' ')}
-                      </span>
+                      {booking.workerResponse === 'ADMIN_ASSIGNED' && booking.status === 'ASSIGNED' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700">
+                          ADMIN ASSIGNED
+                        </span>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${getStatusColor(booking.status)}`}>
+                          {booking.status?.replace('_', ' ')}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-[11px] text-gray-600 capitalize font-medium">{booking.paymentMethod?.replace('_', ' ')}</span>
@@ -264,9 +286,18 @@ const Bookings = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
-                        <FiMoreVertical className="w-4 h-4" />
-                      </button>
+                      {['SEARCHING', 'NO_WORKERS', 'PENDING'].includes(booking.status?.toUpperCase()) ? (
+                        <button
+                          onClick={() => setSelectedAssignBooking(booking)}
+                          className="px-2 py-1 bg-blue-50 border border-blue-100 text-blue-600 rounded text-[10px] font-bold hover:bg-blue-100 transition-colors"
+                        >
+                          Assign Worker
+                        </button>
+                      ) : (
+                        <button className="p-1.5 text-gray-400 hover:bg-gray-50 rounded-lg transition-colors">
+                          <FiMoreVertical className="w-4 h-4" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -298,6 +329,16 @@ const Bookings = () => {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <AssignWorkerModal
+        isOpen={!!selectedAssignBooking}
+        onClose={() => setSelectedAssignBooking(null)}
+        booking={selectedAssignBooking}
+        onSuccess={() => {
+          fetchData();
+        }}
+      />
     </motion.div>
   );
 };

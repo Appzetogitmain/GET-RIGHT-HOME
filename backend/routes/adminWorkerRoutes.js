@@ -11,8 +11,13 @@ import {
   getAllJobs,
   getWorkerEarnings,
   payWorker,
-  getWorkerPayments
+  getWorkerPayments,
+  assignWorkerToBooking
 } from '../controllers/adminWorkerController.js';
+import {
+  getAllComplaints,
+  updateComplaintStatus
+} from '../controllers/workerComplaintController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -22,7 +27,10 @@ router.use(authorizedRoles('admin', 'superadmin'));
 
 // Specific collection-level list endpoints (MUST be defined before /:id)
 router.get('/jobs', getAllJobs);
+router.post('/jobs/:id/assign', assignWorkerToBooking);
 router.get('/payments', getWorkerPayments);
+router.get('/complaints', getAllComplaints);
+router.patch('/complaints/:id/status', updateComplaintStatus);
 
 // CRUD / Specific Worker details
 router.get('/', getAllWorkers);
