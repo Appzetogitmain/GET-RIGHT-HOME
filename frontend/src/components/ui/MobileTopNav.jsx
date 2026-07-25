@@ -11,7 +11,7 @@ const MobileTopNav = () => {
     const [scrolled, setScrolled] = useState(false);
 
     // Only show on specific pages with BannerCarousel
-    const allowedPaths = ['/', '/buy', '/rent-pg', '/home-services', '/plot'];
+    const allowedPaths = ['/', '/buy', '/rent-pg', '/plot'];
     const isAllowed = allowedPaths.includes(location.pathname);
 
     useEffect(() => {
@@ -41,7 +41,7 @@ const MobileTopNav = () => {
 
     return (
         <>
-            <div className={`flex lg:hidden items-center justify-between h-12 px-2 fixed top-0 w-full z-[60] transition-colors duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-transparent'}`}>
+            <div className={`flex lg:hidden items-center justify-between h-12 px-2 fixed top-0 w-full z-[60] transition-all duration-300 ${scrolled ? 'bg-white/90 backdrop-blur-md shadow-sm' : 'bg-white'}`}>
                 <div className="flex items-center gap-0">
                     <button
                         onClick={() => setIsMenuOpen(true)}
