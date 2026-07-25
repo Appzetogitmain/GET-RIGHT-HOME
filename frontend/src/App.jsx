@@ -20,6 +20,8 @@ import logo from './assets/grh-logo.png';
 import { CityProvider } from './homster/context/CityContext';
 import { CartProvider } from './homster/context/CartContext';
 import { SocketProvider } from './homster/context/SocketContext';
+import { EnquiryModalProvider } from './context/EnquiryModalContext';
+import GlobalEnquiryModal from './components/ui/GlobalEnquiryModal';
 
 // Lazy Imports - User Pages
 const Home = React.lazy(() => import('./pages/user/Home'));
@@ -57,6 +59,7 @@ const ProfileEdit = React.lazy(() => import('./pages/user/ProfileEdit'));
 const BookingCheckoutPage = React.lazy(() => import('./pages/user/BookingCheckoutPage'));
 const ReelsPage = React.lazy(() => import('./pages/user/ReelsPage'));
 const MyReelsPage = React.lazy(() => import('./pages/user/MyReelsPage'));
+const ReelUploadPage = React.lazy(() => import('./pages/user/ReelUploadPage'));
 const MyProperties = React.lazy(() => import('./pages/user/MyProperties'));
 const HomeServicesPage = React.lazy(() => import('./pages/user/HomeServicesPage'));
 const SubCategoryPage = React.lazy(() => import('./pages/user/SubCategoryPage'));
@@ -69,6 +72,8 @@ const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPag
 const ListPropertyWizard = React.lazy(() => import('./pages/user/ListPropertyWizard'));
 const DynamicFormEngine = React.lazy(() => import('./pages/user/DynamicFormEngine'));
 const BuilderProfilePage = React.lazy(() => import('./pages/user/BuilderProfilePage'));
+const BrokerProfilePage = React.lazy(() => import('./pages/user/BrokerProfilePage'));
+const RecommendedBrokersPage = React.lazy(() => import('./pages/user/RecommendedBrokersPage'));
 const EmiCalculatorPage = React.lazy(() => import('./pages/user/EmiCalculatorPage'));
 const HomeLoanEligibilityPage = React.lazy(() => import('./pages/user/HomeLoanEligibilityPage'));
 const AreaConverterPage = React.lazy(() => import('./pages/user/AreaConverterPage'));
@@ -112,6 +117,7 @@ const AdminFeaturedProperties = React.lazy(() => import('./app/admin/pages/Admin
 const AdminSubscriptions = React.lazy(() => import('./app/admin/pages/AdminSubscriptions'));
 const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAnalysis'));
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
+const AdminHomePageLayout = React.lazy(() => import('./app/admin/pages/AdminHomePageLayout'));
 const AdminPropertyFormManager = React.lazy(() => import('./pages/admin/PropertyFormManager'));
 const AdminPropertyVideos = React.lazy(() => import('./app/admin/pages/AdminPropertyVideos'));
 const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocationsPage'));
@@ -231,8 +237,7 @@ const Layout = ({ children }) => {
   // 3. NAVBAR VISIBILITY
   const showUserNavs = !isPartnerApp;
 
-  // Specific user pages where BottomNav is hidden (reels = full-screen experience)
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/property/', '/handpicked/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/property/', '/handpicked/', '/project/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/', '/broker/'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
   const isReelsPage = location.pathname.startsWith('/reels');
 
@@ -482,6 +487,7 @@ function App() {
             <ScrollToTop />
             <Toaster position="top-center" reverseOrder={false} />
             <SocketProvider>
+              <EnquiryModalProvider>
               <Layout>
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
@@ -521,6 +527,8 @@ function App() {
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/builder/:id" element={<BuilderProfilePage />} />
+                    <Route path="/broker/:id" element={<BrokerProfilePage />} />
+                    <Route path="/recommended-brokers" element={<RecommendedBrokersPage />} />
 
                     {/* Unified Property Details (C2C & Hotel) - Public */}
                     <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
@@ -533,6 +541,7 @@ function App() {
                     <Route path="/property/:id/reviews" element={<ReviewsPage />} />
                     <Route path="/property/:id/offers" element={<OffersPage />} />
                     <Route path="/handpicked/:id" element={<HandpickedDetailsPage />} />
+                    <Route path="/project/:id" element={<HandpickedDetailsPage />} />
                     <Route path="/partner/:id" element={<PartnerProfilePage />} />
 
                     {/* User Property Listing (C2C) Routes (Public/Self-Authenticating) */}
@@ -632,6 +641,7 @@ function App() {
                         <Route path="subscriptions" element={<AdminSubscriptions />} />
                         <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                         <Route path="banners" element={<AdminBanners />} />
+                        <Route path="homepage-layout" element={<AdminHomePageLayout />} />
                         <Route path="property-forms" element={<AdminPropertyFormManager />} />
                         <Route path="property-videos" element={<AdminPropertyVideos />} />
                         <Route path="locations" element={<AdminLocationsPage />} />
@@ -695,6 +705,7 @@ function App() {
                     {/* Protected User Pages */}
                     <Route element={<UserProtectedRoute />}>
                       <Route path="/reels/my" element={<MyReelsPage />} />
+                      <Route path="/reels/add" element={<ReelUploadPage />} />
                       <Route path="/profile" element={<ProfileEdit />} />
                       <Route path="/bookings" element={<BookingsPage />} />
                       <Route path="/my-reviews" element={<UserMyReviewsPage />} />
@@ -730,6 +741,8 @@ function App() {
                   </Routes>
                 </Suspense>
               </Layout>
+              <GlobalEnquiryModal />
+              </EnquiryModalProvider>
             </SocketProvider>
           </Router>
         </AuthProvider>

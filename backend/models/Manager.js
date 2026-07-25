@@ -15,7 +15,7 @@ const permissionEntrySchema = new mongoose.Schema(
     },
     actions: {
       type: [String],
-      enum: ['view', 'add', 'edit', 'delete', 'approve', 'export'],
+      enum: ['view', 'add', 'edit', 'delete', 'approve', 'reject', 'suspend', 'export'],
       default: ['view'],
     },
   },

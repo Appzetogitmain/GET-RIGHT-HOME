@@ -1,10 +1,15 @@
 import express from 'express';
-import { getUserProfile, updateUserProfile, updateFcmToken, getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead, getSavedHotels, toggleSavedHotel, updateUserRole, getCheckoutData, validatePromo } from '../controllers/userController.js';
+import { getUserProfile, updateUserProfile, updateFcmToken, getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead, getSavedHotels, toggleSavedHotel, updateUserRole, getCheckoutData, validatePromo, getRecommendedBrokers, getBrokerProfile } from '../controllers/userController.js';
 import { createVipOrder, verifyVipPayment } from '../controllers/vipController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
+// Public Routes
+router.get('/recommended-brokers', getRecommendedBrokers);
+router.get('/broker/:id', getBrokerProfile);
+
+// Protected Routes
 router.get('/profile', protect, getUserProfile);
 router.put('/profile', protect, updateUserProfile);
 router.get('/checkout-data', protect, getCheckoutData);

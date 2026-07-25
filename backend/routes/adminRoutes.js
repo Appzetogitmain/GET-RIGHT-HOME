@@ -47,6 +47,7 @@ import {
   getAbandonedCarts,
   sendTargetedNotification,
   updateAdminProperty,
+  createAdminBroker,
   updateAdminPassword
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
@@ -61,6 +62,7 @@ import {
   approveWorkerWithdrawal,
   rejectWorkerWithdrawal
 } from '../controllers/adminWorkerController.js';
+import { getHomePageConfig, updateHomePageConfig } from '../controllers/homePageConfigController.js';
 import { checkManagerPermission, requireAdminOrManager } from '../middlewares/managerPermission.js';
 
 import builderRoutes from './builderRoutes.js';
@@ -87,18 +89,18 @@ import {
   deleteFeaturedPlan 
 } from '../controllers/adminPropertyController.js';
 
-router.get('/featured-projects', checkManagerPermission('properties', 'view'), getAdminFeaturedProperties);
-router.put('/featured-projects/:id', checkManagerPermission('properties', 'edit'), updateFeaturedProperty);
+router.get('/featured-projects', checkManagerPermission('featured_projects', 'view'), getAdminFeaturedProperties);
+router.put('/featured-projects/:id', checkManagerPermission('featured_projects', 'edit'), updateFeaturedProperty);
 
-router.get('/featured-plans', checkManagerPermission('properties', 'view'), getFeaturedPlans);
-router.post('/featured-plans', checkManagerPermission('properties', 'edit'), createFeaturedPlan);
-router.put('/featured-plans/:id', checkManagerPermission('properties', 'edit'), updateFeaturedPlan);
-router.delete('/featured-plans/:id', checkManagerPermission('properties', 'delete'), deleteFeaturedPlan);
+router.get('/featured-plans', checkManagerPermission('featured_projects', 'view'), getFeaturedPlans);
+router.post('/featured-plans', checkManagerPermission('featured_projects', 'add'), createFeaturedPlan);
+router.put('/featured-plans/:id', checkManagerPermission('featured_projects', 'edit'), updateFeaturedPlan);
+router.delete('/featured-plans/:id', checkManagerPermission('featured_projects', 'delete'), deleteFeaturedPlan);
 
 // Notifications
 router.get('/notifications', checkManagerPermission('notifications', 'view'), getAdminNotifications);
 router.post('/notifications/send', checkManagerPermission('notifications', 'add'), createBroadcastNotification);
-router.put('/notifications/read-all', checkManagerPermission('notifications', 'edit'), markAllAdminNotificationsRead);
+router.put('/notifications/read-all', checkManagerPermission('notifications', 'view'), markAllAdminNotificationsRead);
 router.delete('/notifications', checkManagerPermission('notifications', 'delete'), deleteAdminNotifications);
 router.get('/abandoned-carts', checkManagerPermission('notifications', 'view'), getAbandonedCarts);
 router.post('/notifications/send-targeted', checkManagerPermission('notifications', 'add'), sendTargetedNotification);
@@ -108,17 +110,18 @@ router.get('/dashboard-stats', checkManagerPermission('dashboard', 'view'), getD
 router.get('/dashboard/revenue', checkManagerPermission('dashboard', 'view'), getDashboardRevenue);
 router.get('/finance', checkManagerPermission('finance', 'view'), getFinanceStats);
 router.get('/users', checkManagerPermission('users', 'view'), getAllUsers);
+router.post('/users/create-broker', checkManagerPermission('users', 'add'), createAdminBroker);
 router.get('/partners', checkManagerPermission('partners', 'view'), getAllPartners);
 router.get('/hotels', checkManagerPermission('properties', 'view'), getAllHotels);
 router.post('/properties', checkManagerPermission('properties', 'add'), createAdminProperty);
 router.put('/properties/:id', checkManagerPermission('properties', 'edit'), updateAdminProperty);
 
 // Projects
-router.get('/projects', checkManagerPermission('properties', 'view'), getAllProjects);
-router.get('/project-details/:id', checkManagerPermission('properties', 'view'), getProjectDetails);
-router.post('/projects', checkManagerPermission('properties', 'add'), createAdminProject);
-router.put('/projects/:id', checkManagerPermission('properties', 'edit'), updateAdminProject);
-router.delete('/delete-project', checkManagerPermission('properties', 'delete'), deleteProject);
+router.get('/projects', checkManagerPermission('projects', 'view'), getAllProjects);
+router.get('/project-details/:id', checkManagerPermission('projects', 'view'), getProjectDetails);
+router.post('/projects', checkManagerPermission('projects', 'add'), createAdminProject);
+router.put('/projects/:id', checkManagerPermission('projects', 'edit'), updateAdminProject);
+router.delete('/delete-project', checkManagerPermission('projects', 'delete'), deleteProject);
 
 router.get('/bookings', checkManagerPermission('bookings', 'view'), getAllBookings);
 
@@ -149,6 +152,8 @@ router.get('/contact-messages', checkManagerPermission('contact_messages', 'view
 router.put('/contact-messages/:id/status', checkManagerPermission('contact_messages', 'edit'), updateContactStatus);
 router.get('/platform-settings', checkManagerPermission('settings', 'view'), getPlatformSettings);
 router.put('/platform-settings', checkManagerPermission('settings', 'edit'), updatePlatformSettings);
+router.get('/homepage-layout', checkManagerPermission('settings', 'view'), getHomePageConfig);
+router.put('/homepage-layout', checkManagerPermission('settings', 'edit'), updateHomePageConfig);
 router.get('/reel-analysis', checkManagerPermission('reel_analysis', 'view'), getReelAnalysis);
 router.get('/reports/workers', checkManagerPermission('dashboard', 'view'), getWorkerAnalytics);
 

@@ -39,6 +39,7 @@ const AdminManagers = () => {
     // Panel states (For Add / Edit / View Permissions)
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [panelMode, setPanelMode] = useState('add'); // 'add' | 'edit' | 'permissions'
+    const [activePreset, setActivePreset] = useState(null);
     const [selectedManager, setSelectedManager] = useState(null);
     const [errors, setErrors] = useState({});
 
@@ -214,6 +215,13 @@ const AdminManagers = () => {
     };
 
     const applyPreset = (presetName) => {
+        if (activePreset === presetName) {
+            // Toggle off if clicking the same preset again
+            setFormData(prev => ({ ...prev, permissions: [] }));
+            setActivePreset(null);
+            return;
+        }
+
         let newPerms = [];
         if (presetName === 'full') {
             newPerms = modules.map(m => ({
@@ -225,15 +233,17 @@ const AdminManagers = () => {
                 module: m.key,
                 actions: ['view']
             }));
-        } else if (presetName === 'leads') {
-            const leadModules = ['dashboard', 'enquiries', 'bookings', 'properties'];
+        } else if (presetName === 'property_project') {
+            const propModules = ['dashboard', 'properties', 'projects', 'featured_projects', 'property_videos', 'categories', 'locations', 'property_forms'];
             newPerms = modules
-                .filter(m => leadModules.includes(m.key))
+                .filter(m => propModules.includes(m.key))
                 .map(m => ({
                     module: m.key,
-                    actions: m.key === 'enquiries' ? ['view', 'edit'] : ['view']
+                    actions: [...m.actions]
                 }));
         }
+        
+        setActivePreset(presetName);
         setFormData(prev => ({ ...prev, permissions: newPerms }));
     };
 
@@ -402,7 +412,7 @@ const AdminManagers = () => {
                         onChange={(e) => handleFilterChange('isActive', e.target.value)}
                         className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
                     >
-                        <option value="">All Statuses</option>
+                        <option value="">All Status</option>
                         <option value="true">Active Only</option>
                         <option value="false">Deactivated Only</option>
                     </select>
@@ -685,6 +695,7 @@ const AdminManagers = () => {
                                                 <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Email Address *</label>
                                                 <input
                                                     type="email"
+                                                    autoComplete="new-password"
                                                     value={formData.email}
                                                     onChange={(e) => {
                                                         setFormData({ ...formData, email: e.target.value.toLowerCase() });
@@ -731,6 +742,7 @@ const AdminManagers = () => {
                                                 </label>
                                                 <input
                                                     type="password"
+                                                    autoComplete="new-password"
                                                     placeholder={panelMode === 'add' ? 'Password' : '••••••••'}
                                                     value={formData.password}
                                                     onChange={(e) => {
@@ -761,22 +773,29 @@ const AdminManagers = () => {
                                                 <span className="text-[9px] font-bold text-gray-400 uppercase mr-1">Presets:</span>
                                                 <button
                                                     type="button"
+                                                    onClick={() => { setFormData(prev => ({ ...prev, permissions: [] })); setActivePreset(null); }}
+                                                    className="px-2.5 py-1 text-[8px] font-bold uppercase bg-red-50 hover:bg-red-100 text-red-600 rounded-md transition-colors"
+                                                >
+                                                    Reset
+                                                </button>
+                                                <button
+                                                    type="button"
                                                     onClick={() => applyPreset('readonly')}
-                                                    className="px-2.5 py-1 text-[8px] font-bold uppercase bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
+                                                    className={`px-2.5 py-1 text-[8px] font-bold uppercase rounded-md transition-colors ${activePreset === 'readonly' ? 'bg-gray-800 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
                                                 >
                                                     Read Only
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => applyPreset('leads')}
-                                                    className="px-2.5 py-1 text-[8px] font-bold uppercase bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-md transition-colors"
+                                                    onClick={() => applyPreset('property_project')}
+                                                    className={`px-2.5 py-1 text-[8px] font-bold uppercase rounded-md transition-colors ${activePreset === 'property_project' ? 'bg-teal-800 text-white' : 'bg-teal-50 hover:bg-teal-100 text-teal-700'}`}
                                                 >
-                                                    Leads Only
+                                                    Prop & Proj
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => applyPreset('full')}
-                                                    className="px-2.5 py-1 text-[8px] font-bold uppercase bg-black hover:bg-gray-800 text-white rounded-md transition-colors"
+                                                    className={`px-2.5 py-1 text-[8px] font-bold uppercase rounded-md transition-colors ${activePreset === 'full' ? 'bg-black text-white ring-2 ring-offset-1 ring-black' : 'bg-black hover:bg-gray-800 text-white'}`}
                                                 >
                                                     All Access
                                                 </button>
@@ -793,6 +812,8 @@ const AdminManagers = () => {
                                                         <th className="p-3 text-center">Edit</th>
                                                         <th className="p-3 text-center">Delete</th>
                                                         <th className="p-3 text-center">Approve</th>
+                                                        <th className="p-3 text-center">Reject</th>
+                                                        <th className="p-3 text-center">Suspend</th>
                                                         <th className="p-3 text-center">Export</th>
                                                     </tr>
                                                 </thead>
@@ -805,7 +826,7 @@ const AdminManagers = () => {
                                                                     <p className="text-[8px] text-gray-400 font-semibold tracking-wider font-mono lowercase">{mod.key}</p>
                                                                 </div>
                                                             </td>
-                                                            {['view', 'add', 'edit', 'delete', 'approve', 'export'].map((act) => {
+                                                            {['view', 'add', 'edit', 'delete', 'approve', 'reject', 'suspend', 'export'].map((act) => {
                                                                 const isAllowedAction = mod.actions.includes(act);
                                                                 const isChecked = hasAction(mod.key, act);
 

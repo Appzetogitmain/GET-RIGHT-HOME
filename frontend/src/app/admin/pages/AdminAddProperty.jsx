@@ -42,8 +42,9 @@ const AdminAddProperty = () => {
   const [selectedCat, setSelectedCat] = useState(() => existingProperty?.propertyCategory || sessionStorage.getItem('adminPropCat') || '');
   const [selectedPropType, setSelectedPropType] = useState(() => existingProperty?.propertyType || sessionStorage.getItem('adminPropType') || '');
   
-  const [builders, setBuilders] = useState([]);
-  const [selectedBuilder, setSelectedBuilder] = useState(() => existingProperty?.userId || sessionStorage.getItem('adminPropBuilder') || '');
+  const [creators, setCreators] = useState([]);
+  const [selectedCreator, setSelectedCreator] = useState(() => existingProperty?.userId || sessionStorage.getItem('adminPropCreator') || '');
+  const [creatorSearch, setCreatorSearch] = useState('');
   
   const [template, setTemplate] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(() => {
@@ -105,11 +106,33 @@ const AdminAddProperty = () => {
       sessionStorage.setItem('adminPropTxn', selectedTxn);
       sessionStorage.setItem('adminPropCat', selectedCat);
       sessionStorage.setItem('adminPropType', selectedPropType);
-      sessionStorage.setItem('adminPropBuilder', selectedBuilder);
+      sessionStorage.setItem('adminPropCreator', selectedCreator);
       sessionStorage.setItem('adminPropStep', currentStepIndex.toString());
       sessionStorage.setItem('adminPropIsBuilder', isBuilderProject.toString());
     }
-  }, [selectedTxn, selectedCat, selectedPropType, selectedBuilder, currentStepIndex, isBuilderProject, isEditing]);
+  }, [selectedTxn, selectedCat, selectedPropType, selectedCreator, currentStepIndex, isBuilderProject, isEditing]);
+
+  // Restore template if we are past step 0 on mount
+  useEffect(() => {
+    const fetchTemplate = async () => {
+      if (currentStepIndex > 0 && !template && selectedTxn && selectedCat && selectedPropType) {
+        try {
+          const endpoint = isBuilderProject ? '/builder-forms' : '/admin/property-forms';
+          const res = await api.get(endpoint, {
+            params: { transactionType: selectedTxn, category: selectedCat, propertyType: selectedPropType }
+          });
+          if (res.data.success && res.data.data.length > 0) {
+            setTemplate(res.data.data[0]);
+          } else {
+            setCurrentStepIndex(0);
+          }
+        } catch (err) {
+          setCurrentStepIndex(0);
+        }
+      }
+    };
+    fetchTemplate();
+  }, [currentStepIndex, template, selectedTxn, selectedCat, selectedPropType, isBuilderProject]);
 
   // Fetch Category combinations and Builders on load
   useEffect(() => {
@@ -117,21 +140,39 @@ const AdminAddProperty = () => {
       try {
         setLoading(true);
         const configsEndpoint = isBuilderProject ? '/builder-forms/configs' : '/property-forms/configs';
-        const [configsRes, buildersRes] = await Promise.all([
+        let creatorsPromise;
+        if (isBuilderProject) {
+          creatorsPromise = adminService.getBuilders({ limit: 1000 });
+        } else {
+          creatorsPromise = adminService.getUsers({ role: 'owner,broker', limit: 1000 });
+        }
+
+        const [configsRes, creatorsRes] = await Promise.all([
           api.get(configsEndpoint),
-          adminService.getBuilders()
+          creatorsPromise
         ]);
         
         if (configsRes.data.success) {
           setConfigs(configsRes.data.configs);
           if (!isEditing) {
-            setSelectedTxn('');
-            setSelectedCat('');
-            setSelectedPropType('');
+            // Only clear if nothing was loaded from session storage
+            if (!sessionStorage.getItem('adminPropTxn')) {
+              setSelectedTxn('');
+              setSelectedCat('');
+              setSelectedPropType('');
+            }
           }
         }
-        if (buildersRes.success) {
-          setBuilders(buildersRes.builders || []);
+        if (creatorsRes.success) {
+          const fetchedCreators = isBuilderProject 
+            ? (creatorsRes.builders || []).filter(b => b.builderProfile?.approvalStatus === 'approved') 
+            : (creatorsRes.users || []);
+          setCreators(fetchedCreators);
+          const initialCreatorId = existingProperty?.userId?._id || existingProperty?.userId || sessionStorage.getItem('adminPropCreator');
+          if (initialCreatorId) {
+             const found = fetchedCreators.find(c => c._id === initialCreatorId);
+             if (found) setCreatorSearch(isBuilderProject ? (found.builderProfile?.companyName || found.name) : found.name);
+          }
         }
       } catch (err) {
         toast.error('Failed to load initial data');
@@ -159,7 +200,6 @@ const AdminAddProperty = () => {
         if (res.data.success) {
           const sortedSteps = res.data.template.steps.sort((a, b) => a.stepNumber - b.stepNumber);
           setTemplate({ ...res.data.template, steps: sortedSteps });
-          setCurrentStepIndex(0);
           setErrors({});
         }
       } catch (err) {
@@ -208,8 +248,46 @@ const AdminAddProperty = () => {
     return found ? found.propertyTypes : [];
   };
 
+  const handleTypeChange = (isBuilder) => {
+    if (isEditing || currentStepIndex > 0) return;
+    setIsBuilderProject(isBuilder);
+    setSelectedTxn('');
+    setSelectedCat('');
+    setSelectedPropType('');
+    setSelectedCreator('');
+    setCreatorSearch('');
+    setFormData({});
+    setErrors({});
+    setCurrentStepIndex(0);
+    setTemplate(null);
+  };
+
+  const handleResetSelection = () => {
+    if (isEditing) return;
+    setSelectedTxn('');
+    setSelectedCat('');
+    setSelectedPropType('');
+    setSelectedCreator('');
+    setCreatorSearch('');
+    setFormData({});
+    setErrors({});
+    setCurrentStepIndex(0);
+    setTemplate(null);
+    sessionStorage.removeItem('adminPropTxn');
+    sessionStorage.removeItem('adminPropCat');
+    sessionStorage.removeItem('adminPropType');
+    sessionStorage.removeItem('adminPropCreator');
+    sessionStorage.removeItem('adminPropStep');
+    sessionStorage.removeItem('adminPropDraft');
+  };
+
   // Step Validation
   const validateStep = () => {
+    if (currentStepIndex === 0 && !selectedCreator) {
+      toast.error(`You must select an existing ${isBuilderProject ? 'Builder' : 'Owner/Broker'} to proceed.`);
+      return false;
+    }
+
     const currentStep = template.steps[currentStepIndex];
     let newErrors = {};
     let firstErrorField = null;
@@ -230,7 +308,8 @@ const AdminAddProperty = () => {
     currentStep.fields.forEach(field => {
       const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
       const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
-      if (isUnitField || isCustomPricingField) return;
+      const isLocationField = isLocationStep && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber', 'pincode'].includes(field.name.toLowerCase());
+      if (isUnitField || isCustomPricingField || isLocationField) return;
 
       let isVisible = true;
       if (field.dependsOn?.field) {
@@ -292,6 +371,36 @@ const AdminAddProperty = () => {
               }
             }
           }
+        }
+
+        // Check repeater subfields and URL fields
+        if (field.type === 'repeater' && Array.isArray(value)) {
+          value.forEach((item, index) => {
+            if (field.subFields) {
+              field.subFields.forEach(subF => {
+                if (subF.type === 'repeater') return; // Skip nested repeaters
+                let isSubVisible = true;
+                if (subF.dependsOn?.field) {
+                  isSubVisible = item[subF.dependsOn.field] === subF.dependsOn.value;
+                }
+                if (isSubVisible && subF.required) {
+                  const subVal = item[subF.name];
+                  const isSubEmpty = subVal === undefined || subVal === null || subVal === '';
+                  if (isSubEmpty) {
+                    newErrors[`${field.name}_${index}_${subF.name}`] = `${subF.label} is required`;
+                    if (!firstErrorField) firstErrorField = field.name;
+                  }
+                }
+              });
+            }
+
+            ['planImageOrUrl', 'floorPlanImage'].forEach(key => {
+               if (item[key] && !item[key].startsWith('http')) {
+                  newErrors[`${field.name}_${index}_${key}`] = 'Please provide a valid image URL (must start with http or https) or upload an image.';
+                  if (!firstErrorField) firstErrorField = field.name;
+               }
+            });
+          });
         }
       }
     });
@@ -398,8 +507,8 @@ const AdminAddProperty = () => {
         }
       }
 
-      if (selectedBuilder) {
-        payload.userId = selectedBuilder;
+      if (selectedCreator) {
+        payload.userId = selectedCreator;
       }
 
       if (isBuilderProject) {
@@ -437,7 +546,7 @@ const AdminAddProperty = () => {
         sessionStorage.removeItem('adminPropTxn');
         sessionStorage.removeItem('adminPropCat');
         sessionStorage.removeItem('adminPropType');
-        sessionStorage.removeItem('adminPropBuilder');
+        sessionStorage.removeItem('adminPropCreator');
         sessionStorage.removeItem('adminPropStep');
         sessionStorage.removeItem('adminPropIsBuilder');
         toast.success(isEditing ? 'Saved successfully!' : 'Published successfully!');
@@ -981,10 +1090,19 @@ const AdminAddProperty = () => {
                   </button>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                     {field.subFields?.map(subF => {
+                      // Add dependency check
+                      let isSubVisible = true;
+                      if (subF.dependsOn?.field) {
+                        isSubVisible = item[subF.dependsOn.field] === subF.dependsOn.value;
+                      }
+                      if (!isSubVisible) return null;
+
                       if (subF.type === 'file') {
                          return (
                            <div key={subF.name} className="flex flex-col">
-                             <label className="text-[12px] font-semibold text-slate-600 mb-1">{subF.label}</label>
+                             <label className="text-[12px] font-semibold text-slate-600 mb-1">
+                               {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                             </label>
                              <div className="flex flex-col gap-2 items-start w-full">
                                <input type="text" placeholder="Image URL..." 
                                  className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
@@ -1018,12 +1136,74 @@ const AdminAddProperty = () => {
                                </label>
                              </div>
                              {item[subF.name] && <img src={item[subF.name]} alt="preview" className="h-12 w-auto mt-2 rounded border" />}
+                             {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-2 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
                            </div>
                          );
                       }
+
+                      if (subF.type === 'pill') {
+                        return (
+                          <div key={subF.name} className="flex flex-col col-span-1 md:col-span-2">
+                            <label className="text-[12px] font-semibold text-slate-600 mb-2">
+                              {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              {subF.options?.map(opt => (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => {
+                                    const next = [...repeaterItems];
+                                    next[index] = { ...next[index], [subF.name]: opt };
+                                    handleChange(field.name, next);
+                                  }}
+                                  className={`px-4 py-2 text-[12px] font-medium rounded-full border transition-all ${
+                                    item[subF.name] === opt 
+                                      ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:bg-blue-50'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                            {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
+                          </div>
+                        );
+                      }
+                      
+                      if (subF.type === 'dropdown') {
+                        return (
+                          <div key={subF.name} className="flex flex-col">
+                            <label className="text-[12px] font-semibold text-slate-600 mb-1">
+                              {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <select
+                              value={item[subF.name] || ''}
+                              onChange={(e) => {
+                                const next = [...repeaterItems];
+                                next[index] = { ...next[index], [subF.name]: e.target.value };
+                                handleChange(field.name, next);
+                              }}
+                              className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500 bg-white"
+                            >
+                              <option value="">Select an option</option>
+                              {subF.options?.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                            {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
+                          </div>
+                        );
+                      }
+
+                      if (subF.type === 'repeater') return null; // Prevent deep nesting issues if we don't handle it yet
+
                       return (
                         <div key={subF.name} className="flex flex-col">
-                          <label className="text-[12px] font-semibold text-slate-600 mb-1">{subF.label}</label>
+                          <label className="text-[12px] font-semibold text-slate-600 mb-1">
+                            {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                          </label>
                           <input 
                             type={subF.type === 'number' ? 'number' : 'text'}
                             className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
@@ -1048,6 +1228,7 @@ const AdminAddProperty = () => {
                               handleChange(field.name, next);
                             }}
                           />
+                          {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
                         </div>
                       )
                     })}
@@ -1103,7 +1284,7 @@ const AdminAddProperty = () => {
             <div className="flex bg-slate-100 p-1 rounded-lg">
               <button
                 type="button"
-                onClick={() => !isEditing && currentStepIndex === 0 && setIsBuilderProject(false)}
+                onClick={() => handleTypeChange(false)}
                 className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
                   !isBuilderProject ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                 } ${(isEditing || currentStepIndex > 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -1113,7 +1294,7 @@ const AdminAddProperty = () => {
               </button>
               <button
                 type="button"
-                onClick={() => !isEditing && currentStepIndex === 0 && setIsBuilderProject(true)}
+                onClick={() => handleTypeChange(true)}
                 className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
                   isBuilderProject ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                 } ${(isEditing || currentStepIndex > 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -1128,8 +1309,19 @@ const AdminAddProperty = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           
           {/* Level 1 selector */}
-          <div className="space-y-1">
-            <label className="block text-[10px] font-bold text-slate-400 uppercase">Level 1 Category</label>
+          <div className="space-y-1 relative">
+            <div className="flex items-center justify-between">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase">Level 1 Category</label>
+              {!isEditing && currentStepIndex > 0 && (
+                <button
+                  type="button"
+                  onClick={handleResetSelection}
+                  className="text-[9px] font-bold text-red-500 uppercase hover:underline"
+                >
+                  Reset Selection
+                </button>
+              )}
+            </div>
             <select
               value={selectedTxn}
               onChange={(e) => {
@@ -1180,30 +1372,46 @@ const AdminAddProperty = () => {
             </div>
           )}
 
-          {/* Builder Dropdown */}
-          <div className="space-y-1">
-            <label className="block text-[10px] font-bold text-slate-400 uppercase">Associate Builder</label>
-            <select
-              value={selectedBuilder}
-              onChange={(e) => setSelectedBuilder(e.target.value)}
+          {/* Creator Dropdown / Search */}
+          {selectedPropType && (
+            <div className="space-y-1 relative">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase">Associate {isBuilderProject ? 'Builder' : 'Owner/Broker'} *</label>
+            <input
+              list="creators-list"
+              value={creatorSearch}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCreatorSearch(val);
+                const found = creators.find(c => {
+                   const cName = isBuilderProject ? (c.builderProfile?.companyName || c.name) : c.name;
+                   return cName === val;
+                });
+                setSelectedCreator(found ? found._id : '');
+              }}
               disabled={isEditing || currentStepIndex > 0}
-              className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''}`}
-            >
-              <option value="">Admin/Manager (Self)</option>
-              {builders.map(b => (
-                <option key={b._id} value={b._id}>{b.builderProfile?.companyName || b.name}</option>
-              ))}
-            </select>
+              placeholder={`Search & Select ${isBuilderProject ? 'Builder' : 'Creator'}...`}
+              className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:bg-white focus:ring-1 focus:ring-slate-800 outline-none transition-all ${(isEditing || currentStepIndex > 0) ? 'opacity-60 cursor-not-allowed' : ''} ${(!selectedCreator && creatorSearch) ? 'ring-1 ring-red-500' : ''}`}
+            />
+            <datalist id="creators-list">
+              {creators.map(c => {
+                 const cName = isBuilderProject ? (c.builderProfile?.companyName || c.name) : c.name;
+                 return <option key={c._id} value={cName} />;
+              })}
+            </datalist>
+            {!selectedCreator && creatorSearch && (
+               <p className="text-red-500 text-[10px] mt-1">Please select an existing user from the list.</p>
+            )}
             <p className="text-[10px] text-slate-500 mt-1 leading-tight">
-              * Select a real Builder to enable the "View Details" profile navigation. If left as Admin/Manager, the profile page will not be available.
+              * Required. Must be a registered {isBuilderProject ? 'Builder' : 'Owner or Broker'}.
             </p>
           </div>
+          )}
 
         </div>
       </div>
 
       {/* Main Dynamic Wizard Form */}
-      {template ? (
+      {template && selectedCreator ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           
           {/* Main Form Fields Column */}
@@ -1265,8 +1473,9 @@ const AdminAddProperty = () => {
                         value={formData.locality || ''}
                         onChange={(e) => handleChange('locality', e.target.value)}
                         placeholder="e.g. Indiranagar"
-                        className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all"
+                        className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all ${errors.locality ? 'border-red-300' : 'border-transparent'}`}
                       />
+                      {errors.locality && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.locality}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-2 ml-1">Pincode</label>
@@ -1275,8 +1484,9 @@ const AdminAddProperty = () => {
                         value={formData.pincode || ''}
                         onChange={(e) => handleChange('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
                         placeholder="e.g. 560038"
-                        className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all"
+                        className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all ${errors.pincode ? 'border-red-300' : 'border-transparent'}`}
                       />
+                      {errors.pincode && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.pincode}</p>}
                     </div>
                   </div>
                   <div>
@@ -1286,9 +1496,67 @@ const AdminAddProperty = () => {
                       value={formData.houseNumber || ''}
                       onChange={(e) => handleChange('houseNumber', e.target.value)}
                       placeholder="e.g. Flat 402, Royal Apartments, 12th Main"
-                      className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all"
+                      className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-bold focus:bg-white focus:border-slate-800 outline-none transition-all ${errors.houseNumber ? 'border-red-300' : 'border-transparent'}`}
                     />
+                    {errors.houseNumber && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.houseNumber}</p>}
                   </div>
+                </div>
+              )}
+
+              {/* Builder Logo */}
+              {currentStepIndex === 0 && isBuilderProject && (
+                <div id="field-logo" className="mb-6 p-5 border-2 border-dashed border-slate-200 bg-slate-50 rounded-2xl">
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">
+                    Project Logo <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-[11px] text-slate-400 mb-4 ml-1">
+                    Upload a logo to display on the project card listings.
+                  </p>
+                  
+                  {formData.logo ? (
+                    <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-slate-200 group">
+                      <img src={formData.logo} alt="Project Logo" className="w-full h-full object-contain bg-white" />
+                      <button
+                        type="button"
+                        onClick={() => handleChange('logo', '')}
+                        className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`relative w-full h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-all ${
+                      errors.logo ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-white hover:border-slate-400 cursor-pointer'
+                    }`}>
+                      <div className="text-slate-400 mb-2">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                      </div>
+                      <p className="text-[12px] text-slate-500 font-bold">Click to upload logo</p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const uploadToastId = toast.loading('Uploading logo...');
+                            try {
+                              const fd = new FormData();
+                              fd.append('images', file);
+                              const res = await hotelService.uploadImages(fd);
+                              if (res?.urls && res.urls.length > 0) {
+                                handleChange('logo', res.urls[0]);
+                                toast.success('Logo uploaded successfully!', { id: uploadToastId });
+                              }
+                            } catch (err) {
+                              toast.error('Upload failed', { id: uploadToastId });
+                            }
+                          }
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </div>
+                  )}
+                  {errors.logo && <p className="text-red-500 text-[10px] mt-2 ml-1">{errors.logo}</p>}
                 </div>
               )}
 
@@ -1358,13 +1626,18 @@ const AdminAddProperty = () => {
 
         </div>
       ) : (
-        selectedPropType && !loading && (
-          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-200">
+        selectedPropType && !selectedCreator ? (
+          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-200 mt-6">
+            <h4 className="text-base font-bold text-slate-800">Select {isBuilderProject ? 'Builder' : 'Owner/Broker'}</h4>
+            <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1">Please select the creator from the dropdown above to begin filling out the property details.</p>
+          </div>
+        ) : selectedPropType && !loading ? (
+          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-200 mt-6">
             <Info size={32} className="text-slate-400 mx-auto mb-4 animate-bounce" />
             <h4 className="text-base font-bold text-slate-800">No template configured for this combination.</h4>
             <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1">Configure steps and fields for this type in the Property Form Manager CMS first.</p>
           </div>
-        )
+        ) : null
       )}
 
     </div>

@@ -6,6 +6,7 @@ import {
   seedBuilderTemplatesController
 } from '../controllers/builderFormController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
+import { checkManagerPermission } from '../middlewares/managerPermission.js';
 
 const router = express.Router();
 
@@ -15,6 +16,6 @@ router.get('/template', getBuilderTemplate);
 router.get('/seed', seedBuilderTemplatesController); // Added for seeding
 
 // Admin routes
-router.post('/template', protect, authorizedRoles('admin', 'superadmin', 'manager'), saveBuilderTemplate);
+router.post('/template', protect, authorizedRoles('admin', 'superadmin', 'manager'), checkManagerPermission('property_forms', 'edit'), saveBuilderTemplate);
 
 export default router;

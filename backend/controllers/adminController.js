@@ -204,7 +204,7 @@ export const getDashboardStats = async (req, res) => {
       .limit(5);
 
     const recentPropertyRequests = await Property.find({ status: 'pending' })
-      .populate('partnerId', 'name email')
+
       .populate('userId', 'name email')
       .sort({ createdAt: -1 })
       .limit(5);
@@ -277,16 +277,22 @@ export const getAllUsers = async (req, res) => {
       } else if (status === 'active') {
         query.isBlocked = { $ne: true };
       } else if (['pending', 'approved', 'rejected'].includes(status)) {
-        query.$or = [
-          { partnerApprovalStatus: status },
-          { 'builderProfile.approvalStatus': status }
-        ];
+        if (status === 'pending') {
+          query['builderProfile.approvalStatus'] = { $in: ['pending', null, undefined] };
+        } else {
+          query['builderProfile.approvalStatus'] = status;
+        }
+        query.role = 'builder'; // Enforce builder role
       }
     }
 
     if (role) {
-      query.role = role;
-    } else {
+      if (role.includes(',')) {
+        query.role = { $in: role.split(',') };
+      } else {
+        query.role = role;
+      }
+    } else if (!query.role) {
       query.role = { $ne: 'partner' }; // Default to not showing partner role if unspecified
     }
 
@@ -375,7 +381,7 @@ export const getAllHotels = async (req, res) => {
     const total = await Property.countDocuments(query);
 
     const hotels = await Property.find(query)
-      .populate('partnerId', 'name email phone')
+
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -612,7 +618,7 @@ export const getAllBookings = async (req, res) => {
 export const getPropertyRequests = async (req, res) => {
   try {
     const hotels = await Property.find({ status: 'pending' })
-      .populate('partnerId', 'name email phone')
+
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 });
     res.status(200).json({ success: true, hotels });
@@ -669,7 +675,7 @@ export const verifyPropertyDocuments = async (req, res) => {
       property.isLive = true;
 
       // NOTIFICATION: Property Live
-      notificationService.sendToUser(property.partnerId, {
+      notificationService.sendToUser(property.userId, {
         title: 'Property Live!',
         body: `Your property ${property.propertyName} is LIVE now!`
       }, { type: 'property_verified', propertyId: property._id }, 'partner').catch(e => console.error(e));
@@ -682,7 +688,7 @@ export const verifyPropertyDocuments = async (req, res) => {
       property.isLive = false;
 
       // Notify Rejection?
-      notificationService.sendToUser(property.partnerId, {
+      notificationService.sendToUser(property.userId, {
         title: 'Property Documents Rejected',
         body: `Your property ${property.propertyName} documents were rejected. reason: ${adminRemark || 'Review needed'}`
       }, { type: 'property_rejected', propertyId: property._id }, 'partner').catch(e => console.error(e));
@@ -908,7 +914,7 @@ export const getPartnerDetails = async (req, res) => {
     const partner = await Partner.findById(id).populate('subscription.planId');
     if (!partner) return res.status(404).json({ success: false, message: 'Partner not found' });
 
-    const properties = await Property.find({ partnerId: id });
+    const properties = await Property.find({ userId: id });
     res.status(200).json({ success: true, partner, properties });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching partner details' });
@@ -919,7 +925,7 @@ export const getHotelDetails = async (req, res) => {
   try {
     const { id } = req.params;
     const property = await Property.findById(id)
-      .populate('partnerId', 'name email phone')
+
       .populate('userId', 'name email phone');
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
 
@@ -1132,6 +1138,7 @@ export const updatePlatformSettings = async (req, res) => {
       freeTrialDurationDays,
       platformFlatFee,
       cashCollectionFee,
+<<<<<<< HEAD
       targetTitle,
       monthlyTarget,
       monthlyTargetBonus,
@@ -1143,6 +1150,11 @@ export const updatePlatformSettings = async (req, res) => {
       workerReferralBonusReferrer,
       workerReferralBonusReferee,
       privacyPolicy
+=======
+      supportEmail,
+      supportPhone,
+      supportWhatsapp
+>>>>>>> 0651423adb92374ff6536d525325cbfb3fdbfae1
     } = req.body;
 
     const settings = await PlatformSettings.getSettings();
@@ -1152,6 +1164,10 @@ export const updatePlatformSettings = async (req, res) => {
     if (typeof bookingDisabledMessage === 'string') settings.bookingDisabledMessage = bookingDisabledMessage;
     if (typeof maintenanceTitle === 'string') settings.maintenanceTitle = maintenanceTitle;
     if (typeof maintenanceMessage === 'string') settings.maintenanceMessage = maintenanceMessage;
+    
+    if (typeof supportEmail === 'string') settings.supportEmail = supportEmail;
+    if (typeof supportPhone === 'string') settings.supportPhone = supportPhone;
+    if (typeof supportWhatsapp === 'string') settings.supportWhatsapp = supportWhatsapp;
 
     if (defaultCommission !== undefined) settings.defaultCommission = Number(defaultCommission);
     if (taxRate !== undefined) settings.taxRate = Number(taxRate);
@@ -1525,8 +1541,8 @@ export const getFinanceStats = async (req, res) => {
       .populate('userId', 'name email')
       .populate({
         path: 'propertyId',
-        select: 'propertyName partnerId',
-        populate: { path: 'partnerId', select: 'name email' } // Get Partner Info
+        select: 'propertyName userId',
+        populate: { path: 'userId', select: 'name email' } // Get Creator Info
       })
       .sort({ createdAt: -1 })
       .limit(50); // Limit to last 50 for now
@@ -1644,7 +1660,7 @@ export const getAllEnquiries = async (req, res) => {
       .populate('userId', 'name email phone avatar')
       .populate({
         path: 'propertyId',
-        select: 'propertyName coverImage address buyDetails rentDetails plotDetails propertyType partnerId userId'
+        select: 'propertyName coverImage address buyDetails rentDetails plotDetails propertyType userId'
       })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -1762,5 +1778,55 @@ export const updateAdminPassword = async (req, res) => {
   } catch (error) {
     console.error('Update Password Error:', error);
     res.status(500).json({ success: false, message: 'Error updating password', error: error.message });
+  }
+};
+
+export const createAdminBroker = async (req, res) => {
+  try {
+    const { name, email, phone, profileImage } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, message: 'Name and phone are required' });
+    }
+
+    // Check if phone or email already exists
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
+      return res.status(400).json({ success: false, message: 'Phone number is already registered' });
+    }
+
+    if (email) {
+      const existingEmail = await User.findOne({ email });
+      if (existingEmail) {
+        return res.status(400).json({ success: false, message: 'Email is already registered' });
+      }
+    }
+
+    // Create broker. Bypassing OTP logic for now as requested.
+    const newBroker = new User({
+      name,
+      email: email || undefined,
+      phone,
+      role: 'broker',
+      profileImage: profileImage || undefined,
+      isVerified: true // Mocking verification for now
+    });
+
+    await newBroker.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Broker created successfully',
+      user: {
+        _id: newBroker._id,
+        name: newBroker.name,
+        email: newBroker.email,
+        phone: newBroker.phone,
+        role: newBroker.role
+      }
+    });
+  } catch (error) {
+    console.error('Error creating admin broker:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
   }
 };

@@ -84,11 +84,6 @@ const propertySchema = new mongoose.Schema({
   shortDescription: String,
 
   // OWNER (optional for admin-added properties)
-  partnerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Partner',
-    default: null
-  },
 
   // Added for C2C (User added properties)
   userId: {

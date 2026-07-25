@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, MapPin, Pencil, PlusCircle, Trash2, Eye, AlertCircle, Lock } from 'lucide-react';
-import { propertyService } from '../../../services/apiService';
+import { Building2, MapPin, Pencil, PlusCircle, Trash2, Eye, AlertCircle, Lock, PhoneCall, MessageCircle } from 'lucide-react';
+import { propertyService, legalService } from '../../../services/apiService';
 import subscriptionService from '../../../services/subscriptionService';
 import PartnerHeader from '../components/PartnerHeader';
 import { toast } from 'react-hot-toast';
@@ -17,6 +17,9 @@ const PartnerProperties = () => {
   const [registrationDate, setRegistrationDate] = useState(null);
   const [trialSettings, setTrialSettings] = useState(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [adminContact, setAdminContact] = useState(null);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isBuilder = user.userType === 'builder' || user.role === 'builder';
 
   const fetchProperties = async () => {
     setLoading(true);
@@ -56,9 +59,23 @@ const PartnerProperties = () => {
     }
   };
 
+  const fetchAdminContact = async () => {
+    try {
+      const res = await legalService.getAdminContact();
+      if (res && res.success) {
+        setAdminContact(res);
+      }
+    } catch (e) {
+      console.error('Failed to fetch admin contact', e);
+    }
+  };
+
   useEffect(() => {
     fetchProperties();
     fetchSubscription();
+    if (isBuilder) {
+      fetchAdminContact();
+    }
   }, []);
 
   const checkSubscriptionLimit = () => {
@@ -231,7 +248,7 @@ const PartnerProperties = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] px-2 py-0.5 rounded-full border text-gray-600 bg-gray-50 uppercase font-bold">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full border uppercase font-bold ${property.status === 'pending' ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-gray-600 bg-gray-50 border-gray-200'}`}>
                             {property.status}
                           </span>
                         </div>
@@ -262,6 +279,36 @@ const PartnerProperties = () => {
                           </button>
                         </div>
                       </div>
+                      
+                      {/* Builder Pending Project Banner */}
+                      {isBuilder && property.status === 'pending' && (
+                        <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-xs font-bold text-blue-900">Project Pending Approval</p>
+                              <p className="text-[10px] text-blue-700 mt-0.5">For project approval and lead packages, connect with our support team.</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={`https://wa.me/${adminContact?.whatsapp?.replace(/\D/g, '') || '916304471791'}?text=Hi, I want to discuss my pending project: ${property.propertyName}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366] text-white rounded-lg text-[10px] font-bold hover:bg-[#20bd5a] transition-colors"
+                            >
+                              <MessageCircle size={12} /> WhatsApp
+                            </a>
+                            <a
+                              href={`tel:${adminContact?.phone || '+916304471791'}`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold hover:bg-blue-700 transition-colors"
+                            >
+                              <PhoneCall size={12} /> Call Support
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                      
                     </div>
                   </div>
                 ))}

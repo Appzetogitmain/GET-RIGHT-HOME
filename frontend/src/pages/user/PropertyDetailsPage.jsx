@@ -12,6 +12,7 @@ import {
   Lock, Award, Check, ChevronDown, Percent
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useEnquiryModal } from '../../context/EnquiryModalContext';
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='24' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
@@ -20,6 +21,7 @@ const PropertyDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { navigateToProperty } = usePropertyNavigate();
+  const { openEnquiryModal } = useEnquiryModal();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -1037,7 +1039,7 @@ const PropertyDetailsPage = () => {
       });
 
       if (response.success) {
-        await handleRevealContact();
+        // Will be called by onSuccess if needed, or we can just return
       } else {
         toast.error(response.message || "Failed to submit enquiry");
       }
@@ -1117,56 +1119,68 @@ const PropertyDetailsPage = () => {
     }
   };
 
-  const handleEnquiryButtonClick = () => {
+  const handleEnquiryButtonClick = (actionType = 'view_number') => {
     if (!agreedTerms) {
       toast.error("Please agree to the Terms & Conditions");
       return;
     }
     if (revealedNumber) {
+      if (actionType === 'call') window.location.href = `tel:${revealedNumber}`;
+      else if (actionType === 'whatsapp') {
+        const propertyName = property?.name || property?.propertyName || 'this property';
+        const msg = encodeURIComponent(`Hi, I am interested in property "${propertyName}" listed on Get Right Home.`);
+        window.open(`https://wa.me/${revealedNumber}?text=${msg}`, '_blank');
+      }
       return;
     }
 
     const userRaw = localStorage.getItem('user');
     if (userRaw) {
       handleDirectLoggedInEnquiry();
+      handleRevealContact(actionType);
       return;
     }
 
-    const errors = validateForm(leadName, leadEmail, leadPhone);
-    if (Object.keys(errors).length > 0) {
-      setLeadErrors(errors);
-      return;
+    let targetType = 'Owner';
+    if (property.partnerId) {
+      targetType = property.partnerId.role === 'builder' ? 'Builder' : 'Broker';
     }
-    setLeadErrors({});
 
-    setEnquiryForm(prev => ({
-      ...prev,
-      name: leadName,
-      email: leadEmail,
-      phone: leadPhone,
-      otp: ''
-    }));
-
-    setShowEnquiryModal(true);
-    handleSendOtpForPhone(leadPhone);
+    openEnquiryModal({
+      targetId: id,
+      targetType: targetType,
+      actionType: actionType,
+      onSuccess: () => {
+        handleDirectLoggedInEnquiry();
+        handleRevealContact(actionType);
+      }
+    });
   };
 
-  const handleRevealContact = async () => {
+  const handleRevealContact = async (actionType = 'view_number') => {
     if (revealLoading) return;
     setRevealLoading(true);
     try {
       const response = await propertyService.revealContact(id);
       if (response.success) {
         setRevealedNumber(response.contactNumber);
-        toast.success("Contact number revealed!");
+        
+        const contact = response.contactNumber;
+        if (actionType === 'call') {
+          window.location.href = `tel:${contact}`;
+        } else if (actionType === 'whatsapp') {
+          const propertyName = property?.name || property?.propertyName || 'this property';
+          const msg = encodeURIComponent(`Hi, I am interested in property "${propertyName}" listed on Get Right Home.`);
+          window.open(`https://wa.me/${contact}?text=${msg}`, '_blank');
+        } else {
+          toast.success("Contact number revealed!");
+        }
       } else {
         toast.error(response.message || "Failed to reveal contact");
       }
     } catch (error) {
       const errData = error.response?.data || error;
-      if (errData?.subscriptionExpired) {
-        toast.error("This seller's subscription has expired. Their contact details are currently unavailable.", { duration: 5000 });
-      } else if (errData?.limitReached) {
+      if (errData?.limitReached) {
         toast.error("This seller has reached their monthly lead limit. Please try again next month or contact another seller.", { duration: 5000 });
       } else {
         toast.error(errData?.message || "Failed to reveal contact");
@@ -2162,10 +2176,10 @@ const PropertyDetailsPage = () => {
           <button
             onClick={() => {
               if (revealedNumber) {
-                const msg = encodeURIComponent(`Hi, I am interested in property "${name}" listed on Get Right Home.`);
+                const msg = encodeURIComponent(`Hi, I am interested in property "${property?.name || property?.propertyName || 'this property'}" listed on Get Right Home.`);
                 window.open(`https://wa.me/${revealedNumber}?text=${msg}`, '_blank');
               } else {
-                handleEnquiryButtonClick();
+                handleEnquiryButtonClick('whatsapp');
               }
             }}
             className="flex-1 py-3 bg-white hover:bg-slate-50 text-emerald-600 border border-emerald-500 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all text-center"
@@ -2179,7 +2193,7 @@ const PropertyDetailsPage = () => {
               if (revealedNumber) {
                 window.location.href = `tel:${revealedNumber}`;
               } else {
-                handleEnquiryButtonClick();
+                handleEnquiryButtonClick('call');
               }
             }}
             className="flex-[2] py-3.5 bg-[#0061df] hover:bg-blue-700 text-white rounded-full text-xs font-bold flex items-center justify-center gap-1 shadow-lg active:scale-95 transition-all"
@@ -2199,7 +2213,7 @@ const PropertyDetailsPage = () => {
             <button
               onClick={(e) => {
                 e.preventDefault();
-                handleEnquiryButtonClick();
+                handleEnquiryButtonClick('call');
               }}
               disabled={revealLoading}
               className="w-11 h-11 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-[#0061df] rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all"
@@ -2502,199 +2516,6 @@ const PropertyDetailsPage = () => {
           </div>
         </div>
       )}
-
-      {/* LAZY ENQUIRY REGISTRATION MODAL */}
-      <AnimatePresence>
-        {showEnquiryModal && (
-          <div 
-            className="fixed inset-0 z-[110] flex items-end justify-center bg-black/60 backdrop-blur-sm" 
-            onClick={() => {
-              setShowEnquiryModal(false);
-              setOtpSent(false);
-            }}
-          >
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-xl rounded-t-[2rem] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden pb-8 font-sans"
-            >
-              {/* Drawer handle indicator */}
-              <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto my-3 shrink-0" />
-              
-              <div className="px-5 pb-3 border-b border-slate-100 flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-base text-slate-900">Contact Owner / Dealer</h3>
-                  <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Submit enquiry to view phone number</p>
-                </div>
-                <button 
-                  onClick={() => {
-                    setShowEnquiryModal(false);
-                    setOtpSent(false);
-                  }} 
-                  className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <form onSubmit={handleEnquirySubmit} className="p-5 overflow-y-auto space-y-4 max-h-[70vh]">
-                {!localStorage.getItem('user') ? (
-                  <>
-                    {/* Name */}
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
-                      <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Your Full Name</label>
-                      <input
-                        type="text"
-                        required
-                        value={enquiryForm.name}
-                        onChange={(e) => {
-                          setEnquiryForm({ ...enquiryForm, name: e.target.value });
-                          if (enquiryErrors.name) setEnquiryErrors(prev => ({ ...prev, name: '' }));
-                        }}
-                        placeholder="e.g. John Doe"
-                        className="w-full bg-transparent outline-none text-xs font-bold text-slate-800"
-                      />
-                      {enquiryErrors.name && (
-                        <p className="text-red-500 text-[10px] font-bold mt-1">
-                          {enquiryErrors.name}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Email */}
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
-                      <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Email Address</label>
-                      <input
-                        type="email"
-                        required
-                        value={enquiryForm.email}
-                        onChange={(e) => {
-                          setEnquiryForm({ ...enquiryForm, email: e.target.value });
-                          if (enquiryErrors.email) setEnquiryErrors(prev => ({ ...prev, email: '' }));
-                        }}
-                        placeholder="e.g. john@example.com"
-                        className="w-full bg-transparent outline-none text-xs font-bold text-slate-800"
-                      />
-                      {enquiryErrors.email && (
-                        <p className="text-red-500 text-[10px] font-bold mt-1">
-                          {enquiryErrors.email}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Phone + Send OTP */}
-                    <div>
-                      <div className="flex gap-2">
-                        <div className="flex-1 bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
-                          <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Mobile Number</label>
-                          <div className="flex items-center">
-                            <span className="text-xs text-slate-500 font-bold mr-1.5">+91</span>
-                            <input
-                              type="tel"
-                              required
-                              value={enquiryForm.phone}
-                              onChange={(e) => {
-                                setEnquiryForm({ ...enquiryForm, phone: e.target.value });
-                                if (enquiryErrors.phone) setEnquiryErrors(prev => ({ ...prev, phone: '' }));
-                              }}
-                              placeholder="9876543210"
-                              maxLength={10}
-                              className="w-full bg-transparent outline-none text-xs font-bold tracking-wide text-slate-800"
-                            />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={sendingOtp || !enquiryForm.phone || enquiryForm.phone.length < 10}
-                          onClick={handleSendOtp}
-                          className="px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center shrink-0 border border-blue-100/50"
-                        >
-                          {sendingOtp ? <Loader2 className="animate-spin text-blue-600" size={16} /> : otpSent ? 'Resend' : 'Send OTP'}
-                        </button>
-                      </div>
-                      {enquiryErrors.phone && (
-                        <p className="text-red-500 text-[10px] font-bold mt-1">
-                          {enquiryErrors.phone}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* OTP */}
-                    {otpSent && (
-                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all animate-in fade-in slide-in-from-top-2 duration-200">
-                        <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Enter OTP Sent</label>
-                        <input
-                          type="text"
-                          required
-                          value={enquiryForm.otp}
-                          onChange={(e) => {
-                            setEnquiryForm({ ...enquiryForm, otp: e.target.value });
-                            if (enquiryErrors.otp) setEnquiryErrors(prev => ({ ...prev, otp: '' }));
-                          }}
-                          placeholder="123456"
-                          maxLength={6}
-                          className="w-full bg-transparent outline-none text-xs font-bold tracking-widest text-slate-800"
-                        />
-                        <span className="absolute right-3 bottom-3 text-[8px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                          Bypass: 123456
-                        </span>
-                        {enquiryErrors.otp && (
-                          <p className="text-red-500 text-[10px] font-bold mt-1">
-                            {enquiryErrors.otp}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="bg-blue-50/30 border border-blue-100/50 rounded-2xl p-4 flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
-                      {enquiryForm.name ? enquiryForm.name.charAt(0).toUpperCase() : <User size={14} />}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">Submitting as {enquiryForm.name}</p>
-                      <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Verified Mobile: +91 {enquiryForm.phone}</p>
-                      <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Email: {enquiryForm.email}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Message */}
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 relative focus-within:border-blue-500 transition-all">
-                  <label className="text-[9px] text-slate-400 font-bold block mb-1 uppercase tracking-wider">Your Message / Requirement</label>
-                  <textarea
-                    rows={3}
-                    value={enquiryForm.message}
-                    onChange={(e) => setEnquiryForm({ ...enquiryForm, message: e.target.value })}
-                    placeholder="Describe your requirement..."
-                    className="w-full bg-transparent outline-none text-xs font-semibold text-slate-800 resize-none pt-1"
-                  />
-                </div>
-
-                {/* Submit button */}
-                <button
-                  type="submit"
-                  disabled={bookingLoading}
-                  className="w-full py-4 bg-[#0061df] hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg active:scale-[0.98] transition-all disabled:opacity-75"
-                >
-                  {bookingLoading ? (
-                    <Loader2 className="animate-spin text-white" size={16} />
-                  ) : (
-                    <span>{!localStorage.getItem('user') ? 'Verify & Submit Enquiry' : 'Submit Enquiry'}</span>
-                  )}
-                </button>
-                
-                <p className="text-[10px] text-center text-slate-400 font-semibold">
-                  🔒 Your contact information is safe with us.
-                </p>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
     </div>
   );

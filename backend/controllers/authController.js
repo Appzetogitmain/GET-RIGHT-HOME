@@ -99,6 +99,47 @@ export const sendOtp = async (req, res) => {
   }
 };
 
+export const sendEnquiryOtp = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ message: 'Phone number is required' });
+    }
+
+    let user = await User.findOne({ phone });
+    let type = user ? 'login' : 'register';
+
+    // Generate OTP - Always use 123456 for development
+    const otp = '123456';
+    const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    if (user) {
+      user.otp = otp;
+      user.otpExpires = otpExpires;
+      await user.save();
+    } else {
+      // Store in Otp collection for new/unregistered users
+      await Otp.findOneAndUpdate(
+        { phone },
+        { phone, otp, expiresAt: otpExpires, tempData: { role: 'user', type: 'register' } },
+        { upsert: true, new: true }
+      );
+    }
+
+    console.log(`🧪 Development Mode: Enquiry OTP for ${phone} is ${otp} (${type})`);
+
+    res.status(200).json({
+      message: 'OTP sent successfully',
+      type,
+      expiresIn: 600
+    });
+  } catch (error) {
+    console.error('Send Enquiry OTP Error:', error);
+    res.status(500).json({ message: 'Server error sending OTP' });
+  }
+};
+
 export const registerPartner = async (req, res) => {
   try {
     const {

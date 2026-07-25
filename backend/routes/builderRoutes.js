@@ -5,8 +5,8 @@ import { getBuilders, getPendingBuilders, verifyBuilder, addBuilder, updateBuild
 const router = express.Router();
 
 // Apply manager module authorization
-router.get('/pending', checkManagerPermission('builders', 'view'), getPendingBuilders);
-router.put('/:id/verify', checkManagerPermission('builders', 'edit'), verifyBuilder);
+router.get('/pending', checkManagerPermission('builder_verification', 'view'), getPendingBuilders);
+router.put('/:id/verify', checkManagerPermission('builder_verification', 'approve'), verifyBuilder);
 
 router.get('/', checkManagerPermission('builders', 'view'), getBuilders);
 router.post('/', checkManagerPermission('builders', 'add'), addBuilder);

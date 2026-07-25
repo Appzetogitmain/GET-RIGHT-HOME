@@ -12,8 +12,9 @@ export const usePropertyNavigate = () => {
     const id = property._id || property.id;
     if (!id) return '/';
 
-    // 1. If added by admin or marked as featured (Handpicked Project), always go to handpicked page
-    if (property.isAddedByAdmin || property.featuredDetails?.isFeatured) {
+    // 1. If it's a Builder Project (identified by builderName, builderProjectDetails, or builder role)
+    const isProject = property.builderProjectDetails || property.builderName || property.userId?.role === 'builder';
+    if (isProject) {
       return `/handpicked/${id}`;
     }
 

@@ -76,13 +76,16 @@ export const getTrialSettings = async (req, res) => {
 
 export const getAdminContact = async (req, res) => {
   try {
-    const Admin = (await import('../models/Admin.js')).default;
-    // Get the most recently updated superadmin or admin
-    const admin = await Admin.findOne({ role: { $in: ['superadmin', 'admin'] } }).sort({ updatedAt: -1 });
-    if (!admin) {
-      return res.status(200).json({ success: true, email: 'getrighthome7@gmail.com', phone: '+91 63044 71791' });
+    const settings = await PlatformSettings.getSettings();
+    if (settings) {
+      return res.status(200).json({ 
+        success: true, 
+        email: settings.supportEmail || 'getrighthome7@gmail.com', 
+        phone: settings.supportPhone || '+91 63044 71791',
+        whatsapp: settings.supportWhatsapp || '+916304471791'
+      });
     }
-    res.status(200).json({ success: true, email: admin.email, phone: admin.phone });
+    res.status(200).json({ success: true, email: 'getrighthome7@gmail.com', phone: '+91 63044 71791', whatsapp: '+916304471791' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching contact info' });
   }

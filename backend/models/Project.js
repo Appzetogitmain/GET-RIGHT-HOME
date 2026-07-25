@@ -65,11 +65,6 @@ const projectSchema = new mongoose.Schema({
   shortDescription: String,
 
   // CREATOR
-  partnerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Partner',
-    default: null
-  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

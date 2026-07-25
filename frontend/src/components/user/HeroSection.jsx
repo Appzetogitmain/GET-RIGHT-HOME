@@ -17,7 +17,6 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
-    const [isSticky, setIsSticky] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCity, setSelectedCity] = useState('Bengaluru');
     const [selectedDistrict, setSelectedDistrict] = useState(null);
@@ -50,17 +49,6 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         sessionStorage.setItem('grh_search_modal_open', isSearchModalOpen);
     }, [isSearchModalOpen]);
 
-    // Scroll Listener — becomes sticky when search box scrolls past top
-    useEffect(() => {
-        const handleScroll = () => {
-            if (searchBoxRef.current) {
-                const rect = searchBoxRef.current.getBoundingClientRect();
-                setIsSticky(rect.bottom <= 0);
-            }
-        };
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
 
     const handleSearch = () => {
         setIsSearchModalOpen(true);
@@ -266,58 +254,6 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             {/* Spacer — accounts for the floating search box height */}
             <div className="h-[88px]" />
 
-            {/* ─── STICKY SEARCH BAR (appears when scrolled past search box) ─── */}
-            <AnimatePresence>
-                {isSticky && (
-                    <motion.div
-                        initial={{ y: -60, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -60, opacity: 0 }}
-                        transition={{ duration: 0.2, ease: 'easeOut' }}
-                        className="fixed top-0 left-0 right-0 z-[100] bg-white shadow-md border-b border-gray-200"
-                    >
-                        <div className="w-full flex items-center gap-2 h-11 bg-white px-4 rounded-none">
-                            <CityDropdown
-                                selectedCity={selectedCity}
-                                selectedDistrict={selectedDistrict}
-                                onSelect={handleCitySelect}
-                                theme={theme}
-                                rounded="rounded-none"
-                                textClass="text-[11px]"
-                                iconSize={13}
-                                chevronSize={11}
-                                paddingClass="px-2.5 py-1"
-                            />
-                            <div className="h-4 w-px bg-gray-200 shrink-0" />
-                            <div className="flex-1 flex items-center gap-2 min-w-0">
-                                <Search size={13} className="text-gray-400 shrink-0" />
-                                <input
-                                    type="text"
-                                    readOnly
-                                    value=""
-                                    onClick={() => setIsSearchModalOpen(true)}
-                                    placeholder="Search properties..."
-                                    className="flex-1 min-w-0 text-[11px] text-gray-800 outline-none placeholder-gray-400 bg-transparent cursor-pointer"
-                                />
-                                <LucideIcons.MapPin 
-                                    size={13} 
-                                    className={`text-gray-400 shrink-0 cursor-pointer hover:text-blue-600 transition-colors ${detectingLocation ? 'animate-bounce text-blue-500' : ''}`}
-                                    onClick={handleLiveLocationDetect}
-                                    title="Detect live location"
-                                />
-                            </div>
-                            <button
-                                type="button"
-                                onClick={handleSearch}
-                                className="px-3.5 py-1.5 rounded-none text-[10px] font-black uppercase tracking-wider text-white shrink-0 transition-colors hover:opacity-90"
-                                style={{ background: accentColor }}
-                            >
-                                Search
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             {/* ─── Hero Title & Subtitle ─── */}
             {!hideGetStarted && (

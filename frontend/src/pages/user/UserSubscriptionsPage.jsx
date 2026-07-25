@@ -47,7 +47,7 @@ const UserSubscriptionsPage = () => {
         try {
             setLoading(true);
             const [plansRes, subRes] = await Promise.all([
-                subscriptionService.getActivePlans(),
+                subscriptionService.getActivePlans(user?.role || ''),
                 subscriptionService.getCurrentSubscription()
             ]);
             if (plansRes.success) {
@@ -141,7 +141,7 @@ const UserSubscriptionsPage = () => {
                         <ArrowLeft size={18} className="text-gray-700" />
                     </button>
                     <div className="flex-1">
-                        <h1 className="text-lg font-black text-gray-900">Subscription Plans</h1>
+                        <h1 className="text-lg font-black text-gray-900 capitalize">{user?.role || 'User'} Subscription Plans</h1>
                         <p className="text-xs text-gray-400 font-medium">Boost your property's visibility</p>
                     </div>
                 </div>

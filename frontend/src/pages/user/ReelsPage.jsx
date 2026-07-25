@@ -546,17 +546,6 @@ export default function ReelsPage() {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* My Reels Page */}
-        <button
-          type="button"
-          onClick={() => navigate('/reels/my')}
-          className="p-2 rounded-full border transition-all bg-white/10 border-white/10 text-white hover:bg-white/20"
-          title="My Reels Dashboard"
-          aria-label="My reels dashboard"
-        >
-          <User size={18} />
-        </button>
-
         {/* Search Toggle */}
         <button
           type="button"
@@ -577,24 +566,6 @@ export default function ReelsPage() {
             }`}
         >
           <SlidersHorizontal size={18} />
-        </button>
-
-        {/* Add Reel (+) Icon */}
-        <button
-          type="button"
-          onClick={() => {
-            if (!isLoggedIn) {
-              toast.error('Please login to upload reels');
-              navigate('/login');
-              return;
-            }
-            resetWizard();
-            setUploadOpen(true);
-          }}
-          className="p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white border border-blue-500/20 shadow-lg transition-transform active:scale-95"
-          aria-label="Upload reel"
-        >
-          <Plus size={18} />
         </button>
       </div>
     </div>

@@ -8,13 +8,14 @@ import PropertyFeed from '../../components/user/PropertyFeed';
 import CollectionSection from '../../components/user/CollectionSection';
 import ReelSection from '../../components/user/ReelSection';
 import LatestProjectsBanner from '../../components/user/LatestProjectsBanner';
-import RecommendedSellers from '../../components/user/RecommendedSellers';
+import RecommendedBrokers from '../../components/user/RecommendedBrokers';
 import PopularBuilders from '../../components/user/PopularBuilders';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import { categoryService } from '../../services/categoryService';
 import GRHHomeSection from '../../components/user/GRHHomeSection';
 import SupportSection from '../../components/user/SupportSection';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
+import { api } from '../../services/apiService';
 
 
 // Category Theme Map - Professional light palettes inspired by modern premium designs
@@ -120,7 +121,23 @@ const Home = () => {
     const [selectedType, setSelectedType] = useState({ id: null, label: 'All' });
     const [pgFilters, setPgFilters] = useState({ gender: undefined, occupancy: undefined, foodIncluded: undefined });
     const [sectionIds, setSectionIds] = useState({ pg: null, rent: null, buy: null, plot: null });
-    const [homeSearchCity, setHomeSearchCity] = useState("");
+    const [homeSearchCity, setHomeSearchCity] = useState('');
+    const [layoutOrder, setLayoutOrder] = useState([]);
+    
+    // Fetch Dynamic Layout
+    useEffect(() => {
+        const fetchLayout = async () => {
+            try {
+                const response = await api.get('/public/homepage-layout'); // Make sure this route is publicly accessible or we have a public version
+                if (response.data.success && response.data.sections) {
+                    setLayoutOrder(response.data.sections);
+                }
+            } catch (error) {
+                console.error("Failed to load layout:", error);
+            }
+        };
+        fetchLayout();
+    }, []);
 
     // Fetch Category IDs for the homepage sections
     useEffect(() => {
@@ -213,99 +230,92 @@ const Home = () => {
                 </div>
             </div>
 
-
-
-            {/* Property Videos */}
-            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mt-4 mb-6">
-                 <PropertyVideoCurations pageType="home" theme={activeTheme} />
-            </div>
-
-            {/* Admin Curated Properties - Location Based */}
-            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto">
-                <AdminPropertiesSection searchCity={homeSearchCity} theme={activeTheme} />
-            </div>
-
-
-
             <div className="mt-2 w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-4">
                 {(!selectedType.id || selectedType.label === 'All') ? (
                     // Show Categorized Sections when "All" is selected
                     <div className="flex flex-col gap-4">
-                        {sectionIds.pg && (
-                            <HomeSection
-                                title="Scholar & Professional Stays"
-                                subtitle="Top rated PGs and Hostels near you"
-                                typeId={sectionIds.pg}
-                                sectionIds={sectionIds}
-                                onTypeSelect={handleTypeSelect}
-                                onViewAll={() => navigate(`/search?transactionType=pg&type=${sectionIds.pg}`)}
-                                theme={activeTheme}
-                            />
+                        {layoutOrder.length > 0 ? (
+                            layoutOrder.filter(sec => sec.isVisible).map(section => {
+                                switch (section.id) {
+                                    case 'video_curations':
+                                        return <PropertyVideoCurations key={section.id} pageType="home" theme={activeTheme} />;
+                                    case 'admin_curated':
+                                        return <AdminPropertiesSection key={section.id} searchCity={homeSearchCity} theme={activeTheme} />;
+                                    case 'pg_stays':
+                                        return sectionIds.pg && (
+                                            <HomeSection
+                                                key={section.id}
+                                                title="Scholar & Professional Stays"
+                                                subtitle="Top rated PGs and Hostels near you"
+                                                typeId={sectionIds.pg}
+                                                sectionIds={sectionIds}
+                                                onTypeSelect={handleTypeSelect}
+                                                onViewAll={() => navigate(`/search?transactionType=pg&type=${sectionIds.pg}`)}
+                                                theme={activeTheme}
+                                            />
+                                        );
+                                    case 'recommended_brokers':
+                                        return <RecommendedBrokers key={section.id} />;
+                                    case 'popular_builders':
+                                        return <PopularBuilders key={section.id} />;
+                                    case 'reels':
+                                        return <ReelSection key={section.id} category={selectedType.label} theme={activeTheme} />;
+                                    case 'rent_properties':
+                                        return sectionIds.rent && (
+                                            <HomeSection
+                                                key={section.id}
+                                                title="Properties for Rent"
+                                                subtitle="Apartments, Homes, and Villas for Rent"
+                                                typeId={sectionIds.rent}
+                                                extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
+                                                sectionIds={sectionIds}
+                                                onTypeSelect={handleTypeSelect}
+                                                onViewAll={() => navigate(`/search?transactionType=rent&type=${sectionIds.rent}`)}
+                                                theme={activeTheme}
+                                            />
+                                        );
+                                    case 'buy_properties':
+                                        return sectionIds.buy && (
+                                            <HomeSection
+                                                key={section.id}
+                                                title="Dream Homes for Sale"
+                                                subtitle="Buy your perfect home today"
+                                                typeId={sectionIds.buy}
+                                                extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
+                                                sectionIds={sectionIds}
+                                                onTypeSelect={handleTypeSelect}
+                                                onViewAll={() => navigate(`/search?transactionType=sell&type=${sectionIds.buy}`)}
+                                                theme={activeTheme}
+                                            />
+                                        );
+                                    case 'plot_properties':
+                                        return sectionIds.plot && (
+                                            <HomeSection
+                                                key={section.id}
+                                                title="Premium Plots & Land"
+                                                subtitle="Invest in the best locations"
+                                                typeId={sectionIds.plot}
+                                                sectionIds={sectionIds}
+                                                onTypeSelect={handleTypeSelect}
+                                                onViewAll={() => navigate(`/search?transactionType=sell&type=${sectionIds.plot}&subType=Plot+%2F+Land`)}
+                                                theme={activeTheme}
+                                            />
+                                        );
+                                    case 'under_construction':
+                                        return <GRHHomeSection key={section.id} title="Under Construction Properties" subtitle="Flexible payments & high value growth" availabilityFilter="Under construction" theme={activeTheme} />;
+                                    case 'pre_launch':
+                                        return <GRHHomeSection key={section.id} title="Pre Launch Properties" subtitle="Exclusive early-stage launch offers" availabilityFilter="Pre Launch" theme={activeTheme} />;
+                                    case 'ready_to_move':
+                                        return <GRHHomeSection key={section.id} title="Ready to move in properties" subtitle="Verified titles & immediate occupancy" availabilityFilter="Ready to move" theme={activeTheme} />;
+                                    default:
+                                        return null;
+                                }
+                            })
+                        ) : (
+                            <div className="flex justify-center py-10">
+                                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
                         )}
-
-                        {/* Recommendation for All view */}
-                        <RecommendedSellers />
-
-                        {/* Popular Builders Carousel */}
-                        <PopularBuilders />
-
-                        {/* YouTube style Reels Section */}
-                        <ReelSection category={selectedType.label} theme={activeTheme} />
-
-                        {sectionIds.rent && (
-                            <HomeSection
-                                title="Properties for Rent"
-                                subtitle="Apartments, Homes, and Villas for Rent"
-                                typeId={sectionIds.rent}
-                                extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
-                                sectionIds={sectionIds}
-                                onTypeSelect={handleTypeSelect}
-                                onViewAll={() => navigate(`/search?transactionType=rent&type=${sectionIds.rent}`)}
-                                theme={activeTheme}
-                            />
-                        )}
-                        {sectionIds.buy && (
-                            <HomeSection
-                                title="Dream Homes for Sale"
-                                subtitle="Buy your perfect home today"
-                                typeId={sectionIds.buy}
-                                extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
-                                sectionIds={sectionIds}
-                                onTypeSelect={handleTypeSelect}
-                                onViewAll={() => navigate(`/search?transactionType=sell&type=${sectionIds.buy}`)}
-                                theme={activeTheme}
-                            />
-                        )}
-                        {sectionIds.plot && (
-                            <HomeSection
-                                title="Premium Plots & Land"
-                                subtitle="Invest in the best locations"
-                                typeId={sectionIds.plot}
-                                sectionIds={sectionIds}
-                                onTypeSelect={handleTypeSelect}
-                                onViewAll={() => navigate(`/search?transactionType=sell&type=${sectionIds.plot}&subType=Plot+%2F+Land`)}
-                                theme={activeTheme}
-                            />
-                        )}
-
-                        <GRHHomeSection
-                            title="Under Construction Properties"
-                            subtitle="Flexible payments & high value growth"
-                            availabilityFilter="Under construction"
-                            theme={activeTheme}
-                        />
-                        <GRHHomeSection
-                            title="Pre Launch Properties"
-                            subtitle="Exclusive early-stage launch offers"
-                            availabilityFilter="Pre Launch"
-                            theme={activeTheme}
-                        />
-                        <GRHHomeSection
-                            title="Ready to Move Properties"
-                            subtitle="Verified titles & immediate occupancy"
-                            availabilityFilter="Ready to move"
-                            theme={activeTheme}
-                        />
                     </div>
                 ) : (
                     // Show Filtered Grid when a specific property category is selected
@@ -324,8 +334,8 @@ const Home = () => {
                         {/* 2. Reels for specific Category */}
                         <ReelSection category={selectedType.label} />
 
-                        {/* 3. Recommended Sellers for the category */}
-                        <RecommendedSellers />
+                        {/* 3. Recommended Brokers for the category */}
+                        <RecommendedBrokers />
 
                         {/* 4. Main Property Feed */}
                         <PropertyFeed selectedType={selectedType.id} viewMode="grid" extraFilters={pgFilters} />

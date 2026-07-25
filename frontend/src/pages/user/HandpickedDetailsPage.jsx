@@ -82,7 +82,7 @@ const HandpickedDetailsPage = () => {
     name: '',
     email: '',
     phone: '',
-    message: 'I am interested in this handpicked project. Please contact me with more details.'
+    message: 'I am interested in this project. Please contact me with more details.'
   });
   const [enquirySubmitting, setEnquirySubmitting] = useState(false);
 
@@ -331,7 +331,7 @@ const HandpickedDetailsPage = () => {
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: property?.propertyName || "Handpicked Property",
+        title: property?.propertyName || "Project",
         text: property?.shortDescription || "Check out this amazing property",
         url: window.location.href
       }).catch(err => console.log(err));
@@ -544,7 +544,7 @@ const HandpickedDetailsPage = () => {
       <section className="relative h-[60vh] w-full bg-slate-900 overflow-hidden">
         <img
           src={pImages[currentImgIndex]}
-          alt={property?.propertyName || "Handpicked"}
+          alt={property?.propertyName || "Project"}
           className="w-full h-full object-cover transition-opacity duration-500"
         />
 
@@ -1595,7 +1595,7 @@ const HandpickedDetailsPage = () => {
                       <MessageSquare className="w-4 h-4" /> Schedule Visit / Callback
                     </button>
                     <a
-                      href={`https://wa.me/918884976767?text=I%20am%20interested%20in%20${encodeURIComponent(property?.propertyName || 'Handpicked Project')}`}
+                      href={`https://wa.me/918884976767?text=I%20am%20interested%20in%20${encodeURIComponent(property?.propertyName || 'Project')}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-sm font-semibold text-slate-800 rounded-2xl transition-all flex items-center justify-center gap-2"
@@ -1620,12 +1620,12 @@ const HandpickedDetailsPage = () => {
               {/* Similar properties shortcut panel */}
               {similarProperties.length > 0 && (
                 <div className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-6 space-y-4">
-                  <h3 className="text-sm font-bold text-slate-800">Other Handpicked Near Locality</h3>
+                  <h3 className="text-sm font-bold text-slate-800">Similar Projects Near Locality</h3>
                   <div className="space-y-3">
                     {similarProperties.slice(0, 3).map((sim, idx) => (
                       <div
                         key={idx}
-                        onClick={() => navigate(`/handpicked/${sim._id}`)}
+                        onClick={() => navigate(`/project/${sim._id}`)}
                         className="flex gap-3 p-2 bg-white/80 border border-slate-200 rounded-xl hover:border-blue-500/30 transition-all cursor-pointer"
                       >
                         <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">

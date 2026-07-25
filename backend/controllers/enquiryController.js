@@ -117,12 +117,6 @@ export const createEnquiry = async (req, res) => {
                 $or: [{ phone: customerPhone }, { email: customerEmail }]
             });
 
-            if (!existingUser) {
-                existingUser = await Partner.findOne({
-                    $or: [{ phone: customerPhone }, { email: customerEmail }]
-                });
-            }
-
             if (existingUser) {
                 userId = existingUser._id;
                 customerName = existingUser.name || customerName;
@@ -165,11 +159,7 @@ export const createEnquiry = async (req, res) => {
         await Property.findByIdAndUpdate(propertyId, { $inc: { enquiryCount: 1 } });
 
         // Increment the partner/owner's leadsUsedThisMonth (for subscription lead capping)
-        if (property.partnerId) {
-            await Partner.findByIdAndUpdate(property.partnerId, {
-                $inc: { 'subscription.leadsUsedThisMonth': 1 }
-            });
-        } else if (property.userId) {
+        if (property.userId) {
             await User.findByIdAndUpdate(property.userId, {
                 $inc: { 'subscription.leadsUsedThisMonth': 1 }
             });
@@ -217,10 +207,10 @@ export const getMyEnquiries = async (req, res) => {
         const enquiries = await Enquiry.find({ userId: req.user._id })
             .populate({
                 path: 'propertyId',
-                select: 'propertyName coverImage address propertyType transactionType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice userId partnerId',
+                select: 'propertyName coverImage address propertyType transactionType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice userId',
                 populate: [
                     { path: 'userId', select: 'name phone email' },
-                    { path: 'partnerId', select: 'name phone email' }
+                    
                 ]
             })
             .sort({ createdAt: -1 });
@@ -244,7 +234,6 @@ export const getReceivedEnquiries = async (req, res) => {
         // Find all properties owned by this user
         const ownerQuery = {
             $or: [
-                { partnerId: req.user._id },
                 { userId: req.user._id }
             ]
         };
@@ -270,7 +259,7 @@ export const getReceivedEnquiries = async (req, res) => {
 
         const enquiries = await Enquiry.find(query)
             .populate('userId', 'name phone email avatar')
-            .populate('propertyId', 'propertyName coverImage address propertyType transactionType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice partnerId userId')
+            .populate('propertyId', 'propertyName coverImage address propertyType transactionType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice userId')
             .sort({ createdAt: -1 });
 
         const processedEnquiries = enquiries.map(e => {
@@ -309,14 +298,14 @@ export const updateEnquiryStatus = async (req, res) => {
             return res.status(400).json({ success: false, message: `Invalid status "${rawStatus}". Allowed: ${ALLOWED.join(', ')}` });
         }
 
-        const enquiry = await Enquiry.findById(id).populate('propertyId', 'partnerId userId');
+        const enquiry = await Enquiry.findById(id).populate('propertyId', 'userId');
         if (!enquiry) {
             return res.status(404).json({ success: false, message: 'Enquiry not found' });
         }
 
         const prop = enquiry.propertyId;
         const isOwner =
-            String(prop?.partnerId) === String(req.user._id) ||
+            String(prop?.userId) === String(req.user._id) ||
             String(prop?.userId) === String(req.user._id);
 
         // Allow admin/superadmin to update any enquiry
@@ -379,7 +368,7 @@ export const adminGetAllEnquiries = async (req, res) => {
                 if (ownerBroker === 'owner') {
                     propertyQuery.userId = { $ne: null };
                 } else if (ownerBroker === 'broker') {
-                    propertyQuery.partnerId = { $ne: null };
+                    propertyQuery.userId = { $ne: null };
                 }
             }
 
@@ -425,9 +414,9 @@ export const adminGetAllEnquiries = async (req, res) => {
             .populate('userId', 'name email phone avatar')
             .populate({
                 path: 'propertyId',
-                select: 'propertyName coverImage address buyDetails rentDetails plotDetails pgDetails propertyType transactionType partnerId userId dynamicData price startingPrice',
+                select: 'propertyName coverImage address buyDetails rentDetails plotDetails pgDetails propertyType transactionType userId dynamicData price startingPrice',
                 populate: [
-                    { path: 'partnerId', select: 'name phone email' },
+                    
                     { path: 'userId', select: 'name phone email' }
                 ]
             })

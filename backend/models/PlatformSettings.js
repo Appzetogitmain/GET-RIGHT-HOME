@@ -58,6 +58,7 @@ const platformSettingsSchema = new mongoose.Schema(
       type: Number,
       default: 30
     },
+<<<<<<< HEAD
     targetTitle: {
       type: String,
       default: 'Monthly Target'
@@ -109,6 +110,19 @@ const platformSettingsSchema = new mongoose.Schema(
     workerReferralBonusReferee: {
       type: Number,
       default: 0
+=======
+    supportEmail: {
+      type: String,
+      default: 'getrighthome7@gmail.com'
+    },
+    supportPhone: {
+      type: String,
+      default: '+91 63044 71791'
+    },
+    supportWhatsapp: {
+      type: String,
+      default: '+916304471791'
+>>>>>>> 0651423adb92374ff6536d525325cbfb3fdbfae1
     }
   },
   { timestamps: true }

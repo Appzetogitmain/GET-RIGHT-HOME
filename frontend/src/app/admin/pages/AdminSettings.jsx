@@ -53,6 +53,7 @@ const AdminSettings = () => {
     });
     
     const [profileErrors, setProfileErrors] = useState({});
+    const [platformErrors, setPlatformErrors] = useState({});
 
     const [platformOpen, setPlatformOpen] = useState(true);
     const [maintenance, setMaintenance] = useState(false);
@@ -65,6 +66,10 @@ const AdminSettings = () => {
     const [freeTrialDurationDays, setFreeTrialDurationDays] = useState(30);
     const [platformFlatFee, setPlatformFlatFee] = useState(20);
     const [cashCollectionFee, setCashCollectionFee] = useState(20);
+
+    const [supportEmail, setSupportEmail] = useState('getrighthome7@gmail.com');
+    const [supportPhone, setSupportPhone] = useState('6304471791');
+    const [supportWhatsapp, setSupportWhatsapp] = useState('6304471791');
 
     const [passwordData, setPasswordData] = useState({
         oldPassword: '',
@@ -111,6 +116,9 @@ const AdminSettings = () => {
                     setFreeTrialDurationDays(res.settings.freeTrialDurationDays ?? 30);
                     setPlatformFlatFee(res.settings.platformFlatFee ?? 20);
                     setCashCollectionFee(res.settings.cashCollectionFee ?? 20);
+                    setSupportEmail(res.settings.supportEmail || 'getrighthome7@gmail.com');
+                    setSupportPhone(res.settings.supportPhone?.replace(/\D/g, '').slice(-10) || '6304471791');
+                    setSupportWhatsapp(res.settings.supportWhatsapp?.replace(/\D/g, '').slice(-10) || '6304471791');
                 }
             } catch (error) {
                 toast.error('Failed to load platform settings');
@@ -176,6 +184,24 @@ const AdminSettings = () => {
     };
 
     const handleSavePlatformSettings = async () => {
+        let errors = {};
+        if (!supportEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(supportEmail)) {
+            errors.supportEmail = 'Valid email is required';
+        }
+        if (!supportPhone || !/^[6-9]\d{9}$/.test(supportPhone)) {
+            errors.supportPhone = 'Mobile must be 10 digits starting with 6-9';
+        }
+        if (!supportWhatsapp || !/^[6-9]\d{9}$/.test(supportWhatsapp)) {
+            errors.supportWhatsapp = 'WhatsApp must be 10 digits starting with 6-9';
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setPlatformErrors(errors);
+            toast.error('Please fix validation errors');
+            return;
+        }
+        setPlatformErrors({});
+
         try {
             setSavingSettings(true);
             await adminService.updatePlatformSettings({
@@ -189,7 +215,10 @@ const AdminSettings = () => {
                 freeTrialListingLimit: Number(freeTrialListingLimit),
                 freeTrialDurationDays: Number(freeTrialDurationDays),
                 platformFlatFee: Number(platformFlatFee),
-                cashCollectionFee: Number(cashCollectionFee)
+                cashCollectionFee: Number(cashCollectionFee),
+                supportEmail,
+                supportPhone: `+91${supportPhone}`,
+                supportWhatsapp: `+91${supportWhatsapp}`
             });
             toast.success('Platform settings updated successfully');
         } catch (error) {
@@ -540,6 +569,56 @@ const AdminSettings = () => {
                                         onChange={(e) => setCashCollectionFee(e.target.value)}
                                         className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
                                     />
+                                </div>
+                            </div>
+                            <div className="pb-4 pt-6 font-bold text-md flex items-center gap-2 border-b border-gray-100 mt-6 uppercase tracking-tight mb-4">
+                                <MapPin size={16} /> Support Contact Details
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Support Email</label>
+                                    <input
+                                        type="email"
+                                        value={supportEmail}
+                                        onChange={(e) => setSupportEmail(e.target.value)}
+                                        className={`w-full px-4 py-2 border rounded-xl text-xs font-bold focus:border-black outline-none transition-colors ${platformErrors.supportEmail ? 'border-red-500' : 'border-gray-200'}`}
+                                        placeholder="support@example.com"
+                                    />
+                                    {platformErrors.supportEmail && <p className="text-red-500 text-[10px] mt-1 font-bold">{platformErrors.supportEmail}</p>}
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Support Phone</label>
+                                    <div className="flex">
+                                        <span className="inline-flex items-center px-3 border border-r-0 border-gray-200 rounded-l-xl bg-gray-50 text-gray-500 text-xs font-bold">
+                                            +91
+                                        </span>
+                                        <input
+                                            type="tel"
+                                            maxLength="10"
+                                            value={supportPhone}
+                                            onChange={(e) => setSupportPhone(e.target.value.replace(/\D/g, ''))}
+                                            className={`w-full px-4 py-2 border rounded-r-xl text-xs font-bold focus:border-black outline-none transition-colors ${platformErrors.supportPhone ? 'border-red-500' : 'border-gray-200'}`}
+                                            placeholder="1234567890"
+                                        />
+                                    </div>
+                                    {platformErrors.supportPhone && <p className="text-red-500 text-[10px] mt-1 font-bold">{platformErrors.supportPhone}</p>}
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Support WhatsApp</label>
+                                    <div className="flex">
+                                        <span className="inline-flex items-center px-3 border border-r-0 border-gray-200 rounded-l-xl bg-gray-50 text-gray-500 text-xs font-bold">
+                                            +91
+                                        </span>
+                                        <input
+                                            type="tel"
+                                            maxLength="10"
+                                            value={supportWhatsapp}
+                                            onChange={(e) => setSupportWhatsapp(e.target.value.replace(/\D/g, ''))}
+                                            className={`w-full px-4 py-2 border rounded-r-xl text-xs font-bold focus:border-black outline-none transition-colors ${platformErrors.supportWhatsapp ? 'border-red-500' : 'border-gray-200'}`}
+                                            placeholder="1234567890"
+                                        />
+                                    </div>
+                                    {platformErrors.supportWhatsapp && <p className="text-red-500 text-[10px] mt-1 font-bold">{platformErrors.supportWhatsapp}</p>}
                                 </div>
                             </div>
                             <div className="pb-4 pt-6 font-bold text-md flex items-center gap-2 border-b border-gray-100 mt-6 uppercase tracking-tight mb-4">

@@ -71,8 +71,12 @@ const PartnerSubscriptions = () => {
 
     const fetchData = async () => {
         try {
+            // Determine active role. For partner dashboard, default to 'builder' if missing
+            let activeRole = user?.userType || user?.role || 'builder';
+            if (activeRole.toLowerCase() === 'partner') activeRole = 'builder';
+
             const [plansData, subData, trialData] = await Promise.all([
-                subscriptionService.getActivePlans(),
+                subscriptionService.getActivePlans(activeRole),
                 subscriptionService.getCurrentSubscription(),
                 subscriptionService.getTrialSettings()
             ]);
@@ -193,10 +197,12 @@ const PartnerSubscriptions = () => {
     const isTrialValid = trialDaysRemaining > 0;
 
     return (
-        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-12">
-            <div>
-                <h1 className="text-3xl font-black text-gray-900 tracking-tight">Expand Your Business</h1>
-                <p className="text-gray-500 mt-1">Choose a plan that fits your growth strategy and scale today.</p>
+        <div className="max-w-7xl mx-auto px-4 pt-8">
+            <div className="text-center max-w-3xl mx-auto mb-12">
+                <h1 className="text-3xl font-black text-gray-900 tracking-tight capitalize">
+                    {(user?.userType || user?.role || 'Builder').replace('partner', 'builder')} Subscription Plans
+                </h1>
+                <p className="text-sm text-gray-500 mt-3 font-medium">Choose a plan that fits your growth strategy and scale today.</p>
             </div>
 
             {loading ? (

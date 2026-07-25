@@ -176,7 +176,7 @@ export const createProperty = async (req, res) => {
       }
 
       // Count properties listed by this actor
-      const query = isPartner ? { partnerId: req.user._id } : { userId: req.user._id };
+      const query = { userId: req.user._id };
       query.status = { $ne: 'deleted' };
 
       const currentPropertyCount = await Property.countDocuments(query);
@@ -279,7 +279,7 @@ export const createProperty = async (req, res) => {
       status: status || 'pending',
       description: finalDescription,
       shortDescription: finalShortDescription,
-      partnerId: isPartner ? req.user._id : null,
+
       userId: (isUser || isAdmin) ? req.user._id : null,
       isAddedByUser: isUser,
       isAddedByAdmin: isAdmin,
@@ -386,7 +386,7 @@ export const updateProperty = async (req, res) => {
     const property = await Property.findById(id);
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
-    if (String(property.partnerId) !== String(req.user._id) && String(property.userId) !== String(req.user._id) && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    if (String(property.userId) !== String(req.user._id) && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Not allowed' });
     }
 
@@ -616,7 +616,7 @@ export const updateRoomType = async (req, res) => {
     const property = await Property.findById(propertyId);
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
-    if (String(property.partnerId) !== String(req.user._id) && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    if (String(property.userId) !== String(req.user._id) && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Not allowed' });
     }
 
@@ -694,7 +694,7 @@ export const deleteRoomType = async (req, res) => {
     const property = await Property.findById(propertyId);
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
-    if (String(property.partnerId) !== String(req.user._id) && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    if (String(property.userId) !== String(req.user._id) && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Not allowed' });
     }
 
@@ -811,7 +811,8 @@ export const getPublicProperties = async (req, res) => {
       areas,
       builder,
       excludeAvailability,
-      possessionYear
+      possessionYear,
+      userId
     } = req.query;
 
     const pipeline = [];
@@ -1106,8 +1107,11 @@ export const getPublicProperties = async (req, res) => {
         } else {
           matchConditions.$or = residentialCondition.$or;
         }
-      } else if (propertyCategory.toLowerCase() === 'project') {
+      } else if (propertyCategory.toLowerCase() === 'project' || propertyCategory.toLowerCase() === 'projects') {
         matchConditions.propertyCategory = /^Project$/i;
+      } else if (propertyCategory.toLowerCase() === 'property' || propertyCategory.toLowerCase() === 'properties') {
+        // A "Property" is any listing that is NOT explicitly a Builder Project
+        matchConditions.propertyCategory = { $not: /^Project$/i };
       }
     }
 
@@ -1370,21 +1374,18 @@ export const getPublicProperties = async (req, res) => {
       }
     }
 
+    if (userId) {
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        matchConditions.userId = new mongoose.Types.ObjectId(userId);
+      }
+    }
+
     if (Object.keys(matchConditions).length > 0) {
       pipeline.push({ $match: matchConditions });
     }
 
     // --- SUBSCRIPTION RANKING BOOST ---
     pipeline.push(
-      {
-        $lookup: {
-          from: 'partners',
-          localField: 'partnerId',
-          foreignField: '_id',
-          as: 'partner'
-        }
-      },
-      { $unwind: { path: '$partner', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
           from: 'users',
@@ -1397,7 +1398,7 @@ export const getPublicProperties = async (req, res) => {
       {
         $lookup: {
           from: 'subscriptionplans',
-          localField: 'partner.subscription.planId',
+          localField: 'user.subscription.planId',
           foreignField: '_id',
           as: 'plan'
         }
@@ -1646,7 +1647,7 @@ export const getMyProperties = async (req, res) => {
   try {
     const query = {
       $or: [
-        { partnerId: req.user._id },
+        { userId: req.user._id },
         { userId: req.user._id }
       ],
       status: { $ne: 'draft' }
@@ -1668,7 +1669,7 @@ export const getPropertyDetails = async (req, res) => {
       id,
       { $inc: { views: 1 } },
       { new: true }
-    ).populate('partnerId').populate('userId').populate('builderProjectDetails');
+    ).populate('userId').populate('builderProjectDetails');
     
     // Fallback to Project collection if not found in Property
     if (!property) {
@@ -1676,7 +1677,7 @@ export const getPropertyDetails = async (req, res) => {
         id,
         { $inc: { views: 1 } },
         { new: true }
-      ).populate('partnerId').populate('userId');
+      ).populate('userId');
       
       // If found in project, map embedded fields to builderProjectDetails for frontend compatibility
       if (property) {
@@ -1709,7 +1710,7 @@ export const deleteProperty = async (req, res) => {
     const property = await Property.findOne({
       _id: propertyId,
       $or: [
-        { partnerId: req.user._id },
+
         { userId: req.user._id }
       ]
     });
@@ -1742,15 +1743,12 @@ export const deleteProperty = async (req, res) => {
 export const revealContact = async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await Property.findById(id).populate({
-      path: 'partnerId',
-      populate: { path: 'subscription.planId' }
-    });
+    const property = await Property.findById(id);
 
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
-    let partner = property.partnerId;
-    if (!partner && property.userId) {
+    let partner = null;
+    if (property.userId) {
       const userDoc = await User.findById(property.userId).populate('subscription.planId');
       if (userDoc && ['owner', 'broker', 'builder'].includes(userDoc.role)) {
         partner = userDoc;
@@ -1782,10 +1780,14 @@ export const revealContact = async (req, res) => {
       }
 
       if (!isSubscriptionActive && !isTrialActive) {
-        return res.status(403).json({
-          success: false,
-          message: `Seller subscription has expired or is inactive. Please ask them to subscribe.`,
-          subscriptionExpired: true
+        const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
+        const settings = await PlatformSettings.getSettings();
+
+        return res.status(200).json({
+          success: true,
+          subscriptionExpired: true,
+          message: `This seller's subscription has expired. Their contact details are currently unavailable.`,
+          contactNumber: settings.supportPhone || '+916304471791'
         });
       }
 
@@ -1852,7 +1854,7 @@ export const getRecommendedSellers = async (req, res) => {
         $lookup: {
           from: 'properties',
           localField: '_id',
-          foreignField: 'partnerId',
+          foreignField: 'userId',
           pipeline: [{ $match: { status: 'approved', isLive: true } }],
           as: 'activeProperties'
         }
@@ -1919,15 +1921,15 @@ export const getAdminPropertiesByLocation = async (req, res) => {
     const properties = await Project.find(query)
       .populate('featuredDetails.planId')
       .populate('userId', 'role')
-      .populate('partnerId', 'role')
+
       .lean();
 
     // Sort: 1. Featured Plan Weight -> 2. Hierarchy (Admin > Builder > Broker/Owner) -> 3. Date
     const sortedProperties = properties.sort((a, b) => {
       const getPlanWeight = (p) => (p.featuredDetails?.isFeatured && p.featuredDetails?.planId) ? (p.featuredDetails.planId.weight || 0) : 0;
       const getRoleWeight = (p) => {
-         if (p.isAddedByAdmin && !p.userId && !p.partnerId) return 4; // Admin pure
-         const role = p.userId?.role || p.partnerId?.role;
+         if (p.isAddedByAdmin && !p.userId) return 4; // Admin pure
+         const role = p.userId?.role;
          if (role === 'builder') return 3;
          if (role === 'broker' || role === 'owner') return 2;
          return 1;
@@ -2024,7 +2026,7 @@ export const getPropertyStats = async (req, res) => {
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
     // Authorization check
-    if (String(property.partnerId) !== String(req.user._id) &&
+    if (String(property.userId) !== String(req.user._id) &&
         String(property.userId) !== String(req.user._id) &&
         req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Unauthorized access to property stats' });
@@ -2129,7 +2131,7 @@ export const getPartnerPublicDetails = async (req, res) => {
     // Fetch all live properties of this seller
     const properties = await Property.find({
       $or: [
-        { partnerId: id },
+        { userId: id },
         { userId: id }
       ],
       status: 'approved',

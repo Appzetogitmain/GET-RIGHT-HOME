@@ -94,6 +94,7 @@ const AdminLayout = () => {
                 { icon: Video, label: 'Property Videos', path: '/admin/property-videos' },
                 { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' },
                 { icon: ImageIcon, label: 'Banner Management', path: '/admin/banners' },
+                { icon: LayoutGrid, label: 'Home Page Layout', path: '/admin/homepage-layout' },
                 { icon: Video, label: 'Reel Analysis', path: '/admin/reel-analysis' },
                 { icon: Star, label: 'Reviews', path: '/admin/reviews' },
             ]

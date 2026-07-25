@@ -46,8 +46,8 @@ const subscriptionService = {
     },
 
     // --- PARTNER --- (use api instance which adds JWT token automatically)
-    getActivePlans: async () => {
-        const response = await api.get('/subscriptions/plans');
+    getActivePlans: async (role = '') => {
+        const response = await api.get(`/subscriptions/plans${role ? `?role=${role}` : ''}`);
         return response.data;
     },
 

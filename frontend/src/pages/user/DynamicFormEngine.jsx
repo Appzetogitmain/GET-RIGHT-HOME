@@ -33,7 +33,13 @@ const DynamicFormEngine = () => {
 
   const [loading, setLoading] = useState(true);
   const [template, setTemplate] = useState(null);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  
+  const stepStorageKey = `draft_step_${transactionType}_${category}_${displayPropertyType}`;
+  const [currentStepIndex, setCurrentStepIndex] = useState(() => {
+    if (isEditMode) return 0;
+    const savedStep = localStorage.getItem(stepStorageKey);
+    return savedStep ? parseInt(savedStep, 10) : 0;
+  });
   const [errors, setErrors] = useState({});
 
   const userStr = localStorage.getItem('user');
@@ -118,10 +124,19 @@ const DynamicFormEngine = () => {
     fetchTemplate();
   }, [transactionType, category, displayPropertyType, navigate]);
 
-  // Persist to local storage
+  // Save form data to localStorage on change
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(formData));
-  }, [formData, storageKey]);
+    if (!isEditMode && Object.keys(formData).length > 0) {
+      localStorage.setItem(storageKey, JSON.stringify(formData));
+    }
+  }, [formData, storageKey, isEditMode]);
+
+  // Save currentStepIndex to localStorage on change
+  useEffect(() => {
+    if (!isEditMode && stepStorageKey) {
+      localStorage.setItem(stepStorageKey, currentStepIndex.toString());
+    }
+  }, [currentStepIndex, stepStorageKey, isEditMode]);
 
   // Sync pricing modal fields when loaded/edited
   useEffect(() => {
@@ -258,10 +273,40 @@ const DynamicFormEngine = () => {
             }
           }
         }
+
+        // Check repeater subfields and URL fields
+        if (field.type === 'repeater' && Array.isArray(value)) {
+          value.forEach((item, index) => {
+            if (field.subFields) {
+              field.subFields.forEach(subF => {
+                if (subF.type === 'repeater') return; // Skip nested repeaters
+                let isSubVisible = true;
+                if (subF.dependsOn?.field) {
+                  isSubVisible = item[subF.dependsOn.field] === subF.dependsOn.value;
+                }
+                if (isSubVisible && subF.required) {
+                  const subVal = item[subF.name];
+                  const isSubEmpty = subVal === undefined || subVal === null || subVal === '';
+                  if (isSubEmpty) {
+                    newErrors[`${field.name}_${index}_${subF.name}`] = `${subF.label} is required`;
+                    if (!firstErrorField) firstErrorField = field.name;
+                  }
+                }
+              });
+            }
+
+            ['planImageOrUrl', 'floorPlanImage'].forEach(key => {
+               if (item[key] && !item[key].startsWith('http')) {
+                  newErrors[`${field.name}_${index}_${key}`] = 'Please provide a valid image URL (must start with http or https) or upload an image.';
+                  if (!firstErrorField) firstErrorField = field.name;
+               }
+            });
+          });
+        }
       }
     });
 
-    // Custom Validation: Area comparisons matching 99acres rules
+    // Special custom comparison validations (Area size checks)omparisons matching 99acres rules
     const carpetVal = formData['carpetArea'];
     const superVal = formData['superArea'];
     const builtUpVal = formData['builtUpArea'];
@@ -1042,10 +1087,19 @@ const DynamicFormEngine = () => {
                   </button>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                     {field.subFields?.map(subF => {
+                      // Add dependency check
+                      let isSubVisible = true;
+                      if (subF.dependsOn?.field) {
+                        isSubVisible = item[subF.dependsOn.field] === subF.dependsOn.value;
+                      }
+                      if (!isSubVisible) return null;
+
                       if (subF.type === 'file') {
                          return (
                            <div key={subF.name} className="flex flex-col">
-                             <label className="text-[12px] font-semibold text-slate-600 mb-1">{subF.label}</label>
+                             <label className="text-[12px] font-semibold text-slate-600 mb-1">
+                               {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                             </label>
                              <div className="flex flex-col gap-2 items-start w-full">
                                <input type="text" placeholder="Image URL..." 
                                  className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
@@ -1079,12 +1133,74 @@ const DynamicFormEngine = () => {
                                </label>
                              </div>
                              {item[subF.name] && <img src={item[subF.name]} alt="preview" className="h-12 w-auto mt-2 rounded border" />}
+                             {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-2 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
                            </div>
                          );
                       }
+
+                      if (subF.type === 'pill') {
+                        return (
+                          <div key={subF.name} className="flex flex-col col-span-1 md:col-span-2">
+                            <label className="text-[12px] font-semibold text-slate-600 mb-2">
+                              {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              {subF.options?.map(opt => (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => {
+                                    const next = [...repeaterItems];
+                                    next[index] = { ...next[index], [subF.name]: opt };
+                                    handleChange(field.name, next);
+                                  }}
+                                  className={`px-4 py-2 text-[12px] font-medium rounded-full border transition-all ${
+                                    item[subF.name] === opt 
+                                      ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:bg-blue-50'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                            {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
+                          </div>
+                        );
+                      }
+                      
+                      if (subF.type === 'dropdown') {
+                        return (
+                          <div key={subF.name} className="flex flex-col">
+                            <label className="text-[12px] font-semibold text-slate-600 mb-1">
+                              {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <select
+                              value={item[subF.name] || ''}
+                              onChange={(e) => {
+                                const next = [...repeaterItems];
+                                next[index] = { ...next[index], [subF.name]: e.target.value };
+                                handleChange(field.name, next);
+                              }}
+                              className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500 bg-white"
+                            >
+                              <option value="">Select an option</option>
+                              {subF.options?.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                            {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
+                          </div>
+                        );
+                      }
+
+                      if (subF.type === 'repeater') return null; // Prevent deep nesting issues if we don't handle it yet
+
                       return (
                         <div key={subF.name} className="flex flex-col">
-                          <label className="text-[12px] font-semibold text-slate-600 mb-1">{subF.label}</label>
+                          <label className="text-[12px] font-semibold text-slate-600 mb-1">
+                            {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                          </label>
                           <input 
                             type={subF.type === 'number' ? 'number' : 'text'}
                             className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
@@ -1109,6 +1225,7 @@ const DynamicFormEngine = () => {
                               handleChange(field.name, next);
                             }}
                           />
+                          {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
                         </div>
                       )
                     })}
@@ -1172,10 +1289,10 @@ const DynamicFormEngine = () => {
             {currentStepIndex === 0 && isBrokerOrBuilder && (
               <div id="field-logo" className="mb-6 p-4 bg-slate-50 border border-slate-200/60 rounded-2xl">
                 <label className="block text-[14px] font-semibold text-slate-800 mb-2">
-                  Property Logo <span className="text-red-500">*</span>
+                  {user?.role === 'builder' ? 'Project Logo' : 'Property Logo'} <span className="text-red-500">*</span>
                 </label>
                 <p className="text-[11px] text-slate-500 mb-3">
-                  Upload a logo to display on your property card listings (e.g. your builder or broker brand).
+                  Upload a logo to display on your {user?.role === 'builder' ? 'project' : 'property'} card listings (e.g. your builder or broker brand).
                 </p>
                 
                 {formData.logo ? (
@@ -1195,9 +1312,9 @@ const DynamicFormEngine = () => {
                   }`}>
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                        <polyline points="21 15 16 10 5 21"></polyline>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
                       </svg>
                       <p className="text-[12px] text-slate-600 font-medium">Click to upload logo</p>
                       <p className="text-[10px] text-slate-400">Max size 2MB. JPG, PNG</p>
@@ -1228,7 +1345,6 @@ const DynamicFormEngine = () => {
                         }
                       }}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      style={{ position: 'relative', marginTop: '-60px', height: '100px' }}
                     />
                   </div>
                 )}
@@ -1254,6 +1370,33 @@ const DynamicFormEngine = () => {
                   errors={errors}
                   required
                 />
+                
+                <div className="space-y-4 mt-6">
+                   <div>
+                     <label className="block text-[14px] font-semibold text-slate-800 mb-2">Locality / Sector</label>
+                     <input
+                       type="text"
+                       value={formData.locality || ''}
+                       onChange={(e) => handleChange('locality', e.target.value)}
+                       placeholder="e.g. Super Corridor"
+                       className={`w-full bg-white border rounded-xl px-4 py-3 text-[13px] font-medium outline-none transition-all ${errors.locality ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#005B9F]'}`}
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-[14px] font-semibold text-slate-800 mb-2">Complete Property Address <span className="text-red-500">*</span></label>
+                     <textarea
+                       value={formData.fullAddress || formData.houseNumber || ''}
+                       onChange={(e) => {
+                         handleChange('fullAddress', e.target.value);
+                         handleChange('houseNumber', e.target.value);
+                       }}
+                       placeholder="e.g. Plot No 12, Main Road..."
+                       className={`w-full bg-white border rounded-xl px-4 py-3 text-[13px] font-medium outline-none transition-all resize-none ${errors.fullAddress || errors.houseNumber ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#005B9F]'}`}
+                       rows={3}
+                     />
+                     {(errors.fullAddress || errors.houseNumber) && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.fullAddress || errors.houseNumber}</p>}
+                   </div>
+                </div>
               </div>
             )}
 
@@ -1261,7 +1404,7 @@ const DynamicFormEngine = () => {
             {currentStep.fields
               .sort((a,b) => a.order - b.order)
               .filter(field => {
-                const isLocationField = currentStep?.title?.toLowerCase().includes('location') && ['city', 'state', 'district', 'country'].includes(field.name.toLowerCase());
+                const isLocationField = currentStep?.title?.toLowerCase().includes('location') && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber', 'pincode'].includes(field.name.toLowerCase());
                 const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
                 const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
                 

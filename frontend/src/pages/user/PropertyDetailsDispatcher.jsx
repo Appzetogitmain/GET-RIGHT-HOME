@@ -28,10 +28,14 @@ const PropertyDetailsDispatcher = () => {
         if (response && response.property) {
           const p = response.property;
           
-          if (p.isAddedByAdmin) {
+          // Determine if it is a Project (Builder project) or a standard Property
+          // A project will either have builderProjectDetails, builderName, or the creator is a builder
+          const isProject = p.builderProjectDetails || p.builderName || p.userId?.role === 'builder';
+          
+          if (isProject) {
             setIsHandpicked(true);
-            // If it is added by admin, redirect to handpicked details page
-            navigate(`/handpicked/${p._id}`, { replace: true });
+            // Route all Projects to the premium Handpicked/Project Details UI
+            navigate(`/project/${p._id}`, { replace: true });
           } else {
             setIsHandpicked(false);
             
@@ -76,7 +80,7 @@ const PropertyDetailsDispatcher = () => {
             Securing Property Details
           </h3>
           <p className="text-sm text-slate-400 font-semibold max-w-xs mb-6">
-            Please wait while we direct you to the premium listing space.
+            Please wait while we direct you to the premium Project space.
           </p>
 
           {/* Premium Skeleton Bars */}
@@ -122,7 +126,7 @@ const PropertyDetailsDispatcher = () => {
       <div className="min-h-screen bg-slate-50/50 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-md bg-white rounded-3xl p-8 shadow-xl border border-slate-100 flex flex-col items-center text-center">
           <Loader2 className="w-8 h-8 text-teal-500 animate-spin mb-4" />
-          <p className="text-sm font-bold text-slate-600">Redirecting to Handpicked Collection...</p>
+          <p className="text-sm font-bold text-slate-600">Redirecting to Project Collection...</p>
         </div>
       </div>
     );

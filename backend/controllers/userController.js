@@ -537,3 +537,222 @@ export const validatePromo = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error validating promo' });
   }
 };
+
+// @desc    Get recommended brokers
+// @route   GET /api/users/recommended-brokers
+// @access  Public
+export const getRecommendedBrokers = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 12;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+    
+    // Aggregation pipeline to fetch brokers, join their properties, calculate stats, and sort by active plan ranking/listings count
+    const brokers = await User.aggregate([
+      { $match: { role: 'broker' } },
+      
+      // Lookup active subscription plan for rankingWeight
+      {
+        $lookup: {
+          from: 'subscriptions',
+          let: { userId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $and: [ { $eq: ['$userId', '$$userId'] }, { $eq: ['$status', 'active'] } ] } } },
+            { $lookup: { from: 'subscriptionplans', localField: 'planId', foreignField: '_id', as: 'planDetails' } },
+            { $unwind: '$planDetails' }
+          ],
+          as: 'activeSubscription'
+        }
+      },
+      
+      // Lookup properties created by the broker
+      {
+        $lookup: {
+          from: 'properties',
+          let: { userId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $and: [ { $eq: ['$userId', '$$userId'] }, { $in: ['$status', ['approved', 'pending', 'draft']] } ] } } }
+          ],
+          as: 'listings'
+        }
+      },
+      
+      // Add calculated fields
+      {
+        $addFields: {
+          rankingWeight: {
+            $ifNull: [{ $arrayElemAt: ['$activeSubscription.planDetails.rankingWeight', 0] }, 0]
+          },
+          planName: {
+            $ifNull: [{ $arrayElemAt: ['$activeSubscription.planDetails.name', 0] }, 'Basic']
+          },
+          totalListings: { $size: '$listings' },
+          verifiedListings: {
+            $size: {
+              $filter: {
+                input: '$listings',
+                as: 'listing',
+                cond: { $eq: ['$$listing.isVerified', true] }
+              }
+            }
+          },
+          expertLocalities: {
+            $reduce: {
+              input: '$listings.address.area',
+              initialValue: [],
+              in: {
+                $cond: [
+                  { $and: [ { $ne: ['$$this', null] }, { $not: { $in: ['$$this', '$$value'] } } ] },
+                  { $concatArrays: ['$$value', ['$$this']] },
+                  '$$value'
+                ]
+              }
+            }
+          },
+          // Format join date for "Member Since"
+          memberSince: '$createdAt'
+        }
+      },
+      
+      // Clean up the output
+      {
+        $project: {
+          name: 1,
+          profileImage: 1,
+          rankingWeight: 1,
+          planName: 1,
+          totalListings: 1,
+          verifiedListings: 1,
+          expertLocalities: 1,
+          memberSince: 1
+        }
+      },
+      
+      // Filter out brokers with 0 listings
+      { $match: { totalListings: { $gt: 0 } } },
+      
+      // Sort: most listings first, then highest ranking weight
+      { $sort: { totalListings: -1, rankingWeight: -1, _id: -1 } },
+      
+      {
+        $facet: {
+          metadata: [{ $count: 'totalCount' }],
+          data: [{ $skip: skip }, { $limit: limit }]
+        }
+      }
+    ]);
+    
+    const totalCount = brokers[0].metadata[0] ? brokers[0].metadata[0].totalCount : 0;
+    const paginatedBrokers = brokers[0].data;
+    
+    res.json({ success: true, brokers: paginatedBrokers, total: totalCount, page, pages: Math.ceil(totalCount / limit) });
+  } catch (error) {
+    console.error('Error fetching recommended brokers:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @desc    Get broker profile
+// @route   GET /api/users/broker/:id
+// @access  Public
+export const getBrokerProfile = async (req, res) => {
+  try {
+    const brokerId = req.params.id;
+    const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
+    const settings = await PlatformSettings.getSettings();
+    
+    // Validate if it's a valid ObjectId (import mongoose in controller or use generic error handling)
+    if (!brokerId || brokerId.length !== 24) {
+      return res.status(404).json({ success: false, message: 'Broker not found' });
+    }
+
+    const brokerData = await User.aggregate([
+      { $match: { _id: new (await import('mongoose')).default.Types.ObjectId(brokerId), role: 'broker' } },
+      
+      {
+        $lookup: {
+          from: 'subscriptions',
+          let: { userId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $and: [ { $eq: ['$userId', '$$userId'] }, { $eq: ['$status', 'active'] } ] } } },
+            { $lookup: { from: 'subscriptionplans', localField: 'planId', foreignField: '_id', as: 'planDetails' } },
+            { $unwind: '$planDetails' }
+          ],
+          as: 'activeSubscription'
+        }
+      },
+      {
+        $lookup: {
+          from: 'properties',
+          let: { userId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $and: [ { $eq: ['$userId', '$$userId'] }, { $in: ['$status', ['approved', 'pending']] } ] } } }
+          ],
+          as: 'listings'
+        }
+      },
+      {
+        $addFields: {
+          planName: {
+            $ifNull: [{ $arrayElemAt: ['$activeSubscription.planDetails.name', 0] }, 'Basic']
+          },
+          totalListings: { $size: '$listings' },
+          verifiedListings: {
+            $size: {
+              $filter: {
+                input: '$listings',
+                as: 'listing',
+                cond: { $eq: ['$$listing.isVerified', true] }
+              }
+            }
+          },
+          expertLocalities: {
+            $reduce: {
+              input: '$listings.address.area',
+              initialValue: [],
+              in: {
+                $cond: [
+                  { $and: [ { $ne: ['$$this', null] }, { $not: { $in: ['$$this', '$$value'] } } ] },
+                  { $concatArrays: ['$$value', ['$$this']] },
+                  '$$value'
+                ]
+              }
+            }
+          },
+          memberSince: '$createdAt'
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          phone: 1, // Will be protected in frontend for logged out users
+          profileImage: 1,
+          planName: 1,
+          totalListings: 1,
+          verifiedListings: 1,
+          expertLocalities: 1,
+          memberSince: 1,
+          activeSubscription: 1
+        }
+      }
+    ]);
+    
+    if (!brokerData || brokerData.length === 0) {
+      return res.status(404).json({ success: false, message: 'Broker not found' });
+    }
+    
+    let broker = brokerData[0];
+    
+    if (!broker.activeSubscription || broker.activeSubscription.length === 0) {
+      broker.isSubscriptionExpired = true;
+      broker.originalPhone = broker.phone; // Optional: keep for debugging, but we overwrite phone
+      broker.phone = settings.supportPhone || '+916304471791';
+      broker.whatsapp = settings.supportWhatsapp || '+916304471791';
+    }
+
+    res.json({ success: true, broker });
+  } catch (error) {
+    console.error('Error fetching broker profile:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};

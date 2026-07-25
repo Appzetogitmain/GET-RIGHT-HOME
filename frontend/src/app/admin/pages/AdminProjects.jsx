@@ -374,6 +374,14 @@ const AdminProjects = () => {
                                                             <Link to={`${basePath}/projects/${project._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
+                                                            <a
+                                                                href={`/project/${project._id}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center gap-2 px-4 py-2 hover:bg-purple-50 text-[10px] font-bold uppercase text-purple-700"
+                                                            >
+                                                                <ExternalLink size={14} /> Preview
+                                                            </a>
                                                             {project.isAddedByAdmin && (
                                                                 <button onClick={() => navigate(`${basePath}/projects/add`, { state: { existingProject: project } })} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                     <Edit size={14} /> Edit Project

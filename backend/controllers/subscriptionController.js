@@ -44,7 +44,7 @@ export const createPlan = async (req, res) => {
         const {
             name, maxProperties, price, durationDays, description,
             commissionPercentage, tier, leadCap, hasVerifiedTag,
-            bannerType, rankingWeight, pauseDaysAllowed
+            bannerType, rankingWeight, pauseDaysAllowed, targetRole
         } = req.body;
 
         const plan = await SubscriptionPlan.create({
@@ -59,7 +59,8 @@ export const createPlan = async (req, res) => {
             hasVerifiedTag: hasVerifiedTag || false,
             bannerType: bannerType || 'none',
             rankingWeight: rankingWeight || 1,
-            pauseDaysAllowed: pauseDaysAllowed || 0
+            pauseDaysAllowed: pauseDaysAllowed || 0,
+            targetRole: targetRole || 'owner'
         });
 
         res.status(201).json({ success: true, plan });
@@ -132,8 +133,24 @@ export const deletePlan = async (req, res) => {
  */
 export const getActivePlans = async (req, res) => {
     try {
-        const plans = await SubscriptionPlan.find({ isActive: true }).sort({ price: 1 });
-        res.json({ success: true, plans });
+        const { role } = req.query;
+        let filter = { isActive: true };
+        
+        // If a role is provided, filter plans by that target role.
+        if (role) {
+            // Map 'partner' to 'builder' for backward compatibility
+            let parsedRole = role.toLowerCase();
+            if (parsedRole === 'partner') {
+                parsedRole = 'builder';
+            }
+            // Only apply filter if it matches one of the valid enums
+            if (['owner', 'broker', 'builder'].includes(parsedRole)) {
+                filter.targetRole = parsedRole;
+            }
+        }
+
+        const plans = await SubscriptionPlan.find(filter).sort({ price: 1 });
+        res.json({ success: true, plans, debug_filter: filter, debug_role_received: role });
     } catch (error) {
         console.error('Get Active Plans Error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch plans' });
@@ -295,7 +312,7 @@ export const toggleSubscriptionPause = async (req, res) => {
         }
 
         const plan = partner.subscription.planId;
-        if (plan.tier !== 'gold' || plan.pauseDaysAllowed <= 0) {
+        if (plan.pauseDaysAllowed <= 0) {
             return res.status(403).json({ message: 'Pause not allowed for this plan' });
         }
 
