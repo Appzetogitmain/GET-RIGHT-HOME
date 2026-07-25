@@ -180,6 +180,10 @@ app.get('/api/public/services', getPublicServices);
 app.get('/api/public/cities', getActiveCities);
 app.get('/api/public/builders', getPublicBuilders);
 app.get('/api/public/builders/:id', getPublicBuilderDetails);
+
+import { getHomePageConfig } from './controllers/homePageConfigController.js';
+app.get('/api/public/homepage-layout', getHomePageConfig);
+
 // Plans public endpoint (returns empty list if no plans configured)
 app.get('/api/public/plans', (req, res) => {
   res.json({ success: true, data: [] });

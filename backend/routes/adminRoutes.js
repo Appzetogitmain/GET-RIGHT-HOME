@@ -62,6 +62,7 @@ import {
   approveWorkerWithdrawal,
   rejectWorkerWithdrawal
 } from '../controllers/adminWorkerController.js';
+import { getHomePageConfig, updateHomePageConfig } from '../controllers/homePageConfigController.js';
 import { checkManagerPermission, requireAdminOrManager } from '../middlewares/managerPermission.js';
 
 import builderRoutes from './builderRoutes.js';
@@ -151,6 +152,8 @@ router.get('/contact-messages', checkManagerPermission('contact_messages', 'view
 router.put('/contact-messages/:id/status', checkManagerPermission('contact_messages', 'edit'), updateContactStatus);
 router.get('/platform-settings', checkManagerPermission('settings', 'view'), getPlatformSettings);
 router.put('/platform-settings', checkManagerPermission('settings', 'edit'), updatePlatformSettings);
+router.get('/homepage-layout', checkManagerPermission('settings', 'view'), getHomePageConfig);
+router.put('/homepage-layout', checkManagerPermission('settings', 'edit'), updateHomePageConfig);
 router.get('/reel-analysis', checkManagerPermission('reel_analysis', 'view'), getReelAnalysis);
 router.get('/reports/workers', checkManagerPermission('dashboard', 'view'), getWorkerAnalytics);
 
