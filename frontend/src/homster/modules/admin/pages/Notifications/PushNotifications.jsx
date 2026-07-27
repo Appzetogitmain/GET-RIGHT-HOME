@@ -40,8 +40,8 @@ const PushNotifications = () => {
 
   const audiences = [
     { id: 'users', label: 'All Users', icon: FiUsers, desc: 'Send to all registered customers' },
-    { id: 'partners', label: 'All Vendors', icon: FiBriefcase, desc: 'Send to all registered service providers' },
-    { id: 'all', label: 'Everyone', icon: FiGlobe, desc: 'Send to both users and vendors' }
+    { id: 'workers', label: 'All Workers', icon: FiBriefcase, desc: 'Send to all registered service providers' },
+    { id: 'all', label: 'Everyone', icon: FiGlobe, desc: 'Send to both users and workers' }
   ];
 
   return (
