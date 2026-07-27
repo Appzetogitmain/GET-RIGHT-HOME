@@ -91,6 +91,7 @@ const HandpickedDetailsPage = () => {
   const [showAboutBuilderModal, setShowAboutBuilderModal] = useState(false);
   const [showVerifiedSourcesModal, setShowVerifiedSourcesModal] = useState(false);
   const [activeBuilderProjectsTab, setActiveBuilderProjectsTab] = useState('ongoing');
+  const [activePropertiesBhkTab, setActivePropertiesBhkTab] = useState('All');
 
 
   // References to sections for scroll spying
@@ -1942,21 +1943,18 @@ const HandpickedDetailsPage = () => {
             </div>
           </div>
         ) : (
-          /* Properties Tab Active - Matches Image 3 Layout */
+          /* Properties Tab Active - Dynamic Floor Plans & Configurations */
           <div className="space-y-6 pt-2">
             {/* Filter Pills */}
             <div className="flex gap-2 items-center overflow-x-auto scrollbar-none px-1 pb-1">
               <button className="flex-shrink-0 p-2 border border-slate-200 rounded-full text-slate-500 hover:bg-slate-50">
                 <Filter className="w-4 h-4" />
               </button>
-              <button className="flex-shrink-0 px-4 py-1.5 border border-slate-200 rounded-full text-sm font-medium text-slate-700 flex items-center gap-1 hover:bg-slate-50">
-                Sort <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-              {['Owner', 'Verified', 'Ready To Move', 'Budget'].map(f => (
+              {['All', 'Ready To Move', 'Budget'].map(f => (
                 <button
                   key={f}
                   onClick={() => setPropertyFilter(f === propertyFilter ? 'All' : f)}
-                  className={`flex-shrink-0 px-4 py-1.5 border rounded-full text-sm font-medium transition-colors ${propertyFilter === f ? 'border-slate-800 text-slate-900 bg-slate-50' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                  className={`flex-shrink-0 px-4 py-1.5 border rounded-full text-sm font-medium transition-colors ${propertyFilter === f ? 'border-slate-800 text-slate-900 bg-slate-50 font-bold' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}
                 >
                   {f}
                 </button>
@@ -1965,109 +1963,147 @@ const HandpickedDetailsPage = () => {
 
             {/* Inline Action Buttons */}
             <div className="flex items-center gap-3">
+              {projectBrochureUrl && (
+                <a
+                  href={projectBrochureUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
+                >
+                  <Download className="w-4 h-4" /> Brochure
+                </a>
+              )}
               <button
-                onClick={() => {
-                  if (!user) {
-                    toast.error("Please login to download brochure");
-                    navigate('/login');
-                  } else {
-                    if (builderDetails.brochureUrl) window.open(builderDetails.brochureUrl, "_blank");
-                    else toast.error("Brochure not available.");
-                  }
-                }}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
-              >
-                <Download className="w-4 h-4" /> Brochure
-              </button>
-              <button
-                onClick={() => {
-                  if (!user) {
-                    toast.error("Please login to view contact details");
-                    navigate('/login');
-                  } else {
-                    setShowEnquiryModal(true);
-                  }
-                }}
+                onClick={() => setShowEnquiryModal(true)}
                 className="flex-[1.5] flex items-center justify-center py-3 rounded-full bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition-colors"
               >
-                <Phone className="w-4 h-4 mr-2" /> View Number
+                <Phone className="w-4 h-4 mr-2" /> Request Callback / Number
               </button>
             </div>
 
             {/* Available Units Header */}
             <div className="pt-2">
-              <h3 className="text-xl font-bold text-slate-900">Available Units</h3>
+              <h3 className="text-xl font-bold text-slate-900">Available Units & Floor Plans</h3>
               <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
-                <span className="text-orange-500 text-base">🔥</span> Limited inventory is available at the launch price.
+                <span className="text-orange-500 text-base">🔥</span> Limited inventory available. Choose layout configuration below.
               </p>
             </div>
 
-            {/* Config Tabs */}
-            <div className="flex gap-2 overflow-x-auto scrollbar-none pb-2">
-              {['1 BHK Apartment', '2 BHK Apartment', '3 BHK Apartment'].map((bhk, i) => (
-                <button key={i} className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium border transition-colors ${i === 0 ? 'border-slate-800 text-slate-900 bg-white shadow-sm' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                  {bhk}
-                </button>
-              ))}
-            </div>
+            {/* Config Tabs dynamically extracted from floorPlansList */}
+            {(() => {
+              const allConfigs = ['All', ...new Set(floorPlansList.map(p => p.configName || p.configType || p.configuration || 'Layout Plan').filter(Boolean))];
+              
+              const filteredPlans = floorPlansList.filter(plan => {
+                const cfg = plan.configName || plan.configType || plan.configuration || 'Layout Plan';
+                if (activePropertiesBhkTab !== 'All' && cfg !== activePropertiesBhkTab) return false;
+                if (propertyFilter === 'Ready To Move') {
+                  const st = String(plan.possessionStatus || '').toLowerCase();
+                  if (!st.includes('ready')) return false;
+                }
+                if (propertyFilter === 'Budget') {
+                  if (Number(plan.price || 0) > 5000000) return false;
+                }
+                return true;
+              });
 
-            <div className="grid grid-cols-1 gap-6">
-              {availableUnitsList.map((unit, idx) => (
-                <div key={idx} className="bg-white/60 border border-slate-850 rounded-3xl overflow-hidden hover:border-blue-500/30 transition-all flex flex-col md:flex-row gap-6 p-6">
-                  <div className="w-full md:w-80 h-48 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0">
-                    <img src={unit.images?.[0] || NO_IMAGE_PLACEHOLDER} className="w-full h-full object-cover" alt="" />
-                  </div>
-                  <div className="flex-grow flex flex-col justify-between space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="px-2.5 py-0.5 bg-blue-900/40 border border-blue-800/40 text-purple-300 text-[10px] font-bold rounded uppercase tracking-wide">
-                            {unit.roomCategory || 'Unit'}
-                          </span>
-                          <h4 className="text-base font-bold text-slate-900 mt-1">{unit.name}</h4>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-lg font-extrabold text-blue-500">
-                            ₹{(unit.pricePerNight / 10000000).toFixed(2)} Cr
-                          </span>
-                          <span className="text-[9px] text-slate-500 block mt-0.5">All-inclusive Estimate</span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-slate-700 leading-relaxed">
-                        {unit.description}
-                      </p>
+              return (
+                <div className="space-y-6">
+                  {allConfigs.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto scrollbar-none pb-2">
+                      {allConfigs.map((cfg, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setActivePropertiesBhkTab(cfg)}
+                          className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium border transition-colors ${activePropertiesBhkTab === cfg ? 'border-blue-600 text-blue-600 font-bold bg-blue-50/50 shadow-sm' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                        >
+                          {cfg}
+                        </button>
+                      ))}
                     </div>
+                  )}
 
-                    <div className="flex flex-wrap gap-4 items-center justify-between pt-4 border-t border-slate-200/60">
-                      <div className="flex gap-4 text-[10px] text-slate-500">
-                        <span>Config: <strong className="text-slate-800">{unit.bedsPerRoom} BHK</strong></span>
-                        <span>•</span>
-                        <span>Capacity: <strong className="text-slate-800">{unit.maxAdults} Adults</strong></span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => {
-                            toast.success("Brochure download started!");
-                          }}
-                          className="py-2 px-4 bg-slate-100 hover:bg-slate-750 text-[10px] font-bold text-slate-800 rounded-xl transition-all"
-                        >
-                          Download Brochure
-                        </button>
-                        <button
-                          onClick={() => setShowEnquiryModal(true)}
-                          className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-[10px] font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/25"
-                        >
-                          Request Callback
-                        </button>
-                      </div>
+                  {filteredPlans.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-6">
+                      {filteredPlans.map((plan, idx) => {
+                        const cfgName = plan.configName || plan.configType || plan.configuration || 'Unit Layout';
+                        const planImg = plan.floorPlanImage || plan.image || plan.layoutImage || pImages[idx % pImages.length] || NO_IMAGE_PLACEHOLDER;
+                        const carpet = plan.carpetArea ? `${plan.carpetArea} sqft` : 'N/A';
+                        const superArea = (plan.superArea || plan.superBuiltUpArea) ? `${plan.superArea || plan.superBuiltUpArea} sqft` : 'N/A';
+                        const planPriceStr = formatPlanPrice(plan.price);
+
+                        return (
+                          <div key={idx} className="bg-white/60 border border-slate-200 rounded-3xl overflow-hidden hover:border-blue-500/30 transition-all flex flex-col md:flex-row gap-6 p-6 shadow-sm">
+                            <div className="w-full md:w-72 h-48 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 relative group">
+                              <img src={planImg} className="w-full h-full object-cover" alt={cfgName} />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button onClick={() => setSelectedFloorPlan(plan)} className="px-3 py-1.5 bg-white text-slate-900 text-xs font-bold rounded-lg shadow">
+                                  View Full Layout
+                                </button>
+                              </div>
+                            </div>
+                            <div className="flex-grow flex flex-col justify-between space-y-4">
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase tracking-wide">
+                                      {plan.possessionStatus || 'Available'}
+                                    </span>
+                                    <h4 className="text-lg font-bold text-slate-900 mt-1">{cfgName}</h4>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-lg font-extrabold text-blue-600">
+                                      {planPriceStr}
+                                    </span>
+                                    <span className="text-[9px] text-slate-500 block mt-0.5">Starting Price</span>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 text-xs pt-2">
+                                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                    <span className="text-slate-500 block font-medium">Carpet Area</span>
+                                    <span className="font-bold text-slate-900">{carpet}</span>
+                                  </div>
+                                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                    <span className="text-slate-500 block font-medium">Super Built-up</span>
+                                    <span className="font-bold text-slate-900">{superArea}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap gap-4 items-center justify-between pt-4 border-t border-slate-200/60">
+                                <button
+                                  onClick={() => setSelectedFloorPlan(plan)}
+                                  className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
+                                >
+                                  <Maximize2 className="w-3.5 h-3.5" /> View Dimensions & Layout
+                                </button>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => setShowEnquiryModal(true)}
+                                    className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/25"
+                                  >
+                                    Request Callback
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-2">
+                      <h4 className="text-sm font-bold text-slate-800">No Floor Plans Found</h4>
+                      <p className="text-xs text-slate-500">There are no units matching the selected configuration filter.</p>
+                    </div>
+                  )}
                 </div>
-              ))}
-              {/* Support Section at Bottom */}
-              <div className="mt-8">
-                <SupportSection />
-              </div>
+              );
+            })()}
+
+            {/* Support Section at Bottom */}
+            <div className="mt-8">
+              <SupportSection />
             </div>
           </div>
         )}
