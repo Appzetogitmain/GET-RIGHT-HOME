@@ -1309,11 +1309,10 @@ export const createBroadcastNotification = async (req, res) => {
       recipients.push(...users.map(u => ({ id: u._id, type: 'user' })));
     }
 
-    // 2. Fetch Partners
-    if (targetAudience === 'partners' || targetAudience === 'everyone' || targetAudience === 'all') {
-      // Typically approved partners only? Or all? Let's say all active ones.
-      const partners = await Partner.find({ isBlocked: { $ne: true } }).select('_id');
-      recipients.push(...partners.map(p => ({ id: p._id, type: 'partner' })));
+    // 2. Fetch Workers
+    if (targetAudience === 'workers' || targetAudience === 'partners' || targetAudience === 'everyone' || targetAudience === 'all') {
+      const workers = await Worker.find({ isBlocked: { $ne: true } }).select('_id');
+      recipients.push(...workers.map(w => ({ id: w._id, type: 'worker' })));
     }
 
     if (recipients.length === 0) {
