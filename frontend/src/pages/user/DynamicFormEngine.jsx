@@ -852,25 +852,68 @@ const DynamicFormEngine = () => {
               </button>
             </div>
             
-            {/* Display selected files */}
+            {/* Display selected files with Tags */}
             {formData[field.name] && Array.isArray(formData[field.name]) && formData[field.name].length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-4">
-                {formData[field.name].map((url, i) => (
-                  <div key={i} className="w-20 h-20 rounded-lg overflow-hidden border border-slate-200 relative group">
-                    <img src={url} alt="upload" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nextImages = [...(formData[field.name] || [])];
-                        nextImages.splice(i, 1);
-                        handleChange(field.name, nextImages);
-                      }}
-                      className="absolute top-1 right-1 bg-black/70 hover:bg-black text-white p-1 rounded-full text-[10px] w-5 h-5 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+                {formData[field.name].map((url, i) => {
+                  const tagKey = `${field.name}_tags`;
+                  const tags = formData[tagKey] || {};
+                  const currentTag = tags[i] || '';
+
+                  return (
+                    <div key={i} className="bg-slate-50 p-2 rounded-xl border border-slate-200 relative group flex flex-col gap-1.5">
+                      <div className="h-24 w-full rounded-lg overflow-hidden relative">
+                        <img src={url} alt="upload" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextImages = [...(formData[field.name] || [])];
+                            nextImages.splice(i, 1);
+                            handleChange(field.name, nextImages);
+                          }}
+                          className="absolute top-1 right-1 bg-black/70 hover:bg-black text-white p-1 rounded-full text-[10px] w-5 h-5 flex items-center justify-center transition-all"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      
+                      {/* Image Tag Dropdown + Custom Tag Option */}
+                      <div className="flex flex-col gap-1">
+                        <select
+                          value={['Hall', 'Kitchen', 'Bedroom', 'Master Bedroom', 'Bathroom', 'Elevation', 'Floor Plan', 'Balcony'].includes(currentTag) ? currentTag : (currentTag ? 'Custom' : '')}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === 'Custom') {
+                              const customTag = prompt('Enter custom image tag (e.g. Pooja Room, Terrace, Servant Quarter):');
+                              if (customTag && customTag.trim()) {
+                                handleChange(tagKey, { ...tags, [i]: customTag.trim() });
+                              }
+                            } else {
+                              handleChange(tagKey, { ...tags, [i]: val });
+                            }
+                          }}
+                          className="text-[11px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none w-full cursor-pointer"
+                        >
+                          <option value="">+ Tag Image Type</option>
+                          <option value="Hall">Hall / Living</option>
+                          <option value="Kitchen">Kitchen</option>
+                          <option value="Bedroom">Bedroom</option>
+                          <option value="Master Bedroom">Master Bedroom</option>
+                          <option value="Bathroom">Bathroom</option>
+                          <option value="Elevation">Elevation / Exterior</option>
+                          <option value="Floor Plan">Floor Plan</option>
+                          <option value="Balcony">Balcony / View</option>
+                          <option value="Custom">✏️ Add Custom Tag...</option>
+                        </select>
+                        {currentTag && (
+                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 truncate">
+                            Tag: {currentTag}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
             {errors[field.name] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[field.name]}</p>}

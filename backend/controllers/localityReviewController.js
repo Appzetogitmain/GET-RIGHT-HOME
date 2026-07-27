@@ -55,15 +55,15 @@ export const getLocalityReviewStats = async (req, res) => {
       return res.json({
         success: true,
         stats: {
-          avgRating: 4.3, // Match original UI fallback
+          avgRating: 0,
           totalReviews: 0,
           ratingsBreakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
-          connectivity: 4.3,
-          lifestyle: 4.3,
-          safety: 4.3,
-          greenArea: 4.3,
-          positives: ["Good Public Transport", "Easy Cab Availability", "Safe at Night"],
-          negatives: ["Frequent Traffic Jams"]
+          connectivity: 0,
+          lifestyle: 0,
+          safety: 0,
+          greenArea: 0,
+          positives: [],
+          negatives: []
         }
       });
     }

@@ -1223,31 +1223,23 @@ const PropertyDetailsPage = () => {
   const listedCount = property?.partnerId?.listedPropertiesCount || property?.userId?.listedPropertiesCount || 46;
   const verifiedCount = property?.partnerId?.verifiedPropertiesCount || property?.userId?.verifiedPropertiesCount || 12;
 
-  const localityName = property?.address?.locality || property?.address?.area || property?.address?.city || 'Goregaon East, Mumbai';
-  const totalLocalityReviews = localityStats?.totalReviews || 205;
-  const avgLocalityRating = localityStats?.averageRating || 4.3;
+  const localityName = property?.address?.locality || property?.address?.area || property?.address?.city || '';
+  const totalLocalityReviews = localityStats?.totalReviews || 0;
+  const avgLocalityRating = localityStats?.averageRating || localityStats?.avgRating || 0;
   const getStarPercentage = (starVal) => {
-    if (!localityStats?.ratingDistribution) {
-      return starVal === 5 ? 65 : (starVal === 4 ? 25 : (starVal === 3 ? 8 : 2));
-    }
-    const dist = localityStats.ratingDistribution;
+    const dist = localityStats?.ratingDistribution || localityStats?.ratingsBreakdown || {};
     const count = dist[starVal] || 0;
     if (totalLocalityReviews <= 0) return 0;
     return Math.round((count / totalLocalityReviews) * 100);
   };
   const featureRatings = [
-    { title: 'Connectivity', val: `${localityStats?.ratingsByFeature?.connectivity?.toFixed(1) || '4.3'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.connectivity || 4.3) * 20) },
-    { title: 'Lifestyle', val: `${localityStats?.ratingsByFeature?.lifestyle?.toFixed(1) || '4.3'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.lifestyle || 4.3) * 20) },
-    { title: 'Safety', val: `${localityStats?.ratingsByFeature?.safety?.toFixed(1) || '4.2'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.safety || 4.2) * 20) },
-    { title: 'Green Area', val: `${localityStats?.ratingsByFeature?.greenArea?.toFixed(1) || '4.2'}/5`, percent: Math.round((localityStats?.ratingsByFeature?.greenArea || 4.2) * 20) }
+    { title: 'Connectivity', val: localityStats?.connectivity ? `${localityStats.connectivity.toFixed(1)}/5` : (localityStats?.ratingsByFeature?.connectivity ? `${localityStats.ratingsByFeature.connectivity.toFixed(1)}/5` : '0/5'), percent: localityStats?.connectivity ? Math.round(localityStats.connectivity * 20) : (localityStats?.ratingsByFeature?.connectivity ? Math.round(localityStats.ratingsByFeature.connectivity * 20) : 0) },
+    { title: 'Lifestyle', val: localityStats?.lifestyle ? `${localityStats.lifestyle.toFixed(1)}/5` : (localityStats?.ratingsByFeature?.lifestyle ? `${localityStats.ratingsByFeature.lifestyle.toFixed(1)}/5` : '0/5'), percent: localityStats?.lifestyle ? Math.round(localityStats.lifestyle * 20) : (localityStats?.ratingsByFeature?.lifestyle ? Math.round(localityStats.ratingsByFeature.lifestyle * 20) : 0) },
+    { title: 'Safety', val: localityStats?.safety ? `${localityStats.safety.toFixed(1)}/5` : (localityStats?.ratingsByFeature?.safety ? `${localityStats.ratingsByFeature.safety.toFixed(1)}/5` : '0/5'), percent: localityStats?.safety ? Math.round(localityStats.safety * 20) : (localityStats?.ratingsByFeature?.safety ? Math.round(localityStats.ratingsByFeature.safety * 20) : 0) },
+    { title: 'Green Area', val: localityStats?.greenArea ? `${localityStats.greenArea.toFixed(1)}/5` : (localityStats?.ratingsByFeature?.greenArea ? `${localityStats.ratingsByFeature.greenArea.toFixed(1)}/5` : '0/5'), percent: localityStats?.greenArea ? Math.round(localityStats.greenArea * 20) : (localityStats?.ratingsByFeature?.greenArea ? Math.round(localityStats.ratingsByFeature.greenArea * 20) : 0) }
   ];
-  const localityPositives = localityStats?.positives && localityStats.positives.length > 0
-    ? localityStats.positives
-    : ['Good Public Transport', 'Easy Cab/Auto Availability', 'Good Schools are nearby', 'Markets at a walkable distance', 'Well-maintained Roads', 'Good Hospitals are nearby'];
-
-  const localityNegatives = localityStats?.negatives && localityStats.negatives.length > 0
-    ? localityStats.negatives
-    : ['Frequent Traffic Jams', 'Frequent Parking Issues'];
+  const localityPositives = localityStats?.positives || [];
+  const localityNegatives = localityStats?.negatives || [];
 
   return (
     <div className="bg-[#f8fafe] min-h-screen pb-32 pt-28 text-gray-800 font-sans selection:bg-blue-100 antialiased">
@@ -1560,41 +1552,56 @@ const PropertyDetailsPage = () => {
         </div>
 
         {/* 6. SECTION: PHOTO ALBUMS GRID / TAKE A TOUR (id="photos") */}
-        <div id="photos" className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+        <div id="photos" className="bg-[#ffffff] rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Take a tour of the Property</h3>
             <p className="text-[10px] text-gray-500">With photos and videos</p>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { title: 'Entrance', count: 1, img: galleryImages[0] },
-              { title: 'Hall', count: 1, img: galleryImages[1] || galleryImages[0] },
-              { title: 'Bedroom', count: 2, img: galleryImages[2] || galleryImages[0] },
-              { title: 'Kitchen', count: 1, img: galleryImages[3] || galleryImages[0] }
-            ].map((album, idx) => (
-              <div
-                key={idx}
-                onClick={() => {
-                  setCurrentImageIndex(idx % galleryImages.length);
-                  setShowImageModal(true);
-                }}
-                className={`relative rounded-xl overflow-hidden h-[75px] cursor-pointer group ${
-                  idx === 0 ? 'col-span-3 h-[130px]' : 'col-span-1'
-                }`}
-              >
-                <img src={album.img} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
-                
-                <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white shadow-sm">
-                  {album.title}
-                </span>
-                
-                <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm flex items-center gap-0.5">
-                  <Camera size={9} /> {album.count}
-                </span>
-              </div>
-            ))}
+            {(() => {
+              const rawImages = property?.propertyImages || property?.images?.gallery || galleryImages || [];
+              const tagsObj = property?.propertyImages_tags || property?.dynamicData?.propertyImages_tags || property?.imageTags || {};
+              
+              const grouped = {};
+              rawImages.forEach((imgUrl, i) => {
+                let tag = tagsObj[i] || tagsObj[String(i)] || (i === 0 ? 'Entrance' : (i === 1 ? 'Hall' : (i === 2 ? 'Bedroom' : 'Exterior')));
+                if (!tag) tag = 'Property View';
+                if (!grouped[tag]) {
+                  grouped[tag] = { title: tag, count: 0, img: imgUrl };
+                }
+                grouped[tag].count += 1;
+              });
+
+              const albums = Object.values(grouped);
+              const tourList = albums.length > 0 ? albums : [
+                { title: 'Full Gallery', count: rawImages.length, img: rawImages[0] || '/placeholder-property.jpg' }
+              ];
+
+              return tourList.map((album, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    setCurrentImageIndex(idx % galleryImages.length);
+                    setShowImageModal(true);
+                  }}
+                  className={`relative rounded-xl overflow-hidden h-[75px] cursor-pointer group ${
+                    idx === 0 ? 'col-span-3 h-[130px]' : 'col-span-1'
+                  }`}
+                >
+                  <img src={album.img} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
+                  
+                  <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white shadow-sm">
+                    {album.title}
+                  </span>
+                  
+                  <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm flex items-center gap-0.5">
+                    <Camera size={9} /> {album.count}
+                  </span>
+                </div>
+              ));
+            })()}
           </div>
         </div>
 
@@ -1932,7 +1939,12 @@ const PropertyDetailsPage = () => {
                     : 'Contact for Price')));
                   const simName = simItem.propertyName || simItem.name || 'Property';
                   const simLocality = simItem.address?.locality || simItem.address?.area || simItem.address?.city || '';
-                  const simCover = simItem.images?.cover || (simItem.images?.gallery?.[0]) || galleryImages[0];
+                  const simCover = simItem.coverImage || 
+                                   simItem.images?.cover || 
+                                   (Array.isArray(simItem.propertyImages) && simItem.propertyImages[0]) || 
+                                   (Array.isArray(simItem.images?.gallery) && simItem.images.gallery[0]) || 
+                                   (Array.isArray(simItem.photos) && simItem.photos[0]) || 
+                                   "/placeholder-property.jpg";
                   const ratingVal = simItem.avgRating || 0;
 
                   return (
@@ -1978,11 +1990,11 @@ const PropertyDetailsPage = () => {
               <p className="text-[10px] text-gray-500">For {localityName}</p>
             </div>
             <button
-            onClick={() => setShowReviewForm(true)}
-            className="text-xs font-bold text-[#0061df] hover:underline"
-          >
-            View all
-          </button>
+              onClick={() => navigate(`/locality-reviews?locality=${encodeURIComponent(localityName)}`)}
+              className="text-xs font-bold text-[#0061df] hover:underline"
+            >
+              View all
+            </button>
           </div>
 
           {/* Average Rating Block */}
@@ -2045,33 +2057,42 @@ const PropertyDetailsPage = () => {
           </div>
 
           {/* Positives & Negatives List tags */}
-          <div className="space-y-3 pt-2 border-t border-slate-50">
-            
-            {/* Positives */}
-            <div className="space-y-1.5">
-              <h5 className="text-xs font-bold text-slate-900">What are the positives</h5>
-              <div className="flex flex-wrap gap-1.5">
-                {localityPositives.map((pos, i) => (
-                  <span key={i} className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded border border-emerald-100">
-                    {pos}
-                  </span>
-                ))}
+          {(localityPositives.length > 0 || localityNegatives.length > 0) ? (
+            <div className="space-y-3 pt-2 border-t border-slate-50">
+              {localityPositives.length > 0 && (
+                <div className="space-y-1.5">
+                  <h5 className="text-xs font-bold text-slate-900">What are the positives</h5>
+                  <div className="flex flex-wrap gap-1.5">
+                    {localityPositives.map((pos, i) => (
+                      <span key={i} className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded border border-emerald-100">
+                        {pos}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {localityNegatives.length > 0 && (
+                <div className="space-y-1.5">
+                  <h5 className="text-xs font-bold text-slate-900">What are the negatives</h5>
+                  <div className="flex flex-wrap gap-1.5">
+                    {localityNegatives.map((neg, i) => (
+                      <span key={i} className="bg-red-50 text-red-800 text-[10px] font-bold px-2.5 py-1 rounded border border-red-100">
+                        {neg}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="pt-2 border-t border-slate-50">
+              <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-3 text-center my-1">
+                <p className="text-[11px] text-slate-600 font-semibold">No resident feedback tags for {localityName || 'this locality'} yet.</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Be the first to share your experience!</p>
               </div>
             </div>
-
-            {/* Negatives */}
-            <div className="space-y-1.5">
-              <h5 className="text-xs font-bold text-slate-900">What are the negatives</h5>
-              <div className="flex flex-wrap gap-1.5">
-                {localityNegatives.map((neg, i) => (
-                  <span key={i} className="bg-red-50 text-red-800 text-[10px] font-bold px-2.5 py-1 rounded border border-red-100">
-                    {neg}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-          </div>
+          )}
 
           {/* Reviews by Residents Horizontal scroll list */}
           <div className="space-y-3 pt-3 border-t border-slate-50">
@@ -2123,36 +2144,39 @@ const PropertyDetailsPage = () => {
           </div>
 
           {/* Affordability EMI calculator Tool card */}
-          {bookingBarPrice && !isNaN(Number(bookingBarPrice)) && !isRentGroup && !isPgGroup && (
-            <div className="pt-3 border-t border-slate-50">
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Check your affordability</span>
-              
-              {(() => {
-                const principal = Number(bookingBarPrice);
-                const rate = 8.5 / 100 / 12; // 8.5% annual rate
-                const tenure = 20 * 12; // 20 years in months
-                const emi = principal > 0 && rate > 0
-                  ? Math.round((principal * 0.8 * rate * Math.pow(1 + rate, tenure)) / (Math.pow(1 + rate, tenure) - 1))
-                  : 0;
-                return (
-                  <div className="rounded-xl border border-slate-150 p-3 bg-white flex items-center justify-between cursor-pointer hover:border-slate-300 transition-colors shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-500">
-                        <Grid size={18} />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-900">Calculate EMI</h5>
-                        <p className="text-[10px] text-slate-500 font-semibold">
-                          {emi > 0 ? `Est. EMI ₹${emi.toLocaleString('en-IN')}/month · 20 yrs @8.5%` : 'Tap to calculate your EMI'}
-                        </p>
-                      </div>
+          <div className="pt-3 border-t border-slate-50">
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Check your affordability</span>
+            
+            {(() => {
+              const rawPrice = Number(bookingBarPrice) || Number(property?.buyDetails?.expectedPrice) || Number(property?.rentDetails?.monthlyRent) || 3000000;
+              const principal = rawPrice > 100000 ? rawPrice : rawPrice * 100; // normalize
+              const rate = 8.5 / 100 / 12; // 8.5% annual rate
+              const tenure = 20 * 12; // 20 years in months
+              const emi = principal > 0
+                ? Math.round((principal * 0.8 * rate * Math.pow(1 + rate, tenure)) / (Math.pow(1 + rate, tenure) - 1))
+                : 0;
+
+              return (
+                <div 
+                  onClick={() => navigate(`/home-loan-emi-calculator?amount=${principal}`)}
+                  className="rounded-xl border border-slate-150 p-3 bg-white flex items-center justify-between cursor-pointer hover:border-[#0061df] transition-colors shadow-sm group active:scale-98"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                      <Grid size={18} />
                     </div>
-                    <ChevronRight size={16} className="text-slate-400" />
+                    <div>
+                      <h5 className="text-xs font-bold text-slate-900 group-hover:text-[#0061df] transition-colors">Calculate EMI</h5>
+                      <p className="text-[10px] text-slate-500 font-semibold">
+                        {emi > 0 ? `Est. EMI ₹${emi.toLocaleString('en-IN')}/month · 20 yrs @8.5%` : 'Tap to calculate your loan EMI'}
+                      </p>
+                    </div>
                   </div>
-                );
-              })()}
-            </div>
-          )}
+                  <ChevronRight size={18} className="text-slate-400 group-hover:text-[#0061df] transition-colors" />
+                </div>
+              );
+            })()}
+          </div>
         </div>
 
       </div>
@@ -2337,7 +2361,7 @@ const PropertyDetailsPage = () => {
                   </div>
                 </div>
 
-                {/* Other Amenities list (Matches Image 8) */}
+                {/* Other Amenities list */}
                 <div className="space-y-2 pt-3 border-t border-slate-50">
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Other amenities</h4>
                   
@@ -2350,21 +2374,7 @@ const PropertyDetailsPage = () => {
                         </div>
                       ))
                     ) : (
-                      [
-                        { title: 'Piped-gas', icon: Flame },
-                        { title: 'Bank Attached Property', icon: Landmark },
-                        { title: 'Recently Renovated', icon: CheckCircle },
-                        { title: 'High Ceiling Height', icon: Move },
-                        { title: 'False Ceiling Lighting', icon: Sparkles }
-                      ].map((otherA, i) => {
-                        const Icon = otherA.icon;
-                        return (
-                          <div key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-700 py-1.5 border-b border-slate-50 last:border-0 last:pb-0">
-                            <Icon size={14} className="text-slate-400" />
-                            <span>{otherA.title}</span>
-                          </div>
-                        );
-                      })
+                      <div className="text-slate-400 text-xs italic py-2">No additional amenities listed</div>
                     )}
                   </div>
                 </div>

@@ -776,6 +776,31 @@ const HandpickedDetailsPage = () => {
 
               {/* Section 1: Overview & Highlights */}
               <div ref={sectionRefs['overview-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
+                
+                {/* Official Project Brochure Card */}
+                {(property?.brochureUrl || property?.dynamicData?.brochure || property?.dynamicData?.brochureUrl || property?.brochure) && (
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-4 flex items-center justify-between shadow-md">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <FileText size={20} className="text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm">Official Project Brochure</h4>
+                        <p className="text-[11px] text-white/80">Floor plans, price sheets & specifications PDF</p>
+                      </div>
+                    </div>
+                    <a
+                      href={property?.brochureUrl || property?.dynamicData?.brochure || property?.dynamicData?.brochureUrl || property?.brochure}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="px-4 py-2 bg-white text-blue-700 hover:bg-blue-50 font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 shrink-0"
+                    >
+                      <Download size={14} /> Download PDF
+                    </a>
+                  </div>
+                )}
+
                 <div>
                   <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
                     <Building className="w-5 h-5 text-blue-500" /> Project Architectural Highlights

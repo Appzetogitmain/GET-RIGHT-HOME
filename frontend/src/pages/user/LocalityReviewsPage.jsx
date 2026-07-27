@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, Star, User, Check, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -7,8 +7,10 @@ import { motion } from 'framer-motion';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const LocalityReviewsPage = () => {
-    const { locality } = useParams();
+    const params = useParams();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const locality = params.locality || searchParams.get('locality') || 'Locality';
     
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -17,18 +19,17 @@ const LocalityReviewsPage = () => {
     useEffect(() => {
         const fetchReviews = async () => {
             try {
-                const res = await axios.get(`${API_URL}/public/insights/${locality}`);
-                if (res.data.success && res.data.automated?.reviews) {
-                    const revs = res.data.automated.reviews;
-                    setReviews(revs);
-                    
-                    if (revs.length > 0) {
-                        const totalRating = revs.reduce((acc, r) => acc + (r.rating || 5), 0);
-                        setStats({
-                            average: (totalRating / revs.length).toFixed(1),
-                            total: revs.length
-                        });
-                    }
+                const res = await axios.get(`${API_URL}/locality-reviews/stats?localityName=${encodeURIComponent(locality)}`);
+                if (res.data.success && res.data.stats) {
+                    const s = res.data.stats;
+                    setStats({
+                        average: s.avgRating ? s.avgRating.toFixed(1) : '0.0',
+                        total: s.totalReviews || 0
+                    });
+                }
+                const revRes = await axios.get(`${API_URL}/public/insights/${encodeURIComponent(locality)}`);
+                if (revRes.data?.success && revRes.data?.automated?.reviews) {
+                    setReviews(revRes.data.automated.reviews);
                 }
             } catch (error) {
                 console.error("Failed to fetch locality reviews", error);
@@ -36,7 +37,9 @@ const LocalityReviewsPage = () => {
                 setLoading(false);
             }
         };
-        fetchReviews();
+        if (locality) {
+            fetchReviews();
+        }
     }, [locality]);
 
     return (
