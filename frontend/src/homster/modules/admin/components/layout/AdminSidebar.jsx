@@ -104,6 +104,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Push Notifications": "/admin/home-service/notifications/push",
       "Custom Messages": "/admin/home-service/notifications/messages",
       "Notification Settings": "/admin/home-service/notifications/settings",
+      "Abandoned Carts": "/admin/home-service/notifications/abandoned-carts",
     },
     "/admin/home-service/settings": {
       "General Settings": "/admin/home-service/settings/general",
