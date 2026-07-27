@@ -1658,12 +1658,12 @@ const Checkout = () => {
                   value={promoCodeInput}
                   onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
                   placeholder="Enter code (e.g. NEWCLEAN10)"
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase font-bold focus:outline-none focus:border-indigo-500"
+                  className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-[13px] font-medium focus:outline-none focus:border-indigo-500 placeholder:normal-case placeholder:font-normal"
                 />
                 <button
                   onClick={handleApplyPromo}
                   disabled={promoLoading || !promoCodeInput.trim()}
-                  className="text-white px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
+                  className="text-white px-4 py-2 rounded-lg text-[13px] font-bold disabled:opacity-50 shrink-0"
                   style={{ background: themeColors.button }}
                 >
                   {promoLoading ? 'Applying...' : 'Apply'}

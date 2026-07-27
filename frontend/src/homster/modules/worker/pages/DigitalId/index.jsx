@@ -22,9 +22,9 @@ const DigitalId = () => {
         const res = await workerService.getProfile();
         if (res.success && res.worker) {
           const w = res.worker;
-          // We use aadhar.document to store the digital card
-          if (w.aadhar && w.aadhar.document) {
-            setDigitalIdUrl(w.aadhar.document);
+          // We use digitalIdCard to store the digital card
+          if (w.digitalIdCard) {
+            setDigitalIdUrl(w.digitalIdCard);
           }
         }
       } catch (error) {
@@ -94,7 +94,7 @@ const DigitalId = () => {
       if (photoFile) {
         try {
           const photoUrl = await uploadFile(photoFile);
-          payload.aadharFront = photoUrl;
+          payload.digitalIdCard = photoUrl;
         } catch (uploadErr) {
           console.error('Photo upload failed', uploadErr);
           toast.error('Failed to upload digital card');

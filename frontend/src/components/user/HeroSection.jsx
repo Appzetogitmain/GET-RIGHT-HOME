@@ -99,13 +99,13 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                 || geoData.address?.village
                 || geoData.address?.state_district
                 || '';
-            
+
             const state = geoData.address?.state || '';
 
             toast.dismiss(toastId);
 
-            const isBangalore = 
-                detectedCity.toLowerCase().includes('bangalore') || 
+            const isBangalore =
+                detectedCity.toLowerCase().includes('bangalore') ||
                 detectedCity.toLowerCase().includes('bengaluru') ||
                 state.toLowerCase().includes('karnataka');
 
@@ -206,9 +206,9 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                             )}
                         </div>
 
-                        <LucideIcons.MapPin 
-                            size={19} 
-                            className={`text-gray-400 shrink-0 cursor-pointer hover:text-blue-600 transition-colors ${detectingLocation ? 'animate-bounce text-blue-500' : ''}`} 
+                        <LucideIcons.MapPin
+                            size={19}
+                            className={`text-gray-400 shrink-0 cursor-pointer hover:text-blue-600 transition-colors ${detectingLocation ? 'animate-bounce text-blue-500' : ''}`}
                             onClick={handleLiveLocationDetect}
                             title="Detect live location"
                         />
@@ -239,7 +239,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 
             {/* Mobile Search Overlay Modal */}
-            <MobileSearchOverlay 
+            <MobileSearchOverlay
                 isOpen={isSearchModalOpen}
                 onClose={handleCloseModal}
                 initialFilters={{

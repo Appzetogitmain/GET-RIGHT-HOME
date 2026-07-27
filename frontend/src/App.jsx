@@ -428,63 +428,10 @@ function App() {
         }
       });
 
-      // 3. Web FCM: Only request if user is already logged in
-      // (Login/Signup pages handle FCM for fresh sessions themselves)
-      const isLoggedIn = localStorage.getItem('user') || localStorage.getItem('adminToken');
-      if (!isLoggedIn) return;
-
-      try {
-        const token = await requestNotificationPermission();
-        if (token) {
-          const adminToken = localStorage.getItem('adminToken');
-          if (adminToken) {
-            console.log('FCM Token received, updating for Admin');
-            await adminService.updateFcmToken(token, 'web');
-            return;
-          }
-          const userStr = localStorage.getItem('user');
-          if (userStr) {
-            const user = JSON.parse(userStr);
-            console.log('FCM Token received, updating backend for role:', user.role);
-            await userService.updateFcmToken(token, 'web');
-          }
-        }
-      } catch (error) {
-        console.error("Error initializing FCM:", error);
-      }
     };
 
     initFcm();
 
-    // Listen for foreground messages
-    onMessageListener((payload) => {
-      console.log('Foreground Message:', payload);
-      
-      const title = payload.notification?.title || payload.data?.title || 'Notification';
-      const body = payload.notification?.body || payload.data?.body || '';
-
-      // Force a system push notification even when the app is in the foreground
-      if (Notification.permission === 'granted') {
-        new Notification(title, {
-          body: body,
-          icon: '/icon-192x192.png'
-        });
-      }
-
-      toast((t) => (
-        <div className="flex flex-col">
-          <span className="font-bold">{title}</span>
-          <span className="text-sm">{body}</span>
-        </div>
-      ), {
-        duration: 5000,
-        position: 'top-right',
-        style: {
-          background: '#333',
-          color: '#fff',
-        },
-      });
-    });
   }, []);
 
   return (

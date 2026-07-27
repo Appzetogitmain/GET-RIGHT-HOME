@@ -83,6 +83,10 @@ const workerSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  digitalIdCard: {
+    type: String,
+    default: null
+  },
   address: {
     addressLine1: String,
     addressLine2: String,

@@ -58,6 +58,18 @@ const toAssetUrl = (url) => {
     return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
 
+const generateRating = (id) => {
+    let hash = 0;
+    const str = String(id || 'default');
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const ratingValues = [4.6, 4.7, 4.8, 4.9];
+    const rating = ratingValues[Math.abs(hash) % ratingValues.length];
+    const reviews = 12 + (Math.abs(hash) % 24);
+    return { rating, reviews: `${reviews}k` };
+};
+
 const CUSTOMER_REVIEWS = [
     {
         id: 1,
@@ -1120,6 +1132,7 @@ const SubCategoryPage = () => {
     const [selectedTexture, setSelectedTexture] = useState(null);
     const [selectedIdea, setSelectedIdea] = useState(null);
     const [expandedFaq, setExpandedFaq] = useState(null);
+    const [selectedServiceForModal, setSelectedServiceForModal] = useState(null);
 
     const isPaintingCategory = category?.title?.toLowerCase().includes('painting') || subCategory?.title?.toLowerCase().includes('painting');
     const isPackersAndMovers = category?.title?.toLowerCase().includes('packer') || category?.slug?.includes('packer');
@@ -1530,7 +1543,7 @@ const SubCategoryPage = () => {
                                                             </h3>
                                                             {/* Hardcoded rating for now as requested */}
                                                             <div className="flex items-center gap-1 text-white text-[11px] font-medium drop-shadow-md mb-1">
-                                                                <Star size={12} className="fill-amber-400 text-amber-400" /> 4.8 (18k)
+                                                                <Star size={12} className="fill-amber-400 text-amber-400" /> {generateRating(svc.id || svc._id).rating} ({generateRating(svc.id || svc._id).reviews})
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1563,7 +1576,10 @@ const SubCategoryPage = () => {
 
                                                         {/* Footer Action Row */}
                                                         <div className="flex justify-between items-center mt-auto pt-4 border-t border-gray-100">
-                                                            <button className="text-[11px] font-bold text-gray-500 hover:text-emerald-600 transition-colors flex items-center gap-0.5">
+                                                            <button 
+                                                                onClick={() => setSelectedServiceForModal(svc)}
+                                                                className="text-[11px] font-bold text-gray-500 hover:text-emerald-600 transition-colors flex items-center gap-0.5"
+                                                            >
                                                                 Show more <ChevronRight size={14} />
                                                             </button>
                                                             <motion.button
@@ -1622,7 +1638,10 @@ const SubCategoryPage = () => {
                                                             </div>
                                                         )}
 
-                                                        <button className="text-[11px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1 hover:underline">
+                                                        <button 
+                                                            onClick={() => setSelectedServiceForModal(svc)}
+                                                            className="text-[11px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1 hover:underline"
+                                                        >
                                                             View details <ChevronRight size={12} className="stroke-[3]" />
                                                         </button>
                                                     </div>
@@ -2336,6 +2355,125 @@ const SubCategoryPage = () => {
                             })()}
                         </div>
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Service Details Modal */}
+            <AnimatePresence>
+                {selectedServiceForModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setSelectedServiceForModal(null)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="bg-white relative z-10 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[85vh]"
+                        >
+                            {/* Modal Header */}
+                            <div className="relative h-48 bg-gray-100 shrink-0">
+                                <img
+                                    src={toAssetUrl(selectedServiceForModal.imageUrl || selectedServiceForModal.icon || subCategory?.iconUrl)}
+                                    alt={selectedServiceForModal.title}
+                                    className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                                
+                                <button 
+                                    onClick={() => setSelectedServiceForModal(null)}
+                                    className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/40 backdrop-blur text-white flex items-center justify-center hover:bg-black/60 transition-colors z-20"
+                                >
+                                    <X size={18} />
+                                </button>
+                                
+                                <div className="absolute bottom-4 left-5 right-5 text-white">
+                                    <h3 className="text-xl font-extrabold leading-tight mb-1">{selectedServiceForModal.title}</h3>
+                                    {selectedServiceForModal.subheading && (
+                                        <div className="bg-emerald-500/90 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded inline-block shadow-sm">
+                                            {selectedServiceForModal.subheading}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            {/* Modal Body */}
+                            <div className="p-5 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                                <div className="flex items-center gap-1.5 mb-5 bg-emerald-50 text-emerald-800 px-3 py-2 rounded-xl inline-flex shadow-sm border border-emerald-100">
+                                    <Star size={14} className="fill-emerald-500 text-emerald-500" /> 
+                                    <span className="text-xs font-bold">{generateRating(selectedServiceForModal.id || selectedServiceForModal._id).rating} ({generateRating(selectedServiceForModal.id || selectedServiceForModal._id).reviews}+ reviews)</span>
+                                </div>
+
+                                <div className="mb-6">
+                                    <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <Info size={16} className="text-emerald-500" /> About this service
+                                    </h4>
+                                    
+                                    {selectedServiceForModal.description ? (
+                                        <div className="space-y-2.5">
+                                            {selectedServiceForModal.description.split(/(?:\n|->)/).map(s => s.trim()).filter(Boolean).map((line, i) => (
+                                                <div key={i} className="flex items-start gap-2.5">
+                                                    <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                                                    <span className="text-[13px] text-gray-600 leading-relaxed font-medium">{line}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2.5">
+                                            <div className="flex items-start gap-2.5">
+                                                <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                                                <span className="text-[13px] text-gray-600 leading-relaxed font-medium">Professional and highly trained staff.</span>
+                                            </div>
+                                            <div className="flex items-start gap-2.5">
+                                                <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                                                <span className="text-[13px] text-gray-600 leading-relaxed font-medium">Guaranteed high-quality service execution.</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <ShieldCheck className="text-emerald-600 w-8 h-8 shrink-0" />
+                                        <div>
+                                            <h5 className="text-[13px] font-bold text-gray-800 mb-0.5">GetRightHome Promise</h5>
+                                            <p className="text-[11px] text-gray-500">Verified professionals & 100% satisfaction guarantee</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Modal Footer */}
+                            <div className="p-4 border-t border-gray-100 bg-white shrink-0 flex items-center justify-between gap-4 shadow-[0_-4px_10px_-4px_rgba(0,0,0,0.05)]">
+                                <div>
+                                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">
+                                        {category?.isEstimateBased ? 'Price' : 'Starts At'}
+                                    </div>
+                                    <div className="text-lg font-black text-gray-900 leading-none">
+                                        {category?.isEstimateBased ? 'Post Inspection' : `₹${selectedServiceForModal.discountPrice || selectedServiceForModal.basePrice || selectedServiceForModal.price}`}
+                                    </div>
+                                </div>
+                                
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => {
+                                        handleCartToggle(selectedServiceForModal);
+                                        setSelectedServiceForModal(null);
+                                    }}
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold text-[13px] uppercase tracking-wider transition-colors shadow-lg shadow-emerald-200 text-center"
+                                >
+                                    {cartItems.some(item => item.serviceId === (selectedServiceForModal.id || selectedServiceForModal._id))
+                                        ? 'Remove from Cart'
+                                        : category?.isEstimateBased ? 'Get Estimate' : 'Add to Cart'
+                                    }
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>
