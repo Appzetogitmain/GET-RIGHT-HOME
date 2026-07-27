@@ -386,6 +386,14 @@ const ProfileEdit = () => {
     }
   };
 
+  const handleCameraClick = () => {
+    if (isFlutterApp()) {
+      handleCameraCapture();
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -542,14 +550,6 @@ const ProfileEdit = () => {
     }
   };
 
-  const handleCameraClick = () => {
-    if (isFlutterApp()) {
-      handleCameraCapture();
-    } else {
-      fileInputRef.current?.click();
-    }
-  };
-
   // Build state list dynamically supporting existing custom values
   const statesList = Object.keys(stateCitiesData);
   if (formData.address.state && !statesList.includes(formData.address.state)) {
@@ -589,9 +589,12 @@ const ProfileEdit = () => {
       >
 
         {/* Profile Picture */}
-        <div className="flex flex-col items-center">
-          <div className="relative group">
-            <div className="w-24 h-24 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg overflow-hidden border-4 border-white">
+        <div 
+          onClick={handleCameraClick}
+          className="flex flex-col items-center cursor-pointer group"
+        >
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg overflow-hidden border-4 border-white group-hover:opacity-90 transition-opacity">
               {formData.profileImage ? (
                 <img src={formData.profileImage} alt="Profile" className="w-full h-full object-cover" />
               ) : (
@@ -605,7 +608,10 @@ const ProfileEdit = () => {
             </div>
             <button
               type="button"
-              onClick={handleCameraClick}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCameraClick();
+              }}
               disabled={imageUploading}
               className="absolute bottom-0 right-0 p-2 bg-emerald-600 text-white rounded-full border-2 border-white shadow-md cursor-pointer hover:bg-emerald-700 transition-colors"
             >
@@ -620,7 +626,7 @@ const ProfileEdit = () => {
               disabled={imageUploading}
             />
           </div>
-          <p className="mt-2 text-xs text-gray-400">Tap icon to change photo</p>
+          <p className="mt-2 text-xs text-gray-500 font-medium group-hover:text-emerald-600 transition-colors">Tap icon to change photo</p>
         </div>
 
         {/* New Action Cards Layout */}
@@ -715,46 +721,35 @@ const ProfileEdit = () => {
             {/* Email */}
             <div>
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Email Address</label>
-              <div className="flex items-center gap-3 border-b border-gray-200 pb-2 focus-within:border-emerald-600 transition-colors">
+              <div className="flex items-center gap-3 border-b border-gray-200 pb-2 bg-gray-50/50 px-2 rounded-t">
                 <Mail size={16} className="text-slate-400" />
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => {
-                    setFormData({ ...formData, email: e.target.value });
-                    validateField('email', e.target.value);
-                  }}
-                  className="flex-1 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                  readOnly
+                  disabled
+                  className="flex-1 text-sm font-semibold text-slate-500 outline-none bg-transparent cursor-not-allowed"
                   placeholder="email@example.com"
                 />
               </div>
-              {errors.email && (
-                <p className="text-red-500 text-xs font-semibold mt-1">{errors.email}</p>
-              )}
             </div>
 
             {/* Phone */}
             <div>
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Phone Number</label>
-              <div className="flex items-center gap-2 border-b border-gray-200 pb-2 focus-within:border-emerald-600 transition-colors">
+              <div className="flex items-center gap-2 border-b border-gray-200 pb-2 bg-gray-50/50 px-2 rounded-t">
                 <Phone size={16} className="text-slate-400" />
-                <span className="text-sm font-bold text-slate-500 select-none">+91</span>
+                <span className="text-sm font-bold text-slate-400 select-none">+91</span>
                 <input
                   type="tel"
                   maxLength={10}
                   value={formData.phone}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setFormData({ ...formData, phone: val });
-                    validateField('phone', val);
-                  }}
-                  className="flex-1 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                  readOnly
+                  disabled
+                  className="flex-1 text-sm font-semibold text-slate-500 outline-none bg-transparent cursor-not-allowed"
                   placeholder="9876543210"
                 />
               </div>
-              {errors.phone && (
-                <p className="text-red-500 text-xs font-semibold mt-1">{errors.phone}</p>
-              )}
             </div>
           </div>
 

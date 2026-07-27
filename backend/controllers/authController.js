@@ -643,26 +643,8 @@ export const updateProfile = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update fields if provided
+    // Update fields if provided (email & phone are read-only primary credentials)
     if (name) user.name = name;
-    if (email) {
-      if (email !== user.email) {
-        const existingUser = await Model.findOne({ email, _id: { $ne: user._id } });
-        if (existingUser) {
-          return res.status(409).json({ message: 'Email already in use' });
-        }
-        user.email = email;
-      }
-    }
-    if (phone) {
-      if (phone !== user.phone) {
-        const existingUser = await Model.findOne({ phone, _id: { $ne: user._id } });
-        if (existingUser) {
-          return res.status(409).json({ message: 'Phone number already in use' });
-        }
-        user.phone = phone;
-      }
-    }
 
     if (address) {
       user.address = {
