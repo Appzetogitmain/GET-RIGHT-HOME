@@ -14,13 +14,22 @@ const apiCache = new Map();
 
 // Interceptor to add Token, Log, and check Cache
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('adminToken');
+  let token = localStorage.getItem('token') || localStorage.getItem('userToken') || localStorage.getItem('adminToken') || localStorage.getItem('accessToken');
+  if (!token) {
+    const userStr = localStorage.getItem('user') || localStorage.getItem('userData');
+    if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        token = u.token || u.accessToken;
+      } catch (e) {}
+    }
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
-  // Cache GET requests to prevent layout collapse on back navigation (valid for 2 mins)
-  if (config.method?.toLowerCase() === 'get') {
+  // Cache GET requests except saved-places to prevent layout collapse on back navigation
+  if (config.method?.toLowerCase() === 'get' && !config.url?.includes('/users/saved-places')) {
     const fullUrl = `${config.baseURL || ''}${config.url || ''}?${new URLSearchParams(config.params || {}).toString()}`;
     const cached = apiCache.get(fullUrl);
     
@@ -706,6 +715,7 @@ export const userService = {
   // Get Saved Places
   getSavedPlaces: async () => {
     try {
+      apiCache.clear();
       const response = await api.get('/users/saved-places');
       return response.data;
     } catch (error) {
@@ -715,7 +725,9 @@ export const userService = {
   // Toggle Saved Place
   toggleSavedPlace: async (id, type) => {
     try {
+      apiCache.clear();
       const response = await api.post(`/users/saved-places/toggle`, { id, type });
+      apiCache.clear();
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

@@ -166,28 +166,23 @@ export const updateUserProfile = async (req, res) => {
 export const getSavedPlaces = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .populate({
-        path: 'savedProperties',
-        match: { status: 'approved' }
-      })
-      .populate({
-        path: 'savedProjects',
-        match: { status: 'approved' }
-      })
-      .populate({
-        path: 'savedHotels',
-        match: { status: 'approved' }
-      });
+      .populate('savedProperties')
+      .populate('savedProjects')
+      .populate('savedHotels');
 
     if (!user) {
       return res.json({ success: true, savedProperties: [], savedProjects: [], savedHotels: [] });
     }
 
+    const validProperties = (user.savedProperties || []).filter(Boolean);
+    const validProjects = (user.savedProjects || []).filter(Boolean);
+    const validHotels = (user.savedHotels || []).filter(Boolean);
+
     res.json({
       success: true,
-      savedProperties: user.savedProperties || [],
-      savedProjects: user.savedProjects || [],
-      savedHotels: user.savedHotels || []
+      savedProperties: validProperties,
+      savedProjects: validProjects,
+      savedHotels: validHotels
     });
 
   } catch (error) {

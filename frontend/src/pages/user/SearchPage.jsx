@@ -893,6 +893,13 @@ const SearchPage = () => {
                                 <PropertyCard
                                     property={property}
                                     isSaved={savedHotelIds.includes(property._id)}
+                                    onToggleSave={(newState) => {
+                                        if (newState) {
+                                            setSavedHotelIds(prev => [...prev, property._id]);
+                                        } else {
+                                            setSavedHotelIds(prev => prev.filter(id => id !== property._id));
+                                        }
+                                    }}
                                     isSearchPage={true}
                                     className="!w-full !rounded-none md:!rounded-[1.5rem] border-y-0 md:border border-gray-100 shadow-sm"
                                 />
