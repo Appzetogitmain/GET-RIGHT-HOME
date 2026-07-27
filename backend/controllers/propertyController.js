@@ -812,7 +812,11 @@ export const getPublicProperties = async (req, res) => {
       builder,
       excludeAvailability,
       possessionYear,
-      userId
+      userId,
+      facing,
+      floor,
+      projectArea,
+      projectDensity
     } = req.query;
 
     const pipeline = [];
@@ -1033,7 +1037,25 @@ export const getPublicProperties = async (req, res) => {
       });
 
       if (actualAmenities.length > 0) {
-        matchConditions.amenities = { $all: actualAmenities };
+        const amRegexes = actualAmenities.map(a => new RegExp(a.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'));
+        const amMatch = {
+          $or: [
+            { amenities: { $in: amRegexes } },
+            { 'dynamicData.amenities': { $in: amRegexes } },
+            { 'dynamicData.propertyFeatures': { $in: amRegexes } },
+            { highlights: { $in: amRegexes } }
+          ]
+        };
+
+        if (matchConditions.$and) {
+          matchConditions.$and.push(amMatch);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, amMatch];
+        } else {
+          matchConditions.$or = amMatch.$or;
+        }
       }
     }
 
@@ -1393,6 +1415,131 @@ export const getPublicProperties = async (req, res) => {
           matchConditions.$or = bathCondition.$or;
         }
       }
+    }
+
+    // Helper to safely append $and / $or conditions
+    const pushCondition = (cond) => {
+      if (matchConditions.$and) {
+        matchConditions.$and.push(cond);
+      } else if (matchConditions.$or) {
+        const existingOr = matchConditions.$or;
+        delete matchConditions.$or;
+        matchConditions.$and = [{ $or: existingOr }, cond];
+      } else {
+        matchConditions.$or = cond.$or || [cond];
+      }
+    };
+
+    // Facing Direction Filter
+    if (facing) {
+      const facingList = facing.split(',').map(f => f.trim().replace(/ Facing$/i, ''));
+      const facingRegexes = facingList.map(f => new RegExp(f.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'));
+      pushCondition({
+        $or: [
+          { 'dynamicData.facing': { $in: facingRegexes } },
+          { 'dynamicData.facingDirection': { $in: facingRegexes } },
+          { 'plotDetails.facing': { $in: facingRegexes } },
+          { 'buyDetails.facing': { $in: facingRegexes } },
+          { 'rentDetails.facing': { $in: facingRegexes } }
+        ]
+      });
+    }
+
+    // Floor Preference Filter
+    if (floor) {
+      const floorList = floor.split(',').map(f => f.trim());
+      const floorOr = [];
+      floorList.forEach(fl => {
+        const lower = fl.toLowerCase();
+        if (lower.includes('ground')) {
+          floorOr.push({ 'dynamicData.floorNumber': { $in: [0, '0', 'Ground', 'ground'] } });
+          floorOr.push({ 'dynamicData.floor': { $in: [0, '0', 'Ground', 'ground'] } });
+        } else if (lower.includes('1st to 4th')) {
+          floorOr.push({ 'dynamicData.floorNumber': { $in: [1, 2, 3, 4, '1', '2', '3', '4'] } });
+        } else if (lower.includes('5th to 8th')) {
+          floorOr.push({ 'dynamicData.floorNumber': { $in: [5, 6, 7, 8, '5', '6', '7', '8'] } });
+        } else if (lower.includes('9th to 12th')) {
+          floorOr.push({ 'dynamicData.floorNumber': { $in: [9, 10, 11, 12, '9', '10', '11', '12'] } });
+        } else if (lower.includes('top')) {
+          floorOr.push({ 'dynamicData.floorPreference': /top/i });
+        } else {
+          floorOr.push({ 'dynamicData.floorNumber': new RegExp(fl.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i') });
+        }
+      });
+      if (floorOr.length > 0) pushCondition({ $or: floorOr });
+    }
+
+    // Project Area Filter
+    if (projectArea) {
+      const paList = projectArea.split(',').map(p => p.trim());
+      const paOr = [];
+      paList.forEach(pa => {
+        const lower = pa.toLowerCase();
+        if (lower.includes('less than 1')) {
+          paOr.push({ 'dynamicData.totalLandArea': { $lt: 1 } });
+        } else if (lower.includes('1 to 5')) {
+          paOr.push({ 'dynamicData.totalLandArea': { $gte: 1, $lte: 5 } });
+        } else if (lower.includes('5 to 10')) {
+          paOr.push({ 'dynamicData.totalLandArea': { $gte: 5, $lte: 10 } });
+        } else if (lower.includes('more than 10')) {
+          paOr.push({ 'dynamicData.totalLandArea': { $gt: 10 } });
+        } else {
+          paOr.push({ 'dynamicData.projectArea': new RegExp(pa.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i') });
+        }
+      });
+      if (paOr.length > 0) pushCondition({ $or: paOr });
+    }
+
+    // Project Density Filter
+    if (projectDensity) {
+      const pdList = projectDensity.split(',').map(p => new RegExp(p.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'));
+      pushCondition({
+        $or: [
+          { 'dynamicData.projectDensity': { $in: pdList } },
+          { 'dynamicData.density': { $in: pdList } }
+        ]
+      });
+    }
+
+    // Projects Filter
+    if (req.query.projects) {
+      const projList = req.query.projects.split(',').map(p => p.trim()).filter(Boolean);
+      const validProjectIds = projList.filter(id => mongoose.Types.ObjectId.isValid(id)).map(id => new mongoose.Types.ObjectId(id));
+      const projectNames = projList.filter(id => !mongoose.Types.ObjectId.isValid(id)).map(name => new RegExp(name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'));
+
+      const projOr = [];
+      if (validProjectIds.length > 0) {
+        projOr.push({ _id: { $in: validProjectIds } });
+        projOr.push({ dynamicCategory: { $in: validProjectIds } });
+      }
+      if (projectNames.length > 0) {
+        projOr.push({ propertyName: { $in: projectNames } });
+        projOr.push({ 'dynamicData.projectName': { $in: projectNames } });
+      }
+      if (projOr.length > 0) pushCondition({ $or: projOr });
+    }
+
+    // RERA Approved Filter
+    if (req.query.reraApproved === 'Yes' || req.query.reraApproved === 'true') {
+      pushCondition({
+        $or: [
+          { 'dynamicData.reraApproved': { $in: ['Yes', 'yes', true] } },
+          { 'dynamicData.isReraApproved': { $in: ['Yes', 'yes', true] } },
+          { 'dynamicData.reraNumber': { $exists: true, $ne: '' } },
+          { isReraApproved: true }
+        ]
+      });
+    }
+
+    // Age of Property Filter
+    if (req.query.ageOfProperty) {
+      const ageList = req.query.ageOfProperty.split(',').map(a => new RegExp(a.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'));
+      pushCondition({
+        $or: [
+          { 'dynamicData.propertyAge': { $in: ageList } },
+          { 'dynamicData.ageOfProperty': { $in: ageList } }
+        ]
+      });
     }
 
     // Posted by filter will be applied after user lookup below to correctly filter by user.role (owner, broker, builder)

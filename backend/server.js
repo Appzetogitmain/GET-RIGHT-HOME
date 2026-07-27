@@ -20,8 +20,6 @@ import fcmRoutes from './routes/fcmRoutes.js';
 initializeFirebase();
 
 
-
-// Reload nodemon v2
 const app = express();
 const server = createServer(app); // Create HTTP server
 const PORT = process.env.PORT || 5000;

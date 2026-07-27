@@ -919,8 +919,8 @@ const SearchPage = () => {
                     setFilters({
                         search: '',
                         type: 'all',
-                        propertyCategory: 'Residential',
-                        categoryTab: 'Sell',
+                        propertyCategory: 'all',
+                        categoryTab: 'All',
                         minPrice: '',
                         maxPrice: '',
                         sort: 'newest',
