@@ -71,6 +71,7 @@ const HandpickedDetailsPage = () => {
   // Comparison Matrix Modal
   const [showComparisonMatrix, setShowComparisonMatrix] = useState(false);
   const [similarProperties, setSimilarProperties] = useState([]);
+  const [builderProjects, setBuilderProjects] = useState([]);
 
   // Dynamic Locality Data
   const [localityStats, setLocalityStats] = useState(null);
@@ -178,17 +179,24 @@ const HandpickedDetailsPage = () => {
         const localityString = res.property.address?.locality || res.property.address?.area || res.property.address?.city || '';
         if (localityString) fetchLocalityData(localityString);
 
-        // Load similar handpicked/admin added projects
+        // Load similar handpicked/admin added projects strictly
         try {
           const simRes = await propertyService.getPublic({
-            isAddedByAdmin: true,
-            limit: 6
+            limit: 20
           });
-          if (simRes && simRes.properties) {
-            setSimilarProperties(simRes.properties.filter(p => p._id !== res.property._id));
-          } else if (Array.isArray(simRes)) {
-            setSimilarProperties(simRes.filter(p => p._id !== res.property._id).slice(0, 6));
-          }
+          let rawList = simRes?.properties || (Array.isArray(simRes) ? simRes : []);
+          let projOnly = rawList.filter(p => {
+            if (!p || p._id === res.property._id) return false;
+            const isProj = p.isProject === true || 
+                           p.listingType === 'project' || 
+                           p.propertyCategory === 'project' || 
+                           p.propertyType === 'project' || 
+                           Boolean(p.builderProjectDetails) || 
+                           Boolean(p.dynamicData?.builderName) || 
+                           (Array.isArray(p.towersList) && p.towersList.length > 0);
+            return isProj;
+          });
+          setSimilarProperties(projOnly.slice(0, 6));
         } catch (err) {
           console.warn("Failed to load similar properties:", err);
         }
@@ -257,6 +265,34 @@ const HandpickedDetailsPage = () => {
       fetchBuilderByName();
     }
   }, [property]);
+
+  useEffect(() => {
+    const fetchBuilderProjects = async () => {
+      const bName = property?.userId?.builderProfile?.companyName || property?.dynamicData?.builderName || property?.partnerId?.name || property?.builderName;
+      try {
+        const res = await propertyService.getPublic({
+          limit: 30
+        });
+        let rawList = res?.properties || (Array.isArray(res) ? res : []);
+        let filtered = rawList.filter(p => {
+          if (p._id === id) return false;
+          if (resolvedBuilderId && (p.userId === resolvedBuilderId || p.partnerId === resolvedBuilderId || p.userId?._id === resolvedBuilderId || p.partnerId?._id === resolvedBuilderId)) return true;
+          if (bName) {
+            const pBName = p.userId?.builderProfile?.companyName || p.dynamicData?.builderName || p.partnerId?.name || p.builderName;
+            if (pBName && pBName.toLowerCase() === bName.toLowerCase()) return true;
+          }
+          return false;
+        });
+        setBuilderProjects(filtered);
+      } catch (err) {
+        console.warn("Failed to fetch builder projects:", err);
+      }
+    };
+
+    if (property) {
+      fetchBuilderProjects();
+    }
+  }, [property, resolvedBuilderId, id]);
 
   const checkIfSaved = async () => {
     try {
@@ -384,13 +420,71 @@ const HandpickedDetailsPage = () => {
   const isPlot = ['plot', 'land', 'residential land', 'commercial land', 'farm land'].includes(property?.propertyType?.toLowerCase());
   const isCommercial = ['commercial', 'office', 'shop', 'showroom', 'warehouse', 'factory'].includes(property?.propertyType?.toLowerCase());
 
+  // Helper to extract clean single URL from potential comma-separated string/array
+  const getCleanBrochureUrl = (raw) => {
+    if (!raw) return "";
+    if (Array.isArray(raw)) {
+      const first = raw[0] ? String(raw[0]).trim() : "";
+      return getCleanBrochureUrl(first);
+    }
+    if (typeof raw === 'string') {
+      const splitUrls = raw.split(',').map(s => s.trim()).filter(Boolean);
+      const pdfUrl = splitUrls.find(url => url.toLowerCase().includes('.pdf'));
+      return pdfUrl || splitUrls[0] || "";
+    }
+    return String(raw);
+  };
+
   // Extracted values matching mapping blueprint
-  const projectDensity = dynamicData.projectDensity || "";
-  const densityType = dynamicData.densityType || "";
-  const totalArea = dynamicData.totalArea || 0;
-  const openAreaPercentage = dynamicData.openAreaPercentage || 0;
-  const totalTowers = dynamicData.totalTowers || 0;
-  const totalUnits = dynamicData.totalUnits || 0;
+  const projectDensity = dynamicData.projectDensity || property?.projectDensity || "";
+  const densityType = dynamicData.densityType || property?.densityType || "";
+  const totalArea = property?.totalArea || property?.landArea || dynamicData.totalArea || dynamicData.totalLandArea || dynamicData.landArea || property?.plotDetails?.plotArea || property?.buyDetails?.area?.total || 0;
+  const totalAreaUnit = dynamicData.totalAreaUnit || dynamicData.landAreaUnit || property?.totalAreaUnit || 'Acres';
+  const openAreaPercentage = dynamicData.openAreaPercentage || property?.openAreaPercentage || 0;
+  const totalTowers = property?.totalTowers || dynamicData.totalTowers || dynamicData.totalBlocks || towersList?.length || 0;
+  const totalUnits = property?.totalUnits || dynamicData.totalUnits || 0;
+
+  const getPaymentPlanDocUrl = (plan) => {
+    if (!plan || typeof plan !== 'object') return "";
+    const candidates = [
+      plan.paymentPlanUrl,
+      plan.documentUrl,
+      plan.docUrl,
+      plan.url,
+      plan.document,
+      plan.image,
+      plan.file,
+      plan.paymentPlanDocument,
+      plan.pdfUrl,
+      plan.mediaUrl,
+      plan.link,
+      plan.planUrl,
+      plan.doc,
+      plan.img
+    ];
+    for (const val of candidates) {
+      if (val && typeof val === 'string' && val.trim() !== '') {
+        return val.trim();
+      }
+    }
+    for (const key of Object.keys(plan)) {
+      if (key.toLowerCase().includes('url') || key.toLowerCase().includes('doc') || key.toLowerCase().includes('file') || key.toLowerCase().includes('image')) {
+        const val = plan[key];
+        if (val && typeof val === 'string' && (val.startsWith('http') || val.startsWith('/'))) {
+          return val.trim();
+        }
+      }
+    }
+    return "";
+  };
+
+  const projectBrochureUrl = getCleanBrochureUrl(
+    property?.brochureUrl || 
+    property?.dynamicData?.brochure || 
+    property?.dynamicData?.brochureUrl || 
+    property?.brochure || 
+    builderDetails?.brochureUrl
+  );
 
   // Highlights & Amenities lists
   const propertyHighlights = property?.highlights?.length > 0
@@ -490,12 +584,42 @@ const HandpickedDetailsPage = () => {
   // Price Calculation
   const formatPriceLakhCrore = (val) => {
     if (!val) return 'On Request';
-    if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)} Cr`;
-    return `₹${(val / 100000).toFixed(2)} L`;
+    const num = Number(val);
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(2)} Lakh`;
+    if (num >= 1000) return `₹${(num / 1000).toFixed(1)} K`;
+    return `₹${num.toLocaleString('en-IN')}`;
   };
 
-  const rawPrice = property?.buyDetails?.expectedPrice || property?.rentDetails?.monthlyRent || property?.plotDetails?.expectedPrice || property?.buyDetails?.price || property?.price || property?.dynamicData?.expectedPrice || property?.dynamicData?.monthlyRent;
+  const formatPlanPrice = (price) => {
+    if (!price || isNaN(price)) return 'On Request';
+    const num = Number(price);
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(2)} Lakh`;
+    if (num >= 1000) return `₹${(num / 1000).toFixed(1)} K`;
+    return `₹${num.toLocaleString('en-IN')}`;
+  };
+
+  const floorPlansPrices = (dynamicData.floorPlans || []).map(p => Number(p.price || p.startingPrice || p.expectedPrice)).filter(p => !isNaN(p) && p > 0);
+  const minFloorPlanPrice = floorPlansPrices.length > 0 ? Math.min(...floorPlansPrices) : 0;
+
+  const rawPrice = property?.buyDetails?.expectedPrice || 
+                   property?.rentDetails?.monthlyRent || 
+                   property?.plotDetails?.expectedPrice || 
+                   property?.buyDetails?.price || 
+                   property?.price || 
+                   property?.expectedPrice || 
+                   property?.startingPrice || 
+                   property?.dynamicData?.expectedPrice || 
+                   property?.dynamicData?.startingPrice || 
+                   property?.dynamicData?.minPrice || 
+                   property?.dynamicData?.price || 
+                   minFloorPlanPrice;
+
   let dispPriceStr = formatPriceLakhCrore(rawPrice);
+  if (minFloorPlanPrice > 0 && rawPrice === minFloorPlanPrice && !property?.buyDetails?.expectedPrice) {
+    dispPriceStr = `${dispPriceStr} Onwards`;
+  }
 
   const getCarpetOrPriceString = () => {
     let price = rawPrice;
@@ -523,25 +647,18 @@ const HandpickedDetailsPage = () => {
   };
 
   const featureRatings = [
-    { title: 'Connectivity', val: `${(localityStats?.connectivity || 4.2).toFixed(1)}/5`, percent: ((localityStats?.connectivity || 4.2) / 5) * 100 },
-    { title: 'Lifestyle', val: `${(localityStats?.lifestyle || 4.0).toFixed(1)}/5`, percent: ((localityStats?.lifestyle || 4.0) / 5) * 100 },
-    { title: 'Safety', val: `${(localityStats?.safety || 4.5).toFixed(1)}/5`, percent: ((localityStats?.safety || 4.5) / 5) * 100 },
-    { title: 'Environment', val: `${(localityStats?.environment || 4.1).toFixed(1)}/5`, percent: ((localityStats?.environment || 4.1) / 5) * 100 }
+    { title: 'Connectivity', val: localityStats?.connectivity ? `${localityStats.connectivity.toFixed(1)}/5` : (localityStats?.ratingsByFeature?.connectivity ? `${localityStats.ratingsByFeature.connectivity.toFixed(1)}/5` : '0/5'), percent: localityStats?.connectivity ? Math.round(localityStats.connectivity * 20) : (localityStats?.ratingsByFeature?.connectivity ? Math.round(localityStats.ratingsByFeature.connectivity * 20) : 0) },
+    { title: 'Lifestyle', val: localityStats?.lifestyle ? `${localityStats.lifestyle.toFixed(1)}/5` : (localityStats?.ratingsByFeature?.lifestyle ? `${localityStats.ratingsByFeature.lifestyle.toFixed(1)}/5` : '0/5'), percent: localityStats?.lifestyle ? Math.round(localityStats.lifestyle * 20) : (localityStats?.ratingsByFeature?.lifestyle ? Math.round(localityStats.ratingsByFeature.lifestyle * 20) : 0) },
+    { title: 'Safety', val: localityStats?.safety ? `${localityStats.safety.toFixed(1)}/5` : (localityStats?.ratingsByFeature?.safety ? `${localityStats.ratingsByFeature.safety.toFixed(1)}/5` : '0/5'), percent: localityStats?.safety ? Math.round(localityStats.safety * 20) : (localityStats?.ratingsByFeature?.safety ? Math.round(localityStats.ratingsByFeature.safety * 20) : 0) },
+    { title: 'Environment', val: localityStats?.environment ? `${localityStats.environment.toFixed(1)}/5` : (localityStats?.ratingsByFeature?.environment ? `${localityStats.ratingsByFeature.environment.toFixed(1)}/5` : '0/5'), percent: localityStats?.environment ? Math.round(localityStats.environment * 20) : (localityStats?.ratingsByFeature?.environment ? Math.round(localityStats.ratingsByFeature.environment * 20) : 0) }
   ];
 
-  const localityPositives = property?.dynamicData?.positives || localityStats?.positives || ["Excellent Public Transport", "Good Hospitals", "Markets at walkable distance"];
-  const localityNegatives = property?.dynamicData?.negatives || localityStats?.negatives || ["High Traffic during peak hours", "Limited visitor parking"];
+  const localityPositives = property?.dynamicData?.positives || localityStats?.positives || [];
+  const localityNegatives = property?.dynamicData?.negatives || localityStats?.negatives || [];
 
-  const localityReviewsList = (localityReviewsData && localityReviewsData.length > 0) ? localityReviewsData : [
-    { name: "Rahul S.", role: "Resident", stayDuration: "2 years", rating: 4.5, title: "Great community", reviewText: "Very peaceful and well maintained society. Connectivity to main IT hubs is a huge plus." },
-    { name: "Priya M.", role: "Owner", stayDuration: "5 years", rating: 4.0, title: "Good returns", reviewText: "The property value has appreciated well. Maintenance team is responsive." }
-  ];
+  const localityReviewsList = (localityReviewsData && localityReviewsData.length > 0) ? localityReviewsData : [];
 
-  const fallbackSimilarProperties = [
-    { _id: 'sim1', name: 'Prestige Lakeside', propertyType: 'apartment', buyDetails: { expectedPrice: 12500000 }, address: { locality: property?.address?.locality || 'Whitefield' }, avgRating: 4.4, images: { cover: pImages[1] || NO_IMAGE_PLACEHOLDER } },
-    { _id: 'sim2', name: 'Godrej United', propertyType: 'villa', buyDetails: { expectedPrice: 35000000 }, address: { locality: property?.address?.locality || 'Whitefield' }, avgRating: 4.6, images: { cover: pImages[0] || NO_IMAGE_PLACEHOLDER } },
-    { _id: 'sim3', name: 'Brigade Cornerstone', propertyType: 'apartment', buyDetails: { expectedPrice: 8500000 }, address: { locality: property?.address?.locality || 'Whitefield' }, avgRating: 4.1, images: { cover: pImages[2] || pImages[1] || NO_IMAGE_PLACEHOLDER } },
-  ];
+  const fallbackSimilarProperties = [];
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-40">
@@ -601,14 +718,41 @@ const HandpickedDetailsPage = () => {
           <span className="text-white text-[10px] font-semibold ml-2">{currentImgIndex + 1}/{pImages.length}</span>
         </div>
 
-        {/* Thumbnail Preview Row */}
-        {pImages.length > 1 && (
-          <div className="absolute bottom-10 left-0 right-0 px-4 flex gap-3 overflow-x-auto scrollbar-none z-20">
-            {pImages.slice(0, 5).map((img, idx) => (
-              <div key={idx} className="relative flex-shrink-0 w-24 h-16 rounded-xl overflow-hidden border border-white/20">
-                <img src={img} className="w-full h-full object-cover brightness-90" alt="" />
-              </div>
-            ))}
+        {/* Thumbnail Tagged Preview Row (Matches Image 3) */}
+        {pImages.length > 0 && (
+          <div className="absolute bottom-6 left-0 right-0 px-4 flex gap-2.5 overflow-x-auto hide-scrollbar z-20">
+            {pImages.map((imgUrl, idx) => {
+              const tagsObj = property?.propertyImages_tags || property?.dynamicData?.propertyImages_tags || property?.imageTags || {};
+              let tagLabel = tagsObj[idx] || tagsObj[String(idx)];
+              if (!tagLabel) {
+                if (idx === 0) tagLabel = "Highlights";
+                else if (idx === 1) tagLabel = "Outdoors";
+                else if (idx === 2) tagLabel = "Brochure";
+                else if (idx === 3) tagLabel = "Videos";
+                else if (idx === 4) tagLabel = "Demo Flat";
+                else tagLabel = `Photo ${idx + 1}`;
+              }
+              const isSelected = currentImgIndex === idx;
+
+              return (
+                <div
+                  key={idx}
+                  onClick={() => setCurrentImgIndex(idx)}
+                  className={`relative flex-shrink-0 w-24 h-16 rounded-xl overflow-hidden cursor-pointer border-2 transition-all shadow-md group ${
+                    isSelected ? 'border-white ring-2 ring-blue-500 scale-105' : 'border-white/30 hover:border-white/70 opacity-90'
+                  }`}
+                >
+                  <img src={imgUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={tagLabel} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  
+                  <div className="absolute bottom-1 left-1 right-1 text-center">
+                    <span className="text-[10px] font-extrabold text-white leading-none drop-shadow-md truncate block">
+                      {tagLabel}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -656,11 +800,11 @@ const HandpickedDetailsPage = () => {
                       return <span className="text-slate-900 font-bold text-xs md:text-sm">Ready to Move</span>;
                     }
                     
-                    const pDate = property?.dynamicData?.possessionDate || property?.dynamicData?.possessionYear || 'Dec, 2027';
+                    const pDate = property?.dynamicData?.possessionDate || property?.dynamicData?.possessionYear || builderDetails?.possessionDate || 'Contact for date';
                     return (
                       <>
-                        <span className="text-slate-900 font-bold text-xs md:text-sm">Under Construction</span>
-                        <span className="text-slate-500 font-medium text-[11px] md:text-xs mt-0.5">Completion in {pDate}</span>
+                        <span className="text-slate-900 font-bold text-xs md:text-sm">{statusStr}</span>
+                        {!isReady && <span className="text-slate-500 font-medium text-[11px] md:text-xs mt-0.5">Completion in {pDate}</span>}
                       </>
                     );
                   })()}
@@ -684,25 +828,32 @@ const HandpickedDetailsPage = () => {
               >
                 <h3 className="text-sm font-bold text-slate-900 mb-3">Project Phases & Status</h3>
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-20 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-200 relative">
-                      <img src={pImages[1] || pImages[0]} alt="Construction Update" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/20"></div>
-                      <div className="absolute bottom-1 left-1 text-[8px] font-bold text-white uppercase">Latest</div>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-xs font-bold text-slate-800">{totalTowers || 1} Phases {String(builderDetails.possessionStatus || property?.dynamicData?.projectStatus || 'Under Construction').toLowerCase().includes('ready') ? 'Completed' : 'are Under Construction'}</h4>
-                      <p className="text-[11px] text-slate-500 mt-1">Completion in {builderDetails.possessionStatus || property?.dynamicData?.projectStatus || 'Dec, 2027'}</p>
-                    </div>
-                  </div>
-                  {totalTowers > 1 && (
-                    <div className="flex items-start gap-3 pt-3 border-t border-slate-200/60">
-                      <div className="w-20 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center">
-                        <Building className="w-6 h-6 text-slate-400" />
+                  {towersList && towersList.length > 0 ? (
+                    towersList.map((tower, idx) => (
+                      <div key={idx} className={`flex items-start gap-3 ${idx > 0 ? 'pt-3 border-t border-slate-200/60' : ''}`}>
+                        <div className="w-20 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-200 relative">
+                          <img src={pImages[idx % pImages.length] || pImages[0]} alt={tower.name || tower.towerName || 'Phase'} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/20"></div>
+                          <div className="absolute bottom-1 left-1 text-[8px] font-bold text-white uppercase">{tower.phase || `Phase ${idx + 1}`}</div>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-xs font-bold text-slate-800">{tower.name || tower.towerName || `Phase ${idx + 1}`} ({tower.configurations || 'Units'})</h4>
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            Completion: {tower.completionDate ? (isNaN(Date.parse(tower.completionDate)) ? tower.completionDate : new Date(tower.completionDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })) : (property?.dynamicData?.possessionDate || 'Contact for date')}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <div className="w-20 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-200 relative">
+                        <img src={pImages[0]} alt="Construction Status" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/20"></div>
+                        <div className="absolute bottom-1 left-1 text-[8px] font-bold text-white uppercase">Status</div>
                       </div>
                       <div className="flex-1">
-                        <h4 className="text-xs font-bold text-slate-800">{Math.floor(totalTowers / 2) || 1} Phases Announced</h4>
-                        <p className="text-[11px] text-slate-500 mt-1">Completion in Dec, 2029</p>
+                        <h4 className="text-xs font-bold text-slate-800">{String(builderDetails.possessionStatus || property?.dynamicData?.projectStatus || property?.status || 'Under Construction')}</h4>
+                        <p className="text-[11px] text-slate-500 mt-1">Completion: {property?.dynamicData?.possessionDate || property?.dynamicData?.possessionYear || 'Contact for date'}</p>
                       </div>
                     </div>
                   )}
@@ -713,13 +864,13 @@ const HandpickedDetailsPage = () => {
 
           <hr className="border-slate-100 my-4" />
 
-          {/* Price & Map Row (99acres style unified box) */}
+          {/* Price & Map Row */}
           <div className="flex items-center border border-slate-200 rounded-3xl mb-2 py-4 shadow-sm bg-white overflow-hidden">
             <div className="w-1/2 flex flex-col items-center justify-center border-r border-slate-200 hover:bg-slate-50 transition-colors">
               <span className="text-base md:text-lg font-bold text-slate-900">
-                {dispPriceStr} <span className="font-normal text-xs text-slate-500">/sqft+</span>
+                {dispPriceStr}
               </span>
-              <span className="text-[11px] md:text-xs text-slate-500 mt-1">{property?.buyDetails?.area?.carpet ? 'Carpet Area' : 'Carpet Area'}</span>
+              <span className="text-[11px] md:text-xs text-slate-500 mt-1">{getCarpetOrPriceString()}</span>
             </div>
             <button
               onClick={() => {
@@ -731,7 +882,7 @@ const HandpickedDetailsPage = () => {
               <div className="flex items-center gap-1.5 text-sm md:text-base font-bold text-slate-900">
                 <MapPin className="w-4 h-4 text-blue-600 fill-blue-600" /> Map
               </div>
-              <span className="text-[11px] md:text-xs text-slate-500 mt-1">View</span>
+              <span className="text-[11px] md:text-xs text-slate-500 mt-1">View Location</span>
             </button>
           </div>
         </div>
@@ -778,7 +929,7 @@ const HandpickedDetailsPage = () => {
               <div ref={sectionRefs['overview-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 
                 {/* Official Project Brochure Card */}
-                {(property?.brochureUrl || property?.dynamicData?.brochure || property?.dynamicData?.brochureUrl || property?.brochure) && (
+                {projectBrochureUrl && (
                   <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-4 flex items-center justify-between shadow-md">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
@@ -790,7 +941,7 @@ const HandpickedDetailsPage = () => {
                       </div>
                     </div>
                     <a
-                      href={property?.brochureUrl || property?.dynamicData?.brochure || property?.dynamicData?.brochureUrl || property?.brochure}
+                      href={projectBrochureUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       download
@@ -816,13 +967,15 @@ const HandpickedDetailsPage = () => {
                   </div>
                   <div className="bg-slate-100/40 p-4 rounded-xl border border-slate-300/50">
                     <span className="text-xs text-slate-500 block font-medium">Total Area Spread</span>
-                    <span className="text-base font-bold text-slate-900 mt-1 block">{totalArea} Acres</span>
-                    <span className="text-[10px] text-blue-500 mt-0.5 block">{openAreaPercentage}% Land Open & Green</span>
+                    <span className="text-base font-bold text-slate-900 mt-1 block">
+                      {totalArea ? `${totalArea} ${totalAreaUnit}` : 'N/A'}
+                    </span>
+                    <span className="text-[10px] text-blue-500 mt-0.5 block">{openAreaPercentage > 0 ? `${openAreaPercentage}% Land Open & Green` : 'Green Layout'}</span>
                   </div>
                   <div className="bg-slate-100/40 p-4 rounded-xl border border-slate-300/50">
                     <span className="text-xs text-slate-500 block font-medium">Towers & Height</span>
-                    <span className="text-base font-bold text-slate-900 mt-1 block">{totalTowers} Structural Towers</span>
-                    <span className="text-[10px] text-blue-500 mt-0.5 block">Avg {towersList[0]?.floors || 24} Floors / Tower</span>
+                    <span className="text-base font-bold text-slate-900 mt-1 block">{(totalTowers || towersList?.length || 0)} Structural Towers</span>
+                    <span className="text-[10px] text-blue-500 mt-0.5 block">{towersList[0]?.floors ? `Avg ${towersList[0].floors} Floors / Tower` : 'Multi-story Blocks'}</span>
                   </div>
                 </div>
 
@@ -850,7 +1003,7 @@ const HandpickedDetailsPage = () => {
                 <div className="pt-4 border-t border-slate-200/80 space-y-3">
                   <h3 className="text-base font-bold text-slate-800">Detailed Project Description</h3>
                   <p className="text-slate-700 text-sm leading-relaxed">
-                    {property?.description || "This super luxury enclave brings to you the peak of urban residential planning. Set inside beautiful greens, this gated community combines high-technology home building with high density architectural details. Built with structural safety, smart features, energy integrations and double height lobby elements."}
+                    {property?.description || "No detailed description provided for this project."}
                   </p>
                   {property?.dynamicCategory && (
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs text-purple-300">
@@ -913,9 +1066,15 @@ const HandpickedDetailsPage = () => {
                     <button onClick={() => setShowAllAmenities(true)} className="w-full py-3 rounded-full border border-slate-200 text-sm font-bold text-blue-600 flex items-center justify-center gap-1 hover:bg-slate-50 transition-colors">
                       View all {property?.amenities?.length || 11} amenities <ChevronRight className="w-4 h-4" />
                     </button>
-                    <a href={builderDetails.brochureUrl || "#"} className="w-full py-3 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-100 transition-colors">
-                      <Download className="w-4 h-4" /> Brochure for details
-                    </a>
+                    {projectBrochureUrl ? (
+                      <a href={projectBrochureUrl} target="_blank" rel="noopener noreferrer" download className="w-full py-3 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-100 transition-colors">
+                        <Download className="w-4 h-4" /> Download Official Brochure
+                      </a>
+                    ) : (
+                      <button onClick={() => toast.error("Brochure not uploaded for this project")} className="w-full py-3 rounded-full border border-slate-200 bg-slate-50 text-slate-400 text-sm font-bold flex items-center justify-center gap-1.5 cursor-not-allowed">
+                        <Download className="w-4 h-4" /> Brochure Unavailable
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -950,29 +1109,41 @@ const HandpickedDetailsPage = () => {
                     {floorPlansList.map((plan, i) => (
                       <div key={i} className="bg-slate-100/40 border border-slate-300/50 rounded-2xl overflow-hidden hover:border-blue-500/50 transition-all flex flex-col justify-between">
                         <div className="p-5 space-y-4">
-                          <div className="flex justify-between items-start">
+                          <div className="flex justify-between items-start gap-2">
                             <div>
                               <span className="px-2 py-0.5 bg-blue-900/40 text-purple-300 border border-blue-800/40 text-[10px] font-bold uppercase rounded tracking-wider">
-                                APARTMENT PLAN
+                                {plan.planType || plan.type || (property?.propertyType ? `${property.propertyType.toUpperCase()} PLAN` : 'FLOOR PLAN')}
                               </span>
-                              <h4 className="text-lg font-bold text-slate-900 mt-1">{plan.configType}</h4>
+                              <h4 className="text-lg font-bold text-slate-900 mt-1 uppercase">
+                                {plan.configName || plan.configType || plan.configuration || plan.name || plan.title || 'Standard Layout'}
+                              </h4>
                             </div>
-                            <span className="text-xs text-amber-400 font-semibold bg-amber-500/10 px-2 py-1 rounded border border-amber-500/10">
-                              Possession: {builderDetails.possessionYear || '2027'}
+                            <span className={`text-xs font-semibold px-2 py-1 rounded border shrink-0 ${
+                              String(plan.possessionStatus || '').toLowerCase().includes('ready')
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                            }`}>
+                              {plan.possessionStatus || (plan.possessionDate ? `Possession: ${plan.possessionDate}` : (builderDetails?.possessionYear ? `Possession: ${builderDetails.possessionYear}` : 'Contact for Date'))}
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4 text-xs">
+                          <div className="grid grid-cols-3 gap-2 text-xs">
                             <div>
                               <span className="text-slate-500 block font-medium">Carpet Area</span>
                               <span className="text-sm font-bold text-slate-900">
-                                {sqftUnit ? `${plan.carpetArea} sqft` : `${(plan.carpetArea * 0.0929).toFixed(1)} sqm`}
+                                {plan.carpetArea ? (sqftUnit ? `${plan.carpetArea} sqft` : `${(plan.carpetArea * 0.0929).toFixed(1)} sqm`) : 'N/A'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block font-medium">Super Built-up</span>
+                              <span className="text-sm font-bold text-slate-900">
+                                {(plan.superArea || plan.superBuiltUpArea) ? (sqftUnit ? `${plan.superArea || plan.superBuiltUpArea} sqft` : `${((plan.superArea || plan.superBuiltUpArea) * 0.0929).toFixed(1)} sqm`) : 'N/A'}
                               </span>
                             </div>
                             <div>
                               <span className="text-slate-500 block font-medium">Starting Price</span>
-                              <span className="text-sm font-bold text-blue-500">
-                                ₹{(plan.price / 10000000).toFixed(2)} Cr
+                              <span className="text-sm font-bold text-blue-600">
+                                {formatPlanPrice(plan.price)}
                               </span>
                             </div>
                           </div>
@@ -1036,33 +1207,54 @@ const HandpickedDetailsPage = () => {
               </div>
 
               {/* Milestone Payment Plan Widget */}
-              <div className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
-                <div>
-                  <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <FileText className="w-6 h-6 text-blue-500" /> Premium Payment Plans
-                  </h2>
-                  <p className="text-slate-500 text-sm mt-1">Review milestone schedules and subvention terms</p>
-                </div>
+              {paymentPlansList && paymentPlansList.length > 0 && (
+                <div className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
+                  <div>
+                    <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
+                      <FileText className="w-6 h-6 text-blue-500" /> Premium Payment Plans
+                    </h2>
+                    <p className="text-slate-500 text-sm mt-1">Review milestone schedules and subvention terms</p>
+                  </div>
 
-                <div className="space-y-4">
-                  {paymentPlansList.map((plan, i) => (
-                    <div key={i} className="bg-slate-100/30 border border-slate-200/80 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                          <Award className="w-4 h-4 text-blue-500" /> {plan.planName}
-                        </h4>
-                        <p className="text-xs text-slate-500 mt-1">Divided into {plan.milestones?.length || 0} stages of construction progress</p>
-                      </div>
-                      <button
-                        onClick={() => setSelectedPaymentPlan(plan)}
-                        className="py-2 px-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 text-xs font-bold text-blue-500 rounded-xl transition-all"
-                      >
-                        View Milestone Percentages
-                      </button>
-                    </div>
-                  ))}
+                  <div className="space-y-4">
+                    {paymentPlansList.map((plan, i) => {
+                      const docUrl = getPaymentPlanDocUrl(plan);
+                      const hasMilestones = plan.milestones && plan.milestones.length > 0;
+
+                      return (
+                        <div key={i} className="bg-slate-100/30 border border-slate-200/80 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                              <Award className="w-4 h-4 text-blue-500" /> {plan.planName || plan.name || plan.title || 'Custom Payment Plan'}
+                            </h4>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {hasMilestones ? `Divided into ${plan.milestones.length} construction milestones` : (docUrl ? 'Payment schedule document uploaded' : 'Custom payment schedule available')}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {docUrl && (
+                              <a
+                                href={docUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="py-2 px-4 bg-slate-200 hover:bg-slate-300 text-xs font-bold text-slate-800 rounded-xl transition-all flex items-center gap-1.5"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-blue-600" /> View Document / Image
+                              </a>
+                            )}
+                            <button
+                              onClick={() => setSelectedPaymentPlan({ ...plan, docUrl })}
+                              className="py-2 px-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 text-xs font-bold text-blue-500 rounded-xl transition-all"
+                            >
+                              {hasMilestones ? 'View Milestone Percentages' : 'View Plan Details'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Section 3: Specifications, Towers, Construction */}
               <div ref={sectionRefs['specs-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
@@ -1075,34 +1267,42 @@ const HandpickedDetailsPage = () => {
 
                 {isApartmentOrVilla && (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {towersList.map((tower, idx) => (
-                        <div key={idx} className="bg-slate-100/30 border border-slate-200 rounded-xl p-4 space-y-2">
-                          <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
-                            <span>{tower.name}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 text-purple-300 rounded uppercase tracking-wider">{tower.phase}</span>
-                          </h4>
-                          <div className="text-[11px] text-slate-500 space-y-1">
-                            <p>Configurations: <span className="font-semibold text-slate-700">{tower.configurations}</span></p>
-                            <p>Total Floors: <span className="font-semibold text-slate-700">{tower.floors} Levels</span></p>
-                            <p>Completion Date: <span className="font-semibold text-slate-700">{tower.completionDate}</span></p>
+                    {towersList && towersList.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {towersList.map((tower, idx) => (
+                          <div key={idx} className="bg-slate-100/30 border border-slate-200 rounded-xl p-4 space-y-2">
+                            <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+                              <span>{tower.towerName || tower.name || `Tower ${idx + 1}`}</span>
+                              {tower.phase && (
+                                <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 font-bold rounded uppercase tracking-wider">{tower.phase}</span>
+                              )}
+                            </h4>
+                            <div className="text-[11px] text-slate-500 space-y-1">
+                              {tower.configurations && <p>Configurations: <span className="font-semibold text-slate-700">{tower.configurations}</span></p>}
+                              {tower.floors && <p>Total Floors: <span className="font-semibold text-slate-700">{tower.floors} Levels</span></p>}
+                              {tower.completionDate && <p>Completion Date: <span className="font-semibold text-slate-700">{isNaN(Date.parse(tower.completionDate)) ? tower.completionDate : new Date(tower.completionDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span></p>}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                        Tower layout & block-wise distribution details available upon project site visit.
+                      </div>
+                    )}
 
                     <div className="bg-slate-100/40 border border-slate-300/50 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
                       <div className="space-y-2">
                         <h4 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-5 h-5 text-emerald-400" /> Double Verified Construction Quality
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" /> Structural Safety & Construction Specifications
                         </h4>
                         <p className="text-xs text-slate-500 max-w-lg">
-                          Built using shear-wall Mivan shuttering framework. Reviews confirm 4.8/5.0 structural resilience and durability rating.
+                          Built with earthquake-resistant RCC frame structure and premium materials.
                         </p>
                       </div>
                       <button
                         onClick={() => setShowInteriorsModal(true)}
-                        className="py-3 px-6 bg-blue-600 hover:bg-blue-700 text-xs font-bold text-slate-900 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-blue-600/20"
+                        className="py-3 px-6 bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-blue-600/20"
                       >
                         <Shield className="w-4 h-4" /> View Technical Materials Spec-Sheet
                       </button>
@@ -1302,7 +1502,7 @@ const HandpickedDetailsPage = () => {
                           <span className="text-slate-900 font-bold text-[15px]">{builderTrackRecord.completedCount + builderTrackRecord.ongoingCount} projects*</span>
                         </div>
                         <div className="w-full pb-1 pl-2">
-                          <span className="text-slate-900 font-bold text-[15px]">3 cities</span>
+                          <span className="text-slate-900 font-bold text-[15px]">{property?.address?.city ? `Active in ${property.address.city}` : 'Established Developer'}</span>
                         </div>
                       </div>
                     </div>
@@ -1318,7 +1518,7 @@ const HandpickedDetailsPage = () => {
                         {builderTrackRecord.summary ? (
                           <>{builderTrackRecord.summary.length > 120 ? builderTrackRecord.summary.substring(0, 120) + '...' : builderTrackRecord.summary}</>
                         ) : (
-                          <>For over {builderTrackRecord.experience || 40} years, {builderTrackRecord.name} has been a symbol of trust, transparency, technology,</>
+                          <>{builderTrackRecord.name} is committed to delivering quality residential projects.</>
                         )}
                         <span onClick={() => setShowAboutBuilderModal(true)} className="text-blue-600 cursor-pointer hover:underline ml-1">...more</span>
                       </p>
@@ -1353,7 +1553,7 @@ const HandpickedDetailsPage = () => {
                           <Clock className="w-5 h-5 text-slate-400 mt-0.5" />
                           <div>
                             <h4 className="text-sm font-bold text-slate-900">Recently delivered</h4>
-                            <p className="text-xs text-slate-500 mt-0.5">2 projects delivered in last 5 yrs</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{builderTrackRecord.completedCount > 0 ? `${builderTrackRecord.completedCount} projects completed` : 'Completed projects listed on profile'}</p>
                           </div>
                         </div>
                         <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
@@ -1372,8 +1572,8 @@ const HandpickedDetailsPage = () => {
                         <div className="flex items-start gap-4">
                           <TrendingUp className="w-5 h-5 text-slate-400 mt-0.5" />
                           <div>
-                            <h4 className="text-sm font-bold text-slate-900">Price appreciation</h4>
-                            <p className="text-xs text-slate-500 mt-0.5">More than 25% appreciation seen in 4 projects in the last 3 yrs</p>
+                            <h4 className="text-sm font-bold text-slate-900">Builder Profile</h4>
+                            <p className="text-xs text-slate-500 mt-0.5">Click to view complete builder portfolio & ratings</p>
                           </div>
                         </div>
                         <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
@@ -1395,7 +1595,7 @@ const HandpickedDetailsPage = () => {
 
               {/* Projects by Builder List */}
               <div className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
-                <h2 className="text-base md:text-lg md:text-lg md:text-xl font-bold text-slate-900">Projects by {builderTrackRecord.name}</h2>
+                <h2 className="text-base md:text-lg font-bold text-slate-900">Projects by {builderTrackRecord.name}</h2>
                 <div className="flex items-center gap-4 border-b border-slate-100 pb-2">
                   {['ongoing', 'upcoming', 'delivered'].map((tab) => (
                     <button
@@ -1407,54 +1607,86 @@ const HandpickedDetailsPage = () => {
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar pb-2">
-                  {(similarProperties?.length > 0 ? similarProperties : fallbackSimilarProperties).map((simItem, i) => {
-                    const simPrice = simItem.buyDetails?.expectedPrice ? formatPriceLakhCrore(simItem.buyDetails.expectedPrice) : 'Contact for Price';
-                    const simName = simItem.name || 'Property';
-                    const simLocality = simItem.address?.locality || '';
-                    const simCover = simItem.images?.cover || NO_IMAGE_PLACEHOLDER;
+
+                {(() => {
+                  const list = (builderProjects || []).filter(item => {
+                    if (!item) return false;
+                    const status = String(item.builderProjectDetails?.possessionStatus || item.dynamicData?.projectStatus || item.status || '').toLowerCase();
+                    if (activeBuilderProjectsTab === 'ongoing') return status.includes('under') || status.includes('ongoing') || (!status.includes('ready') && !status.includes('upcoming') && !status.includes('delivered'));
+                    if (activeBuilderProjectsTab === 'upcoming') return status.includes('upcoming') || status.includes('launch') || status.includes('soon');
+                    if (activeBuilderProjectsTab === 'delivered') return status.includes('ready') || status.includes('delivered') || status.includes('complete');
+                    return true;
+                  });
+
+                  if (list.length === 0) {
                     return (
-                      <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[200px] shrink-0 shadow-sm hover:border-blue-300 transition-colors cursor-pointer">
-                        <img src={simCover} className="w-full h-24 object-cover rounded-lg mb-3" />
-                        <h5 className="text-sm font-bold text-gray-800 line-clamp-1">{simName}</h5>
-                        <p className="text-[11px] text-slate-500 font-bold mb-1 line-clamp-1">{simLocality}</p>
-                        <p className="text-xs font-bold text-slate-900">{simPrice}</p>
+                      <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded-xl">
+                        No {activeBuilderProjectsTab} projects listed for {builderTrackRecord.name}
                       </div>
                     );
-                  })}
-                </div>
+                  }
+
+                  return (
+                    <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar pb-2">
+                      {list.map((simItem, i) => {
+                        const info = {
+                          name: simItem.propertyName || simItem.name || simItem.title || 'Project',
+                          locality: simItem.address?.locality || simItem.address?.city || '',
+                          cover: simItem.coverImage || simItem.images?.cover || simItem.propertyImages?.[0] || simItem.gallery?.[0] || NO_IMAGE_PLACEHOLDER,
+                          rawP: simItem.buyDetails?.expectedPrice || simItem.price || simItem.expectedPrice || simItem.startingPrice || simItem.dynamicData?.expectedPrice || simItem.dynamicData?.startingPrice || simItem.dynamicData?.minPrice
+                        };
+                        const simPrice = info.rawP ? formatPriceLakhCrore(info.rawP) : 'Contact for Price';
+
+                        return (
+                          <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[200px] shrink-0 shadow-sm hover:border-blue-300 transition-colors cursor-pointer">
+                            <img src={info.cover} className="w-full h-24 object-cover rounded-lg mb-3" alt={info.name} />
+                            <h5 className="text-sm font-bold text-gray-800 line-clamp-1">{info.name}</h5>
+                            <p className="text-[11px] text-slate-500 font-bold mb-1 line-clamp-1">{info.locality}</p>
+                            <p className="text-xs font-bold text-slate-900">{simPrice}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Compare with similar homes list carousel */}
-              <div className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
-                <h2 className="text-lg md:text-xl font-bold text-slate-900">Compare with Similar Homes</h2>
-                <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar pb-2">
-                  {(similarProperties?.length > 0 ? similarProperties : fallbackSimilarProperties).map((simItem, i) => {
-                    const simPrice = simItem.buyDetails?.expectedPrice ? formatPriceLakhCrore(simItem.buyDetails.expectedPrice) : 'Contact for Price';
-                    const simName = simItem.name || 'Property';
-                    const simLocality = simItem.address?.locality || '';
-                    const simCover = simItem.images?.cover || NO_IMAGE_PLACEHOLDER;
-                    const ratingVal = simItem.avgRating || 0;
+              {similarProperties && similarProperties.length > 0 && (
+                <div className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900">Compare with Similar Homes</h2>
+                  <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar pb-2">
+                    {similarProperties.map((simItem, i) => {
+                      const info = {
+                        name: simItem.propertyName || simItem.name || simItem.title || 'Project',
+                        locality: simItem.address?.locality || simItem.address?.city || '',
+                        cover: simItem.coverImage || simItem.images?.cover || simItem.propertyImages?.[0] || simItem.gallery?.[0] || NO_IMAGE_PLACEHOLDER,
+                        rawP: simItem.buyDetails?.expectedPrice || simItem.price || simItem.expectedPrice || simItem.startingPrice || simItem.dynamicData?.expectedPrice || simItem.dynamicData?.startingPrice || simItem.dynamicData?.minPrice,
+                        ratingVal: simItem.avgRating || 0,
+                        type: simItem.propertyType ? (simItem.propertyType.charAt(0).toUpperCase() + simItem.propertyType.slice(1)) : 'Residential'
+                      };
+                      const simPrice = info.rawP ? formatPriceLakhCrore(info.rawP) : 'Contact for Price';
 
-                    return (
-                      <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[160px] shrink-0 shadow-sm hover:border-blue-300 transition-colors cursor-pointer">
-                        <img src={simCover} className="w-full h-20 object-cover rounded-lg mb-2" />
-                        <h5 className="text-[11px] font-bold text-gray-800 line-clamp-1">{simName}</h5>
-                        <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{simLocality}</p>
+                      return (
+                        <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[160px] shrink-0 shadow-sm hover:border-blue-300 transition-colors cursor-pointer">
+                          <img src={info.cover} className="w-full h-20 object-cover rounded-lg mb-2" alt={info.name} />
+                          <h5 className="text-[11px] font-bold text-gray-800 line-clamp-1">{info.name}</h5>
+                          <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{info.locality}</p>
 
-                        {ratingVal > 0 && (
-                          <div className="flex items-center gap-1 my-1.5 text-[10px] text-amber-500 font-bold">
-                            <Star size={10} className="fill-amber-500" /> {ratingVal.toFixed(1)}
-                          </div>
-                        )}
+                          {info.ratingVal > 0 && (
+                            <div className="flex items-center gap-1 my-1.5 text-[10px] text-amber-500 font-bold">
+                              <Star size={10} className="fill-amber-500" /> {info.ratingVal.toFixed(1)}
+                            </div>
+                          )}
 
-                        <p className="text-xs font-extrabold text-gray-900">{simPrice}</p>
-                        <p className="text-[9px] text-slate-400 font-semibold">{simItem.propertyType ? (simItem.propertyType.charAt(0).toUpperCase() + simItem.propertyType.slice(1)) : 'Residential'}</p>
-                      </div>
-                    );
-                  })}
+                          <p className="text-xs font-extrabold text-gray-900">{simPrice}</p>
+                          <p className="text-[9px] text-slate-400 font-semibold">{info.type}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Locality Reviews Section */}
               <div id="explore-locality" className="bg-white sm:rounded-2xl p-5 sm:p-8 space-y-6 shadow-sm border-y sm:border border-slate-100">
@@ -1526,23 +1758,31 @@ const HandpickedDetailsPage = () => {
                 <div className="space-y-4 pt-4 border-t border-slate-100">
                   <div className="space-y-2">
                     <h5 className="text-sm font-bold text-slate-900">What are the positives</h5>
-                    <div className="flex flex-wrap gap-2">
-                      {localityPositives.map((pos, i) => (
-                        <span key={i} className="bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm">
-                          {pos}
-                        </span>
-                      ))}
-                    </div>
+                    {localityPositives && localityPositives.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {localityPositives.map((pos, i) => (
+                          <span key={i} className="bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm">
+                            {pos}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">No specific locality positives highlighted yet for {property?.address?.locality || 'this area'}.</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <h5 className="text-sm font-bold text-slate-900">What are the negatives</h5>
-                    <div className="flex flex-wrap gap-2">
-                      {localityNegatives.map((neg, i) => (
-                        <span key={i} className="bg-red-50 text-red-800 text-xs font-bold px-3 py-1.5 rounded-lg border border-red-100 shadow-sm">
-                          {neg}
-                        </span>
-                      ))}
-                    </div>
+                    {localityNegatives && localityNegatives.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {localityNegatives.map((neg, i) => (
+                          <span key={i} className="bg-red-50 text-red-800 text-xs font-bold px-3 py-1.5 rounded-lg border border-red-100 shadow-sm">
+                            {neg}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">No major locality concerns reported for {property?.address?.locality || 'this area'}.</p>
+                    )}
                   </div>
                 </div>
 
@@ -1552,34 +1792,52 @@ const HandpickedDetailsPage = () => {
                     <span className="text-sm font-bold text-slate-900">Reviews by Residents</span>
                   </div>
 
-                  <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar pb-2">
-                    {localityReviewsList.map((rev, idx) => {
-                      const ratingVal = rev.rating || 4.0;
-                      const reviewerName = rev.reviewerName || rev.userId?.name || rev.name || 'Anonymous';
-                      const role = rev.reviewerType || rev.role || 'Resident';
-                      const duration = rev.stayDuration ? ` | living since ${rev.stayDuration}` : '';
-                      const timeAgo = rev.createdAt ? `${new Date(rev.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : '';
+                  {localityReviewsList && localityReviewsList.length > 0 ? (
+                    <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar pb-2">
+                      {localityReviewsList.map((rev, idx) => {
+                        const ratingVal = rev.rating || 4.0;
+                        const reviewerName = rev.reviewerName || rev.userId?.name || rev.name || 'Anonymous';
+                        const role = rev.reviewerType || rev.role || 'Resident';
+                        const duration = rev.stayDuration ? ` | living since ${rev.stayDuration}` : '';
+                        const timeAgo = rev.createdAt ? `${new Date(rev.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : '';
 
-                      return (
-                        <div key={idx} className="bg-slate-50/80 rounded-2xl border border-slate-200 p-4 min-w-[260px] max-w-[280px] shrink-0 text-xs font-medium text-slate-700 relative shadow-sm">
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-1 rounded shadow-sm">{ratingVal.toFixed(1)} ★</span>
-                          </div>
-                          <h6 className="text-sm font-bold text-slate-900 mb-1.5 line-clamp-1">{rev.title || 'Locality Rating'}</h6>
-                          <p className="line-clamp-3 leading-relaxed opacity-95">{rev.reviewText || rev.review}</p>
-                          <div className="flex items-center gap-3 mt-4 pt-3 border-t border-slate-200">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                              {reviewerName.charAt(0).toUpperCase()}
+                        return (
+                          <div key={idx} className="bg-slate-50/80 rounded-2xl border border-slate-200 p-4 min-w-[260px] max-w-[280px] shrink-0 text-xs font-medium text-slate-700 relative shadow-sm">
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-1 rounded shadow-sm">{ratingVal.toFixed(1)} ★</span>
                             </div>
-                            <div>
-                              <p className="text-[11px] font-bold text-slate-900 leading-none mb-0.5">{reviewerName}</p>
-                              <p className="text-[9px] text-slate-500">{role}{duration} {timeAgo ? `| ${timeAgo}` : ''}</p>
+                            <h6 className="text-sm font-bold text-slate-900 mb-1.5 line-clamp-1">{rev.title || 'Locality Rating'}</h6>
+                            <p className="line-clamp-3 leading-relaxed opacity-95">{rev.reviewText || rev.review}</p>
+                            <div className="flex items-center gap-3 mt-4 pt-3 border-t border-slate-200">
+                              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                                {reviewerName.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-[11px] font-bold text-slate-900 leading-none mb-0.5">{reviewerName}</p>
+                                <p className="text-[9px] text-slate-500">{role}{duration} {timeAgo ? `| ${timeAgo}` : ''}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 text-center space-y-3">
+                      <MessageSquare className="w-8 h-8 text-blue-500 mx-auto opacity-70" />
+                      <div>
+                        <h5 className="text-sm font-bold text-slate-800">No Resident Reviews Yet</h5>
+                        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                          Be the first resident to review {property?.address?.locality || property?.address?.city || 'this locality'}! Share your thoughts on connectivity, safety, and amenities.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => navigate('/insights/' + (property?.address?.locality || 'Locality') + '/reviews')}
+                        className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm"
+                      >
+                        Write a Review
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1647,29 +1905,37 @@ const HandpickedDetailsPage = () => {
                 </div>
               </div>
 
-              {/* Similar properties shortcut panel */}
-              {similarProperties.length > 0 && (
+              {/* Similar projects shortcut panel */}
+              {similarProperties && similarProperties.length > 0 && (
                 <div className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-6 space-y-4">
                   <h3 className="text-sm font-bold text-slate-800">Similar Projects Near Locality</h3>
                   <div className="space-y-3">
-                    {similarProperties.slice(0, 3).map((sim, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => navigate(`/project/${sim._id}`)}
-                        className="flex gap-3 p-2 bg-white/80 border border-slate-200 rounded-xl hover:border-blue-500/30 transition-all cursor-pointer"
-                      >
-                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
-                          <img src={sim.coverImage || NO_IMAGE_PLACEHOLDER} className="w-full h-full object-cover" alt="" />
+                    {similarProperties.slice(0, 3).map((sim, idx) => {
+                      const simTitle = sim.propertyName || sim.name || sim.title || 'Project';
+                      const simLocality = sim.address?.locality || sim.address?.city || '';
+                      const simCover = sim.coverImage || sim.images?.cover || sim.propertyImages?.[0] || NO_IMAGE_PLACEHOLDER;
+                      const simRawPrice = sim.buyDetails?.expectedPrice || sim.price || sim.expectedPrice || sim.startingPrice || sim.dynamicData?.expectedPrice || sim.dynamicData?.startingPrice || sim.dynamicData?.minPrice;
+                      const simPriceStr = simRawPrice ? formatPriceLakhCrore(simRawPrice) : 'Contact for Price';
+
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => navigate(`/project/${sim._id}`)}
+                          className="flex gap-3 p-2 bg-white/80 border border-slate-200 rounded-xl hover:border-blue-500/30 transition-all cursor-pointer"
+                        >
+                          <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
+                            <img src={simCover} className="w-full h-full object-cover" alt={simTitle} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-xs font-bold text-slate-900 truncate">{simTitle}</h4>
+                            <p className="text-[10px] text-slate-500 mt-0.5">{simLocality}</p>
+                            <span className="text-[11px] font-bold text-blue-600 mt-1 block">
+                              {simPriceStr}
+                            </span>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-slate-900 truncate">{sim.propertyName}</h4>
-                          <p className="text-[10px] text-slate-500 mt-0.5">{sim.address?.locality}</p>
-                          <span className="text-[11px] font-bold text-blue-500 mt-1 block">
-                            ₹{sim.buyDetails?.price ? (sim.buyDetails.price / 10000000).toFixed(2) : '1.10'} Cr+
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1823,8 +2089,10 @@ const HandpickedDetailsPage = () => {
             >
               <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">{selectedFloorPlan.configType} Layout</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Configured dimensions and carpet values</p>
+                  <h3 className="text-xl font-bold text-slate-900 uppercase">
+                    {selectedFloorPlan.configName || selectedFloorPlan.configType || selectedFloorPlan.configuration || selectedFloorPlan.name || selectedFloorPlan.title || 'Floor Plan'} Layout
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Configured dimensions, area values & specifications</p>
                 </div>
                 <button
                   onClick={() => setSelectedFloorPlan(null)}
@@ -1838,62 +2106,65 @@ const HandpickedDetailsPage = () => {
                 <div className="p-6 flex flex-col justify-center bg-slate-50 border-r border-slate-200">
                   <div className="relative aspect-video rounded-xl overflow-hidden border border-slate-200 bg-black/50 flex items-center justify-center">
                     <img
-                      src={selectedFloorPlan.image || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&auto=format&fit=crop&q=80"}
-                      className="w-full h-full object-cover opacity-80"
-                      alt=""
+                      src={selectedFloorPlan.floorPlanImage || selectedFloorPlan.image || selectedFloorPlan.layoutImage || selectedFloorPlan.floorPlan || pImages[0]}
+                      className="w-full h-full object-cover"
+                      alt="Floor Plan Layout"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">
-                      <span className="text-[10px] text-blue-300 font-semibold bg-blue-900/40 border border-blue-800/40 px-2 py-0.5 rounded uppercase">2D Architectural Plan</span>
+                      <span className="text-[10px] text-blue-300 font-semibold bg-blue-900/40 border border-blue-800/40 px-2 py-0.5 rounded uppercase">2D Architectural Layout</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-6 space-y-6 flex flex-col justify-between">
                   <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Layout Dimensions Sizing</h4>
+                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Layout Sizing & Dimensions</h4>
                     <div className="space-y-2.5 max-h-56 overflow-y-auto pr-2 scrollbar-none">
-                      {selectedFloorPlan.rooms ? (
-                        selectedFloorPlan.rooms.map((rm, i) => (
-                          <div key={i} className="flex justify-between items-center text-xs p-2.5 bg-slate-100/30 border border-slate-200 rounded-lg">
-                            <span className="text-slate-500 font-medium">{rm.name}</span>
-                            <span className="font-bold text-slate-800">{rm.dimensions}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <>
-                          <div className="flex justify-between items-center text-xs p-2.5 bg-slate-100/30 border border-slate-200 rounded-lg">
-                            <span className="text-slate-500 font-medium">Carpet Sizing</span>
-                            <span className="font-bold text-slate-800">
-                              {sqftUnit ? `${selectedFloorPlan.carpetArea} sqft` : `${(selectedFloorPlan.carpetArea * 0.0929).toFixed(1)} sqm`}
-                            </span>
-                          </div>
-                          {selectedFloorPlan.facing && (
-                            <div className="flex justify-between items-center text-xs p-2.5 bg-slate-100/30 border border-slate-200 rounded-lg">
-                              <span className="text-slate-500 font-medium">Facing</span>
-                              <span className="font-bold text-slate-800">{selectedFloorPlan.facing}</span>
-                            </div>
-                          )}
-                          {selectedFloorPlan.dimensions && (
-                            <div className="flex justify-between items-center text-xs p-2.5 bg-slate-100/30 border border-slate-200 rounded-lg">
-                              <span className="text-slate-500 font-medium">Dimensions</span>
-                              <span className="font-bold text-slate-800">{selectedFloorPlan.dimensions}</span>
-                            </div>
-                          )}
-                          {selectedFloorPlan.boundaryWall !== undefined && (
-                            <div className="flex justify-between items-center text-xs p-2.5 bg-slate-100/30 border border-slate-200 rounded-lg">
-                              <span className="text-slate-500 font-medium">Boundary Wall</span>
-                              <span className="font-bold text-slate-800">{selectedFloorPlan.boundaryWall ? 'Made' : 'Not Made'}</span>
-                            </div>
-                          )}
-                        </>
+                      {/* Carpet Area */}
+                      <div className="flex justify-between items-center text-xs p-2.5 bg-slate-100/40 border border-slate-200 rounded-lg">
+                        <span className="text-slate-500 font-semibold">Carpet Area</span>
+                        <span className="font-bold text-slate-900">
+                          {selectedFloorPlan.carpetArea ? (sqftUnit ? `${selectedFloorPlan.carpetArea} sqft` : `${(selectedFloorPlan.carpetArea * 0.0929).toFixed(1)} sqm`) : 'N/A'}
+                        </span>
+                      </div>
+
+                      {/* Super Built-up Area */}
+                      {(selectedFloorPlan.superArea || selectedFloorPlan.superBuiltUpArea) && (
+                        <div className="flex justify-between items-center text-xs p-2.5 bg-slate-100/40 border border-slate-200 rounded-lg">
+                          <span className="text-slate-500 font-semibold">Super Built-up Area</span>
+                          <span className="font-bold text-slate-900">
+                            {sqftUnit ? `${selectedFloorPlan.superArea || selectedFloorPlan.superBuiltUpArea} sqft` : `${((selectedFloorPlan.superArea || selectedFloorPlan.superBuiltUpArea) * 0.0929).toFixed(1)} sqm`}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Room Dimensions list */}
+                      {(selectedFloorPlan.roomDimensions || selectedFloorPlan.rooms || []).map((rm, i) => (
+                        <div key={i} className="flex justify-between items-center text-xs p-2.5 bg-slate-100/30 border border-slate-200 rounded-lg">
+                          <span className="text-slate-500 font-medium">{rm.roomName || rm.name || `Room ${i+1}`}</span>
+                          <span className="font-bold text-slate-800">{rm.dimensions || rm.value}</span>
+                        </div>
+                      ))}
+
+                      {selectedFloorPlan.facing && (
+                        <div className="flex justify-between items-center text-xs p-2.5 bg-slate-100/30 border border-slate-200 rounded-lg">
+                          <span className="text-slate-500 font-medium">Facing</span>
+                          <span className="font-bold text-slate-800">{selectedFloorPlan.facing}</span>
+                        </div>
+                      )}
+                      {selectedFloorPlan.dimensions && (
+                        <div className="flex justify-between items-center text-xs p-2.5 bg-slate-100/30 border border-slate-200 rounded-lg">
+                          <span className="text-slate-500 font-medium">Dimensions</span>
+                          <span className="font-bold text-slate-800">{selectedFloorPlan.dimensions}</span>
+                        </div>
                       )}
                     </div>
                   </div>
 
                   <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Estimated Sizing Price</span>
+                    <span className="text-slate-500 font-medium">Starting Price</span>
                     <span className="text-lg font-bold text-blue-600">
-                      ₹{(selectedFloorPlan.price / 10000000).toFixed(2)} Cr+
+                      {formatPlanPrice(selectedFloorPlan.price)}
                     </span>
                   </div>
                 </div>
@@ -1925,17 +2196,38 @@ const HandpickedDetailsPage = () => {
               </div>
 
               <div className="p-5 flex-1 overflow-y-auto space-y-4">
-                {selectedPaymentPlan.milestones?.map((milestone, idx) => (
-                  <div key={idx} className="flex gap-4 items-start p-3 bg-slate-100/30 border border-slate-200 rounded-xl">
-                    <div className="w-12 h-12 bg-blue-900/40 text-blue-600 border border-blue-800/40 rounded-xl flex items-center justify-center font-black flex-shrink-0">
-                      {milestone.percentage}%
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Milestone Stage {idx + 1}</p>
-                      <h4 className="text-xs font-bold text-slate-800 mt-0.5">{milestone.description}</h4>
-                    </div>
-                  </div>
-                ))}
+                {(() => {
+                  const modalDocUrl = selectedPaymentPlan.docUrl || getPaymentPlanDocUrl(selectedPaymentPlan);
+                  return (
+                    <>
+                      {modalDocUrl && (
+                        <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50 p-3 text-center">
+                          <img src={modalDocUrl} alt="Payment Plan Document" className="w-full max-h-72 object-contain rounded-lg shadow-sm" />
+                          <a href={modalDocUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-blue-600 font-bold mt-2.5 hover:underline">
+                            <Download className="w-4 h-4" /> Open Full Resolution Document / Image
+                          </a>
+                        </div>
+                      )}
+                      {selectedPaymentPlan.milestones && selectedPaymentPlan.milestones.length > 0 ? (
+                        selectedPaymentPlan.milestones.map((milestone, idx) => (
+                          <div key={idx} className="flex gap-4 items-start p-3 bg-slate-100/30 border border-slate-200 rounded-xl">
+                            <div className="w-12 h-12 bg-blue-900/40 text-blue-600 border border-blue-800/40 rounded-xl flex items-center justify-center font-black flex-shrink-0">
+                              {milestone.percentage}%
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-500">Milestone Stage {idx + 1}</p>
+                              <h4 className="text-xs font-bold text-slate-800 mt-0.5">{milestone.description}</h4>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        !modalDocUrl && (
+                          <p className="text-xs text-slate-500 text-center py-4">Custom payment terms available. Contact advisor for details.</p>
+                        )
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </motion.div>
           </div>
@@ -2363,12 +2655,10 @@ const HandpickedDetailsPage = () => {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 pb-safe md:p-4 z-[9999] flex items-center justify-between gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.08)]">
         <button
           onClick={() => {
-            if (!user) {
-              toast.error("Please login to download brochure");
-              navigate('/login');
+            if (projectBrochureUrl) {
+              window.open(projectBrochureUrl, "_blank");
             } else {
-              if (builderDetails.brochureUrl) window.open(builderDetails.brochureUrl, "_blank");
-              else toast.error("Brochure not available.");
+              toast.error("Brochure not uploaded for this project");
             }
           }}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
