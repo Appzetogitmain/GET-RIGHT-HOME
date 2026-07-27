@@ -253,7 +253,7 @@ export const updateFcmToken = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide FCM token' });
     }
 
-    const targetPlatform = platform === 'app' ? 'app' : 'web';
+    const targetPlatform = (platform === 'app' || platform === 'mobile') ? 'app' : 'web';
     const updateObj = {};
     updateObj[`fcmTokens.${targetPlatform}`] = fcmToken;
 
