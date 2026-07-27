@@ -453,17 +453,8 @@ const PropertyDetailsPage = () => {
       if (getDdVal('approvalAuthority')) specs.push({ label: 'Approval Authority', value: getDdVal('approvalAuthority') });
       if (getDdVal('boundaryWall')) specs.push({ label: 'Boundary Wall', value: getDdVal('boundaryWall') });
       
-      // Only use truly static fallback if we still have nothing
-      if (specs.length <= 2) {
-        specs.push(
-          { label: 'Layout', value: '1 RK, 1 Baths' },
-          { label: 'Ownership', value: 'Freehold' },
-          { label: 'Carpet Area', value: '244 sq.ft.' },
-          { label: 'Floor Number', value: '1' },
-          { label: 'Furnishing', value: 'Unfurnished' },
-          { label: 'Facing', value: 'East' }
-        );
-      }
+      if (getDdVal('roadWidth')) specs.push({ label: 'Road Width', value: `${getDdVal('roadWidth')} ft` });
+      if (getDdVal('totalLandArea')) specs.push({ label: 'Total Land Area', value: `${getDdVal('totalLandArea')} Acres` });
     }
     return specs;
   };
@@ -568,8 +559,6 @@ const PropertyDetailsPage = () => {
       const facing = getDd('facing');
       if (facing) {
         widgets.push({ icon: Compass, label: `${facing} Facing`, color: 'text-slate-600' });
-      } else {
-        widgets.push({ icon: Compass, label: 'Facing N/A', color: 'text-slate-400' });
       }
     }
 
@@ -591,8 +580,6 @@ const PropertyDetailsPage = () => {
       const furnishing = getDd('furnishing');
       if (furnishing) {
         widgets.push({ icon: Grid, label: furnishing, color: 'text-slate-600' });
-      } else {
-        widgets.push({ icon: Grid, label: 'Details N/A', color: 'text-slate-400' });
       }
     }
 
@@ -1674,7 +1661,7 @@ const PropertyDetailsPage = () => {
                 onClick={() => setShowAllAmenitiesModal(true)}
                 className="text-xs font-bold text-[#0061df] hover:underline"
               >
-                View all ({(property.topAmenities?.length || 0) + (property.otherAmenities?.length || 0) || 14})
+                View all ({(property.topAmenities?.length || 0) + (property.otherAmenities?.length || 0) || (property.amenities?.length || 0)})
               </button>
             </div>
 
@@ -2090,7 +2077,7 @@ const PropertyDetailsPage = () => {
           <div className="space-y-3 pt-3 border-t border-slate-50">
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-slate-900">Reviews by Residents</span>
-              <button className="text-xs font-bold text-[#0061df] hover:underline">View all</button>
+              <button onClick={() => navigate('/insights/' + encodeURIComponent(localityName) + '/reviews')} className="text-xs font-bold text-[#0061df] hover:underline">View all</button>
             </div>
 
             <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar pb-2">

@@ -16,6 +16,7 @@ import GRHHomeSection from '../../components/user/GRHHomeSection';
 import SupportSection from '../../components/user/SupportSection';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 import { api } from '../../services/apiService';
+import toast from 'react-hot-toast';
 
 
 // Category Theme Map - Professional light palettes inspired by modern premium designs
@@ -350,10 +351,10 @@ const Home = () => {
                         try {
                             const { api } = await import('../../services/apiService');
                             await api.post('/fcm-tokens/test');
-                            alert('Test notification sent! Check your device.');
+                            toast.success('Test notification sent! Check your device.');
                         } catch (err) {
                             console.error(err);
-                            alert('Failed to send test notification. Please login first.');
+                            toast.error('Failed to send test notification. Please login first.');
                         }
                     }}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all active:scale-95"

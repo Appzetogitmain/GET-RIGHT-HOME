@@ -254,6 +254,7 @@ const LocationSelector = ({ value = {}, onChange, required = false, className = 
         onSetManual={setIsManualState}
         manualValue={manualState}
         onManualChange={setManualState}
+        hideManual={true}
       />
 
       <SelectField
@@ -269,6 +270,7 @@ const LocationSelector = ({ value = {}, onChange, required = false, className = 
         onSetManual={setIsManualDistrict}
         manualValue={manualDistrict}
         onManualChange={setManualDistrict}
+        hideManual={true}
       />
 
       <SelectField

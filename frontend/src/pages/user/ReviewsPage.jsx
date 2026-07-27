@@ -1,18 +1,38 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, ThumbsUp, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Star, User, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { reviewService } from '../../services/apiService';
 
 const ReviewsPage = () => {
     const navigate = useNavigate();
+    const { id } = useParams();
 
-    const reviews = [
-        { id: 1, user: "Rahul Jain", rating: 5.0, date: "Oct 2024", type: "Family Trip", text: "Excellent stay! The rooms were super clean and the staff was very polite. Highly recommended for families looking for a safe stay." },
-        { id: 2, user: "Mohit Kumar", rating: 4.5, date: "Sep 2024", type: "Business Trip", text: "Great value for money. Checking in was smooth and the location is perfect near the railway station. Wifi speed was good." },
-        { id: 3, user: "Ankit Singh", rating: 5.0, date: "Aug 2024", type: "Solo", text: "Room service was quick. Food quality is amazing. Will definitely visit again. The view from the room was also nice." },
-        { id: 4, user: "Priya Sharma", rating: 4.0, date: "July 2024", type: "Couple", text: "Nice hotel but breakfast options could be better. Rest everything was fine. Cleanliness was top notch." },
-        { id: 5, user: "Vikram Malhotra", rating: 3.5, date: "June 2024", type: "Friends", text: "Average stay. AC was taking time to cool. Staff was helpful though." }
-    ];
+    const [reviews, setReviews] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({ average: 0, total: 0 });
+
+    useEffect(() => {
+        const fetchReviews = async () => {
+            try {
+                const data = await reviewService.getPropertyReviews(id);
+                setReviews(data || []);
+                
+                if (data && data.length > 0) {
+                    const totalRating = data.reduce((acc, r) => acc + (r.rating || 5), 0);
+                    setStats({
+                        average: (totalRating / data.length).toFixed(1),
+                        total: data.length
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to fetch property reviews", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchReviews();
+    }, [id]);
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -28,28 +48,15 @@ const ReviewsPage = () => {
             <div className="p-5 pb-0">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-6">
                     <div className="flex flex-col items-center justify-center w-20 h-20 bg-surface/5 rounded-2xl border border-surface/10">
-                        <span className="text-3xl font-black text-surface leading-none">4.6</span>
+                        <span className="text-3xl font-black text-surface leading-none">{stats.average || '0.0'}</span>
                         <div className="flex items-center gap-1 mt-1">
                             <Star size={10} fill="currentColor" className="text-surface" />
-                            <span className="text-[10px] font-bold text-surface">Excellent</span>
+                            <span className="text-[10px] font-bold text-surface">{stats.total} Reviews</span>
                         </div>
                     </div>
                     <div className="flex-1">
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-bold text-surface">Cleanliness</span>
-                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full w-[90%] bg-surface rounded-full"></div></div>
-                            <span className="text-xs font-bold text-surface">4.8</span>
-                        </div>
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-bold text-surface">Location</span>
-                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full w-[85%] bg-surface rounded-full"></div></div>
-                            <span className="text-xs font-bold text-surface">4.5</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-surface">Check-in</span>
-                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full w-[95%] bg-surface rounded-full"></div></div>
-                            <span className="text-xs font-bold text-surface">5.0</span>
-                        </div>
+                        <h3 className="font-bold text-surface text-base mb-1">Property Reviews</h3>
+                        <p className="text-xs text-gray-500">Based on {stats.total} verified ratings for this property.</p>
                     </div>
                 </div>
             </div>
@@ -57,31 +64,50 @@ const ReviewsPage = () => {
             {/* Reviews List */}
             <div className="p-5 space-y-4 pb-20">
                 <h3 className="font-bold text-surface text-base">User Reviews</h3>
-                {reviews.map((review, idx) => (
-                    <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
-                    >
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                                <User size={20} />
+                
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-10">
+                        <Loader2 className="w-6 h-6 text-slate-400 animate-spin mb-2" />
+                        <p className="text-sm text-slate-500">Loading reviews...</p>
+                    </div>
+                ) : reviews.length > 0 ? (
+                    reviews.map((review, idx) => (
+                        <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
+                        >
+                            <div className="flex items-center gap-3 mb-3">
+                                {review.userId?.profilePicture ? (
+                                    <img src={review.userId.profilePicture} alt="User" className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-100" />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                                        <User size={20} />
+                                    </div>
+                                )}
+                                <div>
+                                    <h4 className="font-bold text-sm text-surface">{review.userId?.name || review.name || review.reviewerName || "Anonymous"}</h4>
+                                    <p className="text-[10px] text-gray-400">
+                                        {review.createdAt ? new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recent'} 
+                                        {review.reviewerType ? ` • ${review.reviewerType}` : ''}
+                                    </p>
+                                </div>
+                                <div className="ml-auto bg-green-50 px-2 py-1 rounded text-xs font-bold text-green-700 flex items-center gap-1">
+                                    {review.rating || 5.0} <Star size={10} fill="currentColor" />
+                                </div>
                             </div>
-                            <div>
-                                <h4 className="font-bold text-sm text-surface">{review.user}</h4>
-                                <p className="text-[10px] text-gray-400">{review.date} • {review.type}</p>
-                            </div>
-                            <div className="ml-auto bg-green-50 px-2 py-1 rounded text-xs font-bold text-green-700 flex items-center gap-1">
-                                {review.rating} <Star size={10} fill="currentColor" />
-                            </div>
-                        </div>
-                        <p className="text-xs text-gray-600 leading-relaxed">
-                            {review.text}
-                        </p>
-                    </motion.div>
-                ))}
+                            <p className="text-xs text-gray-600 leading-relaxed">
+                                {review.comment || review.reviewText || "No comment provided."}
+                            </p>
+                        </motion.div>
+                    ))
+                ) : (
+                    <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200">
+                        <p className="text-sm font-medium text-gray-500">No reviews found for this property.</p>
+                    </div>
+                )}
             </div>
         </div>
     );

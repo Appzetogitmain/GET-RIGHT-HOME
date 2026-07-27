@@ -1039,12 +1039,64 @@ export const getPublicProperties = async (req, res) => {
 
     // 2.1 Property Specific Filters
     if (bhkType) {
-      const bhkList = bhkType.split(',').map(t => new RegExp(`^${t.trim()}$`, 'i'));
-      matchConditions['rentDetails.type'] = { $in: bhkList };
+      const bhkValues = bhkType.split(',').map(t => t.trim());
+      const bhkRegexList = bhkValues.map(t => {
+        const numMatch = t.match(/\d+/);
+        if (numMatch) {
+          const num = numMatch[0];
+          return new RegExp(`${num}\\s*BHK|^${num}$`, 'i');
+        }
+        return new RegExp(t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+      });
+      
+      const bhkMatch = {
+        $or: [
+          { 'dynamicData.bhkType': { $in: bhkRegexList } },
+          { 'dynamicData.bhk': { $in: bhkRegexList } },
+          { 'rentDetails.type': { $in: bhkRegexList } },
+          { 'buyDetails.bhkType': { $in: bhkRegexList } },
+          { 'buyDetails.type': { $in: bhkRegexList } }
+        ]
+      };
+
+      if (matchConditions.$and) {
+        matchConditions.$and.push(bhkMatch);
+      } else if (matchConditions.$or) {
+        const existingOr = matchConditions.$or;
+        delete matchConditions.$or;
+        matchConditions.$and = [{ $or: existingOr }, bhkMatch];
+      } else {
+        matchConditions.$or = bhkMatch.$or;
+      }
     }
+
     if (furnishing) {
-      const furnishList = furnishing.split(',').map(f => new RegExp(`^${f.trim()}$`, 'i'));
-      matchConditions['rentDetails.furnishing'] = { $in: furnishList };
+      const furnishValues = furnishing.split(',').map(f => f.trim());
+      const furnishRegexList = furnishValues.map(f => {
+        if (/fully/i.test(f)) return /fully|furnished/i;
+        if (/semi/i.test(f)) return /semi/i;
+        if (/unfurnished/i.test(f)) return /unfurnished/i;
+        return new RegExp(f.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+      });
+      
+      const furnishMatch = {
+        $or: [
+          { 'dynamicData.furnishingStatus': { $in: furnishRegexList } },
+          { 'dynamicData.furnishing': { $in: furnishRegexList } },
+          { 'rentDetails.furnishing': { $in: furnishRegexList } },
+          { 'buyDetails.furnishing': { $in: furnishRegexList } }
+        ]
+      };
+
+      if (matchConditions.$and) {
+        matchConditions.$and.push(furnishMatch);
+      } else if (matchConditions.$or) {
+        const existingOr = matchConditions.$or;
+        delete matchConditions.$or;
+        matchConditions.$and = [{ $or: existingOr }, furnishMatch];
+      } else {
+        matchConditions.$or = furnishMatch.$or;
+      }
     }
     if (gender) {
       const genders = gender.split(',').map(g => g.trim());
@@ -1115,12 +1167,33 @@ export const getPublicProperties = async (req, res) => {
       }
     }
 
-    // Only apply transactionType direct filter when type is NOT a dynamic ObjectId
-    // (dynamic ObjectId resolution already includes transactionType in the $or conditions)
-    const typeHasDynamicId = type && type !== 'all' && type.split(',').some(t => mongoose.Types.ObjectId.isValid(t.trim()));
-    if (transactionType && transactionType !== 'all' && !typeHasDynamicId) {
-      const txnRegex = new RegExp('^' + transactionType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
-      matchConditions.transactionType = txnRegex;
+    if (transactionType && transactionType !== 'all') {
+      const tokens = transactionType.split(',').map(t => t.trim().toLowerCase());
+      const txnRegexes = [];
+      tokens.forEach(t => {
+        if (t === 'sell' || t === 'buy') {
+          txnRegexes.push(/Sell|Buy/i);
+        } else if (t === 'rent' || t === 'lease') {
+          txnRegexes.push(/Rent|Lease/i);
+        } else if (t === 'pg' || t === 'paying guest') {
+          txnRegexes.push(/Paying Guest|PG/i);
+        } else if (t) {
+          txnRegexes.push(new RegExp('^' + t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
+        }
+      });
+
+      if (txnRegexes.length > 0) {
+        const txnMatch = { transactionType: { $in: txnRegexes } };
+        if (matchConditions.$and) {
+          matchConditions.$and.push(txnMatch);
+        } else if (matchConditions.$or) {
+          const existingOr = matchConditions.$or;
+          delete matchConditions.$or;
+          matchConditions.$and = [{ $or: existingOr }, txnMatch];
+        } else {
+          matchConditions.transactionType = { $in: txnRegexes };
+        }
+      }
     }
 
     if (req.query.foodIncluded === 'true') {
@@ -1144,12 +1217,27 @@ export const getPublicProperties = async (req, res) => {
       const availList = availability.split(',').map(a => a.trim()).filter(Boolean);
       if (availList.length > 0) {
         const availRegexes = availList.map(a => new RegExp('^' + a.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
-        const availabilityMatch = {
-          $or: [
-            { 'dynamicData.availability': { $in: availRegexes } },
-            { 'dynamicData.availabilityStatus': { $in: availRegexes } }
-          ]
-        };
+        
+        const availabilityOr = [
+          { 'dynamicData.availability': { $in: availRegexes } },
+          { 'dynamicData.availabilityStatus': { $in: availRegexes } },
+          { 'dynamicData.possessionStatus': { $in: availRegexes } },
+          { 'buyDetails.availabilityStatus': { $in: availRegexes } },
+          { 'rentDetails.availabilityStatus': { $in: availRegexes } },
+          { 'possessionStatus': { $in: availRegexes } },
+          { 'availabilityStatus': { $in: availRegexes } }
+        ];
+
+        // If user selected all main availability statuses, also include properties with missing/null availability so they are not hidden
+        if (availList.length >= 3 || (availList.some(a => /ready/i.test(a)) && availList.some(a => /under/i.test(a)))) {
+          availabilityOr.push(
+            { 'dynamicData.availability': { $exists: false } },
+            { 'dynamicData.availability': null },
+            { 'buyDetails.availabilityStatus': { $exists: false } }
+          );
+        }
+
+        const availabilityMatch = { $or: availabilityOr };
 
         if (matchConditions.$and) {
           matchConditions.$and.push(availabilityMatch);
@@ -1307,29 +1395,7 @@ export const getPublicProperties = async (req, res) => {
       }
     }
 
-    // Posted by filter
-    if (postedBy) {
-      const postedByList = postedBy.split(',').map(p => p.trim().toLowerCase());
-      const postedMatch = [];
-      if (postedByList.includes('owner')) {
-        postedMatch.push({ isAddedByUser: true });
-      }
-      if (postedByList.includes('dealer') || postedByList.includes('builder')) {
-        postedMatch.push({ isAddedByUser: false });
-      }
-      if (postedMatch.length > 0) {
-        const postedCondition = { $or: postedMatch };
-        if (matchConditions.$and) {
-          matchConditions.$and.push(postedCondition);
-        } else if (matchConditions.$or) {
-          const existingOr = matchConditions.$or;
-          delete matchConditions.$or;
-          matchConditions.$and = [{ $or: existingOr }, postedCondition];
-        } else {
-          matchConditions.$or = postedCondition.$or;
-        }
-      }
-    }
+    // Posted by filter will be applied after user lookup below to correctly filter by user.role (owner, broker, builder)
 
     // Purchase type filter
     if (purchaseType) {
@@ -1411,6 +1477,26 @@ export const getPublicProperties = async (req, res) => {
         }
       }
     );
+
+    // Filter by postedBy role accurately using populated user
+    if (postedBy) {
+      const postedByList = postedBy.split(',').map(p => p.trim().toLowerCase());
+      const roleConditions = [];
+      if (postedByList.includes('owner')) {
+        roleConditions.push({ 'user.role': { $in: ['user', 'owner'] } });
+        roleConditions.push({ 'user.role': { $exists: false } });
+        roleConditions.push({ 'user.role': null });
+      }
+      if (postedByList.includes('broker') || postedByList.includes('dealer')) {
+        roleConditions.push({ 'user.role': 'broker' });
+      }
+      if (postedByList.includes('builder')) {
+        roleConditions.push({ 'user.role': 'builder' });
+      }
+      if (roleConditions.length > 0) {
+        pipeline.push({ $match: { $or: roleConditions } });
+      }
+    }
 
     // 3. Lookup Room Types (For Price & Guest Capacity)
     // Use dynamic collection name for robustness

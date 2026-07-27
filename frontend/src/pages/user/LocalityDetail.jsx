@@ -514,10 +514,10 @@ const LocalityDetail = () => {
                             <h3 className="font-bold text-slate-900 mb-6 text-[15px]">Ratings by features</h3>
                             <div className="flex justify-between md:justify-start md:gap-12 px-2 md:px-0">
                                 {[
-                                    { label: 'Connectivity', val: automated.featureRatings?.connectivity || '4.3' },
-                                    { label: 'Lifestyle', val: automated.featureRatings?.lifestyle || '4.3' },
-                                    { label: 'Safety', val: automated.featureRatings?.safety || '4.2' },
-                                    { label: 'Green Area', val: automated.featureRatings?.greenArea || '4.2' }
+                                    { label: 'Connectivity', val: automated.featureRatings?.connectivity || 'N/A' },
+                                    { label: 'Lifestyle', val: automated.featureRatings?.lifestyle || 'N/A' },
+                                    { label: 'Safety', val: automated.featureRatings?.safety || 'N/A' },
+                                    { label: 'Green Area', val: automated.featureRatings?.greenArea || 'N/A' }
                                 ].map(f => (
                                     <div key={f.label} className="flex flex-col items-center">
                                         <div className="w-12 h-12 rounded-full border-[3px] border-[#0d6efd] flex items-center justify-center mb-2 relative overflow-hidden">
@@ -534,17 +534,21 @@ const LocalityDetail = () => {
                             <div>
                                 <h3 className="font-bold text-slate-900 mb-3 text-[15px]">What are the positives</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {(automated.allPositives || ["Good Public Transport", "Easy Cab Availability", "Safe at Night"]).map((pos, idx) => (
+                                    {automated.allPositives && automated.allPositives.length > 0 ? automated.allPositives.map((pos, idx) => (
                                         <span key={idx} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-semibold text-xs rounded border border-emerald-100">{pos}</span>
-                                    ))}
+                                    )) : (
+                                        <span className="text-xs text-slate-500 italic">No positives listed yet.</span>
+                                    )}
                                 </div>
                             </div>
                             <div>
                                 <h3 className="font-bold text-slate-900 mb-3 text-[15px]">What are the negatives</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {(automated.allNegatives || ["Frequent Traffic Jams"]).map((neg, idx) => (
+                                    {automated.allNegatives && automated.allNegatives.length > 0 ? automated.allNegatives.map((neg, idx) => (
                                         <span key={idx} className="px-3 py-1.5 bg-red-50 text-red-700 font-semibold text-xs rounded border border-red-100">{neg}</span>
-                                    ))}
+                                    )) : (
+                                        <span className="text-xs text-slate-500 italic">No negatives listed yet.</span>
+                                    )}
                                 </div>
                             </div>
                         </div>

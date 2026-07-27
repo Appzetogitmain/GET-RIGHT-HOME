@@ -551,7 +551,7 @@ const HomePage = ({ catalog, setCatalog, selectedCity }) => {
   const saveCategorySection = async () => {
     try {
       const title = categorySectionForm.title.trim();
-      if (!title) return alert("Section title required");
+      if (!title) return toast.error("Section title required");
 
       const sections = home?.categorySections || [];
       if (editingCategorySectionId) {

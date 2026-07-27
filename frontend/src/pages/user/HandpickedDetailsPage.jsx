@@ -2147,39 +2147,47 @@ const HandpickedDetailsPage = () => {
                         </td>
                       ))}
                     </tr>
-                    <tr className="border-b border-slate-200 hover:bg-slate-100/20">
-                      <td className="py-3.5 px-3 text-slate-500 font-medium">Architectural Density</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{densityType} ({projectDensity})</td>
+                    <tr className="border-b border-slate-100 group hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3.5 px-3 font-semibold text-slate-700 bg-white group-hover:bg-slate-50/50 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-100 flex items-center gap-2">
+                        <Maximize2 size={14} className="text-blue-500" /> Architectural Density
+                      </td>
+                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{densityType} ({projectDensity})</td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
-                        <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.densityType || '65 units/acre'}</td>
+                        <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.densityType}</td>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-slate-100 group hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3.5 px-3 font-semibold text-slate-700 bg-white group-hover:bg-slate-50/50 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-100 flex items-center gap-2">
+                        <Maximize2 size={14} className="text-blue-500" /> Land Area
+                      </td>
+                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{property?.dynamicData?.totalArea} Acres</td>
+                      {similarProperties.slice(0, 2).map((sim, i) => (
+                        <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.totalArea} Acres</td>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-slate-100 group hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3.5 px-3 font-semibold text-slate-700 bg-white group-hover:bg-slate-50/50 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-100 flex items-center gap-2">
+                        <Wind size={14} className="text-emerald-500" /> Green Open Area
+                      </td>
+                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{openAreaPercentage}%</td>
+                      {similarProperties.slice(0, 2).map((sim, i) => (
+                        <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.openAreaPercentage}%</td>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-slate-100 group hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3.5 px-3 font-semibold text-slate-700 bg-white group-hover:bg-slate-50/50 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-100 flex items-center gap-2">
+                        <Landmark size={14} className="text-purple-500" /> Structure Towers
+                      </td>
+                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-purple-500/20 bg-purple-500/5">{totalTowers} Towers</td>
+                      {similarProperties.slice(0, 2).map((sim, i) => (
+                        <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.totalTowers} Towers</td>
                       ))}
                     </tr>
                     <tr className="border-b border-slate-200 hover:bg-slate-100/20">
-                      <td className="py-3.5 px-3 text-slate-500 font-medium">Total Area Spread</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{totalArea} Acres</td>
-                      {similarProperties.slice(0, 2).map((sim, i) => (
-                        <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.totalArea || '8.20'} Acres</td>
-                      ))}
-                    </tr>
-                    <tr className="border-b border-slate-200 hover:bg-slate-100/20">
-                      <td className="py-3.5 px-3 text-slate-500 font-medium">Green Open Area</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{openAreaPercentage}%</td>
-                      {similarProperties.slice(0, 2).map((sim, i) => (
-                        <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.openAreaPercentage || '60'}%</td>
-                      ))}
-                    </tr>
-                    <tr className="border-b border-slate-200 hover:bg-slate-100/20">
-                      <td className="py-3.5 px-3 text-slate-500 font-medium">Structure Towers count</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-purple-500/20 bg-purple-500/5">{totalTowers} Towers</td>
-                      {similarProperties.slice(0, 2).map((sim, i) => (
-                        <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.totalTowers || '6'} Towers</td>
-                      ))}
-                    </tr>
-                    <tr className="border-b border-slate-200 hover:bg-slate-100/20">
-                      <td className="py-3.5 px-3 text-slate-500 font-medium">Locality Positives</td>
+                      <td className="py-3.5 px-3 font-semibold text-slate-700">Locality Positives</td>
                       <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-purple-500/20 bg-purple-500/5">{localityPros.length} Pros listed</td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
-                        <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.localityPros?.length || '4'} Pros</td>
+                        <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.localityPros?.length} Pros</td>
                       ))}
                     </tr>
                   </tbody>

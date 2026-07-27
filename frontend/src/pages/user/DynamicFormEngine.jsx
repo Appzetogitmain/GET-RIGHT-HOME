@@ -990,7 +990,7 @@ const DynamicFormEngine = () => {
           };
 
           return (
-            <div key={field.name} id={`field-${field.name}`} className="mb-6 border border-slate-100 bg-slate-50/50 p-4 rounded-2xl">
+            <div key={field.name} id={`field-${field.name}`} className="mb-6">
               <label className="block text-[14px] font-semibold text-slate-800 mb-2">
                 {field.label} {field.required && <span className="text-red-500">*</span>}
               </label>
@@ -1064,7 +1064,7 @@ const DynamicFormEngine = () => {
       case 'repeater':
         const repeaterItems = Array.isArray(formData[field.name]) ? formData[field.name] : [];
         return (
-          <div key={field.name} id={`field-${field.name}`} className="mb-8 p-5 bg-slate-50 border border-slate-200 rounded-2xl">
+          <div key={field.name} id={`field-${field.name}`} className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <label className="block text-[15px] font-bold text-slate-800">
                 {field.label} {field.required && <span className="text-red-500">*</span>}
@@ -1163,6 +1163,17 @@ const DynamicFormEngine = () => {
                                   {opt}
                                 </button>
                               ))}
+                              <input 
+                                type="text" 
+                                placeholder="Custom tag..." 
+                                className="border border-slate-200 rounded-full px-4 py-2 text-[12px] outline-none focus:border-blue-500 w-32 transition-all"
+                                value={(!subF.options?.includes(item[subF.name])) ? (item[subF.name] || '') : ''}
+                                onChange={(e) => {
+                                  const next = [...repeaterItems];
+                                  next[index] = { ...next[index], [subF.name]: e.target.value };
+                                  handleChange(field.name, next);
+                                }}
+                              />
                             </div>
                             {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
                           </div>
@@ -1287,7 +1298,7 @@ const DynamicFormEngine = () => {
             )}
 
             {currentStepIndex === 0 && isBrokerOrBuilder && (
-              <div id="field-logo" className="mb-6 p-4 bg-slate-50 border border-slate-200/60 rounded-2xl">
+              <div id="field-logo" className="mb-6">
                 <label className="block text-[14px] font-semibold text-slate-800 mb-2">
                   {user?.role === 'builder' ? 'Project Logo' : 'Property Logo'} <span className="text-red-500">*</span>
                 </label>
@@ -1353,7 +1364,7 @@ const DynamicFormEngine = () => {
             )}
 
             {currentStep?.title?.toLowerCase().includes('location') && (
-              <div className="mb-6 p-4 bg-gray-50 border border-gray-100 rounded-2xl space-y-4">
+              <div className="mb-6 space-y-4">
                 <LocationSelector
                   value={{
                     country: formData.country || 'India',

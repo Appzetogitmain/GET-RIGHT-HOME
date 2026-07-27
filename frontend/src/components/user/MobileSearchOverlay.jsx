@@ -7,12 +7,15 @@ import toast from 'react-hot-toast';
 const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }) => {
     // Load initial draft from session storage if exists
     const draft = JSON.parse(sessionStorage.getItem('grh_search_draft') || '{}');
-    const [selectedCity, setSelectedCity] = useState(draft.selectedCity !== undefined ? draft.selectedCity : 'Bengaluru');
+    const [selectedCity, setSelectedCity] = useState(draft.selectedCity !== undefined ? draft.selectedCity : '');
     
     const [step, setStep] = useState(draft.step || 1);
     const [txnType, setTxnType] = useState(draft.txnType || 'Buy');
     const [searchInput, setSearchInput] = useState(draft.searchInput || '');
     const [selectedLocations, setSelectedLocations] = useState(draft.selectedLocations || []);
+    const [liveSuggestions, setLiveSuggestions] = useState([]);
+    const [fetchingSuggestions, setFetchingSuggestions] = useState(false);
+    const [localityError, setLocalityError] = useState('');
     
     // Common Filters
     const [minBudget, setMinBudget] = useState('No Min');
@@ -92,7 +95,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
     // Fetch dynamic cities from backend
     useEffect(() => {
         if (isOpen && dynamicCities.length === 0) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/cities/public`)
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/public/cities`)
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.success && data.cities) {
@@ -106,9 +109,45 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
     useEffect(() => {
         try {
             const saved = JSON.parse(localStorage.getItem('grh_recent_searches') || '[]');
-            setRecentSearches(saved);
+            setRecentSearches(saved.slice(0, 5));
         } catch(e) {}
     }, []);
+
+    // Live search suggestions from backend
+    useEffect(() => {
+        if (!searchInput || searchInput.length < 2) {
+            setLiveSuggestions([]);
+            return;
+        }
+        
+        const delayDebounce = setTimeout(async () => {
+            setFetchingSuggestions(true);
+            try {
+                // Fetch properties matching the search query
+                const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/properties?search=${encodeURIComponent(searchInput)}&limit=5`);
+                const data = await res.json();
+                
+                let suggestions = [];
+                if (data.success && data.properties) {
+                    suggestions = data.properties.map(p => ({
+                        text: p.title || p.project?.name || `${p.bedrooms || ''} ${p.propertyType} in ${p.location?.locality}`,
+                        type: p.project ? 'Project' : 'Property'
+                    }));
+                }
+                
+                // Add local localities matching
+                const localities = bengaluruAreas.filter(a => a.toLowerCase().includes(searchInput.toLowerCase())).slice(0, 3).map(l => ({ text: l, type: 'Locality' }));
+                
+                setLiveSuggestions([...localities, ...suggestions].slice(0, 7));
+            } catch (err) {
+                console.error('Error fetching suggestions:', err);
+            } finally {
+                setFetchingSuggestions(false);
+            }
+        }, 400);
+
+        return () => clearTimeout(delayDebounce);
+    }, [searchInput]);
 
     const saveSearch = (locs) => {
         if (!locs || locs.length === 0) return;
@@ -132,12 +171,17 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             if (initialFilters.areas && initialFilters.areas.length > 0) {
                 setSelectedLocations(initialFilters.areas);
             }
+            if (initialFilters.postedBy) {
+                setPostedBy(initialFilters.postedBy.split(',').map(s => s.trim()));
+            } else {
+                setPostedBy([]);
+            }
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = '';
         }
         return () => { document.body.style.overflow = ''; };
-    }, [isOpen, initialFilters]);
+    }, [isOpen]); // Only run when modal opens/closes, not on every prop change
 
     if (!isOpen) return null;
 
@@ -145,27 +189,23 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
         'Karnataka', 'Bengaluru Urban', 'Bengaluru Rural', 'Bengaluru North', 'Bengaluru South', 'Bengaluru East', 'Yelahanka', 'Anekal', 
         'Devanahalli', 'Doddaballapura', 'Hosakote', 'Nelamangala', 'Indiranagar', 'Koramangala', 'Whitefield', 
         'HSR Layout', 'Electronic City', 'Marathahalli', 'Jayanagar', 'JP Nagar', 'Bellandur'
-    ];
+    ].filter(loc => loc !== selectedCity);
 
     const mockProjects = ['Prestige Falcon City', 'Brigade Gateway', 'Sobha Dream Acres', 'Godrej Splendour', 'Salarpuria Sattva'];
     const mockProperties = ['3 BHK in Whitefield', '2 BHK in Indiranagar', '4 BHK Villa in Yelahanka', 'Studio in Koramangala'];
-    const mockCities = dynamicCities.length > 0 ? dynamicCities : ['Bengaluru']; // Fallback to Bengaluru if fetch fails
+    const displayLocations = ['Karnataka', ...(dynamicCities.length > 0 ? dynamicCities.filter(c => c !== 'Karnataka') : ['Bengaluru'])];
 
     let categorizedSuggestions = [];
     if (searchInput) {
         const query = searchInput.toLowerCase();
         if (!selectedCity) {
-            // Search for City
-            categorizedSuggestions = mockCities
+            // Search for City/State
+            categorizedSuggestions = displayLocations
                 .filter(c => c.toLowerCase().includes(query))
-                .map(c => ({ text: c, type: 'City' }));
+                .map(c => ({ text: c, type: c === 'Karnataka' ? 'State' : 'City' }));
         } else {
-            // Search for Locality, Projects, Properties within the chosen city
-            const localities = bengaluruAreas.filter(a => a.toLowerCase().includes(query)).slice(0, 4).map(l => ({ text: l, type: 'Locality' }));
-            const projects = mockProjects.filter(p => p.toLowerCase().includes(query)).slice(0, 3).map(p => ({ text: p, type: 'Project' }));
-            const properties = mockProperties.filter(p => p.toLowerCase().includes(query)).slice(0, 2).map(p => ({ text: p, type: 'Property' }));
-            
-            categorizedSuggestions = [...localities, ...projects, ...properties];
+            // Live dynamic suggestions from database
+            categorizedSuggestions = liveSuggestions;
         }
     }
 
@@ -533,7 +573,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                     className="flex items-center gap-3 p-4 border-b border-slate-100 cursor-pointer hover:bg-slate-50"
                                     onClick={() => handleSelectSuggestion(suggestion)}
                                 >
-                                    {suggestion.type === 'City' && <MapPin size={16} className="text-blue-500" />}
+                                    {(suggestion.type === 'City' || suggestion.type === 'State') && <MapPin size={16} className="text-blue-500" />}
                                     {suggestion.type === 'Locality' && <MapPin size={16} className="text-slate-400" />}
                                     {suggestion.type === 'Project' && <Building size={16} className="text-emerald-500" />}
                                     {suggestion.type === 'Property' && <Home size={16} className="text-amber-500" />}
@@ -541,7 +581,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                     <div>
                                         <div className="text-[12px] font-semibold text-slate-800">{suggestion.text}</div>
                                         <div className="text-[10px] font-medium" style={{
-                                            color: suggestion.type === 'City' ? '#3b82f6' :
+                                            color: (suggestion.type === 'City' || suggestion.type === 'State') ? '#3b82f6' :
                                                    suggestion.type === 'Project' ? '#10b981' :
                                                    suggestion.type === 'Property' ? '#f59e0b' : '#64748b'
                                         }}>{suggestion.type}</div>
@@ -549,24 +589,30 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                                 </div>
                             ))
                         ) : (
-                            <div className="p-6 text-center text-slate-500 text-[12px]">No results found.</div>
+                            <div className="p-6 text-center text-slate-500 text-[12px]">
+                                {fetchingSuggestions ? 'Searching database...' : 'No results found.'}
+                            </div>
                         )}
                     </div>
                 ) : !selectedCity ? (
                     <div className="p-4 flex flex-col items-start h-full space-y-3 pt-6">
                         <div className="w-full">
-                            <h3 className="font-bold text-slate-800 text-[14px] mb-3">Popular cities in India</h3>
+                            <h3 className="font-bold text-slate-800 text-[14px] mb-3">Popular States & Cities</h3>
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                                {mockCities.map(city => (
+                                {displayLocations.map(city => (
                                     <button 
                                         key={city}
                                         onClick={() => {
-                                            setSelectedCity(city);
-                                            setSelectedLocations([]);
+                                            setLocalityError('');
+                                            if (selectedCity === city) {
+                                                setSelectedCity('');
+                                            } else {
+                                                setSelectedCity(city);
+                                            }
                                         }}
-                                        className="py-2 px-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-colors text-center shadow-sm"
+                                        className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border ${selectedCity === city ? 'bg-surface text-white border-surface' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'} truncate`}
                                     >
-                                        {city}
+                                        + {city}
                                     </button>
                                 ))}
                             </div>
@@ -618,29 +664,37 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             {/* Bottom Bar */}
             <div className="shrink-0 p-3 bg-white border-t border-slate-200 flex items-center justify-between z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                 <button 
-                    onClick={() => { setSelectedLocations([]); setSearchInput(''); }}
+                    onClick={() => { 
+                        setSelectedLocations([]); 
+                        setSearchInput(''); 
+                        setSelectedCity('');
+                    }}
                     className="text-[12px] font-bold text-surface px-4"
                 >
                     Clear
                 </button>
-                <button 
-                    onClick={() => {
-                        let currentLocs = [...selectedLocations];
-                        if (currentLocs.length === 0 && searchInput.trim()) {
-                            currentLocs.push(searchInput.trim());
-                            setSelectedLocations(currentLocs);
-                            setSearchInput('');
-                        }
-                        if (currentLocs.length > 0 || searchInput.trim()) {
-                            setStep(2);
-                        } else {
-                            alert('Please select a locality first');
-                        }
-                    }}
-                    className="bg-surface text-white px-8 py-2.5 rounded-lg text-[12px] font-bold flex items-center gap-2 hover:bg-surface/90 transition-colors"
-                >
-                    Next <span>→</span>
-                </button>
+                <div className="flex items-center gap-4">
+                    {localityError && <span className="text-red-500 text-[11px] font-semibold">{localityError}</span>}
+                    <button 
+                        onClick={() => {
+                            let currentLocs = [...selectedLocations];
+                            if (currentLocs.length === 0 && searchInput.trim()) {
+                                currentLocs.push(searchInput.trim());
+                                setSelectedLocations(currentLocs);
+                                setSearchInput('');
+                            }
+                            if (currentLocs.length > 0 || searchInput.trim()) {
+                                setLocalityError('');
+                                setStep(2);
+                            } else {
+                                setLocalityError('Please select a locality first');
+                            }
+                        }}
+                        className="bg-surface text-white px-8 py-2.5 rounded-lg text-[12px] font-bold flex items-center gap-2 hover:bg-surface/90 transition-colors"
+                    >
+                        Next <span>→</span>
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -678,7 +732,10 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         {selectedLocations.map(loc => (
                             <div key={loc} className="shrink-0 flex items-center gap-1 bg-surface/10 text-surface px-2 py-1 rounded-md text-[11px] font-semibold">
                                 {loc}
-                                <X size={10} className="cursor-pointer hover:text-red-500" onClick={() => handleRemoveLocation(loc)} />
+                                <X size={10} className="cursor-pointer hover:text-red-500" onClick={() => {
+                                    handleRemoveLocation(loc);
+                                    setLocalityError('');
+                                }} />
                             </div>
                         ))}
                     </div>
@@ -1036,7 +1093,7 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         {/* Posted By */}
                         <div>
                             <h3 className="text-[12px] font-bold text-slate-800 mb-2">Posted by</h3>
-                            <FilterSlider items={['Owner', 'Dealer', 'Builder']} selectedArray={postedBy} onChange={setPostedBy} toggleArrayFunc={toggleArray} />
+                            <FilterSlider items={['Owner', 'Broker', 'Builder']} selectedArray={postedBy} onChange={setPostedBy} toggleArrayFunc={toggleArray} />
                         </div>
 
                         {/* PG Services (PG Only) */}
@@ -1194,31 +1251,37 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
             <div className="shrink-0 p-3 bg-white border-t border-slate-200 flex items-center justify-between z-10 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.1)]">
                 <button 
                     onClick={() => {
+                        // Reset Step 1 logic
+                        setSelectedLocations([]);
+                        setSelectedCity('');
+                        setSearchInput('');
+                        
+                        // Reset all Step 2 filters
                         setMinBudget('No Min');
                         setMaxBudget('No Max');
                         setPropertyTypes([]);
-                        setCommercialSubTypes([]);
                         setBedrooms([]);
                         setConstructionStatus([]);
+                        setRadius('3 km');
+                        setAmenities([]);
                         setPostedBy([]);
                         setPurchaseType([]);
                         setMinArea('No Min');
                         setMaxArea('No Max');
-                        setAmenities([]);
                         setMinBathrooms(0);
                         setFurnishingStatus([]);
                         setReraApproved(false);
                         setAvailableFor([]);
                         setAvailableFrom([]);
-                        setAgeOfProperty([]);
                         setSharing([]);
                         setPgServices([]);
                         setTotalCapacity([]);
                         setAttachWashroom(false);
+                        setCommercialSubTypes([]);
+                        setAgeOfProperty([]);
                         setInvestmentOptions([]);
                         setCommercialAvailability([]);
                         setFloorPreference([]);
-                        
                         setOfficeFacilities([]);
                         setShopLocatedInside([]);
                         setCwSeats([]);
@@ -1233,6 +1296,9 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                         setCwActivities([]);
                         setCwAdditionalAmenities([]);
                         setCwCovidReadiness([]);
+                        
+                        // Navigate back to step 1
+                        setStep(1);
                     }}
                     className="text-[13px] font-bold text-slate-500 px-4 py-2 hover:text-slate-800 transition-colors"
                 >
@@ -1240,8 +1306,8 @@ const MobileSearchOverlay = ({ isOpen, onClose, initialFilters, onApplyFilters }
                 </button>
                 <button 
                     onClick={() => {
-                        if (selectedLocations.length === 0) {
-                            alert("Please select a locality first");
+                        if (step === 1 && selectedLocations.length === 0 && !selectedCity) {
+                            toast.error("Please select a locality or city first", { style: { zIndex: 100000 } });
                             return;
                         }
                         handleApply();

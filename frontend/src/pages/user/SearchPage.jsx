@@ -97,15 +97,23 @@ const SearchPage = () => {
 
         if (foodFromUrl) amsFromUrl.push('Food');
 
+        const floorFromUrl = searchParams.get('floor')?.split(',') || [];
+        const facingFromUrl = searchParams.get('facing')?.split(',') || [];
+        const projectAreaFromUrl = searchParams.get('projectArea')?.split(',') || [];
+        const projectDensityFromUrl = searchParams.get('projectDensity')?.split(',') || [];
+        const bathroomsFromUrl = searchParams.get('bathrooms')?.split(',') || [];
+        const projectsFromUrl = searchParams.get('projects')?.split(',') || [];
+
         // Map back to UI labels
+        const bhkTypeList = [];
         bhksFromUrl.forEach(v => {
-            if (v === '1BHK') amsFromUrl.push('1 RK/1 BHK');
-            else if (v === '2BHK') amsFromUrl.push('2 BHK');
-            else if (v === '3BHK') amsFromUrl.push('3 BHK');
-            else if (v === '4BHK') amsFromUrl.push('4 BHK');
-            else if (v === '4+BHK') amsFromUrl.push('4+ BHK');
-            else if (v === 'Villa') amsFromUrl.push('Villa');
-            else if (v === 'Studio') amsFromUrl.push('Studio');
+            if (v === '1BHK') bhkTypeList.push('1 RK/1 BHK');
+            else if (v === '2BHK') bhkTypeList.push('2 BHK');
+            else if (v === '3BHK') bhkTypeList.push('3 BHK');
+            else if (v === '4BHK') bhkTypeList.push('4 BHK');
+            else if (v === '4+BHK') bhkTypeList.push('4+ BHK');
+            else if (v === 'Villa') bhkTypeList.push('Villa');
+            else if (v === 'Studio') bhkTypeList.push('Studio');
         });
 
         furnishFromUrl.forEach(v => {
@@ -114,10 +122,11 @@ const SearchPage = () => {
             else if (v === 'Unfurnished') amsFromUrl.push('Unfurnished');
         });
 
+        const genderList = [];
         genderFromUrl.forEach(v => {
-            if (v === 'Boys') amsFromUrl.push('Boys Only');
-            else if (v === 'Girls') amsFromUrl.push('Girls Only');
-            else if (v === 'Co-ed') amsFromUrl.push('Coliving');
+            if (v === 'Boys') genderList.push('Boys Only');
+            else if (v === 'Girls') genderList.push('Girls Only');
+            else if (v === 'Co-ed') genderList.push('Coliving');
         });
 
         occupancyFromUrl.forEach(v => {
@@ -196,13 +205,20 @@ const SearchPage = () => {
             maxPrice: searchParams.get('maxPrice') || '',
             sort: searchParams.get('sort') || 'newest',
             amenities: [...new Set(amsFromUrl)],
+            bhkType: bhkTypeList,
+            gender: genderList,
+            floor: floorFromUrl,
+            facing: facingFromUrl,
+            projectArea: projectAreaFromUrl,
+            projectDensity: projectDensityFromUrl,
+            bathrooms: bathroomsFromUrl,
+            projects: projectsFromUrl,
             propertyTypes: initialPropertyTypes,
             radius: parseInt(searchParams.get('radius')) || 50,
             foodIncluded: searchParams.get('foodIncluded') === 'true',
             city: searchParams.get('city') || '',
             minArea: searchParams.get('minArea') || '',
             maxArea: searchParams.get('maxArea') || '',
-            bathrooms: parseInt(searchParams.get('bathrooms')) || 0,
             postedBy: searchParams.get('postedBy') || '',
             purchaseType: searchParams.get('purchaseType') || '',
             possessionYear: possessionYearFromUrl,
@@ -242,6 +258,7 @@ const SearchPage = () => {
     }, [searchParams]);
 
     const [builders, setBuilders] = useState([]);
+    const [projectsList, setProjectsList] = useState([]);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -320,8 +337,22 @@ const SearchPage = () => {
             }
         };
 
+        const fetchProjectsList = async () => {
+            try {
+                const res = await api.get('/properties', { params: { propertyCategory: 'Project', limit: 500 } });
+                if (res.data && res.data.properties) {
+                    setProjectsList(res.data.properties || []);
+                } else if (Array.isArray(res.data)) {
+                    setProjectsList(res.data);
+                }
+            } catch (err) {
+                console.warn("Failed to fetch projects list:", err);
+            }
+        };
+
         fetchCategories();
         fetchBuilders();
+        fetchProjectsList();
     }, [searchParams]);
 
     useEffect(() => {
@@ -379,7 +410,7 @@ const SearchPage = () => {
         setFilters(prev => {
             let newValues;
             const current = filterKey === 'postedBy' 
-                ? (prev[filterKey] ? prev[filterKey].split(',') : [])
+                ? (Array.isArray(prev[filterKey]) ? prev[filterKey] : (prev[filterKey] ? String(prev[filterKey]).split(',') : []))
                 : (Array.isArray(prev[filterKey]) ? prev[filterKey] : []);
 
             if (current.includes(value)) {
@@ -463,8 +494,11 @@ const SearchPage = () => {
         if (targetFilters.minArea) params.minArea = targetFilters.minArea;
         if (targetFilters.maxArea) params.maxArea = targetFilters.maxArea;
         if (targetFilters.bathrooms) params.bathrooms = targetFilters.bathrooms;
-        if (targetFilters.postedBy) params.postedBy = targetFilters.postedBy;
-        if (targetFilters.purchaseType) params.purchaseType = targetFilters.purchaseType;
+        if (targetFilters.postedBy) {
+            const pb = Array.isArray(targetFilters.postedBy) ? targetFilters.postedBy.join(',') : targetFilters.postedBy;
+            if (pb) params.postedBy = pb;
+        }
+        if (targetFilters.purchaseType) params.purchaseType = Array.isArray(targetFilters.purchaseType) ? targetFilters.purchaseType.join(',') : targetFilters.purchaseType;
         if (targetFilters.possessionYear) params.possessionYear = targetFilters.possessionYear;
         const targetAreas = Array.isArray(targetFilters.areas)
             ? targetFilters.areas
@@ -499,21 +533,9 @@ const SearchPage = () => {
             } else if (am === 'Pre Launch') {
                 availabilities.push('Pre Launch');
             }
-            else if (am === '1 RK/1 BHK' || am === '1 BHK' || am === '1 RK') bhks.push('1BHK');
-            else if (am === '2 BHK') bhks.push('2BHK');
-            else if (am === '3 BHK') bhks.push('3BHK');
-            else if (am === '4 BHK') bhks.push('4BHK');
-            else if (am === '4+ BHK' || am === '> 4 BHK') bhks.push('4+BHK');
-            else if (am === 'Villa') bhks.push('Villa');
-            else if (am === 'Studio') bhks.push('Studio');
-
             else if (am === 'Fully Furnished') furnishLevels.push('Fully');
             else if (am === 'Semi Furnished') furnishLevels.push('Semi');
             else if (am === 'Unfurnished') furnishLevels.push('Unfurnished');
-
-            else if (am === 'Boys Only') genders.push('Boys');
-            else if (am === 'Girls Only') genders.push('Girls');
-            else if (am === 'Coliving') genders.push('Co-ed');
 
             else if (am === 'Single Occupancy') occupancies.push('Single');
             else if (am === 'Double Occupancy') occupancies.push('Double');
@@ -529,6 +551,24 @@ const SearchPage = () => {
             else finalAmenities.push(am);
         });
 
+        const targetBhks = Array.isArray(targetFilters.bhkType) ? targetFilters.bhkType : [];
+        targetBhks.forEach(am => {
+            if (am === '1 RK/1 BHK' || am === '1 BHK' || am === '1 RK') bhks.push('1BHK');
+            else if (am === '2 BHK') bhks.push('2BHK');
+            else if (am === '3 BHK') bhks.push('3BHK');
+            else if (am === '4 BHK') bhks.push('4BHK');
+            else if (am === '4+ BHK' || am === '> 4 BHK') bhks.push('4+BHK');
+            else if (am === 'Villa') bhks.push('Villa');
+            else if (am === 'Studio') bhks.push('Studio');
+        });
+
+        const targetGenders = Array.isArray(targetFilters.gender) ? targetFilters.gender : [];
+        targetGenders.forEach(am => {
+            if (am === 'Boys Only') genders.push('Boys');
+            else if (am === 'Girls Only') genders.push('Girls');
+            else if (am === 'Coliving') genders.push('Co-ed');
+        });
+
         if (finalAmenities.length > 0) params.amenities = finalAmenities.join(',');
         if (bhks.length > 0) params.bhkType = bhks.join(',');
         if (furnishLevels.length > 0) params.furnishing = furnishLevels.join(',');
@@ -537,6 +577,24 @@ const SearchPage = () => {
         if (landTypes.length > 0) params.landType = landTypes.join(',');
         if (subTypes.length > 0) params.subType = subTypes.join(',');
         if (availabilities.length > 0) params.availability = availabilities.join(',');
+        
+        const targetFloor = Array.isArray(targetFilters.floor) ? targetFilters.floor : [];
+        if (targetFloor.length > 0) params.floor = targetFloor.join(',');
+        
+        const targetFacing = Array.isArray(targetFilters.facing) ? targetFilters.facing : [];
+        if (targetFacing.length > 0) params.facing = targetFacing.join(',');
+        
+        const targetProjectArea = Array.isArray(targetFilters.projectArea) ? targetFilters.projectArea : [];
+        if (targetProjectArea.length > 0) params.projectArea = targetProjectArea.join(',');
+        
+        const targetProjectDensity = Array.isArray(targetFilters.projectDensity) ? targetFilters.projectDensity : [];
+        if (targetProjectDensity.length > 0) params.projectDensity = targetProjectDensity.join(',');
+        
+        const targetBathrooms = Array.isArray(targetFilters.bathrooms) ? targetFilters.bathrooms : [];
+        if (targetBathrooms.length > 0) params.bathrooms = targetBathrooms.join(',');
+        
+        const targetProjects = Array.isArray(targetFilters.projects) ? targetFilters.projects : (typeof targetFilters.projects === 'string' ? targetFilters.projects.split(',').filter(Boolean) : []);
+        if (targetProjects.length > 0) params.projects = targetProjects.join(',');
 
         return params;
     };
@@ -854,6 +912,8 @@ const SearchPage = () => {
                 applyFilters={applyFilters}
                 previewCount={previewCount}
                 previewLoading={previewLoading}
+                builders={builders}
+                projects={projectsList}
                 clearAllFilters={() => {
                     setSearchParams({}, { replace: true });
                     setFilters({
@@ -875,13 +935,13 @@ const SearchPage = () => {
                         postedBy: '',
                         purchaseType: '',
                         areas: [],
-                        builder: []
+                        builder: [],
+                        projects: []
                     });
                     setLocation(null);
                 }}
                 activeTab={activeModalTab}
                 setActiveTab={setActiveModalTab}
-                builders={builders}
             />
 
             <MobileSearchOverlay 

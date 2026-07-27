@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { X, Search as SearchIcon } from 'lucide-react';
 
 const AdvancedFilterModal = ({
     isOpen,
@@ -13,8 +13,13 @@ const AdvancedFilterModal = ({
     clearAllFilters,
     activeTab,
     setActiveTab,
-    builders = []
+    builders = [],
+    projects = []
 }) => {
+
+    const [projectSearch, setProjectSearch] = useState('');
+    const [projectPage, setProjectPage] = useState(1);
+    const PROJECT_LIMIT = 10;
 
     const tabs = [
         'Quick Filters', 'Gender', 'Budget', 'Property Type', 'BHK', 'Property Size', 'Possession Status',
@@ -45,7 +50,13 @@ const AdvancedFilterModal = ({
     const amenitiesList = ['Parking', 'Wifi', 'Pool', 'Gym', 'AC', 'Kitchen', 'Security', 'Lift', 'Power Backup', 'Club House'];
 
     const toggleArrayFilter = (key, value) => {
-        const current = Array.isArray(filters[key]) ? filters[key] : [];
+        let current = [];
+        if (Array.isArray(filters[key])) {
+            current = filters[key];
+        } else if (typeof filters[key] === 'string' && filters[key].trim() !== '') {
+            current = filters[key].split(',').map(s => s.trim());
+        }
+        
         if (current.includes(value)) {
             updateFilter(key, current.filter(v => v !== value));
         } else {
@@ -54,7 +65,13 @@ const AdvancedFilterModal = ({
     };
 
     const handleSelectClearAll = (key, allValues) => {
-        const current = Array.isArray(filters[key]) ? filters[key] : [];
+        let current = [];
+        if (Array.isArray(filters[key])) {
+            current = filters[key];
+        } else if (typeof filters[key] === 'string' && filters[key].trim() !== '') {
+            current = filters[key].split(',').map(s => s.trim());
+        }
+        
         // If anything is selected, clear all. If nothing is selected, select all.
         if (current.length > 0) {
             updateFilter(key, []);
@@ -64,7 +81,12 @@ const AdvancedFilterModal = ({
     };
 
     const renderMultiSelect = (key, title, options) => {
-        const current = Array.isArray(filters[key]) ? filters[key] : [];
+        let current = [];
+        if (Array.isArray(filters[key])) {
+            current = filters[key];
+        } else if (typeof filters[key] === 'string' && filters[key].trim() !== '') {
+            current = filters[key].split(',').map(s => s.trim());
+        }
         return (
             <div className="flex flex-col h-full">
                 <div className="p-4 pb-2 flex items-center justify-between bg-white sticky top-0 border-b border-gray-100">
@@ -98,11 +120,11 @@ const AdvancedFilterModal = ({
             case 'Quick Filters':
                 return renderMultiSelect('amenities', 'Quick Filters', ['Verified Properties', 'With Photos', 'With Videos', 'Gated Society', 'Corner Property']);
             case 'Gender':
-                return renderMultiSelect('amenities', 'Gender', ['Boys Only', 'Girls Only', 'Coliving']);
+                return renderMultiSelect('gender', 'Gender', ['Boys Only', 'Girls Only', 'Coliving']);
             case 'Property Type':
                 return renderMultiSelect('propertyTypes', 'Property Type', propertyTypes);
             case 'BHK':
-                return renderMultiSelect('amenities', 'BHK', bhkTypes); // Using amenities as placeholder for BHK
+                return renderMultiSelect('bhkType', 'BHK', bhkTypes);
             case 'Possession Status':
                 return renderMultiSelect('amenities', 'Possession Status', possessionStatuses);
             case 'New Booking / Resale':
@@ -154,22 +176,93 @@ const AdvancedFilterModal = ({
                     </div>
                 );
             }
-            case 'Projects':
-                return renderMultiSelect('amenities', 'Projects', ['Prestige Shantiniketan', 'Sobha City', 'Brigade Gateway', 'Godrej Woodsman Estate']);
+            case 'Projects': {
+                const current = Array.isArray(filters['projects']) ? filters['projects'] : [];
+                
+                const filteredProjects = projects.filter(p => p.name && p.name.toLowerCase().includes(projectSearch.toLowerCase()));
+                const paginatedProjects = filteredProjects.slice((projectPage - 1) * PROJECT_LIMIT, projectPage * PROJECT_LIMIT);
+                const totalPages = Math.ceil(filteredProjects.length / PROJECT_LIMIT);
+
+                return (
+                    <div className="flex flex-col h-full">
+                        <div className="p-4 pb-2 flex flex-col gap-2 bg-white sticky top-0 border-b border-gray-100">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-bold text-gray-900">Projects</span>
+                                <button 
+                                    onClick={() => updateFilter('projects', [])}
+                                    className="text-sm font-semibold text-surface"
+                                >
+                                    Clear all
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                <input 
+                                    type="text" 
+                                    placeholder="Search projects..." 
+                                    value={projectSearch}
+                                    onChange={(e) => { setProjectSearch(e.target.value); setProjectPage(1); }}
+                                    className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-surface transition-colors"
+                                />
+                            </div>
+                        </div>
+                        <div className="p-4 space-y-4 overflow-y-auto flex-1">
+                            {paginatedProjects.length > 0 ? paginatedProjects.map(p => (
+                                <label key={p._id} className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={current.includes(p._id)}
+                                        onChange={() => {
+                                            if (current.includes(p._id)) {
+                                                updateFilter('projects', current.filter(id => id !== p._id));
+                                            } else {
+                                                updateFilter('projects', [...current, p._id]);
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded border-gray-300 text-surface focus:ring-surface"
+                                    />
+                                    <span className="text-sm text-gray-700">{p.name}</span>
+                                </label>
+                            )) : (
+                                <div className="text-sm text-gray-500">No projects found.</div>
+                            )}
+                        </div>
+                        {totalPages > 1 && (
+                            <div className="p-3 border-t border-gray-100 flex items-center justify-between bg-white shrink-0">
+                                <button 
+                                    onClick={() => setProjectPage(prev => Math.max(1, prev - 1))}
+                                    disabled={projectPage === 1}
+                                    className="px-3 py-1 text-xs font-medium border border-gray-200 rounded text-gray-600 disabled:opacity-50"
+                                >
+                                    Previous
+                                </button>
+                                <span className="text-xs font-medium text-gray-500">Page {projectPage} of {totalPages}</span>
+                                <button 
+                                    onClick={() => setProjectPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={projectPage === totalPages}
+                                    className="px-3 py-1 text-xs font-medium border border-gray-200 rounded text-gray-600 disabled:opacity-50"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
             case 'Floor Preference':
-                return renderMultiSelect('amenities', 'Floor Preference', ['Ground Floor', '1st to 4th Floor', '5th to 8th Floor', '9th to 12th Floor', 'Top Floor']);
+                return renderMultiSelect('floor', 'Floor Preference', ['Ground Floor', '1st to 4th Floor', '5th to 8th Floor', '9th to 12th Floor', 'Top Floor']);
             case 'Facing Direction':
-                return renderMultiSelect('amenities', 'Facing Direction', ['East Facing', 'West Facing', 'North Facing', 'South Facing', 'North-East Facing']);
+                return renderMultiSelect('facing', 'Facing Direction', ['East Facing', 'West Facing', 'North Facing', 'South Facing', 'North-East Facing']);
             case 'Property Features':
                 return renderMultiSelect('amenities', 'Property Features', ['Park Facing', 'Main Road Facing', 'Corner Property', 'Gated Society', 'Pet Friendly']);
             case 'Project Area':
-                return renderMultiSelect('amenities', 'Project Area', ['Less than 1 Acre', '1 to 5 Acres', '5 to 10 Acres', 'More than 10 Acres']);
+                return renderMultiSelect('projectArea', 'Project Area', ['Less than 1 Acre', '1 to 5 Acres', '5 to 10 Acres', 'More than 10 Acres']);
             case 'Project Density':
-                return renderMultiSelect('amenities', 'Project Density', ['Low Density (Less than 50 units/acre)', 'Medium Density', 'High Density']);
+                return renderMultiSelect('projectDensity', 'Project Density', ['Low Density (Less than 50 units/acre)', 'Medium Density', 'High Density']);
             case 'Posted By':
-                return renderMultiSelect('postedBy', 'Posted By', ['Owner', 'Dealer', 'Builder']);
+                return renderMultiSelect('postedBy', 'Posted By', ['Owner', 'Broker', 'Builder']);
             case 'Bathrooms':
-                return renderMultiSelect('amenities', 'Bathrooms', ['1 Bathroom', '2 Bathrooms', '3 Bathrooms', '4+ Bathrooms']);
+                return renderMultiSelect('bathrooms', 'Bathrooms', ['1 Bathroom', '2 Bathrooms', '3 Bathrooms', '4+ Bathrooms']);
             case 'Photos & Videos':
                 return renderMultiSelect('amenities', 'Photos & Videos', ['With Photos', 'With Videos']);
             case 'Furnishing Status':
