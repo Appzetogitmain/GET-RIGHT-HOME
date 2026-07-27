@@ -20,12 +20,52 @@ const UserLogin = () => {
     const [resendTimer, setResendTimer] = useState(120);
     const [canResend, setCanResend] = useState(false);
 
-    // Pre-fill phone if coming from signup
+    const clearPendingSession = () => {
+        sessionStorage.removeItem('pending_login_phone');
+        sessionStorage.removeItem('pending_login_step');
+        sessionStorage.removeItem('pending_login_timer_start');
+    };
+
+    const savePendingSession = (phoneNum) => {
+        sessionStorage.setItem('pending_login_phone', phoneNum);
+        sessionStorage.setItem('pending_login_step', '2');
+        sessionStorage.setItem('pending_login_timer_start', Date.now().toString());
+    };
+
+    // Restore session if page refreshed while on OTP step
     useEffect(() => {
-        if (location.state?.phone) {
+        const savedStep = sessionStorage.getItem('pending_login_step');
+        const savedPhone = sessionStorage.getItem('pending_login_phone');
+        const savedStartTime = sessionStorage.getItem('pending_login_timer_start');
+
+        if (savedStep === '2' && savedPhone) {
+            setPhone(savedPhone);
+            setStep(2);
+
+            if (savedStartTime) {
+                const elapsedSeconds = Math.floor((Date.now() - Number(savedStartTime)) / 1000);
+                const remaining = 120 - elapsedSeconds;
+                if (remaining > 0) {
+                    setResendTimer(remaining);
+                    setCanResend(false);
+                } else {
+                    setResendTimer(0);
+                    setCanResend(true);
+                }
+            }
+        } else if (location.state?.phone) {
             setPhone(location.state.phone);
         }
     }, [location]);
+
+    // Auto focus phone input on page mount (step 1)
+    useEffect(() => {
+        if (step === 1) {
+            setTimeout(() => {
+                document.getElementById('phone-input')?.focus();
+            }, 150);
+        }
+    }, [step]);
 
     // Timer countdown effect
     useEffect(() => {
@@ -52,6 +92,7 @@ const UserLogin = () => {
         try {
             setLoading(true);
             await authService.sendOtp(phone, 'login');
+            savePendingSession(phone);
             setResendTimer(120);
             setCanResend(false);
             setStep(2);
@@ -73,47 +114,26 @@ const UserLogin = () => {
         }
     };
 
-    const handleOTPChange = (index, value) => {
-        if (value.length > 1) return;
-        if (!/^\d*$/.test(value)) return; // Only allow numbers
-
-        const newOtp = [...otp];
-        newOtp[index] = value;
-        setOtp(newOtp);
-
-        if (value && index < 5) {
-            document.getElementById(`otp-${index + 1}`)?.focus();
+    // Auto focus first OTP input box when step 2 mounts
+    useEffect(() => {
+        if (step === 2) {
+            [50, 150, 300].forEach(delay => {
+                setTimeout(() => {
+                    const firstInput = document.getElementById('otp-0');
+                    if (firstInput) {
+                        firstInput.focus();
+                    }
+                }, delay);
+            });
         }
-    };
+    }, [step]);
 
-    const handleResendOTP = async () => {
-        if (!canResend) return;
+    const verifyOTPCode = async (otpString) => {
+        if (otpString.length !== 6 || loading) return;
 
         try {
             setLoading(true);
             setError('');
-            await authService.sendOtp(phone, 'login');
-            setResendTimer(120);
-            setCanResend(false);
-            setOtp(['', '', '', '', '', '']); // Clear OTP
-            toast.success('OTP sent successfully!');
-        } catch (err) {
-            setError(err.message || 'Failed to resend OTP');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleVerifyOTP = async (e) => {
-        e.preventDefault();
-        const otpString = otp.join('');
-        if (otpString.length !== 6) {
-            setError('Please enter complete OTP');
-            return;
-        }
-
-        try {
-            setLoading(true);
             const res = await authService.verifyOtp({ phone, otp: otpString });
 
             // Update FCM Token
@@ -127,9 +147,9 @@ const UserLogin = () => {
             }
 
             login(res.user);
+            clearPendingSession();
             navigate('/');
         } catch (err) {
-            // Check if error is due to account not found
             if (err.response?.data?.requiresRegistration ||
                 err.response?.status === 404 ||
                 err.message?.includes('Account not found')) {
@@ -141,6 +161,84 @@ const UserLogin = () => {
                 setError(err.message || 'Verification failed');
             }
             console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyOTP = (e) => {
+        if (e) e.preventDefault();
+        const otpString = otp.join('');
+        if (otpString.length !== 6) {
+            setError('Please enter complete 6-digit OTP');
+            return;
+        }
+        verifyOTPCode(otpString);
+    };
+
+    const handleOTPChange = (index, value) => {
+        if (value.length > 1) {
+            const digits = value.replace(/\D/g, '').slice(0, 6).split('');
+            if (digits.length > 0) {
+                const newOtp = [...otp];
+                digits.forEach((d, i) => {
+                    if (i < 6) newOtp[i] = d;
+                });
+                setOtp(newOtp);
+                const nextIndex = Math.min(digits.length, 5);
+                document.getElementById(`otp-${nextIndex}`)?.focus();
+                
+                if (newOtp.join('').length === 6) {
+                    verifyOTPCode(newOtp.join(''));
+                }
+            }
+            return;
+        }
+
+        if (!/^\d*$/.test(value)) return;
+
+        const newOtp = [...otp];
+        newOtp[index] = value;
+        setOtp(newOtp);
+
+        if (value && index < 5) {
+            document.getElementById(`otp-${index + 1}`)?.focus();
+        }
+
+        if (newOtp.join('').length === 6) {
+            verifyOTPCode(newOtp.join(''));
+        }
+    };
+
+    const handleKeyDown = (index, e) => {
+        if (e.key === 'Backspace') {
+            if (!otp[index] && index > 0) {
+                const newOtp = [...otp];
+                newOtp[index - 1] = '';
+                setOtp(newOtp);
+                document.getElementById(`otp-${index - 1}`)?.focus();
+            } else if (otp[index]) {
+                const newOtp = [...otp];
+                newOtp[index] = '';
+                setOtp(newOtp);
+            }
+        }
+    };
+
+    const handleResendOTP = async () => {
+        if (!canResend) return;
+
+        try {
+            setLoading(true);
+            setError('');
+            await authService.sendOtp(phone, 'login');
+            savePendingSession(phone);
+            setResendTimer(120);
+            setCanResend(false);
+            setOtp(['', '', '', '', '', '']);
+            toast.success('OTP sent successfully!');
+        } catch (err) {
+            setError(err.message || 'Failed to resend OTP');
         } finally {
             setLoading(false);
         }
@@ -190,9 +288,11 @@ const UserLogin = () => {
                                                 <Phone size={18} />
                                             </div>
                                             <input
+                                                id="phone-input"
+                                                autoFocus
                                                 type="tel"
                                                 value={phone}
-                                                onChange={(e) => setPhone(e.target.value)}
+                                                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                                                 placeholder="9876543210"
                                                 maxLength={10}
                                                 className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-amber-100 focus:border-amber-500 outline-none transition-all font-bold text-gray-800 text-lg placeholder:text-gray-300 shadow-sm"
@@ -251,12 +351,15 @@ const UserLogin = () => {
                                             <input
                                                 key={index}
                                                 id={`otp-${index}`}
+                                                autoFocus={index === 0}
                                                 type="tel"
                                                 inputMode="numeric"
                                                 pattern="[0-9]*"
                                                 maxLength={1}
                                                 value={digit}
+                                                onFocus={(e) => e.target.select()}
                                                 onChange={(e) => handleOTPChange(index, e.target.value)}
+                                                onKeyDown={(e) => handleKeyDown(index, e)}
                                                 className="w-10 h-12 text-center text-lg font-bold bg-white border-2 border-gray-400 rounded-xl focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 outline-none transition-all shadow-sm"
                                             />
                                         ))}
@@ -309,7 +412,10 @@ const UserLogin = () => {
 
                                         <button
                                             type="button"
-                                            onClick={() => setStep(1)}
+                                            onClick={() => {
+                                                clearPendingSession();
+                                                setStep(1);
+                                            }}
                                             className="w-full text-gray-400 text-[10px] font-bold hover:text-amber-600 transition-colors"
                                         >
                                             Change Number
