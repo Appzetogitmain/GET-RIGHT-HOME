@@ -114,11 +114,7 @@ const cartSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Update updatedAt on save
-cartSchema.pre('save', function (next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// Removed redundant pre('save') hook as timestamps: true handles this.
 
 export default mongoose.model('Cart', cartSchema);
 

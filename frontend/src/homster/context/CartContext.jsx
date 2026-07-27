@@ -15,6 +15,19 @@ export const CartProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Helper to sync cart to backend without blocking UI
+  const syncToBackend = async (items) => {
+    try {
+      // Send to backend; backend will reject if user is not authenticated (guest user)
+      await cartService.syncCart(items);
+    } catch (error) {
+      // Silent catch for guests
+      if (error?.response?.status !== 401) {
+        console.error('Failed to sync cart to backend:', error);
+      }
+    }
+  };
+
   // Fetch cart from localStorage (only on initial load)
   const fetchCart = useCallback(async () => {
     try {
@@ -24,6 +37,11 @@ export const CartProvider = ({ children }) => {
         const items = JSON.parse(localCart) || [];
         setCartItems(items);
         setCartCount(items.length);
+        
+        // Auto-sync existing cart to backend on load
+        if (items.length > 0) {
+          syncToBackend(items);
+        }
       } else {
         setCartItems([]);
         setCartCount(0);
@@ -64,6 +82,7 @@ export const CartProvider = ({ children }) => {
         }
         localStorage.setItem('cartItems', JSON.stringify(updated));
         setCartCount(updated.length);
+        syncToBackend(updated);
         return updated;
       });
 
@@ -90,6 +109,7 @@ export const CartProvider = ({ children }) => {
           return item;
         });
         localStorage.setItem('cartItems', JSON.stringify(updated));
+        syncToBackend(updated);
         return updated;
       });
       return { success: true };
@@ -106,6 +126,7 @@ export const CartProvider = ({ children }) => {
         const updated = prev.filter(item => item._id !== itemId && item.id !== itemId);
         localStorage.setItem('cartItems', JSON.stringify(updated));
         setCartCount(updated.length);
+        syncToBackend(updated);
         return updated;
       });
       return { success: true };
@@ -122,6 +143,7 @@ export const CartProvider = ({ children }) => {
         const updated = prev.filter(item => item.category !== category);
         localStorage.setItem('cartItems', JSON.stringify(updated));
         setCartCount(updated.length);
+        syncToBackend(updated);
         return updated;
       });
       return { success: true };
@@ -153,6 +175,7 @@ export const CartProvider = ({ children }) => {
       setCartItems([]);
       setCartCount(0);
       localStorage.removeItem('cartItems');
+      syncToBackend([]);
       return { success: true };
     } catch (error) {
       console.error('Failed to clear cart:', error);

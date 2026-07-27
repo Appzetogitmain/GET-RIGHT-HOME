@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import Partner from '../models/Partner.js';
+import Cart from '../models/Cart.js';
 import bcrypt from 'bcryptjs';
 
 // @desc    Get user profile
@@ -93,6 +94,49 @@ export const getCheckoutData = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Sync local cart to database
+// @route   POST /api/users/cart/sync
+// @access  Private
+import mongoose from 'mongoose';
+
+export const syncCart = async (req, res) => {
+  try {
+    const { items } = req.body;
+    
+    // Check if user exists
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    const processedItems = (items || []).map(item => {
+      // Create a copy without invalid _id
+      const cleanItem = { ...item };
+      // Clean invalid ObjectIds to prevent Mongoose CastErrors
+      const objectIdFields = ['_id', 'serviceId', 'categoryId', 'vendorId'];
+      objectIdFields.forEach(field => {
+        if (cleanItem[field] && !mongoose.Types.ObjectId.isValid(cleanItem[field])) {
+          delete cleanItem[field];
+        }
+      });
+      return cleanItem;
+    });
+
+    await Cart.findOneAndUpdate(
+      { userId: req.user._id },
+      { $set: { items: processedItems } },
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    res.json({ success: true, message: 'Cart synced successfully' });
+  } catch (error) {
+    console.error('Cart Sync Error:', error);
+    try {
+      import('fs').then(fs => fs.writeFileSync('cart_error.log', error.message + '\\n' + error.stack));
+    } catch (e) {}
+    res.status(500).json({ success: false, message: 'Server error syncing cart', error: error.message });
   }
 };
 

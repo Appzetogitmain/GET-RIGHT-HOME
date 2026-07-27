@@ -40,6 +40,12 @@ export const cartService = {
   clearCart: async () => {
     const response = await api.delete('/users/cart');
     return response.data;
+  },
+
+  // Sync cart to backend
+  syncCart: async (items) => {
+    const response = await api.post('/users/cart/sync', { items });
+    return response.data;
   }
 };
 
