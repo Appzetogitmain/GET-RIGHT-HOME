@@ -123,7 +123,7 @@ const Home = () => {
     const [sectionIds, setSectionIds] = useState({ pg: null, rent: null, buy: null, plot: null });
     const [homeSearchCity, setHomeSearchCity] = useState('');
     const [layoutOrder, setLayoutOrder] = useState([]);
-    
+
     // Fetch Dynamic Layout
     useEffect(() => {
         const fetchLayout = async () => {
@@ -209,9 +209,9 @@ const Home = () => {
 
                 {/* Content on top */}
                 <div className="relative z-40 flex flex-col min-h-[280px] md:min-h-[340px]">
-                    <HeroSection 
-                        theme={activeTheme} 
-                        selectedType={selectedType} 
+                    <HeroSection
+                        theme={activeTheme}
+                        selectedType={selectedType}
                         onSearch={(city) => setHomeSearchCity(city)}
                     />
 
@@ -342,7 +342,7 @@ const Home = () => {
                     </div>
                 )}
             </div>
-            
+
             {/* Test Push Notification Button */}
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 py-8 flex justify-center">
                 <button

@@ -39,6 +39,9 @@ const getProfile = async (req, res) => {
         isEmailVerified: worker.isEmailVerified || false,
         isOnline: worker.isOnline || false,
         aadhar: worker.aadhar || null,
+        panCard: worker.panCard || null,
+        drivingLicense: worker.drivingLicense || null,
+        digitalIdCard: worker.digitalIdCard || null,
         createdAt: worker.createdAt,
         updatedAt: worker.updatedAt
       }
@@ -67,7 +70,7 @@ const updateProfile = async (req, res) => {
     }
 
     const workerId = req.user.id;
-    const { name, serviceCategories, serviceCategory, skills, address, status, profilePhoto, aadharFront, aadharBack } = req.body;
+    const { name, serviceCategories, serviceCategory, skills, address, status, profilePhoto, digitalIdCard, aadharFront, aadharBack, panCard, drivingLicense } = req.body;
 
     const worker = await Worker.findById(workerId);
 
@@ -112,6 +115,18 @@ const updateProfile = async (req, res) => {
       }
     }
 
+    // Update Digital ID Card
+    if (digitalIdCard !== undefined) {
+      if (digitalIdCard && digitalIdCard.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(digitalIdCard, { folder: 'workers/documents' });
+        if (uploadRes.success) {
+          worker.digitalIdCard = uploadRes.url;
+        }
+      } else {
+        worker.digitalIdCard = digitalIdCard;
+      }
+    }
+
     // Update Aadhar Front
     if (aadharFront !== undefined) {
       if (aadharFront && aadharFront.startsWith('data:')) {
@@ -137,6 +152,34 @@ const updateProfile = async (req, res) => {
       } else {
         if (!worker.aadhar) worker.aadhar = {};
         worker.aadhar.backDocument = aadharBack;
+      }
+    }
+
+    // Update PAN Card
+    if (panCard !== undefined) {
+      if (panCard && panCard.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(panCard, { folder: 'workers/documents' });
+        if (uploadRes.success) {
+          if (!worker.panCard) worker.panCard = {};
+          worker.panCard.document = uploadRes.url;
+        }
+      } else {
+        if (!worker.panCard) worker.panCard = {};
+        worker.panCard.document = panCard;
+      }
+    }
+
+    // Update Driving License
+    if (drivingLicense !== undefined) {
+      if (drivingLicense && drivingLicense.startsWith('data:')) {
+        const uploadRes = await cloudinaryService.uploadFile(drivingLicense, { folder: 'workers/documents' });
+        if (uploadRes.success) {
+          if (!worker.drivingLicense) worker.drivingLicense = {};
+          worker.drivingLicense.document = uploadRes.url;
+        }
+      } else {
+        if (!worker.drivingLicense) worker.drivingLicense = {};
+        worker.drivingLicense.document = drivingLicense;
       }
     }
 
@@ -168,6 +211,9 @@ const updateProfile = async (req, res) => {
         status: worker.status,
         profilePhoto: worker.profilePhoto, // Include in response
         aadhar: worker.aadhar || null,
+        panCard: worker.panCard || null,
+        drivingLicense: worker.drivingLicense || null,
+        digitalIdCard: worker.digitalIdCard || null,
         settings: worker.settings,
         isPhoneVerified: worker.isPhoneVerified,
         isEmailVerified: worker.isEmailVerified

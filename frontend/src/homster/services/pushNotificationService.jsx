@@ -127,11 +127,11 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
         authTokenKey = 'workerAccessToken';
         break;
       case 'user':
-        endpoint = '/users/fcm-tokens/save';
+        endpoint = '/fcm-tokens/save';
         authTokenKey = 'accessToken';
         break;
       default:
-        endpoint = '/users/fcm-tokens/save';
+        endpoint = '/fcm-tokens/save';
         authTokenKey = 'accessToken';
     }
 
@@ -197,7 +197,7 @@ async function removeFCMToken(userType = 'user') {
         authTokenKey = 'workerAccessToken';
         break;
       default:
-        endpoint = '/users/fcm-tokens/remove';
+        endpoint = '/fcm-tokens/remove';
         authTokenKey = 'accessToken';
     }
 

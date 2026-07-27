@@ -15,10 +15,14 @@ const Documents = () => {
   // Files to upload
   const [frontFile, setFrontFile] = useState(null);
   const [backFile, setBackFile] = useState(null);
+  const [panFile, setPanFile] = useState(null);
+  const [dlFile, setDlFile] = useState(null);
 
   // Previews
   const [frontPreview, setFrontPreview] = useState(null);
   const [backPreview, setBackPreview] = useState(null);
+  const [panPreview, setPanPreview] = useState(null);
+  const [dlPreview, setDlPreview] = useState(null);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -45,17 +49,23 @@ const Documents = () => {
           setProfile(response.worker);
           setFrontPreview(response.worker.aadhar?.document || null);
           setBackPreview(response.worker.aadhar?.backDocument || null);
+          setPanPreview(response.worker.panCard?.document || null);
+          setDlPreview(response.worker.drivingLicense?.document || null);
         } else {
           const localWorkerData = JSON.parse(localStorage.getItem('workerData') || '{}');
           setProfile(localWorkerData);
           setFrontPreview(localWorkerData.aadhar?.document || null);
           setBackPreview(localWorkerData.aadhar?.backDocument || null);
+          setPanPreview(localWorkerData.panCard?.document || null);
+          setDlPreview(localWorkerData.drivingLicense?.document || null);
         }
       } catch (err) {
         const localWorkerData = JSON.parse(localStorage.getItem('workerData') || '{}');
         setProfile(localWorkerData);
         setFrontPreview(localWorkerData.aadhar?.document || null);
         setBackPreview(localWorkerData.aadhar?.backDocument || null);
+        setPanPreview(localWorkerData.panCard?.document || null);
+        setDlPreview(localWorkerData.drivingLicense?.document || null);
       } finally {
         setIsLoading(false);
       }
@@ -92,9 +102,15 @@ const Documents = () => {
       if (side === 'front') {
         setFrontFile(file);
         setFrontPreview(URL.createObjectURL(file));
-      } else {
+      } else if (side === 'back') {
         setBackFile(file);
         setBackPreview(URL.createObjectURL(file));
+      } else if (side === 'pan') {
+        setPanFile(file);
+        setPanPreview(URL.createObjectURL(file));
+      } else if (side === 'dl') {
+        setDlFile(file);
+        setDlPreview(URL.createObjectURL(file));
       }
       flutterBridge.hapticFeedback('success');
     }
@@ -110,9 +126,15 @@ const Documents = () => {
       if (side === 'front') {
         setFrontFile(file);
         setFrontPreview(URL.createObjectURL(file));
-      } else {
+      } else if (side === 'back') {
         setBackFile(file);
         setBackPreview(URL.createObjectURL(file));
+      } else if (side === 'pan') {
+        setPanFile(file);
+        setPanPreview(URL.createObjectURL(file));
+      } else if (side === 'dl') {
+        setDlFile(file);
+        setDlPreview(URL.createObjectURL(file));
       }
     }
   };
@@ -128,8 +150,14 @@ const Documents = () => {
       if (backFile) {
         payload.aadharBack = await uploadFile(backFile);
       }
+      if (panFile) {
+        payload.panCard = await uploadFile(panFile);
+      }
+      if (dlFile) {
+        payload.drivingLicense = await uploadFile(dlFile);
+      }
 
-      if (!payload.aadharFront && !payload.aadharBack) {
+      if (!payload.aadharFront && !payload.aadharBack && !payload.panCard && !payload.drivingLicense) {
         toast.error('No changes to save');
         setIsSaving(false);
         return;
@@ -141,12 +169,14 @@ const Documents = () => {
         
         // Update local storage
         const currentWorker = JSON.parse(localStorage.getItem('workerData') || '{}');
-        const updatedWorker = { ...currentWorker, aadhar: res.worker.aadhar };
+        const updatedWorker = { ...currentWorker, aadhar: res.worker.aadhar, panCard: res.worker.panCard, drivingLicense: res.worker.drivingLicense };
         localStorage.setItem('workerData', JSON.stringify(updatedWorker));
         
         setProfile(res.worker);
         setFrontFile(null);
         setBackFile(null);
+        setPanFile(null);
+        setDlFile(null);
       } else {
         toast.error('Failed to update documents');
       }
@@ -158,7 +188,7 @@ const Documents = () => {
     }
   };
 
-  const hasChanges = frontFile || backFile;
+  const hasChanges = frontFile || backFile || panFile || dlFile;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -269,7 +299,100 @@ const Documents = () => {
                     Tap to change back photo
                   </div>
                 </div>
+              </div>
+            </div>
 
+            {/* PAN Card Section */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-50 rounded-lg text-[#1E3A8A]">
+                  <FiFileText className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-gray-800">PAN Card</h3>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <div className="relative rounded-xl overflow-hidden border border-gray-200">
+                    {panPreview ? (
+                      <img src={panPreview} alt="PAN Card" className="w-full h-48 object-cover" />
+                    ) : (
+                      <div className="h-48 bg-gray-100 flex flex-col items-center justify-center text-gray-400">
+                        <FiCamera className="w-8 h-8 mb-2 opacity-50" />
+                        <span>Tap to add PAN card</span>
+                      </div>
+                    )}
+                    
+                    <div 
+                      className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                      onClick={() => flutterBridge.isFlutter ? handleNativeCamera('pan') : document.getElementById('pan-upload').click()}
+                    >
+                      <div className="bg-white/90 p-3 rounded-full shadow-lg">
+                        <FiCamera className="w-6 h-6 text-gray-800" />
+                      </div>
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    id="pan-upload"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handlePhotoChange(e, 'pan')}
+                  />
+                  <div 
+                    className="mt-2 text-center text-sm font-medium text-blue-600 cursor-pointer"
+                    onClick={() => flutterBridge.isFlutter ? handleNativeCamera('pan') : document.getElementById('pan-upload').click()}
+                  >
+                    Tap to change PAN photo
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Driving License Section */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-50 rounded-lg text-[#1E3A8A]">
+                  <FiFileText className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-gray-800">Driving License</h3>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <div className="relative rounded-xl overflow-hidden border border-gray-200">
+                    {dlPreview ? (
+                      <img src={dlPreview} alt="Driving License" className="w-full h-48 object-cover" />
+                    ) : (
+                      <div className="h-48 bg-gray-100 flex flex-col items-center justify-center text-gray-400">
+                        <FiCamera className="w-8 h-8 mb-2 opacity-50" />
+                        <span>Tap to add Driving License</span>
+                      </div>
+                    )}
+                    
+                    <div 
+                      className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                      onClick={() => flutterBridge.isFlutter ? handleNativeCamera('dl') : document.getElementById('dl-upload').click()}
+                    >
+                      <div className="bg-white/90 p-3 rounded-full shadow-lg">
+                        <FiCamera className="w-6 h-6 text-gray-800" />
+                      </div>
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    id="dl-upload"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handlePhotoChange(e, 'dl')}
+                  />
+                  <div 
+                    className="mt-2 text-center text-sm font-medium text-blue-600 cursor-pointer"
+                    onClick={() => flutterBridge.isFlutter ? handleNativeCamera('dl') : document.getElementById('dl-upload').click()}
+                  >
+                    Tap to change DL photo
+                  </div>
+                </div>
               </div>
             </div>
           </div>

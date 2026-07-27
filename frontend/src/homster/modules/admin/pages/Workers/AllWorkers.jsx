@@ -39,11 +39,12 @@ const AllWorkers = () => {
             : (worker.serviceCategory || worker.service || 'N/A'),
           approvalStatus: worker.approvalStatus,
           aadhar: worker.aadhar?.number,
-          pan: worker.pan?.number,
+          pan: worker.panCard?.number,
           documents: {
             aadhar: worker.aadhar?.document,
             aadharBack: worker.aadhar?.backDocument,
-            pan: worker.pan?.document,
+            pan: worker.panCard?.document,
+            drivingLicense: worker.drivingLicense?.document,
             other: worker.otherDocuments?.[0]
           },
           createdAt: worker.createdAt,
@@ -496,6 +497,24 @@ const AllWorkers = () => {
                     />
                     <a
                       href={selectedWorker.documents.pan}
+                      download
+                      className="mt-2 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      <FiDownload className="w-4 h-4" />
+                      Download
+                    </a>
+                  </div>
+                )}
+                {selectedWorker.documents.drivingLicense && (
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-2">Driving License</label>
+                    <img
+                      src={selectedWorker.documents.drivingLicense}
+                      alt="Driving License"
+                      className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
+                    />
+                    <a
+                      href={selectedWorker.documents.drivingLicense}
                       download
                       className="mt-2 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
                     >
