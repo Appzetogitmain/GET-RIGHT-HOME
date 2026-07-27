@@ -168,7 +168,7 @@ export const SocketProvider = ({ children }) => {
       console.log(`✅ [Socket] ${userType?.toUpperCase()} connected → socket.id: ${newSocket.id}`);
       
       // Register FCM token for push notifications (on page load/refresh)
-      if (userType && token) {
+      if (userType && (token || hasUserAuth)) {
         // Setup foreground notification listener
         setupForegroundNotificationHandler((payload) => {
           // Play sound and show notification (handled internally by the service)

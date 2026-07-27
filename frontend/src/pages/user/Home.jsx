@@ -348,6 +348,10 @@ const Home = () => {
                 <button
                     onClick={async () => {
                         try {
+                            const { registerFCMToken } = await import('../../homster/services/pushNotificationService');
+                            // This ensures the FCM token is requested on user click (WebView requires user gesture)
+                            await registerFCMToken('user', true);
+
                             const { api } = await import('../../services/apiService');
                             await api.post('/fcm-tokens/test');
                             alert('Test notification sent! Check your device.');

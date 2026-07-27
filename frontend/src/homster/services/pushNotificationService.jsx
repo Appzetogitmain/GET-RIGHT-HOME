@@ -117,6 +117,7 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
 
     let endpoint;
     let authTokenKey;
+    let method = 'POST';
     switch (userType) {
       case 'vendor':
         endpoint = '/vendors/fcm-tokens/save';
@@ -126,36 +127,50 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
         endpoint = '/workers/fcm-tokens/save';
         authTokenKey = 'workerAccessToken';
         break;
+      case 'admin':
+        endpoint = '/admin/fcm-token';
+        authTokenKey = 'adminToken';
+        method = 'PUT';
+        break;
       case 'user':
-        endpoint = '/fcm-tokens/save';
-        authTokenKey = 'accessToken';
+        endpoint = '/users/fcm-token';
+        authTokenKey = null; // User uses cookies
+        method = 'PUT';
         break;
       default:
-        endpoint = '/fcm-tokens/save';
-        authTokenKey = 'accessToken';
+        endpoint = '/users/fcm-token';
+        authTokenKey = null;
+        method = 'PUT';
     }
 
-    const authToken = localStorage.getItem(authTokenKey);
-    if (!authToken) {
-      return null;
+    let headers = {
+      'Content-Type': 'application/json'
+    };
+
+    if (authTokenKey) {
+      const authToken = localStorage.getItem(authTokenKey);
+      if (!authToken) {
+        console.warn(`[FCM] No auth token found for ${userType}. Cannot save FCM token.`);
+        return null;
+      }
+      headers['Authorization'] = `Bearer ${authToken}`;
     }
 
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
     console.log(`[FCM] Saving to backend: ${baseUrl}${endpoint}`);
 
     const response = await fetch(`${baseUrl}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
+      method: method,
+      headers: headers,
+      credentials: 'include', // Important for user cookies
       body: JSON.stringify({
         token: token,
-        platform: 'web'
+        fcmToken: token, // User API expects fcmToken instead of token
+        platform: platform // Use actual platform (web/mobile) instead of hardcoding 'web'
       })
     });
 
-    const responseData = await response.json();
+    const responseData = await response.json().catch(() => ({}));
 
     if (response.ok) {
       localStorage.setItem(storageKey, token);
@@ -195,6 +210,10 @@ async function removeFCMToken(userType = 'user') {
       case 'worker':
         endpoint = '/workers/fcm-tokens/remove';
         authTokenKey = 'workerAccessToken';
+        break;
+      case 'admin':
+        endpoint = '/admin/fcm-token';
+        authTokenKey = 'adminToken';
         break;
       default:
         endpoint = '/fcm-tokens/remove';
