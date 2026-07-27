@@ -14,6 +14,7 @@ const WorkerWithdrawals = () => {
   const [activeModal, setActiveModal] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [utrNumber, setUtrNumber] = useState('');
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -49,6 +50,7 @@ const WorkerWithdrawals = () => {
 
   const openApprove = (item) => {
     setSelectedItem(item);
+    setUtrNumber('');
     setActiveModal('approve');
   };
 
@@ -62,12 +64,17 @@ const WorkerWithdrawals = () => {
     setActiveModal(null);
     setSelectedItem(null);
     setRejectionReason('');
+    setUtrNumber('');
   };
 
   const handleApprove = async () => {
+    if (!utrNumber.trim()) {
+      toast.error('Please enter the UTR / Transaction number');
+      return;
+    }
     try {
       setActionLoading(true);
-      const res = await adminWorkerService.approveWorkerWithdrawal(selectedItem._id);
+      const res = await adminWorkerService.approveWorkerWithdrawal(selectedItem._id, utrNumber);
       if (res.success) {
         toast.success('Withdrawal approved and processed successfully');
         loadWithdrawals();
@@ -264,8 +271,20 @@ const WorkerWithdrawals = () => {
       >
         <div className="p-4">
           <p className="mb-4">Are you sure you want to approve this withdrawal request of <b>₹{selectedItem?.amount?.toLocaleString()}</b> for <b>{selectedItem?.workerId?.name}</b>?</p>
-          <div className="bg-yellow-50 text-yellow-800 p-3 rounded-lg text-sm mb-6 border border-yellow-200">
+          <div className="bg-yellow-50 text-yellow-800 p-3 rounded-lg text-sm mb-4 border border-yellow-200">
             Please ensure you have transferred the amount to their provided bank account or UPI ID before approving this request. This action will mark it as completed.
+          </div>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              UTR / Transaction Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={utrNumber}
+              onChange={(e) => setUtrNumber(e.target.value)}
+              placeholder="e.g. 312345678901"
+              className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+            />
           </div>
           <div className="flex justify-end gap-3">
             <button onClick={closeModals} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">Cancel</button>
