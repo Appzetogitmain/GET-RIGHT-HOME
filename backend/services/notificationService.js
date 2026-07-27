@@ -65,10 +65,14 @@ class NotificationService {
         android: {
           priority: 'high',
           notification: {
-            channelId: 'rukkoin_channel',
+            channelId: 'get_right_home_notifications',
+            sound: 'default',
           },
         },
         apns: {
+          headers: {
+            'apns-priority': '10',
+          },
           payload: {
             aps: {
               sound: 'default',

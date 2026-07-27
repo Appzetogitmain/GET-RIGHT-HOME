@@ -116,8 +116,8 @@ const adminWorkerService = {
   /**
    * Approve worker withdrawal
    */
-  approveWorkerWithdrawal: async (id) => {
-    const response = await api.put(`/admin/worker-withdrawals/${id}/approve`);
+  approveWorkerWithdrawal: async (id, utrNumber) => {
+    const response = await api.put(`/admin/worker-withdrawals/${id}/approve`, { utrNumber });
     return response.data;
   },
 
