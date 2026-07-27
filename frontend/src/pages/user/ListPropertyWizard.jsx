@@ -383,8 +383,12 @@ const ListPropertyWizard = () => {
             <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">Your contact details</h2>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm">
-                  {user.name ? user.name.charAt(0).toUpperCase() : <User size={18} />}
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm overflow-hidden">
+                  {(user.profileImage || user.avatar || user.photo) ? (
+                    <img src={user.profileImage || user.avatar || user.photo} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    user.name ? user.name.charAt(0).toUpperCase() : <User size={18} />
+                  )}
                 </div>
                 <div>
                   <p className="text-[13px] font-bold text-slate-800">Posting {entityType} as {user.name}</p>

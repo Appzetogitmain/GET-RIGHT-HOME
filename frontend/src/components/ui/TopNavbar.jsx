@@ -99,8 +99,16 @@ const TopNavbar = () => {
                             to="/profile"
                             className={`pl-3 pr-4 py-1.5 bg-white border border-gray-100 rounded-full flex items-center gap-3 hover:${themeBorder} transition group shadow-sm`}
                         >
-                            <div className={`w-8 h-8 rounded-full ${themeBtn} text-white flex items-center justify-center font-bold text-xs shadow-md transition-colors duration-700`}>
-                                {userName.charAt(0)}
+                            <div className={`w-8 h-8 rounded-full ${themeBtn} text-white flex items-center justify-center font-bold text-xs shadow-md transition-colors duration-700 overflow-hidden`}>
+                                {(user.profileImage || user.avatar || user.photo) ? (
+                                    <img 
+                                        src={user.profileImage || user.avatar || user.photo} 
+                                        alt={userName} 
+                                        className="w-full h-full object-cover" 
+                                    />
+                                ) : (
+                                    userName.charAt(0).toUpperCase()
+                                )}
                             </div>
                             <span className={`text-sm font-bold text-gray-900 group-hover:${themeText}`}>
                                 {userName.split(' ')[0]}
