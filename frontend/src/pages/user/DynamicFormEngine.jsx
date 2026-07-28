@@ -34,11 +34,14 @@ const DynamicFormEngine = () => {
   const [loading, setLoading] = useState(true);
   const [template, setTemplate] = useState(null);
   
-  const stepStorageKey = `draft_step_${transactionType}_${category}_${displayPropertyType}`;
+  const stepStorageKey = (transactionType && category && displayPropertyType) 
+    ? `draft_step_${transactionType}_${category}_${displayPropertyType}` 
+    : 'draft_step_default';
+
   const [currentStepIndex, setCurrentStepIndex] = useState(() => {
     if (isEditMode) return 0;
     const savedStep = localStorage.getItem(stepStorageKey);
-    return savedStep ? parseInt(savedStep, 10) : 0;
+    return (savedStep && stepStorageKey !== 'draft_step_default') ? parseInt(savedStep, 10) : 0;
   });
   const [errors, setErrors] = useState({});
 
@@ -131,9 +134,10 @@ const DynamicFormEngine = () => {
     }
   }, [formData, storageKey, isEditMode]);
 
-  // Save currentStepIndex to localStorage on change
+  // Save currentStepIndex to localStorage on change & Scroll to top
   useEffect(() => {
-    if (!isEditMode && stepStorageKey) {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    if (!isEditMode && stepStorageKey && stepStorageKey !== 'draft_step_default') {
       localStorage.setItem(stepStorageKey, currentStepIndex.toString());
     }
   }, [currentStepIndex, stepStorageKey, isEditMode]);
@@ -401,6 +405,7 @@ const DynamicFormEngine = () => {
         toast.success(isEditMode ? 'Property details updated successfully!' : 'Property details submitted successfully!');
         if (!isEditMode) {
           localStorage.removeItem(storageKey);
+          localStorage.removeItem(stepStorageKey);
         }
         navigate('/my-properties');
       }

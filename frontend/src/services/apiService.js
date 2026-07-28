@@ -14,7 +14,13 @@ const apiCache = new Map();
 
 // Interceptor to add Token, Log, and check Cache
 api.interceptors.request.use((config) => {
-  let token = localStorage.getItem('token') || localStorage.getItem('userToken') || localStorage.getItem('adminToken') || localStorage.getItem('accessToken');
+  let token = localStorage.getItem('token') || localStorage.getItem('userToken');
+  
+  // Only check adminToken if on an admin API route
+  if (!token && config.url?.startsWith('/admin')) {
+    token = localStorage.getItem('adminToken') || localStorage.getItem('adminAccessToken');
+  }
+
   if (!token) {
     const userStr = localStorage.getItem('user') || localStorage.getItem('userData');
     if (userStr) {
