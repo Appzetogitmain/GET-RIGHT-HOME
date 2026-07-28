@@ -102,6 +102,22 @@ const HandpickedDetailsPage = () => {
     'builder-sec': useRef(null)
   };
 
+  const thumbnailContainerRef = useRef(null);
+
+  // Auto scroll selected thumbnail into view when currentImgIndex changes
+  useEffect(() => {
+    if (thumbnailContainerRef.current) {
+      const selectedThumb = thumbnailContainerRef.current.children[currentImgIndex];
+      if (selectedThumb) {
+        selectedThumb.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        });
+      }
+    }
+  }, [currentImgIndex]);
+
   useEffect(() => {
     loadHandpickedDetails();
     checkIfSaved();
@@ -726,16 +742,17 @@ const HandpickedDetailsPage = () => {
 
         {/* Thumbnail Tagged Preview Row (Matches Image 3) */}
         {pImages.length > 0 && (
-          <div className="absolute bottom-6 left-0 right-0 px-4 flex gap-2.5 overflow-x-auto hide-scrollbar z-20">
+          <div ref={thumbnailContainerRef} className="absolute bottom-6 left-0 right-0 px-4 flex gap-2.5 overflow-x-auto hide-scrollbar z-20 scroll-smooth">
             {pImages.map((imgUrl, idx) => {
               const tagsObj = property?.propertyImages_tags || property?.dynamicData?.propertyImages_tags || property?.imageTags || {};
               let tagLabel = tagsObj[idx] || tagsObj[String(idx)];
               if (!tagLabel) {
-                if (idx === 0) tagLabel = "Highlights";
-                else if (idx === 1) tagLabel = "Outdoors";
-                else if (idx === 2) tagLabel = "Brochure";
-                else if (idx === 3) tagLabel = "Videos";
-                else if (idx === 4) tagLabel = "Demo Flat";
+                if (idx === 0) tagLabel = "Elevation";
+                else if (idx === 1) tagLabel = "Hall";
+                else if (idx === 2) tagLabel = "Kitchen";
+                else if (idx === 3) tagLabel = "Bedroom";
+                else if (idx === 4) tagLabel = "Balcony";
+                else if (idx === 5) tagLabel = "Bathroom";
                 else tagLabel = `Photo ${idx + 1}`;
               }
               const isSelected = currentImgIndex === idx;
@@ -744,15 +761,17 @@ const HandpickedDetailsPage = () => {
                 <div
                   key={idx}
                   onClick={() => setCurrentImgIndex(idx)}
-                  className={`relative flex-shrink-0 w-24 h-16 rounded-xl overflow-hidden cursor-pointer border-2 transition-all shadow-md group ${
-                    isSelected ? 'border-white ring-2 ring-blue-500 scale-105' : 'border-white/30 hover:border-white/70 opacity-90'
+                  className={`relative flex-shrink-0 w-24 h-16 rounded-xl overflow-hidden cursor-pointer border-2 transition-all duration-300 shadow-lg group ${
+                    isSelected
+                      ? 'border-blue-500 ring-4 ring-blue-500/50 scale-105 opacity-100 z-10'
+                      : 'border-white/40 hover:border-white opacity-70 hover:opacity-100'
                   }`}
                 >
                   <img src={imgUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={tagLabel} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className={`absolute inset-0 bg-gradient-to-t ${isSelected ? 'from-blue-900/90 via-black/30' : 'from-black/80 via-black/20'} to-transparent`} />
                   
                   <div className="absolute bottom-1 left-1 right-1 text-center">
-                    <span className="text-[10px] font-extrabold text-white leading-none drop-shadow-md truncate block">
+                    <span className={`text-[10px] font-extrabold leading-none drop-shadow-md truncate block ${isSelected ? 'text-white font-black' : 'text-slate-200'}`}>
                       {tagLabel}
                     </span>
                   </div>
