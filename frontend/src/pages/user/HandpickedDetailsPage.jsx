@@ -9,7 +9,7 @@ import {
   Grid, FileText, Plus, Minus, Eye, EyeOff, Calendar, Send, Sparkles, Building,
   TrendingUp, ThumbsUp, ThumbsDown, CheckCircle2, AlertTriangle, AlertCircle,
   Search, Download, Map, Filter, Leaf, Activity, Dumbbell, Key, Clock,
-  Car, Flame, Coffee, Trees, Wifi, Waves, ShieldCheck, Film, Smile, Utensils, Landmark
+  Car, Flame, Coffee, Trees, Wifi, Waves, ShieldCheck, Film, Smile, Utensils, Landmark, Video
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -75,6 +75,7 @@ const HandpickedDetailsPage = () => {
 
   // Highlights Bottom-sheet / Modal
   const [showAllHighlights, setShowAllHighlights] = useState(false);
+  const [showFullDesc, setShowFullDesc] = useState(false);
   const [showFullAmenitiesDesc, setShowFullAmenitiesDesc] = useState(false);
   const [showUpdates, setShowUpdates] = useState(false);
 
@@ -531,7 +532,7 @@ const HandpickedDetailsPage = () => {
 
   const projectBrochureUrl = getCleanBrochureUrl(rawBrochureData);
 
-  // Property Video URL extraction & YouTube helper
+  // Property Video URLs extraction & YouTube helper
   const rawVideoUrl = property?.videoUrl || 
     property?.dynamicData?.videoUrl || 
     property?.dynamicData?.youtubeUrl || 
@@ -539,13 +540,36 @@ const HandpickedDetailsPage = () => {
     builderDetails?.videoUrl || 
     "";
 
+  // Multi-video list collector
+  const allVideoUrls = (() => {
+    const list = [];
+    const pushIfValid = (u) => {
+      if (typeof u === 'string' && u.trim() && !list.includes(u.trim())) {
+        list.push(u.trim());
+      }
+    };
+    if (Array.isArray(property?.propertyVideos)) property.propertyVideos.forEach(pushIfValid);
+    if (Array.isArray(property?.dynamicData?.propertyVideos)) property.dynamicData.propertyVideos.forEach(pushIfValid);
+    pushIfValid(rawVideoUrl);
+    
+    // Also extract video links uploaded in propertyImages array
+    if (Array.isArray(property?.propertyImages)) {
+      property.propertyImages.forEach(u => {
+        if (typeof u === 'string' && (u.includes('youtube.com') || u.includes('youtu.be') || u.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i))) {
+          pushIfValid(u);
+        }
+      });
+    }
+    return list;
+  })();
+
   const getYoutubeEmbedId = (url) => {
     if (!url || typeof url !== 'string') return null;
     const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/s]{11})/i);
     return match ? match[1] : null;
   };
 
-  const youtubeId = getYoutubeEmbedId(rawVideoUrl);
+  const youtubeId = getYoutubeEmbedId(allVideoUrls[0] || rawVideoUrl);
 
   const handleBrochureDownload = () => {
     const projTitle = property?.propertyName || property?.name || "Project";
@@ -800,7 +824,7 @@ const HandpickedDetailsPage = () => {
         </div>
 
         {/* Thumbnail Tagged Preview Row (Matches Image 3) */}
-        {pImages.length > 0 && (
+        {(pImages.length > 0 || rawVideoUrl) && (
           <div ref={thumbnailContainerRef} className="absolute bottom-6 left-0 right-0 px-4 flex gap-2.5 overflow-x-auto hide-scrollbar z-20 scroll-smooth">
             {pImages.map((imgUrl, idx) => {
               const tagsObj = property?.propertyImages_tags || property?.dynamicData?.propertyImages_tags || property?.imageTags || {};
@@ -832,6 +856,40 @@ const HandpickedDetailsPage = () => {
                   <div className="absolute bottom-1 left-1 right-1 text-center">
                     <span className={`text-[10px] font-extrabold leading-none drop-shadow-md truncate block ${isSelected ? 'text-white font-black' : 'text-slate-200'}`}>
                       {tagLabel}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {allVideoUrls.map((vUrl, vIdx) => {
+              const vYtId = getYoutubeEmbedId(vUrl);
+              return (
+                <div
+                  key={`vid-${vIdx}`}
+                  onClick={() => {
+                    const videoSec = document.getElementById('project-video-section');
+                    if (videoSec) {
+                      videoSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                  }}
+                  className="relative flex-shrink-0 w-24 h-16 rounded-xl overflow-hidden cursor-pointer border-2 border-blue-400 bg-slate-900 shadow-lg group hover:border-white transition-all duration-300"
+                >
+                  {vYtId ? (
+                    <img src={`https://img.youtube.com/vi/${vYtId}/hqdefault.jpg`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={`Video ${vIdx + 1}`} />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-900 to-slate-900 flex items-center justify-center">
+                      <Video className="w-6 h-6 text-white" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                    <div className="w-7 h-7 bg-red-600 rounded-full flex items-center justify-center shadow-md">
+                      <div className="w-0 h-0 border-t-4 border-t-transparent border-b-4 border-b-transparent border-l-6 border-l-white ml-0.5" />
+                    </div>
+                  </div>
+                  <div className="absolute bottom-1 left-1 right-1 text-center">
+                    <span className="text-[10px] font-black text-white leading-none drop-shadow-md truncate block">
+                      Video {allVideoUrls.length > 1 ? vIdx + 1 : ''}
                     </span>
                   </div>
                 </div>
@@ -950,11 +1008,11 @@ const HandpickedDetailsPage = () => {
 
           {/* Price & Map Row */}
           <div className="flex items-center border border-slate-200 rounded-3xl mb-2 py-4 shadow-sm bg-white overflow-hidden">
-            <div className="w-1/2 flex flex-col items-center justify-center border-r border-slate-200 hover:bg-slate-50 transition-colors">
-              <span className="text-base md:text-lg font-bold text-slate-900">
+            <div className="w-1/2 flex flex-col items-center justify-center border-r border-slate-200 hover:bg-slate-50 transition-colors px-2 text-center">
+              <span className="text-xs sm:text-base md:text-lg font-extrabold text-slate-900 leading-tight">
                 {dispPriceStr}
               </span>
-              <span className="text-[11px] md:text-xs text-slate-500 mt-1">{getCarpetOrPriceString()}</span>
+              <span className="text-[10px] sm:text-xs text-slate-500 mt-0.5">{getCarpetOrPriceString()}</span>
             </div>
             <button
               onClick={() => {
@@ -1113,7 +1171,24 @@ const HandpickedDetailsPage = () => {
                 <div className="pt-4 border-t border-slate-200/80 space-y-3">
                   <h3 className="text-base font-bold text-slate-800">Detailed Project Description</h3>
                   <p className="text-slate-700 text-sm leading-relaxed">
-                    {property?.description || "No detailed description provided for this project."}
+                    {(() => {
+                      const desc = property?.description || "No detailed description provided for this project.";
+                      if (desc.length <= 220) return desc;
+                      if (showFullDesc) {
+                        return (
+                          <>
+                            {desc}{' '}
+                            <span onClick={() => setShowFullDesc(false)} className="font-bold text-blue-600 underline cursor-pointer ml-1">less</span>
+                          </>
+                        );
+                      }
+                      return (
+                        <>
+                          {desc.slice(0, 220)}...{' '}
+                          <span onClick={() => setShowFullDesc(true)} className="font-bold text-blue-600 underline cursor-pointer ml-1">more</span>
+                        </>
+                      );
+                    })()}
                   </p>
                   {property?.dynamicCategory && (
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-100 rounded-full text-xs font-bold text-blue-700">
@@ -1123,38 +1198,45 @@ const HandpickedDetailsPage = () => {
                   )}
                 </div>
 
-                {/* Project Walkthrough Video Section (YouTube Embed / Direct Video) */}
-                {rawVideoUrl && (
-                  <div className="pt-4 border-t border-slate-200/80 space-y-3">
+                {/* Project Walkthrough Video Section (Supports Multiple Videos) */}
+                {allVideoUrls.length > 0 && (
+                  <div id="project-video-section" className="pt-4 border-t border-slate-200/80 space-y-4">
                     <div>
                       <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                        <Video className="w-5 h-5 text-blue-600" /> Official Project Walkthrough Video
+                        <Video className="w-5 h-5 text-blue-600" /> Official Project Walkthrough Video ({allVideoUrls.length})
                       </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Experience virtual video tour & real site view</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Experience virtual video tour & real site views</p>
                     </div>
 
-                    <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-md border border-slate-200">
-                      {youtubeId ? (
-                        <iframe
-                          title="Project Walkthrough Video"
-                          className="w-full h-full"
-                          src={`https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1&autoplay=0`}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        ></iframe>
-                      ) : (
-                        <video
-                          src={rawVideoUrl}
-                          controls
-                          controlsList="nodownload"
-                          preload="metadata"
-                          playsInline
-                          className="w-full h-full object-contain rounded-2xl"
-                          poster={pImages[0] || undefined}
-                        >
-                          Your browser does not support the video tag.
-                        </video>
-                      )}
+                    <div className="flex gap-4 overflow-x-auto pb-2 scroll-smooth hide-scrollbar snap-x snap-mandatory">
+                      {allVideoUrls.map((vUrl, vIdx) => {
+                        const ytEmbedId = getYoutubeEmbedId(vUrl);
+                        return (
+                          <div key={vIdx} className="relative flex-shrink-0 w-[85vw] sm:w-[380px] aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-md border border-slate-200 snap-center transform-gpu">
+                            {ytEmbedId ? (
+                              <iframe
+                                title={`Project Video ${vIdx + 1}`}
+                                className="w-full h-full"
+                                src={`https://www.youtube.com/embed/${ytEmbedId}?rel=0&modestbranding=1&autoplay=0`}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              ></iframe>
+                            ) : (
+                              <video
+                                src={vUrl}
+                                controls
+                                controlsList="nodownload"
+                                preload="metadata"
+                                playsInline
+                                className="w-full h-full object-contain rounded-2xl bg-black"
+                                poster={pImages[vIdx % pImages.length] || pImages[0]}
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1165,19 +1247,9 @@ const HandpickedDetailsPage = () => {
               {(property?.amenities?.length > 0 || propertyHighlights.length > 0) && (
                 <div className="bg-white rounded-3xl p-6 md:p-8 space-y-5 shadow-sm border border-slate-100">
                   <div>
-                    <h2 className="text-lg md:text-xl font-bold text-slate-900">Amenities</h2>
+                    <h2 className="text-lg md:text-xl font-bold text-slate-900">Amenities Overview</h2>
                     <p className="text-slate-500 text-sm mt-1">
-                      {showFullAmenitiesDesc ? (
-                        <>
-                          {property?.description || `${property?.propertyName || 'This project'} presents an exclusive opportunity to own a stunning home that offers all kinds of amenities and facilities. This includes a swimming pool, gymnasium, and a clubhouse. It has an excellent combination of comfort and convenience to suit every requirement as well as need.`}
-                          <span onClick={() => setShowFullAmenitiesDesc(false)} className="font-semibold text-slate-700 underline cursor-pointer ml-1">less</span>
-                        </>
-                      ) : (
-                        <>
-                          {property?.propertyName || 'This project'} presents an exclusive opportunity to own a stunning home that offers all kinds of...
-                          <span onClick={() => setShowFullAmenitiesDesc(true)} className="font-semibold text-slate-700 underline cursor-pointer ml-1">more</span>
-                        </>
-                      )}
+                      {property?.propertyName || 'This project'} features an extensive collection of lifestyle amenities including a modern clubhouse, swimming pool, state-of-the-art gymnasium, and landscaped recreational zones.
                     </p>
                   </div>
 
@@ -1549,9 +1621,9 @@ const HandpickedDetailsPage = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0 pr-2">
                     <h2 className="text-[17px] md:text-xl font-bold text-slate-900 truncate">
-                      Premium Curated Amenities
+                      Amenities & Facilities
                     </h2>
-                    <p className="text-[11px] md:text-sm text-slate-500 mt-0.5 truncate">Premium facilities, rare options, and high-end services</p>
+                    <p className="text-[11px] md:text-sm text-slate-500 mt-0.5">Explore premium clubhouse facilities, sports, and lifestyle options</p>
                   </div>
                   <button
                     onClick={() => setShowAllAmenities(true)}

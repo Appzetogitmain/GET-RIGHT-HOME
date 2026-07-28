@@ -133,11 +133,11 @@ export const downloadBrochurePDF = async (brochureRaw, projectName = "Project", 
 
     const safeName = projectName.replace(/[^a-zA-Z0-9_-]/g, '_');
     pdf.save(`${safeName}_Brochure.pdf`);
-    toast.success("Brochure PDF downloaded successfully!", { id: toastId });
+    toast.success("Brochure PDF downloaded successfully!", { id: toastId, duration: 3000 });
   } catch (err) {
     console.error("PDF generation failed:", err);
     // Fallback: open 1st image URL in browser
     window.open(urls[0], '_blank');
-    toast.dismiss(toastId);
+    toast.error("Opening brochure file...", { id: toastId, duration: 3000 });
   }
 };

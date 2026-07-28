@@ -34,12 +34,13 @@ const DynamicFormEngine = () => {
   const [loading, setLoading] = useState(true);
   const [template, setTemplate] = useState(null);
   
-  const stepStorageKey = (transactionType && category && displayPropertyType) 
-    ? `draft_step_${transactionType}_${category}_${displayPropertyType}` 
-    : 'draft_step_default';
+  const stepStorageKey = isEditMode
+    ? `draft_step_edit_${existingProperty._id}`
+    : ((transactionType && category && displayPropertyType) 
+        ? `draft_step_${transactionType}_${category}_${displayPropertyType}` 
+        : 'draft_step_default');
 
   const [currentStepIndex, setCurrentStepIndex] = useState(() => {
-    if (isEditMode) return 0;
     const savedStep = localStorage.getItem(stepStorageKey);
     return (savedStep && stepStorageKey !== 'draft_step_default') ? parseInt(savedStep, 10) : 0;
   });
@@ -49,6 +50,9 @@ const DynamicFormEngine = () => {
   const user = userStr ? JSON.parse(userStr) : null;
   const isBrokerOrBuilder = user && (user.role === 'broker' || user.role === 'builder');
   
+  // Modal states for custom tag editing
+  const [customTagModal, setCustomTagModal] = useState({ open: false, fieldName: '', index: null, value: '' });
+
   // Modal states for pricing details
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [modalMaintenance, setModalMaintenance] = useState('');
@@ -136,11 +140,29 @@ const DynamicFormEngine = () => {
 
   // Save currentStepIndex to localStorage on change & Scroll to top
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    if (!isEditMode && stepStorageKey && stepStorageKey !== 'draft_step_default') {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    if (stepStorageKey && stepStorageKey !== 'draft_step_default') {
       localStorage.setItem(stepStorageKey, currentStepIndex.toString());
     }
-  }, [currentStepIndex, stepStorageKey, isEditMode]);
+  }, [currentStepIndex, stepStorageKey]);
+
+  // Robust Lenis & Body Scroll Lock for Modal Dialogs
+  useEffect(() => {
+    const isAnyModalOpen = showPricingModal || customTagModal.open;
+    if (isAnyModalOpen) {
+      if (window.lenis) window.lenis.stop();
+      document.body.style.overflow = 'hidden';
+    } else {
+      if (window.lenis) window.lenis.start();
+      document.body.style.overflow = '';
+    }
+    return () => {
+      if (window.lenis) window.lenis.start();
+      document.body.style.overflow = '';
+    };
+  }, [showPricingModal, customTagModal.open]);
 
   // Sync pricing modal fields when loaded/edited
   useEffect(() => {
@@ -307,10 +329,21 @@ const DynamicFormEngine = () => {
             });
           });
         }
+
+        // Check media tag requirement (all uploaded photos/videos must be tagged)
+        if (field.type === 'file' && Array.isArray(value) && value.length > 0) {
+          const tagKey = `${field.name}_tags`;
+          const tags = formData[tagKey] || {};
+          const untaggedCount = value.filter((_, idx) => !tags[idx] || !String(tags[idx]).trim()).length;
+          if (untaggedCount > 0) {
+            newErrors[field.name] = `Please select or add a tag for all uploaded ${field.name === 'propertyImages' ? 'photos' : 'videos'} (${untaggedCount} untagged)`;
+            if (!firstErrorField) firstErrorField = field.name;
+          }
+        }
       }
     });
 
-    // Special custom comparison validations (Area size checks)omparisons matching 99acres rules
+    // Special custom comparison validations (Area size checks)
     const carpetVal = formData['carpetArea'];
     const superVal = formData['superArea'];
     const builtUpVal = formData['builtUpArea'];
@@ -366,6 +399,8 @@ const DynamicFormEngine = () => {
     if (currentStepIndex < template.steps.length - 1) {
       setCurrentStepIndex(prev => prev + 1);
       window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
     } else {
       submitForm();
     }
@@ -402,11 +437,9 @@ const DynamicFormEngine = () => {
       }
 
       if (res.data.success) {
+        localStorage.removeItem(storageKey);
+        localStorage.removeItem(stepStorageKey);
         toast.success(isEditMode ? 'Property details updated successfully!' : 'Property details submitted successfully!');
-        if (!isEditMode) {
-          localStorage.removeItem(storageKey);
-          localStorage.removeItem(stepStorageKey);
-        }
         navigate('/my-properties');
       }
     } catch (err) {
@@ -771,6 +804,10 @@ const DynamicFormEngine = () => {
         );
       
       case 'file':
+        const isGalleryField = field.name === 'propertyImages';
+        const isBrochureField = field.name === 'brochure' || field.name === 'brochureUrl' || field.label?.toLowerCase().includes('brochure');
+        const isVideoField = field.name === 'propertyVideos' || field.name === 'videoUrl';
+
         return (
           <div key={field.name} id={`field-${field.name}`} className="mb-6">
             <label className="block text-[14px] font-semibold text-slate-800 mb-2">
@@ -785,13 +822,17 @@ const DynamicFormEngine = () => {
                   <polyline points="17 8 12 3 7 8"></polyline>
                   <line x1="12" y1="3" x2="12" y2="15"></line>
                 </svg>
-                <p className="text-[13px] text-slate-600 font-medium">Click to upload photos/videos</p>
-                <p className="text-[11px] text-slate-400">Max size 5MB. JPG, PNG, MP4</p>
+                <p className="text-[13px] text-slate-600 font-medium">
+                  {isBrochureField ? 'Click to upload e-Brochure (PDF / Document)' : (isGalleryField ? 'Click to upload photos' : (isVideoField ? 'Click to upload videos' : 'Click to upload files'))}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  {isBrochureField ? 'Max size 10MB. PDF, DOCX, JPG, PNG' : (isGalleryField ? 'Max size 5MB. JPG, PNG, WEBP' : (isVideoField ? 'Max size 50MB. MP4, WEBM, MOV' : 'Max size 10MB'))}
+                </p>
               </div>
               <input
                 type="file"
                 multiple
-                accept="image/*,video/*"
+                accept={isBrochureField ? ".pdf,.doc,.docx,image/*" : (isGalleryField ? "image/*" : (isVideoField ? "video/*" : "image/*,video/*,.pdf"))}
                 onChange={async (e) => {
                   const files = Array.from(e.target.files);
                   if (files.length === 0) return;
@@ -807,6 +848,13 @@ const DynamicFormEngine = () => {
                     if (urls.length > 0) {
                       const currentImages = formData[field.name] || [];
                       handleChange(field.name, [...currentImages, ...urls]);
+                      
+                      // Bind videoUrl if uploaded file is a video
+                      const videoUrls = urls.filter(u => typeof u === 'string' && (u.match(/\.(mp4|webm|ogg|mov|mkv)(\?.*)?$/i) || u.includes('/video/upload/')));
+                      if (videoUrls.length > 0) {
+                        handleChange('videoUrl', videoUrls[0]);
+                        handleChange('youtubeUrl', videoUrls[0]);
+                      }
                       toast.success('Uploaded successfully!', { id: uploadToastId });
                     } else {
                       toast.error('Upload failed: Empty response', { id: uploadToastId });
@@ -847,6 +895,10 @@ const DynamicFormEngine = () => {
                     if (val) {
                       const currentImages = formData[field.name] || [];
                       handleChange(field.name, [...currentImages, val]);
+                      if (val.includes('youtube.com') || val.includes('youtu.be') || val.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i)) {
+                        handleChange('videoUrl', val);
+                        handleChange('youtubeUrl', val);
+                      }
                       inputEl.value = '';
                     }
                   }
@@ -919,22 +971,21 @@ const DynamicFormEngine = () => {
                         </button>
                       </div>
                       
-                      {/* Image/Video Tag Dropdown + Custom Tag Option */}
+                      {/* Image/Video Tag Dropdown + Custom Tag Modal Trigger */}
                       <div className="flex flex-col gap-1">
                         <select
                           value={['Hall', 'Kitchen', 'Bedroom', 'Master Bedroom', 'Bathroom', 'Elevation', 'Floor Plan', 'Balcony', 'Project Video'].includes(currentTag) ? currentTag : (currentTag ? 'Custom' : '')}
                           onChange={(e) => {
                             const val = e.target.value;
                             if (val === 'Custom') {
-                              const customTag = prompt('Enter custom tag (e.g. Pooja Room, Walkthrough, Video Tour):');
-                              if (customTag && customTag.trim()) {
-                                handleChange(tagKey, { ...tags, [i]: customTag.trim() });
-                              }
+                              setCustomTagModal({ open: true, fieldName: field.name, index: i, value: currentTag && !['Hall', 'Kitchen', 'Bedroom', 'Master Bedroom', 'Bathroom', 'Elevation', 'Floor Plan', 'Balcony', 'Project Video'].includes(currentTag) ? currentTag : '' });
                             } else {
                               handleChange(tagKey, { ...tags, [i]: val });
                             }
                           }}
-                          className="text-[11px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none w-full cursor-pointer"
+                          className={`text-[11px] font-bold text-slate-700 bg-white border rounded-lg px-2 py-1 outline-none w-full cursor-pointer transition-colors ${
+                            !currentTag && errors[field.name] ? 'border-red-500 bg-red-50/50' : 'border-slate-200'
+                          }`}
                         >
                           <option value="">+ Tag Media Type</option>
                           <option value="Hall">Hall / Living</option>
@@ -946,12 +997,21 @@ const DynamicFormEngine = () => {
                           <option value="Floor Plan">Floor Plan</option>
                           <option value="Balcony">Balcony / View</option>
                           <option value="Project Video">Project Video Tour</option>
-                          <option value="Custom">✏️ Add Custom Tag...</option>
+                          <option value="Custom">✏️ Add / Edit Custom Tag...</option>
                         </select>
-                        {currentTag && (
-                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 truncate">
-                            Tag: {currentTag}
+                        {!currentTag && errors[field.name] && (
+                          <span className="text-[9px] font-bold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5 text-center block">
+                            ⚠️ Tag Required
                           </span>
+                        )}
+                        {currentTag && (
+                          <div
+                            onClick={() => setCustomTagModal({ open: true, fieldName: field.name, index: i, value: currentTag })}
+                            className="flex items-center justify-between text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 cursor-pointer hover:bg-blue-100 transition-colors"
+                          >
+                            <span className="truncate">Tag: {currentTag}</span>
+                            <span className="text-[9px] text-blue-400 font-normal ml-1 shrink-0">Edit</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1291,7 +1351,73 @@ const DynamicFormEngine = () => {
                         );
                       }
 
-                      if (subF.type === 'repeater') return null; // Prevent deep nesting issues if we don't handle it yet
+                      if (subF.type === 'repeater') {
+                        const nestedItems = Array.isArray(item[subF.name]) ? item[subF.name] : [];
+                        return (
+                          <div key={subF.name} className="col-span-1 md:col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2">
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="text-[12px] font-bold text-slate-700">
+                                {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updatedNested = [...nestedItems, {}];
+                                  const nextRepeater = [...repeaterItems];
+                                  nextRepeater[index] = { ...nextRepeater[index], [subF.name]: updatedNested };
+                                  handleChange(field.name, nextRepeater);
+                                }}
+                                className="text-[11px] font-bold text-blue-600 bg-white border border-blue-200 hover:bg-blue-50 px-2.5 py-1 rounded-lg transition-colors"
+                              >
+                                + Add {subF.label}
+                              </button>
+                            </div>
+                            <div className="space-y-2">
+                              {nestedItems.map((nItem, nIdx) => (
+                                <div key={nIdx} className="flex flex-col md:flex-row gap-2 items-center bg-white p-2 rounded-lg border border-slate-200 relative">
+                                  {subF.subFields?.map(nSub => (
+                                    <div key={nSub.name} className="flex-1 w-full">
+                                      <input
+                                        type={nSub.type === 'number' ? 'number' : 'text'}
+                                        placeholder={nSub.placeholder || nSub.label}
+                                        value={nItem[nSub.name] || ''}
+                                        onChange={(e) => {
+                                          let val = e.target.value;
+                                          if (nSub.type === 'number') {
+                                            val = val.replace(/[^0-9.]/g, '');
+                                          }
+                                          const updatedNested = [...nestedItems];
+                                          updatedNested[nIdx] = { ...updatedNested[nIdx], [nSub.name]: val };
+                                          const nextRepeater = [...repeaterItems];
+                                          nextRepeater[index] = { ...nextRepeater[index], [subF.name]: updatedNested };
+                                          handleChange(field.name, nextRepeater);
+                                        }}
+                                        className="border rounded-md px-2.5 py-1.5 text-[12px] w-full outline-none focus:border-blue-500"
+                                      />
+                                    </div>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedNested = [...nestedItems];
+                                      updatedNested.splice(nIdx, 1);
+                                      const nextRepeater = [...repeaterItems];
+                                      nextRepeater[index] = { ...nextRepeater[index], [subF.name]: updatedNested };
+                                      handleChange(field.name, nextRepeater);
+                                    }}
+                                    className="text-red-500 hover:text-red-700 text-sm font-bold px-2 shrink-0"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              {nestedItems.length === 0 && (
+                                <p className="text-[11px] text-slate-400 italic">No {subF.label.toLowerCase()} added yet.</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
 
                       return (
                         <div key={subF.name} className="flex flex-col">
@@ -1513,7 +1639,7 @@ const DynamicFormEngine = () => {
         </AnimatePresence>
 
         {/* Next Button */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 md:relative md:border-0 md:p-0 md:mt-10">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 z-30 md:relative md:border-0 md:p-0 md:mt-10">
           <button
             onClick={handleNext}
             className="w-full bg-[#005B9F] text-white font-bold py-3.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-[15px]"
@@ -1625,6 +1751,84 @@ const DynamicFormEngine = () => {
                 className="flex-1 py-3 text-[14px] font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all active:scale-[0.98] shadow-md shadow-blue-500/20"
               >
                 Submit
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Custom Tag Editing In-App Modal */}
+      {customTagModal.open && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-slate-100 p-6 space-y-4"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-bold text-slate-900">Add / Edit Tag</h3>
+              <button
+                type="button"
+                onClick={() => setCustomTagModal({ open: false, fieldName: '', index: null, value: '' })}
+                className="text-slate-400 hover:text-slate-600 font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Enter custom tag for this media file (e.g. Master Bedroom, Walkthrough, Site View):
+            </p>
+
+            <input
+              type="text"
+              autoFocus
+              value={customTagModal.value}
+              onChange={(e) => setCustomTagModal({ ...customTagModal, value: e.target.value })}
+              placeholder="e.g. Pooja Room, Terrace View..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:border-blue-500 focus:bg-white transition-all"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (customTagModal.value.trim()) {
+                    const tagKey = `${customTagModal.fieldName}_tags`;
+                    const currentTags = formData[tagKey] || {};
+                    handleChange(tagKey, { ...currentTags, [customTagModal.index]: customTagModal.value.trim() });
+                  }
+                  setCustomTagModal({ open: false, fieldName: '', index: null, value: '' });
+                }
+              }}
+            />
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (customTagModal.index !== null) {
+                    const tagKey = `${customTagModal.fieldName}_tags`;
+                    const currentTags = { ...(formData[tagKey] || {}) };
+                    delete currentTags[customTagModal.index];
+                    handleChange(tagKey, currentTags);
+                  }
+                  setCustomTagModal({ open: false, fieldName: '', index: null, value: '' });
+                }}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all"
+              >
+                Remove Tag
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (customTagModal.value.trim()) {
+                    const tagKey = `${customTagModal.fieldName}_tags`;
+                    const currentTags = formData[tagKey] || {};
+                    handleChange(tagKey, { ...currentTags, [customTagModal.index]: customTagModal.value.trim() });
+                  }
+                  setCustomTagModal({ open: false, fieldName: '', index: null, value: '' });
+                }}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-500/20"
+              >
+                Save Tag
               </button>
             </div>
           </motion.div>
