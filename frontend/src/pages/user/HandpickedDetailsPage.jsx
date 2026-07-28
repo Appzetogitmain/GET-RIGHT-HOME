@@ -18,7 +18,7 @@ import {
   userService
 } from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
-import SupportSection from '../../components/user/SupportSection';
+import { downloadBrochurePDF } from '../../utils/brochurePdfGenerator';
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='24' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
@@ -479,13 +479,18 @@ const HandpickedDetailsPage = () => {
     return "";
   };
 
-  const projectBrochureUrl = getCleanBrochureUrl(
-    property?.brochureUrl || 
+  const rawBrochureData = property?.brochureUrl || 
     property?.dynamicData?.brochure || 
     property?.dynamicData?.brochureUrl || 
     property?.brochure || 
-    builderDetails?.brochureUrl
-  );
+    builderDetails?.brochureUrl;
+
+  const projectBrochureUrl = getCleanBrochureUrl(rawBrochureData);
+
+  const handleBrochureDownload = () => {
+    const projTitle = property?.propertyName || property?.name || "Project";
+    downloadBrochurePDF(rawBrochureData, projTitle);
+  };
 
   // Highlights & Amenities lists
   const propertyHighlights = property?.highlights?.length > 0
@@ -941,15 +946,12 @@ const HandpickedDetailsPage = () => {
                         <p className="text-[11px] text-white/80">Floor plans, price sheets & specifications PDF</p>
                       </div>
                     </div>
-                    <a
-                      href={projectBrochureUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                      className="px-4 py-2 bg-white text-blue-700 hover:bg-blue-50 font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 shrink-0"
+                    <button
+                      onClick={handleBrochureDownload}
+                      className="px-4 py-2 bg-white text-blue-700 hover:bg-blue-50 font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
                     >
                       <Download size={14} /> Download PDF
-                    </a>
+                    </button>
                   </div>
                 )}
 
@@ -1068,9 +1070,9 @@ const HandpickedDetailsPage = () => {
                       View all {property?.amenities?.length || 11} amenities <ChevronRight className="w-4 h-4" />
                     </button>
                     {projectBrochureUrl ? (
-                      <a href={projectBrochureUrl} target="_blank" rel="noopener noreferrer" download className="w-full py-3 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-100 transition-colors">
+                      <button onClick={handleBrochureDownload} className="w-full py-3 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-100 transition-colors cursor-pointer">
                         <Download className="w-4 h-4" /> Download Official Brochure
-                      </a>
+                      </button>
                     ) : (
                       <button onClick={() => toast.error("Brochure not uploaded for this project")} className="w-full py-3 rounded-full border border-slate-200 bg-slate-50 text-slate-400 text-sm font-bold flex items-center justify-center gap-1.5 cursor-not-allowed">
                         <Download className="w-4 h-4" /> Brochure Unavailable
@@ -1964,15 +1966,12 @@ const HandpickedDetailsPage = () => {
             {/* Inline Action Buttons */}
             <div className="flex items-center gap-3">
               {projectBrochureUrl && (
-                <a
-                  href={projectBrochureUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
+                <button
+                  onClick={handleBrochureDownload}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors cursor-pointer"
                 >
                   <Download className="w-4 h-4" /> Brochure
-                </a>
+                </button>
               )}
               <button
                 onClick={() => setShowEnquiryModal(true)}
@@ -2690,13 +2689,7 @@ const HandpickedDetailsPage = () => {
       {/* Fixed Bottom Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 pb-safe md:p-4 z-[9999] flex items-center justify-between gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.08)]">
         <button
-          onClick={() => {
-            if (projectBrochureUrl) {
-              window.open(projectBrochureUrl, "_blank");
-            } else {
-              toast.error("Brochure not uploaded for this project");
-            }
-          }}
+          onClick={handleBrochureDownload}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
         >
           <Download className="w-3.5 h-3.5" /> Brochure
