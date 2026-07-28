@@ -531,6 +531,22 @@ const HandpickedDetailsPage = () => {
 
   const projectBrochureUrl = getCleanBrochureUrl(rawBrochureData);
 
+  // Property Video URL extraction & YouTube helper
+  const rawVideoUrl = property?.videoUrl || 
+    property?.dynamicData?.videoUrl || 
+    property?.dynamicData?.youtubeUrl || 
+    property?.youtubeUrl || 
+    builderDetails?.videoUrl || 
+    "";
+
+  const getYoutubeEmbedId = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/s]{11})/i);
+    return match ? match[1] : null;
+  };
+
+  const youtubeId = getYoutubeEmbedId(rawVideoUrl);
+
   const handleBrochureDownload = () => {
     const projTitle = property?.propertyName || property?.name || "Project";
     const tagsObj = property?.brochureTags || property?.propertyImages_tags || property?.dynamicData?.propertyImages_tags || property?.imageTags || {};
@@ -1106,6 +1122,42 @@ const HandpickedDetailsPage = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Project Walkthrough Video Section (YouTube Embed / Direct Video) */}
+                {rawVideoUrl && (
+                  <div className="pt-4 border-t border-slate-200/80 space-y-3">
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                        <Video className="w-5 h-5 text-blue-600" /> Official Project Walkthrough Video
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">Experience virtual video tour & real site view</p>
+                    </div>
+
+                    <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-md border border-slate-200">
+                      {youtubeId ? (
+                        <iframe
+                          title="Project Walkthrough Video"
+                          className="w-full h-full"
+                          src={`https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1&autoplay=0`}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        ></iframe>
+                      ) : (
+                        <video
+                          src={rawVideoUrl}
+                          controls
+                          controlsList="nodownload"
+                          preload="metadata"
+                          playsInline
+                          className="w-full h-full object-contain rounded-2xl"
+                          poster={pImages[0] || undefined}
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Section 1.5: Top Facilities (Amenities) */}

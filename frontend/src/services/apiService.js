@@ -67,8 +67,12 @@ api.interceptors.response.use(
     const isBlocked = error.response?.data?.isBlocked;
 
     if (status === 401 || (status === 403 && isBlocked)) {
-      // Clear invalid session metadata and redirect if not already on auth pages
+      // Clear invalid session metadata completely
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('userToken');
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('accessToken');
       if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
         console.warn("Session expired or account blocked. Redirecting to login...");
         const path = window.location.pathname;
@@ -101,8 +105,16 @@ export const authService = {
   verifyOtp: async (data) => {
     try {
       const response = await api.post('/auth/verify-otp', data);
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('userToken', response.data.token);
+      }
       if (response.data.user) {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        const userWithToken = {
+          ...response.data.user,
+          token: response.data.token || response.data.user.token
+        };
+        localStorage.setItem('user', JSON.stringify(userWithToken));
       }
       return response.data;
     } catch (error) {

@@ -852,7 +852,7 @@ const DynamicFormEngine = () => {
               </button>
             </div>
             
-            {/* Display selected files with Tags */}
+            {/* Display selected files with Tags & Video Preview Support */}
             {formData[field.name] && Array.isArray(formData[field.name]) && formData[field.name].length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
                 {formData[field.name].map((url, i) => {
@@ -860,31 +860,68 @@ const DynamicFormEngine = () => {
                   const tags = formData[tagKey] || {};
                   const currentTag = tags[i] || '';
 
+                  // Check if media URL is video or YouTube link
+                  const isVid = url && (
+                    url.match(/\.(mp4|webm|ogg|mov|mkv)(\?.*)?$/i) ||
+                    url.includes('youtube.com') ||
+                    url.includes('youtu.be') ||
+                    url.includes('video')
+                  );
+
+                  const ytMatch = url ? url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/s]{11})/i) : null;
+                  const ytId = ytMatch ? ytMatch[1] : null;
+
                   return (
                     <div key={i} className="bg-slate-50 p-2 rounded-xl border border-slate-200 relative group flex flex-col gap-1.5">
-                      <div className="h-24 w-full rounded-lg overflow-hidden relative">
-                        <img src={url} alt="upload" className="w-full h-full object-cover" />
+                      <div className="h-24 w-full rounded-lg overflow-hidden relative bg-slate-900 flex items-center justify-center">
+                        {ytId ? (
+                          <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt="video preview" className="w-full h-full object-cover" />
+                        ) : isVid ? (
+                          <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
+                        ) : (
+                          <img
+                            src={url}
+                            alt="upload preview"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback if image load fails
+                              e.target.style.display = 'none';
+                              e.target.parentNode.innerHTML = `<div class="text-[10px] text-slate-400 font-bold p-2 text-center">Media File/Video<br/>${url.slice(0, 20)}...</div>`;
+                            }}
+                          />
+                        )}
+
+                        {isVid && (
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
+                            <span className="text-white text-[10px] bg-red-600 px-1.5 py-0.5 rounded-full font-bold">▶ VIDEO</span>
+                          </div>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => {
                             const nextImages = [...(formData[field.name] || [])];
                             nextImages.splice(i, 1);
                             handleChange(field.name, nextImages);
+                            // Also clear videoUrl if removing from propertyVideos field
+                            if (field.name === 'propertyVideos' || field.name === 'videoUrl') {
+                              handleChange('videoUrl', nextImages[0] || '');
+                            }
                           }}
-                          className="absolute top-1 right-1 bg-black/70 hover:bg-black text-white p-1 rounded-full text-[10px] w-5 h-5 flex items-center justify-center transition-all"
+                          className="absolute top-1 right-1 bg-black/70 hover:bg-black text-white p-1 rounded-full text-[10px] w-5 h-5 flex items-center justify-center transition-all z-10"
                         >
                           ×
                         </button>
                       </div>
                       
-                      {/* Image Tag Dropdown + Custom Tag Option */}
+                      {/* Image/Video Tag Dropdown + Custom Tag Option */}
                       <div className="flex flex-col gap-1">
                         <select
-                          value={['Hall', 'Kitchen', 'Bedroom', 'Master Bedroom', 'Bathroom', 'Elevation', 'Floor Plan', 'Balcony'].includes(currentTag) ? currentTag : (currentTag ? 'Custom' : '')}
+                          value={['Hall', 'Kitchen', 'Bedroom', 'Master Bedroom', 'Bathroom', 'Elevation', 'Floor Plan', 'Balcony', 'Project Video'].includes(currentTag) ? currentTag : (currentTag ? 'Custom' : '')}
                           onChange={(e) => {
                             const val = e.target.value;
                             if (val === 'Custom') {
-                              const customTag = prompt('Enter custom image tag (e.g. Pooja Room, Terrace, Servant Quarter):');
+                              const customTag = prompt('Enter custom tag (e.g. Pooja Room, Walkthrough, Video Tour):');
                               if (customTag && customTag.trim()) {
                                 handleChange(tagKey, { ...tags, [i]: customTag.trim() });
                               }
@@ -894,7 +931,7 @@ const DynamicFormEngine = () => {
                           }}
                           className="text-[11px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none w-full cursor-pointer"
                         >
-                          <option value="">+ Tag Image Type</option>
+                          <option value="">+ Tag Media Type</option>
                           <option value="Hall">Hall / Living</option>
                           <option value="Kitchen">Kitchen</option>
                           <option value="Bedroom">Bedroom</option>
@@ -903,6 +940,7 @@ const DynamicFormEngine = () => {
                           <option value="Elevation">Elevation / Exterior</option>
                           <option value="Floor Plan">Floor Plan</option>
                           <option value="Balcony">Balcony / View</option>
+                          <option value="Project Video">Project Video Tour</option>
                           <option value="Custom">✏️ Add Custom Tag...</option>
                         </select>
                         {currentTag && (
