@@ -8,7 +8,8 @@ import {
   LayoutTemplate, Wind, Droplets, Zap, Award, Check, ChevronDown, Layers, Home,
   Grid, FileText, Plus, Minus, Eye, EyeOff, Calendar, Send, Sparkles, Building,
   TrendingUp, ThumbsUp, ThumbsDown, CheckCircle2, AlertTriangle, AlertCircle,
-  Search, Download, Map, Filter, Leaf, Activity, Dumbbell, Key, Clock
+  Search, Download, Map, Filter, Leaf, Activity, Dumbbell, Key, Clock,
+  Car, Flame, Coffee, Trees, Wifi, Waves, ShieldCheck, Film, Smile, Utensils, Landmark
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -18,7 +19,30 @@ import {
   userService
 } from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
+import SupportSection from '../../components/user/SupportSection';
 import { downloadBrochurePDF } from '../../utils/brochurePdfGenerator';
+
+const getAmenityIcon = (name) => {
+  if (!name || typeof name !== 'string') return <Sparkles className="w-4 h-4 text-blue-500" />;
+  const str = name.toLowerCase();
+  if (str.includes('pool') || str.includes('swimming')) return <Waves className="w-4 h-4 text-cyan-500" />;
+  if (str.includes('gym') || str.includes('fitness') || str.includes('workout')) return <Dumbbell className="w-4 h-4 text-emerald-500" />;
+  if (str.includes('club') || str.includes('house')) return <Building className="w-4 h-4 text-indigo-500" />;
+  if (str.includes('park') || str.includes('garden') || str.includes('landscape') || str.includes('tree')) return <Leaf className="w-4 h-4 text-emerald-600" />;
+  if (str.includes('ev') || str.includes('charging') || str.includes('electric')) return <Zap className="w-4 h-4 text-amber-500" />;
+  if (str.includes('security') || str.includes('cctv') || str.includes('biometric') || str.includes('guard')) return <ShieldCheck className="w-4 h-4 text-purple-500" />;
+  if (str.includes('jog') || str.includes('track') || str.includes('walk')) return <Activity className="w-4 h-4 text-rose-500" />;
+  if (str.includes('theatre') || str.includes('cinema') || str.includes('movie')) return <Film className="w-4 h-4 text-red-500" />;
+  if (str.includes('play') || str.includes('kid') || str.includes('child')) return <Smile className="w-4 h-4 text-orange-500" />;
+  if (str.includes('car') || str.includes('park') || str.includes('garage')) return <Car className="w-4 h-4 text-blue-600" />;
+  if (str.includes('water') || str.includes('supply')) return <Droplets className="w-4 h-4 text-cyan-600" />;
+  if (str.includes('power') || str.includes('backup') || str.includes('generator')) return <Flame className="w-4 h-4 text-amber-600" />;
+  if (str.includes('wifi') || str.includes('internet')) return <Wifi className="w-4 h-4 text-blue-500" />;
+  if (str.includes('cafe') || str.includes('coffee') || str.includes('lounge')) return <Coffee className="w-4 h-4 text-amber-700" />;
+  if (str.includes('court') || str.includes('squash') || str.includes('tennis') || str.includes('badminton') || str.includes('game')) return <Activity className="w-4 h-4 text-indigo-600" />;
+  if (str.includes('hall') || str.includes('multipurpose')) return <Home className="w-4 h-4 text-slate-700" />;
+  return <Sparkles className="w-4 h-4 text-blue-500" />;
+};
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='24' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
@@ -104,15 +128,19 @@ const HandpickedDetailsPage = () => {
 
   const thumbnailContainerRef = useRef(null);
 
-  // Auto scroll selected thumbnail into view when currentImgIndex changes
+  // Auto scroll selected thumbnail into view inside thumbnail container ONLY (without scrolling main window)
   useEffect(() => {
     if (thumbnailContainerRef.current) {
-      const selectedThumb = thumbnailContainerRef.current.children[currentImgIndex];
+      const container = thumbnailContainerRef.current;
+      const selectedThumb = container.children[currentImgIndex];
       if (selectedThumb) {
-        selectedThumb.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest',
-          inline: 'center'
+        const thumbLeft = selectedThumb.offsetLeft;
+        const thumbWidth = selectedThumb.offsetWidth;
+        const containerWidth = container.offsetWidth;
+        const targetScrollLeft = thumbLeft - (containerWidth / 2) + (thumbWidth / 2);
+        container.scrollTo({
+          left: Math.max(0, targetScrollLeft),
+          behavior: 'smooth'
         });
       }
     }
@@ -505,7 +533,8 @@ const HandpickedDetailsPage = () => {
 
   const handleBrochureDownload = () => {
     const projTitle = property?.propertyName || property?.name || "Project";
-    downloadBrochurePDF(rawBrochureData, projTitle);
+    const tagsObj = property?.brochureTags || property?.propertyImages_tags || property?.dynamicData?.propertyImages_tags || property?.imageTags || {};
+    downloadBrochurePDF(rawBrochureData, projTitle, tagsObj);
   };
 
   // Highlights & Amenities lists
@@ -642,6 +671,20 @@ const HandpickedDetailsPage = () => {
   if (minFloorPlanPrice > 0 && rawPrice === minFloorPlanPrice && !property?.buyDetails?.expectedPrice) {
     dispPriceStr = `${dispPriceStr} Onwards`;
   }
+
+  // Full Address Extractor
+  const addr = property?.address || {};
+  const fullAddressParts = [
+    addr.addressLine1 || addr.street || addr.landmark,
+    addr.subLocality || addr.area,
+    addr.locality,
+    addr.city,
+    addr.state,
+    addr.pincode
+  ].filter(Boolean);
+  const fullAddressStr = fullAddressParts.length > 0 
+    ? fullAddressParts.join(', ')
+    : (property?.location || property?.city || 'Location available upon request');
 
   const getCarpetOrPriceString = () => {
     let price = rawPrice;
@@ -955,21 +998,23 @@ const HandpickedDetailsPage = () => {
                 
                 {/* Official Project Brochure Card */}
                 {projectBrochureUrl && (
-                  <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-4 flex items-center justify-between shadow-md">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                        <FileText size={20} className="text-white" />
+                  <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/20">
+                        <FileText size={22} className="text-white" />
                       </div>
-                      <div>
-                        <h4 className="font-bold text-sm">Official Project Brochure</h4>
-                        <p className="text-[11px] text-white/80">Floor plans, price sheets & specifications PDF</p>
+                      <div className="min-w-0">
+                        <h4 className="font-extrabold text-sm sm:text-base tracking-tight text-white leading-snug">Official Project Brochure</h4>
+                        <p className="text-[11px] sm:text-xs text-blue-100 mt-0.5 font-medium leading-relaxed">
+                          Floor plans, price sheets & specifications PDF
+                        </p>
                       </div>
                     </div>
                     <button
                       onClick={handleBrochureDownload}
-                      className="px-4 py-2 bg-white text-blue-700 hover:bg-blue-50 font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+                      className="w-full sm:w-auto py-2.5 px-5 bg-white text-blue-700 hover:bg-blue-50 font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95"
                     >
-                      <Download size={14} /> Download PDF
+                      <Download size={15} className="text-blue-600" /> Download PDF
                     </button>
                   </div>
                 )}
@@ -978,26 +1023,53 @@ const HandpickedDetailsPage = () => {
                   <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
                     <Building className="w-5 h-5 text-blue-500" /> Project Architectural Highlights
                   </h2>
-                  <p className="text-slate-500 text-sm mt-1">High-end specifications curated by Get-Right-home analysts</p>
+                  <p className="text-slate-500 text-xs sm:text-sm mt-1">High-end specifications curated by Get-Right-home analysts</p>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-100/40 p-4 rounded-xl border border-slate-300/50">
-                    <span className="text-xs text-slate-500 block font-medium">Density Configuration</span>
-                    <span className="text-base font-bold text-slate-900 mt-1 block">{densityType}</span>
-                    <span className="text-[10px] text-blue-500 mt-0.5 block">{projectDensity}</span>
-                  </div>
-                  <div className="bg-slate-100/40 p-4 rounded-xl border border-slate-300/50">
-                    <span className="text-xs text-slate-500 block font-medium">Total Area Spread</span>
-                    <span className="text-base font-bold text-slate-900 mt-1 block">
-                      {totalArea ? `${totalArea} ${totalAreaUnit}` : 'N/A'}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 hover:border-blue-300/60 transition-all space-y-1 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg shrink-0">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Density Configuration</span>
+                    </div>
+                    <span className="text-sm sm:text-base font-extrabold text-slate-900 block pt-1 leading-snug">
+                      {densityType || "Master Planned Layout"}
                     </span>
-                    <span className="text-[10px] text-blue-500 mt-0.5 block">{openAreaPercentage > 0 ? `${openAreaPercentage}% Land Open & Green` : 'Green Layout'}</span>
+                    <span className="text-[11px] font-bold text-blue-600 block pt-0.5">
+                      {projectDensity || "Low Density Development"}
+                    </span>
                   </div>
-                  <div className="bg-slate-100/40 p-4 rounded-xl border border-slate-300/50">
-                    <span className="text-xs text-slate-500 block font-medium">Towers & Height</span>
-                    <span className="text-base font-bold text-slate-900 mt-1 block">{(totalTowers || towersList?.length || 0)} Structural Towers</span>
-                    <span className="text-[10px] text-blue-500 mt-0.5 block">{towersList[0]?.floors ? `Avg ${towersList[0].floors} Floors / Tower` : 'Multi-story Blocks'}</span>
+
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 hover:border-blue-300/60 transition-all space-y-1 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg shrink-0">
+                        <Leaf className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Area Spread</span>
+                    </div>
+                    <span className="text-sm sm:text-base font-extrabold text-slate-900 block pt-1 leading-snug">
+                      {totalArea ? `${totalArea} ${totalAreaUnit}` : 'Spread Across Acres'}
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-600 block pt-0.5">
+                      {openAreaPercentage > 0 ? `${openAreaPercentage}% Land Open & Green` : 'Green Landscaped Layout'}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 hover:border-blue-300/60 transition-all space-y-1 shadow-sm sm:col-span-2 md:col-span-1">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-purple-100 text-purple-600 rounded-lg shrink-0">
+                        <Building className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Towers & Height</span>
+                    </div>
+                    <span className="text-sm sm:text-base font-extrabold text-slate-900 block pt-1 leading-snug">
+                      {(totalTowers || towersList?.length || 0) > 0 ? `${(totalTowers || towersList?.length)} Structural Towers` : 'Multi-block Towers'}
+                    </span>
+                    <span className="text-[11px] font-bold text-purple-600 block pt-0.5">
+                      {towersList[0]?.floors ? `Avg ${towersList[0].floors} Floors / Tower` : 'Multi-story Blocks'}
+                    </span>
                   </div>
                 </div>
 
@@ -1028,7 +1100,7 @@ const HandpickedDetailsPage = () => {
                     {property?.description || "No detailed description provided for this project."}
                   </p>
                   {property?.dynamicCategory && (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs text-purple-300">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-100 rounded-full text-xs font-bold text-blue-700">
                       <Tag className="w-3.5 h-3.5" />
                       <span>Categorized Premium Project</span>
                     </div>
@@ -1127,60 +1199,82 @@ const HandpickedDetailsPage = () => {
                 </div>
 
                 {isApartmentOrVilla && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {floorPlansList.map((plan, i) => (
-                      <div key={i} className="bg-slate-100/40 border border-slate-300/50 rounded-2xl overflow-hidden hover:border-blue-500/50 transition-all flex flex-col justify-between">
-                        <div className="p-5 space-y-4">
-                          <div className="flex justify-between items-start gap-2">
-                            <div>
-                              <span className="px-2 py-0.5 bg-blue-900/40 text-purple-300 border border-blue-800/40 text-[10px] font-bold uppercase rounded tracking-wider">
-                                {plan.planType || plan.type || (property?.propertyType ? `${property.propertyType.toUpperCase()} PLAN` : 'FLOOR PLAN')}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {floorPlansList.map((plan, i) => {
+                      const carpetStr = plan.carpetArea ? (sqftUnit ? `${plan.carpetArea} sqft` : `${(plan.carpetArea * 0.0929).toFixed(1)} sqm`) : 'N/A';
+                      const superStr = (plan.superArea || plan.superBuiltUpArea) ? (sqftUnit ? `${plan.superArea || plan.superBuiltUpArea} sqft` : `${((plan.superArea || plan.superBuiltUpArea) * 0.0929).toFixed(1)} sqm`) : 'N/A';
+                      const priceStr = formatPlanPrice(plan.price);
+                      const configTitle = plan.configName || plan.configType || plan.configuration || plan.name || plan.title || 'Standard Layout';
+                      const isReady = String(plan.possessionStatus || '').toLowerCase().includes('ready');
+
+                      return (
+                        <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs hover:border-blue-400 hover:shadow-md transition-all flex flex-col justify-between gap-4">
+                          {/* Card Header: Single-line Title & Status Badge */}
+                          <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 font-extrabold text-[10px] rounded-md uppercase tracking-wider shrink-0">
+                                {plan.planType || plan.type || (property?.propertyType ? `${property.propertyType}` : 'Plan')}
                               </span>
-                              <h4 className="text-lg font-bold text-slate-900 mt-1 uppercase">
-                                {plan.configName || plan.configType || plan.configuration || plan.name || plan.title || 'Standard Layout'}
+                              <h4 className="text-base sm:text-lg font-black text-slate-900 truncate">
+                                {configTitle}
                               </h4>
                             </div>
-                            <span className={`text-xs font-semibold px-2 py-1 rounded border shrink-0 ${
-                              String(plan.possessionStatus || '').toLowerCase().includes('ready')
-                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                                : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                            <span className={`text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap ${
+                              isReady
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-amber-50 text-amber-700'
                             }`}>
-                              {plan.possessionStatus || (plan.possessionDate ? `Possession: ${plan.possessionDate}` : (builderDetails?.possessionYear ? `Possession: ${builderDetails.possessionYear}` : 'Contact for Date'))}
+                              {plan.possessionStatus || (plan.possessionDate ? `Possession: ${plan.possessionDate}` : 'Available')}
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-3 gap-2 text-xs">
-                            <div>
-                              <span className="text-slate-500 block font-medium">Carpet Area</span>
-                              <span className="text-sm font-bold text-slate-900">
-                                {plan.carpetArea ? (sqftUnit ? `${plan.carpetArea} sqft` : `${(plan.carpetArea * 0.0929).toFixed(1)} sqm`) : 'N/A'}
-                              </span>
+                          {/* Metrics Grid: Exact 3-Color Accent Structure (Blue, Emerald, Purple) */}
+                          <div className="grid grid-cols-3 gap-2 py-1">
+                            {/* 1. Carpet Area (Blue Accent) */}
+                            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/80 space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <div className="p-1 bg-blue-100 text-blue-600 rounded-md shrink-0">
+                                  <Layers className="w-3 h-3" />
+                                </div>
+                                <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Carpet</span>
+                              </div>
+                              <span className="text-xs sm:text-sm font-black text-slate-900 block truncate leading-none pt-0.5">{carpetStr}</span>
                             </div>
-                            <div>
-                              <span className="text-slate-500 block font-medium">Super Built-up</span>
-                              <span className="text-sm font-bold text-slate-900">
-                                {(plan.superArea || plan.superBuiltUpArea) ? (sqftUnit ? `${plan.superArea || plan.superBuiltUpArea} sqft` : `${((plan.superArea || plan.superBuiltUpArea) * 0.0929).toFixed(1)} sqm`) : 'N/A'}
-                              </span>
+
+                            {/* 2. Super Area (Emerald Accent) */}
+                            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/80 space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <div className="p-1 bg-emerald-100 text-emerald-600 rounded-md shrink-0">
+                                  <Leaf className="w-3 h-3" />
+                                </div>
+                                <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Super Built</span>
+                              </div>
+                              <span className="text-xs sm:text-sm font-black text-slate-900 block truncate leading-none pt-0.5">{superStr}</span>
+                              <span className="text-[9px] font-bold text-emerald-600 block truncate leading-none">Green Built</span>
                             </div>
-                            <div>
-                              <span className="text-slate-500 block font-medium">Starting Price</span>
-                              <span className="text-sm font-bold text-blue-600">
-                                {formatPlanPrice(plan.price)}
-                              </span>
+
+                            {/* 3. Starting Price (Purple/Indigo Accent) */}
+                            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/80 space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <div className="p-1 bg-purple-100 text-purple-600 rounded-md shrink-0">
+                                  <Tag className="w-3 h-3" />
+                                </div>
+                                <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Price</span>
+                              </div>
+                              <span className="text-xs sm:text-sm font-black text-purple-600 block truncate leading-none pt-0.5">{priceStr}</span>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="px-5 pb-5 pt-0">
+                          {/* Single-line Action Button */}
                           <button
                             onClick={() => setSelectedFloorPlan(plan)}
-                            className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-bold text-slate-800 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                            className="w-full py-2.5 bg-slate-50 hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-slate-200 hover:border-blue-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap active:scale-[0.99]"
                           >
-                            <Maximize2 className="w-3.5 h-3.5 text-blue-500" /> View Layout & Dimensions
+                            <Maximize2 className="w-3.5 h-3.5" /> View Dimensions & Layout
                           </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
@@ -1238,37 +1332,47 @@ const HandpickedDetailsPage = () => {
                     <p className="text-slate-500 text-sm mt-1">Review milestone schedules and subvention terms</p>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {paymentPlansList.map((plan, i) => {
                       const docUrl = getPaymentPlanDocUrl(plan);
                       const hasMilestones = plan.milestones && plan.milestones.length > 0;
+                      const planTitle = plan.planName || plan.name || plan.title || 'Construction Linked Payment Plan';
 
                       return (
-                        <div key={i} className="bg-slate-100/30 border border-slate-200/80 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                              <Award className="w-4 h-4 text-blue-500" /> {plan.planName || plan.name || plan.title || 'Custom Payment Plan'}
+                        <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-blue-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg shrink-0">
+                                <Award className="w-4 h-4" />
+                              </div>
+                              <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider">
+                                Payment Schedule Option
+                              </span>
+                            </div>
+                            <h4 className="text-base sm:text-lg font-extrabold text-slate-900 pt-0.5 leading-snug">
+                              {planTitle}
                             </h4>
-                            <p className="text-xs text-slate-500 mt-1">
-                              {hasMilestones ? `Divided into ${plan.milestones.length} construction milestones` : (docUrl ? 'Payment schedule document uploaded' : 'Custom payment schedule available')}
+                            <p className="text-xs text-slate-500 leading-relaxed pt-0.5">
+                              {hasMilestones ? `Structured into ${plan.milestones.length} verified construction milestones` : (docUrl ? 'Official schedule document uploaded by developer' : 'Custom payment schedule available upon inquiry')}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2 flex-wrap">
+
+                          <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                             {docUrl && (
                               <a
                                 href={docUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="py-2 px-4 bg-slate-200 hover:bg-slate-300 text-xs font-bold text-slate-800 rounded-xl transition-all flex items-center gap-1.5"
+                                className="flex-1 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-800 rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0"
                               >
-                                <FileText className="w-3.5 h-3.5 text-blue-600" /> View Document / Image
+                                <FileText className="w-3.5 h-3.5 text-blue-600" /> View Document
                               </a>
                             )}
                             <button
                               onClick={() => setSelectedPaymentPlan({ ...plan, docUrl })}
-                              className="py-2 px-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 text-xs font-bold text-blue-500 rounded-xl transition-all"
+                              className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-1 shrink-0 cursor-pointer active:scale-[0.99]"
                             >
-                              {hasMilestones ? 'View Milestone Percentages' : 'View Plan Details'}
+                              {hasMilestones ? 'View Milestones' : 'View Plan Details'}
                             </button>
                           </div>
                         </div>
@@ -1290,19 +1394,44 @@ const HandpickedDetailsPage = () => {
                 {isApartmentOrVilla && (
                   <div className="space-y-6">
                     {towersList && towersList.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {towersList.map((tower, idx) => (
-                          <div key={idx} className="bg-slate-100/30 border border-slate-200 rounded-xl p-4 space-y-2">
-                            <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
-                              <span>{tower.towerName || tower.name || `Tower ${idx + 1}`}</span>
+                          <div key={idx} className="bg-white border border-slate-200/90 rounded-2xl p-4.5 shadow-xs hover:border-blue-400 hover:shadow-md transition-all space-y-3">
+                            <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg shrink-0">
+                                  <Building className="w-4 h-4" />
+                                </div>
+                                <h4 className="text-base font-extrabold text-slate-900 truncate">
+                                  {tower.towerName || tower.name || `Tower ${idx + 1}`}
+                                </h4>
+                              </div>
                               {tower.phase && (
-                                <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 font-bold rounded uppercase tracking-wider">{tower.phase}</span>
+                                <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 font-extrabold rounded-md uppercase tracking-wider shrink-0">
+                                  {tower.phase}
+                                </span>
                               )}
-                            </h4>
-                            <div className="text-[11px] text-slate-500 space-y-1">
-                              {tower.configurations && <p>Configurations: <span className="font-semibold text-slate-700">{tower.configurations}</span></p>}
-                              {tower.floors && <p>Total Floors: <span className="font-semibold text-slate-700">{tower.floors} Levels</span></p>}
-                              {tower.completionDate && <p>Completion Date: <span className="font-semibold text-slate-700">{isNaN(Date.parse(tower.completionDate)) ? tower.completionDate : new Date(tower.completionDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span></p>}
+                            </div>
+
+                            <div className="space-y-1.5 text-xs text-slate-600 pt-0.5">
+                              {tower.configurations && (
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[11px] text-slate-400 font-bold">Configs</span>
+                                  <span className="font-extrabold text-slate-900">{tower.configurations}</span>
+                                </div>
+                              )}
+                              {tower.floors && (
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[11px] text-slate-400 font-bold">Total Floors</span>
+                                  <span className="font-extrabold text-slate-900">{tower.floors} Levels</span>
+                                </div>
+                              )}
+                              {tower.completionDate && (
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[11px] text-slate-400 font-bold">Target Date</span>
+                                  <span className="font-extrabold text-blue-600">{isNaN(Date.parse(tower.completionDate)) ? tower.completionDate : new Date(tower.completionDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1313,20 +1442,26 @@ const HandpickedDetailsPage = () => {
                       </div>
                     )}
 
-                    <div className="bg-slate-100/40 border border-slate-300/50 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
-                      <div className="space-y-2">
-                        <h4 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-5 h-5 text-emerald-400" /> Structural Safety & Construction Specifications
-                        </h4>
-                        <p className="text-xs text-slate-500 max-w-lg">
-                          Built with earthquake-resistant RCC frame structure and premium materials.
-                        </p>
+                    {/* Structural Safety Card with Single-Line Button */}
+                    <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-blue-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-xl shrink-0 mt-0.5">
+                          <CheckCircle2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-extrabold text-slate-900 leading-snug">
+                            Structural Safety & Construction Specifications
+                          </h4>
+                          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                            Built with earthquake-resistant RCC frame structure and premium audited materials.
+                          </p>
+                        </div>
                       </div>
                       <button
                         onClick={() => setShowInteriorsModal(true)}
-                        className="py-3 px-6 bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-blue-600/20"
+                        className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 shrink-0 whitespace-nowrap cursor-pointer active:scale-[0.99]"
                       >
-                        <Shield className="w-4 h-4" /> View Technical Materials Spec-Sheet
+                        <Shield className="w-4 h-4" /> View Technical Spec-Sheet
                       </button>
                     </div>
                   </div>
@@ -1397,15 +1532,20 @@ const HandpickedDetailsPage = () => {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {(property?.amenities?.length > 0 ? property.amenities.slice(0, 8) : ["Clubhouse", "Swimming Pool", "Biometric Lobby", "EV Charging Station", "Jogging Track", "24/7 Security", "Central Park", "Mini Theatre"]).map((am, i) => (
-                    <div key={i} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 text-xs text-slate-800 shadow-sm hover:border-blue-200 transition-colors">
-                      <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
-                        <Check className="w-3.5 h-3.5" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5">
+                  {(property?.amenities && property.amenities.length > 0 ? property.amenities.slice(0, 8) : []).map((am, i) => (
+                    <div key={i} className="p-2.5 sm:p-3 bg-white border border-slate-200/90 rounded-2xl flex items-center gap-2.5 text-xs text-slate-800 shadow-sm hover:border-blue-300 transition-all hover:shadow-md group">
+                      <div className="p-1.5 sm:p-2 bg-blue-50 border border-blue-100 rounded-xl group-hover:scale-110 transition-transform shrink-0">
+                        {getAmenityIcon(am)}
                       </div>
-                      <span className="font-medium truncate">{am}</span>
+                      <span className="font-bold text-slate-900 text-[11px] sm:text-xs leading-snug break-words flex-1 min-w-0">{am}</span>
                     </div>
                   ))}
+                  {(!property?.amenities || property.amenities.length === 0) && (
+                    <div className="col-span-2 md:col-span-4 p-4 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200">
+                      No specific amenities listed yet for this project.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1418,15 +1558,45 @@ const HandpickedDetailsPage = () => {
                   <p className="text-slate-500 text-sm mt-1">What resident locals and safety maps tell about this sector</p>
                 </div>
 
-                {/* Map Preview Mock */}
-                <div className="relative h-48 w-full rounded-2xl overflow-hidden border border-slate-200 bg-white">
-                  <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]"></div>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center space-y-2">
-                    <div className="p-3 bg-blue-600 text-white rounded-full animate-bounce shadow-lg shadow-blue-600/30">
-                      <MapPin className="w-6 h-6" />
+                {/* Interactive Location & Google Map Card */}
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 space-y-4 shadow-xs hover:border-blue-300 transition-all">
+                  {/* Top Bar: Location Address & Action Button */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl shrink-0 mt-0.5">
+                        <MapPin className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] uppercase font-extrabold text-blue-600 tracking-wider block">
+                          Project Location Address
+                        </span>
+                        <h4 className="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5 leading-snug break-words">
+                          {fullAddressStr}
+                        </h4>
+                      </div>
                     </div>
-                    <p className="text-xs font-bold text-slate-800 mt-2">{property?.address?.locality}, {property?.address?.city}</p>
-                    <p className="text-[10px] text-slate-500">Interactive geo-map features loaded upon request</p>
+
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((property?.propertyName || '') + ' ' + fullAddressStr)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-[0.99]"
+                    >
+                      <Compass className="w-4 h-4" /> Open in Maps
+                    </a>
+                  </div>
+
+                  {/* Dynamic Google Map Frame / Preview */}
+                  <div className="relative h-44 w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+                    <iframe
+                      title="Project Location Map"
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      allowFullScreen
+                      src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAP_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}&q=${encodeURIComponent((property?.propertyName || '') + ' ' + fullAddressStr)}`}
+                    ></iframe>
                   </div>
                 </div>
 
@@ -1966,7 +2136,7 @@ const HandpickedDetailsPage = () => {
         ) : (
           /* Properties Tab Active - Dynamic Floor Plans & Configurations */
           <div className="space-y-6 pt-2">
-            {/* Filter Pills */}
+            {/* Filter Pills - Commented out for now
             <div className="flex gap-2 items-center overflow-x-auto scrollbar-none px-1 pb-1">
               <button className="flex-shrink-0 p-2 border border-slate-200 rounded-full text-slate-500 hover:bg-slate-50">
                 <Filter className="w-4 h-4" />
@@ -1981,6 +2151,7 @@ const HandpickedDetailsPage = () => {
                 </button>
               ))}
             </div>
+            */}
 
             {/* Inline Action Buttons */}
             <div className="flex items-center gap-3">
@@ -2343,15 +2514,20 @@ const HandpickedDetailsPage = () => {
                 </button>
               </div>
 
-              <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-4 flex-1 overflow-y-auto">
-                {(property?.amenities?.length > 0 ? property.amenities : ["Clubhouse", "Swimming Pool", "Biometric Lobby", "EV Charging Station", "Jogging Track", "24/7 Security", "Central Park", "Mini Theatre", "Gymnasium", "Indoor Squash Court", "Kid's Play Area", "Visitor's Lounge"]).map((am, i) => (
-                  <div key={i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2.5 text-xs text-slate-800 shadow-sm">
-                    <div className="p-1.5 bg-blue-100 text-blue-600 rounded">
-                      <Check className="w-3.5 h-3.5" />
+              <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3.5 flex-1 overflow-y-auto">
+                {(property?.amenities && property.amenities.length > 0 ? property.amenities : []).map((am, i) => (
+                  <div key={i} className="p-3 sm:p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-2xl flex items-center gap-3 text-xs text-slate-800 shadow-sm hover:bg-white hover:border-blue-300 transition-all group">
+                    <div className="p-2 bg-white border border-slate-200 rounded-xl group-hover:scale-110 transition-transform shrink-0 shadow-sm">
+                      {getAmenityIcon(am)}
                     </div>
-                    <span className="font-medium truncate">{am}</span>
+                    <span className="font-bold text-slate-900 text-xs leading-snug break-words flex-1 min-w-0">{am}</span>
                   </div>
                 ))}
+                {(!property?.amenities || property.amenities.length === 0) && (
+                  <div className="col-span-full p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200">
+                    No amenities details added for this property.
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
@@ -2366,50 +2542,91 @@ const HandpickedDetailsPage = () => {
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-white rounded-3xl shadow-2xl flex flex-col w-full max-w-3xl max-h-[90vh] overflow-hidden"
             >
-              <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
-                    <Shield className="w-5.5 h-5.5 text-blue-500" /> Technical Material Spec-Sheet
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Detailed engineering materials, doors, wiring specifications</p>
+              {/* Modal Header: Single-line title for mobile & desktop */}
+              <div className="p-4 sm:p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-3 min-w-0 pr-2">
+                  <div className="p-2 bg-blue-100 text-blue-600 rounded-xl shrink-0">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-lg font-black text-slate-900 truncate leading-snug">
+                      Technical Material Spec-Sheet
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">
+                      Detailed engineering materials & specifications
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={() => setShowInteriorsModal(false)}
-                  className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-full transition-all"
+                  className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-full transition-all shrink-0"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none text-xs font-semibold shrink-0">
-                {Object.keys(constructionSpecs).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveInteriorTab(tab)}
-                    className={`px-5 py-3 transition-colors capitalize ${activeInteriorTab === tab ? 'text-blue-600 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-800'
+              {/* Category Tabs with Multi-color Icons */}
+              <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none text-xs font-bold shrink-0 bg-slate-50/50 px-3 pt-2 gap-2">
+                {Object.keys(constructionSpecs).map((tab, idx) => {
+                  let TabIcon = Layers;
+                  let colorClass = 'text-blue-600';
+                  if (tab.toLowerCase().includes('floor')) { TabIcon = Grid; colorClass = 'text-blue-600'; }
+                  else if (tab.toLowerCase().includes('toilet') || tab.toLowerCase().includes('bath')) { TabIcon = Droplets; colorClass = 'text-emerald-600'; }
+                  else if (tab.toLowerCase().includes('door') || tab.toLowerCase().includes('window')) { TabIcon = Key; colorClass = 'text-purple-600'; }
+                  else if (tab.toLowerCase().includes('electric') || tab.toLowerCase().includes('wire')) { TabIcon = Zap; colorClass = 'text-amber-500'; }
+
+                  const isActive = activeInteriorTab === tab;
+
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveInteriorTab(tab)}
+                      className={`px-4 py-2.5 rounded-t-xl transition-all flex items-center gap-1.5 capitalize whitespace-nowrap ${
+                        isActive
+                          ? `bg-white ${colorClass} border-t-2 border-x border-t-current border-x-slate-200 font-extrabold shadow-xs`
+                          : 'text-slate-500 hover:text-slate-800'
                       }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
+                    >
+                      <TabIcon className={`w-3.5 h-3.5 ${isActive ? colorClass : 'text-slate-400'}`} />
+                      {tab}
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="p-5 flex-1 overflow-y-auto space-y-4">
-                <div className="bg-slate-955 rounded-2xl p-5 border border-slate-200/80">
-                  <h4 className="text-sm font-bold text-slate-800 capitalize">{activeInteriorTab} Specifications</h4>
-                  <div className="mt-3.5 space-y-3">
-                    {Object.entries(constructionSpecs[activeInteriorTab] || {}).map(([key, val]) => (
-                      <div key={key} className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 text-xs p-3 bg-slate-100/35 border border-slate-200 rounded-xl">
-                        <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px] w-40 flex-shrink-0">{key.replace(/([A-Z])/g, ' $1')}</span>
-                        <span className="text-slate-800 font-medium sm:text-right">{val}</span>
+              {/* Content Body: 3-Color Palette Rotation (Blue, Emerald Green, Purple) */}
+              <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3.5">
+                <div className="space-y-3">
+                  {Object.entries(constructionSpecs[activeInteriorTab] || {}).map(([key, val], idx) => {
+                    // Color rotation: 0 = Blue, 1 = Emerald Green, 2 = Purple
+                    const colorIndex = idx % 3;
+                    const colorStyles = [
+                      { bg: 'bg-blue-100', text: 'text-blue-600', border: 'hover:border-blue-300' },
+                      { bg: 'bg-emerald-100', text: 'text-emerald-600', border: 'hover:border-emerald-300' },
+                      { bg: 'bg-purple-100', text: 'text-purple-600', border: 'hover:border-purple-300' }
+                    ][colorIndex];
+
+                    return (
+                      <div key={key} className={`bg-slate-50/80 border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 space-y-1.5 shadow-xs ${colorStyles.border} transition-all`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`p-1 ${colorStyles.bg} ${colorStyles.text} rounded-md shrink-0`}>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </div>
+                          <span className={`text-[10px] font-extrabold uppercase tracking-wider ${colorStyles.text}`}>
+                            {key.replace(/([A-Z])/g, ' $1')}
+                          </span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold text-slate-900 leading-relaxed pl-6">
+                          {val}
+                        </p>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
 
-                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-start gap-2.5 text-xs text-blue-600 mt-4">
-                  <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <span>Quality checked on site by Get-Right-home construction auditing team. ISO 9001 certifications verified.</span>
+                <div className="bg-blue-50/80 border border-blue-100 p-3.5 rounded-2xl flex items-start gap-3 text-xs text-blue-700 mt-4">
+                  <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-600" />
+                  <span className="font-semibold">Quality checked on site by Get-Right-home construction auditing team. ISO 9001 certifications verified.</span>
                 </div>
               </div>
             </motion.div>
