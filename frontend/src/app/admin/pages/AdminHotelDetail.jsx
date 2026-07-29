@@ -711,8 +711,9 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
     }
 
     // Sync verification status with property approval status
-    const status = documents?.verificationStatus || hotel.status || (hotel.isApproved ? 'approved' : 'pending');
-    const isApprovedState = status === 'verified' || status === 'approved' || hotel.isApproved === true || hotel.status === 'approved';
+    const rawStatus = hotel.status || documents?.verificationStatus || (hotel.isApproved ? 'approved' : 'pending');
+    const isApprovedState = rawStatus === 'verified' || rawStatus === 'approved' || hotel.isApproved === true || hotel.isLive === true;
+    const status = isApprovedState ? 'approved' : rawStatus;
 
     return (
         <div className="space-y-6">

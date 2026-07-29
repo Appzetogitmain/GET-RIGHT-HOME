@@ -283,6 +283,8 @@ export const createProperty = async (req, res) => {
       userId: (isUser || isAdmin) ? req.user._id : null,
       isAddedByUser: isUser,
       isAddedByAdmin: isAdmin,
+      isProject: Boolean(req.body.isProject),
+      listingType: req.body.isProject ? 'project' : 'property',
       address: addressValue,
       location: locationValue,
       nearbyPlaces: nearbyPlacesArray,

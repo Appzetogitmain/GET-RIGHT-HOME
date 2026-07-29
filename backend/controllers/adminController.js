@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Partner from '../models/Partner.js';
 import InfoPage from '../models/InfoPage.js';
@@ -483,17 +484,28 @@ export const updateAdminProject = async (req, res) => {
 
 export const deleteProject = async (req, res) => {
   try {
-    const { projectId } = req.body;
-    const project = await Project.findByIdAndDelete(projectId);
+    const projectId = req.body?.projectId || req.query?.projectId || req.params?.id || req.body?.id;
+    if (!projectId) {
+      return res.status(400).json({ success: false, message: 'Project ID is required' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ success: false, message: 'Invalid Project ID format' });
+    }
+
+    let project = await Project.findByIdAndDelete(projectId).catch(() => null);
+    if (!project) {
+      project = await Property.findByIdAndDelete(projectId).catch(() => null);
+    }
     
     if (!project) {
-      return res.status(404).json({ success: false, message: 'Project not found' });
+      return res.status(404).json({ success: false, message: 'Project not found in records' });
     }
 
     res.status(200).json({ success: true, message: 'Project deleted successfully' });
   } catch (error) {
     console.error('Error deleting project:', error);
-    res.status(500).json({ success: false, message: 'Server error deleting project' });
+    res.status(500).json({ success: false, message: 'Server error deleting project', error: error.message });
   }
 };
 
@@ -667,10 +679,24 @@ export const updateHotelStatus = async (req, res) => {
 export const verifyPropertyDocuments = async (req, res) => {
   try {
     const { propertyId, action, adminRemark } = req.body;
-    const property = await Property.findById(propertyId);
-    if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
-    const docs = await PropertyDocument.findOne({ propertyId });
-    if (!docs) return res.status(404).json({ success: false, message: 'Documents not found' });
+    let property = await Property.findById(propertyId);
+    let isProjectModel = false;
+
+    if (!property) {
+      property = await Project.findById(propertyId);
+      isProjectModel = true;
+    }
+
+    if (!property) return res.status(404).json({ success: false, message: 'Property / Project not found' });
+    
+    let docs = await PropertyDocument.findOne({ propertyId });
+    if (!docs) {
+      docs = new PropertyDocument({
+        propertyId: property._id,
+        propertyType: String(property.propertyType || property.propertyCategory || 'project').toLowerCase(),
+        verificationStatus: 'pending'
+      });
+    }
 
     if (action === 'approve') {
       docs.verificationStatus = 'verified';
@@ -680,10 +706,12 @@ export const verifyPropertyDocuments = async (req, res) => {
       property.isLive = true;
 
       // NOTIFICATION: Property Live
-      notificationService.sendToUser(property.userId, {
-        title: 'Property Live!',
-        body: `Your property ${property.propertyName} is LIVE now!`
-      }, { type: 'property_verified', propertyId: property._id }, 'partner').catch(e => console.error(e));
+      if (property.userId) {
+        notificationService.sendToUser(property.userId, {
+          title: 'Listing Live & Approved!',
+          body: `Your listing "${property.propertyName}" has been approved and is LIVE now!`
+        }, { type: 'property_verified', propertyId: property._id }, 'partner').catch(e => console.error(e));
+      }
 
     } else if (action === 'reject') {
       docs.verificationStatus = 'rejected';
@@ -692,20 +720,23 @@ export const verifyPropertyDocuments = async (req, res) => {
       property.status = 'rejected';
       property.isLive = false;
 
-      // Notify Rejection?
-      notificationService.sendToUser(property.userId, {
-        title: 'Property Documents Rejected',
-        body: `Your property ${property.propertyName} documents were rejected. reason: ${adminRemark || 'Review needed'}`
-      }, { type: 'property_rejected', propertyId: property._id }, 'partner').catch(e => console.error(e));
+      if (property.userId) {
+        notificationService.sendToUser(property.userId, {
+          title: 'Listing Documents Rejected',
+          body: `Your listing "${property.propertyName}" documents were rejected. Reason: ${adminRemark || 'Review needed'}`
+        }, { type: 'property_rejected', propertyId: property._id }, 'partner').catch(e => console.error(e));
+      }
 
     } else {
       return res.status(400).json({ success: false, message: 'Invalid action' });
     }
+
     await docs.save();
     await property.save();
     res.status(200).json({ success: true, property, documents: docs });
   } catch (e) {
-    res.status(500).json({ success: false, message: 'Server error verifying documents' });
+    console.error("verifyPropertyDocuments Error:", e);
+    res.status(500).json({ success: false, message: 'Server error verifying documents', error: e.message });
   }
 };
 
