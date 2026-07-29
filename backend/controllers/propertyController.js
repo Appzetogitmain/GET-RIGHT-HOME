@@ -2161,11 +2161,17 @@ export const getAdminPropertiesByLocation = async (req, res) => {
       query['address.state'] = { $regex: new RegExp(state, 'i') };
     }
 
-    const properties = await Project.find(query)
-      .populate('featuredDetails.planId')
-      .populate('userId', 'role')
+    const projectModelList = await Project.find(query).populate({ path: 'featuredDetails.planId', strictPopulate: false }).populate('userId', 'role').lean().catch(() => []);
+    const propertyModelList = await Property.find(query).populate({ path: 'featuredDetails.planId', strictPopulate: false }).populate('userId', 'role').lean().catch(() => []);
 
-      .lean();
+    const combinedList = [...projectModelList];
+    propertyModelList.forEach(p => {
+      if (p && !combinedList.some(existing => existing && String(existing._id) === String(p._id))) {
+        combinedList.push(p);
+      }
+    });
+
+    const properties = combinedList;
 
     // Sort: 1. Featured Plan Weight -> 2. Hierarchy (Admin > Builder > Broker/Owner) -> 3. Date
     const sortedProperties = properties.sort((a, b) => {
@@ -2201,55 +2207,35 @@ export const getAdminPropertyCities = async (req, res) => {
     const builders = await User.find({ role: 'builder' }).select('_id');
     const builderIds = builders.map(b => b._id);
 
-    // Step 1: Aggregate all projects to get cities with count
-    const result = await Project.aggregate([
-      {
-        $match: {
-          status: 'approved',
-          isLive: true,
-          'address.city': { $exists: true, $ne: '' },
-          'featuredDetails.isFeatured': true
-        }
-      },
-      {
-        $group: {
-          _id: {
-            city: '$address.city',
-            district: { $ifNull: ['$address.district', null] }
-          },
-          state: { $first: '$address.state' },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { '_id.city': 1, 'count': -1 } },
-      {
-        $group: {
-          _id: '$_id.city',
-          state: { $first: '$state' },
-          totalCount: { $sum: '$count' },
-          districts: {
-            $push: {
-              $cond: [
-                { $ne: ['$_id.district', null] },
-                { name: '$_id.district', count: '$count' },
-                '$$REMOVE'
-              ]
-            }
-          }
-        }
-      },
-      { $sort: { totalCount: -1 } },
-      {
-        $project: {
-          _id: 0,
-          city: '$_id',
-          state: 1,
-          count: '$totalCount',
-          districts: 1
-        }
-      }
-    ]);
+    // Step 1: Aggregate both collections to get cities with count
+    const matchStage = {
+      status: 'approved',
+      isLive: true,
+      'address.city': { $exists: true, $ne: '' },
+      'featuredDetails.isFeatured': true
+    };
 
+    const projectCities = await Project.aggregate([
+      { $match: matchStage },
+      { $group: { _id: { city: '$address.city', district: { $ifNull: ['$address.district', null] } }, state: { $first: '$address.state' }, count: { $sum: 1 } } }
+    ]).catch(() => []);
+
+    const propertyCities = await Property.aggregate([
+      { $match: matchStage },
+      { $group: { _id: { city: '$address.city', district: { $ifNull: ['$address.district', null] } }, state: { $first: '$address.state' }, count: { $sum: 1 } } }
+    ]).catch(() => []);
+
+    // Merge city results
+    const cityMap = {};
+    [...projectCities, ...propertyCities].forEach(item => {
+      const cityName = item._id.city;
+      if (!cityMap[cityName]) {
+        cityMap[cityName] = { city: cityName, state: item.state, count: 0, districts: [] };
+      }
+      cityMap[cityName].count += item.count;
+    });
+
+    const result = Object.values(cityMap);
     res.status(200).json({ success: true, cities: result });
   } catch (error) {
     console.error('Get Admin Property Cities Error:', error);
