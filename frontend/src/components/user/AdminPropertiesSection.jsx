@@ -20,8 +20,23 @@ const AdminPropertyCard = ({ property, index, theme }) => {
     const [isSaved, setIsSaved] = useState(false);
     const typeIcon = PROPERTY_TYPE_ICONS[property.propertyType] || '🏠';
     
-    // Resolve price and format it to Cr/Lac
+    // Resolve price from towers / pricePerSqft / startingPrice / buyDetails
+    const getTowerMinPrice = () => {
+        if (Array.isArray(property.dynamicData?.towers)) {
+             for (const t of property.dynamicData.towers) {
+                  if (t.minPrice) return t.minPrice;
+             }
+        }
+        if (property.dynamicData?.bpd_currentPricePerSqft && property.dynamicData?.carpetArea) {
+             const sqft = Number(property.dynamicData.carpetArea);
+             const pSqft = Number(property.dynamicData.bpd_currentPricePerSqft);
+             if (sqft > 0 && pSqft > 0) return sqft * pSqft;
+        }
+        return null;
+    };
+
     const rawPrice = property.startingPrice
+        || getTowerMinPrice()
         || property.rentDetails?.monthlyRent
         || property.pgDetails?.monthlyRent
         || property.buyDetails?.expectedPrice

@@ -2177,7 +2177,20 @@ export const getAdminPropertiesByLocation = async (req, res) => {
       }
     });
 
-    const properties = combinedList;
+    const properties = combinedList.map(p => {
+      let minP = p.startingPrice || p.minPrice || p.buyDetails?.expectedPrice || p.rentDetails?.monthlyRent || p.dynamicData?.price || p.dynamicData?.expectedPrice || null;
+      if (!minP && Array.isArray(p.dynamicData?.towers)) {
+        for (const t of p.dynamicData.towers) {
+          if (t.minPrice) { minP = t.minPrice; break; }
+        }
+      }
+      if (!minP && p.dynamicData?.bpd_currentPricePerSqft && p.dynamicData?.carpetArea) {
+        const sqft = Number(p.dynamicData.carpetArea);
+        const pSqft = Number(p.dynamicData.bpd_currentPricePerSqft);
+        if (sqft > 0 && pSqft > 0) minP = sqft * pSqft;
+      }
+      return { ...p, startingPrice: minP };
+    });
 
     // Sort: 1. Featured Plan Weight -> 2. Hierarchy (Admin > Builder > Broker/Owner) -> 3. Date
     const sortedProperties = properties.sort((a, b) => {
