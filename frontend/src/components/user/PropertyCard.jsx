@@ -77,19 +77,27 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     item.avgRating !== undefined ? item.avgRating :
     item.rating !== undefined ? item.rating : rating;
 
+  const floorPlansPrices = (item.dynamicData?.floorPlans || item.floorPlans || [])
+    .map(p => Number(p.price || p.startingPrice || p.expectedPrice || p.minPrice))
+    .filter(p => !isNaN(p) && p > 0);
+  const minFloorPlanPrice = floorPlansPrices.length > 0 ? Math.min(...floorPlansPrices) : null;
+
   const rawPrice =
     startingPrice ??
     item.startingPrice ??
-    item.rentDetails?.monthlyRent ??
-    item.pgDetails?.monthlyRent ??
+    item.minPrice ??
+    item.min_price ??
+    minFloorPlanPrice ??
     item.buyDetails?.expectedPrice ??
     item.plotDetails?.expectedPrice ??
     item.dynamicData?.expectedPrice ??
+    item.dynamicData?.startingPrice ??
+    item.dynamicData?.minPrice ??
+    item.rentDetails?.monthlyRent ??
+    item.pgDetails?.monthlyRent ??
     item.dynamicData?.monthlyRent ??
     item.dynamicData?.expectedRent ??
     item.dynamicData?.price ??
-    item.minPrice ??
-    item.min_price ??
     item.price ??
     item.costPerNight ??
     item.amount ??
@@ -113,14 +121,24 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
   };
 
   const formattedPrice = displayPrice
-    ? displayPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })
+    ? (displayPrice >= 100000 
+        ? (displayPrice >= 10000000 
+            ? `${(displayPrice / 10000000).toFixed(2).replace(/\.00$/, '')} Cr` 
+            : `${(displayPrice / 100000).toFixed(2).replace(/\.00$/, '')} Lakh`)
+        : displayPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 }))
     : 'Price on Request';
 
-  const priceSuffix = ['PG', 'Hostel', 'Rent'].includes(badgeTypeKey)
+  // Determine correct price suffix based on category/type
+  const isHotelOrResort = ['Hotel', 'Resort', 'Homestay'].includes(badgeTypeKey) || 
+    (item.propertyCategory || '').toLowerCase().includes('hotel') || 
+    (item.transactionType || '').toLowerCase().includes('per_night') || 
+    (item.transactionType || '').toLowerCase().includes('stay');
+
+  const priceSuffix = ['PG', 'Hostel', 'Rent'].includes(badgeTypeKey) || (item.transactionType || '').toLowerCase().includes('rent')
     ? '/month'
-    : ['Buy', 'Plot'].includes(badgeTypeKey)
-      ? ''
-      : '/night';
+    : isHotelOrResort
+      ? '/night'
+      : '';
 
   const isPG =
     badgeTypeKey === 'PG' ||
