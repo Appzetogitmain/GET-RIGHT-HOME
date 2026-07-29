@@ -2,6 +2,7 @@ import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import BookingRequest from '../models/HomeServiceBookingRequest.js';
 import Worker from '../models/Worker.js';
 import { BOOKING_STATUS } from '../utils/constants.js';
+import { createNotification } from '../controllers/notificationControllers/notificationController.js';
 
 // The Wave Timeout in milliseconds (60 seconds)
 const WAVE_TIMEOUT_MS = 60000;
@@ -78,6 +79,18 @@ export const startWaveScheduler = (io) => {
               status: BOOKING_STATUS.NO_WORKERS,
               message: 'Our team will shortly contact you directly and assign an Expert.'
             });
+
+            await createNotification({
+              userId: booking.userId,
+              type: 'booking_failed',
+              title: 'No Professionals Available',
+              message: 'We couldn\'t find any professionals nearby at the moment. Our team will contact you shortly.',
+              relatedId: booking._id,
+              relatedType: 'booking',
+              priority: 'high',
+              pushData: { type: 'booking_failed', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
+            });
+
             continue;
           }
 
@@ -127,6 +140,17 @@ export const startWaveScheduler = (io) => {
               scheduledDate: fullBooking.scheduledDate,
               scheduledTime: fullBooking.scheduledTime,
               createdAt: new Date().toISOString()
+            });
+
+            createNotification({
+              workerId: pw.workerId,
+              type: 'new_job_assigned',
+              title: 'New Job Alert',
+              message: `New booking for ${fullBooking.serviceName} is available near you.`,
+              relatedId: booking._id,
+              relatedType: 'booking',
+              priority: 'high',
+              pushData: { type: 'new_job', bookingId: booking._id.toString(), link: `/worker/job/${booking._id}` }
             });
           });
 

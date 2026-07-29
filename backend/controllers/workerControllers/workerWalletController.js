@@ -229,6 +229,18 @@ const requestWithdrawal = async (req, res) => {
           priority: 'high'
         });
       }
+
+      // Notify Worker
+      await createNotification({
+        workerId: worker._id,
+        type: 'withdrawal_requested',
+        title: 'Withdrawal Requested',
+        message: `Your withdrawal request for ₹${withdrawAmount} has been submitted successfully.`,
+        relatedId: withdrawal._id,
+        relatedType: 'withdrawal',
+        priority: 'high',
+        pushData: { type: 'withdrawal', withdrawalId: withdrawal._id.toString(), link: '/worker/wallet' }
+      });
     } catch (notifErr) {
       console.error('Failed to notify admin:', notifErr);
     }

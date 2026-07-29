@@ -112,8 +112,11 @@ class ReferralService {
             code.usageCount += 1;
             await code.save();
 
-            // Notify Referrer (Optional: "Someone joined using your code!")
-            // implement notification logic here if needed
+            // Notify Referrer
+            await notificationService.sendToUser(code.ownerId, {
+                title: 'New Referral Signup! 🎉',
+                body: `${newUser.name || 'Someone'} joined using your referral code.`
+            }, { type: 'referral_signup' }, code.ownerType === 'Partner' ? 'partner' : 'user');
 
             return true;
         } catch (error) {

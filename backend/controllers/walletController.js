@@ -9,6 +9,7 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import axios from 'axios';
 import Joi from 'joi';
+import { createNotification } from './notificationControllers/notificationController.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -390,6 +391,18 @@ export const requestWithdrawal = async (req, res) => {
 
     withdrawal.transactionId = transaction._id;
     await withdrawal.save();
+
+    // Notify Partner
+    await createNotification({
+      vendorId: req.user._id,
+      type: 'withdrawal_requested',
+      title: 'Withdrawal Requested',
+      message: `Your withdrawal request for ₹${amount} has been submitted successfully.`,
+      relatedId: withdrawal._id,
+      relatedType: 'withdrawal',
+      priority: 'high',
+      pushData: { type: 'withdrawal', withdrawalId: withdrawal.withdrawalId, link: '/vendor/wallet' }
+    });
 
     res.json({
       success: true,
