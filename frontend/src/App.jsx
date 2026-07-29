@@ -470,6 +470,7 @@ function App() {
                     <Route path="/plot" element={<PlotPage />} />
                     <Route path="/insights/:locality" element={<LocalityDetail />} />
                     <Route path="/insights/:locality/reviews" element={<LocalityReviewsPage />} />
+                    <Route path="/locality-reviews" element={<LocalityReviewsPage />} />
                     <Route path="/locality-insights/:city/:locality" element={<LocalityDetail />} />
                     <Route path="/locality-insights/:city/:locality/reviews" element={<LocalityReviewsPage />} />
                     <Route path="/compare" element={<PropertyComparePage />} />

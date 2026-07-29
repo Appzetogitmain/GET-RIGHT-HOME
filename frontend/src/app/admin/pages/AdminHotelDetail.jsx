@@ -9,6 +9,7 @@ import { Link, useParams, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
+import { downloadBrochurePDF } from '../../../utils/brochurePdfGenerator';
 
 // --- Tab Components ---
 
@@ -177,7 +178,7 @@ const OverviewTab = ({ hotel, isProject }) => {
                 )}
 
                 {['faqs', 'localityPros', 'localityCons'].map(field => {
-                    const arr = hotel.dynamicData[field];
+                    const arr = hotel.dynamicData?.[field] || hotel[field];
                     if (!Array.isArray(arr) || arr.length === 0) return null;
                     const isFaq = field === 'faqs';
                     return (
@@ -188,11 +189,28 @@ const OverviewTab = ({ hotel, isProject }) => {
                             </h3>
                             <div className="space-y-3">
                                 {arr.map((item, i) => {
-                                    if (!item || typeof item !== 'object') return null;
+                                    if (!item) return null;
+                                    let displayText = '';
+                                    if (typeof item === 'string') {
+                                        displayText = item;
+                                    } else if (typeof item === 'object') {
+                                        displayText = item.point || item.text || item.title || item.heading || item.description || item.detail || Object.values(item).find(v => typeof v === 'string' && v.trim()) || '';
+                                    }
+
+                                    if (!displayText || displayText === 'Point') return null;
+
                                     return (
                                         <div key={i} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                            <h4 className="text-xs font-bold text-gray-900 mb-1">{isFaq ? item.question : item.title || item.heading || 'Point'}</h4>
-                                            <p className="text-[10px] font-bold uppercase text-gray-500 tracking-tight">{isFaq ? item.answer : item.description || item.detail}</p>
+                                            {isFaq ? (
+                                                <>
+                                                    <h4 className="text-xs font-bold text-gray-900 mb-1">{item.question || displayText}</h4>
+                                                    <p className="text-[10px] font-bold uppercase text-gray-500 tracking-tight">{item.answer}</p>
+                                                </>
+                                            ) : (
+                                                <p className="text-xs font-bold text-gray-800">
+                                                    {displayText}
+                                                </p>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -278,45 +296,70 @@ const OverviewTab = ({ hotel, isProject }) => {
             </p>
         </div>
 
-        {(hotel.propertyType === 'plot' || (hotel.plotDetails && Object.keys(hotel.plotDetails).length > 0)) ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Plot Area</h4>
-                    <p className="text-sm font-bold text-gray-900">{hotel.plotDetails?.plotArea || 'Not set'} {hotel.plotDetails?.unit || 'sqft'}</p>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Dimensions</h4>
-                    <p className="text-sm font-bold text-gray-900">
-                        {hotel.plotDetails?.dimensions?.length && hotel.plotDetails?.dimensions?.breadth
-                            ? `${hotel.plotDetails.dimensions.length} x ${hotel.plotDetails.dimensions.breadth} ft`
-                            : 'Not set'}
-                    </p>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Facing</h4>
-                    <p className="text-sm font-bold text-gray-900">{hotel.plotDetails?.facing || 'Not set'}</p>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Land Type</h4>
-                    <p className="text-sm font-bold text-gray-900">{hotel.plotDetails?.landType || 'Not set'}</p>
-                </div>
+        {(hotel.propertyType === 'plot' || (hotel.plotDetails && (hotel.plotDetails.plotArea || hotel.plotDetails.facing))) && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {hotel.plotDetails?.plotArea && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                        <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Plot Area</h4>
+                        <p className="text-sm font-bold text-gray-900">{hotel.plotDetails.plotArea} {hotel.plotDetails?.unit || 'sqft'}</p>
+                    </div>
+                )}
+                {hotel.plotDetails?.dimensions?.length && hotel.plotDetails?.dimensions?.breadth && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                        <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Dimensions</h4>
+                        <p className="text-sm font-bold text-gray-900">
+                            {hotel.plotDetails.dimensions.length} x {hotel.plotDetails.dimensions.breadth} ft
+                        </p>
+                    </div>
+                )}
+                {hotel.plotDetails?.facing && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                        <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Facing</h4>
+                        <p className="text-sm font-bold text-gray-900">{hotel.plotDetails.facing}</p>
+                    </div>
+                )}
+                {hotel.plotDetails?.landType && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                        <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Land Type</h4>
+                        <p className="text-sm font-bold text-gray-900">{hotel.plotDetails.landType}</p>
+                    </div>
+                )}
             </div>
-        ) : (hotel.propertyType === 'buy' || (hotel.buyDetails && Object.keys(hotel.buyDetails).length > 0)) ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Super Built-up Area</h4>
-                    <p className="text-sm font-bold text-gray-900">{hotel.buyDetails?.area?.superBuiltUp || 'Not set'} {hotel.buyDetails?.area?.unit || 'sqft'}</p>
+        )}
+
+        {(() => {
+            const superBuiltUpArea = hotel.buyDetails?.area?.superBuiltUp || hotel.dynamicData?.superArea || hotel.dynamicData?.superBuiltUpArea || hotel.superArea || hotel.superBuiltUpArea;
+            const areaUnit = hotel.buyDetails?.area?.unit || hotel.dynamicData?.superAreaUnit || hotel.superAreaUnit || 'sqft';
+            const ownership = hotel.buyDetails?.ownership || hotel.dynamicData?.ownershipType || hotel.dynamicData?.ownership || hotel.ownership;
+            const propertyAge = hotel.buyDetails?.propertyAge || hotel.dynamicData?.propertyAge || hotel.dynamicData?.ageOfProperty || hotel.propertyAge;
+
+            if (!superBuiltUpArea && !ownership && !propertyAge) return null;
+
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    {superBuiltUpArea && (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs">
+                            <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Super Built-up Area</h4>
+                            <p className="text-sm font-bold text-gray-900">{superBuiltUpArea} {areaUnit}</p>
+                        </div>
+                    )}
+                    {ownership && (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs">
+                            <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Ownership</h4>
+                            <p className="text-sm font-bold text-gray-900">{ownership}</p>
+                        </div>
+                    )}
+                    {propertyAge && (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs">
+                            <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Property Age</h4>
+                            <p className="text-sm font-bold text-gray-900">{propertyAge}</p>
+                        </div>
+                    )}
                 </div>
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Ownership</h4>
-                    <p className="text-sm font-bold text-gray-900">{hotel.buyDetails?.ownership || 'Not set'}</p>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Property Age</h4>
-                    <p className="text-sm font-bold text-gray-900">{hotel.buyDetails?.propertyAge || 'Not set'}</p>
-                </div>
-            </div>
-        ) : (hotel.propertyType === 'rent' || (hotel.rentDetails && Object.keys(hotel.rentDetails).length > 0)) ? (
+            );
+        })()}
+
+        {(hotel.propertyType === 'rent' || (hotel.rentDetails && Object.keys(hotel.rentDetails).length > 0)) && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Monthly Rent</h4>
@@ -357,7 +400,8 @@ const OverviewTab = ({ hotel, isProject }) => {
                     <p className="text-xs font-bold text-gray-900">{hotel.rentDetails?.lift ? 'YES' : 'NO'}</p>
                 </div>
             </div>
-        ) : (hotel.propertyType === 'pg' || (hotel.pgDetails && Object.keys(hotel.pgDetails).length > 0)) ? (
+        )}
+        {(hotel.propertyType === 'pg' || (hotel.pgDetails && Object.keys(hotel.pgDetails).length > 0)) && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Occupancy</h4>
@@ -384,8 +428,6 @@ const OverviewTab = ({ hotel, isProject }) => {
                     <p className="text-xs font-bold text-gray-900">{hotel.pgDetails?.foodIncluded ? 'YES' : 'NO'}</p>
                 </div>
             </div>
-        ) : (
-            null
         )}
 
         {['amenities', 'highlights'].map(field => {
@@ -486,15 +528,49 @@ const GalleryTab = ({ hotel, isProject }) => {
     // Remove duplicates
     const uniqueImages = [...new Set(allImages.map(img => typeof img === 'string' ? img : img?.url).filter(Boolean))];
 
-    // Collect Videos
-    const allVideos = [];
-    if (hotel.videoUrl) allVideos.push(hotel.videoUrl);
-    if (Array.isArray(hotel.dynamicData?.propertyVideos)) allVideos.push(...hotel.dynamicData.propertyVideos);
-    const uniqueVideos = [...new Set(allVideos.filter(Boolean))];
+    // Collect Videos safely handling arrays or nested objects
+    const rawVideos = [];
+    if (hotel.videoUrl) rawVideos.push(hotel.videoUrl);
+    if (Array.isArray(hotel.propertyVideos)) rawVideos.push(...hotel.propertyVideos);
+    if (Array.isArray(hotel.dynamicData?.propertyVideos)) rawVideos.push(...hotel.dynamicData.propertyVideos);
+    if (hotel.dynamicData?.videoUrl) rawVideos.push(hotel.dynamicData.videoUrl);
+    if (hotel.dynamicData?.youtubeUrl) rawVideos.push(hotel.dynamicData.youtubeUrl);
+    if (hotel.dynamicData?.youtubeLink) rawVideos.push(hotel.dynamicData.youtubeLink);
+    
+    const allVideos = rawVideos.flatMap(v => {
+        if (!v) return [];
+        if (typeof v === 'string') return [v];
+        if (typeof v === 'object') return [v.url || v.fileUrl || v.videoUrl || v.youtubeUrl || v.link || v.youtubeLink].filter(Boolean);
+        return [];
+    });
 
-    // Collect Plans
+    // Remove empty/duplicate items
+    const uniqueVideos = [...new Set(allVideos.filter(v => typeof v === 'string' && v.trim() !== ''))];
+
+    // Collect Plans & Milestones
     const floorPlans = Array.isArray(hotel.dynamicData?.floorPlans) ? hotel.dynamicData.floorPlans : [];
     const paymentPlans = Array.isArray(hotel.dynamicData?.paymentPlans) ? hotel.dynamicData.paymentPlans : [];
+
+    const getEmbedYoutubeUrl = (urlStr) => {
+        if (!urlStr || typeof urlStr !== 'string') return '';
+        try {
+            // Handle standard watch URLs, mobile URLs (m.youtube.com), shorts, and shortlinks (youtu.be)
+            let videoId = '';
+            if (urlStr.includes('youtu.be/')) {
+                videoId = urlStr.split('youtu.be/')[1]?.split('?')[0]?.split('&')[0];
+            } else if (urlStr.includes('youtube.com/shorts/')) {
+                videoId = urlStr.split('youtube.com/shorts/')[1]?.split('?')[0]?.split('&')[0];
+            } else if (urlStr.includes('v=')) {
+                videoId = urlStr.split('v=')[1]?.split('&')[0];
+            } else if (urlStr.includes('embed/')) {
+                videoId = urlStr.split('embed/')[1]?.split('?')[0]?.split('&')[0];
+            }
+            
+            return videoId ? `https://www.youtube.com/embed/${videoId}` : '';
+        } catch {
+            return '';
+        }
+    };
 
     const MediaGrid = ({ items, title, isVideo = false }) => (
         <div className="mb-10">
@@ -502,24 +578,37 @@ const GalleryTab = ({ hotel, isProject }) => {
                 <Building2 size={20} className="text-blue-600" />
                 <h3 className="text-lg font-bold text-gray-900 uppercase">{title}</h3>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {items.length > 0 ? (
                     items.map((item, i) => {
-                        const url = typeof item === 'string' ? item : item?.url || item?.fileUrl || item?.image;
+                        const url = typeof item === 'string' ? item : item?.url || item?.fileUrl || item?.image || item?.planImageOrUrl || item?.floorPlanImage;
                         if (!url) return null;
+
+                        const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+                        const youtubeEmbedUrl = isYoutube ? getEmbedYoutubeUrl(url) : '';
                         
                         return (
-                            <div key={i} className="aspect-square bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md">
+                            <div key={i} className="aspect-video bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md">
                                 {isVideo ? (
-                                    <video src={url} controls className="w-full h-full object-cover" />
+                                    isYoutube && youtubeEmbedUrl ? (
+                                        <iframe
+                                            src={youtubeEmbedUrl}
+                                            className="w-full h-full border-none"
+                                            title={`Video ${i}`}
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                        />
+                                    ) : (
+                                        <video src={url} controls className="w-full h-full object-cover" />
+                                    )
                                 ) : (
-                                    <img src={url} alt={`${title} ${i}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                    <img src={url} alt={`${title} ${i}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                 )}
                             </div>
                         )
                     })
                 ) : (
-                    <div className="col-span-full py-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                    <div className="col-span-full py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
                         <p className="text-gray-400 font-bold uppercase text-xs">No {title} Available</p>
                     </div>
                 )}
@@ -531,17 +620,66 @@ const GalleryTab = ({ hotel, isProject }) => {
         <div className="space-y-4">
             <MediaGrid items={uniqueImages} title="General Property Photos" />
             
-            {uniqueVideos.length > 0 && (
-                <MediaGrid items={uniqueVideos} title="Property Videos" isVideo={true} />
-            )}
+            <MediaGrid items={uniqueVideos} title="Property & Walkthrough Videos" isVideo={true} />
 
-            {floorPlans.length > 0 && (
-                <MediaGrid items={floorPlans} title="Floor Plans" />
-            )}
+            {/* Floor Plans Display */}
+            <div className="mb-10">
+                <div className="flex items-center gap-2 mb-4">
+                    <Building2 size={20} className="text-blue-600" />
+                    <h3 className="text-lg font-bold text-gray-900 uppercase">Floor Plans</h3>
+                </div>
+                {floorPlans.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {floorPlans.map((plan, i) => (
+                            <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                                {(plan.planImageOrUrl || plan.floorPlanImage) && (
+                                    <img src={plan.planImageOrUrl || plan.floorPlanImage} alt={plan.title || `Plan ${i+1}`} className="w-full h-40 object-cover rounded-lg" />
+                                )}
+                                <div>
+                                    <h4 className="font-bold text-sm text-gray-900 uppercase">{plan.title || plan.bhkType || `Floor Plan ${i+1}`}</h4>
+                                    <p className="text-xs text-gray-500 font-medium">Built-up Area: <span className="font-bold text-gray-800">{plan.area || plan.superArea || 'N/A'} {plan.areaUnit || 'sqft'}</span></p>
+                                    <p className="text-xs text-gray-500 font-medium">Expected Price: <span className="font-bold text-blue-600">₹{plan.price || plan.expectedPrice || 'N/A'}</span></p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                        <p className="text-gray-400 font-bold uppercase text-xs">No Floor Plans Added</p>
+                    </div>
+                )}
+            </div>
 
-            {paymentPlans.length > 0 && (
-                <MediaGrid items={paymentPlans} title="Payment Plans" />
-            )}
+            {/* Payment Plans Display */}
+            <div className="mb-10">
+                <div className="flex items-center gap-2 mb-4">
+                    <Building2 size={20} className="text-blue-600" />
+                    <h3 className="text-lg font-bold text-gray-900 uppercase">Payment Milestones & Plans</h3>
+                </div>
+                {paymentPlans.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {paymentPlans.map((plan, i) => (
+                            <div key={i} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                                <h4 className="font-bold text-sm text-gray-900 uppercase border-b pb-2">{plan.planName || `Payment Plan ${i+1}`}</h4>
+                                {Array.isArray(plan.milestones) && plan.milestones.length > 0 && (
+                                    <div className="space-y-2">
+                                        {plan.milestones.map((m, idx) => (
+                                            <div key={idx} className="flex justify-between text-xs font-medium">
+                                                <span className="text-gray-600">{m.stageName || m.milestoneName || `Stage ${idx+1}`}</span>
+                                                <span className="font-bold text-gray-900">{m.percentage || m.percent}%</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                        <p className="text-gray-400 font-bold uppercase text-xs">No Payment Plans Added</p>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -549,7 +687,20 @@ const GalleryTab = ({ hotel, isProject }) => {
 const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
     const [remark, setRemark] = useState('');
 
-    if (!documents) {
+    const brochureDoc = hotel.dynamicData?.brochure || hotel.dynamicData?.brochureUrl || hotel.brochureUrl || hotel.brochure || hotel.dynamicData?.pdfBrochure;
+    const reraDoc = hotel.dynamicData?.reraRegistrationNumber || hotel.reraNumber || hotel.reraRegistrationNumber;
+
+    const extractUrl = (doc) => {
+        if (!doc) return '';
+        if (typeof doc === 'string') return doc;
+        if (Array.isArray(doc) && doc.length > 0) return extractUrl(doc[0]);
+        if (typeof doc === 'object') return doc.url || doc.fileUrl || doc.path || doc.link || doc.secure_url || '';
+        return '';
+    };
+
+    const brochureLink = extractUrl(brochureDoc);
+
+    if (!documents && !brochureDoc && !reraDoc) {
         return (
             <div className="py-20 text-center bg-white border border-gray-200 rounded-2xl">
                 <ShieldCheck size={48} className="mx-auto text-gray-200 mb-4" />
@@ -559,7 +710,9 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
         );
     }
 
-    const status = documents.verificationStatus || 'pending';
+    // Sync verification status with property approval status
+    const status = documents?.verificationStatus || hotel.status || (hotel.isApproved ? 'approved' : 'pending');
+    const isApprovedState = status === 'verified' || status === 'approved' || hotel.isApproved === true || hotel.status === 'approved';
 
     return (
         <div className="space-y-6">
@@ -579,19 +732,19 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
                         </div>
                         <div className="flex justify-between items-center">
                             <span className="text-gray-500 font-bold uppercase text-[10px]">Verification Status</span>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 ${status === 'verified'
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 ${isApprovedState
                                 ? 'bg-green-100 text-green-700 border border-green-200'
                                 : status === 'rejected'
                                     ? 'bg-red-100 text-red-700 border border-red-200'
                                     : 'bg-amber-100 text-amber-700 border border-amber-200'
                                 }`}>
-                                {status === 'verified' && <ShieldCheck size={10} />}
+                                {isApprovedState && <ShieldCheck size={10} />}
                                 {status === 'rejected' && <XCircle size={10} />}
-                                {status === 'pending' && <Clock size={10} />}
-                                {status}
+                                {!isApprovedState && status !== 'rejected' && <Clock size={10} />}
+                                {isApprovedState ? 'APPROVED' : status}
                             </span>
                         </div>
-                        {documents.verifiedAt && (
+                        {documents?.verifiedAt && (
                             <div className="flex justify-between">
                                 <span className="text-gray-500 font-bold uppercase text-[10px]">Last Updated</span>
                                 <span className="font-bold text-gray-900">
@@ -599,7 +752,7 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
                                 </span>
                             </div>
                         )}
-                        {documents.adminRemark && (
+                        {documents?.adminRemark && (
                             <div>
                                 <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Admin Remark</p>
                                 <p className="text-xs font-bold text-gray-800">{documents.adminRemark}</p>
@@ -625,15 +778,15 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
                         <div className="flex flex-col sm:flex-row gap-3">
                             <button
                                 type="button"
-                                disabled={verifying || status === 'verified'}
+                                disabled={verifying || isApprovedState}
                                 onClick={() => onVerify && onVerify('approve', '')}
-                                className={`flex-1 px-4 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center justify-center gap-2 ${status === 'verified'
+                                className={`flex-1 px-4 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center justify-center gap-2 ${isApprovedState
                                     ? 'bg-green-100 text-green-500 border border-green-100 cursor-not-allowed'
                                     : 'bg-green-600 text-white border border-green-600 hover:bg-green-700'
                                     } ${verifying ? 'opacity-70 cursor-not-allowed' : ''}`}
                             >
                                 <CheckCircle size={14} />
-                                Approve Documents
+                                {isApprovedState ? 'Documents Approved' : 'Approve Documents'}
                             </button>
                             <button
                                 type="button"
@@ -661,7 +814,55 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
                     <FileText size={16} /> Uploaded Documents
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {documents.documents && documents.documents.length > 0 ? (
+                    {brochureDoc && (
+                        <div className="border border-blue-200 rounded-xl p-4 flex flex-col justify-between bg-blue-50/50 shadow-xs">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-bold text-blue-900 uppercase flex items-center gap-1.5">
+                                        <FileText size={14} className="text-blue-600" />
+                                        Project e-Brochure (PDF)
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-blue-100 text-blue-700 border border-blue-200">
+                                        Combined PDF
+                                    </span>
+                                </div>
+                                <p className="text-[10px] text-blue-600/80 uppercase font-medium">
+                                    Official Sales Brochure ({Array.isArray(brochureDoc) ? `${brochureDoc.length} pages` : '1 Document'})
+                                </p>
+                            </div>
+                            <div className="mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => downloadBrochurePDF(brochureDoc, hotel.propertyName || 'Project')}
+                                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-bold uppercase hover:bg-blue-700 transition-all shadow-sm cursor-pointer"
+                                >
+                                    <Download size={12} />
+                                    Download / View Brochure (PDF)
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {reraDoc && (
+                        <div className="border border-emerald-200 rounded-xl p-4 flex flex-col justify-between bg-emerald-50/50 shadow-xs">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-bold text-emerald-900 uppercase flex items-center gap-1.5">
+                                        <ShieldCheck size={14} className="text-emerald-600" />
+                                        RERA Registration
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                        Government Verified
+                                    </span>
+                                </div>
+                                <p className="text-[11px] font-bold text-emerald-800 break-all">
+                                    {reraDoc}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {documents?.documents && documents.documents.length > 0 && (
                         documents.documents.map((doc, idx) => (
                             <div key={idx} className="border border-gray-200 rounded-xl p-4 flex flex-col justify-between bg-gray-50">
                                 <div className="space-y-2">
@@ -698,9 +899,10 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
                                 </div>
                             </div>
                         ))
-                    ) : (
+                    )}
+                    {(!documents?.documents || documents.documents.length === 0) && !brochureDoc && !reraDoc && (
                         <div className="col-span-full text-center py-8 text-[10px] font-bold uppercase text-gray-400">
-                            No individual documents uploaded
+                            No verification documents uploaded
                         </div>
                     )}
                 </div>
@@ -953,12 +1155,20 @@ const AdminHotelDetail = () => {
     const fetchHotelDetails = useCallback(async () => {
         try {
             setLoading(true);
-            const data = isProject 
-                ? await adminService.getProjectDetails(id)
-                : await adminService.getHotelDetails(id);
+            let data;
+            if (isProject) {
+                try {
+                    data = await adminService.getProjectDetails(id);
+                } catch (err) {
+                    // Fallback if listed in Property collection
+                    data = await adminService.getHotelDetails(id);
+                }
+            } else {
+                data = await adminService.getHotelDetails(id);
+            }
 
-            if (data.success) {
-                setHotel(isProject ? data.project : data.hotel);
+            if (data && data.success) {
+                setHotel(data.project || data.hotel);
                 setDocuments(data.documents || null);
                 
                 // Fetch enquiries for this property/project

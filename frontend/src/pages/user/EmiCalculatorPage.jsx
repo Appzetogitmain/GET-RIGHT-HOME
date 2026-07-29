@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const EmiCalculatorPage = () => {
     const navigate = useNavigate();
-    const [loanAmount, setLoanAmount] = useState(3000000);
+    const [searchParams] = useSearchParams();
+    const amountParam = searchParams.get('amount') || searchParams.get('price');
+    const initialAmount = amountParam ? Math.max(100000, Number(amountParam)) : 3000000;
+
+    const [loanAmount, setLoanAmount] = useState(initialAmount);
     const [tenure, setTenure] = useState(20);
     const [rate, setRate] = useState(8.9);
     

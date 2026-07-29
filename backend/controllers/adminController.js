@@ -429,9 +429,14 @@ export const getAllProjects = async (req, res) => {
 
 export const getProjectDetails = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id)
+    let project = await Project.findById(req.params.id)
       .populate('userId', 'name email phone companyName builderProfile');
     
+    if (!project) {
+      project = await Property.findById(req.params.id)
+        .populate('userId', 'name email phone companyName builderProfile');
+    }
+
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }

@@ -28,9 +28,45 @@ const UserSignup = () => {
     const [uploadingFiles, setUploadingFiles] = useState({});
     const [uploadedFileNames, setUploadedFileNames] = useState({});
 
-    // Pre-fill phone if coming from login
+    const clearPendingSession = () => {
+        sessionStorage.removeItem('pending_signup_data');
+        sessionStorage.removeItem('pending_signup_step');
+        sessionStorage.removeItem('pending_signup_timer_start');
+    };
+
+    const savePendingSession = (data) => {
+        sessionStorage.setItem('pending_signup_data', JSON.stringify(data));
+        sessionStorage.setItem('pending_signup_step', '2');
+        sessionStorage.setItem('pending_signup_timer_start', Date.now().toString());
+    };
+
+    // Restore session if page refreshed while on signup OTP step
     useEffect(() => {
-        if (location.state?.phone) {
+        const savedStep = sessionStorage.getItem('pending_signup_step');
+        const savedData = sessionStorage.getItem('pending_signup_data');
+        const savedStartTime = sessionStorage.getItem('pending_signup_timer_start');
+
+        if (savedStep === '2' && savedData) {
+            try {
+                const parsedData = JSON.parse(savedData);
+                setFormData(parsedData);
+                setStep(2);
+
+                if (savedStartTime) {
+                    const elapsedSeconds = Math.floor((Date.now() - Number(savedStartTime)) / 1000);
+                    const remaining = 120 - elapsedSeconds;
+                    if (remaining > 0) {
+                        setResendTimer(remaining);
+                        setCanResend(false);
+                    } else {
+                        setResendTimer(0);
+                        setCanResend(true);
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        } else if (location.state?.phone) {
             setFormData(prev => ({ ...prev, phone: location.state.phone }));
         }
     }, [location]);
@@ -133,6 +169,7 @@ const UserSignup = () => {
         try {
             setLoading(true);
             await authService.sendOtp(formData.phone, 'register', formData.role);
+            savePendingSession(formData);
             setResendTimer(120);
             setCanResend(false);
             setStep(2);
@@ -153,48 +190,26 @@ const UserSignup = () => {
         }
     };
 
-    const handleOTPChange = (index, value) => {
-        if (value.length > 1) return;
-        if (!/^\d*$/.test(value)) return; // Only allow numbers
-
-        const newOtp = [...otp];
-        newOtp[index] = value;
-        setOtp(newOtp);
-
-        if (value && index < 5) {
-            document.getElementById(`otp-${index + 1}`)?.focus();
+    // Auto focus first OTP input box when step 2 mounts
+    useEffect(() => {
+        if (step === 2) {
+            [50, 150, 300].forEach(delay => {
+                setTimeout(() => {
+                    const firstInput = document.getElementById('otp-0');
+                    if (firstInput) {
+                        firstInput.focus();
+                    }
+                }, delay);
+            });
         }
-    };
+    }, [step]);
 
-    const handleResendOTP = async () => {
-        if (!canResend) return;
+    const verifySignupOTPCode = async (otpString) => {
+        if (otpString.length !== 6 || loading) return;
 
         try {
             setLoading(true);
             setError('');
-            await authService.sendOtp(formData.phone, 'register', formData.role);
-            setResendTimer(120);
-            setCanResend(false);
-            setOtp(['', '', '', '', '', '']); // Clear OTP
-            toast.success('OTP sent successfully!');
-        } catch (err) {
-            setError(err.message || 'Failed to resend OTP');
-            toast.error(err.message || 'Failed to resend OTP');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleVerifyOTP = async (e) => {
-        e.preventDefault();
-        const otpString = otp.join('');
-        if (otpString.length !== 6) {
-            setError('Please enter complete OTP');
-            return;
-        }
-
-        try {
-            setLoading(true);
             const res = await authService.verifyOtp({
                 phone: formData.phone,
                 otp: otpString,
@@ -218,18 +233,108 @@ const UserSignup = () => {
 
             // Update FCM Token after successful registration
             try {
-                const fcmToken = await requestNotificationPermission();
-                if (fcmToken) {
-                    await userService.updateFcmToken(fcmToken, 'web');
+                const token = await requestNotificationPermission();
+                if (token) {
+                    await userService.updateFcmToken(token, 'web');
                 }
             } catch (fcmError) {
-                console.warn('FCM update failed after signup', fcmError);
+                console.warn('FCM update failed', fcmError);
             }
 
             login(res.user);
+            clearPendingSession();
             navigate('/');
         } catch (err) {
-            setError(err.message || 'Verification failed');
+            if (err.response?.data?.requiresLogin ||
+                err.response?.status === 409 ||
+                err.message?.includes('already exists')) {
+                setError('Account already exists. Redirecting to login...');
+                setTimeout(() => {
+                    navigate('/login', { state: { phone: formData.phone } });
+                }, 1500);
+            } else {
+                setError(err.message || 'Verification failed');
+            }
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyOTP = (e) => {
+        if (e) e.preventDefault();
+        const otpString = otp.join('');
+        if (otpString.length !== 6) {
+            setError('Please enter complete 6-digit OTP');
+            return;
+        }
+        verifySignupOTPCode(otpString);
+    };
+
+    const handleOTPChange = (index, value) => {
+        if (value.length > 1) {
+            const digits = value.replace(/\D/g, '').slice(0, 6).split('');
+            if (digits.length > 0) {
+                const newOtp = [...otp];
+                digits.forEach((d, i) => {
+                    if (i < 6) newOtp[i] = d;
+                });
+                setOtp(newOtp);
+                const nextIndex = Math.min(digits.length, 5);
+                document.getElementById(`otp-${nextIndex}`)?.focus();
+                
+                if (newOtp.join('').length === 6) {
+                    verifySignupOTPCode(newOtp.join(''));
+                }
+            }
+            return;
+        }
+
+        if (!/^\d*$/.test(value)) return;
+
+        const newOtp = [...otp];
+        newOtp[index] = value;
+        setOtp(newOtp);
+
+        if (value && index < 5) {
+            document.getElementById(`otp-${index + 1}`)?.focus();
+        }
+
+        if (newOtp.join('').length === 6) {
+            verifySignupOTPCode(newOtp.join(''));
+        }
+    };
+
+    const handleKeyDown = (index, e) => {
+        if (e.key === 'Backspace') {
+            if (!otp[index] && index > 0) {
+                const newOtp = [...otp];
+                newOtp[index - 1] = '';
+                setOtp(newOtp);
+                document.getElementById(`otp-${index - 1}`)?.focus();
+            } else if (otp[index]) {
+                const newOtp = [...otp];
+                newOtp[index] = '';
+                setOtp(newOtp);
+            }
+        }
+    };
+
+    const handleResendOTP = async () => {
+        if (!canResend) return;
+
+        try {
+            setLoading(true);
+            setError('');
+            await authService.sendOtp(formData.phone, 'register', formData.role);
+            savePendingSession(formData);
+            setResendTimer(120);
+            setCanResend(false);
+            setOtp(['', '', '', '', '', '']); // Clear OTP
+            toast.success('OTP sent successfully!');
+        } catch (err) {
+            setError(err.message || 'Failed to resend OTP');
+            toast.error(err.message || 'Failed to resend OTP');
         } finally {
             setLoading(false);
         }
@@ -303,6 +408,8 @@ const UserSignup = () => {
                                         <div className="relative">
                                             <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                                             <input
+                                                id="signup-name-input"
+                                                autoFocus
                                                 type="text"
                                                 value={formData.name}
                                                 onChange={(e) => {
@@ -565,12 +672,15 @@ const UserSignup = () => {
                                             <input
                                                 key={index}
                                                 id={`otp-${index}`}
+                                                autoFocus={index === 0}
                                                 type="tel"
                                                 inputMode="numeric"
                                                 pattern="[0-9]*"
                                                 maxLength={1}
                                                 value={digit}
+                                                onFocus={(e) => e.target.select()}
                                                 onChange={(e) => handleOTPChange(index, e.target.value)}
+                                                onKeyDown={(e) => handleKeyDown(index, e)}
                                                 className="w-12 h-12 text-center text-xl font-bold border-2 border-gray-400 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
                                             />
                                         ))}
@@ -622,7 +732,10 @@ const UserSignup = () => {
 
                                     <button
                                         type="button"
-                                        onClick={() => setStep(1)}
+                                        onClick={() => {
+                                            clearPendingSession();
+                                            setStep(1);
+                                        }}
                                         className="w-full text-gray-500 text-sm hover:text-gray-700"
                                     >
                                         Change details

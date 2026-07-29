@@ -10,7 +10,10 @@ export const protect = async (req, res, next) => {
     let token;
 //
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+      const authHeaderToken = req.headers.authorization.split(' ')[1];
+      if (authHeaderToken && authHeaderToken !== 'null' && authHeaderToken !== 'undefined') {
+        token = authHeaderToken;
+      }
     }
     if (!token && req.headers.cookie) {
       const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
@@ -22,7 +25,9 @@ export const protect = async (req, res, next) => {
         }
         return acc;
       }, {});
-      token = cookies.token;
+      if (cookies.token && cookies.token !== 'null' && cookies.token !== 'undefined') {
+        token = cookies.token;
+      }
     }
     if (!token) {
       return res.status(401).json({ message: 'Not authorized, no token' });
