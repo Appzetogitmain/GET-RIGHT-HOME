@@ -311,6 +311,15 @@ export const updateFcmToken = async (req, res) => {
     }
 
     if (!updatedUser) {
+      const Admin = (await import('../models/Admin.js')).default;
+      updatedUser = await Admin.findByIdAndUpdate(
+        req.user._id,
+        { $set: updateObj },
+        { new: true, runValidators: true }
+      );
+    }
+
+    if (!updatedUser) {
       return res.status(404).json({ message: 'User not found' });
     }
     res.json({
