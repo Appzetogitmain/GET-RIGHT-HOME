@@ -97,15 +97,13 @@ const AdminProjects = () => {
             
             if (hotelsData.success && Array.isArray(hotelsData.hotels)) {
                 const projectHotels = hotelsData.hotels.filter(p => {
-                    const catName = String(p.propertyCategory || p.dynamicCategory?.name || p.dynamicCategory?.displayName || '').toLowerCase();
-                    const typeName = String(p.propertyType || '').toLowerCase();
                     const creatorRole = String(p.partnerId?.role || p.userId?.role || p.userId?.userType || '').toLowerCase();
+                    const catName = String(p.propertyCategory || p.dynamicCategory?.name || p.dynamicCategory?.displayName || '').toLowerCase();
 
                     const isProj = p.isProject === true || 
                                    p.listingType === 'project' || 
                                    creatorRole === 'builder' ||
                                    catName.includes('project') ||
-                                   typeName.includes('project') ||
                                    Boolean(p.builderProjectDetails) || 
                                    Boolean(p.dynamicData?.builderName) || 
                                    Boolean(p.dynamicData?.builderProjectDetails) || 

@@ -25,17 +25,27 @@ const AdminFeaturedProperties = () => {
   const [durationDays, setDurationDays] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProjects, setTotalProjects] = useState(0);
+  const limit = 10;
+
   useEffect(() => {
     fetchPlans();
-    fetchProperties();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchProperties(currentPage, searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [currentPage, searchQuery]);
 
   const fetchPlans = async () => {
     try {
       setLoadingPlans(true);
-      console.log("Fetching plans...");
       const res = await api.get(`/admin/featured-plans?t=${new Date().getTime()}`);
-      console.log("Plans response:", res.data);
       if (res.data.success) {
         setPlans(res.data.plans);
       }
@@ -47,36 +57,29 @@ const AdminFeaturedProperties = () => {
     }
   };
 
-  const fetchProperties = async () => {
+  const fetchProperties = async (page = 1, search = '') => {
     try {
       setLoading(true);
-      const res = await api.get('/admin/featured-projects?limit=500'); // Fetch enough for client-side filtering
-      if (res.data.success) {
-        setProjects(res.data.projects);
+      const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+      const res = await api.get(`/admin/featured-projects?page=${page}&limit=${limit}${searchParam}&t=${Date.now()}`);
+      
+      const projectList = res.data?.projects || res.data?.data || (Array.isArray(res.data) ? res.data : []);
+      setProjects(projectList);
+      
+      if (res.data?.meta) {
+        setTotalProjects(res.data.meta.total || projectList.length);
+        setTotalPages(res.data.meta.totalPages || Math.ceil(projectList.length / limit) || 1);
+      } else {
+        setTotalProjects(projectList.length);
+        setTotalPages(1);
       }
     } catch (err) {
+      console.error("Fetch projects error:", err);
       toast.error('Failed to load projects');
     } finally {
       setLoading(false);
     }
   };
-
-  // --- Filtering Logic for Projects ---
-  const filteredProjects = projects.filter(p => {
-
-    // 2. Search Query Filtering (Property Name, Type, Owner Name)
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const ownerName = (p.userId?.name || p.partnerId?.name || 'Get-Right-Home').toLowerCase();
-      const propName = (p.projectName || p.propertyName || '').toLowerCase();
-      const propType = (p.projectType || p.propertyType || '').toLowerCase();
-      
-      if (!propName.includes(q) && !ownerName.includes(q) && !propType.includes(q)) {
-        return false;
-      }
-    }
-    return true;
-  });
 
   // --- Property Manage Feature Handlers ---
   const handleOpenPropModal = (property) => {
@@ -210,9 +213,9 @@ const AdminFeaturedProperties = () => {
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr><td colSpan="5" className="p-8 text-center text-slate-400">Loading...</td></tr>
-                  ) : filteredProjects.length === 0 ? (
+                  ) : projects.length === 0 ? (
                     <tr><td colSpan="5" className="p-8 text-center text-slate-400">No projects found.</td></tr>
-                  ) : filteredProjects.map(p => (
+                  ) : projects.map(p => (
                     <tr key={p._id} className="hover:bg-slate-50">
                       <td className="p-4">
                         <p className="font-bold text-slate-800 truncate max-w-[200px]">{p.projectName || p.propertyName}</p>
@@ -220,13 +223,13 @@ const AdminFeaturedProperties = () => {
                       </td>
                       <td className="p-4">
                         <p className="text-xs font-bold text-slate-800">
-                          {p.userId?.name || p.partnerId?.name || 'Get-Right-Home'}
+                          {p.userId?.name || p.userId?.companyName || 'Builder Listing'}
                         </p>
                       </td>
                       <td className="p-4">
                         {p.featuredDetails?.isFeatured ? (
-                          <span className={`px-2 py-1 bg-${p.featuredDetails?.planId?.color || 'blue'}-100 text-${p.featuredDetails?.planId?.color || 'blue'}-700 rounded-md text-xs font-bold flex items-center gap-1 w-max`}>
-                            <Star size={12}/> {p.featuredDetails.planName}
+                          <span className={`px-2 py-1 bg-amber-100 text-amber-700 border border-amber-200 rounded-md text-xs font-bold flex items-center gap-1 w-max`}>
+                            <Star size={12} className="fill-amber-500 text-amber-500"/> {p.featuredDetails.planName || 'Handpicked'}
                           </span>
                         ) : <span className="text-xs text-slate-400 font-medium">Standard Listing</span>}
                       </td>
@@ -240,9 +243,9 @@ const AdminFeaturedProperties = () => {
                       <td className="p-4 text-right">
                         <button 
                           onClick={() => handleOpenPropModal(p)}
-                          className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors"
+                          className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                         >
-                          Manage
+                          Manage Tag
                         </button>
                       </td>
                     </tr>
@@ -250,6 +253,31 @@ const AdminFeaturedProperties = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Server-Side Pagination Bar */}
+            {totalPages > 1 && (
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <span className="text-xs text-slate-500 font-bold uppercase">
+                  Total Projects: {totalProjects} (Page {currentPage} of {totalPages})
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase border ${currentPage === 1 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-700 hover:bg-slate-100'}`}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase border ${currentPage >= totalPages ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-700 hover:bg-slate-100'}`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

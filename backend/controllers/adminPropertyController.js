@@ -3,40 +3,85 @@ import Project from '../models/Project.js';
 import User from '../models/User.js';
 import FeaturedPlan from '../models/FeaturedPlan.js';
 
-// Get all properties for featured management
+// Get all projects for featured management
 export const getAdminFeaturedProperties = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 100;
+    const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const search = req.query.search ? String(req.query.search).toLowerCase().trim() : '';
 
-    const query = { status: 'approved' };
+    const baseQuery = { status: 'approved' };
     if (req.query.isFeatured === 'true') {
-      query['featuredDetails.isFeatured'] = true;
+      baseQuery['featuredDetails.isFeatured'] = true;
     }
-// fghjk
-    const projects = await Project.find(query)
-      .populate('userId', 'name email role')
-      .populate('featuredDetails.planId')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
 
-    const total = await Project.countDocuments(query);
+    // 1. Fetch from Project model safely
+    const dbProjects = await Project.find(baseQuery)
+      .populate('userId', 'name email role companyName')
+      .sort({ createdAt: -1 })
+      .catch(() => []);
+
+    // 2. Fetch Project & Builder listings saved in Property model safely
+    const propertyProjectsQuery = { status: 'approved' };
+    if (req.query.isFeatured === 'true') {
+      propertyProjectsQuery['featuredDetails.isFeatured'] = true;
+    }
+
+    const allApprovedProps = await Property.find(propertyProjectsQuery)
+      .populate({ path: 'userId', select: 'name email role companyName', strictPopulate: false })
+      .populate({ path: 'partnerId', select: 'name email role companyName', strictPopulate: false })
+      .sort({ createdAt: -1 })
+      .catch(() => []);
+
+    const dbPropertyProjects = allApprovedProps.filter(p => {
+      if (!p || p.status !== 'approved') return false;
+      const creatorRole = String(p.partnerId?.role || p.userId?.role || p.userId?.userType || '').toLowerCase();
+      const catName = String(p.propertyCategory || p.dynamicCategory?.name || p.dynamicCategory?.displayName || '').toLowerCase();
+
+      return p.isProject === true || 
+             p.listingType === 'project' || 
+             creatorRole === 'builder' ||
+             catName.includes('project') ||
+             Boolean(p.builderProjectDetails) || 
+             Boolean(p.dynamicData?.builderName) || 
+             Boolean(p.dynamicData?.builderProjectDetails) || 
+             (Array.isArray(p.dynamicData?.towers) && p.dynamicData.towers.length > 0);
+    });
+
+    // 3. Merge without duplicates
+    let combinedProjects = [...dbProjects];
+    dbPropertyProjects.forEach(p => {
+      if (p && !combinedProjects.some(existing => existing && String(existing._id) === String(p._id))) {
+        combinedProjects.push(p);
+      }
+    });
+
+    // 4. Apply search filter if provided
+    if (search) {
+      combinedProjects = combinedProjects.filter(p => {
+        const name = (p.projectName || p.propertyName || '').toLowerCase();
+        const type = (p.projectType || p.propertyType || '').toLowerCase();
+        const owner = (p.userId?.name || p.partnerId?.name || p.userId?.companyName || '').toLowerCase();
+        return name.includes(search) || type.includes(search) || owner.includes(search);
+      });
+    }
+
+    const paginatedProjects = combinedProjects.slice(skip, skip + limit);
 
     res.status(200).json({
       success: true,
-      projects,
+      projects: paginatedProjects,
       meta: {
-        total,
+        total: combinedProjects.length,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(combinedProjects.length / limit) || 1
       }
     });
   } catch (error) {
-    console.error('Error fetching featured properties:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('Error fetching featured projects:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching featured projects', error: error.message });
   }
 };
 
@@ -46,7 +91,14 @@ export const updateFeaturedProperty = async (req, res) => {
     const { id } = req.params;
     const { isFeatured, planId, durationDays, adminNotes } = req.body;
 
-    const project = await Project.findById(id);
+    let project = await Project.findById(id);
+    let isPropertyModel = false;
+
+    if (!project) {
+      project = await Property.findById(id);
+      isPropertyModel = true;
+    }
+
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
 
     let planName = 'None';
@@ -86,7 +138,7 @@ export const updateFeaturedProperty = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Featured status updated successfully', project });
   } catch (error) {
-    console.error('Error updating featured property:', error);
+    console.error('Error updating featured project:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

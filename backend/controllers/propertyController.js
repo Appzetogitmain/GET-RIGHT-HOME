@@ -269,6 +269,14 @@ export const createProperty = async (req, res) => {
       locationValue = { type: 'Point', coordinates: [0, 0] };
     }
 
+    const isProjectListing = Boolean(
+      req.body.isProject || 
+      req.user.role === 'builder' || 
+      (propertyCategory || '').toLowerCase().includes('project') || 
+      (propertyType || '').toLowerCase().includes('project') || 
+      (dynamicData && (dynamicData.builderProjectDetails || dynamicData.builderName || (Array.isArray(dynamicData.towers) && dynamicData.towers.length > 0)))
+    );
+
     const doc = new Property({
       propertyName: finalPropertyName,
       contactNumber: finalContactNumber,
@@ -283,8 +291,8 @@ export const createProperty = async (req, res) => {
       userId: (isUser || isAdmin) ? req.user._id : null,
       isAddedByUser: isUser,
       isAddedByAdmin: isAdmin,
-      isProject: Boolean(req.body.isProject),
-      listingType: req.body.isProject ? 'project' : 'property',
+      isProject: isProjectListing,
+      listingType: isProjectListing ? 'project' : 'property',
       address: addressValue,
       location: locationValue,
       nearbyPlaces: nearbyPlacesArray,

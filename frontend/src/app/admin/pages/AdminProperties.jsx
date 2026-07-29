@@ -79,33 +79,32 @@ const AdminProperties = () => {
             setLoading(true);
             const params = {
                 page,
-                limit,
-                search: currentFilters.search,
-                status: currentFilters.status,
+                limit: 10,
+                search: currentFilters.search || undefined,
+                status: currentFilters.status || undefined,
                 type: currentFilters.type || undefined
             };
             const data = await adminService.getHotels(params);
             if (data.success) {
                 // Filter out Projects so they only appear under Projects Management
                 const propertiesOnly = (data.hotels || []).filter(p => {
-                    const catName = String(p.propertyCategory || p.dynamicCategory?.name || p.dynamicCategory?.displayName || '').toLowerCase();
-                    const typeName = String(p.propertyType || '').toLowerCase();
                     const creatorRole = String(p.partnerId?.role || p.userId?.role || p.userId?.userType || '').toLowerCase();
+                    const catName = String(p.propertyCategory || p.dynamicCategory?.name || p.dynamicCategory?.displayName || '').toLowerCase();
 
                     const isProj = p.isProject === true || 
                                    p.listingType === 'project' || 
                                    creatorRole === 'builder' ||
                                    catName.includes('project') ||
-                                   typeName.includes('project') ||
                                    Boolean(p.builderProjectDetails) || 
                                    Boolean(p.dynamicData?.builderName) || 
                                    Boolean(p.dynamicData?.builderProjectDetails) || 
                                    (Array.isArray(p.dynamicData?.towers) && p.dynamicData.towers.length > 0);
                     return !isProj;
                 });
+                
                 setProperties(propertiesOnly);
-                setTotalProperties(propertiesOnly.length);
-                setTotalPages(Math.ceil(propertiesOnly.length / limit));
+                setTotalProperties(data.total || propertiesOnly.length);
+                setTotalPages(Math.ceil((data.total || propertiesOnly.length) / limit) || 1);
             } else {
                 setProperties([]);
                 setTotalProperties(0);
@@ -351,8 +350,12 @@ const AdminProperties = () => {
                                                  <td className="p-4">
                                                      {(() => {
                                                          const creator = property.userId || property.partnerId;
-                                                         const roleRaw = property.partnerId?.role || property.userId?.role || property.userId?.userType || 'owner';
-                                                         const creatorType = roleRaw === 'broker' ? 'Broker' : roleRaw === 'partner' ? 'Partner' : 'Owner';
+                                                         const rawRole = (creator?.role || creator?.userType || '').toLowerCase();
+                                                         let creatorType = 'Owner';
+                                                         if (rawRole === 'broker') creatorType = 'Broker';
+                                                         else if (rawRole === 'builder') creatorType = 'Builder';
+                                                         else if (rawRole === 'user' || rawRole === 'owner') creatorType = 'Owner';
+                                                         
                                                          return (
                                                              <>
                                                                  <p className="text-[10px] text-gray-700 font-bold uppercase mb-0.5">{creator?.name || creator?.companyName || 'Unknown Creator'}</p>

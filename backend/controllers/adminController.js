@@ -382,15 +382,16 @@ export const getAllHotels = async (req, res) => {
     const total = await Property.countDocuments(query);
 
     const hotels = await Property.find(query)
-
-      .populate('userId', 'name email phone')
+      .populate({ path: 'userId', select: 'name email phone role userType companyName', strictPopulate: false })
+      .populate({ path: 'partnerId', select: 'name email phone role userType companyName', strictPopulate: false })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     res.status(200).json({ success: true, hotels, total, page, limit });
   } catch (e) {
-    res.status(500).json({ success: false, message: 'Server error fetching hotels' });
+    console.error('getAllHotels Error:', e);
+    res.status(500).json({ success: false, message: 'Server error fetching hotels', error: e.message });
   }
 };
 
