@@ -639,8 +639,9 @@ const HomeServicesPage = () => {
                                     whileTap={{ scale: 0.95 }}
                                     disabled={vipLoading}
                                     onClick={async () => {
-                                        const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-                                        if (!token) {
+                                        const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('userToken');
+                                        const currentUser = user || JSON.parse(localStorage.getItem('userData') || localStorage.getItem('user') || 'null');
+                                        if (!token && !currentUser) {
                                             toast.error('Please login to buy VIP membership');
                                             navigate('/login');
                                             return;
