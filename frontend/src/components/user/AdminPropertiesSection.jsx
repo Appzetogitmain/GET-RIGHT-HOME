@@ -304,7 +304,8 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
                 setAvailableCities(cities);
 
                 if (cities.length > 0) {
-                    selectCity(cities[0].city);
+                    const bengCity = cities.find(c => c.city.toLowerCase() === 'bengaluru');
+                    selectCity(bengCity ? bengCity.city : cities[0].city);
                 }
             } catch (err) {
                 console.error('Cities fetch failed:', err);

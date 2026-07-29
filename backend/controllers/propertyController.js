@@ -2154,8 +2154,14 @@ export const getAdminPropertiesByLocation = async (req, res) => {
       'featuredDetails.isFeatured': true
     };
 
-    if (city) {
-      query['address.city'] = { $regex: new RegExp(city, 'i') };
+    if (city && city.toLowerCase() !== 'all' && city.toLowerCase() !== 'any') {
+      const cityRegex = new RegExp(city, 'i');
+      query.$or = [
+        { 'address.city': cityRegex },
+        { 'address.district': cityRegex },
+        { 'address.fullAddress': cityRegex },
+        { 'address.state': cityRegex }
+      ];
     }
     if (state) {
       query['address.state'] = { $regex: new RegExp(state, 'i') };
