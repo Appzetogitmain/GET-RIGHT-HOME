@@ -77,14 +77,24 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
     return `₹${num.toLocaleString('en-IN')}`;
   };
 
+  const floorPlansPrices = (item.dynamicData?.floorPlans || item.floorPlans || [])
+    .map(p => Number(p.price || p.startingPrice || p.expectedPrice || p.minPrice))
+    .filter(p => !isNaN(p) && p > 0);
+  const minFloorPlanPrice = floorPlansPrices.length > 0 ? Math.min(...floorPlansPrices) : null;
+
   const rawPrice =
     startingPrice ??
     item.startingPrice ??
-    item.rentDetails?.monthlyRent ??
-    item.pgDetails?.monthlyRent ??
+    item.minPrice ??
+    item.min_price ??
+    minFloorPlanPrice ??
     item.buyDetails?.expectedPrice ??
     item.plotDetails?.expectedPrice ??
     item.dynamicData?.expectedPrice ??
+    item.dynamicData?.startingPrice ??
+    item.dynamicData?.minPrice ??
+    item.rentDetails?.monthlyRent ??
+    item.pgDetails?.monthlyRent ??
     item.dynamicData?.monthlyRent ??
     item.dynamicData?.expectedRent ??
     item.dynamicData?.price ??

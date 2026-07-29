@@ -1054,12 +1054,25 @@ const RoomsTab = ({ rooms }) => {
 const EnquiriesTab = ({ enquiries }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
-    const filtered = enquiries.filter(e => 
-        e.enquiryId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        e.userId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        e.enquiryType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        e.message?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const list = Array.isArray(enquiries) ? enquiries : [];
+
+    const filtered = list.filter(e => {
+        if (!e) return false;
+        const term = searchTerm.toLowerCase();
+        const enqId = e.enquiryId || e._id || '';
+        const name = e.userId?.name || e.userName || e.name || '';
+        const phone = e.userId?.phone || e.userPhone || e.phone || '';
+        const email = e.userId?.email || e.userEmail || e.email || '';
+        const type = e.enquiryType || e.type || '';
+        const msg = e.message || e.notes || '';
+
+        return enqId.toLowerCase().includes(term) ||
+               name.toLowerCase().includes(term) ||
+               phone.toLowerCase().includes(term) ||
+               email.toLowerCase().includes(term) ||
+               type.toLowerCase().includes(term) ||
+               msg.toLowerCase().includes(term);
+    });
 
     return (
         <div className="space-y-4">
@@ -1088,45 +1101,64 @@ const EnquiriesTab = ({ enquiries }) => {
                             <th className="p-4 font-bold text-gray-600">Enquiry ID</th>
                             <th className="p-4 font-bold text-gray-600">User / Buyer</th>
                             <th className="p-4 font-bold text-gray-600">Contact Details</th>
-                            <th className="p-4 font-bold text-gray-600">Type</th>
+                            <th className="p-4 font-bold text-gray-600">Type / Message</th>
                             <th className="p-4 font-bold text-gray-600">Status</th>
                             <th className="p-4 font-bold text-gray-600">Date Received</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-xs font-bold uppercase">
                         {filtered.length > 0 ? (
-                            filtered.map((enq, i) => (
-                                <tr key={i} className="hover:bg-gray-50">
-                                    <td className="p-4 font-mono font-bold text-gray-800">#{enq.enquiryId}</td>
-                                    <td className="p-4">
-                                        <div className="font-bold text-gray-900">{enq.userId?.name || 'N/A'}</div>
-                                    </td>
-                                    <td className="p-4 text-gray-600 normal-case font-medium">
-                                        <div>{enq.userId?.phone || 'N/A'}</div>
-                                        <div className="text-[10px] text-gray-400">{enq.userId?.email || ''}</div>
-                                    </td>
-                                    <td className="p-4 capitalize font-semibold text-gray-600">
-                                        {enq.enquiryType?.replace('_', ' ')}
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                                            enq.status === 'new' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                            enq.status === 'contacted' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                            enq.status === 'scheduled' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                                            enq.status === 'closed' ? 'bg-green-50 text-green-700 border-green-200' :
-                                            'bg-gray-50 text-gray-600 border-gray-200'
-                                        }`}>
-                                            {enq.status}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-gray-500 font-medium normal-case">
-                                        {new Date(enq.createdAt).toLocaleDateString()} {new Date(enq.createdAt).toLocaleTimeString()}
-                                    </td>
-                                </tr>
-                            ))
+                            filtered.map((enq, i) => {
+                                const buyerName = enq.userId?.name || enq.userName || enq.name || 'Anonymous User';
+                                const buyerPhone = enq.userId?.phone || enq.userPhone || enq.phone || 'N/A';
+                                const buyerEmail = enq.userId?.email || enq.userEmail || enq.email || '';
+                                const messageText = enq.message || enq.notes || '';
+                                const displayId = enq.enquiryId ? `#${enq.enquiryId}` : (enq._id ? `#${enq._id.slice(-6)}` : `#${i+1}`);
+
+                                return (
+                                    <tr key={i} className="hover:bg-gray-50 transition-colors">
+                                        <td className="p-4 font-mono font-bold text-gray-800">{displayId}</td>
+                                        <td className="p-4">
+                                            <div className="font-bold text-gray-900">{buyerName}</div>
+                                        </td>
+                                        <td className="p-4 text-gray-600 normal-case font-medium">
+                                            <div className="font-bold text-gray-900">{buyerPhone}</div>
+                                            {buyerEmail && <div className="text-[10px] text-gray-400">{buyerEmail}</div>}
+                                        </td>
+                                        <td className="p-4 font-semibold text-gray-600">
+                                            <span className="capitalize text-indigo-600 font-bold block mb-0.5">
+                                                {(enq.enquiryType || enq.type || 'General Lead')?.replace('_', ' ')}
+                                            </span>
+                                            {messageText && (
+                                                <p className="text-[11px] text-gray-500 font-normal normal-case italic line-clamp-2 max-w-xs">
+                                                    "{messageText}"
+                                                </p>
+                                            )}
+                                        </td>
+                                        <td className="p-4">
+                                            <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                                                enq.status === 'new' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                enq.status === 'contacted' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                enq.status === 'scheduled' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                                enq.status === 'closed' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                'bg-gray-50 text-gray-600 border-gray-200'
+                                            }`}>
+                                                {enq.status || 'NEW'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-gray-500 font-medium normal-case">
+                                            {enq.createdAt ? (
+                                                <>
+                                                    {new Date(enq.createdAt).toLocaleDateString()} {new Date(enq.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </>
+                                            ) : 'Recent'}
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         ) : (
                             <tr>
-                                <td colSpan="6" className="p-8 text-center text-gray-400 font-bold uppercase text-xs">No enquiries found</td>
+                                <td colSpan="6" className="p-8 text-center text-gray-400 font-bold uppercase text-xs">No enquiries found for this property</td>
                             </tr>
                         )}
                     </tbody>
