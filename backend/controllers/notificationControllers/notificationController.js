@@ -1,5 +1,6 @@
 import Notification from '../../models/Notification.js';
 import { getIO } from '../../sockets.js';
+import notificationService from '../../services/notificationService.js';
 
 export const createNotification = async (data) => {
   try {
@@ -7,7 +8,23 @@ export const createNotification = async (data) => {
     data.body = data.body || data.message || 'Notification';
     data.title = data.title || 'New Notification';
     
-    const notification = await Notification.create(data);
+    // Map workerId/vendorId to userId for the DB schema
+    const dbData = { ...data };
+    if (dbData.workerId && !dbData.userId) {
+      dbData.userId = dbData.workerId;
+      dbData.userType = 'worker';
+      dbData.userModel = 'Worker';
+    } else if (dbData.vendorId && !dbData.userId) {
+      dbData.userId = dbData.vendorId;
+      dbData.userType = 'partner';
+      dbData.userModel = 'Partner';
+      
+    } else if (!dbData.userType) {
+      dbData.userType = 'user';
+      dbData.userModel = 'User';
+    }
+
+    const notification = await Notification.create(dbData);
 
     // Emit real-time socket notification to the relevant user/worker/vendor
     try {
@@ -47,6 +64,21 @@ export const createNotification = async (data) => {
       }
     } catch (socketErr) {
       console.error('[Socket] Failed to emit notification:', socketErr.message);
+    }
+
+    // Trigger FCM Push Notification
+    try {
+      if (data.userId) {
+        await notificationService.sendToUser(data.userId, { title: data.title, body: data.body }, data.pushData || {}, data.userType || 'user');
+      }
+      if (data.workerId) {
+        await notificationService.sendToUser(data.workerId, { title: data.title, body: data.body }, data.pushData || {}, 'worker');
+      }
+      if (data.vendorId) {
+        await notificationService.sendToUser(data.vendorId, { title: data.title, body: data.body }, data.pushData || {}, 'vendor');
+      }
+    } catch (pushErr) {
+      console.error('[FCM] Failed to send push notification:', pushErr.message);
     }
 
     return notification;

@@ -547,6 +547,17 @@ const createBooking = async (req, res) => {
             });
           }
 
+          await createNotification({
+            userId: userId,
+            type: 'booking_failed',
+            title: 'No Professionals Available',
+            message: `We couldn't find any ${bookingModel}s nearby at the moment. Our team will contact you shortly.`,
+            relatedId: bookingForBackground._id,
+            relatedType: 'booking',
+            priority: 'high',
+            pushData: { type: 'booking_failed', bookingId: bookingForBackground._id.toString(), link: `/user/booking/${bookingForBackground._id}` }
+          });
+
           bookingForBackground.status = BOOKING_STATUS.NO_VENDORS;
           await bookingForBackground.save();
         }

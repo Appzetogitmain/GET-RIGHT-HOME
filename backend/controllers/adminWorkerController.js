@@ -447,6 +447,18 @@ export const approveWorkerWithdrawal = async (req, res) => {
         status: 'completed',
         description: remarks || `Withdrawal Approved (UTR: ${utrNumber || 'N/A'})`
       });
+
+      // Notify Worker
+      await createNotification({
+        workerId: worker._id,
+        type: 'withdrawal_approved',
+        title: 'Withdrawal Approved ✅',
+        message: `Your withdrawal request for ₹${withdrawal.amount} has been approved. UTR: ${utrNumber || 'N/A'}`,
+        relatedId: withdrawal._id,
+        relatedType: 'withdrawal',
+        priority: 'high',
+        pushData: { type: 'withdrawal', withdrawalId: withdrawal._id.toString(), link: '/worker/wallet' }
+      });
     }
 
     res.json({ success: true, message: 'Withdrawal approved successfully', data: updatedWithdrawal });
@@ -496,6 +508,18 @@ export const rejectWorkerWithdrawal = async (req, res) => {
           $inc: { 'wallet.balance': withdrawal.amount }
         }
       );
+
+      // Notify Worker
+      await createNotification({
+        workerId: worker._id,
+        type: 'withdrawal_rejected',
+        title: 'Withdrawal Rejected ❌',
+        message: `Your withdrawal request for ₹${withdrawal.amount} was rejected. Amount has been refunded.`,
+        relatedId: withdrawal._id,
+        relatedType: 'withdrawal',
+        priority: 'high',
+        pushData: { type: 'withdrawal', withdrawalId: withdrawal._id.toString(), link: '/worker/wallet' }
+      });
     }
 
     res.json({ success: true, message: 'Withdrawal rejected and amount refunded', data: updatedWithdrawal });
@@ -537,6 +561,18 @@ export const assignWorkerToBooking = async (req, res) => {
       relatedType: 'booking',
       priority: 'high',
       pushData: { type: 'worker_assigned', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
+    });
+
+    // Notify Worker
+    await createNotification({
+      workerId: worker._id,
+      type: 'job_assigned',
+      title: 'New Job Assigned',
+      message: 'Admin has manually assigned a new job to you.',
+      relatedId: booking._id,
+      relatedType: 'booking',
+      priority: 'high',
+      pushData: { type: 'new_job', bookingId: booking._id.toString(), link: `/worker/job/${booking._id}` }
     });
 
     const io = req.app.get('io');
