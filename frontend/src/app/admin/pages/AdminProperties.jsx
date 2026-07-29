@@ -88,8 +88,15 @@ const AdminProperties = () => {
             if (data.success) {
                 // Filter out Projects so they only appear under Projects Management
                 const propertiesOnly = (data.hotels || []).filter(p => {
+                    const catName = String(p.propertyCategory || p.dynamicCategory?.name || p.dynamicCategory?.displayName || '').toLowerCase();
+                    const typeName = String(p.propertyType || '').toLowerCase();
+                    const creatorRole = String(p.partnerId?.role || p.userId?.role || p.userId?.userType || '').toLowerCase();
+
                     const isProj = p.isProject === true || 
                                    p.listingType === 'project' || 
+                                   creatorRole === 'builder' ||
+                                   catName.includes('project') ||
+                                   typeName.includes('project') ||
                                    Boolean(p.builderProjectDetails) || 
                                    Boolean(p.dynamicData?.builderName) || 
                                    Boolean(p.dynamicData?.builderProjectDetails) || 
@@ -341,19 +348,20 @@ const AdminProperties = () => {
                                                         {property.dynamicCategory?.displayName || property.propertyType || 'N/A'}
                                                     </p>
                                                 </td>
-                                                <td className="p-4">
-                                                    {(() => {
-                                                        const creator = property.userId || property.partnerId;
-                                                        const creatorType = property.userId ? (property.userId.role || 'owner') : 'partner';
-                                                        return (
-                                                            <>
-                                                                <p className="text-[10px] text-gray-700 font-bold uppercase mb-0.5">{creator?.name || 'Unknown Creator'}</p>
-                                                                <p className="text-[10px] text-gray-500 font-medium normal-case tracking-tight">{creator?.email || 'No Email'}</p>
-                                                                <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">Role: {creatorType}</p>
-                                                            </>
-                                                        );
-                                                    })()}
-                                                </td>
+                                                 <td className="p-4">
+                                                     {(() => {
+                                                         const creator = property.userId || property.partnerId;
+                                                         const roleRaw = property.partnerId?.role || property.userId?.role || property.userId?.userType || 'owner';
+                                                         const creatorType = roleRaw === 'broker' ? 'Broker' : roleRaw === 'partner' ? 'Partner' : 'Owner';
+                                                         return (
+                                                             <>
+                                                                 <p className="text-[10px] text-gray-700 font-bold uppercase mb-0.5">{creator?.name || creator?.companyName || 'Unknown Creator'}</p>
+                                                                 <p className="text-[10px] text-gray-500 font-medium normal-case tracking-tight">{creator?.email || 'No Email'}</p>
+                                                                 <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">Role: {creatorType}</p>
+                                                             </>
+                                                         );
+                                                     })()}
+                                                 </td>
                                                 <td className="p-4">
                                                     <PropertyStatusBadge status={property.status} />
                                                 </td>

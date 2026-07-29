@@ -43,7 +43,8 @@ const adminService = {
     return response.data;
   },
   deleteProject: async (projectId) => {
-    const response = await axiosInstance.delete('/admin/delete-project', { data: { projectId } });
+    const id = typeof projectId === 'object' ? (projectId.projectId || projectId._id || projectId.id) : projectId;
+    const response = await axiosInstance.delete(`/admin/projects/${id}`, { data: { projectId: id } });
     return response.data;
   },
 

@@ -122,6 +122,7 @@ router.get('/project-details/:id', checkManagerPermission('projects', 'view'), g
 router.post('/projects', checkManagerPermission('projects', 'add'), createAdminProject);
 router.put('/projects/:id', checkManagerPermission('projects', 'edit'), updateAdminProject);
 router.delete('/delete-project', checkManagerPermission('projects', 'delete'), deleteProject);
+router.delete('/projects/:id', checkManagerPermission('projects', 'delete'), deleteProject);
 
 router.get('/bookings', checkManagerPermission('bookings', 'view'), getAllBookings);
 
