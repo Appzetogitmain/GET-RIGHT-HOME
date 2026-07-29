@@ -86,9 +86,19 @@ const AdminProperties = () => {
             };
             const data = await adminService.getHotels(params);
             if (data.success) {
-                setProperties(data.hotels || []);
-                setTotalProperties(data.total || 0);
-                setTotalPages(Math.ceil((data.total || 0) / limit));
+                // Filter out Projects so they only appear under Projects Management
+                const propertiesOnly = (data.hotels || []).filter(p => {
+                    const isProj = p.isProject === true || 
+                                   p.listingType === 'project' || 
+                                   Boolean(p.builderProjectDetails) || 
+                                   Boolean(p.dynamicData?.builderName) || 
+                                   Boolean(p.dynamicData?.builderProjectDetails) || 
+                                   (Array.isArray(p.dynamicData?.towers) && p.dynamicData.towers.length > 0);
+                    return !isProj;
+                });
+                setProperties(propertiesOnly);
+                setTotalProperties(propertiesOnly.length);
+                setTotalPages(Math.ceil(propertiesOnly.length / limit));
             } else {
                 setProperties([]);
                 setTotalProperties(0);

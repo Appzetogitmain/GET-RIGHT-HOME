@@ -409,11 +409,20 @@ const DynamicFormEngine = () => {
   const submitForm = async () => {
     try {
       setLoading(true);
+      const isProjectListing = Boolean(
+        category?.toLowerCase().includes('project') || 
+        displayPropertyType?.toLowerCase().includes('project') || 
+        formData.builderProjectDetails || 
+        formData.builderName || 
+        (Array.isArray(formData.towers) && formData.towers.length > 0)
+      );
+
       const payload = {
         propertyName: formData.propertyName || `${category} ${displayPropertyType} for ${transactionType}`,
         transactionType,
         propertyCategory: category,
         propertyType: displayPropertyType,
+        isProject: isProjectListing,
         dynamicCategory: template?._id,
         dynamicData: formData,
         logo: formData.logo || '',

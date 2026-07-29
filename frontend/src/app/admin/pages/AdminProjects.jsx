@@ -88,15 +88,35 @@ const AdminProjects = () => {
                 builder: currentFilters.builder || undefined
             };
             const data = await adminService.getProjects(params);
-            if (data.success) {
-                setProjects(data.projects || []);
-                setTotalProjects(data.total || 0);
-                setTotalPages(Math.ceil((data.total || 0) / limit));
-            } else {
-                setProjects([]);
-                setTotalProjects(0);
-                setTotalPages(0);
+            const hotelsData = await adminService.getHotels(params);
+            
+            let combinedProjects = [];
+            if (data.success && Array.isArray(data.projects)) {
+                combinedProjects = [...data.projects];
             }
+            
+            if (hotelsData.success && Array.isArray(hotelsData.hotels)) {
+                const projectHotels = hotelsData.hotels.filter(p => {
+                    const isProj = p.isProject === true || 
+                                   p.listingType === 'project' || 
+                                   Boolean(p.builderProjectDetails) || 
+                                   Boolean(p.dynamicData?.builderName) || 
+                                   Boolean(p.dynamicData?.builderProjectDetails) || 
+                                   (Array.isArray(p.dynamicData?.towers) && p.dynamicData.towers.length > 0);
+                    return isProj;
+                });
+                
+                // Merge without duplicates
+                projectHotels.forEach(ph => {
+                    if (!combinedProjects.some(cp => cp._id === ph._id)) {
+                        combinedProjects.push(ph);
+                    }
+                });
+            }
+
+            setProjects(combinedProjects);
+            setTotalProjects(combinedProjects.length);
+            setTotalPages(Math.ceil(combinedProjects.length / limit));
         } catch (error) {
             if (error.response?.status !== 401) {
                 console.error('Error fetching projects:', error);
