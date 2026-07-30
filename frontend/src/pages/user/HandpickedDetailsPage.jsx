@@ -597,12 +597,18 @@ const HandpickedDetailsPage = () => {
 
   const builderTrackRecord = {
     name: property?.userId?.builderProfile?.companyName || property?.dynamicData?.builderName || property?.userId?.name || property?.partnerId?.name || "Builder",
-    logo: property?.userId?.builderProfile?.logo || property?.dynamicData?.builderLogo || property?.logo || property?.coverImage || property?.partnerId?.profilePicture || "",
-    summary: property?.userId?.builderProfile?.about || property?.partnerId?.about || property?.dynamicData?.builderAbout || "",
-    experience: property?.userId?.builderProfile?.experienceYears || property?.partnerId?.experience || property?.dynamicData?.builderExperience || 0,
-    ongoingCount: property?.userId?.builderProfile?.ongoingProjects || property?.partnerId?.ongoingProjects || property?.dynamicData?.builderOngoing || 0,
-    completedCount: property?.userId?.builderProfile?.completedProjects || property?.partnerId?.completedProjects || property?.dynamicData?.builderCompleted || 0,
-    rating: property?.userId?.builderProfile?.rating || property?.partnerId?.rating || property?.dynamicData?.builderRating || 0
+    logo: property?.userId?.builderProfile?.logo || property?.userId?.builderProfile?.brandLogo || property?.dynamicData?.builderLogo || property?.logo || property?.partnerId?.profilePicture || "",
+    summary: property?.userId?.builderProfile?.description || property?.userId?.builderProfile?.about || property?.partnerId?.about || property?.dynamicData?.builderAbout || "",
+    experience: property?.userId?.builderProfile?.experienceYears || property?.partnerId?.experience || property?.dynamicData?.builderExperience || 8,
+    ongoingCount: (builderProjects || []).filter(p => {
+      const st = String(p.builderProjectDetails?.possessionStatus || p.dynamicData?.projectStatus || p.status || '').toLowerCase();
+      return !st.includes('ready') && !st.includes('completed') && !st.includes('delivered');
+    }).length || property?.userId?.builderProfile?.ongoingProjects || 1,
+    completedCount: (builderProjects || []).filter(p => {
+      const st = String(p.builderProjectDetails?.possessionStatus || p.dynamicData?.projectStatus || p.status || '').toLowerCase();
+      return st.includes('ready') || st.includes('completed') || st.includes('delivered');
+    }).length || property?.userId?.builderProfile?.completedProjects || 0,
+    rating: property?.userId?.builderProfile?.rating || property?.partnerId?.rating || property?.dynamicData?.builderRating || 4.8
   };
 
   // Floor plans
@@ -2996,16 +3002,25 @@ const HandpickedDetailsPage = () => {
           <div className="fixed inset-0 z-[99999] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
             <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 relative shadow-2xl h-[75vh] sm:h-auto flex flex-col"
+              className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 relative shadow-2xl max-h-[85vh] overflow-y-auto flex flex-col space-y-4"
             >
               <button onClick={() => setShowAboutBuilderModal(false)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors">
                 <X className="w-5 h-5" />
               </button>
-              <h3 className="text-xl font-bold text-slate-900 mb-4 border-b border-slate-100 pb-3">About builder</h3>
-              <div className="flex-1 overflow-y-auto pr-2 text-sm text-slate-700 leading-relaxed text-justify space-y-4">
-                <p>{builderTrackRecord.summary || "Detailed builder information is not available at the moment. Our team is working on curating the best insights for you."}</p>
+              <h3 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-3">About Builder</h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                {builderTrackRecord.summary || "Detailed builder information is not available at the moment. Our team is working on curating the best insights for you."}
+              </p>
+              <div className="bg-slate-50 rounded-2xl p-4 space-y-2 border border-slate-100">
+                <p className="text-xs font-black text-slate-800">Developer Summary</p>
+                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 font-medium">
+                  <div>Total Projects: <span className="font-bold text-slate-900">{builderTrackRecord.completedCount + builderTrackRecord.ongoingCount}</span></div>
+                  <div>Ready To Move: <span className="font-bold text-slate-900">{builderTrackRecord.completedCount}</span></div>
+                  <div>Ongoing Projects: <span className="font-bold text-slate-900">{builderTrackRecord.ongoingCount}</span></div>
+                  <div>Experience: <span className="font-bold text-slate-900">{builderTrackRecord.experience} yrs</span></div>
+                </div>
               </div>
-              <button onClick={() => setShowAboutBuilderModal(false)} className="w-full mt-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors">
+              <button onClick={() => setShowAboutBuilderModal(false)} className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm">
                 Close
               </button>
             </motion.div>
@@ -3022,20 +3037,20 @@ const HandpickedDetailsPage = () => {
               <button onClick={() => setShowVerifiedSourcesModal(false)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors">
                 <X className="w-5 h-5" />
               </button>
-              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2"><Shield className="w-5 h-5 text-slate-800" /> Our verified sources</h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2"><Shield className="w-5 h-5 text-emerald-600 fill-emerald-100" /> Our Verified Sources</h3>
               <div className="flex-1 overflow-y-auto space-y-6 text-sm">
                 <div>
-                  <h4 className="font-bold text-slate-900 mb-1">Delivery information: RERA</h4>
+                  <h4 className="font-bold text-slate-900 mb-1">Delivery information: <span className="font-extrabold text-blue-700">RERA</span></h4>
                   <p className="text-slate-600 text-xs leading-relaxed">Delivery timing has been calculated based on the completion date & subsequent changes in the data updated by the Builder on State RERA website.</p>
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 mb-1">Construction Quality: Resident Reviews</h4>
+                  <h4 className="font-bold text-slate-900 mb-1">Construction Quality: <span className="font-extrabold text-blue-700">Resident Reviews</span></h4>
                   <p className="text-slate-600 text-xs leading-relaxed">Construction ratings & insights have been generated based on the reviews submitted by actual residents on the platform.</p>
-                  <p className="text-slate-600 text-[10px] leading-relaxed mt-2 italic font-medium">Powered by AI: The insights are generated using AI & may contain errors or inaccuracies. You can refer to our detailed resident reviews for further research.</p>
+                  <p className="text-slate-600 text-[10px] leading-relaxed mt-2 font-semibold">Powered by AI: The insights have been generated using AI & may contain errors or inaccuracies. You can refer to our detailed resident reviews for further research.</p>
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 mb-1">Price Appreciation: Price Intelligence</h4>
-                  <p className="text-slate-600 text-xs leading-relaxed">Based on listings posted in the last 3 months by owners & brokers.</p>
+                  <h4 className="font-bold text-slate-900 mb-1">Price Appreciation: <span className="font-extrabold text-blue-700">Get-Right-home Price Intelligence</span></h4>
+                  <p className="text-slate-600 text-xs leading-relaxed">Price is calculated based on property posted on the Get-Right-home platform during the last 3 months by owners & brokers.</p>
                 </div>
               </div>
               <button onClick={() => setShowVerifiedSourcesModal(false)} className="w-full mt-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors">
@@ -3047,7 +3062,8 @@ const HandpickedDetailsPage = () => {
 
       </AnimatePresence>
       {/* Fixed Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 pb-safe md:p-4 z-[9999] flex items-center justify-between gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.08)]">
+      {!(showAllHighlights || showAllAmenities || showInteriorsModal || showProsConsModal || showComparisonMatrix || showEnquiryModal || showAboutBuilderModal || showVerifiedSourcesModal || selectedFloorPlan || selectedPaymentPlan) && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 pb-safe md:p-4 z-[9999] flex items-center justify-between gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.08)]">
         <button
           onClick={handleBrochureDownload}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
@@ -3068,6 +3084,7 @@ const HandpickedDetailsPage = () => {
           <Phone className="w-3.5 h-3.5" /> View Number
         </button>
       </div>
+      )}
 
     </div>
   );

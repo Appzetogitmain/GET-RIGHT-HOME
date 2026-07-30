@@ -73,6 +73,7 @@ const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPag
 const ListPropertyWizard = React.lazy(() => import('./pages/user/ListPropertyWizard'));
 const DynamicFormEngine = React.lazy(() => import('./pages/user/DynamicFormEngine'));
 const BuilderProfilePage = React.lazy(() => import('./pages/user/BuilderProfilePage'));
+const BuilderProfileManagement = React.lazy(() => import('./app/builder/pages/BuilderProfileManagement'));
 const BrokerProfilePage = React.lazy(() => import('./pages/user/BrokerProfilePage'));
 const RecommendedBrokersPage = React.lazy(() => import('./pages/user/RecommendedBrokersPage'));
 const EmiCalculatorPage = React.lazy(() => import('./pages/user/EmiCalculatorPage'));
@@ -553,6 +554,7 @@ function App() {
                         <Route path="settings" element={<PartnerSettings />} />
                         <Route path="bank-details" element={<PartnerBankDetails />} />
                         <Route path="profile" element={<PartnerProfile />} />
+                        <Route path="builder-profile" element={<BuilderProfileManagement />} />
                         <Route path="subscriptions" element={<PartnerSubscriptions />} />
                       </Route>
                     </Route>

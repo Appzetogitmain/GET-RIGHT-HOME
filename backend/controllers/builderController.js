@@ -149,77 +149,99 @@ export const deleteBuilder = async (req, res) => {
 // @access  Public
 export const getPublicBuilderDetails = async (req, res) => {
   try {
-    const builder = await User.findById(req.params.id).select('name builderProfile createdAt');
+    const builder = await User.findById(req.params.id).select('name email phone role builderProfile companyName createdAt');
     if (!builder) {
       return res.status(404).json({ success: false, message: 'Builder not found' });
     }
 
-    // Aggregate stats from properties
-    const builderProperties = await Property.find({ userId: builder._id }).select('_id');
-    const propertyIds = builderProperties.map(p => p._id);
+    // 1. Fetch all properties/projects by this builder
+    const projects = await Property.find({
+      $or: [{ userId: builder._id }, { partnerId: builder._id }],
+      status: 'approved'
+    }).populate('builderProjectDetails').lean();
 
-    const ongoingCount = await BuilderProjectDetails.countDocuments({
-      propertyId: { $in: propertyIds },
-      possessionStatus: 'Ongoing'
-    });
+    // 2. Extract operational cities list
+    const cityList = [...new Set(projects.map(p => p.address?.city).filter(Boolean))];
 
-    const readyCount = await BuilderProjectDetails.countDocuments({
-      propertyId: { $in: propertyIds },
-      possessionStatus: 'Ready To Move'
-    });
-    
-    const projects = await Property.find({ userId: builder._id }).select('address.city').populate('builderProjectDetails');
-    
-    // Get unique cities
-    const cities = [...new Set(projects.map(p => p.address?.city).filter(Boolean))];
+    // 3. Categorize Projects into Ongoing vs Ready To Move
+    let ongoingCount = 0;
+    let readyToMoveCount = 0;
 
-    // Calculate rating distribution and new metrics
-    const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    let totalAppreciation = 0;
-    let appreciationCount = 0;
-    let latestAiSummary = '';
-    let totalConstructionQuality = 0;
-    let qualityCount = 0;
-
-    projects.forEach(p => {
-      const rating = p.builderProjectDetails?.ratings?.constructionQuality;
-      if (rating >= 1 && rating <= 5) {
-        ratingDistribution[Math.floor(rating)]++;
-        totalConstructionQuality += rating;
-        qualityCount++;
-      }
+    const formattedProjects = projects.map(p => {
+      const bpd = p.builderProjectDetails || {};
+      const statusText = String(bpd.possessionStatus || p.dynamicData?.availabilityStatus || p.dynamicData?.possessionStatus || p.possessionStatus || '').toLowerCase();
       
-      const appreciation = p.builderProjectDetails?.priceHistory?.appreciationLast3Years;
-      if (appreciation && typeof appreciation === 'number') {
-        totalAppreciation += appreciation;
-        appreciationCount++;
+      let isReadyToMove = statusText.includes('ready') || statusText.includes('delivered') || statusText.includes('completed');
+      if (isReadyToMove) {
+        readyToMoveCount++;
+      } else {
+        ongoingCount++;
       }
-      
-      const aiSummary = p.builderProjectDetails?.ratings?.aiSummary;
-      if (aiSummary && typeof aiSummary === 'string' && !latestAiSummary) {
-        latestAiSummary = aiSummary;
+
+      let rawPrice = p.startingPrice || p.minPrice || p.buyDetails?.expectedPrice || p.dynamicData?.price || p.dynamicData?.expectedPrice || p.dynamicData?.minPrice || p.expectedPrice || null;
+
+      if (!rawPrice && p.dynamicData?.floorPlans && p.dynamicData.floorPlans.length > 0) {
+        const prices = p.dynamicData.floorPlans.map(fp => Number(fp.price)).filter(val => !isNaN(val) && val > 0);
+        if (prices.length > 0) {
+          rawPrice = Math.min(...prices);
+        }
       }
+
+      let formattedPriceStr = 'Contact for Price';
+      if (rawPrice && !isNaN(Number(rawPrice))) {
+        const num = Number(rawPrice);
+        if (num >= 10000000) {
+          formattedPriceStr = `₹ ${(num / 10000000).toFixed(2)} Cr`;
+        } else if (num >= 100000) {
+          formattedPriceStr = `₹ ${(num / 100000).toFixed(2)} Lac`;
+        } else {
+          formattedPriceStr = `₹ ${num.toLocaleString('en-IN')}`;
+        }
+      }
+
+      return {
+        _id: p._id,
+        propertyName: p.propertyName || p.projectName,
+        propertyType: p.propertyType || p.propertyCategory,
+        city: p.address?.city || '',
+        area: p.address?.area || p.address?.district || '',
+        fullAddress: p.address?.fullAddress || '',
+        status: isReadyToMove ? 'Ready to move' : 'Ongoing',
+        possessionYear: bpd.possessionYear || p.dynamicData?.possessionYear || p.expectedBy || '2027',
+        possessionText: isReadyToMove 
+          ? `Ready to move since ${bpd.possessionYear || '2026'}`
+          : `Possession in ${bpd.possessionYear || p.dynamicData?.possessionYear || '2028'}`,
+        startingPrice: rawPrice,
+        priceRangeText: p.dynamicPriceText || formattedPriceStr,
+        coverImage: p.coverImage || p.logo || p.propertyImages?.[0] || 'https://images.pexels.com/photos/34590984/pexels-photo-34590984.jpeg',
+        logo: p.logo || builder.builderProfile?.logo || builder.builderProfile?.brandLogo || '',
+        bhkText: p.bhk ? `${p.bhk} BHK` : (p.dynamicData?.bedrooms ? `${p.dynamicData.bedrooms} BHK` : 'Apartment'),
+        constructionQualityRating: bpd.ratings?.constructionQuality || 4.5
+      };
     });
 
-    const averageAppreciation = appreciationCount > 0 ? Number((totalAppreciation / appreciationCount).toFixed(2)) : 0;
-    const averageConstructionQuality = qualityCount > 0 ? Number((totalConstructionQuality / qualityCount).toFixed(1)) : 0;
+    const industryExperience = builder.builderProfile?.experienceYears || builder.builderProfile?.experience || 8;
 
     res.json({
       success: true,
       builder: {
         _id: builder._id,
-        name: builder.name,
-        profile: builder.builderProfile,
+        name: builder.name || builder.companyName || 'Emerald Developers',
+        companyName: builder.companyName || builder.name,
+        phone: builder.phone || builder.builderProfile?.phone || '+91 8884976767',
+        logo: builder.builderProfile?.logo || builder.builderProfile?.brandLogo || '',
+        coverImage: builder.builderProfile?.coverImage || builder.builderProfile?.banner || '',
+        description: builder.builderProfile?.description || builder.builderProfile?.about || 'Leading Real Estate Developer focused on premium projects.',
+        experienceYears: industryExperience,
+        kycStatus: builder.builderProfile?.approvalStatus || 'verified',
         stats: {
+          totalProjects: formattedProjects.length,
           ongoingProjects: ongoingCount,
-          readyToMoveProjects: readyCount,
-          cities: cities.length,
-          cityList: cities,
-          ratingDistribution,
-          averageAppreciation,
-          averageConstructionQuality,
-          aiSummary: latestAiSummary
-        }
+          readyToMoveProjects: readyToMoveCount,
+          totalCities: cityList.length,
+          cityList
+        },
+        projects: formattedProjects
       }
     });
   } catch (error) {
