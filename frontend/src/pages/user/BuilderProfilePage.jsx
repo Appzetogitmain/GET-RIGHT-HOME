@@ -44,14 +44,26 @@ const BuilderProfilePage = () => {
 
   // Background Scroll Locking when any modal is open
   useEffect(() => {
-    const isModalOpen = aboutModalOpen || showVerifiedSourcesModal || showPhoneModal;
-    if (isModalOpen) {
+    const globalNav = document.getElementById('global-bottom-navbar');
+    if (aboutModalOpen || showVerifiedSourcesModal || showPhoneModal) {
+      if (window.lenis) window.lenis.stop();
       document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      if (globalNav) globalNav.style.display = 'none';
     } else {
-      document.body.style.overflow = '';
+      if (window.lenis) window.lenis.start();
+      document.body.style.overflow = 'unset';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      if (globalNav) globalNav.style.display = '';
     }
     return () => {
-      document.body.style.overflow = '';
+      if (window.lenis) window.lenis.start();
+      document.body.style.overflow = 'unset';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      if (globalNav) globalNav.style.display = '';
     };
   }, [aboutModalOpen, showVerifiedSourcesModal, showPhoneModal]);
 
@@ -551,7 +563,7 @@ const BuilderProfilePage = () => {
 
       {/* ── VERIFIED SOURCES MODAL (Matching 99acres popup) ── */}
       {showVerifiedSourcesModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
+        <div className="fixed inset-0 z-[99999] bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="bg-white w-full max-w-lg rounded-t-3xl md:rounded-3xl p-6 shadow-2xl space-y-5 max-h-[85vh] overflow-y-auto relative">
             <button 
               onClick={() => setShowVerifiedSourcesModal(false)}
@@ -603,7 +615,7 @@ const BuilderProfilePage = () => {
 
       {/* ── VIEW NUMBER / PHONE MODAL ── */}
       {showPhoneModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
+        <div className="fixed inset-0 z-[99999] bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="bg-white w-full max-w-sm rounded-t-3xl md:rounded-3xl p-6 shadow-2xl text-center space-y-4 relative">
             <button 
               onClick={() => setShowPhoneModal(false)}

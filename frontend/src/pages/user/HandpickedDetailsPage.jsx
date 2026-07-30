@@ -154,20 +154,32 @@ const HandpickedDetailsPage = () => {
 
   // Robust iOS/Mobile Background Scroll Lock
   useEffect(() => {
+    const globalNav = document.getElementById('global-bottom-navbar');
     const isModalOpen = showAllHighlights || showAllAmenities || showInteriorsModal || showProsConsModal || showComparisonMatrix || showEnquiryModal || showAboutBuilderModal || showVerifiedSourcesModal || selectedFloorPlan || selectedPaymentPlan;
     if (isModalOpen) {
+      if (window.lenis) window.lenis.stop();
       const scrollY = window.scrollY;
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
       document.body.style.width = '100%';
+      if (globalNav) globalNav.style.display = 'none';
     } else {
+      if (window.lenis) window.lenis.start();
       const scrollY = document.body.style.top;
       document.body.style.position = '';
       document.body.style.top = '';
       document.body.style.width = '';
+      if (globalNav) globalNav.style.display = '';
       if (scrollY) {
         window.scrollTo(0, parseInt(scrollY || '0') * -1);
       }
+    }
+    return () => {
+      if (window.lenis) window.lenis.start();
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      if (globalNav) globalNav.style.display = '';
     }
   }, [showAllHighlights, showAllAmenities, showInteriorsModal, showProsConsModal, showComparisonMatrix, showEnquiryModal, showAboutBuilderModal, showVerifiedSourcesModal, selectedFloorPlan, selectedPaymentPlan]);
 
@@ -314,14 +326,21 @@ const HandpickedDetailsPage = () => {
 
   useEffect(() => {
     const fetchBuilderProjects = async () => {
-      const bName = property?.userId?.builderProfile?.companyName || property?.dynamicData?.builderName || property?.partnerId?.name || property?.builderName;
       try {
-        const res = await propertyService.getPublic({
-          limit: 30
-        });
+        if (resolvedBuilderId) {
+          const { api } = await import('../../services/apiService');
+          const res = await api.get(`/public/builders/${resolvedBuilderId}`);
+          if (res.data && res.data.builder && res.data.builder.projects) {
+            setBuilderProjects(res.data.builder.projects);
+            return;
+          }
+        }
+        
+        // Fallback if no resolvedBuilderId
+        const bName = property?.userId?.builderProfile?.companyName || property?.dynamicData?.builderName || property?.partnerId?.name || property?.builderName;
+        const res = await propertyService.getPublic({ limit: 100 });
         let rawList = res?.properties || (Array.isArray(res) ? res : []);
         let filtered = rawList.filter(p => {
-          if (p._id === id) return false;
           if (resolvedBuilderId && (p.userId === resolvedBuilderId || p.partnerId === resolvedBuilderId || p.userId?._id === resolvedBuilderId || p.partnerId?._id === resolvedBuilderId)) return true;
           if (bName) {
             const pBName = p.userId?.builderProfile?.companyName || p.dynamicData?.builderName || p.partnerId?.name || p.builderName;
