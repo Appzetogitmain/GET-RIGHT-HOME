@@ -50,8 +50,8 @@ const PropertyVideoCurations = ({ pageType, theme }) => {
     }
 
     return (
-        <section className="py-4 border-b border-gray-100 last:border-0 relative">
-            <div className="flex flex-col mb-4 px-5 md:px-0">
+        <section className="pt-4 pb-2 border-b border-gray-100 last:border-0 relative">
+            <div className="flex flex-col mb-4 px-1.5 md:px-0">
                 <div className="flex items-center gap-2 mb-0.5">
                     <div className={`w-1 h-5 ${theme?.bg || 'bg-emerald-500'} rounded-full`} />
                     <h2 className="text-xl md:text-2xl font-black text-gray-900">
@@ -72,7 +72,7 @@ const PropertyVideoCurations = ({ pageType, theme }) => {
                     setCurrentIdx(index);
                     sessionStorage.setItem(`scroll-left-videos-${pageType}`, scrollLeft.toString());
                 }}
-                className="flex overflow-x-auto gap-5 no-scrollbar pb-6 px-5 md:px-0 snap-x snap-mandatory"
+                className="flex overflow-x-auto gap-5 no-scrollbar pb-6 px-1.5 md:px-0 snap-x snap-mandatory"
             >
                 {videos.map((item, idx) => {
                     const youtubeId = getYoutubeId(item.youtubeUrl);
@@ -155,7 +155,7 @@ const PropertyVideoCurations = ({ pageType, theme }) => {
             </div>
 
             {videos.length > 1 && (
-                <div className="flex justify-center items-center gap-2 mt-4">
+                <div className="flex justify-center items-center gap-2 mt-2">
                     {videos.map((_, idx) => (
                         <div
                             key={idx}

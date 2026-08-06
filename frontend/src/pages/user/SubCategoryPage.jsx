@@ -1134,6 +1134,17 @@ const SubCategoryPage = () => {
     const [expandedFaq, setExpandedFaq] = useState(null);
     const [selectedServiceForModal, setSelectedServiceForModal] = useState(null);
 
+    // Floating "View Cart" bar — reappears whenever a new item is added to the cart
+    const [cartBarDismissed, setCartBarDismissed] = useState(false);
+    const prevCartCountRef = useRef(cartCount);
+    useEffect(() => {
+        if (cartCount > prevCartCountRef.current) {
+            setCartBarDismissed(false);
+        }
+        prevCartCountRef.current = cartCount;
+    }, [cartCount]);
+    const showCartBar = cartCount > 0 && !cartBarDismissed;
+
     const isPaintingCategory = category?.title?.toLowerCase().includes('painting') || subCategory?.title?.toLowerCase().includes('painting');
     const isPackersAndMovers = category?.title?.toLowerCase().includes('packer') || category?.slug?.includes('packer');
 
@@ -2474,6 +2485,61 @@ const SubCategoryPage = () => {
                             </div>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* Floating "View Cart" Bar */}
+            <AnimatePresence>
+                {showCartBar && cartCount > 0 && (
+                    <motion.div
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 100, opacity: 0 }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                        className="fixed bottom-4 left-4 right-4 z-40 max-w-md mx-auto"
+                    >
+                        <div className="bg-white rounded-2xl shadow-2xl shadow-black/20 border border-gray-100 flex items-center gap-3 p-2.5 pr-3">
+                            <div className="w-11 h-11 rounded-full overflow-hidden bg-gray-50 border border-gray-100 shrink-0 flex items-center justify-center">
+                                {(subCategory?.iconUrl || category?.iconUrl) ? (
+                                    <img
+                                        src={toAssetUrl(subCategory?.iconUrl || category?.iconUrl)}
+                                        alt={subCategory?.title || category?.title}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <ShoppingCart className="text-[#00695C] w-5 h-5" />
+                                )}
+                            </div>
+
+                            <div
+                                className="flex-1 min-w-0 cursor-pointer"
+                                onClick={() => navigate('/user/cart')}
+                            >
+                                <h4 className="text-[13px] font-bold text-gray-900 truncate">
+                                    {subCategory?.title || category?.title}
+                                </h4>
+                                <span className="text-[11px] font-semibold text-[#00695C] flex items-center gap-0.5">
+                                    View Details <ChevronRight size={12} strokeWidth={3} />
+                                </span>
+                            </div>
+
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => navigate('/user/cart')}
+                                className="bg-[#00695C] hover:bg-[#004D40] text-white rounded-xl px-4 py-2 text-center shrink-0 transition-colors"
+                            >
+                                <span className="block text-[13px] font-bold leading-tight">View Cart</span>
+                                <span className="block text-[10px] opacity-90 leading-tight">{cartCount} item{cartCount > 1 ? 's' : ''}</span>
+                            </motion.button>
+
+                            <button
+                                onClick={() => setCartBarDismissed(true)}
+                                className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center shrink-0 transition-colors"
+                            >
+                                <X size={14} className="text-gray-500" />
+                            </button>
+                        </div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>

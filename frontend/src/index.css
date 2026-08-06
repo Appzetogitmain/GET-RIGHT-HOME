@@ -86,6 +86,13 @@ body:has(#hotel-root) {
   @apply w-full px-4 py-3 rounded-xl border-2 border-gray-200 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--color-surface)] focus:ring-4 focus:ring-[var(--color-surface)]/10 bg-white text-gray-900 font-medium shadow-sm hover:border-emerald-300;
 }
 
+/* Google Places Autocomplete injects its own dropdown (.pac-container) directly
+   into <body> with Google's default font stack (Roboto/Arial), which otherwise
+   clashes with the app-wide Inter font used everywhere else. */
+.pac-container {
+  font-family: "Inter", sans-serif !important;
+}
+
 @media print {
 
   /* Hide Navbar and specific buttons during print */

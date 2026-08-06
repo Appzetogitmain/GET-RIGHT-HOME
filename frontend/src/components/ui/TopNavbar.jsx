@@ -50,7 +50,7 @@ const TopNavbar = () => {
                     <img src={logo} alt="GRH Logo" className="h-12 w-auto object-contain" />
                     <div className="flex flex-col leading-none">
                         <span className="text-xl font-black tracking-tighter text-gray-900 uppercase">
-                            Get-Right<span className={`${themeLogoColor} transition-colors duration-700`}>-Home</span>
+                            Get Right<span className={`${themeLogoColor} transition-colors duration-700`}> Home</span>
                         </span>
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Real Estate Hub</span>
                     </div>

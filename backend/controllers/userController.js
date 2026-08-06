@@ -121,6 +121,12 @@ export const syncCart = async (req, res) => {
           delete cleanItem[field];
         }
       });
+      // Coerce required numeric fields (estimate-based items send 0; malformed
+      // catalog data can otherwise leave these undefined and fail schema validation)
+      cleanItem.price = Number.isFinite(Number(cleanItem.price)) ? Number(cleanItem.price) : 0;
+      cleanItem.unitPrice = Number.isFinite(Number(cleanItem.unitPrice)) ? Number(cleanItem.unitPrice) : 0;
+      cleanItem.category = cleanItem.category || 'General';
+      cleanItem.title = cleanItem.title || 'Service';
       return cleanItem;
     });
 

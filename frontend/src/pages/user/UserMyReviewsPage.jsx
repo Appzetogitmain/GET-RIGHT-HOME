@@ -1,9 +1,39 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Star, MessageCircle, ThumbsUp, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Star, MessageCircle, ArrowLeft, CheckCircle2, Building2, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../services/apiService';
 import toast from 'react-hot-toast';
+
+const timeAgo = (dateStr) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    if (days < 30) return `${Math.floor(days / 7)}w ago`;
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+// Rating tier -> left border accent color
+const tierBorder = (rating) => {
+    if (rating >= 5) return 'border-l-emerald-500';
+    if (rating >= 4) return 'border-l-emerald-400';
+    if (rating >= 3) return 'border-l-amber-400';
+    if (rating >= 2) return 'border-l-orange-400';
+    return 'border-l-red-400';
+};
+
+const StarRow = ({ rating, size = 11 }) => (
+    <div className="flex text-amber-400 shrink-0">
+        {[...Array(5)].map((_, i) => (
+            <Star key={i} size={size} fill={i < rating ? "currentColor" : "none"} className={i < rating ? "" : "text-gray-200"} strokeWidth={i < rating ? 0 : 1.5} />
+        ))}
+    </div>
+);
 
 const ReviewCard = ({ review, onReplySubmit }) => {
     const [isReplying, setIsReplying] = useState(false);
@@ -11,6 +41,7 @@ const ReviewCard = ({ review, onReplySubmit }) => {
     const [submitting, setSubmitting] = useState(false);
 
     const hasReply = !!review.reply;
+    const reviewerName = review.userId?.name || 'Guest User';
 
     const handleSubmit = async () => {
         if (!replyText.trim()) return;
@@ -31,82 +62,75 @@ const ReviewCard = ({ review, onReplySubmit }) => {
     };
 
     return (
-        <motion.div 
-            initial={{ opacity: 0, y: 10 }}
+        <motion.div
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm mb-4"
+            className={`bg-white rounded-2xl border border-gray-100 border-l-4 ${tierBorder(review.rating)} shadow-sm shadow-gray-100/60 px-5 py-4`}
         >
-            <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs uppercase">
-                        {review.userId?.name?.[0] || 'G'}
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-gray-900 text-sm">{review.userId?.name || 'Guest User'}</h4>
-                        <span className='text-[10px] text-gray-400 font-bold uppercase tracking-wider block'>
-                            {review.propertyId?.propertyName || 'Your Property'}
-                        </span>
-                        <div className="flex items-center gap-1 mt-1">
-                            <div className="flex text-amber-400">
-                                {[...Array(5)].map((_, i) => (
-                                    <Star key={i} size={10} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "" : "text-gray-200"} />
-                                ))}
-                            </div>
-                            <span className="text-[10px] text-gray-400 font-medium">• {new Date(review.createdAt).toLocaleDateString()}</span>
-                        </div>
-                    </div>
+            {/* Compact single-line meta row */}
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+                <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-bold text-[10px] uppercase shrink-0">
+                    {reviewerName[0]}
                 </div>
+                <h4 className="font-bold text-gray-900 text-[13px]">{reviewerName}</h4>
+                <StarRow rating={review.rating} />
+                <span className="text-[11px] text-gray-400">· {timeAgo(review.createdAt)}</span>
             </div>
 
-            <p className="text-sm text-gray-600 leading-relaxed mb-4 italic">
-                "{review.comment}"
+            <div className="flex items-center gap-1 text-[11px] text-gray-400 font-medium mb-2.5 ml-8">
+                <Building2 size={10} className="shrink-0" />
+                <span className="truncate">{review.propertyId?.propertyName || 'Your Property'}</span>
+            </div>
+
+            <p className="text-[13.5px] text-gray-600 leading-relaxed ml-8">
+                {review.comment}
             </p>
 
             {hasReply && (
-                <div className="mt-3 mb-4 pl-4 border-l-2 border-emerald-500/20 bg-emerald-50/30 rounded-r-xl p-3">
-                    <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">Your Response</p>
-                    <p className="text-sm text-gray-700">{review.reply}</p>
+                <div className="mt-3 ml-8 pl-3 border-l-2 border-emerald-200">
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider mb-0.5">Your Response</p>
+                    <p className="text-[13px] text-gray-600 leading-relaxed">{review.reply}</p>
                 </div>
             )}
 
-            <div className="flex items-center gap-4 pt-3 border-t border-gray-50">
+            <div className="ml-8 mt-2.5">
                 {!hasReply ? (
                     <button
                         onClick={() => setIsReplying(!isReplying)}
-                        className={`flex items-center gap-1.5 text-xs font-bold transition-all ${isReplying ? 'text-emerald-600' : 'text-gray-400 hover:text-emerald-600'}`}
+                        className={`flex items-center gap-1 text-[11px] font-bold transition-colors ${isReplying ? 'text-emerald-600' : 'text-gray-400 hover:text-emerald-600'}`}
                     >
-                        <MessageCircle size={14} /> {isReplying ? 'Cancel' : 'Reply to Guest'}
+                        <MessageCircle size={12} /> {isReplying ? 'Cancel' : 'Reply to guest'}
                     </button>
                 ) : (
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-                        <CheckCircle2 size={14} /> Replied
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                        <CheckCircle2 size={12} /> Replied
                     </span>
                 )}
             </div>
 
             <AnimatePresence>
                 {isReplying && !hasReply && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="mt-4 overflow-hidden"
+                        className="overflow-hidden"
                     >
-                        <div className="bg-gray-50 rounded-2xl p-4">
+                        <div className="ml-8 mt-3">
                             <textarea
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}
                                 placeholder="Write a professional reply..."
-                                className="w-full bg-white border border-gray-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 ring-emerald-500/20 resize-none h-24 mb-3"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-400 resize-none h-20 mb-2 transition-colors"
                                 autoFocus
                             />
                             <div className="flex justify-end">
                                 <button
                                     onClick={handleSubmit}
                                     disabled={submitting || !replyText.trim()}
-                                    className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-100 active:scale-95 transition-all disabled:opacity-50"
+                                    className="bg-gray-900 hover:bg-emerald-600 text-white px-5 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40"
                                 >
-                                    {submitting ? 'Posting...' : 'Send Reply'}
+                                    {submitting ? 'Posting...' : 'Post Reply'}
                                 </button>
                             </div>
                         </div>
@@ -117,11 +141,34 @@ const ReviewCard = ({ review, onReplySubmit }) => {
     );
 };
 
+const ReviewCardSkeleton = () => (
+    <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-gray-100 px-5 py-4 animate-pulse">
+        <div className="flex items-center gap-2 mb-2.5">
+            <div className="w-6 h-6 rounded-full bg-gray-100 shrink-0" />
+            <div className="h-3 w-24 bg-gray-100 rounded-full" />
+            <div className="h-3 w-16 bg-gray-100 rounded-full" />
+        </div>
+        <div className="ml-8 space-y-2">
+            <div className="h-2.5 w-full bg-gray-100 rounded-full" />
+            <div className="h-2.5 w-2/3 bg-gray-100 rounded-full" />
+        </div>
+    </div>
+);
+
+const StatItem = ({ label, value, icon: Icon }) => (
+    <div className="flex-1 flex flex-col items-center py-3.5">
+        <div className="flex items-center gap-1.5 mb-1">
+            {Icon && <Icon size={13} className="text-emerald-600" />}
+            <span className="text-xl font-black text-gray-900 leading-none">{value}</span>
+        </div>
+        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
+    </div>
+);
+
 const UserMyReviewsPage = () => {
     const navigate = useNavigate();
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({ avgRating: 0, total: 0 });
 
     useEffect(() => {
         fetchReviews();
@@ -134,13 +181,6 @@ const UserMyReviewsPage = () => {
             const res = await api.get('/reviews/owner');
             if (res.data.success) {
                 setReviews(res.data.reviews || []);
-                
-                // Stats
-                const r = res.data.reviews || [];
-                if (r.length > 0) {
-                    const avg = r.reduce((acc, curr) => acc + curr.rating, 0) / r.length;
-                    setStats({ avgRating: avg.toFixed(1), total: r.length });
-                }
             }
         } catch (error) {
             console.error("Failed to fetch reviews", error);
@@ -148,26 +188,33 @@ const UserMyReviewsPage = () => {
             try {
                 const res2 = await api.get('/reviews/partner');
                 if (res2.data.success) setReviews(res2.data.reviews || []);
-            } catch(e) {}
+            } catch (e) { /* no fallback available */ }
         } finally {
             setLoading(false);
         }
     };
 
     const handleReplyUpdate = (reviewId, replyText) => {
-        setReviews(prev => prev.map(r => 
+        setReviews(prev => prev.map(r =>
             r._id === reviewId ? { ...r, reply: replyText, replyAt: new Date().toISOString() } : r
         ));
     };
+
+    const stats = useMemo(() => {
+        const total = reviews.length;
+        const avgRating = total > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / total) : 0;
+        const replyRate = total > 0 ? Math.round((reviews.filter(r => !!r.reply).length / total) * 100) : 0;
+        return { total, avgRating: avgRating.toFixed(1), replyRate };
+    }, [reviews]);
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-28">
             {/* Header */}
             <div className="bg-white border-b border-gray-100 sticky top-0 z-30 pt-safe-top">
                 <div className="px-5 py-4 flex items-center gap-4">
-                    <button 
+                    <button
                         onClick={() => navigate(-1)}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors shrink-0"
                     >
                         <ArrowLeft size={18} className="text-gray-600" />
                     </button>
@@ -180,31 +227,20 @@ const UserMyReviewsPage = () => {
                 </div>
             </div>
 
-            <div className="px-5 pt-6 max-w-2xl mx-auto">
-                {/* Scorecard */}
-                <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm mb-8 flex items-center justify-between">
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Average Rating</p>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-4xl font-black text-gray-900">{stats.avgRating}</span>
-                            <div className="flex text-amber-400">
-                                <Star size={16} fill="currentColor" />
-                            </div>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Reviews</p>
-                        <p className="text-2xl font-black text-gray-900">{stats.total}</p>
-                    </div>
+            <div className="px-5 pt-5 max-w-2xl mx-auto">
+                {/* Minimal stat strip */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm shadow-gray-100/60 flex items-stretch divide-x divide-gray-100 mb-6">
+                    <StatItem label="Avg Rating" value={stats.avgRating} icon={Star} />
+                    <StatItem label="Reviews" value={stats.total} />
+                    <StatItem label="Reply Rate" value={`${stats.replyRate}%`} icon={TrendingUp} />
                 </div>
 
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mb-2" />
-                        <p className="text-xs font-bold text-gray-400 uppercase">Loading reviews...</p>
+                    <div className="space-y-3">
+                        {[...Array(3)].map((_, i) => <ReviewCardSkeleton key={i} />)}
                     </div>
                 ) : reviews.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-[2.5rem] border border-dashed border-gray-200">
+                    <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
                         <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Star size={32} className="text-gray-200" />
                         </div>
@@ -214,12 +250,12 @@ const UserMyReviewsPage = () => {
                         </p>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         {reviews.map(review => (
-                            <ReviewCard 
-                                key={review._id} 
-                                review={review} 
-                                onReplySubmit={handleReplyUpdate} 
+                            <ReviewCard
+                                key={review._id}
+                                review={review}
+                                onReplySubmit={handleReplyUpdate}
                             />
                         ))}
                     </div>

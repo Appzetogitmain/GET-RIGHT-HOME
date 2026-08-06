@@ -1,6 +1,7 @@
 import './config/env.js'; // ⚠️ MUST be first — loads dotenv before any other module
 import express from 'express';
 import mongoose from 'mongoose';
+import dns from 'dns';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import cors from 'cors';
@@ -16,6 +17,10 @@ import hsBookingRoutes from './routes/hsBookingRoutes.js';
 import adminWorkerRoutes from './routes/adminWorkerRoutes.js';
 import zoneRoutes from './routes/zoneRoutes.js';
 import fcmRoutes from './routes/fcmRoutes.js';
+// Force a public DNS resolver — Windows' default resolver intermittently fails
+// SRV lookups (querySrv ECONNREFUSED) for mongodb+srv:// connection strings.
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+
 // Initialize Firebase
 initializeFirebase();
 
