@@ -81,13 +81,14 @@ api.interceptors.response.use(
       localStorage.removeItem('accessToken');
       if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
         console.warn("Session expired or account blocked. Redirecting to login...");
-        const path = window.location.pathname;
-        const isUserHotelDetail = /^\/hotel\/[0-9a-fA-F]{24}(\/(amenities|reviews|offers))?$/.test(path);
-        const isPartnerPath = path.startsWith('/hotel/') && !isUserHotelDetail;
+        const path = window.location.pathname + window.location.search;
+        const isUserHotelDetail = /^\/hotel\/[0-9a-fA-F]{24}(\/(amenities|reviews|offers))?$/.test(window.location.pathname);
+        const isPartnerPath = window.location.pathname.startsWith('/hotel/') && !isUserHotelDetail;
+        const redirectParam = `redirect=${encodeURIComponent(path)}`;
         if (isPartnerPath) {
-          window.location.href = '/hotel/login';
+          window.location.href = `/hotel/login?${redirectParam}`;
         } else {
-          window.location.href = '/login';
+          window.location.href = `/login?${redirectParam}`;
         }
       }
     }

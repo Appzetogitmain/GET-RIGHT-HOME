@@ -148,7 +148,9 @@ const UserLogin = () => {
 
             login(res.user);
             clearPendingSession();
-            navigate('/');
+            const redirectParam = new URLSearchParams(location.search).get('redirect');
+            const from = location.state?.from || redirectParam;
+            navigate(from || '/', { replace: true });
         } catch (err) {
             if (err.response?.data?.requiresRegistration ||
                 err.response?.status === 404 ||

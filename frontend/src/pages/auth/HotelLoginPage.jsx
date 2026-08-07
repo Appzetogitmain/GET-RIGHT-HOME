@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Loader2, Shield } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
 import logo from '../../assets/grh-logo.png';
@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const HotelLoginPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { login } = useAuth();
     const [step, setStep] = useState(1);
     const [phone, setPhone] = useState('');
@@ -124,7 +125,9 @@ const HotelLoginPage = () => {
             }
 
             login(res.user);
-            navigate('/hotel/dashboard');
+            const redirectParam = new URLSearchParams(location.search).get('redirect');
+            const from = location.state?.from || redirectParam;
+            navigate(from || '/hotel/dashboard', { replace: true });
         } catch (err) {
             setError(err.message || 'Invalid OTP');
         } finally {

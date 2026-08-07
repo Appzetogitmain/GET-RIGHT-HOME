@@ -6,6 +6,7 @@ import ReelCommentsSheet from '../../components/reels/ReelCommentsSheet';
 import { reelService } from '../../services/reelService';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { goBackOrHome } from '../../utils/navigation';
 
 const BENGALURU_AREAS = [
   "Bengaluru North",
@@ -530,13 +531,7 @@ export default function ReelsPage() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => {
-            if (window.history.length > 1) {
-              navigate(-1);
-            } else {
-              navigate('/');
-            }
-          }}
+          onClick={() => goBackOrHome(navigate)}
           className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
           aria-label="Go back"
         >

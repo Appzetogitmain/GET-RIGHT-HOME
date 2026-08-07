@@ -8,6 +8,7 @@ import BannerCarousel from './BannerCarousel';
 import CityDropdown from './CityDropdown';
 import toast from 'react-hot-toast';
 import MobileSearchOverlay from './MobileSearchOverlay';
+import DesktopSearchFilterBar from './DesktopSearchFilterBar';
 
 
 const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) => {
@@ -158,11 +159,16 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             <div className="relative w-full">
                 <BannerCarousel />
 
-                {/* ─── FLOATING SEARCH BOX (overlaps banner bottom) ─── */}
+                {/* ─── DESKTOP SEARCH + FILTER BAR (overlaps banner bottom) ─── */}
+                <div className="hidden lg:flex absolute -bottom-[172px] left-0 right-0 z-40 justify-center">
+                    <DesktopSearchFilterBar theme={theme} selectedType={selectedType} />
+                </div>
+
+                {/* ─── FLOATING SEARCH BOX (overlaps banner bottom, mobile/tablet only) ─── */}
                 {/* This is the ref element — its position triggers sticky */}
                 <div
                     ref={searchBoxRef}
-                    className="absolute -bottom-[72px] left-1/2 -translate-x-1/2 w-[92%] md:w-[78%] z-40"
+                    className="lg:hidden absolute -bottom-[72px] left-1/2 -translate-x-1/2 w-[92%] md:w-[78%] z-40"
                 >
                     {/* ROW 1: City Dropdown — full width pill */}
                     <div className="w-full bg-white rounded-t-2xl border border-b-0 border-gray-200 shadow-md px-3 py-2.5 flex items-center gap-2">
@@ -218,7 +224,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             </div>
 
             {/* Spacer — accounts for the floating search box height */}
-            <div className="h-[88px]" />
+            <div className="h-[88px] lg:h-[188px]" />
 
 
             {/* ─── Hero Title & Subtitle ─── */}

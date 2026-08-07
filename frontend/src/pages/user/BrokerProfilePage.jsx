@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { goBackOrHome } from '../../utils/navigation';
 import { motion } from 'framer-motion';
 import { api } from '../../services/apiService';
 import { 
@@ -84,7 +85,7 @@ const BrokerProfilePage = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Oops!</h2>
                 <p className="text-gray-500 mb-6">{error || 'Broker not found'}</p>
                 <button 
-                    onClick={() => navigate(-1)}
+                    onClick={() => goBackOrHome(navigate)}
                     className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
                 >
                     <ArrowLeft size={18} /> Go Back
@@ -122,7 +123,7 @@ const BrokerProfilePage = () => {
                     {/* Top Nav */}
                     <div className="flex justify-between items-center px-4 py-4 md:py-6">
                         <button 
-                            onClick={() => navigate(-1)}
+                            onClick={() => goBackOrHome(navigate)}
                             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium"
                         >
                             <ArrowLeft size={20} />

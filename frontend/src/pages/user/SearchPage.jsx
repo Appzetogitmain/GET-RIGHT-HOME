@@ -760,7 +760,7 @@ const SearchPage = () => {
                                     { label: 'Gender', isModal: true, tab: 'Gender' },
                                     { label: 'BHK', isModal: true, tab: 'BHK' },
                                     { label: 'Property Type', isModal: true, tab: 'Property Type' },
-                                    { label: 'New Launch', key: 'amenities', isToggle: true, val: 'New Launch' },
+                                    { label: 'New Launch', key: 'amenities', isToggle: true, val: 'Pre Launch' },
                                     { label: 'Verified', key: 'amenities', isToggle: true, val: 'Verified Properties' },
                                     { label: 'New Booking', key: 'purchaseType', isToggle: true, val: 'New Bookings' },
                                     { label: 'Ready To Move', key: 'amenities', isToggle: true, val: 'Ready to Move' },

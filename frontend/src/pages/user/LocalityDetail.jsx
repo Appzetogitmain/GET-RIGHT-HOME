@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { goBackOrHome } from '../../utils/navigation';
 import axios from 'axios';
 import { 
     MapPin, ThumbsUp, ThumbsDown, Check, Minus, 
@@ -132,7 +133,7 @@ const LocalityDetail = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                 
                 {/* Back button */}
-                <button onClick={() => navigate(-1)} className="absolute top-5 left-5 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40 transition-colors z-10">
+                <button onClick={() => goBackOrHome(navigate)} className="absolute top-5 left-5 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40 transition-colors z-10">
                     <ChevronRight className="w-5 h-5 rotate-180" />
                 </button>
 
