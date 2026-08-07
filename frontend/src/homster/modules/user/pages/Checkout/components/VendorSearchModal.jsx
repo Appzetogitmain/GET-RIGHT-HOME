@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { themeColors } from '../../../../../theme';
 
+// Keep in sync with the backend's search window (waveScheduler.js INITIAL_SEARCH_WINDOW_MS)
+const SEARCH_WINDOW_SECONDS = 3 * 60;
+
+const formatTime = (totalSeconds) => {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
 const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRetry, bookingModel = 'worker', searchMessage }) => {
   const [dots, setDots] = useState('.');
+  const [timeLeft, setTimeLeft] = useState(SEARCH_WINDOW_SECONDS);
 
   useEffect(() => {
     if (isOpen && (currentStep === 'searching' || currentStep === 'waiting')) {
@@ -10,6 +20,23 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
         setDots(prev => prev.length >= 3 ? '.' : prev + '.');
       }, 500);
       return () => clearInterval(interval);
+    }
+  }, [isOpen, currentStep]);
+
+  // Reset the 3-minute countdown whenever a fresh search kicks off.
+  useEffect(() => {
+    if (isOpen && currentStep === 'searching') {
+      setTimeLeft(SEARCH_WINDOW_SECONDS);
+    }
+  }, [isOpen, currentStep]);
+
+  // Tick the countdown down every second while actively searching/waiting.
+  useEffect(() => {
+    if (isOpen && (currentStep === 'searching' || currentStep === 'waiting')) {
+      const timer = setInterval(() => {
+        setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+      return () => clearInterval(timer);
     }
   }, [isOpen, currentStep]);
 
@@ -70,6 +97,19 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
               {/* Floating "Found" Dots Animation */}
               <div className="absolute top-8 right-8 w-2 h-2 rounded-full animate-bounce opacity-50" style={{ backgroundColor: themeColors.brand.orange, animationDelay: '0.2s' }}></div>
               <div className="absolute bottom-6 left-6 w-2 h-2 rounded-full animate-bounce opacity-50" style={{ backgroundColor: themeColors.brand.yellow, animationDelay: '1.5s' }}></div>
+
+              {/* Countdown Timer Badge */}
+              <div
+                className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full shadow-lg border border-gray-100 z-20"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={themeColors.brand.teal} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span className="text-xs font-black tabular-nums" style={{ color: themeColors.brand.teal }}>
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
             </div>
 
             {/* Status Text */}
@@ -82,8 +122,10 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
 
             {/* Bottom Pill - Now positioned relative to avoid overlap */}
             <div className="flex justify-center mt-2 mb-4">
-              <div className="px-4 py-2 bg-gray-50 rounded-full border border-gray-100 text-[10px] font-black uppercase tracking-tighter text-gray-400">
-                Searching for available {bookingModel}s
+              <div className="px-4 py-2 bg-gray-50 rounded-full border border-gray-100 text-[10px] font-black uppercase tracking-tighter text-gray-400 flex items-center gap-2">
+                {timeLeft > 0
+                  ? <>We'll keep searching for <span className="text-gray-600">{formatTime(timeLeft)}</span></>
+                  : 'Wrapping up search...'}
               </div>
             </div>
 
