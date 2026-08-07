@@ -536,30 +536,33 @@ const createBooking = async (req, res) => {
             if (err.code !== 11000) console.error('[CreateBooking] BookingRequest insert error:', err);
           }
         } else {
-          console.warn(`[CreateBooking] NO ${bookingModel.toUpperCase()}S FOUND nearby!`);
+          console.warn(`[CreateBooking] NO ${bookingModel.toUpperCase()}S FOUND on initial search for booking ${bookingForBackground.bookingNumber}. Will keep retrying for up to 3 minutes before giving up.`);
 
-          // Emit socket emission for search failure
+          // Don't fail the booking immediately. Mark it as "still searching" with
+          // currentWave = 0 so the wave scheduler keeps re-running the nearby search
+          // in the background for up to 3 minutes before declaring "no vendor available".
+          bookingForBackground.currentWave = 0;
+          bookingForBackground.waveStartedAt = new Date();
+          await bookingForBackground.save();
+
           const io = getIO();
           if (io) {
-            io.to(`user_${userId}`).emit('booking_search_failed', {
+            io.to(`user_${userId}`).emit('booking_updated', {
               bookingId: bookingForBackground._id,
-              message: `No ${bookingModel}s found nearby.`
+              status: BOOKING_STATUS.SEARCHING,
+              message: `Searching for nearby ${bookingModel}s...`
             });
           }
 
           await createNotification({
             userId: userId,
-            type: 'booking_failed',
-            title: 'No Professionals Available',
-            message: `We couldn't find any ${bookingModel}s nearby at the moment. Our team will contact you shortly.`,
+            type: 'finding_professional',
+            title: 'Booking Received!',
+            message: `We're finding the best professional for your ${bookingForBackground.serviceName} booking. This may take a few minutes.`,
             relatedId: bookingForBackground._id,
             relatedType: 'booking',
-            priority: 'high',
-            pushData: { type: 'booking_failed', bookingId: bookingForBackground._id.toString(), link: `/user/booking/${bookingForBackground._id}` }
+            pushData: { type: 'booking_confirmed', bookingId: bookingForBackground._id.toString(), link: `/user/booking/${bookingForBackground._id}` }
           });
-
-          bookingForBackground.status = BOOKING_STATUS.NO_VENDORS;
-          await bookingForBackground.save();
         }
 
         // Send notifications to Wave 1 partners

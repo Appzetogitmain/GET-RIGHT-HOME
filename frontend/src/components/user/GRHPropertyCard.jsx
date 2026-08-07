@@ -705,7 +705,10 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
               <div className="flex items-center justify-between">
                 {/* View Project primary action */}
                 <button
-                  onClick={handleEnquireClick}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/property/${_id}`);
+                  }}
                   className="bg-orange-600 hover:bg-orange-700 text-white text-[9px] font-black uppercase py-2 px-3.5 rounded-lg active:scale-95 transition-all shadow-sm"
                 >
                   View Project
