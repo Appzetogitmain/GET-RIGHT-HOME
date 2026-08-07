@@ -302,7 +302,11 @@ const Checkout = () => {
   const cartCount = cartItems.length;
 
   const handleBack = () => {
-    navigate(-1);
+    if (currentStep === 'payment') {
+      setCurrentStep('details');
+    } else {
+      navigate(-1);
+    }
   };
 
   const handleQuantityChange = async (itemId, change) => {

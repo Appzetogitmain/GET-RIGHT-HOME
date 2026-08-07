@@ -64,20 +64,20 @@ const BannerCarousel = () => {
 
     if (loading) {
         return (
-            <div className="relative w-full h-[280px] md:h-[300px] lg:h-[420px] xl:h-[480px] overflow-hidden rounded-none bg-gray-200 animate-pulse" />
+            <div className="relative w-full h-[280px] md:h-[300px] lg:h-[320px] xl:h-[360px] overflow-hidden rounded-none bg-gray-200 animate-pulse" />
         );
     }
 
     if (banners.length === 0) {
         return (
-            <div className="relative w-full h-[280px] md:h-[300px] lg:h-[420px] xl:h-[480px] overflow-hidden rounded-none bg-gray-50 flex items-center justify-center">
+            <div className="relative w-full h-[280px] md:h-[300px] lg:h-[320px] xl:h-[360px] overflow-hidden rounded-none bg-gray-50 flex items-center justify-center">
                 <span className="text-gray-400 text-sm font-medium">No banners available</span>
             </div>
         );
     }
 
     return (
-        <div className="relative w-full h-[280px] md:h-[300px] lg:h-[420px] xl:h-[480px] overflow-hidden rounded-none group">
+        <div className="relative w-full h-[280px] md:h-[300px] lg:h-[320px] xl:h-[360px] overflow-hidden rounded-none group">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={currentIndex}

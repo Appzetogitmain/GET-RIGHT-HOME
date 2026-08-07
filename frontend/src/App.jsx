@@ -380,8 +380,14 @@ const PartnerProtectedRoute = ({ children }) => {
 // Public Route (redirects to home if already logged in)
 const PublicRoute = ({ children }) => {
   const { isLoggedIn } = useAuth();
+  const location = useLocation();
   if (isLoggedIn) {
-    return <Navigate to="/" replace />;
+    // Agree with UserLogin/HotelLoginPage's own post-login redirect on where
+    // to land, so whichever of the two redirects actually wins the render
+    // race still sends the user back to the page they originally wanted.
+    const redirectParam = new URLSearchParams(location.search).get('redirect');
+    const from = location.state?.from || redirectParam;
+    return <Navigate to={from || '/'} replace />;
   }
   return children;
 };

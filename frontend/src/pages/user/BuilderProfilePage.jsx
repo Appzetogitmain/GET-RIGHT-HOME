@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { goBackOrHome } from '../../utils/navigation';
 import {
   ArrowLeft, Star, MapPin, Building2, ChevronRight,
   ChevronDown, CheckCircle2, TrendingUp, Phone, Wrench, Loader2, AlertCircle
@@ -103,7 +104,7 @@ const BuilderProfilePage = () => {
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center gap-4">
         <AlertCircle size={48} className="text-red-400" />
         <h2 className="text-xl font-bold text-gray-800">{error || 'Builder not found'}</h2>
-        <button onClick={() => navigate(-1)} className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">Go Back</button>
+        <button onClick={() => goBackOrHome(navigate)} className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">Go Back</button>
       </div>
     );
   }
@@ -156,7 +157,7 @@ const BuilderProfilePage = () => {
         {/* Back Button */}
         <div className="absolute top-4 left-4 z-10">
           <button 
-            onClick={() => navigate(-1)} 
+            onClick={() => goBackOrHome(navigate)} 
             className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-800 shadow-sm hover:bg-white transition-colors"
           >
             <ArrowLeft size={18} />

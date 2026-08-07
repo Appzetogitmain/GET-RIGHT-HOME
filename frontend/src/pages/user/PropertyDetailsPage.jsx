@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
+import { goBackOrHome } from '../../utils/navigation';
 import { authService, propertyService, legalService, reviewService, offerService, availabilityService, userService, bookingService, enquiryService, localityReviewService } from '../../services/apiService';
 import GRHPropertyCard from '../../components/user/GRHPropertyCard';
 import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
@@ -1248,7 +1249,7 @@ const PropertyDetailsPage = () => {
       <div className="fixed top-0 w-full bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 z-40 transition-all">
         <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <button onClick={() => goBackOrHome(navigate)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
               <ArrowLeft size={20} className="text-gray-700" />
             </button>
             <div className="flex flex-col">

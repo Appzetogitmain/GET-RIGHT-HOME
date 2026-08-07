@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
+import { goBackOrHome } from '../../utils/navigation';
 import {
   ChevronUp,
   MapPin, Star, Share2, Heart, ArrowLeft, Loader2, ChevronLeft, ChevronRight,
@@ -803,7 +804,7 @@ const HandpickedDetailsPage = () => {
         {/* Top Header bar with Search */}
         <div className="absolute top-0 left-0 right-0 p-4 md:p-6 bg-gradient-to-b from-black/50 to-transparent flex items-center justify-between z-20 gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => goBackOrHome(navigate)}
             className="p-2 md:p-3 bg-white text-slate-900 rounded-full transition-all shadow-md shrink-0"
           >
             <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
