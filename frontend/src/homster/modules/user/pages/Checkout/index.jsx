@@ -25,6 +25,18 @@ const toAssetUrl = (url) => {
   return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
 
+// The main app (AuthContext) stores the signed-in user under 'user', while the
+// homster auth flow stores it under 'userData'. Read both so users who signed in
+// via the main /login screen still get their details here.
+// (SocketContext.jsx uses the same fallback for the same reason.)
+const getStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('userData') || localStorage.getItem('user') || '{}') || {};
+  } catch {
+    return {};
+  }
+};
+
 const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -101,18 +113,15 @@ const Checkout = () => {
   // Load user data and cart
   useEffect(() => {
     const loadUserData = () => {
-      const storedUserData = localStorage.getItem('userData');
-      if (storedUserData) {
-        const userData = JSON.parse(storedUserData);
-        if (userData.phone) {
-          setUserPhone(userData.phone);
-        }
-        // Initialize contact details for editing
-        setContactDetails({
-          name: userData.name || '',
-          phone: userData.phone || ''
-        });
+      const userData = getStoredUser();
+      if (userData.phone) {
+        setUserPhone(userData.phone);
       }
+      // Initialize contact details for editing
+      setContactDetails({
+        name: userData.name || '',
+        phone: userData.phone || ''
+      });
     };
     loadUserData();
 
@@ -558,16 +567,19 @@ const Checkout = () => {
 
     const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
     const socket = io(socketUrl, {
-      auth: { token: localStorage.getItem('accessToken') },
+      auth: {
+        token: localStorage.getItem('accessToken')
+          || localStorage.getItem('userToken')
+          || localStorage.getItem('token')
+      },
       transports: ['websocket', 'polling']
     });
 
     socket.on('connect', () => {
       console.log('Checkout socket connected');
-      const userStr = localStorage.getItem('userData');
-      if (userStr) {
+      {
         try {
-          const user = JSON.parse(userStr);
+          const user = getStoredUser();
           const uId = user._id || user.id;
           if (uId) {
             socket.emit('join_tracking', `user_${uId}`);
@@ -911,8 +923,8 @@ const Checkout = () => {
           }
         },
         prefill: {
-          name: contactDetails.name || JSON.parse(localStorage.getItem('userData'))?.name || 'User',
-          email: JSON.parse(localStorage.getItem('userData'))?.email || '',
+          name: contactDetails.name || getStoredUser().name || 'User',
+          email: getStoredUser().email || '',
           contact: contactDetails.phone || userPhone
         },
         theme: {
@@ -1607,7 +1619,7 @@ const Checkout = () => {
             <div className="flex items-center gap-3">
               <FiPhone className="w-5 h-5 text-gray-600" />
               <div>
-                <p className="text-sm font-medium text-black">{contactDetails.name || JSON.parse(localStorage.getItem('userData'))?.name || 'Verified Customer'}</p>
+                <p className="text-sm font-medium text-black">{contactDetails.name || getStoredUser().name || 'Verified Customer'}</p>
                 <p className="text-xs text-gray-600">{contactDetails.phone || userPhone || 'Loading...'}</p>
               </div>
             </div>
