@@ -9,6 +9,7 @@ import workerService from '../../../../services/workerService';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import OptimizedImage from '../../../../components/common/OptimizedImage';
 import LogoLoader from '../../../../components/common/LogoLoader';
+import Logo from '../../../../components/common/Logo';
 import workerWalletService from '../../../../services/workerWalletService';
 
 // Maps a worker's registered category to a themed promo banner. Falls back to
@@ -212,13 +213,7 @@ const Dashboard = () => {
     <div className="min-h-screen pb-24" style={{ background: themeColors.backgroundGradient }}>
       {/* Top bar */}
       <div className="flex items-center gap-3 px-4 pt-5 pb-3">
-        <div
-          onClick={() => navigate('/worker/profile')}
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0 cursor-pointer"
-          style={{ background: themeColors.brand.teal }}
-        >
-          {workerProfile.name.charAt(0).toUpperCase()}
-        </div>
+        <Logo className="h-8 w-auto shrink-0" />
 
         <div className="flex-1" />
 

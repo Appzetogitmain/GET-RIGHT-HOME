@@ -115,7 +115,7 @@ const AssignedJobs = () => {
 
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
-      <Header title="My Jobs" showSearch={true} />
+      <Header title="My Jobs" />
 
       <main className="px-4 py-6">
         {/* Search Bar */}
@@ -182,7 +182,7 @@ const AssignedJobs = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {filteredJobs.map((job) => {
               const statusColor = getStatusColor(job.status);
 
@@ -190,82 +190,51 @@ const AssignedJobs = () => {
                 <div
                   key={job._id}
                   onClick={() => navigate(`/worker/job/${job._id}`)}
-                  className="rounded-xl p-4 shadow-lg cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
+                  className="rounded-lg p-3 bg-white cursor-pointer active:scale-98 transition-all duration-200 relative overflow-hidden"
                   style={{
-                    background: 'linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%)',
-                    boxShadow: `0 8px 24px ${hexToRgba(statusColor, 0.15)}, 0 4px 12px ${hexToRgba(statusColor, 0.1)}, 0 0 0 2px ${hexToRgba(statusColor, 0.2)}`,
-                    border: `2px solid ${hexToRgba(statusColor, 0.3)}`,
+                    boxShadow: `0 2px 8px ${hexToRgba(statusColor, 0.12)}`,
+                    border: `1px solid ${hexToRgba(statusColor, 0.25)}`,
                   }}
                 >
                   {/* Left border accent */}
                   <div
-                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
-                    style={{
-                      background: `linear-gradient(180deg, ${statusColor} 0%, ${statusColor}dd 100%)`,
-                    }}
+                    className="absolute left-0 top-0 bottom-0 w-1"
+                    style={{ background: statusColor }}
                   />
 
                   <div className="relative z-10 pl-2">
                     {/* Header Section */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div
-                            className="p-1.5 rounded-lg"
-                            style={{
-                              background: `${statusColor}15`,
-                            }}
-                          >
-                            <FiBriefcase className="w-4 h-4" style={{ color: statusColor }} />
-                          </div>
-                          <h3 className="font-bold text-gray-800 text-sm">{job.serviceName}</h3>
-                        </div>
-                        <div className="ml-8 mb-2">
-                          <span
-                            className="text-[10px] font-bold px-2.5 py-1 rounded-full"
-                            style={{
-                              background: `linear-gradient(135deg, ${statusColor} 0%, ${statusColor}dd 100%)`,
-                              color: '#FFFFFF',
-                              boxShadow: `0 2px 8px ${hexToRgba(statusColor, 0.3)}`,
-                            }}
-                          >
-                            {getStatusLabel(job.status)}
-                          </span>
-                        </div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <FiBriefcase className="w-3.5 h-3.5 shrink-0" style={{ color: statusColor }} />
+                        <h3 className="font-bold text-gray-800 text-sm truncate">{job.serviceName}</h3>
                       </div>
-                      <div
-                        className="px-3 py-2 rounded-lg font-bold text-sm"
-                        style={{
-                          background: 'rgba(59, 130, 246, 0.1)',
-                          color: '#3B82F6',
-                          border: '1px solid rgba(59, 130, 246, 0.2)',
-                        }}
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                        style={{ background: statusColor, color: '#FFFFFF' }}
                       >
-                        ₹{job.finalAmount}
-                      </div>
+                        {getStatusLabel(job.status)}
+                      </span>
                     </div>
 
                     {/* Info Section */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
-                          <FiUser className="w-4 h-4" style={{ color: statusColor }} />
-                        </div>
-                        <span className="text-gray-700 font-medium">{job.userId?.name || 'Customer'}</span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                        <FiUser className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                        <span className="truncate">{job.userId?.name || 'Customer'}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
-                          <FiMapPin className="w-4 h-4" style={{ color: statusColor }} />
-                        </div>
-                        <span className="text-gray-700 font-medium truncate">{job.address?.addressLine1 || 'Address not available'}</span>
+                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                        <FiMapPin className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                        <span className="truncate">{job.address?.addressLine1 || 'Address not available'}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="p-1 rounded" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
-                          <FiClock className="w-4 h-4" style={{ color: statusColor }} />
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                          <FiClock className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                          <span>{job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'N/A'} • {job.scheduledTime || 'N/A'}</span>
                         </div>
-                        <span className="text-gray-700 font-medium">{job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'N/A'} • {job.scheduledTime || 'N/A'}</span>
+                        <span className="font-bold text-sm text-blue-600 shrink-0">₹{job.finalAmount}</span>
                       </div>
                     </div>
                   </div>

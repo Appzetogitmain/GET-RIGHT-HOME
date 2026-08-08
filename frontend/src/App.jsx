@@ -570,14 +570,15 @@ function App() {
                     <Route path="/admin/login" element={<AdminLogin />} />
                     <Route path="/admin/signup" element={<AdminSignup />} />
 
-                    {/* Admin App Routes */}
+                    {/* Admin App Routes — single unified panel: property + home-service
+                        pages both render inside the one <AdminLayout /> shell below. */}
                     <Route element={<AdminProtectedRoute />}>
-                      {/* Home Service Admin Routes */}
-                      <Route path="/admin/home-service/*" element={<HomsterAdminRoutes />} />
-
                       <Route path="/admin" element={<AdminLayout />}>
                         <Route index element={<AdminDashboard />} />
                         <Route path="dashboard" element={<AdminDashboard />} />
+
+                        {/* Home Service Admin Routes — nested, same shell, same sidebar */}
+                        <Route path="home-service/*" element={<HomsterAdminRoutes />} />
                         <Route path="users" element={<AdminUsers />} />
                         <Route path="users/:id" element={<AdminUserDetail />} />
                         <Route path="bookings" element={<AdminBookings />} />

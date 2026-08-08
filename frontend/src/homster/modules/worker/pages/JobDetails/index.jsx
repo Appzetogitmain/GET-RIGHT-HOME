@@ -277,9 +277,9 @@ const JobDetails = () => {
     return (
       <div className="min-h-screen flex items-center justify-center px-6 text-center" style={{ background: themeColors.backgroundGradient }}>
         <div>
-          <FiXCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-600 font-bold text-xl mb-4">Job not found</p>
-          <button onClick={() => navigate('/worker/jobs')} className="px-6 py-3 bg-blue-600 text-white rounded-xl">Back to Jobs</button>
+          <FiXCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-600 font-bold text-sm mb-4">Job not found</p>
+          <button onClick={() => navigate('/worker/jobs')} className="px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold">Back to Jobs</button>
         </div>
       </div>
     );
@@ -324,9 +324,9 @@ const JobDetails = () => {
         <div className="mb-6">
           <button
             onClick={() => navigate(`/worker/job/${id}/timeline`)}
-            className="w-full bg-white border border-gray-200 py-4 rounded-2xl font-bold text-gray-700 flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all text-lg mb-4"
+            className="w-full bg-white border border-gray-200 py-4 rounded-2xl font-bold text-gray-700 flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all text-sm mb-4"
           >
-            <FiClock className="w-5 h-5 text-gray-500" />
+            <FiClock className="w-4 h-4 text-gray-500" />
             View Job Timeline
           </button>
 
@@ -335,14 +335,14 @@ const JobDetails = () => {
               <button
                 onClick={() => handleJobResponse('REJECTED')}
                 disabled={actionLoading}
-                className="flex-1 py-4 rounded-2xl font-bold text-red-500 bg-red-50 border border-red-100 shadow-sm active:scale-95 transition-all"
+                className="flex-1 py-4 rounded-2xl font-bold text-sm text-red-500 bg-red-50 border border-red-100 shadow-sm active:scale-95 transition-all"
               >
                 DECLINE
               </button>
               <button
                 onClick={() => handleJobResponse('ACCEPTED')}
                 disabled={actionLoading}
-                className="flex-1 py-4 rounded-2xl font-bold text-white shadow-xl active:scale-95 transition-all"
+                className="flex-1 py-4 rounded-2xl font-bold text-sm text-white shadow-xl active:scale-95 transition-all"
                 style={{ background: themeColors.button }}
               >
                 ACCEPT JOB
@@ -354,10 +354,10 @@ const JobDetails = () => {
             <button
               onClick={() => handleStatusUpdate('start')}
               disabled={actionLoading}
-              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
+              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-sm"
               style={{ background: themeColors.button }}
             >
-              {actionLoading ? 'Loading...' : <>START JOURNEY <FiNavigation className="w-5 h-5" /></>}
+              {actionLoading ? 'Loading...' : <>START JOURNEY <FiNavigation className="w-4 h-4" /></>}
             </button>
           )}
 
@@ -365,10 +365,10 @@ const JobDetails = () => {
             <button
               onClick={() => navigate(`/worker/job/${id}/map`)}
               disabled={actionLoading}
-              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
+              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-sm"
               style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }}
             >
-              <FiNavigation className="w-5 h-5" /> TRACK JOURNEY / REACHED
+              <FiNavigation className="w-4 h-4" /> TRACK JOURNEY / REACHED
             </button>
           )}
 
@@ -376,10 +376,10 @@ const JobDetails = () => {
             <button
               onClick={() => setIsEstimateModalOpen(true)}
               disabled={actionLoading}
-              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
+              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-sm"
               style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
             >
-              {actionLoading ? 'Loading...' : <>GENERATE ESTIMATE <FiDollarSign className="w-5 h-5" /></>}
+              {actionLoading ? 'Loading...' : <>GENERATE ESTIMATE <FiDollarSign className="w-4 h-4" /></>}
             </button>
           )}
 
@@ -388,7 +388,7 @@ const JobDetails = () => {
               <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
                 <FiClock className="w-6 h-6 text-amber-600 animate-pulse" />
               </div>
-              <h3 className="font-bold text-amber-800 text-lg">Waiting for Customer Approval</h3>
+              <h3 className="font-bold text-amber-800 text-sm">Waiting for Customer Approval</h3>
               <p className="text-sm text-amber-600 mt-1">
                 You have sent an estimate of ₹{job.estimate.amount}. Waiting for the customer to review and pay the advance token (₹{job.estimate.tokenAmount}).
               </p>
@@ -400,7 +400,7 @@ const JobDetails = () => {
               <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
                 <FiCheckCircle className="w-6 h-6 text-emerald-600" />
               </div>
-              <h3 className="font-bold text-emerald-800 text-lg">Token Paid Successfully!</h3>
+              <h3 className="font-bold text-emerald-800 text-sm">Token Paid Successfully!</h3>
               <p className="text-sm text-emerald-600 mt-1">
                 The customer has paid the advance token (₹{job.estimate.tokenAmount}) and approved your estimate. You can now complete the work.
               </p>
@@ -411,10 +411,10 @@ const JobDetails = () => {
             <button
               onClick={() => handleStatusUpdate('complete')}
               disabled={actionLoading}
-              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
+              className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-sm"
               style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
             >
-              {actionLoading ? 'Loading...' : <>COMPLETE WORK <FiCheckCircle className="w-5 h-5" /></>}
+              {actionLoading ? 'Loading...' : <>COMPLETE WORK <FiCheckCircle className="w-4 h-4" /></>}
             </button>
           )}
 
@@ -423,28 +423,28 @@ const JobDetails = () => {
               <button
                 onClick={() => navigate(`/worker/job/${id}/billing`)}
                 disabled={actionLoading}
-                className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
+                className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-sm"
                 style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' }}
               >
-                <FiFileText className="w-5 h-5" /> PREPARE BILL / EDIT
+                <FiFileText className="w-4 h-4" /> PREPARE BILL / EDIT
               </button>
 
               {(job?.customerConfirmationOTP || job?.paymentOtp) && (
                 <button
                   onClick={() => setIsPaymentModalOpen(true)}
                   disabled={actionLoading}
-                  className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-lg"
+                  className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all text-sm"
                   style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
                 >
-                  <FiKey className="w-5 h-5" /> ENTER OTP
+                  <FiKey className="w-4 h-4" /> ENTER OTP
                 </button>
               )}
             </div>
           )}
 
           {job.status === 'completed' && (
-            <div className="bg-green-100 border-2 border-green-500 rounded-2xl p-4 text-center text-green-700 font-bold shadow-md">
-              <FiCheckCircle className="w-8 h-8 mx-auto mb-2" />
+            <div className="bg-green-100 border-2 border-green-500 rounded-2xl p-4 text-center text-green-700 font-bold text-sm shadow-md">
+              <FiCheckCircle className="w-6 h-6 mx-auto mb-2" />
               JOB COMPLETED & SETTLED
             </div>
           )}
@@ -457,7 +457,7 @@ const JobDetails = () => {
               <FiUser className="w-7 h-7" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-gray-900 text-lg">{job.userId?.name || 'Customer'}</h3>
+              <h3 className="font-bold text-gray-900 text-sm">{job.userId?.name || 'Customer'}</h3>
               <p className="text-sm text-gray-500">{job.serviceName}</p>
             </div>
             {job.userId?.phone && (
@@ -538,14 +538,14 @@ const JobDetails = () => {
         {/* Booked Services List */}
         {job.items && job.items.length > 0 && (
           <div className="bg-white rounded-2xl p-5 mb-6 shadow-md">
-            <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <FiTool className="w-5 h-5 text-gray-500" /> Booked Services
+            <h4 className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
+              <FiTool className="w-4 h-4 text-gray-500" /> Booked Services
             </h4>
             <div className="space-y-4">
               {job.items.map((item, index) => (
                 <div key={index} className="flex justify-between items-start border-b border-gray-50 pb-4 last:border-0 last:pb-0">
                   <div>
-                    <p className="font-bold text-gray-800">{item.card?.title || 'Service Item'}</p>
+                    <p className="font-bold text-gray-800 text-sm">{item.card?.title || 'Service Item'}</p>
                     <p className="text-xs font-bold text-gray-400 uppercase">{item.sectionTitle || 'General'}</p>
                     {item.card?.features && item.card.features.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
@@ -577,7 +577,7 @@ const JobDetails = () => {
               <FiDollarSign className="w-5 h-5" style={{ color: job.paymentMethod === 'plan_benefit' ? '#d97706' : themeColors.button }} />
             </div>
             <div>
-              <h3 className="font-bold text-gray-800">
+              <h3 className="font-bold text-gray-800 text-sm">
                 {job.paymentMethod === 'plan_benefit' ? 'Plan Benefit Summary' : 'Payment Summary'}
               </h3>
               {job.paymentMethod === 'plan_benefit' && (
@@ -662,8 +662,8 @@ const JobDetails = () => {
             <div className="my-4 border-t border-gray-200"></div>
 
             <div className="flex justify-between items-end mb-2">
-              <span className="text-gray-900 font-bold">Total Amount (User Pays)</span>
-              <span className="text-2xl font-bold text-gray-900">
+              <span className="text-gray-900 font-bold text-sm">Total Amount (User Pays)</span>
+              <span className="text-lg font-bold text-gray-900">
                 ₹{(job.paymentMethod === 'plan_benefit' ? (job.extraChargesTotal || 0) : (job.finalAmount || 0)).toFixed(2)}
               </span>
             </div>

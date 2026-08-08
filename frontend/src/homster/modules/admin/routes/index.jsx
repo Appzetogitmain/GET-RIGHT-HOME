@@ -1,12 +1,5 @@
 import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import AdminLayout from '../components/layout/AdminLayout';
-import ProtectedRoute from '../../../components/auth/ProtectedRoute';
-import PublicRoute from '../../../components/auth/PublicRoute';
-import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
-
-// Login page (not lazy loaded for faster initial access)
-import Login from '../pages/login';
 import WorkerWithdrawals from '../pages/Workers/WorkerWithdrawals';
 import ZoneSetup from '../pages/ZoneSetup';
 
@@ -30,8 +23,6 @@ const WorkerPlans = lazy(() => import('../pages/Plans/WorkerPlans'));
 const Scrap = lazy(() => import('../pages/Scrap'));
 const Reviews = lazy(() => import('../pages/Reviews'));
 
-
-
 // Loading fallback component
 import LogoLoader from '../../../components/common/LogoLoader';
 
@@ -39,45 +30,43 @@ const LoadingFallback = () => (
   <LogoLoader />
 );
 
-const AdminRoutes = () => {
-  // Enable global notifications for admin
-  // Global notifications are now handled by SocketProvider at App level
-  // useAppNotifications('admin');
-
+/**
+ * Home Service Admin page routes.
+ *
+ * NOTE: This used to render its own <AdminLayout> (own sidebar/header/login),
+ * making it a second, visually separate admin panel. It is now mounted as a
+ * nested route *inside* the single, unified `app/admin` AdminLayout (see
+ * App.jsx), so it only ever renders these pages into that shared shell.
+ * Auth is already handled by the outer <AdminProtectedRoute> in App.jsx —
+ * no layout/login/protection duplicated here.
+ */
+const HomeServiceAdminRoutes = () => {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
-        {/* Login route - outside of layout (public) */}
-        <Route path="login" element={<PublicRoute userType="admin"><Login /></PublicRoute>} />
-
-        {/* Protected routes - inside layout */}
-        <Route path="/" element={<AdminLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="users/*" element={<Users />} />
-          <Route path="workers/*" element={<Workers />} />
-          <Route path="bookings" element={<Bookings />} />
-          <Route path="bookings/tracking" element={<BookingTracking />} />
-          <Route path="bookings/notifications" element={<BookingNotifications />} />
-          <Route path="user-categories/*" element={<UserCategories />} />
-          <Route path="payments/*" element={<Payments />} />
-          <Route path="reports/*" element={<Reports />} />
-          <Route path="notifications" element={<Notifications />} />
-          <Route path="notifications/abandoned-carts" element={<AbandonedCarts />} />
-          <Route path="notifications/push" element={<PushNotifications />} />
-          <Route path="scrap" element={<Scrap />} />
-          <Route path="plans" element={<Plans />} />
-          <Route path="worker-plans" element={<WorkerPlans />} />
-          <Route path="home-service/workers/withdrawals" element={<WorkerWithdrawals />} />
-          <Route path="zones" element={<ZoneSetup />} />
-          <Route path="reviews" element={<Reviews />} />
-          <Route path="settings/*" element={<Settings />} />
-        </Route>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="users/*" element={<Users />} />
+        <Route path="workers/*" element={<Workers />} />
+        <Route path="bookings" element={<Bookings />} />
+        <Route path="bookings/tracking" element={<BookingTracking />} />
+        <Route path="bookings/notifications" element={<BookingNotifications />} />
+        <Route path="user-categories/*" element={<UserCategories />} />
+        <Route path="payments/*" element={<Payments />} />
+        <Route path="reports/*" element={<Reports />} />
+        <Route path="notifications" element={<Notifications />} />
+        <Route path="notifications/abandoned-carts" element={<AbandonedCarts />} />
+        <Route path="notifications/push" element={<PushNotifications />} />
+        <Route path="scrap" element={<Scrap />} />
+        <Route path="plans" element={<Plans />} />
+        <Route path="worker-plans" element={<WorkerPlans />} />
+        <Route path="workers/withdrawals" element={<WorkerWithdrawals />} />
+        <Route path="zones" element={<ZoneSetup />} />
+        <Route path="reviews" element={<Reviews />} />
+        <Route path="settings/*" element={<Settings />} />
       </Routes>
     </Suspense>
   );
 };
 
-export default AdminRoutes;
-
-
+export default HomeServiceAdminRoutes;

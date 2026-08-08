@@ -3,7 +3,8 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
-    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin, ShieldCheck, Gift
+    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin, ShieldCheck, Gift,
+    Wrench, UserCog, ShoppingBag, Package, ClipboardList, Layers
 } from 'lucide-react';
 
 
@@ -97,6 +98,24 @@ const AdminLayout = () => {
                 { icon: LayoutGrid, label: 'Home Page Layout', path: '/admin/homepage-layout' },
                 { icon: Video, label: 'Reel Analysis', path: '/admin/reel-analysis' },
                 { icon: Star, label: 'Reviews', path: '/admin/reviews' },
+            ]
+        },
+        {
+            title: 'HOME SERVICES',
+            items: [
+                { icon: LayoutDashboard, label: 'Services Dashboard', path: '/admin/home-service/dashboard' },
+                { icon: Users, label: 'Service Users', path: '/admin/home-service/users' },
+                { icon: UserCog, label: 'Workers', path: '/admin/home-service/workers' },
+                { icon: ShoppingBag, label: 'Service Bookings', path: '/admin/home-service/bookings' },
+                { icon: Layers, label: 'Service Catalog', path: '/admin/home-service/user-categories' },
+                { icon: Wallet, label: 'Service Payments', path: '/admin/home-service/payments' },
+                { icon: ClipboardList, label: 'Service Reports', path: '/admin/home-service/reports' },
+                { icon: Star, label: 'Service Reviews', path: '/admin/home-service/reviews' },
+                { icon: Bell, label: 'Service Notifications', path: '/admin/home-service/notifications' },
+                { icon: Package, label: 'User Plans', path: '/admin/home-service/plans' },
+                { icon: Wrench, label: 'Worker Plans', path: '/admin/home-service/worker-plans' },
+                { icon: MapPin, label: 'Zone Setup', path: '/admin/home-service/zones' },
+                { icon: Settings, label: 'Service Settings', path: '/admin/home-service/settings' },
             ]
         },
         {
@@ -234,22 +253,6 @@ const AdminLayout = () => {
                     </div>
 
                     <div className="flex items-center gap-6" ref={notifRef}>
-                        {/* Admin Mode Toggle */}
-                        <div className="hidden lg:flex items-center bg-gray-100 rounded-full p-1 border border-gray-200">
-                            <button
-                                onClick={() => navigate('/admin/dashboard')}
-                                className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${!location.pathname.includes('/home-service') ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                            >
-                                Property
-                            </button>
-                            <button
-                                onClick={() => navigate('/admin/home-service/dashboard')}
-                                className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${location.pathname.includes('/home-service') ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                            >
-                                Home Service
-                            </button>
-                        </div>
-
                         <div className="relative">
                             <button
                                 onClick={() => setIsNotifOpen(!isNotifOpen)}
