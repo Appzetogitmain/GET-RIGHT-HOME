@@ -102,6 +102,19 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
               {/* Floating "Found" Dots Animation */}
               <div className="absolute top-8 right-8 w-2 h-2 rounded-full animate-bounce opacity-50" style={{ backgroundColor: themeColors.brand.orange, animationDelay: '0.2s' }}></div>
               <div className="absolute bottom-6 left-6 w-2 h-2 rounded-full animate-bounce opacity-50" style={{ backgroundColor: themeColors.brand.yellow, animationDelay: '1.5s' }}></div>
+
+              {/* Countdown Timer Badge */}
+              <div
+                className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full shadow-lg border border-gray-100 z-20"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={themeColors.brand.teal} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span className="text-xs font-black tabular-nums" style={{ color: themeColors.brand.teal }}>
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
             </div>
 
             {/* Status Text */}

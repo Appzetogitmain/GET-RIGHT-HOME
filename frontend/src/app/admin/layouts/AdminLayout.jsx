@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
-    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin, ShieldCheck
+    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin, ShieldCheck, Gift
 } from 'lucide-react';
 
 
@@ -104,6 +104,7 @@ const AdminLayout = () => {
             items: [
                 { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },
                 { icon: Tag, label: 'Offers & Coupons', path: '/admin/offers' },
+                { icon: Gift, label: 'Refer & Earn', path: '/admin/refer-earn' },
                 { icon: Bell, label: 'Notifications', path: '/admin/notifications', badge: unreadCount > 0 },
                 { icon: FileText, label: 'Legal & Content', path: '/admin/legal' },
                 { icon: MessageSquare, label: 'Contact Messages', path: '/admin/contact-messages' },

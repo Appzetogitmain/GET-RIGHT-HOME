@@ -812,53 +812,25 @@ const Checkout = () => {
 
       // Cart will be cleared only after payment is confirmed or Pay At Home is confirmed
 
-      // If no vendors found, redirect or refresh immediately
-      if (bookingResponse.noVendorsFound) {
+      // Note: the backend never fails a booking instantly anymore, even when zero
+      // vendors are nearby at creation time — it keeps retrying the search for up
+      // to 3 minutes (see waveScheduler.js) before reporting "no vendor available"
+      // via the 'waiting' step's socket/poll listeners below.
+
+      // If online payment is selected, trigger it before moving to waiting state
+      if (paymentMethod === 'online' && amountToPay > 0) {
+        // We need to pass the booking request to the payment handler
+        // The handleOnlinePayment function uses acceptedVendor and bookingRequest from state
+        // So we ensure they are set first
+        setCurrentStep('payment'); // New step for payment processing
         toast.dismiss();
-        const bookingId = booking?._id || booking?.id;
 
-        // Ensure we stop searching and close the modal
-        setSearchingVendors(false);
-        setShowVendorModal(false);
-
-        if (bookingId) {
-          toast.error('No vendors currently available for this service.');
-
-          // Auto-cancel and refresh
-          const cancelAndRefresh = async () => {
-            try {
-              await bookingService.cancel(bookingId, 'Initial search found no available vendors');
-              setTimeout(() => {
-                window.location.reload();
-              }, 2000);
-            } catch (err) {
-              console.error('Auto-cancel failed:', err);
-              window.location.reload();
-            }
-          };
-          cancelAndRefresh();
-        } else {
-          // Fallback if ID is missing for some reason
-          setCurrentStep('details');
-          toast.error('Search failed. Please try again.');
-          setTimeout(() => window.location.reload(), 2000);
-        }
+        // Custom inline payment trigger to avoid state timing issues
+        await handlePaymentForBooking(booking);
       } else {
-        // If online payment is selected, trigger it before moving to waiting state
-        if (paymentMethod === 'online' && amountToPay > 0) {
-          // We need to pass the booking request to the payment handler
-          // The handleOnlinePayment function uses acceptedVendor and bookingRequest from state
-          // So we ensure they are set first
-          setCurrentStep('payment'); // New step for payment processing
-          toast.dismiss();
-
-          // Custom inline payment trigger to avoid state timing issues
-          await handlePaymentForBooking(booking);
-        } else {
-          // Move to waiting state - alerts sent to nearby partners
-          setCurrentStep('waiting');
-          toast.success(`Finding nearby ${bookingModel}s... Alerts sent to ${bookingModel}s within 10km!`);
-        }
+        // Move to waiting state - alerts sent to nearby partners
+        setCurrentStep('waiting');
+        toast.success(`Finding nearby ${bookingModel}s... Alerts sent to ${bookingModel}s within 10km!`);
       }
 
       // REMOVED local setCartItems([]) - The summary should remain visible while searching

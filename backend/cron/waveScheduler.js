@@ -1,12 +1,158 @@
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import BookingRequest from '../models/HomeServiceBookingRequest.js';
 import Worker from '../models/Worker.js';
+import Settings from '../models/Settings.js';
 import { BOOKING_STATUS } from '../utils/constants.js';
 import { createNotification } from '../controllers/notificationControllers/notificationController.js';
+import { findNearbyWorkers, findNearbyVendors } from '../services/locationService.js';
 
 // The Wave Timeout in milliseconds (60 seconds)
 const WAVE_TIMEOUT_MS = 60000;
 const WORKERS_PER_WAVE = 3;
+
+// How long to keep retrying the nearby-partner search when NONE were found at
+// booking-creation time, before finally declaring "no vendor available".
+const INITIAL_SEARCH_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
+
+/**
+ * Handles bookings that had ZERO nearby partners at creation time (currentWave === 0).
+ * Re-runs the geo search on every scheduler tick (10s) for up to 3 minutes.
+ * If partners show up in that window, kicks off Wave 1 normally.
+ * If the 3-minute window elapses with still nothing found, marks the booking failed.
+ */
+const handleInitialSearchRetry = async (booking, io) => {
+  try {
+    const timeElapsed = Date.now() - new Date(booking.waveStartedAt).getTime();
+    const bookingModel = booking.bookingModel || 'worker';
+
+    const bookingLocation = { lat: booking.address?.lat, lng: booking.address?.lng };
+    let partners = [];
+
+    if (bookingLocation.lat && bookingLocation.lng) {
+      const globalSettings = await Settings.findOne({ type: 'global' }).select('searchRadius').lean();
+      const searchRadius = globalSettings?.searchRadius || 10;
+      const filters = { service: booking.serviceCategory };
+
+      partners = bookingModel === 'worker'
+        ? await findNearbyWorkers(bookingLocation, searchRadius, filters)
+        : await findNearbyVendors(bookingLocation, searchRadius, filters);
+
+      // Dedupe by id
+      const seen = new Set();
+      partners = partners.filter(p => {
+        const idStr = p._id.toString();
+        if (seen.has(idStr)) return false;
+        seen.add(idStr);
+        return true;
+      });
+    }
+
+    if (partners.length > 0) {
+      // Found some! Kick off Wave 1 exactly like a normal successful search.
+      const sortedPartners = partners.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+      const wave1Partners = sortedPartners.slice(0, WORKERS_PER_WAVE);
+
+      if (bookingModel === 'worker') {
+        booking.potentialWorkers = sortedPartners.map(v => ({ workerId: v._id, distance: v.distance || 0 }));
+      } else {
+        booking.potentialVendors = sortedPartners.map(v => ({ vendorId: v._id, distance: v.distance || 0 }));
+      }
+      booking.currentWave = 1;
+      booking.waveStartedAt = new Date();
+      booking.notifiedPartners = wave1Partners.map(v => v._id);
+      await booking.save();
+
+      const newRequests = wave1Partners.map(pw => ({
+        bookingId: booking._id,
+        vendorId: bookingModel === 'vendor' ? pw._id : null,
+        workerId: bookingModel === 'worker' ? pw._id : null,
+        status: 'PENDING',
+        wave: 1,
+        distance: pw.distance || null,
+        sentAt: new Date(),
+        expiresAt: new Date(Date.now() + WAVE_TIMEOUT_MS)
+      }));
+
+      try {
+        await BookingRequest.insertMany(newRequests, { ordered: false });
+      } catch (err) {
+        if (err.code !== 11000) console.error('[WaveScheduler] BookingRequest insert error:', err);
+      }
+
+      wave1Partners.forEach(pw => {
+        const room = `${bookingModel}_${pw._id.toString()}`;
+        io.to(room).emit('new_job_assigned', {
+          bookingId: booking._id,
+          serviceName: booking.serviceName,
+          address: booking.address,
+          price: booking.finalAmount,
+          serviceCategory: booking.serviceCategory,
+          brandName: booking.brandName,
+          brandIcon: booking.brandIcon,
+          categoryIcon: booking.categoryIcon,
+          scheduledDate: booking.scheduledDate,
+          scheduledTime: booking.scheduledTime,
+          createdAt: new Date().toISOString()
+        });
+
+        createNotification({
+          [bookingModel === 'worker' ? 'workerId' : 'vendorId']: pw._id,
+          type: 'new_job_assigned',
+          title: 'New Job Alert',
+          message: `New booking for ${booking.serviceName} is available near you.`,
+          relatedId: booking._id,
+          relatedType: 'booking',
+          priority: 'high',
+          pushData: { type: 'new_job', bookingId: booking._id.toString(), link: `/${bookingModel}/job/${booking._id}` }
+        });
+      });
+
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: BOOKING_STATUS.SEARCHING,
+        message: 'Found nearby professionals! Sending your request now...'
+      });
+
+      console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: Found ${wave1Partners.length} ${bookingModel}(s) during retry search (after ${Math.round(timeElapsed / 1000)}s).`);
+      return;
+    }
+
+    // Still nothing found this tick.
+    if (timeElapsed >= INITIAL_SEARCH_WINDOW_MS) {
+      // 3 minutes of retrying with zero partners found — give up.
+      const failStatus = bookingModel === 'worker' ? BOOKING_STATUS.NO_WORKERS : BOOKING_STATUS.NO_VENDORS;
+      booking.status = failStatus;
+      booking.waveStartedAt = null;
+      await booking.save();
+
+      console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: No ${bookingModel}s found after 3 minutes of searching. Giving up.`);
+
+      io.to(`user_${booking.userId}`).emit('booking_search_failed', {
+        bookingId: booking._id,
+        message: `No ${bookingModel}s available nearby right now.`
+      });
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: failStatus,
+        message: 'No professionals available nearby at the moment.'
+      });
+
+      await createNotification({
+        userId: booking.userId,
+        type: 'booking_failed',
+        title: 'No Professionals Available',
+        message: `We couldn't find any ${bookingModel}s nearby after searching for 3 minutes. Our team will contact you shortly.`,
+        relatedId: booking._id,
+        relatedType: 'booking',
+        priority: 'high',
+        pushData: { type: 'booking_failed', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
+      });
+    }
+    // else: still within the 3-minute window — do nothing, next tick (10s) will retry again.
+  } catch (err) {
+    console.error(`[WaveScheduler] Initial search retry failed for booking ${booking.bookingNumber}:`, err);
+  }
+};
 
 export const startWaveScheduler = (io) => {
   if (!io) {
@@ -25,6 +171,14 @@ export const startWaveScheduler = (io) => {
       });
 
       for (const booking of activeBookings) {
+        // currentWave === 0 means the initial search found zero partners — keep
+        // retrying the geo search (instead of advancing/expiring a wave) until
+        // either partners show up or the 3-minute window elapses.
+        if (booking.currentWave === 0) {
+          await handleInitialSearchRetry(booking, io);
+          continue;
+        }
+
         const timeElapsed = Date.now() - new Date(booking.waveStartedAt).getTime();
         let shouldAdvanceWave = false;
 

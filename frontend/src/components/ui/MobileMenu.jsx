@@ -104,12 +104,12 @@ const MobileMenu = ({ isOpen, onClose }) => {
                     <motion.div
                         initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
                         transition={{ type: 'tween', ease: 'circOut', duration: 0.4 }}
-                        className="fixed top-0 left-0 h-[100dvh] w-[85%] max-w-[300px] bg-white z-[101] overflow-y-auto overscroll-contain lg:hidden shadow-2xl flex flex-col"
+                        className="fixed top-0 left-0 h-[100dvh] w-[85%] max-w-[300px] bg-white z-[101] overscroll-contain lg:hidden shadow-2xl flex flex-col"
                         style={{ touchAction: 'pan-y' }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between p-5 pb-2">
+                        <div className="flex items-center justify-between p-5 pb-2 shrink-0">
                             <div className="flex flex-col items-start leading-none">
                                 <span className="text-lg font-black tracking-tighter text-[#111827] flex items-center gap-1 uppercase">
                                     GET RIGHT <span className="text-orange-600">HOME</span>
@@ -121,7 +121,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
                         </div>
 
                         {/* Profile Card */}
-                        <div className="px-5 mb-4">
+                        <div className="px-5 mb-4 shrink-0">
                             {user ? (
                                 <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl p-4 text-white shadow-lg relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
@@ -164,7 +164,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
                         </div>
 
                         {/* Menu Items */}
-                        <div className="px-5 space-y-3 pb-10 flex-1">
+                        <div className="px-5 space-y-3 pb-10 flex-1 min-h-0 overflow-y-auto">
 
                             {/* Discover */}
                             <div>

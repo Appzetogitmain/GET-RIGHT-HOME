@@ -20,15 +20,22 @@ const ReferAndEarnPage = () => {
         stats: { invited: 0, joined: 0, bookings: 0 },
         history: []
     });
+    // Reward amount is admin-managed via the Refer & Earn program — fall back to 200
+    // only if no active program is configured yet.
+    const [rewardAmount, setRewardAmount] = useState(200);
 
     const codeRef = useRef(null);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await referralService.getMyStats();
-                if (res.success) {
-                    const data = res.data;
+                const [statsRes, programRes] = await Promise.all([
+                    referralService.getMyStats(),
+                    referralService.getActiveProgram().catch(() => null)
+                ]);
+
+                if (statsRes.success) {
+                    const data = statsRes.data;
                     setReferralData({
                         code: data.code,
                         link: data.link,
@@ -40,6 +47,10 @@ const ReferAndEarnPage = () => {
                         stats: data.stats,
                         history: data.history
                     });
+                }
+
+                if (programRes?.success && programRes.program?.rewardAmount) {
+                    setRewardAmount(programRes.program.rewardAmount);
                 }
             } catch (err) {
                 console.error("Failed to load referral data", err);
@@ -57,17 +68,17 @@ const ReferAndEarnPage = () => {
     };
 
     const shareOptions = [
-        { icon: MessageCircle, label: "WhatsApp", color: "bg-[#25D366]", action: () => window.open(`https://wa.me/?text=Book hotels at amazing prices! Use my referral code ${referralData.code} and get ₹200 off! ${referralData.link}`) },
-        { icon: Twitter, label: "Twitter", color: "bg-[#1DA1F2]", action: () => window.open(`https://twitter.com/intent/tweet?text=Get ₹200 off on your first hotel booking with Get-Right-Home! Use code: ${referralData.code}`) },
+        { icon: MessageCircle, label: "WhatsApp", color: "bg-[#25D366]", action: () => window.open(`https://wa.me/?text=Book hotels at amazing prices! Use my referral code ${referralData.code} and get ₹${rewardAmount} off! ${referralData.link}`) },
+        { icon: Twitter, label: "Twitter", color: "bg-[#1DA1F2]", action: () => window.open(`https://twitter.com/intent/tweet?text=Get ₹${rewardAmount} off on your first hotel booking with Get-Right-Home! Use code: ${referralData.code}`) },
         { icon: Facebook, label: "Facebook", color: "bg-[#4267B2]", action: () => { } },
-        { icon: Mail, label: "Email", color: "bg-gray-600", action: () => window.open(`mailto:?subject=Get ₹200 off on Get-Right-Home&body=Use my code ${referralData.code} to get ₹200 off! ${referralData.link}`) },
+        { icon: Mail, label: "Email", color: "bg-gray-600", action: () => window.open(`mailto:?subject=Get ₹${rewardAmount} off on Get-Right-Home&body=Use my code ${referralData.code} to get ₹${rewardAmount} off! ${referralData.link}`) },
     ];
 
     const howItWorks = [
         { step: 1, title: "Share Your Code", desc: "Send your unique referral code to friends", icon: Share2 },
         { step: 2, title: "Friend Signs Up", desc: "They register using your referral code", icon: Users },
         { step: 3, title: "They Book a Stay", desc: "When they complete their first booking", icon: CheckCircle },
-        { step: 4, title: "You Both Earn", desc: "₹200 credited to both wallets!", icon: Gift },
+        { step: 4, title: "You Both Earn", desc: `₹${rewardAmount} credited to both wallets!`, icon: Gift },
     ];
 
     if (loading) {
@@ -80,8 +91,8 @@ const ReferAndEarnPage = () => {
 
     const handleShare = async () => {
         const shareData = {
-            title: 'Join Get-Right-Home & Get ₹200!',
-            text: `Hey! Book hotels at amazing prices on Get-Right-Home. Use my referral code ${referralData.code} to get ₹200 OFF on your first booking!`,
+            title: `Join Get-Right-Home & Get ₹${rewardAmount}!`,
+            text: `Hey! Book hotels at amazing prices on Get-Right-Home. Use my referral code ${referralData.code} to get ₹${rewardAmount} OFF on your first booking!`,
             url: referralData.link || 'https:// getrighthome.com'
         };
 
@@ -146,7 +157,7 @@ const ReferAndEarnPage = () => {
                     transition={{ delay: 0.2 }}
                     className="text-3xl font-black text-white mb-2"
                 >
-                    Earn ₹200
+                    Earn ₹{rewardAmount}
                 </motion.h2>
                 <motion.p
                     initial={{ opacity: 0, y: 20 }}
@@ -434,7 +445,7 @@ const ReferAndEarnPage = () => {
                 onClick={handleShare}
             >
                 <Share2 size={20} />
-                Invite Friends & Earn ₹200
+                Invite Friends & Earn ₹{rewardAmount}
             </motion.button>
         </div>
     );
