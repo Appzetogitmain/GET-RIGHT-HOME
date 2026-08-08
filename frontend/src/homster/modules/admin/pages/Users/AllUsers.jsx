@@ -30,18 +30,19 @@ const AllUsers = () => {
       };
 
       if (statusFilter !== 'all') {
-        params.isActive = statusFilter === 'active';
+        params.status = statusFilter === 'active' ? 'active' : 'blocked';
       }
 
       const response = await adminUserService.getAllUsers(params);
       if (response.success) {
-        setUsers(response.data);
-        setTotalPages(response.pagination.pages);
-        setTotalUsers(response.pagination.total);
+        setUsers(response.users || []);
+        setTotalPages(Math.max(1, Math.ceil((response.total || 0) / (response.limit || 10))));
+        setTotalUsers(response.total || 0);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to load users');
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -51,17 +52,17 @@ const AllUsers = () => {
     fetchUsers();
   }, [page, debouncedSearch, statusFilter]);
 
-  const handleStatusToggle = async (userId, currentStatus) => {
-    if (!window.confirm(`Are you sure you want to ${currentStatus ? 'block' : 'activate'} this user?`)) {
+  const handleStatusToggle = async (userId, currentlyBlocked) => {
+    if (!window.confirm(`Are you sure you want to ${currentlyBlocked ? 'activate' : 'block'} this user?`)) {
       return;
     }
 
     try {
-      const response = await adminUserService.toggleUserStatus(userId, !currentStatus);
+      const response = await adminUserService.toggleUserStatus(userId, !currentlyBlocked);
       if (response.success) {
         toast.success(response.message);
         setUsers(users.map(user =>
-          user._id === userId ? { ...user, isActive: !currentStatus } : user
+          user._id === userId ? { ...user, isBlocked: !currentlyBlocked } : user
         ));
       }
     } catch (error) {
@@ -164,11 +165,11 @@ const AllUsers = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${user.isActive
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${!user.isBlocked
                         ? 'bg-green-100 text-green-700'
                         : 'bg-red-100 text-red-700'
                         }`}>
-                        {user.isActive ? 'Active' : 'Blocked'}
+                        {user.isBlocked ? 'Blocked' : 'Active'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -181,14 +182,14 @@ const AllUsers = () => {
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1.5">
                         <button
-                          onClick={() => handleStatusToggle(user._id, user.isActive)}
-                          className={`p-1.5 rounded-lg transition-colors ${user.isActive
+                          onClick={() => handleStatusToggle(user._id, user.isBlocked)}
+                          className={`p-1.5 rounded-lg transition-colors ${!user.isBlocked
                             ? 'text-red-500 hover:bg-red-50'
                             : 'text-green-500 hover:bg-green-50'
                             }`}
-                          title={user.isActive ? 'Block User' : 'Activate User'}
+                          title={user.isBlocked ? 'Activate User' : 'Block User'}
                         >
-                          {user.isActive ? <FiSlash className="w-3.5 h-3.5" /> : <FiCheck className="w-3.5 h-3.5" />}
+                          {user.isBlocked ? <FiCheck className="w-3.5 h-3.5" /> : <FiSlash className="w-3.5 h-3.5" />}
                         </button>
                         <button
                           onClick={() => handleDeleteUser(user._id)}
