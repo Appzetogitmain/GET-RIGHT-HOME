@@ -96,7 +96,7 @@ async function getFCMToken() {
 
 /**
  * Register FCM token with backend
- * @param {string} userType - 'user', 'vendor', or 'worker'
+ * @param {string} userType - 'user', 'worker', or 'admin'
  * @param {boolean} forceUpdate - Force token update
  * @returns {Promise<string|null>}
  */
@@ -119,10 +119,6 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
     let authTokenKey;
     let method = 'POST';
     switch (userType) {
-      case 'vendor':
-        endpoint = '/vendors/fcm-tokens/save';
-        authTokenKey = 'vendorAccessToken';
-        break;
       case 'worker':
         endpoint = '/workers/fcm-tokens/save';
         authTokenKey = 'workerAccessToken';
@@ -188,7 +184,7 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
 
 /**
  * Remove FCM token from backend
- * @param {string} userType - 'user', 'vendor', or 'worker'
+ * @param {string} userType - 'user', 'worker', or 'admin'
  */
 async function removeFCMToken(userType = 'user') {
   try {
@@ -203,10 +199,6 @@ async function removeFCMToken(userType = 'user') {
     let endpoint;
     let authTokenKey;
     switch (userType) {
-      case 'vendor':
-        endpoint = '/vendors/fcm-tokens/remove';
-        authTokenKey = 'vendorAccessToken';
-        break;
       case 'worker':
         endpoint = '/workers/fcm-tokens/remove';
         authTokenKey = 'workerAccessToken';

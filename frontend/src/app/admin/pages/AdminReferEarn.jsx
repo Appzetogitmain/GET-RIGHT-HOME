@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Gift, Plus, Trash2, Edit3, Users, CheckCircle,
-  Clock, Wallet, Sparkles, Power, X
+  Clock, Wallet, Sparkles, Power, X, Save, HardHat
 } from 'lucide-react';
 import { axiosInstance } from '../store/adminStore';
 import toast from 'react-hot-toast';
@@ -19,7 +19,105 @@ const emptyForm = {
   isActive: true
 };
 
+// Worker-to-worker referral bonus is a separate program (workers referring other
+// workers into the home-services vertical) but is configured here too so admins
+// have a single Refer & Earn screen instead of hunting through two panels.
+const WorkerReferralTab = () => {
+  const [formData, setFormData] = useState({ workerReferralBonusReferrer: 0, workerReferralBonusReferee: 0 });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await axiosInstance.get('/admin/platform-settings');
+        if (data.success && data.settings) {
+          setFormData({
+            workerReferralBonusReferrer: data.settings.workerReferralBonusReferrer || 0,
+            workerReferralBonusReferee: data.settings.workerReferralBonusReferee || 0
+          });
+        }
+      } catch (err) {
+        toast.error('Failed to load worker referral settings');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      const { data } = await axiosInstance.put('/admin/platform-settings', formData);
+      if (data.success) toast.success('Worker referral settings updated');
+    } catch (err) {
+      toast.error('Failed to save worker referral settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm text-gray-500 font-bold">Loading worker referral settings...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+        <h3 className="text-sm font-black text-surface uppercase tracking-widest">Worker Referral Bonus (Home Services)</h3>
+        <p className="text-xs text-gray-500 font-medium mt-1">Bonus paid when a worker refers another worker to join the home-services vertical.</p>
+      </div>
+      <form onSubmit={handleSave} className="p-6 space-y-6">
+        <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl text-orange-800 text-sm font-medium">
+          Set both amounts to 0 to disable the worker referral bonus. The Refer &amp; Earn banner is only shown to workers when the referrer bonus is greater than 0.
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Referrer Bonus — ₹ (Old Worker)</label>
+            <input
+              type="number"
+              min="0"
+              required
+              value={formData.workerReferralBonusReferrer}
+              onChange={(e) => setFormData({ ...formData, workerReferralBonusReferrer: Number(e.target.value) })}
+              className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
+            />
+            <p className="text-[9px] text-gray-400 mt-1 ml-1">Credited to the worker who shared their referral code.</p>
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Referee Bonus — ₹ (New Worker)</label>
+            <input
+              type="number"
+              min="0"
+              required
+              value={formData.workerReferralBonusReferee}
+              onChange={(e) => setFormData({ ...formData, workerReferralBonusReferee: Number(e.target.value) })}
+              className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
+            />
+            <p className="text-[9px] text-gray-400 mt-1 ml-1">Credited to the newly joined worker upon admin approval.</p>
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full bg-surface text-white py-4 rounded-[20px] font-black text-sm uppercase tracking-widest shadow-2xl shadow-surface/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={16} />}
+          {saving ? 'Saving...' : 'Save Worker Settings'}
+        </button>
+      </form>
+    </div>
+  );
+};
+
 const AdminReferEarn = () => {
+  const [tab, setTab] = useState('user'); // 'user' | 'worker'
   const [programs, setPrograms] = useState([]);
   const [stats, setStats] = useState({ totalReferrals: 0, completedReferrals: 0, pendingReferrals: 0, totalPayout: 0 });
   const [recent, setRecent] = useState([]);
@@ -64,7 +162,7 @@ const AdminReferEarn = () => {
       name: program.name || '',
       rewardAmount: program.rewardAmount ?? 200,
       triggerType: program.triggerType || 'first_booking',
-      eligibleRoles: program.eligibleRoles?.length ? program.eligibleRoles : ['user'],
+      eligibleRoles: ['user'],
       maxReferralsPerUser: program.maxReferralsPerUser ?? 100,
       startDate: program.startDate ? new Date(program.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       endDate: program.endDate ? new Date(program.endDate).toISOString().split('T')[0] : '',
@@ -72,14 +170,6 @@ const AdminReferEarn = () => {
       isActive: program.isActive ?? true
     });
     setShowModal(true);
-  };
-
-  const toggleRole = (role) => {
-    setFormData(prev => {
-      const has = prev.eligibleRoles.includes(role);
-      const next = has ? prev.eligibleRoles.filter(r => r !== role) : [...prev.eligibleRoles, role];
-      return { ...prev, eligibleRoles: next.length ? next : prev.eligibleRoles };
-    });
   };
 
   const handleActivate = async (program) => {
@@ -120,6 +210,7 @@ const AdminReferEarn = () => {
 
     const payload = {
       ...formData,
+      eligibleRoles: ['user'], // whole-app referral program is user-app only
       endDate: formData.endDate || null
     };
 
@@ -148,23 +239,49 @@ const AdminReferEarn = () => {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-black text-surface flex items-center gap-2">
             <Gift className="text-accent" />
             Refer &amp; Earn Management
           </h1>
-          <p className="text-sm text-gray-500 font-medium">Configure the referral reward program and track referral activity</p>
+          <p className="text-sm text-gray-500 font-medium">Configure referral reward programs and track referral activity — one screen for the whole app</p>
         </div>
+        {tab === 'user' && (
+          <button
+            onClick={openCreate}
+            className="bg-accent text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-accent/20 hover:scale-105 active:scale-95 transition-all"
+          >
+            <Plus size={18} />
+            New Program
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2 mb-8 bg-white border border-gray-100 rounded-2xl p-1.5 w-fit shadow-sm">
         <button
-          onClick={openCreate}
-          className="bg-accent text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-accent/20 hover:scale-105 active:scale-95 transition-all"
+          onClick={() => setTab('user')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+            tab === 'user' ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-gray-400 hover:text-surface'
+          }`}
         >
-          <Plus size={18} />
-          New Program
+          <Users size={14} /> User App
+        </button>
+        <button
+          onClick={() => setTab('worker')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+            tab === 'worker' ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-gray-400 hover:text-surface'
+          }`}
+        >
+          <HardHat size={14} /> Worker App
         </button>
       </div>
 
+      {tab === 'worker' ? (
+        <WorkerReferralTab />
+      ) : (
+      <>
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         {statCards.map((s, i) => (
@@ -328,6 +445,8 @@ const AdminReferEarn = () => {
           </div>
         </>
       )}
+      </>
+      )}
 
       {/* Create/Edit Modal */}
       <AnimatePresence>
@@ -396,23 +515,11 @@ const AdminReferEarn = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Eligible Roles</label>
-                  <div className="flex gap-2">
-                    {['user', 'partner'].map(role => (
-                      <button
-                        type="button"
-                        key={role}
-                        onClick={() => toggleRole(role)}
-                        className={`flex-1 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest border-2 transition-all ${
-                          formData.eligibleRoles.includes(role)
-                            ? 'bg-accent/10 border-accent text-accent'
-                            : 'bg-gray-50 border-transparent text-gray-400'
-                        }`}
-                      >
-                        {role}
-                      </button>
-                    ))}
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Eligible</label>
+                  <div className="w-full py-3 rounded-2xl text-xs font-bold uppercase tracking-widest border-2 bg-accent/10 border-accent text-accent text-center">
+                    Users (whole app)
                   </div>
+                  <p className="text-[9px] text-gray-400 mt-1 ml-1">This program applies to the user app only. Worker referrals are configured separately under the "Worker App" tab.</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

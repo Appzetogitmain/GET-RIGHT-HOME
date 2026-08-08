@@ -191,7 +191,6 @@ export const CSV_COLUMNS = {
     { key: 'user.name', label: 'Customer Name' },
     { key: 'user.phone', label: 'Phone', type: 'phone' },
     { key: 'service.name', label: 'Service' },
-    { key: 'vendor.businessName', label: 'Vendor' },
     { key: 'worker.name', label: 'Worker' },
     { key: 'status', label: 'Status' },
     { key: 'pricing.subtotal', label: 'Subtotal', type: 'currency' },
@@ -211,17 +210,6 @@ export const CSV_COLUMNS = {
     { key: 'reference', label: 'Reference' }
   ],
 
-  settlements: [
-    { key: '_id', label: 'Settlement ID' },
-    { key: 'createdAt', label: 'Date', type: 'date' },
-    { key: 'vendor.businessName', label: 'Vendor' },
-    { key: 'grossAmount', label: 'Gross Amount', type: 'currency' },
-    { key: 'commission', label: 'Platform Fee', type: 'currency' },
-    { key: 'netAmount', label: 'Net Payout', type: 'currency' },
-    { key: 'paymentMode', label: 'Mode' },
-    { key: 'utr', label: 'UTR/Reference' }
-  ],
-
   users: [
     { key: 'name', label: 'Name' },
     { key: 'email', label: 'Email' },
@@ -229,17 +217,6 @@ export const CSV_COLUMNS = {
     { key: 'createdAt', label: 'Registered On', type: 'date' },
     { key: 'totalBookings', label: 'Total Bookings', type: 'number' },
     { key: 'totalSpent', label: 'Total Spent', type: 'currency' }
-  ],
-
-  vendors: [
-    { key: 'businessName', label: 'Business Name' },
-    { key: 'name', label: 'Owner Name' },
-    { key: 'email', label: 'Email' },
-    { key: 'phone', label: 'Phone', type: 'phone' },
-    { key: 'status', label: 'Status' },
-    { key: 'createdAt', label: 'Registered On', type: 'date' },
-    { key: 'totalEarnings', label: 'Total Earnings', type: 'currency' },
-    { key: 'wallet.dues', label: 'Current Dues', type: 'currency' }
   ],
 
   workers: [

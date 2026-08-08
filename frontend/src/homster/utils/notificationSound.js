@@ -205,10 +205,9 @@ export const stopAlertRing = () => {
 };
 
 // Check if sound is enabled in settings
-export const isSoundEnabled = (userType = 'vendor') => {
-  let storageKey = 'vendorData';
-  if (userType === 'user') storageKey = 'userData';
-  else if (userType === 'worker') storageKey = 'workerData';
+export const isSoundEnabled = (userType = 'user') => {
+  let storageKey = 'userData';
+  if (userType === 'worker') storageKey = 'workerData';
   else if (userType === 'admin') storageKey = 'adminData';
 
   const dataString = localStorage.getItem(storageKey);

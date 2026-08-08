@@ -15,7 +15,6 @@ const Dashboard = lazy(() => import('../pages/Dashboard'));
 const Settings = lazy(() => import('../pages/Settings'));
 const UserCategories = lazy(() => import('../pages/UserCategories'));
 const Users = lazy(() => import('../pages/Users'));
-const Vendors = lazy(() => import('../pages/Vendors'));
 const Workers = lazy(() => import('../pages/Workers'));
 const Bookings = lazy(() => import('../pages/Bookings'));
 const BookingTracking = lazy(() => import('../pages/Bookings/Tracking'));
@@ -29,7 +28,6 @@ const PushNotifications = lazy(() => import('../pages/Notifications/PushNotifica
 const Plans = lazy(() => import('../pages/Plans/Plans'));
 const WorkerPlans = lazy(() => import('../pages/Plans/WorkerPlans'));
 const Scrap = lazy(() => import('../pages/Scrap'));
-const Settlements = lazy(() => import('../pages/Settlements'));
 const Reviews = lazy(() => import('../pages/Reviews'));
 
 
@@ -57,7 +55,6 @@ const AdminRoutes = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users/*" element={<Users />} />
-          <Route path="vendors/*" element={<Vendors />} />
           <Route path="workers/*" element={<Workers />} />
           <Route path="bookings" element={<Bookings />} />
           <Route path="bookings/tracking" element={<BookingTracking />} />
@@ -74,7 +71,6 @@ const AdminRoutes = () => {
           <Route path="home-service/workers/withdrawals" element={<WorkerWithdrawals />} />
           <Route path="zones" element={<ZoneSetup />} />
           <Route path="reviews" element={<Reviews />} />
-          <Route path="settlements/*" element={<Settlements />} />
           <Route path="settings/*" element={<Settings />} />
         </Route>
       </Routes>

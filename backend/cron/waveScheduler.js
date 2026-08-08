@@ -4,14 +4,14 @@ import Worker from '../models/Worker.js';
 import Settings from '../models/Settings.js';
 import { BOOKING_STATUS } from '../utils/constants.js';
 import { createNotification } from '../controllers/notificationControllers/notificationController.js';
-import { findNearbyWorkers, findNearbyVendors } from '../services/locationService.js';
+import { findNearbyWorkers } from '../services/locationService.js';
 
 // The Wave Timeout in milliseconds (60 seconds)
 const WAVE_TIMEOUT_MS = 60000;
 const WORKERS_PER_WAVE = 3;
 
-// How long to keep retrying the nearby-partner search when NONE were found at
-// booking-creation time, before finally declaring "no vendor available".
+// How long to keep retrying the nearby-worker search when NONE were found at
+// booking-creation time, before finally declaring "no workers available".
 const INITIAL_SEARCH_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
 
 /**
@@ -23,7 +23,7 @@ const INITIAL_SEARCH_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
 const handleInitialSearchRetry = async (booking, io) => {
   try {
     const timeElapsed = Date.now() - new Date(booking.waveStartedAt).getTime();
-    const bookingModel = booking.bookingModel || 'worker';
+    const bookingModel = 'worker';
 
     const bookingLocation = { lat: booking.address?.lat, lng: booking.address?.lng };
     let partners = [];
@@ -33,9 +33,7 @@ const handleInitialSearchRetry = async (booking, io) => {
       const searchRadius = globalSettings?.searchRadius || 10;
       const filters = { service: booking.serviceCategory };
 
-      partners = bookingModel === 'worker'
-        ? await findNearbyWorkers(bookingLocation, searchRadius, filters)
-        : await findNearbyVendors(bookingLocation, searchRadius, filters);
+      partners = await findNearbyWorkers(bookingLocation, searchRadius, filters);
 
       // Dedupe by id
       const seen = new Set();
@@ -52,11 +50,7 @@ const handleInitialSearchRetry = async (booking, io) => {
       const sortedPartners = partners.sort((a, b) => (a.distance || 0) - (b.distance || 0));
       const wave1Partners = sortedPartners.slice(0, WORKERS_PER_WAVE);
 
-      if (bookingModel === 'worker') {
-        booking.potentialWorkers = sortedPartners.map(v => ({ workerId: v._id, distance: v.distance || 0 }));
-      } else {
-        booking.potentialVendors = sortedPartners.map(v => ({ vendorId: v._id, distance: v.distance || 0 }));
-      }
+      booking.potentialWorkers = sortedPartners.map(v => ({ workerId: v._id, distance: v.distance || 0 }));
       booking.currentWave = 1;
       booking.waveStartedAt = new Date();
       booking.notifiedPartners = wave1Partners.map(v => v._id);
@@ -64,8 +58,7 @@ const handleInitialSearchRetry = async (booking, io) => {
 
       const newRequests = wave1Partners.map(pw => ({
         bookingId: booking._id,
-        vendorId: bookingModel === 'vendor' ? pw._id : null,
-        workerId: bookingModel === 'worker' ? pw._id : null,
+        workerId: pw._id,
         status: 'PENDING',
         wave: 1,
         distance: pw.distance || null,
@@ -80,7 +73,7 @@ const handleInitialSearchRetry = async (booking, io) => {
       }
 
       wave1Partners.forEach(pw => {
-        const room = `${bookingModel}_${pw._id.toString()}`;
+        const room = `worker_${pw._id.toString()}`;
         io.to(room).emit('new_job_assigned', {
           bookingId: booking._id,
           serviceName: booking.serviceName,
@@ -96,14 +89,14 @@ const handleInitialSearchRetry = async (booking, io) => {
         });
 
         createNotification({
-          [bookingModel === 'worker' ? 'workerId' : 'vendorId']: pw._id,
+          workerId: pw._id,
           type: 'new_job_assigned',
           title: 'New Job Alert',
           message: `New booking for ${booking.serviceName} is available near you.`,
           relatedId: booking._id,
           relatedType: 'booking',
           priority: 'high',
-          pushData: { type: 'new_job', bookingId: booking._id.toString(), link: `/${bookingModel}/job/${booking._id}` }
+          pushData: { type: 'new_job', bookingId: booking._id.toString(), link: `/worker/job/${booking._id}` }
         });
       });
 
@@ -120,8 +113,7 @@ const handleInitialSearchRetry = async (booking, io) => {
     // Still nothing found this tick.
     if (timeElapsed >= INITIAL_SEARCH_WINDOW_MS) {
       // 3 minutes of retrying with zero partners found — give up.
-      const failStatus = bookingModel === 'worker' ? BOOKING_STATUS.NO_WORKERS : BOOKING_STATUS.NO_VENDORS;
-      booking.status = failStatus;
+      booking.status = BOOKING_STATUS.NO_WORKERS;
       booking.waveStartedAt = null;
       await booking.save();
 
@@ -133,7 +125,7 @@ const handleInitialSearchRetry = async (booking, io) => {
       });
       io.to(`user_${booking.userId}`).emit('booking_updated', {
         bookingId: booking._id,
-        status: failStatus,
+        status: BOOKING_STATUS.NO_WORKERS,
         message: 'No professionals available nearby at the moment.'
       });
 

@@ -25,16 +25,12 @@ const getTokenKeys = (url) => {
       role: 'admin'
     };
   }
-  if (window.location.pathname.startsWith('/vendor')) {
-    return { access: 'vendorAccessToken', refresh: 'vendorRefreshToken', role: 'vendor' };
-  }
   if (window.location.pathname.startsWith('/worker')) {
     return { access: 'workerAccessToken', refresh: 'workerRefreshToken', role: 'worker' };
   }
 
   // 2. Explicitly detect auth routes regardless of current page (for cross-role login/actions)
   if (url?.includes('/admin/auth')) return { access: 'adminAccessToken', refresh: 'adminRefreshToken', role: 'admin' };
-  if (url?.includes('/vendors/auth')) return { access: 'vendorAccessToken', refresh: 'vendorRefreshToken', role: 'vendor' };
   if (url?.includes('/workers/auth')) return { access: 'workerAccessToken', refresh: 'workerRefreshToken', role: 'worker' };
 
   // 3. Fallback to user token (most common case for user app)
@@ -114,8 +110,7 @@ api.interceptors.response.use(
       try {
         // Determine correct refresh endpoint based on current path
         let refreshEndpoint = '/users/auth/refresh-token'; // Default to user
-        if (role === 'vendor') refreshEndpoint = '/vendors/auth/refresh-token';
-        else if (role === 'worker') refreshEndpoint = '/workers/auth/refresh-token';
+        if (role === 'worker') refreshEndpoint = '/workers/auth/refresh-token';
         else if (role === 'admin') refreshEndpoint = '/admin/auth/refresh-token';
 
         // Try to refresh the token
@@ -174,7 +169,6 @@ export const handleLogout = (role = null) => {
     // Determine role from path if not provided
     const path = window.location.pathname;
     if (path.startsWith('/admin')) role = 'admin';
-    else if (path.startsWith('/vendor')) role = 'vendor';
     else if (path.startsWith('/worker')) role = 'worker';
     else role = 'user';
   }
@@ -191,12 +185,7 @@ export const handleLogout = (role = null) => {
     localStorage.removeItem(`${prefix}Data`);
   };
 
-  if (role === 'vendor') {
-    clearTokens('vendor');
-    if (window.location.pathname !== '/vendor/login') {
-      window.location.href = '/vendor/login';
-    }
-  } else if (role === 'worker') {
+  if (role === 'worker') {
     clearTokens('worker');
     if (window.location.pathname !== '/worker/login') {
       window.location.href = '/worker/login';

@@ -175,47 +175,6 @@ export const serviceService = {
 };
 
 /**
- * Vendor Catalog API calls
- */
-export const vendorCatalogService = {
-  // Services
-  getAllServices: async () => {
-    const response = await api.get('/admin/vendor-services');
-    return response.data;
-  },
-  createService: async (data) => {
-    const response = await api.post('/admin/vendor-services', data);
-    return response.data;
-  },
-  updateService: async (id, data) => {
-    const response = await api.put(`/admin/vendor-services/${id}`, data);
-    return response.data;
-  },
-  deleteService: async (id) => {
-    const response = await api.delete(`/admin/vendor-services/${id}`);
-    return response.data;
-  },
-
-  // Parts
-  getAllParts: async () => {
-    const response = await api.get('/admin/vendor-parts');
-    return response.data;
-  },
-  createPart: async (data) => {
-    const response = await api.post('/admin/vendor-parts', data);
-    return response.data;
-  },
-  updatePart: async (id, data) => {
-    const response = await api.put(`/admin/vendor-parts/${id}`, data);
-    return response.data;
-  },
-  deletePart: async (id) => {
-    const response = await api.delete(`/admin/vendor-parts/${id}`);
-    return response.data;
-  }
-};
-
-/**
  * Home Content API calls
  */
 export const homeContentService = {

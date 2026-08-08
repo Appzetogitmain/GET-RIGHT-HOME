@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBriefcase, FiCheckCircle, FiClock, FiTrendingUp, FiChevronRight, FiUser, FiBell, FiMapPin, FiArrowRight, FiAlertCircle, FiTool, FiNavigation, FiX, FiCheck, FiStar, FiTarget, FiGift, FiAward, FiThumbsUp, FiLock, FiClipboard, FiHeadphones, FiBook, FiPhone, FiMail, FiXCircle, FiTag } from 'react-icons/fi';
 import { FaWallet, FaHourglassHalf } from 'react-icons/fa';
-import { workerTheme as themeColors, vendorTheme } from '../../../../theme';
+import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import workerService from '../../../../services/workerService';
 import { registerFCMToken } from '../../../../services/pushNotificationService';

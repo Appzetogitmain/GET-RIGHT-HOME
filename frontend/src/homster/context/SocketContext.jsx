@@ -75,7 +75,6 @@ export const SocketProvider = ({ children }) => {
 
   // Determine user type based on path
   const getUserType = (path) => {
-    if (path.startsWith('/vendor')) return 'vendor';
     if (path.startsWith('/worker')) return 'worker';
     if (path.startsWith('/admin')) return 'admin';
     return 'user';
@@ -94,9 +93,6 @@ export const SocketProvider = ({ children }) => {
 
     let tokenKey = 'accessToken';
     switch (userType) {
-      case 'vendor':
-        tokenKey = 'vendorAccessToken';
-        break;
       case 'worker':
         tokenKey = 'workerAccessToken';
         break;
@@ -184,18 +180,6 @@ export const SocketProvider = ({ children }) => {
       }
 
 
-      // If vendor, join vendor-specific room just in case backend expects it
-      if (userType === 'vendor') {
-        const vendorData = JSON.parse(localStorage.getItem('vendorData') || '{}');
-        const vendorId = vendorData.id || vendorData._id;
-        if (vendorId) {
-          console.log(`[Socket] VENDOR joining room: vendor_${vendorId}`);
-          newSocket.emit('join_vendor_room', vendorId);
-        } else {
-          console.warn('[Socket] ⚠️ VENDOR: no vendorId found in localStorage');
-        }
-      }
-
       if (userType === 'worker') {
         const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
         const workerId = workerData.id || workerData._id;
@@ -245,8 +229,7 @@ export const SocketProvider = ({ children }) => {
             toast.dismiss(t.id);
             // Optional: navigate based on relatedId
             if (data.relatedId) {
-              if (userType === 'vendor') navigate(`/vendor/booking/${data.relatedId}`);
-              else if (userType === 'worker') navigate(`/worker/job/${data.relatedId}`);
+              if (userType === 'worker') navigate(`/worker/job/${data.relatedId}`);
               else navigate(`/user/booking/${data.relatedId}`);
             }
           }}
@@ -259,11 +242,6 @@ export const SocketProvider = ({ children }) => {
 
       // Dispatch update events to refresh UI components
       if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
-      if (userType === 'vendor') {
-        window.dispatchEvent(new Event('vendorJobsUpdated'));
-        window.dispatchEvent(new Event('vendorNotificationsUpdated'));
-        window.dispatchEvent(new Event('vendorStatsUpdated'));
-      }
       if (userType === 'user') {
         window.dispatchEvent(new Event('userBookingsUpdated'));
       }
@@ -290,7 +268,6 @@ export const SocketProvider = ({ children }) => {
         window.dispatchEvent(new Event('userBookingsUpdated'));
       }
       
-      if (userType === 'vendor') window.dispatchEvent(new Event('vendorJobsUpdated'));
       if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
     });
 
@@ -320,117 +297,6 @@ export const SocketProvider = ({ children }) => {
           </div>,
           { duration: 5000, position: 'top-center' }
         );
-      });
-    }
-
-    // Listen for special Vendor Booking Requests
-    if (userType === 'vendor') {
-      newSocket.on('new_booking_request', (data) => {
-        // console.log('🚨 New Booking Request Alert:', data);
-
-        // Play urgent alert ring
-        playAlertRing();
-
-        // Save to localStorage for the Alert screen and Dashboard to read
-        // Note: Even though we are moving to backend, keeping this for immediate UI responsiveness before potential refresh lag
-        const newJob = {
-          id: data.bookingId,
-          serviceType: data.serviceName,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          location: {
-            address: data.address?.addressLine1 || 'Location shared',
-            distance: data.distance ? `${data.distance.toFixed(1)} km` : 'Near you'
-          },
-          price: data.price,
-          vendorEarnings: data.vendorEarnings,
-          serviceCategory: data.serviceCategory,
-          brandName: data.brandName,
-          brandIcon: data.brandIcon,
-          categoryIcon: data.categoryIcon,
-          scheduledDate: data.scheduledDate,
-          scheduledTime: data.scheduledTime,
-          timeSlot: {
-            date: new Date(data.scheduledDate).toLocaleDateString(),
-            time: data.scheduledTime
-          },
-          status: 'requested',
-          createdAt: data.createdAt || new Date().toISOString(),
-          expiresAt: data.expiresAt
-        };
-
-        const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-        if (!pendingJobs.find(job => job.id === newJob.id)) {
-          pendingJobs.unshift(newJob);
-          localStorage.setItem('vendorPendingJobs', JSON.stringify(pendingJobs));
-
-          // Update stats
-          const stats = JSON.parse(localStorage.getItem('vendorStats') || '{}');
-          stats.pendingAlerts = (stats.pendingAlerts || 0) + 1;
-          localStorage.setItem('vendorStats', JSON.stringify(stats));
-        }
-
-        // Notify app components to refresh
-        window.dispatchEvent(new Event('vendorJobsUpdated'));
-        window.dispatchEvent(new Event('vendorStatsUpdated'));
-        window.dispatchEvent(new Event('vendorNotificationsUpdated'));
-
-        // Always show the global alert instead of navigating
-        const event = new CustomEvent('showDashboardBookingAlert', { detail: newJob });
-        window.dispatchEvent(event);
-      });
-
-      // Listen for booking_taken - when another vendor accepts a job
-      newSocket.on('booking_taken', (data) => {
-        // console.log('⚡ Booking taken by another vendor:', data);
-        const takenBookingId = String(data.bookingId);
-
-        // Remove from localStorage
-        const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-        const updatedPending = pendingJobs.filter(job => {
-          const jobId = String(job.id || job._id);
-          return jobId !== takenBookingId;
-        });
-        localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
-
-        // Update stats
-        const stats = JSON.parse(localStorage.getItem('vendorStats') || '{}');
-        if (stats.pendingAlerts > 0) {
-          stats.pendingAlerts = Math.max(0, (stats.pendingAlerts || 0) - 1);
-          localStorage.setItem('vendorStats', JSON.stringify(stats));
-        }
-
-        // Show toast notification
-        toast.error(data.message || 'Job taken by another vendor', { icon: '⚡' });
-
-        // Dispatch specific remove event for instant UI update
-        window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: takenBookingId } }));
-
-        // Notify app components to refresh
-        window.dispatchEvent(new Event('vendorJobsUpdated'));
-        window.dispatchEvent(new Event('vendorStatsUpdated'));
-      });
-
-      // Listen for removeVendorBooking - generic removal (timeout, cancellation, etc.)
-      newSocket.on('removeVendorBooking', (data) => {
-        const bookingId = String(data.bookingId || data.id);
-
-        // Remove from localStorage
-        const pendingJobs = JSON.parse(localStorage.getItem('vendorPendingJobs') || '[]');
-        const updatedPending = pendingJobs.filter(job => String(job.id || job._id) !== bookingId);
-        localStorage.setItem('vendorPendingJobs', JSON.stringify(updatedPending));
-
-        // Update stats
-        const stats = JSON.parse(localStorage.getItem('vendorStats') || '{}');
-        if (stats.pendingAlerts > 0) {
-          stats.pendingAlerts = Math.max(0, (stats.pendingAlerts || 0) - 1);
-          localStorage.setItem('vendorStats', JSON.stringify(stats));
-        }
-
-        // Dispatch specific remove event for instant UI update
-        window.dispatchEvent(new CustomEvent('removeVendorBooking', { detail: { id: bookingId } }));
-        window.dispatchEvent(new Event('vendorJobsUpdated'));
-        window.dispatchEvent(new Event('vendorStatsUpdated'));
       });
     }
 

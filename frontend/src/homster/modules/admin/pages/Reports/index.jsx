@@ -24,7 +24,6 @@ import CardShell from '../UserCategories/components/CardShell';
 // Import sub-report components
 import RevenueReport from './RevenueReport';
 import BookingReport from './BookingReport';
-import VendorReport from './VendorReport';
 import WorkerReport from './WorkerReport';
 
 const ReportsOverview = () => {
@@ -49,14 +48,10 @@ const ReportsOverview = () => {
       if (revenueRes.success) setRevenueData(revenueRes.data.revenueData);
       if (trendsRes.success) setBookingTrends(trendsRes.data.trends);
       if (growthRes.success) {
-        const merged = growthRes.data.userGrowth.map(ug => {
-          const vg = growthRes.data.vendorGrowth.find(v => v._id === ug._id);
-          return {
-            date: ug._id,
-            users: ug.count,
-            vendors: vg ? vg.count : 0
-          };
-        });
+        const merged = growthRes.data.userGrowth.map(ug => ({
+          date: ug._id,
+          users: ug.count
+        }));
         setGrowthData(merged);
       }
     } catch (error) {
@@ -117,7 +112,7 @@ const ReportsOverview = () => {
   return (
     <div className="space-y-6">
       {/* Quick Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Link to="/admin/home-service/reports/bookings" className="group">
           <CardShell className="bg-gradient-to-br from-primary-600 to-primary-700 text-white border-none hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-4">
             <div className="flex items-center justify-between">
@@ -127,23 +122,6 @@ const ReportsOverview = () => {
               </div>
               <div className="bg-white/20 p-2.5 rounded-xl">
                 <FiShoppingBag size={20} />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center gap-2 text-xs font-bold">
-              View Details <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
-            </div>
-          </CardShell>
-        </Link>
-
-        <Link to="/admin/home-service/reports/vendors" className="group">
-          <CardShell className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-none hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-amber-100 font-bold uppercase tracking-wider text-[10px]">Partner Insights</p>
-                <h3 className="text-lg font-black mt-0.5">Vendor Reports</h3>
-              </div>
-              <div className="bg-white/20 p-2.5 rounded-xl">
-                <FiBriefcase size={20} />
               </div>
             </div>
             <div className="mt-4 flex items-center gap-2 text-xs font-bold">
@@ -269,7 +247,6 @@ const ReportsOverview = () => {
                 <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                 <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
                 <Area type="monotone" dataKey="users" name="New Users" stroke="#4F46E5" fill="#4F46E5" fillOpacity={0.1} strokeWidth={3} />
-                <Area type="monotone" dataKey="vendors" name="New Vendors" stroke="#EC4899" fill="#EC4899" fillOpacity={0.1} strokeWidth={3} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -287,7 +264,6 @@ const Reports = () => {
     switch (currentPath) {
       case 'revenue': return 'Revenue Report';
       case 'bookings': return 'Booking Report';
-      case 'vendors': return 'Vendor Report';
       case 'workers': return 'Worker Report';
       default: return 'Analytics & Reports';
     }
@@ -297,7 +273,6 @@ const Reports = () => {
     { name: 'Overview', path: '/admin/home-service/reports', icon: FiActivity, exact: true },
     { name: 'Revenue', path: '/admin/home-service/reports/revenue', icon: FiDollarSign },
     { name: 'Bookings', path: '/admin/home-service/reports/bookings', icon: FiShoppingBag },
-    { name: 'Vendors', path: '/admin/home-service/reports/vendors', icon: FiUsers },
     { name: 'Workers', path: '/admin/home-service/reports/workers', icon: FiBriefcase },
   ];
 
@@ -312,7 +287,6 @@ const Reports = () => {
         <Route index element={<ReportsOverview />} />
         <Route path="revenue" element={<RevenueReport />} />
         <Route path="bookings" element={<BookingReport />} />
-        <Route path="vendors" element={<VendorReport />} />
         <Route path="workers" element={<WorkerReport />} />
       </Routes>
     </div>

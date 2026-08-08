@@ -32,11 +32,6 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
       let dataKey = 'userData';
 
       switch (userType) {
-        case 'vendor':
-          tokenKey = 'vendorAccessToken';
-          refreshTokenKey = 'vendorRefreshToken';
-          dataKey = 'vendorData';
-          break;
         case 'worker':
           tokenKey = 'workerAccessToken';
           refreshTokenKey = 'workerRefreshToken';
@@ -130,7 +125,6 @@ const ProtectedRoute = ({ children, userType = 'user', redirectTo = null }) => {
     // Determine redirect path
     const defaultRedirects = {
       user: '/user/login',
-      vendor: '/vendor/login',
       worker: '/worker/login',
       admin: '/admin/login'
     };

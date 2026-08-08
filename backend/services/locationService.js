@@ -102,14 +102,10 @@ export const findNearbyWorkers = async (location, radius, filters) => {
   }
 };
 
-export const findNearbyVendors = async (location, radius, filters) => {
-  return [];
-};
-
 export const geocodeAddress = async (address) => {
   console.log('[LocationService] Geocoding address:', address);
   // Default to Indore coordinates during testing to match the active worker
   return { lat: 22.7176095402611, lng: 75.87198236533966 };
 };
 
-export default { findNearbyWorkers, findNearbyVendors, geocodeAddress };
+export default { findNearbyWorkers, geocodeAddress };

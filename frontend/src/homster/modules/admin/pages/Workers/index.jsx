@@ -13,7 +13,6 @@ import MonthlyTarget from './MonthlyTarget';
 import WorkerAchievements from './WorkerAchievements';
 import WorkerSupportSettings from './WorkerSupportSettings';
 import WorkerTrainingSettings from './WorkerTrainingSettings';
-import WorkerReferralSettings from './WorkerReferralSettings';
 import WorkerComplaints from './WorkerComplaints';
 import WorkerPrivacyPolicy from './WorkerPrivacyPolicy';
 
@@ -29,7 +28,6 @@ const Workers = () => {
     { name: 'Support Settings', path: '/admin/home-service/workers/support', icon: FiActivity },
     { name: 'Privacy Policy', path: '/admin/home-service/workers/privacy-policy', icon: FiActivity },
     { name: 'Worker Training', path: '/admin/home-service/workers/training', icon: FiActivity },
-    { name: 'Refer and Earn', path: '/admin/home-service/workers/referrals', icon: FiActivity },
     { name: 'Complaint Management', path: '/admin/home-service/workers/complaints', icon: FiActivity },
     { name: 'Worker Analytics', path: '/admin/home-service/workers/analytics', icon: FiActivity },
   ];
@@ -58,7 +56,8 @@ const Workers = () => {
           <Route path="support" element={<WorkerSupportSettings />} />
           <Route path="privacy-policy" element={<WorkerPrivacyPolicy />} />
           <Route path="training" element={<WorkerTrainingSettings />} />
-          <Route path="referrals" element={<WorkerReferralSettings />} />
+          {/* Refer and Earn moved to the unified /admin/refer-earn page (Worker App tab) */}
+          <Route path="referrals" element={<Navigate to="/admin/refer-earn" replace />} />
           <Route path="complaints" element={<WorkerComplaints />} />
           <Route path="analytics" element={<WorkerAnalytics />} />
         </Routes>

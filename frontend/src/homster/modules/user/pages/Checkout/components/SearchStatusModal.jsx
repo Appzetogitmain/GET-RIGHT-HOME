@@ -10,7 +10,7 @@ const formatTime = (totalSeconds) => {
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
-const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRetry, bookingModel = 'worker', searchMessage }) => {
+const SearchStatusModal = ({ isOpen, onClose, currentStep, acceptedProfessional, onRetry, bookingModel = 'worker', searchMessage }) => {
   const [dots, setDots] = useState('.');
   const [timeLeft, setTimeLeft] = useState(SEARCH_WINDOW_SECONDS);
 
@@ -140,7 +140,7 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
           </div>
         )}
 
-        {currentStep === 'accepted' && acceptedVendor && (
+        {currentStep === 'accepted' && acceptedProfessional && (
           <div className="flex flex-col items-center pt-12 pb-10 px-6 bg-white w-full h-full min-h-[450px]">
             {/* Success Icon */}
             <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-2xl animate-bounce-short"
@@ -155,17 +155,17 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
               Request accepted by professional
             </p>
 
-            {/* Vendor Card */}
+            {/* Professional Card */}
             <div className="w-full bg-gray-50 rounded-[32px] p-6 border border-gray-100 mb-10 relative overflow-hidden shadow-sm">
               <div className="relative z-10">
-                <h4 className="font-black text-xl text-gray-900 mb-1">{acceptedVendor.businessName}</h4>
+                <h4 className="font-black text-xl text-gray-900 mb-1">{acceptedProfessional.businessName}</h4>
                 <div className="flex items-center gap-4 text-xs font-bold text-gray-500 mt-3">
                   <span className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm">
-                    <span className="text-yellow-400">★</span> {acceptedVendor.rating || '4.9'}
+                    <span className="text-yellow-400">★</span> {acceptedProfessional.rating || '4.9'}
                   </span>
                   <span className="flex items-center gap-1.5 bg-green-50 text-green-600 px-3 py-1.5 rounded-full border border-green-100 uppercase tracking-tighter text-[10px]">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                    {acceptedVendor.distance || 'Nearby'}
+                    {acceptedProfessional.distance || 'Nearby'}
                   </span>
                 </div>
               </div>
@@ -216,5 +216,4 @@ const VendorSearchModal = ({ isOpen, onClose, currentStep, acceptedVendor, onRet
   );
 };
 
-export default VendorSearchModal;
-
+export default SearchStatusModal;

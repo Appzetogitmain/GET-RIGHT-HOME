@@ -25,7 +25,6 @@ const AdminDashboard = () => {
   const [recentBookingsList, setRecentBookingsList] = useState([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
-    totalVendors: 0,
     totalWorkers: 0,
     activeBookings: 0,
     completedBookings: 0,
@@ -73,7 +72,6 @@ const AdminDashboard = () => {
           const s = statsRes.stats || {};
           setStats({
             totalUsers: s.totalUsers,
-            totalVendors: s.totalVendors,
             totalWorkers: s.totalWorkers,
             activeBookings: s.pendingBookings || s.totalBookings, // using totalBookings or activeBookings from backend
             completedBookings: s.completedBookings || 0,

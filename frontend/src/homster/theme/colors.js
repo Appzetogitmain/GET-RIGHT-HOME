@@ -1,11 +1,10 @@
 /**
  * Centralized Theme Colors Configuration
- * Separate themes for User and Vendor modules
+ * Separate themes for User and Worker modules
  * Update colors here to change theme across entire app
- * 
+ *
  * Usage:
  * - User module: import { userTheme } from '../../../../theme'
- * - Vendor module: import { vendorTheme } from '../../../../theme'
  * - Worker module: import { workerTheme } from '../../../../theme'
  */
 
@@ -31,16 +30,6 @@ const userTheme = {
   brand: brand
 };
 
-// Vendor Theme Colors
-const vendorTheme = {
-  backgroundGradient: 'linear-gradient(to bottom, rgba(52, 121, 137, 0.03) 0%, rgba(187, 95, 54, 0.02) 10%, #ffffff 20%)',
-  gradient: brand.gradient,
-  headerGradient: brand.teal,
-  button: brand.teal,
-  icon: brand.teal,
-  brand: brand
-};
-
 // Worker Theme Colors
 const workerTheme = {
   backgroundGradient: 'linear-gradient(to bottom, rgba(52, 121, 137, 0.03) 0%, rgba(187, 95, 54, 0.02) 10%, #ffffff 20%)',
@@ -55,7 +44,7 @@ const workerTheme = {
 const themeColors = userTheme;
 
 // Export all themes
-export { userTheme, vendorTheme, workerTheme, brand };
+export { userTheme, workerTheme, brand };
 export default themeColors;
 
 

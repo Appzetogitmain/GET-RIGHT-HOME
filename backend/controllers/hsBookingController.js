@@ -40,7 +40,6 @@ const createBooking = async (req, res) => {
     const userId = req.user.id;
     let {
       serviceId,
-      vendorId,
       address,
       scheduledDate,
       scheduledTime,
@@ -142,11 +141,11 @@ const createBooking = async (req, res) => {
 
     // --- MOVE SEARCH UP HERE ---
     // Load Global Settings for Flow Control
-    const globalSettings = await Settings.findOne({ type: 'global' }).select('searchRadius bookingModel').lean();
-    const bookingModel = 'worker'; // Forced bypass of Vendor
+    const globalSettings = await Settings.findOne({ type: 'global' }).select('searchRadius').lean();
+    const bookingModel = 'worker';
     const searchRadius = globalSettings?.searchRadius || 10;
 
-    // Find nearby partners using location service
+    // Find nearby workers using location service
 
     // Determine booking location (prioritize frontend coordinates)
     let bookingLocation;
@@ -160,22 +159,11 @@ const createBooking = async (req, res) => {
       console.log('Geocoded address for partner search:', bookingLocation);
     }
 
-    let nearbyPartners = [];
-    if (bookingModel === 'worker') {
-      nearbyPartners = await findNearbyWorkers(
-        bookingLocation,
-        searchRadius,
-        { service: category?.title || (service ? service.category : 'General') }
-      );
-    } else {
-      console.log('[CreateBooking] Legacy Vendor Mode Active. Searching Vendors...');
-      const vendorFilters = {
-        ...(category ? { service: category.title } : {}),
-        checkCashLimit: paymentMethod === 'cash',
-        city: address.city
-      };
-      nearbyPartners = await findNearbyVendors(bookingLocation, searchRadius, vendorFilters);
-    }
+    let nearbyPartners = await findNearbyWorkers(
+      bookingLocation,
+      searchRadius,
+      { service: category?.title || (service ? service.category : 'General') }
+    );
 
     // Deduplicate nearbyPartners by _id to prevent duplicate notifications
     const uniquePartnerIds = new Set();
@@ -190,7 +178,6 @@ const createBooking = async (req, res) => {
     // Store in a shared variable for background tasks
     const foundPartners = nearbyPartners;
     // --- END SEARCH BLOCK ---
-    // --- END VENDOR SEARCH BLOCK ---
 
     // Calculate pricing - use amount from frontend if provided, otherwise calculate
     let basePrice, discount, tax, finalAmount;
@@ -456,18 +443,11 @@ const createBooking = async (req, res) => {
         const WAVE_1_COUNT = 3;
         const wave1Partners = sortedPartners.slice(0, WAVE_1_COUNT);
 
-        // Store potential partners in booking
-        if (bookingModel === 'worker') {
-          bookingForBackground.potentialWorkers = sortedPartners.map(v => ({
-            workerId: v._id,
-            distance: v.distance || 0
-          }));
-        } else {
-          bookingForBackground.potentialVendors = sortedPartners.map(v => ({
-            vendorId: v._id,
-            distance: v.distance || 0
-          }));
-        }
+        // Store potential workers in booking
+        bookingForBackground.potentialWorkers = sortedPartners.map(v => ({
+          workerId: v._id,
+          distance: v.distance || 0
+        }));
 
         bookingForBackground.currentWave = 1;
         bookingForBackground.waveStartedAt = new Date();
@@ -486,8 +466,7 @@ const createBooking = async (req, res) => {
           // Create BookingRequest entries for Wave 1 partners
           const bookingRequests = wave1Partners.map(partner => ({
             bookingId: bookingForBackground._id,
-            vendorId: bookingModel === 'vendor' ? partner._id : null,
-            workerId: bookingModel === 'worker' ? partner._id : null,
+            workerId: partner._id,
             status: 'PENDING',
             wave: 1,
             distance: partner.distance || null,
@@ -502,8 +481,7 @@ const createBooking = async (req, res) => {
             // Notify partners about new job
             for (const partner of wave1Partners) {
               await createNotification({
-                vendorId: bookingModel === 'vendor' ? partner._id : null,
-                workerId: bookingModel === 'worker' ? partner._id : null,
+                workerId: partner._id,
                 type: 'new_job_available',
                 title: 'New Job Available!',
                 message: `A new ${bookingForBackground.serviceName} job is available near you. Earn ₹${workerAmount}!`,
@@ -513,7 +491,7 @@ const createBooking = async (req, res) => {
                 pushData: {
                   type: 'new_job',
                   bookingId: bookingForBackground._id.toString(),
-                  link: bookingModel === 'vendor' ? `/vendor/bookings/${bookingForBackground._id}` : `/worker/job/${bookingForBackground._id}`
+                  link: `/worker/job/${bookingForBackground._id}`
                 }
               });
             }
@@ -609,7 +587,7 @@ const createBooking = async (req, res) => {
         try {
           const partnerNotifications = wave1Partners.map(partner =>
             createNotification({
-              ...(bookingModel === 'worker' ? { workerId: partner._id } : { vendorId: partner._id }),
+              workerId: partner._id,
               type: 'booking_request',
               title: 'New Booking Request',
               message: `New service request for ${serviceForBackground.title} from ${userForBackground.name}`,
@@ -629,7 +607,7 @@ const createBooking = async (req, res) => {
               pushData: {
                 type: 'new_booking',
                 dataOnly: false,
-                link: `/${bookingModel}/bookings/${bookingForBackground._id}`
+                link: `/worker/bookings/${bookingForBackground._id}`
               }
             })
           );
@@ -657,21 +635,8 @@ const createBooking = async (req, res) => {
         await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
         console.log(`[CreateBooking][bg] Cart cleared for user ${userId}`);
 
-        // Send vendor notification if it was a direct booking (vendorId provided)
-        if (vendorId) {
-          await createNotification({
-            vendorId,
-            type: 'booking_created',
-            title: 'New Booking Received',
-            message: `You have received a new booking ${bookingForBackground.bookingNumber} for ${serviceForBackground.title}.`,
-            relatedId: bookingForBackground._id,
-            relatedType: 'booking'
-          });
-        }
-
         // Send confirmation emails (fire-and-forget — never blocks)
-        const vendorObj = vendorId ? await require('../models/Vendor').findById(vendorId).lean() : null;
-        sendBookingEmails(bookingForBackground, userForBackground, vendorObj, serviceForBackground)
+        sendBookingEmails(bookingForBackground, userForBackground, null, serviceForBackground)
           .catch(err => console.error('[CreateBooking][bg] Email error:', err));
 
       } catch (bgErr) {

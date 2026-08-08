@@ -28,18 +28,14 @@ import useAdminStore from "../../../../../app/admin/store/adminStore";
 const iconMap = {
   Dashboard: FiHome,
   Users: FiUsers,
-  Vendors: FiBriefcase,
   Workers: FiUser,
   Bookings: FiShoppingBag,
   "User Catalog": FiGrid,
-  "Vendor Services": FiGrid,
-  "Vendor Parts": FiPackage,
   Payments: FiDollarSign,
   Reports: FiFileText,
   Notifications: FiBell,
   "Scrap Items": FiTrash2,
   Reviews: FiStar,
-  Settlements: FiDollarSign,
   Settings: FiSettings,
   "Zone Setup": FiMap,
   Plans: FiPackage,
@@ -55,12 +51,6 @@ const getChildRoute = (parentRoute, childName) => {
       "Transactions": "/admin/home-service/users/transactions",
       "User Analytics": "/admin/home-service/users/analytics",
     },
-    "/admin/home-service/vendors": {
-      "All Vendors": "/admin/home-service/vendors/all",
-      "Vendor Bookings": "/admin/home-service/vendors/bookings",
-      "Vendor Analytics": "/admin/home-service/vendors/analytics",
-      "Vendor Payments": "/admin/home-service/vendors/payments",
-    },
     "/admin/home-service/workers": {
       "All Workers": "/admin/home-service/workers/all",
       "Worker Jobs": "/admin/home-service/workers/jobs",
@@ -72,7 +62,6 @@ const getChildRoute = (parentRoute, childName) => {
       "Support Settings": "/admin/home-service/workers/support",
       "Privacy Policy": "/admin/home-service/workers/privacy-policy",
       "Worker Training": "/admin/home-service/workers/training",
-      "Refer and Earn": "/admin/home-service/workers/referrals",
       "Complaint Management": "/admin/home-service/workers/complaints",
     },
     "/admin/home-service/bookings": {
@@ -91,7 +80,6 @@ const getChildRoute = (parentRoute, childName) => {
       "Payment Overview": "/admin/home-service/payments/overview",
       "User Payments": "/admin/home-service/payments/users",
       "Worker Payments": "/admin/home-service/payments/workers",
-      "Vendor Payments": "/admin/home-service/payments/vendors",
       "Admin Revenue": "/admin/home-service/payments/revenue",
       "Payment Reports": "/admin/home-service/payments/reports",
     },
@@ -112,12 +100,6 @@ const getChildRoute = (parentRoute, childName) => {
       "Service Configuration": "/admin/home-service/settings/service-config",
       "System Settings": "/admin/home-service/settings/system",
     },
-    "/admin/home-service/settlements": {
-      "Pending": "/admin/home-service/settlements/pending",
-      "Withdrawals": "/admin/home-service/settlements/withdrawals",
-      "Vendors with Due": "/admin/home-service/settlements/vendors",
-      "History": "/admin/home-service/settlements/history",
-    },
   };
 
   return routeMap[parentRoute]?.[childName] || parentRoute;
@@ -132,9 +114,6 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   const { admin: storeAdmin } = useAdminStore();
   const [counts, setCounts] = useState({
     bookings: 0,
-    vendors: 0,
-    withdrawals: 0,
-    pendingSettlements: 0,
     scraps: 0
   });
 
@@ -184,9 +163,6 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     //       const stats = response.data.stats;
     //       setCounts({
     //         bookings: stats.pendingBookings || 0,
-    //         vendors: stats.pendingVendors || 0,
-    //         withdrawals: stats.pendingWithdrawals || 0,
-    //         pendingSettlements: stats.pendingSettlements || 0,
     //         scraps: stats.pendingScraps || 0
     //       });
     //     }
@@ -248,13 +224,6 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   const isActive = (route) => {
     if (route === "/admin/home-service/dashboard") {
       return location.pathname === "/admin/home-service/dashboard";
-    }
-
-    // Special case for User Catalog to avoid overlap with Vendor Services/Parts
-    if (route === "/admin/home-service/user-categories") {
-      if (location.pathname.startsWith("/admin/home-service/user-categories/vendor-")) {
-        return false;
-      }
     }
 
     // Strict prefix check: either exact match OR followed by a slash
@@ -329,16 +298,6 @@ const AdminSidebar = ({ isOpen, onClose }) => {
               {counts.bookings > 99 ? '99+' : counts.bookings}
             </span>
           )}
-          {item.title === "Vendors" && counts.vendors > 0 && (
-            <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse mr-2">
-              {counts.vendors > 99 ? '99+' : counts.vendors}
-            </span>
-          )}
-          {item.title === "Settlements" && (counts.withdrawals + counts.pendingSettlements) > 0 && (
-            <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse mr-2">
-              {(counts.withdrawals + counts.pendingSettlements) > 99 ? '99+' : (counts.withdrawals + counts.pendingSettlements)}
-            </span>
-          )}
           {item.title === "Scrap Items" && counts.scraps > 0 && (
             <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse mr-2">
               {counts.scraps > 99 ? '99+' : counts.scraps}
@@ -385,16 +344,6 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                         }
                       `}>
                       <span>{child}</span>
-                      {item.title === "Settlements" && child === "Pending" && counts.pendingSettlements > 0 && (
-                        <span className="bg-red-500 text-white text-[10px] h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full">
-                          {counts.pendingSettlements}
-                        </span>
-                      )}
-                      {item.title === "Settlements" && child === "Withdrawals" && counts.withdrawals > 0 && (
-                        <span className="bg-orange-500 text-white text-[10px] h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full">
-                          {counts.withdrawals}
-                        </span>
-                      )}
                     </div>
                   );
                 })}

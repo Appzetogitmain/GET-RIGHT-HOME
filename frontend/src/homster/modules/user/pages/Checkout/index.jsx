@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
 import AddressSelectionModal from './components/AddressSelectionModal';
 import TimeSlotModal from './components/TimeSlotModal';
-import VendorSearchModal from './components/VendorSearchModal';
+import SearchStatusModal from './components/SearchStatusModal';
 import { bookingService } from '../../../../services/bookingService';
 import { paymentService } from '../../../../services/paymentService';
 import { cartService } from '../../../../services/cartService';
@@ -69,7 +69,7 @@ const Checkout = () => {
 
   // New state for vendor search flow
   const [currentStep, setCurrentStep] = useState('details'); // 'details' | 'searching' | 'waiting' | 'accepted' | 'payment'
-  const [acceptedVendor, setAcceptedVendor] = useState(null);
+  const [acceptedProfessional, setAcceptedProfessional] = useState(null);
   const [bookingRequest, setBookingRequest] = useState(null);
   const [searchingVendors, setSearchingVendors] = useState(false);
   const [showVendorModal, setShowVendorModal] = useState(false);
@@ -491,7 +491,7 @@ const Checkout = () => {
         // If the backend returns an assigned vendor immediately (rare but possible)
         if ((response.data.vendorId || response.data.workerId) && (response.data.status === 'ACCEPTED' || response.data.status === 'ASSIGNED')) {
           setCurrentStep('accepted');
-          setAcceptedVendor({
+          setAcceptedProfessional({
             ...(response.data.vendorId || response.data.workerId || {}),
             price: response.data.finalAmount || amountToPay,
             distance: 'within 5km', // default
@@ -535,7 +535,7 @@ const Checkout = () => {
               price: bookingRequest.amount
             };
 
-            setAcceptedVendor(vendorData);
+            setAcceptedProfessional(vendorData);
             setCurrentStep('accepted');
             setSearchingVendors(false);
             toast.success(`${vendorData.businessName} accepted your booking!`);
@@ -606,7 +606,7 @@ const Checkout = () => {
           price: bookingRequest.amount
         };
 
-        setAcceptedVendor(vendorData);
+        setAcceptedProfessional(vendorData);
         setCurrentStep('accepted');
         setSearchingVendors(false);
         toast.success(`${vendorData.businessName} accepted your booking!`);
@@ -820,7 +820,7 @@ const Checkout = () => {
       // If online payment is selected, trigger it before moving to waiting state
       if (paymentMethod === 'online' && amountToPay > 0) {
         // We need to pass the booking request to the payment handler
-        // The handleOnlinePayment function uses acceptedVendor and bookingRequest from state
+        // The handleOnlinePayment function uses acceptedProfessional and bookingRequest from state
         // So we ensure they are set first
         setCurrentStep('payment'); // New step for payment processing
         toast.dismiss();
@@ -849,7 +849,7 @@ const Checkout = () => {
   // Proceed to payment after vendor acceptance
   const handleOnlinePayment = async () => {
     try {
-      if (!acceptedVendor || !bookingRequest) {
+      if (!acceptedProfessional || !bookingRequest) {
         toast.error('No vendor selected or booking not created');
         return;
       }
@@ -1949,8 +1949,8 @@ const Checkout = () => {
       {/* Live Booking Status Card (Visible when minimized) */}
       <LiveBookingCard key={bookingRequest?._id || 'default'} />
 
-      {/* Vendor Search Modal */}
-      <VendorSearchModal
+      {/* Search Status Modal */}
+      <SearchStatusModal
         isOpen={showVendorModal}
         onClose={async () => {
           setShowVendorModal(false);
@@ -1977,7 +1977,7 @@ const Checkout = () => {
           }
         }}
         currentStep={currentStep}
-        acceptedVendor={acceptedVendor}
+        acceptedProfessional={acceptedProfessional}
         bookingModel={bookingModel}
         searchMessage={searchMessage}
         onRetry={() => {
