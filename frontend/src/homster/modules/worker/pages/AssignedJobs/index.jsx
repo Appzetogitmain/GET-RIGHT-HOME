@@ -127,7 +127,7 @@ const AssignedJobs = () => {
               placeholder="Search jobs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             />
           </div>
         </div>
@@ -175,9 +175,9 @@ const AssignedJobs = () => {
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
             }}
           >
-            <FiBriefcase className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-600 font-semibold mb-2">No jobs found</p>
-            <p className="text-sm text-gray-500">
+            <FiBriefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p className="text-sm text-gray-600 font-semibold mb-1">No jobs found</p>
+            <p className="text-xs text-gray-500">
               {searchQuery ? 'Try a different search term' : 'No jobs assigned at the moment'}
             </p>
           </div>
@@ -218,11 +218,11 @@ const AssignedJobs = () => {
                           >
                             <FiBriefcase className="w-4 h-4" style={{ color: statusColor }} />
                           </div>
-                          <h3 className="font-bold text-gray-800 text-base">{job.serviceName}</h3>
+                          <h3 className="font-bold text-gray-800 text-sm">{job.serviceName}</h3>
                         </div>
                         <div className="ml-8 mb-2">
                           <span
-                            className="text-xs font-bold px-3 py-1.5 rounded-full"
+                            className="text-[10px] font-bold px-2.5 py-1 rounded-full"
                             style={{
                               background: `linear-gradient(135deg, ${statusColor} 0%, ${statusColor}dd 100%)`,
                               color: '#FFFFFF',
@@ -234,7 +234,7 @@ const AssignedJobs = () => {
                         </div>
                       </div>
                       <div
-                        className="px-3 py-2 rounded-lg font-bold text-lg"
+                        className="px-3 py-2 rounded-lg font-bold text-sm"
                         style={{
                           background: 'rgba(59, 130, 246, 0.1)',
                           color: '#3B82F6',
