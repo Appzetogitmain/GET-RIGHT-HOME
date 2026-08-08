@@ -155,7 +155,12 @@ const BookingDetails = () => {
         return newData;
       });
 
-      // Show specific modal for worker arrival
+      // Show specific modal for worker arrival.
+      // The backend fires both a 'notification' and a 'booking_updated' socket
+      // event for the same status change (see notificationController.js), so
+      // this handler runs twice per real event. Every branch below uses a
+      // stable, booking-scoped toast id so the second firing updates the same
+      // toast instead of stacking a duplicate on top of it.
       if (data.type === 'worker_reached' || data.type === 'vendor_reached') {
         toast.success('Professional has arrived! Please check the OTP.', { id: 'worker_arrived_toast' });
         setShowArrivalModal(true);
@@ -164,11 +169,11 @@ const BookingDetails = () => {
         setShowArrivalModal(false);
       } else if (data.status === 'JOURNEY_STARTED' || data.status === 'journey_started') {
         // Only toast if it's explicitly journey started (not worker reached)
-        toast.success('Professional has started their journey!');
+        toast.success('Professional has started their journey!', { id: `journey_started_toast_${id}` });
       } else if (data.status === 'IN_PROGRESS' || data.status === 'in_progress') {
-        toast.success('Work has started!');
+        toast.success('Work has started!', { id: `work_started_toast_${id}` });
       } else if (data.message) {
-        toast(data.message, { icon: '🔔', id: `toast_${Date.now()}` });
+        toast(data.message, { icon: '🔔', id: `booking_status_toast_${id}` });
       }
 
       // Delay fetching fresh data to avoid race conditions with DB replication overwriting optimistic updates

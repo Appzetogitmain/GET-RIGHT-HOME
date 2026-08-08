@@ -274,26 +274,29 @@ const BookingTrack = () => {
         }
       };
 
+      // The backend fires both a 'notification' and a 'booking_updated' socket
+      // event for the same status change (see notificationController.js), and
+      // this handler is registered on both, so it runs twice per real event.
+      // Every toast below uses a stable, booking-scoped id so the second
+      // firing updates the existing toast instead of stacking a duplicate.
       const handleBookingUpdate = (data) => {
         if (data.bookingId === id || data.relatedId === id || data.data?.bookingId === id) {
           setBooking(prev => {
             if (!prev) return prev;
             return { ...prev, ...(data.data || data) };
           });
-          
-          if (data.message) {
-             toast(data.message, { icon: '🔍', duration: 4000 });
-          }
 
           if (data.type === 'visit_verified' || data.status === 'visited' || data.status === 'VISITED') {
             toast.success('Worker reached your location!', { id: 'worker_reached_toast' });
             setShowArrivalModal(false);
           } else if (data.qrPaymentInitiated) {
             setShowPaymentModal(true);
-            toast.success('Professional has initiated payment!');
+            toast.success('Professional has initiated payment!', { id: `payment_initiated_toast_${id}` });
           } else if (data.customerConfirmationOTP) {
             setShowPaymentModal(true);
-            toast.success('Professional has requested payment!');
+            toast.success('Professional has requested payment!', { id: `payment_requested_toast_${id}` });
+          } else if (data.message) {
+            toast(data.message, { icon: '🔍', duration: 4000, id: `booking_track_toast_${id}` });
           }
           refreshBooking(false);
         }

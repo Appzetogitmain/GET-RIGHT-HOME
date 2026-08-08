@@ -149,7 +149,11 @@ export const createEnquiry = async (req, res) => {
             preferredDate: preferredDate ? new Date(preferredDate) : null,
             timeSlot: timeSlot || '',
             budget: budget || 0,
-            status: 'new'
+            // A visit request already carries the date/time the buyer picked, so it
+            // starts life as "scheduled" rather than "new" — matching what the owner/
+            // admin views show ("Visit Scheduled") and what the confirmation to the
+            // buyer says.
+            status: (enquiryType === 'visit' && preferredDate) ? 'scheduled' : 'new'
         });
 
         await enquiry.save();

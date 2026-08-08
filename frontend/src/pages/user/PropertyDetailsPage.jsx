@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { goBackOrHome } from '../../utils/navigation';
 import { authService, propertyService, legalService, reviewService, offerService, availabilityService, userService, bookingService, enquiryService, localityReviewService } from '../../services/apiService';
 import GRHPropertyCard from '../../components/user/GRHPropertyCard';
+import ScheduleVisitModal from '../../components/user/ScheduleVisitModal';
 import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
@@ -48,6 +49,8 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
   const [similarProperties, setSimilarProperties] = useState([]);
   const [recentProperties, setRecentProperties] = useState([]);
   const [showVisitModal, setShowVisitModal] = useState(false);
+  const [visitSubmitting, setVisitSubmitting] = useState(false);
+  const [visitConfirmation, setVisitConfirmation] = useState(null);
   const [showCallbackModal, setShowCallbackModal] = useState(false);
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
   const [enquiryForm, setEnquiryForm] = useState({
@@ -1096,6 +1099,61 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
     } finally {
       setBookingLoading(false);
     }
+  };
+
+  // Actually submits the visit request once we know who's asking (either
+  // already logged in, or just verified via the OTP gate below).
+  const submitVisit = async (visitDate, slotLabel) => {
+    setVisitSubmitting(true);
+    try {
+      const response = await enquiryService.create({
+        propertyId: id,
+        enquiryType: 'visit',
+        name: leadName,
+        phone: leadPhone,
+        email: leadEmail,
+        message: `Property visit requested for ${slotLabel} on ${visitDate.toDateString()}`,
+        preferredDate: visitDate,
+        timeSlot: slotLabel,
+        budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
+      });
+
+      if (response.success) {
+        setVisitConfirmation({ date: visitDate, slotLabel });
+      } else {
+        toast.error(response.message || "Failed to schedule visit");
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to schedule visit");
+    } finally {
+      setVisitSubmitting(false);
+    }
+  };
+
+  // Entry point for the "Schedule a Visit" button/modal — gates through the
+  // same guest OTP flow as Call/WhatsApp before actually booking the slot.
+  const handleScheduleVisit = (visitDate, slotLabel) => {
+    if (!agreedTerms) {
+      toast.error("Please agree to the Terms & Conditions");
+      return;
+    }
+
+    const isLoggedIn = !!localStorage.getItem('user');
+    if (isLoggedIn) {
+      submitVisit(visitDate, slotLabel);
+      return;
+    }
+
+    let targetType = 'Owner';
+    if (property.partnerId) {
+      targetType = property.partnerId.role === 'builder' ? 'Builder' : 'Broker';
+    }
+    openEnquiryModal({
+      targetId: id,
+      targetType,
+      actionType: 'visit',
+      onSuccess: () => submitVisit(visitDate, slotLabel)
+    });
   };
 
   const handleEnquirySubmit = async (e) => {
@@ -2330,8 +2388,28 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
             </button>
           )}
 
+          {/* Schedule a Visit */}
+          <button
+            onClick={() => setShowVisitModal(true)}
+            title="Schedule a Visit"
+            className="w-11 h-11 bg-purple-50 border border-purple-100 hover:bg-purple-100 text-purple-600 rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all"
+          >
+            <Calendar size={16} />
+          </button>
+
         </div>
       </div>
+
+      <ScheduleVisitModal
+        isOpen={showVisitModal}
+        onClose={() => {
+          setShowVisitModal(false);
+          setVisitConfirmation(null);
+        }}
+        onConfirm={handleScheduleVisit}
+        loading={visitSubmitting}
+        confirmation={visitConfirmation}
+      />
 
       {/* DRAWER MODAL 1: PROPERTY HIGHLIGHTS BOTTOM DRAWER */}
       <AnimatePresence>

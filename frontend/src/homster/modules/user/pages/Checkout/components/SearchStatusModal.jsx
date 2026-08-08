@@ -112,7 +112,7 @@ const SearchStatusModal = ({ isOpen, onClose, currentStep, acceptedProfessional,
                   <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
                 <span className="text-xs font-black tabular-nums" style={{ color: themeColors.brand.teal }}>
-                  {formatTime(timeLeft)}
+                  {mmss}
                 </span>
               </div>
             </div>

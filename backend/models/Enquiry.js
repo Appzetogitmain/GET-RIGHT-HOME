@@ -45,7 +45,7 @@ const enquirySchema = new mongoose.Schema({
     // ── Enquiry Type ──────────────────────────────────────────────────────────
     enquiryType: {
         type: String,
-        enum: ['call', 'whatsapp', 'callback'],
+        enum: ['call', 'whatsapp', 'callback', 'visit'],
         default: 'callback'
     },
 

@@ -5,6 +5,7 @@ const typeMap = {
   whatsapp: { label: '💬 WhatsApp', className: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
   callback: { label: '🔔 Callback', className: 'bg-amber-50 text-amber-700 border-amber-100' },
   contact_owner: { label: '📩 Enquiry', className: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
+  visit: { label: '🏠 Visit', className: 'bg-purple-50 text-purple-700 border-purple-100' },
 };
 
 const LeadTypeBadge = ({ type }) => {
