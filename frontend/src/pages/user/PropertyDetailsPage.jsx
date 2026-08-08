@@ -18,7 +18,10 @@ import { useEnquiryModal } from '../../context/EnquiryModalContext';
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='24' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
 
-const PropertyDetailsPage = () => {
+// `prefetchedDetails` is supplied by PropertyDetailsDispatcher, which already
+// fetched this property to decide which UI to route to. Reusing it avoids
+// requesting the same record twice on every property page view.
+const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { navigateToProperty } = usePropertyNavigate();
@@ -206,7 +209,10 @@ const PropertyDetailsPage = () => {
 
   const loadPropertyDetails = async () => {
     try {
-      const response = await propertyService.getDetails(id);
+      // Reuse the dispatcher's fetch when it's for this same property
+      const response = (prefetchedDetails && prefetchedDetails.id === id && prefetchedDetails.response)
+        ? prefetchedDetails.response
+        : await propertyService.getDetails(id);
       if (response && response.property) {
         const p = response.property;
         if (p.isAddedByAdmin) {
@@ -929,6 +935,56 @@ const PropertyDetailsPage = () => {
       taxAmount,
       grandTotal
     };
+  };
+
+  // Hands off to BookingCheckoutPage (/checkout), which expects the full booking
+  // context in location.state: property, selectedRoom, dates, guests, priceBreakdown, taxRate.
+  const handleBookNow = async () => {
+    const isPgOrHostel = ['pg', 'hostel'].includes(propertyType?.toLowerCase());
+
+    if (!selectedRoom) {
+      toast.error('Please select a room/unit first');
+      return;
+    }
+    if (!isPgOrHostel && (!dates.checkIn || !dates.checkOut)) {
+      toast.error('Please select your check-in and check-out dates');
+      return;
+    }
+
+    const priceBreakdown = getPriceBreakdown();
+    if (!priceBreakdown || !priceBreakdown.grandTotal) {
+      toast.error('Unable to calculate the price for this selection');
+      return;
+    }
+
+    // Checkout is behind UserProtectedRoute; send them to login first so the
+    // booking selection isn't lost in the redirect, then back to this property.
+    if (!localStorage.getItem('user')) {
+      toast.error('Please login to continue');
+      navigate('/login', { state: { from: `/property/${id}` } });
+      return;
+    }
+
+    const result = await checkAvailability(true);
+    if (result && result.available === false) {
+      toast.error(result.message || 'Not available for the selected dates');
+      return;
+    }
+
+    const pgDates = getDefaultPgDates();
+    navigate('/checkout', {
+      state: {
+        property,
+        selectedRoom,
+        dates: {
+          checkIn: (isPgOrHostel && !dates.checkIn) ? pgDates.checkIn : dates.checkIn,
+          checkOut: (isPgOrHostel && !dates.checkOut) ? pgDates.checkOut : dates.checkOut
+        },
+        guests,
+        priceBreakdown,
+        taxRate
+      }
+    });
   };
 
   const pType = propertyType?.toLowerCase();
@@ -2186,8 +2242,44 @@ const PropertyDetailsPage = () => {
 
       {/* Sticky Bottom Actions Bar (Matches Image 1) */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 p-2.5 shadow-2xl z-50 max-w-xl mx-auto">
+        {/* Booking row — only for bookable stays (has inventory, not a Buy/Plot listing) */}
+        {hasInventory && !isBuyGroup && (
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex-1 min-w-0 pl-1">
+              {(() => {
+                const bd = getPriceBreakdown();
+                if (bd?.grandTotal) {
+                  return (
+                    <>
+                      <div className="text-[15px] font-black text-gray-900 leading-none">
+                        ₹{bd.grandTotal.toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[10px] text-gray-500 font-medium mt-0.5">
+                        incl. taxes {bd.nights > 0 ? `· ${bd.nights} night${bd.nights > 1 ? 's' : ''}` : ''}
+                      </div>
+                    </>
+                  );
+                }
+                return (
+                  <div className="text-[11px] text-gray-500 font-medium leading-tight">
+                    Select {selectedRoom ? 'dates' : 'a room'} to see the total
+                  </div>
+                );
+              })()}
+            </div>
+            <button
+              onClick={handleBookNow}
+              disabled={checkingAvailability}
+              className="flex-[1.2] py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-full text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all"
+            >
+              {checkingAvailability ? <Loader2 size={14} className="animate-spin" /> : null}
+              {checkingAvailability ? 'Checking…' : 'Book Now'}
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
-          
+
           {/* WhatsApp Support */}
           <button
             onClick={() => {

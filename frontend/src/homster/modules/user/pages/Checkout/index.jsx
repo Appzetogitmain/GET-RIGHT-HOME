@@ -1921,7 +1921,10 @@ const Checkout = () => {
           )}
         </div>
 
-        <div className="p-4">
+        {/* relative z-[60] keeps this primary CTA clickable above the floating
+            LiveBookingCard (fixed, z-50), which otherwise covers it whenever the
+            user already has a booking in progress. */}
+        <div className="p-4 relative z-[60]">
           <button
             onClick={plan ? handlePlanPayment :
               (houseNumber || addressDetails) ?
@@ -1946,8 +1949,13 @@ const Checkout = () => {
         </div>
       </div>
 
-      {/* Live Booking Status Card (Visible when minimized) */}
-      <LiveBookingCard key={bookingRequest?._id || 'default'} />
+      {/* Live Booking Status Card (Visible when minimized).
+          Hidden while the user is still filling in this checkout: the card is
+          `fixed` at the bottom and would sit on top of the primary CTA, making
+          it unclickable when an earlier booking is still in progress. */}
+      {currentStep !== 'details' && (
+        <LiveBookingCard key={bookingRequest?._id || 'default'} />
+      )}
 
       {/* Search Status Modal */}
       <SearchStatusModal

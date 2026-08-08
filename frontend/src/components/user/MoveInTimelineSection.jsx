@@ -33,9 +33,10 @@ const MoveInTimelineSection = ({ transactionType = 'buy', theme }) => {
             try {
                 // Fetch active properties to count
                 const res = await propertyService.getPublicProperties({ limit: 1000 });
-                if (res?.success && res?.properties) {
-                    const properties = res.properties;
-                    
+                // /properties responds with a bare array; older code checked res.success
+                // (which is never present on an array) and silently discarded every result.
+                const properties = Array.isArray(res) ? res : (res?.properties || []);
+                if (properties.length) {
                     const counts = { 'ready': 0, '2026': 0, '2027': 0, '2028': 0, '2029': 0, '2030': 0, '2030plus': 0 };
                     
                     properties.forEach(p => {

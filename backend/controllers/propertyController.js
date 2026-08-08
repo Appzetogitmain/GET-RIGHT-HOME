@@ -1876,6 +1876,15 @@ export const getPublicProperties = async (req, res) => {
 
     pipeline.push({ $sort: sortStage });
 
+    // Honour ?limit= when supplied. This endpoint previously ignored it entirely
+    // and always returned every matching property, so callers passing limit=1000
+    // were really downloading the whole table. Only applied when the caller asks,
+    // so existing callers that omit it are unaffected.
+    const requestedLimit = parseInt(req.query.limit, 10);
+    if (Number.isFinite(requestedLimit) && requestedLimit > 0) {
+      pipeline.push({ $limit: requestedLimit });
+    }
+
     // Execute
     const list = await Property.aggregate(pipeline);
     res.json(list);

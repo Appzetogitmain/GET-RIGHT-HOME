@@ -1,44 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { themeColors } from '../../../../../theme';
 
-// Keep in sync with the backend's search window (waveScheduler.js INITIAL_SEARCH_WINDOW_MS)
-const SEARCH_WINDOW_SECONDS = 3 * 60;
-
-const formatTime = (totalSeconds) => {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-};
+// The backend notifies professionals in waves of 3, each wave lasting 60s
+// (see backend/cron/waveScheduler.js). Mirror that here so the user gets
+// progress instead of one unchanging spinner for what can be several minutes.
+const WAVE_SECONDS = 60;
 
 const SearchStatusModal = ({ isOpen, onClose, currentStep, acceptedProfessional, onRetry, bookingModel = 'worker', searchMessage }) => {
   const [dots, setDots] = useState('.');
-  const [timeLeft, setTimeLeft] = useState(SEARCH_WINDOW_SECONDS);
+  const [elapsed, setElapsed] = useState(0);
+  const isSearching = currentStep === 'searching' || currentStep === 'waiting';
 
   useEffect(() => {
-    if (isOpen && (currentStep === 'searching' || currentStep === 'waiting')) {
+    if (isOpen && isSearching) {
       const interval = setInterval(() => {
         setDots(prev => prev.length >= 3 ? '.' : prev + '.');
       }, 500);
       return () => clearInterval(interval);
     }
-  }, [isOpen, currentStep]);
+  }, [isOpen, isSearching]);
 
-  // Reset the 3-minute countdown whenever a fresh search kicks off.
+  // Elapsed-time counter. Counts locally and only pushes state from the
+  // interval, resetting on teardown so the next search starts from zero.
   useEffect(() => {
-    if (isOpen && currentStep === 'searching') {
-      setTimeLeft(SEARCH_WINDOW_SECONDS);
-    }
-  }, [isOpen, currentStep]);
+    if (!isOpen || !isSearching) return undefined;
+    let seconds = 0;
+    const t = setInterval(() => {
+      seconds += 1;
+      setElapsed(seconds);
+    }, 1000);
+    return () => {
+      clearInterval(t);
+      setElapsed(0);
+    };
+  }, [isOpen, isSearching]);
 
-  // Tick the countdown down every second while actively searching/waiting.
-  useEffect(() => {
-    if (isOpen && (currentStep === 'searching' || currentStep === 'waiting')) {
-      const timer = setInterval(() => {
-        setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [isOpen, currentStep]);
+  const waveNumber = Math.floor(elapsed / WAVE_SECONDS) + 1;
+  const mmss = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
+  const progressPct = Math.round(((elapsed % WAVE_SECONDS) / WAVE_SECONDS) * 100);
+
+  const reassurance = elapsed < WAVE_SECONDS
+    ? `Notifying professionals near you${dots}`
+    : elapsed < WAVE_SECONDS * 2
+      ? `Still looking — reaching out to the next set of professionals${dots}`
+      : `This is taking longer than usual. You can keep waiting, or cancel and try another slot.`;
 
   if (!isOpen) return null;
 
@@ -115,17 +120,29 @@ const SearchStatusModal = ({ isOpen, onClose, currentStep, acceptedProfessional,
             {/* Status Text */}
             <div className="text-center relative z-20 px-4 mb-4">
               <h3 className="text-xl font-black text-gray-900 mb-2">Searching nearby {bookingModel === 'worker' ? 'workers' : 'vendors'}</h3>
-              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
-                {searchMessage || `Searching within 10km radius${dots}`}
+              <p className="text-gray-500 text-[13px] font-medium leading-relaxed min-h-[38px]">
+                {searchMessage || reassurance}
               </p>
             </div>
 
+            {/* Progress within the current outreach round */}
+            <div className="w-full max-w-[240px] relative z-20 mb-3">
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-1000 ease-linear"
+                  style={{ width: `${progressPct}%`, backgroundColor: themeColors.brand.teal }}
+                />
+              </div>
+              <div className="flex justify-between mt-1.5 text-[10px] font-bold text-gray-400">
+                <span>Round {waveNumber}</span>
+                <span>{mmss} elapsed</span>
+              </div>
+            </div>
+
             {/* Bottom Pill - Now positioned relative to avoid overlap */}
-            <div className="flex justify-center mt-2 mb-4">
-              <div className="px-4 py-2 bg-gray-50 rounded-full border border-gray-100 text-[10px] font-black uppercase tracking-tighter text-gray-400 flex items-center gap-2">
-                {timeLeft > 0
-                  ? <>We'll keep searching for <span className="text-gray-600">{formatTime(timeLeft)}</span></>
-                  : 'Wrapping up search...'}
+            <div className="flex justify-center mt-1 mb-4">
+              <div className="px-4 py-2 bg-gray-50 rounded-full border border-gray-100 text-[10px] font-black uppercase tracking-tighter text-gray-400">
+                Searching for available {bookingModel}s
               </div>
             </div>
 
