@@ -238,6 +238,10 @@ const SearchPage = () => {
         { id: 'buy', label: 'Buy' },
         { id: 'plot', label: 'Plot' }
     ]);
+    // propertyTypes starts as static fallbacks and is replaced with real category
+    // IDs once they load. Waiting for that avoids firing the whole property search
+    // twice on mount (once with placeholder IDs, then again with the real ones).
+    const [categoriesResolved, setCategoriesResolved] = useState(false);
 
     useEffect(() => {
         if (showFilters) {
@@ -323,6 +327,10 @@ const SearchPage = () => {
                 }
             } catch (err) {
                 console.warn("Failed to fetch dynamic categories:", err);
+            } finally {
+                // Unblock the property search whether or not categories resolved,
+                // so a categories failure can never leave the page empty.
+                setCategoriesResolved(true);
             }
         };
 
@@ -356,8 +364,9 @@ const SearchPage = () => {
     }, [searchParams]);
 
     useEffect(() => {
+        if (!categoriesResolved) return;
         fetchProperties();
-    }, [searchParams, location, propertyTypes]);
+    }, [searchParams, location, propertyTypes, categoriesResolved]);
 
     const fetchProperties = async () => {
         setLoading(true);

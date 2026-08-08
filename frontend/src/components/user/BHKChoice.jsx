@@ -31,9 +31,10 @@ const BHKChoice = ({ transactionType = 'buy', theme }) => {
             try {
                 // Fetch active properties to count (can optimize by adding a backend count endpoint later)
                 const res = await propertyService.getPublicProperties({ limit: 1000 });
-                if (res?.success && res?.properties) {
-                    const properties = res.properties;
-                    
+                // /properties responds with a bare array; older code checked res.success
+                // (which is never present on an array) and silently discarded every result.
+                const properties = Array.isArray(res) ? res : (res?.properties || []);
+                if (properties.length) {
                     const counts = { '1bhk': 0, '2bhk': 0, '3bhk': 0, '4bhk': 0, '4plus': 0 };
                     
                     properties.forEach(p => {

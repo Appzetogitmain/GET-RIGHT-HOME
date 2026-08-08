@@ -28,9 +28,10 @@ const PostedByChoice = ({ transactionType = 'buy', theme }) => {
         const fetchCounts = async () => {
             try {
                 const res = await propertyService.getPublicProperties({ limit: 1000 });
-                if (res?.success && res?.properties) {
-                    const properties = res.properties;
-                    
+                // /properties responds with a bare array; older code checked res.success
+                // (which is never present on an array) and silently discarded every result.
+                const properties = Array.isArray(res) ? res : (res?.properties || []);
+                if (properties.length) {
                     const counts = { 'builder': 0, 'owner': 0, 'broker': 0 };
                     
                     properties.forEach(p => {

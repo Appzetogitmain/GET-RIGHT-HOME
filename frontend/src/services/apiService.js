@@ -12,6 +12,17 @@ export const api = axios.create({
 // Simple GET request cache to prevent layout shifts on back navigation
 const apiCache = new Map();
 
+// In-flight GET de-duplication.
+// The apiCache above is only consulted at request time, so when several
+// components mount together and request the same endpoint in the same tick,
+// none of them has completed yet — the cache is empty and every one of them
+// hits the network. This map holds a deferred per in-flight GET so that
+// concurrent callers share a single request instead of racing.
+const inFlightGets = new Map();
+
+const buildCacheKey = (config) =>
+  `${config.baseURL || ''}${config.url || ''}?${new URLSearchParams(config.params || {}).toString()}`;
+
 // Interceptor to add Token, Log, and check Cache
 api.interceptors.request.use((config) => {
   let token = localStorage.getItem('token') || localStorage.getItem('userToken');
@@ -34,22 +45,55 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
-  // Cache GET requests except saved-places to prevent layout collapse on back navigation
-  if (config.method?.toLowerCase() === 'get' && !config.url?.includes('/users/saved-places')) {
-    const fullUrl = `${config.baseURL || ''}${config.url || ''}?${new URLSearchParams(config.params || {}).toString()}`;
-    const cached = apiCache.get(fullUrl);
-    
-    if (cached && Date.now() - cached.timestamp < 120000) {
-      config.adapter = () => Promise.resolve({
-        data: cached.data,
+  if (config.method?.toLowerCase() === 'get') {
+    const fullUrl = buildCacheKey(config);
+    const isSavedPlaces = config.url?.includes('/users/saved-places');
+
+    // Cache GET requests except saved-places to prevent layout collapse on back navigation
+    if (!isSavedPlaces) {
+      const cached = apiCache.get(fullUrl);
+
+      if (cached && Date.now() - cached.timestamp < 120000) {
+        config.adapter = () => Promise.resolve({
+          data: cached.data,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+          request: {}
+        });
+        return config;
+      }
+    }
+
+    // De-duplicate concurrent identical GETs — including saved-places. This
+    // shares one live request rather than serving stale data, so it is safe
+    // for the endpoints excluded from the time-based cache above.
+    const pending = inFlightGets.get(fullUrl);
+    if (pending) {
+      config.adapter = () => pending.promise.then((data) => ({
+        data,
         status: 200,
         statusText: 'OK',
         headers: {},
         config,
         request: {}
-      });
+      }));
       return config;
     }
+
+    // This request is the leader: register a deferred that followers await.
+    let resolveFn;
+    let rejectFn;
+    const promise = new Promise((resolve, reject) => {
+      resolveFn = resolve;
+      rejectFn = reject;
+    });
+    // Followers attach their own handlers; this guards the unhandled-rejection
+    // warning for the window where no follower exists yet.
+    promise.catch(() => {});
+    inFlightGets.set(fullUrl, { promise, resolve: resolveFn, reject: rejectFn });
+    config.__inFlightKey = fullUrl;
   }
 
   console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config.data || '');
@@ -60,15 +104,30 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => {
     if (response.config.method?.toLowerCase() === 'get') {
-      const fullUrl = `${response.config.baseURL || ''}${response.config.url || ''}?${new URLSearchParams(response.config.params || {}).toString()}`;
+      const fullUrl = buildCacheKey(response.config);
       apiCache.set(fullUrl, {
         data: response.data,
         timestamp: Date.now()
       });
     }
+    // Release any concurrent callers waiting on this request
+    const key = response.config.__inFlightKey;
+    if (key) {
+      const pending = inFlightGets.get(key);
+      inFlightGets.delete(key);
+      if (pending) pending.resolve(response.data);
+    }
     return response;
   },
   (error) => {
+    // Fail the followers too, so they surface the same error instead of hanging
+    const key = error.config?.__inFlightKey;
+    if (key) {
+      const pending = inFlightGets.get(key);
+      inFlightGets.delete(key);
+      if (pending) pending.reject(error);
+    }
+
     const status = error.response ? error.response.status : null;
     const isBlocked = error.response?.data?.isBlocked;
 

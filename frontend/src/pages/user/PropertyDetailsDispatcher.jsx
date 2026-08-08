@@ -11,6 +11,9 @@ const PropertyDetailsDispatcher = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isHandpicked, setIsHandpicked] = useState(false);
+  // Keep the response we already fetched so PropertyDetailsPage doesn't have to
+  // request the exact same property a second time.
+  const [prefetchedDetails, setPrefetchedDetails] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -38,7 +41,8 @@ const PropertyDetailsDispatcher = () => {
             navigate(`/project/${p._id}`, { replace: true });
           } else {
             setIsHandpicked(false);
-            
+            setPrefetchedDetails({ id, response });
+
             // Normalize path: if it's a hotel type but accessed via /property, or vice versa,
             // we can optionally redirect to keep URLs clean, or just render.
             // Let's just let it render the PropertyDetailsPage.
@@ -132,7 +136,7 @@ const PropertyDetailsDispatcher = () => {
     );
   }
 
-  return <PropertyDetailsPage />;
+  return <PropertyDetailsPage prefetchedDetails={prefetchedDetails} />;
 };
 
 export default PropertyDetailsDispatcher;

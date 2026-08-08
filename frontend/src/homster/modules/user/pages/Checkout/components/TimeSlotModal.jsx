@@ -216,7 +216,7 @@ const TimeSlotModal = ({
                 }
               }}
             >
-              Proceed to checkout
+              Confirm slot
             </button>
           </div>
         </div>
