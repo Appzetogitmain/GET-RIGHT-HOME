@@ -260,8 +260,8 @@ const AdminLayout = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => setExpandedItems(prev => ({ ...prev, [item.label]: !prev[item.label] }))}
-                                                    className={`w-full flex items-center transition-all group relative text-[13px] font-medium tracking-tight ${isSidebarOpen
-                                                        ? 'gap-3 px-4 py-2.5 rounded-xl'
+                                                    className={`flex items-center transition-all group relative text-[13px] font-medium tracking-tight ${isSidebarOpen
+                                                        ? 'w-full gap-3 px-4 py-2.5 rounded-xl'
                                                         : 'justify-center w-12 h-12 rounded-xl mx-auto mb-1'
                                                         } ${isActive
                                                         ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
