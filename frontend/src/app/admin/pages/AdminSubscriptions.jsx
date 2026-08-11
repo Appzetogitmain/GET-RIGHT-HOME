@@ -19,7 +19,8 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
         bannerType: 'none',
         rankingWeight: 1,
         pauseDaysAllowed: 0,
-        targetRole: 'owner'
+        targetRole: 'owner',
+        listingType: 'all'
     });
     const [tiersList, setTiersList] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -55,7 +56,8 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
                 bannerType: plan.bannerType || 'none',
                 rankingWeight: plan.rankingWeight || 1,
                 pauseDaysAllowed: plan.pauseDaysAllowed || 0,
-                targetRole: plan.targetRole || 'owner'
+                targetRole: plan.targetRole || 'owner',
+                listingType: plan.listingType || 'all'
             });
         }
     }, [plan]);
@@ -179,6 +181,22 @@ const PlanModal = ({ plan, onClose, onSuccess }) => {
                                     <option value="builder">Builder</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-gray-800">Listing Type</label>
+                            <span className="text-[10px] text-gray-400 font-bold block mb-1">Restrict this plan to a specific listing type (e.g. a "Rent Owner" plan priced differently from a "Buy Owner" plan). "All Listings" makes it usable for every type.</span>
+                            <select
+                                value={formData.listingType}
+                                onChange={(e) => setFormData({ ...formData, listingType: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none font-bold capitalize"
+                            >
+                                <option value="all">All Listings</option>
+                                <option value="rent">Rent</option>
+                                <option value="buy">Buy / Sell</option>
+                                <option value="pg">PG / Co-living</option>
+                                <option value="commercial">Commercial</option>
+                            </select>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -393,8 +411,25 @@ const TierModal = ({ tier, onClose, onSuccess }) => {
     );
 };
 
+const LISTING_TYPE_LABELS = {
+    all: 'All Listings',
+    rent: 'Rent',
+    buy: 'Buy / Sell',
+    pg: 'PG / Co-living',
+    commercial: 'Commercial'
+};
+
+const LISTING_TYPE_BADGE_STYLES = {
+    all: 'bg-slate-100 text-slate-600',
+    rent: 'bg-violet-50 text-violet-700',
+    buy: 'bg-amber-50 text-amber-700',
+    pg: 'bg-emerald-50 text-emerald-700',
+    commercial: 'bg-sky-50 text-sky-700'
+};
+
 const AdminSubscriptions = () => {
     const [activeTab, setActiveTab] = useState('owner_plans'); // 'owner_plans', 'broker_plans', 'builder_plans', or 'tiers'
+    const [listingTypeFilter, setListingTypeFilter] = useState('all_types'); // 'all_types' shows every listing type
     const [plans, setPlans] = useState([]);
     const [tiers, setTiers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -506,6 +541,10 @@ const AdminSubscriptions = () => {
         }).format(amount);
     };
 
+    const visiblePlans = listingTypeFilter === 'all_types'
+        ? plans
+        : plans.filter(p => (p.listingType || 'all') === listingTypeFilter);
+
     return (
         <div className="p-4 md:p-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -573,6 +612,31 @@ const AdminSubscriptions = () => {
                 </button>
             </div>
 
+            {/* Listing-type filter — split a role's plans by Rent / Buy / PG / Commercial */}
+            {activeTab !== 'tiers' && (
+                <div className="flex items-center gap-2 mb-4 overflow-x-auto custom-scrollbar whitespace-nowrap">
+                    <button
+                        onClick={() => setListingTypeFilter('all_types')}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                            listingTypeFilter === 'all_types' ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                        }`}
+                    >
+                        Every Listing Type
+                    </button>
+                    {Object.entries(LISTING_TYPE_LABELS).map(([key, label]) => (
+                        <button
+                            key={key}
+                            onClick={() => setListingTypeFilter(key)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                listingTypeFilter === key ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                            }`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {/* Workspace Area */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {loading ? (
@@ -580,11 +644,15 @@ const AdminSubscriptions = () => {
                         <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
                     </div>
                 ) : activeTab !== 'tiers' ? (
-                    plans.length === 0 ? (
+                    visiblePlans.length === 0 ? (
                         <div className="p-12 text-center text-gray-500 flex flex-col items-center">
                             <AlertCircle className="w-12 h-12 text-gray-300 mb-3" />
                             <p className="text-lg font-medium">No plans found</p>
-                            <p className="text-sm">Create a subscription plan to populate your catalog.</p>
+                            <p className="text-sm">
+                                {listingTypeFilter !== 'all_types' && plans.length > 0
+                                    ? `No plans set to "${LISTING_TYPE_LABELS[listingTypeFilter]}" yet — try "Every Listing Type" or create one.`
+                                    : 'Create a subscription plan to populate your catalog.'}
+                            </p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -600,12 +668,15 @@ const AdminSubscriptions = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {plans.map((plan) => (
+                                    {visiblePlans.map((plan) => (
                                         <tr key={plan._id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="font-black text-gray-900">{plan.name}</div>
-                                                <div className="flex gap-1 mt-1">
+                                                <div className="flex gap-1 mt-1 flex-wrap">
                                                     <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded font-bold uppercase text-slate-700">{plan.tier}</span>
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${LISTING_TYPE_BADGE_STYLES[plan.listingType || 'all']}`}>
+                                                        {LISTING_TYPE_LABELS[plan.listingType || 'all']}
+                                                    </span>
                                                     {plan.hasVerifiedTag && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold uppercase">Verified Badge</span>}
                                                 </div>
                                             </td>

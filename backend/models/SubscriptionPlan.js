@@ -62,6 +62,15 @@ const subscriptionPlanSchema = new mongoose.Schema({
         enum: ['owner', 'broker', 'builder'],
         required: true,
         default: 'owner'
+    },
+    // Which kind of listing this plan is for — lets admin sell a "Rent Owner"
+    // plan separately from a "Buy Owner" plan for the same role. 'all' keeps
+    // a plan usable across every listing type (and is the default so every
+    // plan created before this field existed keeps working unchanged).
+    listingType: {
+        type: String,
+        enum: ['all', 'rent', 'buy', 'pg', 'commercial'],
+        default: 'all'
     }
 }, { timestamps: true });
 

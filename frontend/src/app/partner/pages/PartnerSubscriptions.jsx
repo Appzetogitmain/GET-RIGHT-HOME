@@ -55,6 +55,14 @@ const TIER_CONFIG = {
     }
 };
 
+const LISTING_TYPE_OPTIONS = [
+    { key: '', label: 'All Listings' },
+    { key: 'rent', label: 'Rent' },
+    { key: 'buy', label: 'Buy / Sell' },
+    { key: 'pg', label: 'PG / Co-living' },
+    { key: 'commercial', label: 'Commercial' }
+];
+
 const PartnerSubscriptions = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
@@ -64,19 +72,22 @@ const PartnerSubscriptions = () => {
     const [registrationDate, setRegistrationDate] = useState(null);
     const [trialSettings, setTrialSettings] = useState(null);
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
+    const [listingType, setListingType] = useState('');
 
     useEffect(() => {
         fetchData();
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [listingType]);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
             // Determine active role. For partner dashboard, default to 'builder' if missing
             let activeRole = user?.userType || user?.role || 'builder';
             if (activeRole.toLowerCase() === 'partner') activeRole = 'builder';
 
             const [plansData, subData, trialData] = await Promise.all([
-                subscriptionService.getActivePlans(activeRole),
+                subscriptionService.getActivePlans(activeRole, listingType),
                 subscriptionService.getCurrentSubscription(),
                 subscriptionService.getTrialSettings()
             ]);
@@ -307,8 +318,30 @@ const PartnerSubscriptions = () => {
                         </div>
                     )}
 
+                    {/* Listing Type Selector — see plans scoped to what you're actually listing */}
+                    <div className="flex items-center justify-center gap-2 flex-wrap mt-10 mb-2">
+                        {LISTING_TYPE_OPTIONS.map((opt) => (
+                            <button
+                                key={opt.key}
+                                onClick={() => setListingType(opt.key)}
+                                className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                                    listingType === opt.key
+                                        ? 'bg-gray-900 text-white border-gray-900'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+
                     {/* Tier Selection */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        {plans.length === 0 && (
+                            <div className="col-span-full text-center py-12 text-gray-400 text-sm font-medium">
+                                No plans available for this listing type yet.
+                            </div>
+                        )}
                         {plans.map((plan) => {
                             const config = TIER_CONFIG[plan.tier] || TIER_CONFIG.silver;
                             const Icon = config.icon;

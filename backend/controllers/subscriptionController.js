@@ -44,7 +44,7 @@ export const createPlan = async (req, res) => {
         const {
             name, maxProperties, price, durationDays, description,
             commissionPercentage, tier, leadCap, hasVerifiedTag,
-            bannerType, rankingWeight, pauseDaysAllowed, targetRole
+            bannerType, rankingWeight, pauseDaysAllowed, targetRole, listingType
         } = req.body;
 
         const plan = await SubscriptionPlan.create({
@@ -60,7 +60,8 @@ export const createPlan = async (req, res) => {
             bannerType: bannerType || 'none',
             rankingWeight: rankingWeight || 1,
             pauseDaysAllowed: pauseDaysAllowed || 0,
-            targetRole: targetRole || 'owner'
+            targetRole: targetRole || 'owner',
+            listingType: listingType || 'all'
         });
 
         res.status(201).json({ success: true, plan });
@@ -133,9 +134,9 @@ export const deletePlan = async (req, res) => {
  */
 export const getActivePlans = async (req, res) => {
     try {
-        const { role } = req.query;
+        const { role, listingType } = req.query;
         let filter = { isActive: true };
-        
+
         // If a role is provided, filter plans by that target role.
         if (role) {
             // Map 'partner' to 'builder' for backward compatibility
@@ -146,6 +147,16 @@ export const getActivePlans = async (req, res) => {
             // Only apply filter if it matches one of the valid enums
             if (['owner', 'broker', 'builder'].includes(parsedRole)) {
                 filter.targetRole = parsedRole;
+            }
+        }
+
+        // If a listing type is given, show plans built for that type plus
+        // any 'all'-type plan (a universal plan the builder/owner made to
+        // work across rent, buy, PG etc). Omit the param to see everything.
+        if (listingType) {
+            const parsedType = listingType.toLowerCase();
+            if (['rent', 'buy', 'pg', 'commercial'].includes(parsedType)) {
+                filter.listingType = { $in: [parsedType, 'all'] };
             }
         }
 
