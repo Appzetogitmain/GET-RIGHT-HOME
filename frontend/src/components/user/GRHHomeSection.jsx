@@ -77,12 +77,14 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
           </div>
           {subtitle && <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 font-normal truncate">{subtitle}</p>}
         </div>
-        <button
-          onClick={handleViewMore}
-          className={`text-[12px] md:text-[14px] font-bold ${theme?.text || 'text-emerald-600'} ${theme?.hoverText || 'hover:text-emerald-700'} hover:underline whitespace-nowrap shrink-0 mt-1 md:mt-0`}
-        >
-          View All
-        </button>
+        {properties.length > 8 && (
+          <button
+            onClick={handleViewMore}
+            className={`text-[12px] md:text-[14px] font-bold ${theme?.text || 'text-emerald-600'} ${theme?.hoverText || 'hover:text-emerald-700'} hover:underline whitespace-nowrap shrink-0 mt-1 md:mt-0`}
+          >
+            View All
+          </button>
+        )}
       </div>
 
       {/* Section Content (Horizontal Carousel or Empty State) */}
@@ -108,7 +110,7 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
         <div
           ref={carouselRef}
           onScroll={handleScroll}
-          className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full"
+          className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-fit max-w-full"
         >
           {properties.slice(0, 8).map((property) => (
             <GRHPropertyCard

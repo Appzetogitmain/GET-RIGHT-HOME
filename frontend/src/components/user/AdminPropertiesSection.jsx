@@ -681,7 +681,7 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 scrollbar-hide px-5 md:px-0"
+                            className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 scrollbar-hide px-5 md:px-0 w-fit max-w-full"
                             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                         >
                             {displayProperties.slice(0, 8).map((property, index) => (
