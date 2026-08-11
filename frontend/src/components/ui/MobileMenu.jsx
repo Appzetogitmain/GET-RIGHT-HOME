@@ -173,7 +173,6 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                     {user && <MenuItem icon={Heart} label="Saved Places" path="/saved-places" />}
                                     <MenuItem icon={Lightbulb} label="Popular Tools" path="/popular-tools" />
                                     <MenuItem icon={Video} label="Reels" path="/reels" />
-                                    {user && <MenuItem icon={Video} label="My Reels" path="/reels/my" />}
                                 </div>
                             </div>
 

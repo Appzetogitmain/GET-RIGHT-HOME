@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import HeroSection from '../../components/user/HeroSection';
 import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
 import ExclusiveOffers from '../../components/user/ExclusiveOffers';
-import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import ReelSection from '../../components/user/ReelSection';
 import PopularBuilders from '../../components/user/PopularBuilders';
 import SupportSection from '../../components/user/SupportSection';
@@ -49,7 +48,6 @@ const RentPGSection = ({ title, typeId, subtitle, extraFilters, onTypeSelect, ty
 
 const RentPage = () => {
     const navigate = useNavigate();
-    const [searchCity, setSearchCity] = useState("");
     const [sectionIds, setSectionIds] = useState({ rent: null, pg: null });
 
     const selectedType = { id: sectionIds.rent, label: 'Rent/PG' };
@@ -117,10 +115,9 @@ const RentPage = () => {
                 <div className="absolute bottom-0 left-0 right-0 h-24 z-[1]" style={{ background: `linear-gradient(to top, ${THEME.pageBg}, transparent)` }} />
                 
                 <div className="relative z-40 flex flex-col min-h-[280px] md:min-h-[340px]">
-                    <HeroSection 
-                        theme={THEME} 
-                        selectedType={selectedType} 
-                        onSearch={(city) => setSearchCity(city)}
+                    <HeroSection
+                        theme={THEME}
+                        selectedType={selectedType}
                     />
 
                     <div className="pt-2 pb-6 border-b border-gray-100">
@@ -140,11 +137,6 @@ const RentPage = () => {
             {/* Property Videos */}
             <div id="video-curations-section" className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto mt-4 mb-6">
                 <PropertyVideoCurations pageType="rent" themeColor="violet" />
-            </div>
-
-            {/* 2. Handpicked Projects */}
-            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto">
-                <AdminPropertiesSection searchCity={searchCity} transactionType="rent,pg" themeColor="violet" theme={THEME} />
             </div>
 
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-6">
