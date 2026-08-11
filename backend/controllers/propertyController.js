@@ -2152,10 +2152,6 @@ export const getRecommendedSellers = async (req, res) => {
 export const getAdminPropertiesByLocation = async (req, res) => {
   try {
     const { city, state } = req.query;
-    
-    // Find all users who are builders
-    const builders = await User.find({ role: 'builder' }).select('_id');
-    const builderIds = builders.map(b => b._id);
 
     const query = {
       status: 'approved',
@@ -2176,8 +2172,10 @@ export const getAdminPropertiesByLocation = async (req, res) => {
       query['address.state'] = { $regex: new RegExp(state, 'i') };
     }
 
-    const projectModelList = await Project.find(query).populate({ path: 'featuredDetails.planId', strictPopulate: false }).populate('userId', 'role').lean().catch(() => []);
-    const propertyModelList = await Property.find(query).populate({ path: 'featuredDetails.planId', strictPopulate: false }).populate('userId', 'role').lean().catch(() => []);
+    const [projectModelList, propertyModelList] = await Promise.all([
+      Project.find(query).populate({ path: 'featuredDetails.planId', strictPopulate: false }).populate('userId', 'role').lean().catch(() => []),
+      Property.find(query).populate({ path: 'featuredDetails.planId', strictPopulate: false }).populate('userId', 'role').lean().catch(() => [])
+    ]);
 
     const combinedList = [...projectModelList];
     propertyModelList.forEach(p => {
@@ -2231,10 +2229,6 @@ export const getAdminPropertiesByLocation = async (req, res) => {
 // Returns all distinct cities (with districts) where admin has added live properties
 export const getAdminPropertyCities = async (req, res) => {
   try {
-    // Find all users who are builders
-    const builders = await User.find({ role: 'builder' }).select('_id');
-    const builderIds = builders.map(b => b._id);
-
     // Step 1: Aggregate both collections to get cities with count
     const matchStage = {
       status: 'approved',
@@ -2243,15 +2237,16 @@ export const getAdminPropertyCities = async (req, res) => {
       'featuredDetails.isFeatured': true
     };
 
-    const projectCities = await Project.aggregate([
-      { $match: matchStage },
-      { $group: { _id: { city: '$address.city', district: { $ifNull: ['$address.district', null] } }, state: { $first: '$address.state' }, count: { $sum: 1 } } }
-    ]).catch(() => []);
-
-    const propertyCities = await Property.aggregate([
-      { $match: matchStage },
-      { $group: { _id: { city: '$address.city', district: { $ifNull: ['$address.district', null] } }, state: { $first: '$address.state' }, count: { $sum: 1 } } }
-    ]).catch(() => []);
+    const [projectCities, propertyCities] = await Promise.all([
+      Project.aggregate([
+        { $match: matchStage },
+        { $group: { _id: { city: '$address.city', district: { $ifNull: ['$address.district', null] } }, state: { $first: '$address.state' }, count: { $sum: 1 } } }
+      ]).catch(() => []),
+      Property.aggregate([
+        { $match: matchStage },
+        { $group: { _id: { city: '$address.city', district: { $ifNull: ['$address.district', null] } }, state: { $first: '$address.state' }, count: { $sum: 1 } } }
+      ]).catch(() => [])
+    ]);
 
     // Merge city results
     const cityMap = {};

@@ -32,9 +32,9 @@ export const adminUserService = {
   },
 
   // Block/Unblock user
-  toggleUserStatus: async (id, isActive) => {
+  toggleUserStatus: async (id, isBlocked) => {
     try {
-      const response = await api.put(`/admin/users/${id}/status`, { isActive });
+      const response = await api.put('/admin/update-user-status', { userId: id, isBlocked });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to update user status' };
@@ -44,7 +44,7 @@ export const adminUserService = {
   // Delete user
   deleteUser: async (id) => {
     try {
-      const response = await api.delete(`/admin/users/${id}`);
+      const response = await api.delete('/admin/delete-user', { data: { userId: id } });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to delete user' };

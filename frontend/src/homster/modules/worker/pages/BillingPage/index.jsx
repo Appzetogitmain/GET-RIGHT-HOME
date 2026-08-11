@@ -648,7 +648,7 @@ const BillingPage = () => {
       <div className="bg-white px-5 py-4 sticky top-0 z-40 border-b border-gray-100 flex items-center gap-4">
         <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-50 text-gray-600 active:scale-95 transition-transform"><FiArrowLeft className="w-5 h-5" /></button>
         <div>
-          <h1 className="text-xl font-black text-gray-900 leading-tight">Create Bill</h1>
+          <h1 className="text-base font-bold text-gray-900 leading-tight">Create Bill</h1>
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{job?.bookingNumber}</p>
         </div>
       </div>

@@ -224,16 +224,24 @@ const SkeletonCard = () => (
 // Simple client-side cache to instantly render previously loaded lists on back navigation
 const adminPropertiesCache = {
     cities: null,
-    propertiesByCity: {}
+    propertiesByCity: {},
+    selectedCity: null
 };
 
 /* ─── Main Component ─── */
 const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, themeColor = 'emerald', theme }) => {
     const navigate = useNavigate();
-    
+
     const [availableCities, setAvailableCities] = useState(() => adminPropertiesCache.cities || []);
-    
-    const initialCity = adminPropertiesCache.cities?.length > 0 ? adminPropertiesCache.cities[0].city : null;
+
+    // Re-mounting (e.g. navigating back from a property page) must resume
+    // whichever city was actually loaded last — not just "the first city in
+    // the list", which was often a different city than the one whose
+    // properties were cached, making the cache check below miss, the
+    // section reset to a loading state, and nothing ever fetch again to
+    // clear it (a permanent skeleton on back navigation).
+    const initialCity = adminPropertiesCache.selectedCity
+        || (adminPropertiesCache.cities?.length > 0 ? adminPropertiesCache.cities[0].city : null);
     const [selectedCity, setSelectedCity] = useState(initialCity);
     
     const [properties, setProperties] = useState(() => {
@@ -298,18 +306,27 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
         }
     }, [searchCity, availableCities]);
 
-    // Step 1: Fetch all available cities on mount
+    // Step 1: Fetch all available cities on mount.
+    // Also kick off the Bengaluru properties fetch immediately in parallel —
+    // it doesn't depend on the cities list at all, and Bengaluru is the
+    // known default market — instead of waiting for cities to resolve first
+    // and only then starting the properties request. That sequential chain
+    // was doubling the section's load time for no reason.
     useEffect(() => {
+        if (!adminPropertiesCache.cities) {
+            selectCity('Bengaluru');
+        }
+
         const fetchCities = async () => {
             if (adminPropertiesCache.cities) {
                 return; // Already initialized from cache synchronously
             }
-            
+
             setCitiesLoading(true);
             try {
                 const res = await propertyService.getAdminPropertyCities();
                 let cities = res?.cities || [];
-                
+
                 // Inject dummy city if empty so the Handpicked section is visible for demo
                 if (cities.length === 0) {
                     cities = [{ city: 'Bengaluru', count: 1 }];
@@ -320,7 +337,11 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
 
                 if (cities.length > 0) {
                     const bengCity = cities.find(c => c.city.toLowerCase() === 'bengaluru');
-                    selectCity(bengCity ? bengCity.city : cities[0].city);
+                    const targetCity = bengCity ? bengCity.city : cities[0].city;
+                    // Only fetch again if the optimistic Bengaluru guess above was wrong
+                    if (targetCity !== 'Bengaluru') {
+                        selectCity(targetCity);
+                    }
                 }
             } catch (err) {
                 console.error('Cities fetch failed:', err);
@@ -377,7 +398,8 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
     // Step 3: Fetch properties for selected city
     const selectCity = async (city) => {
         setSelectedCity(city);
-        
+        adminPropertiesCache.selectedCity = city;
+
         if (adminPropertiesCache.propertiesByCity[city]) {
             setProperties(adminPropertiesCache.propertiesByCity[city]);
             setLoading(false);

@@ -3,7 +3,8 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
-    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin, ShieldCheck, Gift
+    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin, ShieldCheck, Gift,
+    Wrench, UserCog, ShoppingBag, Package, ClipboardList, Layers, ChevronDown, FolderCog
 } from 'lucide-react';
 
 
@@ -14,6 +15,7 @@ import adminService from '../../../services/adminService';
 
 const AdminLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [expandedItems, setExpandedItems] = useState({});
     const location = useLocation();
     const navigate = useNavigate();
     const logout = useAdminStore(state => state.logout);
@@ -68,6 +70,9 @@ const AdminLayout = () => {
         navigate('/admin/login');
     };
 
+    // Items with a `children` array render as a single expandable row (like
+    // "Users" → All / Active / Blocked) instead of one row per page, so the
+    // sidebar stays short until admin opens the section they need.
     const MENU_GROUPS = [
         {
             title: 'OVERVIEW',
@@ -76,43 +81,122 @@ const AdminLayout = () => {
             ]
         },
         {
-            title: 'MANAGEMENT',
+            title: 'USER MANAGEMENT',
             items: [
-                { icon: Users, label: 'User Management', path: '/admin/users' },
-                { icon: ShieldCheck, label: 'Manager Management', path: '/admin/managers' },
-                // { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
-                { icon: Building2, label: 'Builder Management', path: '/admin/builders' },
-                { icon: ShieldCheck, label: 'Builder Verification', path: '/admin/builder-verification' },
-                { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
-                { icon: Home, label: 'Property Management', path: '/admin/properties' },
-                { icon: Building2, label: 'Projects Management', path: '/admin/projects' },
+                {
+                    icon: Users, label: 'Users', children: [
+                        { label: 'All Users', path: '/admin/users' },
+                        { label: 'Active Users', path: '/admin/users?status=active' },
+                        { label: 'Blocked Users', path: '/admin/users?status=blocked' },
+                    ]
+                },
+                { icon: ShieldCheck, label: 'Managers', path: '/admin/managers' },
+                {
+                    icon: Building2, label: 'Builders', children: [
+                        { label: 'All Builders', path: '/admin/builders' },
+                        { label: 'Verification', path: '/admin/builder-verification' },
+                    ]
+                },
+            ]
+        },
+        {
+            title: 'PROPERTY MANAGEMENT',
+            items: [
+                {
+                    icon: Home, label: 'Properties', children: [
+                        { label: 'All Properties', path: '/admin/properties' },
+                        { label: 'Add Property', path: '/admin/properties/add' },
+                        { label: 'Featured Projects', path: '/admin/featured-projects' },
+                    ]
+                },
+                { icon: Building2, label: 'Projects', path: '/admin/projects' },
                 { icon: LayoutGrid, label: 'Categories', path: '/admin/categories' },
-                { icon: Star, label: 'Featured Projects Hub', path: '/admin/featured-projects' },
-                { icon: FileText, label: 'Property Form CMS', path: '/admin/property-forms' },
-                { icon: MapPin, label: 'Location Manager', path: '/admin/locations' },
-                { icon: MapPin, label: 'Locality Insights', path: '/admin/locality-insights' },
-                { icon: Video, label: 'Property Videos', path: '/admin/property-videos' },
+                {
+                    icon: MapPin, label: 'Locations', children: [
+                        { label: 'Location Manager', path: '/admin/locations' },
+                        { label: 'Locality Insights', path: '/admin/locality-insights' },
+                    ]
+                },
+                {
+                    icon: FolderCog, label: 'Content & Media', children: [
+                        { label: 'Property Form CMS', path: '/admin/property-forms' },
+                        { label: 'Property Videos', path: '/admin/property-videos' },
+                        { label: 'Banner Management', path: '/admin/banners' },
+                        { label: 'Home Page Layout', path: '/admin/homepage-layout' },
+                        { label: 'Reel Analysis', path: '/admin/reel-analysis' },
+                    ]
+                },
+                { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
                 { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' },
-                { icon: ImageIcon, label: 'Banner Management', path: '/admin/banners' },
-                { icon: LayoutGrid, label: 'Home Page Layout', path: '/admin/homepage-layout' },
-                { icon: Video, label: 'Reel Analysis', path: '/admin/reel-analysis' },
                 { icon: Star, label: 'Reviews', path: '/admin/reviews' },
+            ]
+        },
+        {
+            title: 'HOME SERVICES',
+            items: [
+                { icon: LayoutDashboard, label: 'Services Dashboard', path: '/admin/home-service/dashboard' },
+                {
+                    icon: Users, label: 'Service Users', children: [
+                        { label: 'All Users', path: '/admin/home-service/users' },
+                        { label: 'Active Users', path: '/admin/home-service/users?status=active' },
+                        { label: 'Blocked Users', path: '/admin/home-service/users?status=blocked' },
+                    ]
+                },
+                { icon: UserCog, label: 'Workers', path: '/admin/home-service/workers' },
+                { icon: ShoppingBag, label: 'Service Bookings', path: '/admin/home-service/bookings' },
+                { icon: Layers, label: 'Service Catalog', path: '/admin/home-service/user-categories' },
+                { icon: Wallet, label: 'Service Payments', path: '/admin/home-service/payments' },
+                { icon: ClipboardList, label: 'Service Reports', path: '/admin/home-service/reports' },
+                { icon: Star, label: 'Service Reviews', path: '/admin/home-service/reviews' },
+                { icon: Bell, label: 'Service Notifications', path: '/admin/home-service/notifications' },
+                {
+                    icon: Package, label: 'Plans', children: [
+                        { label: 'User Plans', path: '/admin/home-service/plans' },
+                        { label: 'Worker Plans', path: '/admin/home-service/worker-plans' },
+                    ]
+                },
+                { icon: MapPin, label: 'Zone Setup', path: '/admin/home-service/zones' },
+                { icon: Settings, label: 'Service Settings', path: '/admin/home-service/settings' },
+            ]
+        },
+        {
+            title: 'FINANCE & GROWTH',
+            items: [
+                { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },
+                { icon: Tag, label: 'Offers & Coupons', path: '/admin/offers' },
+                { icon: Gift, label: 'Refer & Earn', path: '/admin/refer-earn' },
             ]
         },
         {
             title: 'SYSTEM',
             items: [
-                { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },
-                { icon: Tag, label: 'Offers & Coupons', path: '/admin/offers' },
-                { icon: Gift, label: 'Refer & Earn', path: '/admin/refer-earn' },
                 { icon: Bell, label: 'Notifications', path: '/admin/notifications', badge: unreadCount > 0 },
-                { icon: FileText, label: 'Legal & Content', path: '/admin/legal' },
-                { icon: MessageSquare, label: 'Contact Messages', path: '/admin/contact-messages' },
-                { icon: CircleHelp, label: 'FAQs', path: '/admin/faqs' },
+                {
+                    icon: FileText, label: 'Content & Support', children: [
+                        { label: 'Legal & Content', path: '/admin/legal' },
+                        { label: 'Contact Messages', path: '/admin/contact-messages' },
+                        { label: 'FAQs', path: '/admin/faqs' },
+                    ]
+                },
                 { icon: Settings, label: 'Settings', path: '/admin/settings' },
             ]
         }
     ];
+
+    // Auto-expand whichever parent contains the currently active child, so
+    // reloading a deep link (e.g. /admin/users?status=active) doesn't leave
+    // its parent collapsed.
+    useEffect(() => {
+        const currentFull = location.pathname + location.search;
+        for (const group of MENU_GROUPS) {
+            for (const item of group.items) {
+                if (item.children?.some(c => c.path === currentFull || location.pathname.startsWith(c.path.split('?')[0]))) {
+                    setExpandedItems(prev => (prev[item.label] ? prev : { ...prev, [item.label]: true }));
+                }
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.pathname, location.search]);
 
 
     return (
@@ -161,16 +245,67 @@ const AdminLayout = () => {
                             )}
                             <div className="space-y-1">
                                 {group.items.map((item) => {
-                                    const isActive = item.path === '/admin/properties'
-                                        ? location.pathname === item.path || location.pathname.startsWith('/admin/properties/')
-                                        : location.pathname.startsWith(item.path);
-                                    return (
+                                    const hasChildren = !!item.children?.length;
+                                    const currentFull = location.pathname + location.search;
+                                    const isActive = hasChildren
+                                        ? item.children.some(c => c.path === currentFull || (location.pathname.startsWith(c.path.split('?')[0]) && !c.path.includes('?')))
+                                        : item.path === '/admin/properties'
+                                            ? location.pathname === item.path || location.pathname.startsWith('/admin/properties/')
+                                            : location.pathname.startsWith(item.path);
+                                    const isExpanded = !!expandedItems[item.label];
 
+                                    if (hasChildren) {
+                                        return (
+                                            <div key={item.label}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setExpandedItems(prev => ({ ...prev, [item.label]: !prev[item.label] }))}
+                                                    className={`flex items-center transition-all group relative text-[13px] font-medium tracking-tight ${isSidebarOpen
+                                                        ? 'w-full gap-3 px-4 py-2.5 rounded-xl'
+                                                        : 'justify-center w-12 h-12 rounded-xl mx-auto mb-1'
+                                                        } ${isActive
+                                                        ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
+                                                        : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
+                                                        }`}
+                                                >
+                                                    <item.icon size={18} className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-900'}`} />
+                                                    {isSidebarOpen && (
+                                                        <>
+                                                            <span className="whitespace-nowrap flex-1 truncate text-left">{item.label}</span>
+                                                            <ChevronDown size={14} className={`shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''} ${isActive ? 'text-white' : 'text-gray-400'}`} />
+                                                        </>
+                                                    )}
+                                                </button>
+
+                                                {isSidebarOpen && isExpanded && (
+                                                    <div className="mt-1 ml-[22px] pl-4 border-l-2 border-gray-100 space-y-1">
+                                                        {item.children.map((child) => {
+                                                            const childActive = currentFull === child.path || (!child.path.includes('?') && location.pathname === child.path);
+                                                            return (
+                                                                <Link
+                                                                    key={child.path}
+                                                                    to={child.path}
+                                                                    className={`block px-3 py-2 rounded-lg text-[12.5px] font-medium tracking-tight transition-colors ${childActive
+                                                                        ? 'bg-gray-900 text-white font-semibold'
+                                                                        : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
+                                                                        }`}
+                                                                >
+                                                                    {child.label}
+                                                                </Link>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
                                         <Link
                                             key={item.path}
                                             to={item.path}
-                                            className={`flex items-center transition-all group relative text-[13px] font-medium tracking-tight ${isSidebarOpen 
-                                                ? 'gap-3 px-4 py-2.5 rounded-xl' 
+                                            className={`flex items-center transition-all group relative text-[13px] font-medium tracking-tight ${isSidebarOpen
+                                                ? 'gap-3 px-4 py-2.5 rounded-xl'
                                                 : 'justify-center w-12 h-12 rounded-xl mx-auto mb-1'
                                                 } ${isActive
                                                 ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
@@ -234,22 +369,6 @@ const AdminLayout = () => {
                     </div>
 
                     <div className="flex items-center gap-6" ref={notifRef}>
-                        {/* Admin Mode Toggle */}
-                        <div className="hidden lg:flex items-center bg-gray-100 rounded-full p-1 border border-gray-200">
-                            <button
-                                onClick={() => navigate('/admin/dashboard')}
-                                className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${!location.pathname.includes('/home-service') ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                            >
-                                Property
-                            </button>
-                            <button
-                                onClick={() => navigate('/admin/home-service/dashboard')}
-                                className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${location.pathname.includes('/home-service') ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                            >
-                                Home Service
-                            </button>
-                        </div>
-
                         <div className="relative">
                             <button
                                 onClick={() => setIsNotifOpen(!isNotifOpen)}

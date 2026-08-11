@@ -197,7 +197,7 @@ const Documents = () => {
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-800">
             <FiArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-xl font-bold text-gray-800">My Documents</h1>
+          <h1 className="text-base font-bold text-gray-800">My Documents</h1>
         </div>
         {hasChanges && (
           <button

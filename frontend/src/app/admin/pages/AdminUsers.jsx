@@ -265,10 +265,13 @@ const AdminUsers = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [limit] = useState(10);
 
+    // Sidebar sub-links (All / Active / Blocked Users) deep-link here via
+    // ?status=active|blocked so each one lands on a pre-filtered view.
+    const initialStatus = new URLSearchParams(location.search).get('status') || '';
     const [filters, setFilters] = useState({
         search: '',
         role: '',
-        status: ''
+        status: initialStatus
     });
 
     const [activeDropdown, setActiveDropdown] = useState(null);

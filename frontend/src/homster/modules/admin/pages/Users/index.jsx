@@ -33,11 +33,11 @@ const Users = () => {
         transition={{ duration: 0.3 }}
       >
         <Routes>
-          <Route path="/" element={<Navigate to="all" replace />} />
+          <Route path="/" element={<Navigate to={{ pathname: 'all', search: location.search }} replace />} />
           <Route path="all" element={<AllUsers />} />
           <Route path="bookings" element={<UserBookings />} />
           <Route path="analytics" element={<UserAnalytics />} />
-          <Route path="*" element={<Navigate to="all" replace />} />
+          <Route path="*" element={<Navigate to={{ pathname: 'all', search: location.search }} replace />} />
         </Routes>
       </motion.div>
     </div>

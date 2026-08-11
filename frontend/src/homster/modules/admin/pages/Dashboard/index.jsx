@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiBriefcase, FiUsers, FiShoppingBag, FiDollarSign, FiActivity } from 'react-icons/fi';
+import { Users, ShoppingBag, DollarSign, Activity } from 'lucide-react';
 import RevenueLineChart from '../../components/dashboard/RevenueLineChart';
 import BookingsBarChart from '../../components/dashboard/BookingsBarChart';
 import BookingStatusPieChart from '../../components/dashboard/BookingStatusPieChart';
@@ -146,46 +146,29 @@ const AdminDashboard = () => {
     {
       title: period === 'month' ? 'Monthly Revenue' : period === 'year' ? 'Yearly Revenue' : period === 'today' ? 'Today\'s Revenue' : period === 'week' ? 'Weekly Revenue' : 'Revenue',
       value: formatCurrency(stats.totalRevenue || 0),
-      change: 0,
-      icon: FiDollarSign,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-green-500 to-emerald-600',
-      cardBg: 'bg-gradient-to-br from-green-50 to-emerald-50',
-      iconBg: 'bg-white/20',
+      icon: DollarSign,
+      color: 'text-amber-500',
       link: '/admin/home-service/reports/revenue'
     },
-
     {
       title: 'Pending Bookings',
       value: (stats.activeBookings || 0).toLocaleString(),
-      change: 0,
-      icon: FiShoppingBag,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-blue-500 to-indigo-600',
-      cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50',
-      iconBg: 'bg-white/20',
+      icon: ShoppingBag,
+      color: 'text-blue-500',
       link: '/admin/home-service/reports/bookings'
     },
     {
       title: 'Completed Bookings',
       value: (stats.completedBookings || 0).toLocaleString(),
-      change: 0,
-      icon: FiActivity,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-purple-500 to-violet-600',
-      cardBg: 'bg-gradient-to-br from-purple-50 to-violet-50',
-      iconBg: 'bg-white/20',
+      icon: Activity,
+      color: 'text-purple-500',
       link: '/admin/home-service/reports/bookings'
     },
     {
       title: 'Total Workers',
       value: (stats.totalWorkers || 0).toLocaleString(),
-      change: 0,
-      icon: FiUsers,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-indigo-500 to-blue-600',
-      cardBg: 'bg-gradient-to-br from-indigo-50 to-blue-50',
-      iconBg: 'bg-white/20',
+      icon: Users,
+      color: 'text-orange-500',
       link: '/admin/home-service/workers/all'
     }
   ];
@@ -194,24 +177,27 @@ const AdminDashboard = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-4"
+      className="space-y-8"
     >
-      <div className="flex flex-col gap-3">
-        <div className="w-full">
-          <TimePeriodFilter
-            selectedPeriod={period}
-            onPeriodChange={setPeriod}
-            onExport={handleExportCsv}
-            customDates={customDates}
-            onCustomDateChange={setCustomDates}
-          />
+      {/* Header — matches the Property dashboard's header treatment */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Home Services Dashboard</h1>
+            <p className="text-gray-500 mt-1">Real-time insights into your home services business.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <TimePeriodFilter
+        selectedPeriod={period}
+        onPeriodChange={setPeriod}
+        onExport={handleExportCsv}
+        customDates={customDates}
+        onCustomDateChange={setCustomDates}
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsCards.map((card, index) => {
           const Icon = card.icon;
-          const isPositive = (card.change || 0) >= 0;
 
           return (
             <motion.div
@@ -220,28 +206,18 @@ const AdminDashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.08 }}
               onClick={() => card.link && navigate(card.link)}
-              className={`${card.cardBg} rounded-xl p-3 sm:p-4 shadow-sm border border-transparent hover:shadow-md transition-all duration-300 relative overflow-hidden cursor-pointer group`}
+              className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden h-full flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow"
             >
-              <div className={`absolute top-0 right-0 w-24 h-24 ${card.bgColor} opacity-10 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform`} />
-
-              <div className="flex items-center justify-between mb-2 sm:mb-3 relative z-10">
-                <div className={`${card.bgColor} ${card.iconBg} p-1.5 sm:p-2 rounded-lg shadow-sm`}>
-                  <Icon className={`${card.color} text-base sm:text-lg`} />
-                </div>
-                {card.change !== 0 && (
-                  <div
-                    className={`text-[10px] sm:text-xs font-semibold px-1.5 py-0.5 rounded-full ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}
-                  >
-                    {isPositive ? '+' : ''}
-                    {Math.abs(card.change || 0)}%
-                  </div>
-                )}
+              <div className={`absolute top-0 right-0 p-4 opacity-5 ${card.color}`}>
+                <Icon size={80} />
               </div>
 
               <div className="relative z-10">
-                <h3 className="text-gray-600 text-[10px] sm:text-xs font-medium mb-0.5">{card.title}</h3>
-                <p className="text-gray-800 text-lg sm:text-xl font-bold">{card.value}</p>
+                <div className={`inline-flex p-3 rounded-2xl mb-4 ${card.color.replace('text-', 'bg-').replace('500', '100')} ${card.color}`}>
+                  <Icon size={24} />
+                </div>
+                <p className="text-sm font-medium text-gray-500 mb-1">{card.title}</p>
+                <h3 className="text-3xl font-bold text-gray-900 tracking-tight">{card.value}</h3>
               </div>
             </motion.div>
           );

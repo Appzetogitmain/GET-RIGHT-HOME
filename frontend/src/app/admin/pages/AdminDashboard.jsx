@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     TrendingUp, Users, ShoppingBag, DollarSign, Building2,
-    ArrowUpRight, ArrowDownRight, Clock, CheckCircle, AlertCircle
+    ArrowUpRight, ArrowDownRight, Clock, CheckCircle, AlertCircle,
+    Wallet, Wrench, UserCog, ArrowRight, Home
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend, BarChart, Bar
 } from 'recharts';
 import adminService from '../../../services/adminService';
+import { getDashboardStats as getHomeServiceStats } from '../../../homster/services/adminDashboardService';
 import toast from 'react-hot-toast';
 
 
@@ -73,10 +75,21 @@ const AdminDashboard = () => {
         planBreakdown: []
     });
 
+    // Home Services business snapshot (separate vertical, shown side-by-side
+    // with Real Estate on this one unified dashboard — no toggle needed).
+    const [hsStats, setHsStats] = useState({
+        totalRevenue: 0,
+        totalWorkers: 0,
+        pendingBookings: 0,
+        completedBookings: 0,
+    });
+    const [hsLoading, setHsLoading] = useState(true);
+
     const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#6366F1'];
 
     useEffect(() => {
         fetchDashboardData();
+        fetchHomeServiceStats();
     }, []);
 
     const fetchDashboardData = async () => {
@@ -98,6 +111,27 @@ const AdminDashboard = () => {
         }
     };
 
+    // All-time Home Services numbers (no startDate/endDate = unfiltered) so
+    // they combine cleanly with the property side's all-time totals below.
+    const fetchHomeServiceStats = async () => {
+        try {
+            setHsLoading(true);
+            const data = await getHomeServiceStats();
+            if (data.success) {
+                setHsStats({
+                    totalRevenue: data.stats.totalRevenue || 0,
+                    totalWorkers: data.stats.totalWorkers || 0,
+                    pendingBookings: data.stats.pendingBookings || 0,
+                    completedBookings: data.stats.completedBookings || 0,
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching home service stats:', error);
+        } finally {
+            setHsLoading(false);
+        }
+    };
+
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
@@ -114,9 +148,47 @@ const AdminDashboard = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Dashboard Overview</h1>
-                    <p className="text-gray-500 mt-1">Real-time insights into your property platform performance.</p>
+                    <p className="text-gray-500 mt-1">Combined, real-time performance across Real Estate and Home Services.</p>
                 </div>
 
+            </div>
+
+            {/* Overall Business Overview — combined earnings across both verticals */}
+            <div className="bg-gray-900 rounded-3xl p-8 shadow-xl relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 w-56 h-56 bg-emerald-500/10 rounded-full blur-3xl" />
+                <div className="absolute -left-10 -bottom-10 w-56 h-56 bg-amber-500/10 rounded-full blur-3xl" />
+                <div className="relative z-10">
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Overall Earnings — Both Businesses</p>
+                    {(loading || hsLoading) ? (
+                        <div className="h-10 w-64 bg-white/10 animate-pulse rounded-md mt-2" />
+                    ) : (
+                        <h2 className="text-4xl font-black text-white tracking-tight">
+                            {formatCurrency((stats.totalRevenue || 0) + (stats.totalSubscriptionRevenue || 0) + (hsStats.totalRevenue || 0))}
+                        </h2>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-wide mb-1">Real Estate Revenue</p>
+                            <p className="text-xl font-bold text-white">{loading ? '—' : formatCurrency((stats.totalRevenue || 0) + (stats.totalSubscriptionRevenue || 0))}</p>
+                        </div>
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-wide mb-1">Home Services Revenue</p>
+                            <p className="text-xl font-bold text-white">{hsLoading ? '—' : formatCurrency(hsStats.totalRevenue || 0)}</p>
+                        </div>
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-wide mb-1">Total Transactions</p>
+                            <p className="text-xl font-bold text-white">
+                                {(loading || hsLoading) ? '—' : ((stats.totalBookings || 0) + (hsStats.pendingBookings || 0) + (hsStats.completedBookings || 0)).toLocaleString()}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Real Estate Business */}
+            <div className="flex items-center gap-2">
+                <Home size={18} className="text-gray-400" />
+                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">Real Estate Business</h2>
             </div>
 
             {/* Row 1: KPI Grid */}
@@ -449,6 +521,55 @@ const AdminDashboard = () => {
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Home Services Business */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Wrench size={18} className="text-gray-400" />
+                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">Home Services Business</h2>
+                </div>
+                <button
+                    onClick={() => navigate('/admin/home-service/dashboard')}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                >
+                    View Full Dashboard <ArrowRight size={14} />
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <DashboardCard
+                    title="Home Services Revenue"
+                    value={formatCurrency(hsStats.totalRevenue)}
+                    icon={Wallet}
+                    color="text-emerald-500"
+                    loading={hsLoading}
+                    onClick={() => navigate('/admin/home-service/reports')}
+                />
+                <DashboardCard
+                    title="Pending Bookings"
+                    value={hsStats.pendingBookings}
+                    icon={ShoppingBag}
+                    color="text-blue-500"
+                    loading={hsLoading}
+                    onClick={() => navigate('/admin/home-service/bookings')}
+                />
+                <DashboardCard
+                    title="Completed Bookings"
+                    value={hsStats.completedBookings}
+                    icon={CheckCircle}
+                    color="text-purple-500"
+                    loading={hsLoading}
+                    onClick={() => navigate('/admin/home-service/bookings')}
+                />
+                <DashboardCard
+                    title="Total Workers"
+                    value={hsStats.totalWorkers}
+                    icon={UserCog}
+                    color="text-orange-500"
+                    loading={hsLoading}
+                    onClick={() => navigate('/admin/home-service/workers')}
+                />
             </div>
         </div>
     );
