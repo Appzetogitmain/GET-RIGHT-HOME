@@ -379,6 +379,168 @@ const HomeServicesPage = () => {
                 </div>
             </section>
 
+            {/* Instant Booking Section (30-45 Min Express Service Hub) */}
+            <section className="mt-12 px-5 max-w-7xl mx-auto">
+                <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-emerald-500/10 border border-amber-500/20 rounded-[2.2rem] p-5 sm:p-7 relative overflow-hidden shadow-xl shadow-amber-500/5">
+                    {/* Ambient Glow */}
+                    <div className="absolute -top-10 -right-10 w-48 h-48 bg-amber-400/15 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                    {/* Section Header */}
+                    <div className="flex items-center justify-between mb-6 z-10 relative">
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-2 mb-1.5">
+                                <span className="flex h-2.5 w-2.5 relative">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                                </span>
+                                <span className="text-[10px] font-black text-amber-600 uppercase tracking-[0.25em]">Express Dispatch</span>
+                            </div>
+                            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight leading-none flex items-center gap-2">
+                                <span>Instant</span>
+                                <span className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 bg-clip-text text-transparent flex items-center gap-1">
+                                    Booking <Zap size={22} className="text-amber-500 fill-amber-400 animate-bounce" />
+                                </span>
+                            </h2>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1.5">
+                                Verified Technicians at your doorstep in 30–45 minutes
+                            </p>
+                        </div>
+
+                        {/* Quick Status Tag */}
+                        <div className="hidden sm:flex items-center gap-2 bg-white/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-amber-200 shadow-sm text-xs font-bold text-amber-800">
+                            <Clock size={14} className="text-amber-500 animate-spin" style={{ animationDuration: '4s' }} />
+                            <span>⚡ Live Slot Available</span>
+                        </div>
+                    </div>
+
+                    {/* Instant Services Cards Carousel / Grid */}
+                    <div className="flex overflow-x-auto gap-4 no-scrollbar pb-2 -mx-1 px-1 snap-x snap-mandatory">
+                        {[
+                            {
+                                id: 'instant-elec',
+                                title: 'Emergency Electrician',
+                                subtitle: 'Power Cut / Short Circuit Repair',
+                                icon: Zap,
+                                eta: '25-30 Mins',
+                                price: '₹149',
+                                rating: '4.9',
+                                categoryQuery: 'Electrician',
+                                color: 'from-amber-500 to-orange-600',
+                                badge: '⚡ HOT'
+                            },
+                            {
+                                id: 'instant-plumb',
+                                title: 'Urgent Plumbing',
+                                subtitle: 'Leakage / Pipe Blockage Fix',
+                                icon: Droplets,
+                                eta: '30-40 Mins',
+                                price: '₹199',
+                                rating: '4.8',
+                                categoryQuery: 'Plumber',
+                                color: 'from-blue-500 to-cyan-600',
+                                badge: 'QUICK'
+                            },
+                            {
+                                id: 'instant-ac',
+                                title: 'Instant AC Repair',
+                                subtitle: 'Cooling Fix / Gas Check',
+                                icon: Wind,
+                                eta: '35-45 Mins',
+                                price: '₹299',
+                                rating: '4.9',
+                                categoryQuery: 'AC Repair',
+                                color: 'from-emerald-500 to-teal-600',
+                                badge: 'EXPRESS'
+                            },
+                            {
+                                id: 'instant-appliance',
+                                title: 'Appliance Repair',
+                                subtitle: 'Washing Machine / Fridge Fix',
+                                icon: Wrench,
+                                eta: '30-45 Mins',
+                                price: '₹249',
+                                rating: '4.7',
+                                categoryQuery: 'Appliance',
+                                color: 'from-purple-500 to-indigo-600',
+                                badge: 'INSTANT'
+                            },
+                            {
+                                id: 'instant-lock',
+                                title: 'Locksmith & Key Repair',
+                                subtitle: 'Emergency Lock Opening',
+                                icon: Hammer,
+                                eta: '20-30 Mins',
+                                price: '₹179',
+                                rating: '4.9',
+                                categoryQuery: 'Locksmith',
+                                color: 'from-rose-500 to-red-600',
+                                badge: '⚡ FAST'
+                            }
+                        ].map((instantService) => {
+                            const IconComponent = instantService.icon;
+                            return (
+                                <motion.div
+                                    key={instantService.id}
+                                    whileHover={{ y: -4, scale: 1.02 }}
+                                    whileTap={{ scale: 0.97 }}
+                                    onClick={() => {
+                                        const matched = categories.find(c =>
+                                            (c.title || c.name || '').toLowerCase().includes(instantService.categoryQuery.toLowerCase())
+                                        ) || categories[0];
+
+                                        if (matched) {
+                                            openCategoryModal({ ...matched, bookingType: 'instant' });
+                                        } else {
+                                            toast.success(`Instant ${instantService.title} request initialized!`);
+                                        }
+                                    }}
+                                    className="min-w-[220px] sm:min-w-[240px] snap-center bg-white rounded-2xl border border-amber-100/80 p-4 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between relative group cursor-pointer"
+                                >
+                                    {/* Top Badge & ETA Pill */}
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="bg-amber-100 text-amber-800 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                            {instantService.badge}
+                                        </span>
+                                        <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                                            <Clock size={10} className="text-emerald-600 animate-pulse" />
+                                            <span>{instantService.eta}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Service Icon & Info */}
+                                    <div className="flex items-start gap-3 mb-4">
+                                        <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${instantService.color} text-white flex items-center justify-center shadow-md shrink-0 group-hover:scale-110 transition-transform`}>
+                                            <IconComponent size={22} className="stroke-[2.5]" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-extrabold text-gray-900 text-xs sm:text-sm leading-tight group-hover:text-amber-600 transition-colors line-clamp-1">
+                                                {instantService.title}
+                                            </h4>
+                                            <p className="text-[10px] font-semibold text-gray-400 leading-tight mt-0.5 line-clamp-1">
+                                                {instantService.subtitle}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Bottom Row: Price & Action Button */}
+                                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                                        <div>
+                                            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">Visiting</div>
+                                            <span className="text-xs font-black text-gray-900">{instantService.price}</span>
+                                        </div>
+                                        <button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-black uppercase px-3.5 py-1.5 rounded-xl shadow-md shadow-amber-500/30 flex items-center gap-1 group-hover:scale-105 transition-all">
+                                            <span>Book</span>
+                                            <Zap size={11} className="fill-white stroke-none" />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </section>
+
             {/* Thoughtful Curations */}
             {homeData?.isCuratedVisible !== false && curations.length > 0 && (
                 <section className="mt-12 px-5 max-w-7xl mx-auto">

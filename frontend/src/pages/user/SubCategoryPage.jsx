@@ -49,7 +49,6 @@ import CustomDatePicker from '../../components/user/CustomDatePicker';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCart } from '../../homster/context/CartContext';
 import { useCity } from '../../homster/context/CityContext';
-import { goBackOrHome } from '../../utils/navigation';
 
 const toAssetUrl = (url) => {
     if (!url) return '';
@@ -1201,9 +1200,11 @@ const SubCategoryPage = () => {
     useEffect(() => {
         if (!subCategory) {
             // This page is driven entirely by location.state, so a direct deep link
-            // (shared URL, refresh, notification tap) has nothing to render. Fall back
-            // to the catalog rather than navigate(-1), which can escape the app.
-            goBackOrHome(navigate, '/home-services');
+            // (shared URL, refresh, notification tap) has nothing to render at all.
+            // Always send them to the catalog — going "back" is not meaningful here,
+            // and history.length is not a reliable signal (an SPA entry may already
+            // have been pushed), which previously left this page blank.
+            navigate('/home-services', { replace: true });
             return;
         }
         fetchServices();

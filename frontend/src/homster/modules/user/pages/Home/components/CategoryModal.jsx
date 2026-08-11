@@ -210,9 +210,16 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
                         </div>
                       )}
                       <div>
-                        <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none mb-1 uppercase">
-                          {selectedSubCategory ? selectedSubCategory.title : category?.title || 'Services'}
-                        </h1>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">
+                            {selectedSubCategory ? selectedSubCategory.title : category?.title || 'Services'}
+                          </h1>
+                          {category?.bookingType === 'instant' && (
+                            <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter flex items-center gap-1 border border-amber-300/50">
+                              ⚡ Express 30-Min
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                           {selectedSubCategory || category?.isDirectService ? 'Select a service to proceed' : 'Select a sub-category'}
                         </p>
