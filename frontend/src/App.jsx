@@ -466,6 +466,9 @@ function App() {
                     <Route path="/home-services" element={<HomeServicesPage />} />
                     <Route path="/home-services/sub-category" element={<SubCategoryPage />} />
                     <Route path="/home-service" element={<Navigate to="/home-services" replace />} />
+                    {/* Cart is guest-friendly (localStorage-backed, syncs silently once logged
+                        in) — only the actual checkout step below requires login. */}
+                    <Route path="/user/cart" element={<CartPage />} />
 
                     {/* Public User Routes */}
                     <Route path="/" element={<Home />} />
@@ -688,7 +691,6 @@ function App() {
                       <Route path="/notifications" element={<NotificationsPage />} />
                       <Route path="/settings" element={<SettingsPage />} />
                       <Route path="/user" element={<Navigate to="/home-services" replace />} />
-                      <Route path="/user/cart" element={<CartPage />} />
                       <Route path="/user/home-services/checkout" element={<HomeServiceCheckoutPage />} />
                       <Route path="/user/home-services/bookings" element={<HomeServiceBookingsPage />} />
                       <Route path="/user/booking/:id" element={<HSBookingDetailsPage />} />

@@ -180,6 +180,7 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
       />
       <div className="fixed bottom-0 left-0 right-0 z-50">
         <div
+          data-lenis-prevent
           className={`bg-white rounded-t-[32px] shadow-2xl ${isClosing ? 'animate-slide-down' : 'animate-slide-up'}`}
           style={{
             height: '85vh',
