@@ -10,6 +10,30 @@ const nearbyPlaceSchema = new mongoose.Schema({
   distanceKm: Number
 });
 
+// --- Builder project listing sub-schemas (15-step wizard) ---
+
+const unitConfigurationSchema = new mongoose.Schema({
+  unitType: String,          // "3 BHK", "200 sq.yards", "Office Suite A"
+  carpetArea: Number,
+  superArea: Number,
+  areaUnit: { type: String, default: 'sq.ft.' },
+  price: Number,
+  pricePerSqft: Number,
+  availableUnits: Number,
+  facing: String
+}, { _id: false });
+
+const constructionProgressSchema = new mongoose.Schema({
+  stage: String,             // "Foundation", "Structure", ...
+  percentage: { type: Number, min: 0, max: 100 }
+}, { _id: false });
+
+const projectDocumentSchema = new mongoose.Schema({
+  type: String,              // "reraCertificate", "brochure", ...
+  name: String,              // human label, e.g. "RERA Certificate"
+  fileUrl: String
+}, { _id: false });
+
 const propertySchema = new mongoose.Schema({
 
   // BASIC INFO
@@ -208,6 +232,93 @@ const propertySchema = new mongoose.Schema({
   },
 
   // builderProjectDetails decoupled into separate BuilderProjectDetails collection
+
+  // --- BUILDER PROJECT LISTING (15-step wizard) ---
+  // Promoted out of dynamicData so these stay queryable (SEO URLs, price
+  // filters, possession filters). dynamicData still holds the raw answers.
+
+  // SEO-friendly URL, e.g. "sujay-global-elara-nallagandla-hyderabad"
+  slug: { type: String, unique: true, sparse: true, index: true },
+
+  seo: {
+    metaTitle: String,
+    metaDescription: String,
+    keywords: [String]
+  },
+
+  unitConfigurations: {
+    type: [unitConfigurationSchema],
+    default: []
+  },
+
+  constructionStatus: {
+    currentStatus: {
+      type: String,
+      enum: ['Not Started', 'Under Construction', 'Finishing Stage', 'Completed']
+    },
+    completionPercentage: { type: Number, min: 0, max: 100 },
+    expectedPossession: Date,
+    progress: {
+      type: [constructionProgressSchema],
+      default: []
+    }
+  },
+
+  projectSummary: {
+    totalLandArea: Number,
+    totalTowers: Number,
+    totalFloors: Number,
+    totalUnits: Number,
+    openSpacePercentage: Number,
+    clubHouseSize: Number,
+    launchDate: Date,
+    possessionDate: Date
+  },
+
+  projectDocuments: {
+    type: [projectDocumentSchema],
+    default: []
+  },
+
+  specifications: {
+    type: Object,
+    default: {}
+  },
+
+  builderProfile: {
+    companyName: String,
+    establishedYear: Number,
+    companyType: String,
+    totalProjects: Number,
+    logo: String,
+    officeAddress: String,
+    workingHours: String,
+    about: String
+  },
+
+  contactDetails: {
+    contactPerson: String,
+    mobile: String,
+    altMobile: String,
+    email: String,
+    officeAddress: String,
+    website: String,
+    social: {
+      facebook: String,
+      instagram: String,
+      linkedin: String,
+      youtube: String
+    }
+  },
+
+  reraNumber: { type: String },
+  reraVerified: { type: Boolean, default: false },
+
+  // Denormalised price range, derived from unitConfigurations on save
+  priceRange: {
+    min: Number,
+    max: Number
+  },
 
   // Universal / Pro Fields
   videoUrl: String,

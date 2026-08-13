@@ -24,6 +24,15 @@ const pricingFieldsToFilter = [
   'bookingAmount'
 ];
 
+// Builder templates flag their location step explicitly so that steps such as
+// "Location Advantages" don't also render the country/state/city selector.
+// Older property templates have no flag, so they keep matching on title.
+const stepUsesLocationSelector = (step) => {
+  if (!step) return false;
+  if (typeof step.showLocationSelector === 'boolean') return step.showLocationSelector;
+  return Boolean(step.title?.toLowerCase().includes('location'));
+};
+
 const DynamicFormEngine = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -197,6 +206,29 @@ const DynamicFormEngine = () => {
     }
   };
 
+  const scrollToTop = () => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  };
+
+  // Jumping backwards is always allowed; moving forward must go through
+  // handleNext so the current step's validation still runs.
+  const goToStep = (index) => {
+    if (index < 0 || index > currentStepIndex) return;
+    setErrors({});
+    setCurrentStepIndex(index);
+    scrollToTop();
+  };
+
+  const goBack = () => {
+    if (currentStepIndex > 0) {
+      goToStep(currentStepIndex - 1);
+    } else {
+      navigate(-1);
+    }
+  };
+
   const handleNext = () => {
     const currentStep = template.steps[currentStepIndex];
     let newErrors = {};
@@ -209,7 +241,7 @@ const DynamicFormEngine = () => {
       }
     }
 
-    const isLocationStep = currentStep?.title?.toLowerCase().includes('location');
+    const isLocationStep = stepUsesLocationSelector(currentStep);
     if (isLocationStep) {
       if (!formData.country) {
         newErrors['country'] = 'Country is required';
@@ -1480,6 +1512,221 @@ const DynamicFormEngine = () => {
           </div>
         );
 
+      // A single labelled document/image slot with Upload / Change File.
+      case 'single_file': {
+        const fileUrl = formData[field.name] || '';
+        const isImage = fileUrl && /\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i.test(fileUrl);
+
+        const uploadSingle = async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const toastId = toast.loading('Uploading...');
+          try {
+            const fd = new FormData();
+            fd.append('images', file);
+            const res = await hotelService.uploadImages(fd);
+            const url = Array.isArray(res?.urls) ? res.urls[0] : null;
+            if (url) {
+              handleChange(field.name, url);
+              toast.success('Uploaded', { id: toastId });
+            } else {
+              toast.error('Upload failed: empty response', { id: toastId });
+            }
+          } catch (err) {
+            toast.error(err.message || 'Upload failed', { id: toastId });
+          } finally {
+            e.target.value = '';
+          }
+        };
+
+        return (
+          <div key={field.name} id={`field-${field.name}`} className="mb-5">
+            <label className="block text-[14px] font-semibold text-slate-800 mb-2">
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </label>
+            <div className={`flex items-center gap-3 bg-white border rounded-xl p-3 ${
+              errors[field.name] ? 'border-red-400' : 'border-slate-200'
+            }`}>
+              <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-200 shrink-0 overflow-hidden flex items-center justify-center">
+                {fileUrl ? (
+                  isImage
+                    ? <img src={fileUrl} alt={field.label} className="w-full h-full object-cover" />
+                    : <span className="text-[9px] font-bold text-slate-500 text-center px-1">FILE</span>
+                ) : (
+                  <span className="text-[9px] font-bold text-slate-400">EMPTY</span>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold text-slate-700 truncate">
+                  {fileUrl ? decodeURIComponent(fileUrl.split('/').pop()) : 'No file uploaded'}
+                </p>
+                {fileUrl && (
+                  <a href={fileUrl} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-blue-600 hover:underline">
+                    Preview
+                  </a>
+                )}
+              </div>
+
+              <label className="shrink-0 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer transition-colors">
+                {fileUrl ? 'Change File' : 'Upload'}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*,.pdf,.doc,.docx"
+                  onChange={uploadSingle}
+                />
+              </label>
+
+              {fileUrl && (
+                <button
+                  type="button"
+                  onClick={() => handleChange(field.name, '')}
+                  className="shrink-0 text-red-500 hover:text-red-600 font-black px-1.5"
+                  aria-label={`Remove ${field.label}`}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {errors[field.name] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[field.name]}</p>}
+          </div>
+        );
+      }
+
+      // 0-100 percentage slider.
+      case 'slider': {
+        const pct = Number(formData[field.name] ?? 0);
+        return (
+          <div key={field.name} id={`field-${field.name}`} className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[14px] font-semibold text-slate-800">
+                {field.label} {field.required && <span className="text-red-500">*</span>}
+              </label>
+              <span className="text-[13px] font-bold text-blue-600 tabular-nums">{pct}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={pct}
+              onChange={(e) => handleChange(field.name, Number(e.target.value))}
+              className="w-full accent-[#0073E6] cursor-pointer"
+            />
+            {errors[field.name] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[field.name]}</p>}
+          </div>
+        );
+      }
+
+      // A labelled slider per construction stage; stored as { stage: percent }.
+      case 'progress_group': {
+        const progress = (formData[field.name] && typeof formData[field.name] === 'object') ? formData[field.name] : {};
+        return (
+          <div key={field.name} id={`field-${field.name}`} className="mb-6">
+            <label className="block text-[14px] font-semibold text-slate-800 mb-3">
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </label>
+            <div className="space-y-4 bg-slate-50 border border-slate-200 rounded-xl p-4">
+              {field.options?.map(stage => {
+                const val = Number(progress[stage] ?? 0);
+                return (
+                  <div key={stage}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[12px] font-semibold text-slate-600">{stage}</span>
+                      <span className="text-[12px] font-bold text-slate-700 tabular-nums">{val}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={val}
+                      onChange={(e) => handleChange(field.name, { ...progress, [stage]: Number(e.target.value) })}
+                      className="w-full accent-[#0073E6] cursor-pointer"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            {errors[field.name] && <p className="text-red-500 text-[10px] mt-2 ml-1">{errors[field.name]}</p>}
+          </div>
+        );
+      }
+
+      // Final step: read-only summary of every previous step, with jump-to-edit.
+      case 'review': {
+        const formatValue = (val) => {
+          if (val === undefined || val === null || val === '') return null;
+          if (Array.isArray(val)) {
+            if (val.length === 0) return null;
+            if (typeof val[0] === 'object') return `${val.length} item${val.length > 1 ? 's' : ''} added`;
+            return val.join(', ');
+          }
+          if (typeof val === 'object') {
+            const entries = Object.entries(val).filter(([, v]) => v !== '' && v !== null && v !== undefined);
+            if (entries.length === 0) return null;
+            return entries.map(([k, v]) => `${k}: ${v}`).join(' · ');
+          }
+          return String(val);
+        };
+
+        return (
+          <div key={field.name} id={`field-${field.name}`} className="mb-6">
+            <div className="space-y-3">
+              {template.steps.slice(0, -1).map((step, idx) => {
+                const rows = step.fields
+                  .filter(f => f.type !== 'review')
+                  .map(f => ({ label: f.label, value: formatValue(formData[f.name]) }))
+                  .filter(r => r.value !== null);
+
+                // Surface the address captured by the LocationSelector too
+                if (stepUsesLocationSelector(step)) {
+                  const addressLine = [formData.locality, formData.city, formData.district, formData.state]
+                    .filter(Boolean).join(', ');
+                  if (addressLine) rows.unshift({ label: 'Address', value: addressLine });
+                }
+
+                return (
+                  <div key={step.stepNumber} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+                      <span className="text-[13px] font-bold text-slate-800">
+                        {step.stepNumber}. {step.title}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStepIndex(idx)}
+                        className="text-[11px] font-bold text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <div className="px-4 py-3">
+                      {rows.length === 0 ? (
+                        <p className="text-[12px] text-slate-400 italic">Nothing added</p>
+                      ) : (
+                        <dl className="space-y-1.5">
+                          {rows.map(row => (
+                            <div key={row.label} className="flex gap-3 text-[12px]">
+                              <dt className="text-slate-500 font-medium w-2/5 shrink-0">{row.label}</dt>
+                              <dd className="text-slate-800 font-semibold break-words min-w-0">{row.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-5 text-[12px] text-slate-500 leading-relaxed">
+              Submitting sends this project for admin approval. You can keep editing it
+              from <span className="font-semibold text-slate-700">My Properties</span> until it is approved.
+            </p>
+          </div>
+        );
+      }
+
       default:
         return null;
     }
@@ -1488,21 +1735,48 @@ const DynamicFormEngine = () => {
   return (
     <div className="min-h-screen bg-white pb-24 md:pb-10 font-sans text-slate-800">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white px-4 h-14 flex items-center border-b border-slate-100">
-        <button onClick={() => {
-          if (currentStepIndex > 0) {
-            setCurrentStepIndex(prev => prev - 1);
-            window.scrollTo(0, 0);
-          } else {
-            navigate(-1);
-          }
-        }} className="p-2 -ml-2 text-slate-700">
-          <ArrowLeft size={22} />
-        </button>
-        <span className="ml-2 font-bold text-[17px] tracking-tight">{currentStep.title}</span>
-        <span className="ml-auto text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          STEP {currentStepIndex + 1} OF {template.steps.length}
-        </span>
+      <div className="sticky top-0 z-40 bg-white border-b border-slate-100">
+        <div className="px-4 h-14 flex items-center">
+          <button onClick={goBack} className="p-2 -ml-2 text-slate-700">
+            <ArrowLeft size={22} />
+          </button>
+          <span className="ml-2 font-bold text-[17px] tracking-tight truncate">{currentStep.title}</span>
+          <span className="ml-auto shrink-0 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            STEP {currentStepIndex + 1} OF {template.steps.length}
+          </span>
+        </div>
+
+        {/* Numbered step progress. Completed steps are clickable to jump back. */}
+        <div className="px-4 pb-3 overflow-x-auto">
+          <div className="flex items-center gap-1 min-w-max">
+            {template.steps.map((step, idx) => {
+              const isDone = idx < currentStepIndex;
+              const isCurrent = idx === currentStepIndex;
+              return (
+                <React.Fragment key={step.stepNumber}>
+                  {idx > 0 && (
+                    <span className={`h-[2px] w-4 shrink-0 rounded-full ${isDone || isCurrent ? 'bg-[#0073E6]' : 'bg-slate-200'}`} />
+                  )}
+                  <button
+                    type="button"
+                    title={step.title}
+                    disabled={idx > currentStepIndex}
+                    onClick={() => goToStep(idx)}
+                    className={`w-6 h-6 shrink-0 rounded-full text-[10px] font-bold flex items-center justify-center border transition-all ${
+                      isCurrent
+                        ? 'bg-[#0073E6] text-white border-[#0073E6] ring-2 ring-blue-100'
+                        : isDone
+                          ? 'bg-blue-50 text-[#0073E6] border-[#0073E6] cursor-pointer hover:bg-blue-100'
+                          : 'bg-white text-slate-400 border-slate-200 cursor-not-allowed'
+                    }`}
+                  >
+                    {isDone ? <Check size={12} strokeWidth={3} /> : idx + 1}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-5 pt-6">
@@ -1584,7 +1858,7 @@ const DynamicFormEngine = () => {
               </div>
             )}
 
-            {currentStep?.title?.toLowerCase().includes('location') && (
+            {stepUsesLocationSelector(currentStep) && (
               <div className="mb-6 space-y-4">
                 <LocationSelector
                   value={{
@@ -1636,7 +1910,7 @@ const DynamicFormEngine = () => {
             {currentStep.fields
               .sort((a,b) => a.order - b.order)
               .filter(field => {
-                const isLocationField = currentStep?.title?.toLowerCase().includes('location') && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber', 'pincode'].includes(field.name.toLowerCase());
+                const isLocationField = stepUsesLocationSelector(currentStep) && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber'].includes(field.name.toLowerCase());
                 const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
                 const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
                 
@@ -1647,14 +1921,27 @@ const DynamicFormEngine = () => {
           </motion.div>
         </AnimatePresence>
 
-        {/* Next Button */}
+        {/* Back / Next */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 z-30 md:relative md:border-0 md:p-0 md:mt-10">
-          <button
-            onClick={handleNext}
-            className="w-full bg-[#005B9F] text-white font-bold py-3.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-[15px]"
-          >
-            {currentStepIndex === template.steps.length - 1 ? 'Post & continue' : 'Continue'}
-          </button>
+          <div className="flex gap-3 max-w-2xl mx-auto">
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={loading}
+              className="px-6 py-3.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-[15px] hover:bg-slate-50 active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={loading}
+              className="flex-1 bg-[#005B9F] text-white font-bold py-3.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-[15px] disabled:opacity-60"
+            >
+              {loading && <Loader2 className="animate-spin" size={16} />}
+              {currentStepIndex === template.steps.length - 1 ? 'Submit for Approval' : 'Next'}
+            </button>
+          </div>
         </div>
       </div>
 

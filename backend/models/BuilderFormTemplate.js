@@ -28,6 +28,9 @@ const stepSchema = new mongoose.Schema({
   stepNumber: { type: Number, required: true },
   title: { type: String, required: true },
   description: String,
+  // Renders the country/state/district/city selector + address block for this step.
+  // Explicit flag so steps like "Location Advantages" don't match on title alone.
+  showLocationSelector: { type: Boolean, default: false },
   fields: [stepFieldSchema]
 }, { _id: false });
 
@@ -36,6 +39,9 @@ const builderFormTemplateSchema = new mongoose.Schema({
   category: { type: String, required: true },
   propertyType: { type: String, required: true },
   steps: [stepSchema],
+  // Bumped whenever the seeded step definitions change, so ensureSeeded() can
+  // re-seed stale templates instead of only seeding an empty collection.
+  version: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 

@@ -1,4 +1,5 @@
 import LocalityInsight from '../models/LocalityInsight.js';
+import { safeRegex } from '../utils/escapeRegex.js';
 
 // @desc    Create or Update Locality Insight (Admin)
 // @route   POST /api/admin/insights
@@ -12,7 +13,7 @@ export const saveInsight = async (req, res) => {
         }
 
         // Check if insight already exists
-        let insight = await LocalityInsight.findOne({ locality: { $regex: new RegExp(`^${locality}$`, 'i') }, city: { $regex: new RegExp(`^${city}$`, 'i') } });
+        let insight = await LocalityInsight.findOne({ locality: { $regex: safeRegex(locality, { exact: true }) }, city: { $regex: safeRegex(city, { exact: true }) } });
 
         if (insight) {
             // Update existing

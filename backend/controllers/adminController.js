@@ -10,6 +10,7 @@ import RoomType from '../models/RoomType.js';
 import Booking from '../models/Booking.js';
 import PropertyDocument from '../models/PropertyDocument.js';
 import Review from '../models/Review.js';
+import { safeRegex } from '../utils/escapeRegex.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
 import Notification from '../models/Notification.js';
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
@@ -589,7 +590,7 @@ export const getAllBookings = async (req, res) => {
     }
 
     if (search) {
-      const searchRegex = new RegExp(search, 'i');
+      const searchRegex = safeRegex(search);
 
       // 1. Find matching Users
       const users = await User.find({
@@ -1669,7 +1670,7 @@ export const getAllEnquiries = async (req, res) => {
     }
 
     if (search) {
-      const searchRegex = new RegExp(search, 'i');
+      const searchRegex = safeRegex(search);
 
       const users = await User.find({
         $or: [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }]

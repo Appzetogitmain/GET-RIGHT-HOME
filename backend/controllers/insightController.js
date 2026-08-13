@@ -1,6 +1,7 @@
 import LocalityInsight from '../models/LocalityInsight.js';
 import Property from '../models/Property.js';
 import User from '../models/User.js';
+import { safeRegex } from '../utils/escapeRegex.js';
 
 // @desc    Get recommended insights (filtered by city and transactionType)
 // @route   GET /api/public/insights
@@ -11,7 +12,7 @@ export const getInsights = async (req, res) => {
         let query = {};
 
         if (city) {
-            query.city = { $regex: new RegExp(city, 'i') };
+            query.city = { $regex: safeRegex(city) };
         }
 
         if (transactionType) {
@@ -63,7 +64,7 @@ export const getLocalityDetail = async (req, res) => {
         const { locality } = req.params;
         
         // 1. Fetch Curated Data
-        const insight = await LocalityInsight.findOne({ locality: { $regex: new RegExp(`^${locality}$`, 'i') } });
+        const insight = await LocalityInsight.findOne({ locality: { $regex: safeRegex(locality, { exact: true }) } });
         
         // 2. Automated Property Aggregations
         // Strict regex to exactly match the locality name and prevent partial matches (e.g. 'Indore' matching 'AB Road Indore')
@@ -159,7 +160,7 @@ export const getLocalityDetail = async (req, res) => {
         if (cleanLocalBuilders.length > 0) {
             builderMatch = { 'buyDetails.builderName': { $in: cleanLocalBuilders }, status: 'approved' };
         } else if (currentCity) {
-            builderMatch = { 'address.city': new RegExp(`^${currentCity}$`, 'i'), status: 'approved', 'buyDetails.builderName': { $ne: null, $nin: ["", " "] } };
+            builderMatch = { 'address.city': safeRegex(currentCity, { exact: true }), status: 'approved', 'buyDetails.builderName': { $ne: null, $nin: ["", " "] } };
         } else {
             builderMatch = { status: 'approved', 'buyDetails.builderName': { $ne: null, $nin: ["", " "] } };
         }
@@ -187,7 +188,7 @@ export const getLocalityDetail = async (req, res) => {
         let similarLocalities = [];
         
         if (currentCity) {
-            const cityRegex = new RegExp(`^${currentCity}$`, 'i');
+            const cityRegex = safeRegex(currentCity, { exact: true });
             const similarAgg = await Property.aggregate([
                 { $match: { 'address.city': cityRegex, 'address.area': { $not: regexLocality }, status: 'approved' } },
                 { $group: { _id: "$address.area", count: { $sum: 1 }, avgPrice: { $avg: "$price" } } },
@@ -332,7 +333,7 @@ export const submitLocalityReview = async (req, res) => {
         const { default: LocalityReview } = await import('../models/LocalityReview.js');
 
         // Check if already reviewed
-        const existingReview = await LocalityReview.findOne({ userId: req.user._id, localityName: { $regex: new RegExp(`^${locality}$`, 'i') } });
+        const existingReview = await LocalityReview.findOne({ userId: req.user._id, localityName: { $regex: safeRegex(locality, { exact: true }) } });
         if (existingReview) {
             return res.status(400).json({ success: false, message: "You have already reviewed this locality." });
         }
@@ -368,7 +369,7 @@ export const getDemandInCity = async (req, res) => {
             return res.status(400).json({ success: false, message: 'City is required' });
         }
 
-        const cityRegex = new RegExp(`^${city}$`, 'i');
+        const cityRegex = safeRegex(city, { exact: true });
 
         const demandPipeline = [
             {

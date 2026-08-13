@@ -6,6 +6,7 @@ import User from '../models/User.js';
 import mongoose from 'mongoose';
 import fs from 'fs';
 import { uploadVideoToCloudinary, getVideoThumbnailUrl, deleteVideoFromCloudinary } from '../utils/cloudinary.js';
+import { safeRegex } from '../utils/escapeRegex.js';
 
 const MAX_REEL_DURATION_SEC = 30;
 const MAX_CAPTION_LENGTH = 500;
@@ -128,18 +129,18 @@ export const getFeed = async (req, res) => {
     let query = {};
     if (cursor) query._id = { $lt: new mongoose.Types.ObjectId(cursor) };
     if (category && category !== 'All') query.category = category;
-    if (city && city !== 'All') query.city = new RegExp(city, 'i');
+    if (city && city !== 'All') query.city = safeRegex(city);
     if (budgetRange && budgetRange !== 'All') query.budgetRange = budgetRange;
-    if (propertyType && propertyType !== 'All') query.propertyType = new RegExp(propertyType, 'i');
+    if (propertyType && propertyType !== 'All') query.propertyType = safeRegex(propertyType);
     if (status && status !== 'All') query.status = status;
     if (creatorOnly === 'true' && req.user) {
       query.user = req.user._id;
     }
     if (search) {
       query.$or = [
-        { title: new RegExp(search, 'i') },
-        { address: new RegExp(search, 'i') },
-        { city: new RegExp(search, 'i') },
+        { title: safeRegex(search) },
+        { address: safeRegex(search) },
+        { city: safeRegex(search) },
       ];
     }
 

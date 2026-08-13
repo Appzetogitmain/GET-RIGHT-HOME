@@ -12,6 +12,37 @@ import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 import Booking from '../models/Booking.js';
 import Enquiry from '../models/Enquiry.js';
+import { mapBuilderProjectFields, generateUniqueSlug } from '../utils/builderProjectMapper.js';
+import { escapeRegex, safeRegex } from '../utils/escapeRegex.js';
+
+/**
+ * Promotes the 15-step builder wizard's dynamicData onto queryable Property
+ * fields (unit pricing, construction status, SEO, documents, ...) and assigns
+ * a unique SEO slug. Mutates `doc` in place; caller is responsible for saving.
+ */
+const applyBuilderProjectFields = async (doc, dynamicData) => {
+  if (!dynamicData) return;
+
+  const mapped = mapBuilderProjectFields(dynamicData);
+  Object.entries(mapped).forEach(([key, value]) => {
+    doc[key] = value;
+  });
+
+  const desiredSlug = typeof dynamicData.get === 'function'
+    ? dynamicData.get('seoSlug')
+    : dynamicData.seoSlug;
+
+  // Keep an existing slug stable so published URLs don't break on edit
+  if (!doc.slug || desiredSlug) {
+    const slug = await generateUniqueSlug(
+      Property,
+      desiredSlug,
+      [doc.propertyName, doc.address?.area, doc.address?.city],
+      doc._id
+    );
+    if (slug) doc.slug = slug;
+  }
+};
 
 const notifyAdminOfNewProperty = async (property) => {
   try {
@@ -30,7 +61,7 @@ export const getPublicBuilders = async (req, res) => {
     
     if (locality) {
       // Aggregate builders based on properties in this locality
-      const regexLocality = new RegExp(`^${locality}$`, 'i');
+      const regexLocality = safeRegex(locality, { exact: true });
       const sellerAggregation = await Property.aggregate([
           { $match: { 'address.area': regexLocality, status: 'Active', userId: { $exists: true } } },
           { $group: { _id: "$userId", propertyCount: { $sum: 1 } } },
@@ -323,6 +354,7 @@ export const createProperty = async (req, res) => {
     });
 
     await syncBuilderProjectDetails(doc._id, doc.dynamicData);
+    await applyBuilderProjectFields(doc, dynamicData);
     await doc.save();
 
     // Inline RoomTypes if provided
@@ -518,6 +550,7 @@ export const updateProperty = async (req, res) => {
     }
 
     await syncBuilderProjectDetails(property._id, property.dynamicData);
+    await applyBuilderProjectFields(property, property.dynamicData);
     await property.save();
 
     // documents update if provided
@@ -1005,7 +1038,7 @@ export const getPublicProperties = async (req, res) => {
     }
 
     if (search) {
-      const regex = new RegExp(search, 'i');
+      const regex = safeRegex(search);
       const searchOr = [
         { propertyName: regex },
         { "address.city": regex },
@@ -1138,7 +1171,7 @@ export const getPublicProperties = async (req, res) => {
         if (g.toLowerCase() === 'co-ed') expandedGenders.push('unisex');
         if (g.toLowerCase() === 'unisex') expandedGenders.push('co-ed');
       });
-      const genderList = expandedGenders.map(g => new RegExp(`^${g}$`, 'i'));
+      const genderList = expandedGenders.map(g => safeRegex(g, { exact: true }));
       // Check both pgType (old) and pgDetails.gender (new)
       const genderMatch = {
         $or: [
@@ -1160,11 +1193,11 @@ export const getPublicProperties = async (req, res) => {
       }
     }
     if (occupancy) {
-      const occList = occupancy.split(',').map(o => new RegExp(`^${o.trim()}$`, 'i'));
+      const occList = occupancy.split(',').map(o => safeRegex(o.trim(), { exact: true }));
       matchConditions['pgDetails.occupancy'] = { $in: occList };
     }
     if (landType) {
-      const landList = landType.split(',').map(l => new RegExp(`^${l.trim()}$`, 'i'));
+      const landList = landType.split(',').map(l => safeRegex(l.trim(), { exact: true }));
       matchConditions['plotDetails.landType'] = { $in: landList };
     }
 
@@ -2160,7 +2193,7 @@ export const getAdminPropertiesByLocation = async (req, res) => {
     };
 
     if (city && city.toLowerCase() !== 'all' && city.toLowerCase() !== 'any') {
-      const cityRegex = new RegExp(city, 'i');
+      const cityRegex = safeRegex(city);
       query.$or = [
         { 'address.city': cityRegex },
         { 'address.district': cityRegex },
@@ -2169,7 +2202,7 @@ export const getAdminPropertiesByLocation = async (req, res) => {
       ];
     }
     if (state) {
-      query['address.state'] = { $regex: new RegExp(state, 'i') };
+      query['address.state'] = { $regex: safeRegex(state) };
     }
 
     const [projectModelList, propertyModelList] = await Promise.all([

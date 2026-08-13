@@ -3,6 +3,7 @@ import Property from '../models/Property.js';
 import Partner from '../models/Partner.js';
 import User from '../models/User.js';
 import RoomType from '../models/RoomType.js';
+import { safeRegex } from '../utils/escapeRegex.js';
 
 // Helper to attach starting price to a populated property doc
 const attachPropertyStartingPrice = async (property) => {
@@ -366,7 +367,7 @@ export const adminGetAllEnquiries = async (req, res) => {
         if (category || ownerBroker) {
             const propertyQuery = {};
             if (category) {
-                propertyQuery.propertyType = new RegExp(category, 'i');
+                propertyQuery.propertyType = safeRegex(category);
             }
             if (ownerBroker) {
                 if (ownerBroker === 'owner') {
@@ -396,7 +397,7 @@ export const adminGetAllEnquiries = async (req, res) => {
         }
 
         if (search) {
-            const searchRegex = new RegExp(search, 'i');
+            const searchRegex = safeRegex(search);
             // We need to search by user name/email/phone or property name
             // Fetch matching users and properties first
             const User = (await import('../models/User.js')).default;
