@@ -4,8 +4,7 @@ import { X, Search, History } from 'lucide-react';
 import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import { setPreferredCity } from '../../utils/locationPreference';
 import { getRecentSearches } from '../../utils/recentActivity';
-
-const libraries = ['places'];
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 
 /**
  * The "Explore real estate in..." picker opened from the top nav's location
@@ -21,9 +20,9 @@ const CityExploreModal = ({ isOpen, onClose }) => {
     const [recentSearches, setRecentSearches] = useState([]);
 
     const { isLoaded } = useJsApiLoader({
-        id: 'google-map-script',
-        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAP_API_KEY,
-        libraries
+        id: GOOGLE_MAPS_SCRIPT_ID,
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+        libraries: GOOGLE_MAPS_LIBRARIES
     });
 
     useEffect(() => {

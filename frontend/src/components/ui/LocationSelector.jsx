@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, Search, Pencil, X } from 'lucide-react';
 import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 
 /**
  * LocationSelector — property location input
@@ -20,8 +21,6 @@ import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
  *   onChange({ country, state, district, city })
  */
 
-const libraries = ['places'];
-
 const getComponent = (components, type) =>
   components?.find((c) => c.types.includes(type))?.long_name || '';
 
@@ -33,9 +32,9 @@ const LocationSelector = ({ value = {}, onChange, required = false, className = 
   const [isEditing, setIsEditing] = useState(!(value?.city || value?.state));
 
   const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAP_API_KEY,
-    libraries
+    id: GOOGLE_MAPS_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   const handlePlaceChanged = () => {

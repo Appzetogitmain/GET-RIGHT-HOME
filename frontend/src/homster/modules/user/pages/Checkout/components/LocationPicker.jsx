@@ -3,8 +3,7 @@ import { GoogleMap, useJsApiLoader, Marker, Autocomplete } from '@react-google-m
 import { FiCrosshair } from 'react-icons/fi';
 import flutterBridge from '../../../../../utils/flutterBridge';
 import { toast } from 'react-hot-toast';
-
-const libraries = ['places', 'geometry'];
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../../../../../config/googleMaps';
 
 const mapContainerStyle = {
   width: '100%',
@@ -24,9 +23,9 @@ const LocationPicker = forwardRef(({ onLocationSelect, initialPosition = null },
   const loadingRef = React.useRef(false);
 
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries
+    id: GOOGLE_MAPS_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   // Update marker when initialPosition changes (from external selection)

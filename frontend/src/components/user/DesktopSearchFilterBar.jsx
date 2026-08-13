@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, MapPin, Mic, ChevronDown, Check } from 'lucide-react';
 import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import { addRecentSearch } from '../../utils/recentActivity';
-
-const placesLibraries = ['places'];
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 
 const TABS = [
     { key: 'buy', label: 'Buy' },
@@ -130,9 +129,9 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
     const [autocomplete, setAutocomplete] = useState(null);
 
     const { isLoaded: placesLoaded } = useJsApiLoader({
-        id: 'google-map-script',
-        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAP_API_KEY,
-        libraries: placesLibraries
+        id: GOOGLE_MAPS_SCRIPT_ID,
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+        libraries: GOOGLE_MAPS_LIBRARIES
     });
 
     // Close any open dropdown on outside click

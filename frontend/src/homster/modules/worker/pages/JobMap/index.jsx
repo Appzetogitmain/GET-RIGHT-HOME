@@ -9,8 +9,8 @@ import { toast } from 'react-hot-toast';
 import workerService from '../../../../services/workerService';
 import VisitVerificationModal from '../../components/common/VisitVerificationModal';
 import useAppNotifications from '../../../../hooks/useAppNotifications';
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../../../../config/googleMaps';
 
-const libraries = ['places', 'geometry'];
 const SHOW_SIMULATION_BUTTON = false; // Set to true for debugging
 
 const JobMap = () => {
@@ -46,13 +46,12 @@ const JobMap = () => {
     };
   }, []);
 
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID;
 
   const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: apiKey,
-    libraries
+    id: GOOGLE_MAPS_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   const mapRef = useRef(null);

@@ -12,6 +12,7 @@ import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import PaymentVerificationModal from '../../components/booking/PaymentVerificationModal';
 import WorkerArrivalModal from '../../components/booking/WorkerArrivalModal';
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../../../../config/googleMaps';
 
 
 const toAssetUrl = (url) => {
@@ -44,7 +45,6 @@ const mapStyles = [
 ];
 
 const defaultCenter = { lat: 20.5937, lng: 78.9629 };
-const libraries = ['places', 'geometry'];
 
 const BookingTrack = () => {
   const { id } = useParams();
@@ -65,8 +65,6 @@ const BookingTrack = () => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showArrivalModal, setShowArrivalModal] = useState(false);
-
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   const handleOnlinePayment = async () => {
     if (paying) return;
@@ -241,9 +239,9 @@ const BookingTrack = () => {
   }, [id, coords]);
 
   const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: apiKey,
-    libraries
+    id: GOOGLE_MAPS_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   // Initial Load and Polling
