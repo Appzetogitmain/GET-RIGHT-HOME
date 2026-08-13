@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { goBackOrHome } from '../../utils/navigation';
+import { addRecentlyViewed } from '../../utils/recentActivity';
 import {
   ChevronUp,
   MapPin, Star, Share2, Heart, ArrowLeft, Loader2, ChevronLeft, ChevronRight,
@@ -24,25 +25,25 @@ import SupportSection from '../../components/user/SupportSection';
 import { downloadBrochurePDF } from '../../utils/brochurePdfGenerator';
 
 const getAmenityIcon = (name) => {
-  if (!name || typeof name !== 'string') return <Sparkles className="w-4 h-4 text-blue-500" />;
+  if (!name || typeof name !== 'string') return <Sparkles className="w-4 h-4 text-slate-500" />;
   const str = name.toLowerCase();
-  if (str.includes('pool') || str.includes('swimming')) return <Waves className="w-4 h-4 text-cyan-500" />;
-  if (str.includes('gym') || str.includes('fitness') || str.includes('workout')) return <Dumbbell className="w-4 h-4 text-emerald-500" />;
-  if (str.includes('club') || str.includes('house')) return <Building className="w-4 h-4 text-indigo-500" />;
-  if (str.includes('park') || str.includes('garden') || str.includes('landscape') || str.includes('tree')) return <Leaf className="w-4 h-4 text-emerald-600" />;
-  if (str.includes('ev') || str.includes('charging') || str.includes('electric')) return <Zap className="w-4 h-4 text-amber-500" />;
-  if (str.includes('security') || str.includes('cctv') || str.includes('biometric') || str.includes('guard')) return <ShieldCheck className="w-4 h-4 text-purple-500" />;
-  if (str.includes('jog') || str.includes('track') || str.includes('walk')) return <Activity className="w-4 h-4 text-rose-500" />;
-  if (str.includes('theatre') || str.includes('cinema') || str.includes('movie')) return <Film className="w-4 h-4 text-red-500" />;
-  if (str.includes('play') || str.includes('kid') || str.includes('child')) return <Smile className="w-4 h-4 text-orange-500" />;
-  if (str.includes('car') || str.includes('park') || str.includes('garage')) return <Car className="w-4 h-4 text-blue-600" />;
-  if (str.includes('water') || str.includes('supply')) return <Droplets className="w-4 h-4 text-cyan-600" />;
-  if (str.includes('power') || str.includes('backup') || str.includes('generator')) return <Flame className="w-4 h-4 text-amber-600" />;
-  if (str.includes('wifi') || str.includes('internet')) return <Wifi className="w-4 h-4 text-blue-500" />;
-  if (str.includes('cafe') || str.includes('coffee') || str.includes('lounge')) return <Coffee className="w-4 h-4 text-amber-700" />;
-  if (str.includes('court') || str.includes('squash') || str.includes('tennis') || str.includes('badminton') || str.includes('game')) return <Activity className="w-4 h-4 text-indigo-600" />;
+  if (str.includes('pool') || str.includes('swimming')) return <Waves className="w-4 h-4 text-slate-500" />;
+  if (str.includes('gym') || str.includes('fitness') || str.includes('workout')) return <Dumbbell className="w-4 h-4 text-slate-500" />;
+  if (str.includes('club') || str.includes('house')) return <Building className="w-4 h-4 text-slate-500" />;
+  if (str.includes('park') || str.includes('garden') || str.includes('landscape') || str.includes('tree')) return <Leaf className="w-4 h-4 text-slate-600" />;
+  if (str.includes('ev') || str.includes('charging') || str.includes('electric')) return <Zap className="w-4 h-4 text-slate-500" />;
+  if (str.includes('security') || str.includes('cctv') || str.includes('biometric') || str.includes('guard')) return <ShieldCheck className="w-4 h-4 text-slate-500" />;
+  if (str.includes('jog') || str.includes('track') || str.includes('walk')) return <Activity className="w-4 h-4 text-slate-500" />;
+  if (str.includes('theatre') || str.includes('cinema') || str.includes('movie')) return <Film className="w-4 h-4 text-slate-500" />;
+  if (str.includes('play') || str.includes('kid') || str.includes('child')) return <Smile className="w-4 h-4 text-slate-500" />;
+  if (str.includes('car') || str.includes('park') || str.includes('garage')) return <Car className="w-4 h-4 text-slate-600" />;
+  if (str.includes('water') || str.includes('supply')) return <Droplets className="w-4 h-4 text-slate-600" />;
+  if (str.includes('power') || str.includes('backup') || str.includes('generator')) return <Flame className="w-4 h-4 text-slate-600" />;
+  if (str.includes('wifi') || str.includes('internet')) return <Wifi className="w-4 h-4 text-slate-500" />;
+  if (str.includes('cafe') || str.includes('coffee') || str.includes('lounge')) return <Coffee className="w-4 h-4 text-slate-700" />;
+  if (str.includes('court') || str.includes('squash') || str.includes('tennis') || str.includes('badminton') || str.includes('game')) return <Activity className="w-4 h-4 text-slate-600" />;
   if (str.includes('hall') || str.includes('multipurpose')) return <Home className="w-4 h-4 text-slate-700" />;
-  return <Sparkles className="w-4 h-4 text-blue-500" />;
+  return <Sparkles className="w-4 h-4 text-slate-500" />;
 };
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='24' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
@@ -233,6 +234,14 @@ const HandpickedDetailsPage = () => {
       const res = await propertyService.getDetails(id);
       if (res && res.property) {
         setProperty(res.property);
+
+        addRecentlyViewed({
+          id: res.property._id,
+          name: res.property.propertyName || 'Untitled Property',
+          image: res.property.coverImage || res.property.propertyImages?.[0] || '',
+          city: res.property.address?.city || '',
+          url: `/project/${res.property._id}`
+        });
 
         // Fetch locality details based on property address
         const localityString = res.property.address?.locality || res.property.address?.area || res.property.address?.city || '';
@@ -818,7 +827,7 @@ const HandpickedDetailsPage = () => {
           <div className="flex items-center space-x-2 shrink-0">
             <button
               onClick={handleSaveToggle}
-              className={`p-2 md:p-3 bg-white rounded-full transition-all shadow-md ${isSaved ? 'text-rose-500' : 'text-slate-700'
+              className={`p-2 md:p-3 bg-white rounded-full transition-all shadow-md ${isSaved ? 'text-slate-500' : 'text-slate-700'
                 }`}
             >
               <Heart className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-current' : ''}`} />
@@ -851,7 +860,7 @@ const HandpickedDetailsPage = () => {
 
         {/* Thumbnail Tagged Preview Row (Matches Image 3) */}
         {(pImages.length > 0 || rawVideoUrl) && (
-          <div ref={thumbnailContainerRef} className="absolute bottom-6 left-0 right-0 px-4 flex gap-2.5 overflow-x-auto hide-scrollbar z-20 scroll-smooth">
+          <div ref={thumbnailContainerRef} className="absolute bottom-10 left-0 right-0 px-4 flex gap-2.5 overflow-x-auto hide-scrollbar z-20 scroll-smooth">
             {pImages.map((imgUrl, idx) => {
               const tagsObj = property?.propertyImages_tags || property?.dynamicData?.propertyImages_tags || property?.imageTags || {};
               let tagLabel = tagsObj[idx] || tagsObj[String(idx)];
@@ -872,12 +881,12 @@ const HandpickedDetailsPage = () => {
                   onClick={() => setCurrentImgIndex(idx)}
                   className={`relative flex-shrink-0 w-24 h-16 rounded-xl overflow-hidden cursor-pointer border-2 transition-all duration-300 shadow-lg group ${
                     isSelected
-                      ? 'border-blue-500 ring-4 ring-blue-500/50 scale-105 opacity-100 z-10'
+                      ? 'border-orange-500 ring-2 ring-inset ring-orange-500/70 opacity-100 z-10'
                       : 'border-white/40 hover:border-white opacity-70 hover:opacity-100'
                   }`}
                 >
                   <img src={imgUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={tagLabel} />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${isSelected ? 'from-blue-900/90 via-black/30' : 'from-black/80 via-black/20'} to-transparent`} />
+                  <div className={`absolute inset-0 bg-gradient-to-t ${isSelected ? 'from-orange-900/90 via-black/30' : 'from-black/80 via-black/20'} to-transparent`} />
                   
                   <div className="absolute bottom-1 left-1 right-1 text-center">
                     <span className={`text-[10px] font-extrabold leading-none drop-shadow-md truncate block ${isSelected ? 'text-white font-black' : 'text-slate-200'}`}>
@@ -899,17 +908,17 @@ const HandpickedDetailsPage = () => {
                       videoSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                   }}
-                  className="relative flex-shrink-0 w-24 h-16 rounded-xl overflow-hidden cursor-pointer border-2 border-blue-400 bg-slate-900 shadow-lg group hover:border-white transition-all duration-300"
+                  className="relative flex-shrink-0 w-24 h-16 rounded-xl overflow-hidden cursor-pointer border-2 border-slate-400 bg-slate-900 shadow-lg group hover:border-white transition-all duration-300"
                 >
                   {vYtId ? (
                     <img src={`https://img.youtube.com/vi/${vYtId}/hqdefault.jpg`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={`Video ${vIdx + 1}`} />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-900 to-slate-900 flex items-center justify-center">
+                    <div className="w-full h-full bg-gradient-to-br from-orange-900 to-slate-900 flex items-center justify-center">
                       <Video className="w-6 h-6 text-white" />
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <div className="w-7 h-7 bg-red-600 rounded-full flex items-center justify-center shadow-md">
+                    <div className="w-7 h-7 bg-orange-600 rounded-full flex items-center justify-center shadow-md">
                       <div className="w-0 h-0 border-t-4 border-t-transparent border-b-4 border-b-transparent border-l-6 border-l-white ml-0.5" />
                     </div>
                   </div>
@@ -929,7 +938,7 @@ const HandpickedDetailsPage = () => {
       </section>
 
       {/* The Rounded Overlay White Sheet */}
-      <div className="bg-white rounded-t-[32px] md:rounded-t-[40px] relative -mt-6 z-30 pt-6 pb-2 w-full border-t border-slate-100 shadow-[0_-8px_30px_rgba(0,0,0,0.12)]">
+      <div className="bg-white rounded-t-[32px] md:rounded-t-[40px] relative -mt-4 z-30 pt-6 pb-2 w-full border-t border-slate-100 shadow-[0_-8px_30px_rgba(0,0,0,0.12)]">
         <div className="max-w-7xl mx-auto px-5 md:px-8">
 
           {/* Header Area (99acres style) */}
@@ -982,7 +991,7 @@ const HandpickedDetailsPage = () => {
                 onClick={() => setShowUpdates(!showUpdates)}
                 className="flex items-center gap-1.5 text-xs text-slate-600 font-medium ml-auto p-1 hover:bg-slate-50 rounded"
               >
-                <span className={`w-2 h-2 rounded-full ${String(builderDetails.possessionStatus || property?.dynamicData?.projectStatus).toLowerCase().includes('ready') ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                <span className={`w-2 h-2 rounded-full ${String(builderDetails.possessionStatus || property?.dynamicData?.projectStatus).toLowerCase().includes('ready') ? 'bg-orange-500' : 'bg-orange-500'}`}></span>
                 Updates {showUpdates ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
               </button>
             </div>
@@ -1048,7 +1057,7 @@ const HandpickedDetailsPage = () => {
               className="w-1/2 flex flex-col items-center justify-center hover:bg-slate-50 transition-colors"
             >
               <div className="flex items-center gap-1.5 text-sm md:text-base font-bold text-slate-900">
-                <MapPin className="w-4 h-4 text-blue-600 fill-blue-600" /> Map
+                <MapPin className="w-4 h-4 text-slate-600 fill-slate-600" /> Map
               </div>
               <span className="text-[11px] md:text-xs text-slate-500 mt-1">View Location</span>
             </button>
@@ -1068,7 +1077,7 @@ const HandpickedDetailsPage = () => {
               <div className="flex justify-center mb-1"><Grid className="w-5 h-5" /></div>
               <span className="text-sm font-bold">Overview</span>
               {activeTab === 'overview' && (
-                <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-blue-500 rounded-t-md" />
+                <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-orange-500 rounded-t-md" />
               )}
             </button>
             <button
@@ -1079,7 +1088,7 @@ const HandpickedDetailsPage = () => {
               <div className="flex justify-center mb-1"><Home className="w-5 h-5" /></div>
               <span className="text-sm font-bold">Properties</span>
               {activeTab === 'properties' && (
-                <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-blue-500 rounded-t-md" />
+                <motion.div layoutId="main-tab-line" className="absolute bottom-0 left-0 right-0 h-[3px] bg-orange-500 rounded-t-md" />
               )}
             </button>
           </div>
@@ -1098,38 +1107,38 @@ const HandpickedDetailsPage = () => {
                 
                 {/* Official Project Brochure Card */}
                 {projectBrochureUrl && (
-                  <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
+                  <div className="bg-gradient-to-r from-orange-600 via-orange-600 to-orange-700 text-white rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/20">
                         <FileText size={22} className="text-white" />
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-extrabold text-sm sm:text-base tracking-tight text-white leading-snug">Official Project Brochure</h4>
-                        <p className="text-[11px] sm:text-xs text-blue-100 mt-0.5 font-medium leading-relaxed">
+                        <p className="text-[11px] sm:text-xs text-slate-100 mt-0.5 font-medium leading-relaxed">
                           Floor plans, price sheets & specifications PDF
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={handleBrochureDownload}
-                      className="w-full sm:w-auto py-2.5 px-5 bg-white text-blue-700 hover:bg-blue-50 font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95"
+                      className="w-full sm:w-auto py-2.5 px-5 bg-white text-slate-700 hover:bg-slate-50 font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95"
                     >
-                      <Download size={15} className="text-blue-600" /> Download PDF
+                      <Download size={15} className="text-slate-600" /> Download PDF
                     </button>
                   </div>
                 )}
 
                 <div>
                   <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Building className="w-5 h-5 text-blue-500" /> Project Architectural Highlights
+                    <Building className="w-5 h-5 text-slate-500" /> Project Architectural Highlights
                   </h2>
                   <p className="text-slate-500 text-xs sm:text-sm mt-1">High-end specifications curated by Get-Right-home analysts</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 hover:border-blue-300/60 transition-all space-y-1 shadow-sm">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 hover:border-slate-300/60 transition-all space-y-1 shadow-sm">
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg shrink-0">
+                      <div className="p-1.5 bg-slate-100 text-slate-600 rounded-lg shrink-0">
                         <Layers className="w-4 h-4" />
                       </div>
                       <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Density Configuration</span>
@@ -1137,14 +1146,14 @@ const HandpickedDetailsPage = () => {
                     <span className="text-sm sm:text-base font-extrabold text-slate-900 block pt-1 leading-snug">
                       {densityType || "Master Planned Layout"}
                     </span>
-                    <span className="text-[11px] font-bold text-blue-600 block pt-0.5">
+                    <span className="text-[11px] font-bold text-slate-600 block pt-0.5">
                       {projectDensity || "Low Density Development"}
                     </span>
                   </div>
 
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 hover:border-blue-300/60 transition-all space-y-1 shadow-sm">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 hover:border-slate-300/60 transition-all space-y-1 shadow-sm">
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg shrink-0">
+                      <div className="p-1.5 bg-slate-100 text-slate-600 rounded-lg shrink-0">
                         <Leaf className="w-4 h-4" />
                       </div>
                       <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Area Spread</span>
@@ -1152,14 +1161,14 @@ const HandpickedDetailsPage = () => {
                     <span className="text-sm sm:text-base font-extrabold text-slate-900 block pt-1 leading-snug">
                       {totalArea ? `${totalArea} ${totalAreaUnit}` : 'Spread Across Acres'}
                     </span>
-                    <span className="text-[11px] font-bold text-emerald-600 block pt-0.5">
+                    <span className="text-[11px] font-bold text-slate-600 block pt-0.5">
                       {openAreaPercentage > 0 ? `${openAreaPercentage}% Land Open & Green` : 'Green Landscaped Layout'}
                     </span>
                   </div>
 
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 hover:border-blue-300/60 transition-all space-y-1 shadow-sm sm:col-span-2 md:col-span-1">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 hover:border-slate-300/60 transition-all space-y-1 shadow-sm sm:col-span-2 md:col-span-1">
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-purple-100 text-purple-600 rounded-lg shrink-0">
+                      <div className="p-1.5 bg-slate-100 text-slate-600 rounded-lg shrink-0">
                         <Building className="w-4 h-4" />
                       </div>
                       <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Towers & Height</span>
@@ -1167,7 +1176,7 @@ const HandpickedDetailsPage = () => {
                     <span className="text-sm sm:text-base font-extrabold text-slate-900 block pt-1 leading-snug">
                       {(totalTowers || towersList?.length || 0) > 0 ? `${(totalTowers || towersList?.length)} Structural Towers` : 'Multi-block Towers'}
                     </span>
-                    <span className="text-[11px] font-bold text-purple-600 block pt-0.5">
+                    <span className="text-[11px] font-bold text-slate-600 block pt-0.5">
                       {towersList[0]?.floors ? `Avg ${towersList[0].floors} Floors / Tower` : 'Multi-story Blocks'}
                     </span>
                   </div>
@@ -1178,7 +1187,7 @@ const HandpickedDetailsPage = () => {
                   <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {propertyHighlights.slice(0, 4).map((hl, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                        <CheckCircle2 className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
                         <span>{hl}</span>
                       </li>
                     ))}
@@ -1186,7 +1195,7 @@ const HandpickedDetailsPage = () => {
                   {propertyHighlights.length > 4 && (
                     <button
                       onClick={() => setShowAllHighlights(true)}
-                      className="text-blue-500 hover:text-blue-500 text-xs font-bold flex items-center gap-1 pt-2 transition-all"
+                      className="text-slate-500 hover:text-slate-500 text-xs font-bold flex items-center gap-1 pt-2 transition-all"
                     >
                       View all {propertyHighlights.length} highlights <ChevronDown className="w-3.5 h-3.5" />
                     </button>
@@ -1204,20 +1213,20 @@ const HandpickedDetailsPage = () => {
                         return (
                           <>
                             {desc}{' '}
-                            <span onClick={() => setShowFullDesc(false)} className="font-bold text-blue-600 underline cursor-pointer ml-1">less</span>
+                            <span onClick={() => setShowFullDesc(false)} className="font-bold text-slate-600 underline cursor-pointer ml-1">less</span>
                           </>
                         );
                       }
                       return (
                         <>
                           {desc.slice(0, 220)}...{' '}
-                          <span onClick={() => setShowFullDesc(true)} className="font-bold text-blue-600 underline cursor-pointer ml-1">more</span>
+                          <span onClick={() => setShowFullDesc(true)} className="font-bold text-slate-600 underline cursor-pointer ml-1">more</span>
                         </>
                       );
                     })()}
                   </p>
                   {property?.dynamicCategory && (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-100 rounded-full text-xs font-bold text-blue-700">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-xs font-bold text-slate-700">
                       <Tag className="w-3.5 h-3.5" />
                       <span>Categorized Premium Project</span>
                     </div>
@@ -1229,7 +1238,7 @@ const HandpickedDetailsPage = () => {
                   <div id="project-video-section" className="pt-4 border-t border-slate-200/80 space-y-4">
                     <div>
                       <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                        <Video className="w-5 h-5 text-blue-600" /> Official Project Walkthrough Video ({allVideoUrls.length})
+                        <Video className="w-5 h-5 text-slate-600" /> Official Project Walkthrough Video ({allVideoUrls.length})
                       </h3>
                       <p className="text-xs text-slate-500 mt-0.5">Experience virtual video tour & real site views</p>
                     </div>
@@ -1307,11 +1316,11 @@ const HandpickedDetailsPage = () => {
                   </div>
 
                   <div className="space-y-3 pt-4">
-                    <button onClick={() => setShowAllAmenities(true)} className="w-full py-3 rounded-full border border-slate-200 text-sm font-bold text-blue-600 flex items-center justify-center gap-1 hover:bg-slate-50 transition-colors">
+                    <button onClick={() => setShowAllAmenities(true)} className="w-full py-3 rounded-full border border-slate-200 text-sm font-bold text-slate-600 flex items-center justify-center gap-1 hover:bg-slate-50 transition-colors">
                       View all {property?.amenities?.length || 11} amenities <ChevronRight className="w-4 h-4" />
                     </button>
                     {projectBrochureUrl ? (
-                      <button onClick={handleBrochureDownload} className="w-full py-3 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-100 transition-colors cursor-pointer">
+                      <button onClick={handleBrochureDownload} className="w-full py-3 rounded-full border border-slate-200 bg-slate-50 text-slate-700 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-slate-100 transition-colors cursor-pointer">
                         <Download className="w-4 h-4" /> Download Official Brochure
                       </button>
                     ) : (
@@ -1328,20 +1337,20 @@ const HandpickedDetailsPage = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
-                      <LayoutTemplate className="w-6 h-6 text-blue-500" /> Floor Plans & Configurations
+                      <LayoutTemplate className="w-6 h-6 text-slate-500" /> Floor Plans & Configurations
                     </h2>
                     <p className="text-slate-500 text-sm mt-1">Configure layout preferences and review room sizing</p>
                   </div>
                   <div className="bg-slate-100/80 p-0.5 rounded-full border border-slate-300 flex">
                     <button
                       onClick={() => setSqftUnit(true)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${sqftUnit ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${sqftUnit ? 'bg-orange-600 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}
                     >
                       Sq. Ft.
                     </button>
                     <button
                       onClick={() => setSqftUnit(false)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${!sqftUnit ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${!sqftUnit ? 'bg-orange-600 text-white shadow' : 'text-slate-500 hover:text-slate-800'}`}
                     >
                       Sq. M.
                     </button>
@@ -1358,11 +1367,11 @@ const HandpickedDetailsPage = () => {
                       const isReady = String(plan.possessionStatus || '').toLowerCase().includes('ready');
 
                       return (
-                        <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs hover:border-blue-400 hover:shadow-md transition-all flex flex-col justify-between gap-4">
+                        <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs hover:border-slate-400 hover:shadow-md transition-all flex flex-col justify-between gap-4">
                           {/* Card Header: Single-line Title & Status Badge */}
                           <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 font-extrabold text-[10px] rounded-md uppercase tracking-wider shrink-0">
+                              <span className="px-2 py-0.5 bg-slate-50 text-slate-700 font-extrabold text-[10px] rounded-md uppercase tracking-wider shrink-0">
                                 {plan.planType || plan.type || (property?.propertyType ? `${property.propertyType}` : 'Plan')}
                               </span>
                               <h4 className="text-base sm:text-lg font-black text-slate-900 truncate">
@@ -1371,8 +1380,8 @@ const HandpickedDetailsPage = () => {
                             </div>
                             <span className={`text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap ${
                               isReady
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-amber-50 text-amber-700'
+                                ? 'bg-slate-50 text-slate-700'
+                                : 'bg-slate-50 text-slate-700'
                             }`}>
                               {plan.possessionStatus || (plan.possessionDate ? `Possession: ${plan.possessionDate}` : 'Available')}
                             </span>
@@ -1383,7 +1392,7 @@ const HandpickedDetailsPage = () => {
                             {/* 1. Carpet Area (Blue Accent) */}
                             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/80 space-y-1">
                               <div className="flex items-center gap-1.5">
-                                <div className="p-1 bg-blue-100 text-blue-600 rounded-md shrink-0">
+                                <div className="p-1 bg-slate-100 text-slate-600 rounded-md shrink-0">
                                   <Layers className="w-3 h-3" />
                                 </div>
                                 <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Carpet</span>
@@ -1394,31 +1403,31 @@ const HandpickedDetailsPage = () => {
                             {/* 2. Super Area (Emerald Accent) */}
                             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/80 space-y-1">
                               <div className="flex items-center gap-1.5">
-                                <div className="p-1 bg-emerald-100 text-emerald-600 rounded-md shrink-0">
+                                <div className="p-1 bg-slate-100 text-slate-600 rounded-md shrink-0">
                                   <Leaf className="w-3 h-3" />
                                 </div>
                                 <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Super Built</span>
                               </div>
                               <span className="text-xs sm:text-sm font-black text-slate-900 block truncate leading-none pt-0.5">{superStr}</span>
-                              <span className="text-[9px] font-bold text-emerald-600 block truncate leading-none">Green Built</span>
+                              <span className="text-[9px] font-bold text-slate-600 block truncate leading-none">Green Built</span>
                             </div>
 
                             {/* 3. Starting Price (Purple/Indigo Accent) */}
                             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/80 space-y-1">
                               <div className="flex items-center gap-1.5">
-                                <div className="p-1 bg-purple-100 text-purple-600 rounded-md shrink-0">
+                                <div className="p-1 bg-slate-100 text-slate-600 rounded-md shrink-0">
                                   <Tag className="w-3 h-3" />
                                 </div>
                                 <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Price</span>
                               </div>
-                              <span className="text-xs sm:text-sm font-black text-purple-600 block truncate leading-none pt-0.5">{priceStr}</span>
+                              <span className="text-xs sm:text-sm font-black text-slate-600 block truncate leading-none pt-0.5">{priceStr}</span>
                             </div>
                           </div>
 
                           {/* Single-line Action Button */}
                           <button
                             onClick={() => setSelectedFloorPlan(plan)}
-                            className="w-full py-2.5 bg-slate-50 hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-slate-200 hover:border-blue-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap active:scale-[0.99]"
+                            className="w-full py-2.5 bg-slate-50 hover:bg-slate-50 text-slate-600 hover:text-slate-700 border border-slate-200 hover:border-slate-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap active:scale-[0.99]"
                           >
                             <Maximize2 className="w-3.5 h-3.5" /> View Dimensions & Layout
                           </button>
@@ -1431,11 +1440,11 @@ const HandpickedDetailsPage = () => {
                 {isPlot && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {plotConfigsList.map((plot, i) => (
-                      <div key={i} className="bg-slate-100/40 border border-slate-300/50 rounded-2xl overflow-hidden hover:border-blue-500/50 transition-all flex flex-col justify-between">
+                      <div key={i} className="bg-slate-100/40 border border-slate-300/50 rounded-2xl overflow-hidden hover:border-slate-500/50 transition-all flex flex-col justify-between">
                         <div className="p-5 space-y-4">
                           <div className="flex justify-between items-start">
                             <div>
-                              <span className="px-2 py-0.5 bg-blue-900/40 text-purple-300 border border-blue-800/40 text-[10px] font-bold uppercase rounded tracking-wider">
+                              <span className="px-2 py-0.5 bg-orange-900/40 text-slate-300 border border-slate-800/40 text-[10px] font-bold uppercase rounded tracking-wider">
                                 PLOT LAYOUT
                               </span>
                               <h4 className="text-lg font-bold text-slate-900 mt-1">{plot.name}</h4>
@@ -1463,7 +1472,7 @@ const HandpickedDetailsPage = () => {
                             onClick={() => setSelectedFloorPlan({ configType: plot.name, carpetArea: plot.totalArea, price: plot.price, isPlot: true, facing: plot.facing, dimensions: plot.dimensions, boundaryWall: plot.boundaryWall })}
                             className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-bold text-slate-800 rounded-xl transition-all flex items-center justify-center gap-1.5"
                           >
-                            <Maximize2 className="w-3.5 h-3.5 text-blue-500" /> View Layout & Details
+                            <Maximize2 className="w-3.5 h-3.5 text-slate-500" /> View Layout & Details
                           </button>
                         </div>
                       </div>
@@ -1477,7 +1486,7 @@ const HandpickedDetailsPage = () => {
                 <div className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                   <div>
                     <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
-                      <FileText className="w-6 h-6 text-blue-500" /> Premium Payment Plans
+                      <FileText className="w-6 h-6 text-slate-500" /> Premium Payment Plans
                     </h2>
                     <p className="text-slate-500 text-sm mt-1">Review milestone schedules and subvention terms</p>
                   </div>
@@ -1489,13 +1498,13 @@ const HandpickedDetailsPage = () => {
                       const planTitle = plan.planName || plan.name || plan.title || 'Construction Linked Payment Plan';
 
                       return (
-                        <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-blue-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+                        <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-slate-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
-                              <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg shrink-0">
+                              <div className="p-1.5 bg-slate-100 text-slate-600 rounded-lg shrink-0">
                                 <Award className="w-4 h-4" />
                               </div>
-                              <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider">
+                              <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">
                                 Payment Schedule Option
                               </span>
                             </div>
@@ -1515,12 +1524,12 @@ const HandpickedDetailsPage = () => {
                                 rel="noopener noreferrer"
                                 className="flex-1 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-800 rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0"
                               >
-                                <FileText className="w-3.5 h-3.5 text-blue-600" /> View Document
+                                <FileText className="w-3.5 h-3.5 text-slate-600" /> View Document
                               </a>
                             )}
                             <button
                               onClick={() => setSelectedPaymentPlan({ ...plan, docUrl })}
-                              className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-1 shrink-0 cursor-pointer active:scale-[0.99]"
+                              className="flex-1 py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-slate-600/20 flex items-center justify-center gap-1 shrink-0 cursor-pointer active:scale-[0.99]"
                             >
                               {hasMilestones ? 'View Milestones' : 'View Plan Details'}
                             </button>
@@ -1536,7 +1545,7 @@ const HandpickedDetailsPage = () => {
               <div ref={sectionRefs['specs-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div>
                   <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Layers className="w-6 h-6 text-blue-500" /> Towers, Layout & Structural Details
+                    <Layers className="w-6 h-6 text-slate-500" /> Towers, Layout & Structural Details
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">Detailed block phases, structural floor counts, and specifications</p>
                 </div>
@@ -1546,10 +1555,10 @@ const HandpickedDetailsPage = () => {
                     {towersList && towersList.length > 0 ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {towersList.map((tower, idx) => (
-                          <div key={idx} className="bg-white border border-slate-200/90 rounded-2xl p-4.5 shadow-xs hover:border-blue-400 hover:shadow-md transition-all space-y-3">
+                          <div key={idx} className="bg-white border border-slate-200/90 rounded-2xl p-4.5 shadow-xs hover:border-slate-400 hover:shadow-md transition-all space-y-3">
                             <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
                               <div className="flex items-center gap-2 min-w-0">
-                                <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg shrink-0">
+                                <div className="p-1.5 bg-slate-100 text-slate-600 rounded-lg shrink-0">
                                   <Building className="w-4 h-4" />
                                 </div>
                                 <h4 className="text-base font-extrabold text-slate-900 truncate">
@@ -1557,7 +1566,7 @@ const HandpickedDetailsPage = () => {
                                 </h4>
                               </div>
                               {tower.phase && (
-                                <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 font-extrabold rounded-md uppercase tracking-wider shrink-0">
+                                <span className="text-[10px] px-2 py-0.5 bg-slate-50 text-slate-700 font-extrabold rounded-md uppercase tracking-wider shrink-0">
                                   {tower.phase}
                                 </span>
                               )}
@@ -1579,7 +1588,7 @@ const HandpickedDetailsPage = () => {
                               {tower.completionDate && (
                                 <div className="flex justify-between items-center">
                                   <span className="text-[11px] text-slate-400 font-bold">Target Date</span>
-                                  <span className="font-extrabold text-blue-600">{isNaN(Date.parse(tower.completionDate)) ? tower.completionDate : new Date(tower.completionDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                                  <span className="font-extrabold text-slate-600">{isNaN(Date.parse(tower.completionDate)) ? tower.completionDate : new Date(tower.completionDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
                                 </div>
                               )}
                             </div>
@@ -1593,9 +1602,9 @@ const HandpickedDetailsPage = () => {
                     )}
 
                     {/* Structural Safety Card with Single-Line Button */}
-                    <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-blue-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-start gap-3.5 min-w-0">
-                        <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-xl shrink-0 mt-0.5">
+                        <div className="p-2.5 bg-slate-100 text-slate-600 rounded-xl shrink-0 mt-0.5">
                           <CheckCircle2 className="w-5 h-5" />
                         </div>
                         <div>
@@ -1609,7 +1618,7 @@ const HandpickedDetailsPage = () => {
                       </div>
                       <button
                         onClick={() => setShowInteriorsModal(true)}
-                        className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 shrink-0 whitespace-nowrap cursor-pointer active:scale-[0.99]"
+                        className="py-2.5 px-5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-slate-600/20 flex items-center justify-center gap-2 shrink-0 whitespace-nowrap cursor-pointer active:scale-[0.99]"
                       >
                         <Shield className="w-4 h-4" /> View Technical Spec-Sheet
                       </button>
@@ -1653,7 +1662,7 @@ const HandpickedDetailsPage = () => {
                   </div>
                   <button
                     onClick={() => setShowAllAmenities(true)}
-                    className="text-blue-600 hover:text-purple-700 text-[12px] md:text-xs font-bold transition-all shrink-0 mt-1 md:mt-0"
+                    className="text-slate-600 hover:text-slate-700 text-[12px] md:text-xs font-bold transition-all shrink-0 mt-1 md:mt-0"
                   >
                     View All
                   </button>
@@ -1661,7 +1670,7 @@ const HandpickedDetailsPage = () => {
 
                 {/* Lead-gen card - Light Theme */}
                 {!amenityRequestSuccess ? (
-                  <div className="bg-gradient-to-r from-blue-50 to-blue-50 border border-blue-100 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="bg-gradient-to-r from-slate-50 to-slate-50 border border-slate-100 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                       <h4 className="text-base font-bold text-slate-900">Need actual photos of clubhouse & amenities?</h4>
                       <p className="text-sm text-slate-600 mt-1">Our on-site advisors can message you latest site images directly.</p>
@@ -1671,21 +1680,21 @@ const HandpickedDetailsPage = () => {
                         setAmenityRequestSuccess(true);
                         toast.success("Request submitted! We will send photos on WhatsApp shortly.");
                       }}
-                      className="py-3 px-5 bg-blue-600 hover:bg-blue-700 text-sm font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/20"
+                      className="py-3 px-5 bg-orange-600 hover:bg-orange-700 text-sm font-bold text-white rounded-xl transition-all shadow-md shadow-slate-600/20"
                     >
                       Request Photos via WhatsApp
                     </button>
                   </div>
                 ) : (
-                  <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl text-center text-sm text-emerald-700 font-semibold">
+                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl text-center text-sm text-slate-700 font-semibold">
                     ✓ Request submitted. An advisor will contact you with latest photos shortly.
                   </div>
                 )}
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5">
                   {(property?.amenities && property.amenities.length > 0 ? property.amenities.slice(0, 8) : []).map((am, i) => (
-                    <div key={i} className="p-2.5 sm:p-3 bg-white border border-slate-200/90 rounded-2xl flex items-center gap-2.5 text-xs text-slate-800 shadow-sm hover:border-blue-300 transition-all hover:shadow-md group">
-                      <div className="p-1.5 sm:p-2 bg-blue-50 border border-blue-100 rounded-xl group-hover:scale-110 transition-transform shrink-0">
+                    <div key={i} className="p-2.5 sm:p-3 bg-white border border-slate-200/90 rounded-2xl flex items-center gap-2.5 text-xs text-slate-800 shadow-sm hover:border-slate-300 transition-all hover:shadow-md group">
+                      <div className="p-1.5 sm:p-2 bg-slate-50 border border-slate-100 rounded-xl group-hover:scale-110 transition-transform shrink-0">
                         {getAmenityIcon(am)}
                       </div>
                       <span className="font-bold text-slate-900 text-[11px] sm:text-xs leading-snug break-words flex-1 min-w-0">{am}</span>
@@ -1703,21 +1712,21 @@ const HandpickedDetailsPage = () => {
               <div ref={sectionRefs['locality-sec']} className="bg-white/40 border-y sm:border border-slate-200 sm:rounded-2xl p-5 sm:p-8 space-y-6">
                 <div>
                   <h2 className="text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <MapPin className="w-6 h-6 text-blue-500" /> Locality Insights & Real Reviews
+                    <MapPin className="w-6 h-6 text-slate-500" /> Locality Insights & Real Reviews
                   </h2>
                   <p className="text-slate-500 text-sm mt-1">What resident locals and safety maps tell about this sector</p>
                 </div>
 
                 {/* Interactive Location & Google Map Card */}
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 space-y-4 shadow-xs hover:border-blue-300 transition-all">
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 space-y-4 shadow-xs hover:border-slate-300 transition-all">
                   {/* Top Bar: Location Address & Action Button */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                     <div className="flex items-start gap-3 min-w-0">
-                      <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl shrink-0 mt-0.5">
+                      <div className="p-2.5 bg-slate-100 text-slate-600 rounded-xl shrink-0 mt-0.5">
                         <MapPin className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
-                        <span className="text-[10px] uppercase font-extrabold text-blue-600 tracking-wider block">
+                        <span className="text-[10px] uppercase font-extrabold text-slate-600 tracking-wider block">
                           Project Location Address
                         </span>
                         <h4 className="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5 leading-snug break-words">
@@ -1730,7 +1739,7 @@ const HandpickedDetailsPage = () => {
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((property?.propertyName || '') + ' ' + fullAddressStr)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full sm:w-auto py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-[0.99]"
+                      className="w-full sm:w-auto py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white text-xs font-extrabold rounded-xl shadow-md shadow-slate-600/20 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-[0.99]"
                     >
                       <Compass className="w-4 h-4" /> Open in Maps
                     </a>
@@ -1752,13 +1761,13 @@ const HandpickedDetailsPage = () => {
 
                 {/* What Locals Said Cards Slider */}
                 <div className="space-y-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-blue-500">Locality Sentiments Insights</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Locality Sentiments Insights</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {localSentiments.slice(0, 2).map((item, idx) => (
                       <div key={idx} className="bg-slate-100/30 border border-slate-200 p-4 rounded-xl space-y-1">
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold text-slate-800">{item.label}</span>
-                          <span className="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">{item.value} positive</span>
+                          <span className="text-sm font-extrabold text-slate-400 bg-orange-500/10 px-2 py-0.5 rounded">{item.value} positive</span>
                         </div>
                         <p className="text-xs text-slate-500">{item.desc}</p>
                       </div>
@@ -1769,26 +1778,26 @@ const HandpickedDetailsPage = () => {
                 {/* Pros and cons list widget */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-200/60">
                   <div className="space-y-3">
-                    <h4 className="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+                    <h4 className="text-sm font-bold text-slate-400 flex items-center gap-1.5">
                       <ThumbsUp className="w-4 h-4" /> Locality Positives (Pros)
                     </h4>
                     <ul className="space-y-2 text-xs text-slate-700">
                       {localityPros.slice(0, 3).map((pro, i) => (
                         <li key={i} className="flex items-start gap-2">
-                          <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                          <Check className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
                           <span>{pro}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                   <div className="space-y-3">
-                    <h4 className="text-sm font-bold text-amber-500 flex items-center gap-1.5">
+                    <h4 className="text-sm font-bold text-slate-500 flex items-center gap-1.5">
                       <ThumbsDown className="w-4 h-4" /> Areas of Caution (Cons)
                     </h4>
                     <ul className="space-y-2 text-xs text-slate-700">
                       {localityCons.slice(0, 2).map((con, i) => (
                         <li key={i} className="flex items-start gap-2">
-                          <Minus className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                          <Minus className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
                           <span>{con}</span>
                         </li>
                       ))}
@@ -1799,7 +1808,7 @@ const HandpickedDetailsPage = () => {
                 <div className="text-center pt-2">
                   <button
                     onClick={() => setShowProsConsModal(true)}
-                    className="text-xs font-bold text-blue-500 hover:text-blue-500 transition-colors"
+                    className="text-xs font-bold text-slate-500 hover:text-slate-500 transition-colors"
                   >
                     View detailed pros & cons analysis page
                   </button>
@@ -1862,14 +1871,14 @@ const HandpickedDetailsPage = () => {
                         ) : (
                           <>{builderTrackRecord.name} is committed to delivering quality residential projects.</>
                         )}
-                        <span onClick={() => setShowAboutBuilderModal(true)} className="text-blue-600 cursor-pointer hover:underline ml-1">...more</span>
+                        <span onClick={() => setShowAboutBuilderModal(true)} className="text-slate-600 cursor-pointer hover:underline ml-1">...more</span>
                       </p>
                     </div>
 
                     {/* Top Rated Badge */}
-                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-xl p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-amber-200">
-                        <Award className="w-7 h-7 text-amber-500" />
+                    <div className="bg-gradient-to-r from-slate-50 to-orange-50 border border-slate-100 rounded-xl p-4 flex items-center gap-4">
+                      <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-slate-200">
+                        <Award className="w-7 h-7 text-slate-500" />
                       </div>
                       <div>
                         <p className="text-xs text-slate-600 mb-0.5">Top Rated for</p>
@@ -1924,10 +1933,10 @@ const HandpickedDetailsPage = () => {
 
                     {/* Actions */}
                     <div className="flex items-center gap-3 pt-2">
-                      <button onClick={() => setShowEnquiryModal(true)} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition-colors">
+                      <button onClick={() => setShowEnquiryModal(true)} className="flex-1 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition-colors">
                         <Phone className="w-4 h-4" /> Call Builder
                       </button>
-                      <button onClick={() => handleBuilderNavigate('')} className="flex-1 py-3 bg-white border border-slate-200 text-blue-600 font-bold text-sm rounded-xl flex items-center justify-center gap-1 hover:bg-slate-50 transition-colors">
+                      <button onClick={() => handleBuilderNavigate('')} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 font-bold text-sm rounded-xl flex items-center justify-center gap-1 hover:bg-slate-50 transition-colors">
                         View details <ChevronRight className="w-4 h-4" />
                       </button>
                     </div>
@@ -1943,7 +1952,7 @@ const HandpickedDetailsPage = () => {
                     <button
                       key={tab}
                       onClick={() => setActiveBuilderProjectsTab(tab)}
-                      className={`text-sm font-bold pb-2 border-b-2 transition-colors capitalize ${activeBuilderProjectsTab === tab ? 'text-blue-600 border-blue-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
+                      className={`text-sm font-bold pb-2 border-b-2 transition-colors capitalize ${activeBuilderProjectsTab === tab ? 'text-slate-600 border-slate-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
                     >
                       {tab}
                     </button>
@@ -1980,7 +1989,7 @@ const HandpickedDetailsPage = () => {
                         const simPrice = info.rawP ? formatPriceLakhCrore(info.rawP) : 'Contact for Price';
 
                         return (
-                          <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[200px] shrink-0 shadow-sm hover:border-blue-300 transition-colors cursor-pointer">
+                          <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[200px] shrink-0 shadow-sm hover:border-slate-300 transition-colors cursor-pointer">
                             <img src={info.cover} className="w-full h-24 object-cover rounded-lg mb-3" alt={info.name} />
                             <h5 className="text-sm font-bold text-gray-800 line-clamp-1">{info.name}</h5>
                             <p className="text-[11px] text-slate-500 font-bold mb-1 line-clamp-1">{info.locality}</p>
@@ -2010,14 +2019,14 @@ const HandpickedDetailsPage = () => {
                       const simPrice = info.rawP ? formatPriceLakhCrore(info.rawP) : 'Contact for Price';
 
                       return (
-                        <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[160px] shrink-0 shadow-sm hover:border-blue-300 transition-colors cursor-pointer">
+                        <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[160px] shrink-0 shadow-sm hover:border-slate-300 transition-colors cursor-pointer">
                           <img src={info.cover} className="w-full h-20 object-cover rounded-lg mb-2" alt={info.name} />
                           <h5 className="text-[11px] font-bold text-gray-800 line-clamp-1">{info.name}</h5>
                           <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{info.locality}</p>
 
                           {info.ratingVal > 0 && (
-                            <div className="flex items-center gap-1 my-1.5 text-[10px] text-amber-500 font-bold">
-                              <Star size={10} className="fill-amber-500" /> {info.ratingVal.toFixed(1)}
+                            <div className="flex items-center gap-1 my-1.5 text-[10px] text-slate-500 font-bold">
+                              <Star size={10} className="fill-slate-500" /> {info.ratingVal.toFixed(1)}
                             </div>
                           )}
 
@@ -2037,7 +2046,7 @@ const HandpickedDetailsPage = () => {
                     <h3 className="text-lg md:text-xl font-bold text-slate-900">Locality Reviews</h3>
                     <p className="text-sm text-slate-500 mt-1">For {property?.address?.locality || property?.address?.city || 'this area'}</p>
                   </div>
-                  <button onClick={() => navigate('/insights/' + (property?.address?.locality || 'Locality') + '/reviews')} className="text-sm font-bold text-blue-600 hover:underline transition-all">
+                  <button onClick={() => navigate('/insights/' + (property?.address?.locality || 'Locality') + '/reviews')} className="text-sm font-bold text-slate-600 hover:underline transition-all">
                     View all
                   </button>
                 </div>
@@ -2046,11 +2055,11 @@ const HandpickedDetailsPage = () => {
                 <div className="flex flex-col md:flex-row md:items-center gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
                   <div className="text-center md:border-r border-slate-200 md:pr-6">
                     <h4 className="text-3xl font-black text-slate-900 leading-none">{avgLocalityRating.toFixed(1)}<span className="text-base text-slate-400 font-normal"> / 5</span></h4>
-                    <div className="flex items-center gap-1 justify-center mt-2 text-amber-500">
+                    <div className="flex items-center gap-1 justify-center mt-2 text-slate-500">
                       {[1, 2, 3, 4, 5].map((starIdx) => {
                         const isFull = starIdx <= Math.floor(avgLocalityRating);
                         return (
-                          <Star key={starIdx} size={14} className={isFull ? "fill-amber-500 text-amber-500" : "text-slate-300"} />
+                          <Star key={starIdx} size={14} className={isFull ? "fill-slate-500 text-slate-500" : "text-slate-300"} />
                         );
                       })}
                     </div>
@@ -2067,7 +2076,7 @@ const HandpickedDetailsPage = () => {
                           <span className="w-2">{starVal}</span>
                           <Star size={10} className="fill-slate-400 text-slate-400" />
                           <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${percentage}%` }} />
+                            <div className="h-full bg-orange-500 rounded-full" style={{ width: `${percentage}%` }} />
                           </div>
                           <span className="w-6 text-right opacity-70">{starVal === 5 ? '5★' : `${starVal}★`}</span>
                         </div>
@@ -2085,7 +2094,7 @@ const HandpickedDetailsPage = () => {
                         <div className="relative w-14 h-14 flex items-center justify-center mb-2">
                           <svg className="absolute w-full h-full transform -rotate-90">
                             <circle cx="28" cy="28" r="22" className="stroke-slate-100 fill-transparent" strokeWidth="4" />
-                            <circle cx="28" cy="28" r="22" className="stroke-purple-600 fill-transparent" strokeWidth="4"
+                            <circle cx="28" cy="28" r="22" className="stroke-slate-600 fill-transparent" strokeWidth="4"
                               strokeDasharray={138} strokeDashoffset={138 - (138 * feat.percent) / 100} strokeLinecap="round" />
                           </svg>
                           <span className="text-xs font-black text-slate-800">{feat.val.split('/')[0]}</span>
@@ -2103,7 +2112,7 @@ const HandpickedDetailsPage = () => {
                     {localityPositives && localityPositives.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {localityPositives.map((pos, i) => (
-                          <span key={i} className="bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm">
+                          <span key={i} className="bg-slate-50 text-slate-800 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
                             {pos}
                           </span>
                         ))}
@@ -2117,7 +2126,7 @@ const HandpickedDetailsPage = () => {
                     {localityNegatives && localityNegatives.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {localityNegatives.map((neg, i) => (
-                          <span key={i} className="bg-red-50 text-red-800 text-xs font-bold px-3 py-1.5 rounded-lg border border-red-100 shadow-sm">
+                          <span key={i} className="bg-slate-50 text-slate-800 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
                             {neg}
                           </span>
                         ))}
@@ -2146,12 +2155,12 @@ const HandpickedDetailsPage = () => {
                         return (
                           <div key={idx} className="bg-slate-50/80 rounded-2xl border border-slate-200 p-4 min-w-[260px] max-w-[280px] shrink-0 text-xs font-medium text-slate-700 relative shadow-sm">
                             <div className="flex items-center gap-2 mb-3">
-                              <span className="bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-1 rounded shadow-sm">{ratingVal.toFixed(1)} ★</span>
+                              <span className="bg-orange-600 text-white text-[10px] font-extrabold px-2 py-1 rounded shadow-sm">{ratingVal.toFixed(1)} ★</span>
                             </div>
                             <h6 className="text-sm font-bold text-slate-900 mb-1.5 line-clamp-1">{rev.title || 'Locality Rating'}</h6>
                             <p className="line-clamp-3 leading-relaxed opacity-95">{rev.reviewText || rev.review}</p>
                             <div className="flex items-center gap-3 mt-4 pt-3 border-t border-slate-200">
-                              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                              <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs">
                                 {reviewerName.charAt(0).toUpperCase()}
                               </div>
                               <div>
@@ -2165,7 +2174,7 @@ const HandpickedDetailsPage = () => {
                     </div>
                   ) : (
                     <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 text-center space-y-3">
-                      <MessageSquare className="w-8 h-8 text-blue-500 mx-auto opacity-70" />
+                      <MessageSquare className="w-8 h-8 text-slate-500 mx-auto opacity-70" />
                       <div>
                         <h5 className="text-sm font-bold text-slate-800">No Resident Reviews Yet</h5>
                         <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
@@ -2174,7 +2183,7 @@ const HandpickedDetailsPage = () => {
                       </div>
                       <button
                         onClick={() => navigate('/insights/' + (property?.address?.locality || 'Locality') + '/reviews')}
-                        className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm"
+                        className="py-2 px-4 bg-orange-600 hover:bg-orange-700 text-xs font-bold text-white rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm"
                       >
                         Write a Review
                       </button>
@@ -2206,7 +2215,7 @@ const HandpickedDetailsPage = () => {
                     <button
                       onClick={handleRevealContact}
                       disabled={revealLoading}
-                      className="py-2 px-4 bg-blue-600/20 hover:bg-blue-600/35 border border-blue-500/30 text-xs font-bold text-purple-300 rounded-xl transition-all flex items-center gap-1"
+                      className="py-2 px-4 bg-orange-600/20 hover:bg-orange-600/35 border border-slate-500/30 text-xs font-bold text-slate-300 rounded-xl transition-all flex items-center gap-1"
                     >
                       {revealLoading ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
@@ -2220,7 +2229,7 @@ const HandpickedDetailsPage = () => {
                   <div className="space-y-3">
                     <button
                       onClick={() => setShowEnquiryModal(true)}
-                      className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-sm font-bold text-slate-900 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30"
+                      className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-sm font-bold text-slate-900 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-600/30"
                     >
                       <MessageSquare className="w-4 h-4" /> Schedule Visit / Callback
                     </button>
@@ -2230,18 +2239,18 @@ const HandpickedDetailsPage = () => {
                       rel="noopener noreferrer"
                       className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-sm font-semibold text-slate-800 rounded-2xl transition-all flex items-center justify-center gap-2"
                     >
-                      <Phone className="w-4 h-4 text-emerald-500" /> WhatsApp Direct Chat
+                      <Phone className="w-4 h-4 text-slate-500" /> WhatsApp Direct Chat
                     </a>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-slate-200/80 text-[11px] text-slate-500 space-y-2.5">
                   <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    <Shield className="w-4 h-4 text-slate-500 flex-shrink-0" />
                     <span>Get-Right-home zero-brokerage guarantee.</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    <Info className="w-4 h-4 text-slate-500 flex-shrink-0" />
                     <span>Real-time pricing synced with developer catalog.</span>
                   </div>
                 </div>
@@ -2263,7 +2272,7 @@ const HandpickedDetailsPage = () => {
                         <div
                           key={idx}
                           onClick={() => navigate(`/project/${sim._id}`)}
-                          className="flex gap-3 p-2 bg-white/80 border border-slate-200 rounded-xl hover:border-blue-500/30 transition-all cursor-pointer"
+                          className="flex gap-3 p-2 bg-white/80 border border-slate-200 rounded-xl hover:border-slate-500/30 transition-all cursor-pointer"
                         >
                           <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
                             <img src={simCover} className="w-full h-full object-cover" alt={simTitle} />
@@ -2271,7 +2280,7 @@ const HandpickedDetailsPage = () => {
                           <div className="min-w-0 flex-1">
                             <h4 className="text-xs font-bold text-slate-900 truncate">{simTitle}</h4>
                             <p className="text-[10px] text-slate-500 mt-0.5">{simLocality}</p>
-                            <span className="text-[11px] font-bold text-blue-600 mt-1 block">
+                            <span className="text-[11px] font-bold text-slate-600 mt-1 block">
                               {simPriceStr}
                             </span>
                           </div>
@@ -2308,14 +2317,14 @@ const HandpickedDetailsPage = () => {
               {projectBrochureUrl && (
                 <button
                   onClick={handleBrochureDownload}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors cursor-pointer"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-slate-100 bg-slate-50 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   <Download className="w-4 h-4" /> Brochure
                 </button>
               )}
               <button
                 onClick={() => setShowEnquiryModal(true)}
-                className="flex-[1.5] flex items-center justify-center py-3 rounded-full bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition-colors"
+                className="flex-[1.5] flex items-center justify-center py-3 rounded-full bg-orange-600 text-white font-bold text-xs shadow-md hover:bg-orange-700 transition-colors"
               >
                 <Phone className="w-4 h-4 mr-2" /> Request Callback / Number
               </button>
@@ -2354,7 +2363,7 @@ const HandpickedDetailsPage = () => {
                         <button
                           key={i}
                           onClick={() => setActivePropertiesBhkTab(cfg)}
-                          className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium border transition-colors ${activePropertiesBhkTab === cfg ? 'border-blue-600 text-blue-600 font-bold bg-blue-50/50 shadow-sm' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                          className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium border transition-colors ${activePropertiesBhkTab === cfg ? 'border-slate-600 text-slate-600 font-bold bg-slate-50/50 shadow-sm' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                         >
                           {cfg}
                         </button>
@@ -2372,7 +2381,7 @@ const HandpickedDetailsPage = () => {
                         const planPriceStr = formatPlanPrice(plan.price);
 
                         return (
-                          <div key={idx} className="bg-white/60 border border-slate-200 rounded-3xl overflow-hidden hover:border-blue-500/30 transition-all flex flex-col md:flex-row gap-6 p-6 shadow-sm">
+                          <div key={idx} className="bg-white/60 border border-slate-200 rounded-3xl overflow-hidden hover:border-slate-500/30 transition-all flex flex-col md:flex-row gap-6 p-6 shadow-sm">
                             <div className="w-full md:w-72 h-48 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 relative group">
                               <img src={planImg} className="w-full h-full object-cover" alt={cfgName} />
                               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -2385,13 +2394,13 @@ const HandpickedDetailsPage = () => {
                               <div className="space-y-2">
                                 <div className="flex justify-between items-start">
                                   <div>
-                                    <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase tracking-wide">
+                                    <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded uppercase tracking-wide">
                                       {plan.possessionStatus || 'Available'}
                                     </span>
                                     <h4 className="text-lg font-bold text-slate-900 mt-1">{cfgName}</h4>
                                   </div>
                                   <div className="text-right">
-                                    <span className="text-lg font-extrabold text-blue-600">
+                                    <span className="text-lg font-extrabold text-slate-600">
                                       {planPriceStr}
                                     </span>
                                     <span className="text-[9px] text-slate-500 block mt-0.5">Starting Price</span>
@@ -2412,14 +2421,14 @@ const HandpickedDetailsPage = () => {
                               <div className="flex flex-wrap gap-4 items-center justify-between pt-4 border-t border-slate-200/60">
                                 <button
                                   onClick={() => setSelectedFloorPlan(plan)}
-                                  className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
+                                  className="text-xs font-bold text-slate-600 hover:underline flex items-center gap-1"
                                 >
                                   <Maximize2 className="w-3.5 h-3.5" /> View Dimensions & Layout
                                 </button>
                                 <div className="flex items-center gap-3">
                                   <button
                                     onClick={() => setShowEnquiryModal(true)}
-                                    className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/25"
+                                    className="py-2.5 px-5 bg-orange-600 hover:bg-orange-700 text-xs font-bold text-white rounded-xl transition-all shadow-md shadow-slate-600/25"
                                   >
                                     Request Callback
                                   </button>
@@ -2486,7 +2495,7 @@ const HandpickedDetailsPage = () => {
                       alt="Floor Plan Layout"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">
-                      <span className="text-[10px] text-blue-300 font-semibold bg-blue-900/40 border border-blue-800/40 px-2 py-0.5 rounded uppercase">2D Architectural Layout</span>
+                      <span className="text-[10px] text-slate-300 font-semibold bg-orange-900/40 border border-slate-800/40 px-2 py-0.5 rounded uppercase">2D Architectural Layout</span>
                     </div>
                   </div>
                 </div>
@@ -2538,7 +2547,7 @@ const HandpickedDetailsPage = () => {
 
                   <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-xs">
                     <span className="text-slate-500 font-medium">Starting Price</span>
-                    <span className="text-lg font-bold text-blue-600">
+                    <span className="text-lg font-bold text-slate-600">
                       {formatPlanPrice(selectedFloorPlan.price)}
                     </span>
                   </div>
@@ -2578,7 +2587,7 @@ const HandpickedDetailsPage = () => {
                       {modalDocUrl && (
                         <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50 p-3 text-center">
                           <img src={modalDocUrl} alt="Payment Plan Document" className="w-full max-h-72 object-contain rounded-lg shadow-sm" />
-                          <a href={modalDocUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-blue-600 font-bold mt-2.5 hover:underline">
+                          <a href={modalDocUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-slate-600 font-bold mt-2.5 hover:underline">
                             <Download className="w-4 h-4" /> Open Full Resolution Document / Image
                           </a>
                         </div>
@@ -2586,7 +2595,7 @@ const HandpickedDetailsPage = () => {
                       {selectedPaymentPlan.milestones && selectedPaymentPlan.milestones.length > 0 ? (
                         selectedPaymentPlan.milestones.map((milestone, idx) => (
                           <div key={idx} className="flex gap-4 items-start p-3 bg-slate-100/30 border border-slate-200 rounded-xl">
-                            <div className="w-12 h-12 bg-blue-900/40 text-blue-600 border border-blue-800/40 rounded-xl flex items-center justify-center font-black flex-shrink-0">
+                            <div className="w-12 h-12 bg-orange-900/40 text-slate-600 border border-slate-800/40 rounded-xl flex items-center justify-center font-black flex-shrink-0">
                               {milestone.percentage}%
                             </div>
                             <div>
@@ -2633,7 +2642,7 @@ const HandpickedDetailsPage = () => {
               <div className="p-5 flex-1 overflow-y-auto space-y-3.5">
                 {propertyHighlights.map((hl, i) => (
                   <div key={i} className="flex gap-3 items-start p-3 bg-slate-100/35 border border-slate-200 rounded-xl">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                    <CheckCircle2 className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" />
                     <span className="text-xs text-slate-800">{hl}</span>
                   </div>
                 ))}
@@ -2666,7 +2675,7 @@ const HandpickedDetailsPage = () => {
 
               <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3.5 flex-1 overflow-y-auto">
                 {(property?.amenities && property.amenities.length > 0 ? property.amenities : []).map((am, i) => (
-                  <div key={i} className="p-3 sm:p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-2xl flex items-center gap-3 text-xs text-slate-800 shadow-sm hover:bg-white hover:border-blue-300 transition-all group">
+                  <div key={i} className="p-3 sm:p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-2xl flex items-center gap-3 text-xs text-slate-800 shadow-sm hover:bg-white hover:border-slate-300 transition-all group">
                     <div className="p-2 bg-white border border-slate-200 rounded-xl group-hover:scale-110 transition-transform shrink-0 shadow-sm">
                       {getAmenityIcon(am)}
                     </div>
@@ -2695,7 +2704,7 @@ const HandpickedDetailsPage = () => {
               {/* Modal Header: Single-line title for mobile & desktop */}
               <div className="p-4 sm:p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-3 min-w-0 pr-2">
-                  <div className="p-2 bg-blue-100 text-blue-600 rounded-xl shrink-0">
+                  <div className="p-2 bg-slate-100 text-slate-600 rounded-xl shrink-0">
                     <Shield className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
@@ -2719,11 +2728,11 @@ const HandpickedDetailsPage = () => {
               <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none text-xs font-bold shrink-0 bg-slate-50/50 px-3 pt-2 gap-2">
                 {Object.keys(constructionSpecs).map((tab, idx) => {
                   let TabIcon = Layers;
-                  let colorClass = 'text-blue-600';
-                  if (tab.toLowerCase().includes('floor')) { TabIcon = Grid; colorClass = 'text-blue-600'; }
-                  else if (tab.toLowerCase().includes('toilet') || tab.toLowerCase().includes('bath')) { TabIcon = Droplets; colorClass = 'text-emerald-600'; }
-                  else if (tab.toLowerCase().includes('door') || tab.toLowerCase().includes('window')) { TabIcon = Key; colorClass = 'text-purple-600'; }
-                  else if (tab.toLowerCase().includes('electric') || tab.toLowerCase().includes('wire')) { TabIcon = Zap; colorClass = 'text-amber-500'; }
+                  let colorClass = 'text-slate-600';
+                  if (tab.toLowerCase().includes('floor')) { TabIcon = Grid; colorClass = 'text-slate-600'; }
+                  else if (tab.toLowerCase().includes('toilet') || tab.toLowerCase().includes('bath')) { TabIcon = Droplets; colorClass = 'text-slate-600'; }
+                  else if (tab.toLowerCase().includes('door') || tab.toLowerCase().includes('window')) { TabIcon = Key; colorClass = 'text-slate-600'; }
+                  else if (tab.toLowerCase().includes('electric') || tab.toLowerCase().includes('wire')) { TabIcon = Zap; colorClass = 'text-slate-500'; }
 
                   const isActive = activeInteriorTab === tab;
 
@@ -2751,9 +2760,9 @@ const HandpickedDetailsPage = () => {
                     // Color rotation: 0 = Blue, 1 = Emerald Green, 2 = Purple
                     const colorIndex = idx % 3;
                     const colorStyles = [
-                      { bg: 'bg-blue-100', text: 'text-blue-600', border: 'hover:border-blue-300' },
-                      { bg: 'bg-emerald-100', text: 'text-emerald-600', border: 'hover:border-emerald-300' },
-                      { bg: 'bg-purple-100', text: 'text-purple-600', border: 'hover:border-purple-300' }
+                      { bg: 'bg-slate-100', text: 'text-slate-600', border: 'hover:border-slate-300' },
+                      { bg: 'bg-slate-100', text: 'text-slate-600', border: 'hover:border-slate-300' },
+                      { bg: 'bg-slate-100', text: 'text-slate-600', border: 'hover:border-slate-300' }
                     ][colorIndex];
 
                     return (
@@ -2774,8 +2783,8 @@ const HandpickedDetailsPage = () => {
                   })}
                 </div>
 
-                <div className="bg-blue-50/80 border border-blue-100 p-3.5 rounded-2xl flex items-start gap-3 text-xs text-blue-700 mt-4">
-                  <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-600" />
+                <div className="bg-slate-50/80 border border-slate-100 p-3.5 rounded-2xl flex items-start gap-3 text-xs text-slate-700 mt-4">
+                  <Info className="w-4 h-4 mt-0.5 shrink-0 text-slate-600" />
                   <span className="font-semibold">Quality checked on site by Get-Right-home construction auditing team. ISO 9001 certifications verified.</span>
                 </div>
               </div>
@@ -2795,7 +2804,7 @@ const HandpickedDetailsPage = () => {
               <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
-                    <TrendingUp className="w-5.5 h-5.5 text-blue-500" /> Locality Positives & Concerns Matrix
+                    <TrendingUp className="w-5.5 h-5.5 text-slate-500" /> Locality Positives & Concerns Matrix
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">Analyzed by community residents & traffic telemetry</p>
                 </div>
@@ -2809,12 +2818,12 @@ const HandpickedDetailsPage = () => {
 
               <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-y-auto">
                 <div className="space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                     <ThumbsUp className="w-4 h-4" /> Locality Positives
                   </h4>
                   <div className="space-y-2.5">
                     {localityPros.map((pro, idx) => (
-                      <div key={idx} className="p-3 bg-emerald-950/15 border border-emerald-900/30 rounded-xl text-xs text-slate-700 leading-relaxed">
+                      <div key={idx} className="p-3 bg-orange-950/15 border border-slate-900/30 rounded-xl text-xs text-slate-700 leading-relaxed">
                         {pro}
                       </div>
                     ))}
@@ -2822,12 +2831,12 @@ const HandpickedDetailsPage = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
                     <ThumbsDown className="w-4 h-4" /> Areas of Caution
                   </h4>
                   <div className="space-y-2.5">
                     {localityCons.map((con, idx) => (
-                      <div key={idx} className="p-3 bg-amber-950/15 border border-amber-900/30 rounded-xl text-xs text-slate-700 leading-relaxed">
+                      <div key={idx} className="p-3 bg-orange-950/15 border border-slate-900/30 rounded-xl text-xs text-slate-700 leading-relaxed">
                         {con}
                       </div>
                     ))}
@@ -2850,7 +2859,7 @@ const HandpickedDetailsPage = () => {
               <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
                   <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-1.5">
-                    <Compass className="w-5 h-5 text-blue-500" /> Project Comparison Matrix
+                    <Compass className="w-5 h-5 text-slate-500" /> Project Comparison Matrix
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">Compare against similar {property?.address?.city || 'local'} projects</p>
                 </div>
@@ -2867,7 +2876,7 @@ const HandpickedDetailsPage = () => {
                   <thead>
                     <tr className="border-b border-slate-200">
                       <th className="py-4 px-3 font-semibold text-slate-500 text-left w-48">Key Metric</th>
-                      <th className="py-4 px-3 font-bold text-purple-400 border-x border-blue-500/20 bg-blue-500/5">{property?.propertyName || 'This Property'}</th>
+                      <th className="py-4 px-3 font-bold text-slate-400 border-x border-slate-500/20 bg-orange-500/5">{property?.propertyName || 'This Property'}</th>
                       {similarProperties.slice(0, 2).map((sim, i) => (
                         <th key={i} className="py-4 px-3 font-bold text-slate-800">{sim.propertyName}</th>
                       ))}
@@ -2876,7 +2885,7 @@ const HandpickedDetailsPage = () => {
                   <tbody>
                     <tr className="border-b border-slate-200 hover:bg-slate-100/20">
                       <td className="py-3.5 px-3 text-slate-500 font-medium">Estimated Pricing</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">
+                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-slate-500/20 bg-orange-500/5">
                         ₹{property?.buyDetails?.price ? (property.buyDetails.price / 10000000).toFixed(2) : '1.25'} Cr+
                       </td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
@@ -2887,43 +2896,43 @@ const HandpickedDetailsPage = () => {
                     </tr>
                     <tr className="border-b border-slate-100 group hover:bg-slate-50/50 transition-colors">
                       <td className="py-3.5 px-3 font-semibold text-slate-700 bg-white group-hover:bg-slate-50/50 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-100 flex items-center gap-2">
-                        <Maximize2 size={14} className="text-blue-500" /> Architectural Density
+                        <Maximize2 size={14} className="text-slate-500" /> Architectural Density
                       </td>
-                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{densityType} ({projectDensity})</td>
+                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-slate-500/20 bg-orange-500/5">{densityType} ({projectDensity})</td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
                         <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.densityType}</td>
                       ))}
                     </tr>
                     <tr className="border-b border-slate-100 group hover:bg-slate-50/50 transition-colors">
                       <td className="py-3.5 px-3 font-semibold text-slate-700 bg-white group-hover:bg-slate-50/50 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-100 flex items-center gap-2">
-                        <Maximize2 size={14} className="text-blue-500" /> Land Area
+                        <Maximize2 size={14} className="text-slate-500" /> Land Area
                       </td>
-                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{property?.dynamicData?.totalArea} Acres</td>
+                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-slate-500/20 bg-orange-500/5">{property?.dynamicData?.totalArea} Acres</td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
                         <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.totalArea} Acres</td>
                       ))}
                     </tr>
                     <tr className="border-b border-slate-100 group hover:bg-slate-50/50 transition-colors">
                       <td className="py-3.5 px-3 font-semibold text-slate-700 bg-white group-hover:bg-slate-50/50 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-100 flex items-center gap-2">
-                        <Wind size={14} className="text-emerald-500" /> Green Open Area
+                        <Wind size={14} className="text-slate-500" /> Green Open Area
                       </td>
-                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-blue-500/20 bg-blue-500/5">{openAreaPercentage}%</td>
+                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-slate-500/20 bg-orange-500/5">{openAreaPercentage}%</td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
                         <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.openAreaPercentage}%</td>
                       ))}
                     </tr>
                     <tr className="border-b border-slate-100 group hover:bg-slate-50/50 transition-colors">
                       <td className="py-3.5 px-3 font-semibold text-slate-700 bg-white group-hover:bg-slate-50/50 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)] border-r border-slate-100 flex items-center gap-2">
-                        <Landmark size={14} className="text-purple-500" /> Structure Towers
+                        <Landmark size={14} className="text-slate-500" /> Structure Towers
                       </td>
-                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-purple-500/20 bg-purple-500/5">{totalTowers} Towers</td>
+                      <td className="py-3.5 px-3 font-semibold text-slate-900 border-x border-slate-500/20 bg-orange-500/5">{totalTowers} Towers</td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
                         <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.totalTowers} Towers</td>
                       ))}
                     </tr>
                     <tr className="border-b border-slate-200 hover:bg-slate-100/20">
                       <td className="py-3.5 px-3 font-semibold text-slate-700">Locality Positives</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-purple-500/20 bg-purple-500/5">{localityPros.length} Pros listed</td>
+                      <td className="py-3.5 px-3 font-bold text-slate-900 border-x border-slate-500/20 bg-orange-500/5">{localityPros.length} Pros listed</td>
                       {similarProperties.slice(0, 2).map((sim, i) => (
                         <td key={i} className="py-3.5 px-3 text-slate-700">{sim.dynamicData?.localityPros?.length} Pros</td>
                       ))}
@@ -2965,7 +2974,7 @@ const HandpickedDetailsPage = () => {
                     required
                     value={enquiryForm.name}
                     onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-slate-500 transition-all"
                     placeholder="Enter your name"
                   />
                 </div>
@@ -2976,7 +2985,7 @@ const HandpickedDetailsPage = () => {
                     required
                     value={enquiryForm.phone}
                     onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-slate-500 transition-all"
                     placeholder="Enter 10-digit Indian phone number"
                   />
                 </div>
@@ -2986,7 +2995,7 @@ const HandpickedDetailsPage = () => {
                     type="email"
                     value={enquiryForm.email}
                     onChange={(e) => setEnquiryForm({ ...enquiryForm, email: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-slate-500 transition-all"
                     placeholder="name@example.com (Optional)"
                   />
                 </div>
@@ -2996,14 +3005,14 @@ const HandpickedDetailsPage = () => {
                     rows="3"
                     value={enquiryForm.message}
                     onChange={(e) => setEnquiryForm({ ...enquiryForm, message: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-blue-500 transition-all resize-none"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 outline-none focus:border-slate-500 transition-all resize-none"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={enquirySubmitting}
-                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-sm font-bold text-white rounded-xl transition-all shadow flex items-center justify-center gap-1.5"
+                  className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-sm font-bold text-white rounded-xl transition-all shadow flex items-center justify-center gap-1.5"
                 >
                   {enquirySubmitting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -3040,7 +3049,7 @@ const HandpickedDetailsPage = () => {
                   <div>Experience: <span className="font-bold text-slate-900">{builderTrackRecord.experience} yrs</span></div>
                 </div>
               </div>
-              <button onClick={() => setShowAboutBuilderModal(false)} className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm">
+              <button onClick={() => setShowAboutBuilderModal(false)} className="w-full py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm">
                 Close
               </button>
             </motion.div>
@@ -3057,23 +3066,23 @@ const HandpickedDetailsPage = () => {
               <button onClick={() => setShowVerifiedSourcesModal(false)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors">
                 <X className="w-5 h-5" />
               </button>
-              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2"><Shield className="w-5 h-5 text-emerald-600 fill-emerald-100" /> Our Verified Sources</h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2"><Shield className="w-5 h-5 text-slate-600 fill-slate-100" /> Our Verified Sources</h3>
               <div className="flex-1 overflow-y-auto space-y-6 text-sm">
                 <div>
-                  <h4 className="font-bold text-slate-900 mb-1">Delivery information: <span className="font-extrabold text-blue-700">RERA</span></h4>
+                  <h4 className="font-bold text-slate-900 mb-1">Delivery information: <span className="font-extrabold text-slate-700">RERA</span></h4>
                   <p className="text-slate-600 text-xs leading-relaxed">Delivery timing has been calculated based on the completion date & subsequent changes in the data updated by the Builder on State RERA website.</p>
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 mb-1">Construction Quality: <span className="font-extrabold text-blue-700">Resident Reviews</span></h4>
+                  <h4 className="font-bold text-slate-900 mb-1">Construction Quality: <span className="font-extrabold text-slate-700">Resident Reviews</span></h4>
                   <p className="text-slate-600 text-xs leading-relaxed">Construction ratings & insights have been generated based on the reviews submitted by actual residents on the platform.</p>
                   <p className="text-slate-600 text-[10px] leading-relaxed mt-2 font-semibold">Powered by AI: The insights have been generated using AI & may contain errors or inaccuracies. You can refer to our detailed resident reviews for further research.</p>
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 mb-1">Price Appreciation: <span className="font-extrabold text-blue-700">Get-Right-home Price Intelligence</span></h4>
+                  <h4 className="font-bold text-slate-900 mb-1">Price Appreciation: <span className="font-extrabold text-slate-700">Get-Right-home Price Intelligence</span></h4>
                   <p className="text-slate-600 text-xs leading-relaxed">Price is calculated based on property posted on the Get-Right-home platform during the last 3 months by owners & brokers.</p>
                 </div>
               </div>
-              <button onClick={() => setShowVerifiedSourcesModal(false)} className="w-full mt-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors">
+              <button onClick={() => setShowVerifiedSourcesModal(false)} className="w-full mt-6 py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl transition-colors">
                 Okay, got it
               </button>
             </motion.div>
@@ -3086,7 +3095,7 @@ const HandpickedDetailsPage = () => {
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 pb-safe md:p-4 z-[9999] flex items-center justify-between gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.08)]">
         <button
           onClick={handleBrochureDownload}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-blue-100 bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-slate-100 bg-slate-50 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors"
         >
           <Download className="w-3.5 h-3.5" /> Brochure
         </button>
@@ -3099,7 +3108,7 @@ const HandpickedDetailsPage = () => {
               setShowEnquiryModal(true);
             }
           }}
-          className="flex-[1.5] flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-blue-600 text-white font-bold text-xs shadow-md shadow-blue-600/30 hover:bg-blue-700 transition-colors"
+          className="flex-[1.5] flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-orange-600 text-white font-bold text-xs shadow-md shadow-slate-600/30 hover:bg-orange-700 transition-colors"
         >
           <Phone className="w-3.5 h-3.5" /> View Number
         </button>

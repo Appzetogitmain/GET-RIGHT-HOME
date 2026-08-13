@@ -22,7 +22,9 @@ const serviceSchema = z.object({
   isIdea: z.boolean().optional(),
   isRecentProject: z.boolean().optional(),
   workerName: z.string().optional(),
-  projectImages: z.array(z.string()).optional()
+  projectImages: z.array(z.string()).optional(),
+  isInstant: z.boolean().optional(),
+  instantEtaMinutes: z.number().min(5).max(180).optional()
 });
 
 const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
@@ -166,7 +168,9 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     isIdea: false,
     isRecentProject: false,
     workerName: "",
-    projectImages: []
+    projectImages: [],
+    isInstant: false,
+    instantEtaMinutes: 30
   });
   const [saving, setSaving] = useState(false);
 
@@ -217,7 +221,9 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       isIdea: false,
       isRecentProject: false,
       workerName: "",
-      projectImages: []
+      projectImages: [],
+      isInstant: false,
+      instantEtaMinutes: 30
     });
     setIsModalOpen(false);
   };
@@ -241,7 +247,9 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       isIdea: service.isIdea || false,
       isRecentProject: service.isRecentProject || false,
       workerName: service.workerName || "",
-      projectImages: service.projectImages || []
+      projectImages: service.projectImages || [],
+      isInstant: service.isInstant || false,
+      instantEtaMinutes: service.instantEtaMinutes || 30
     });
     setIsModalOpen(true);
   };
@@ -318,7 +326,9 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       isIdea: form.isIdea,
       isRecentProject: form.isRecentProject,
       workerName: form.workerName?.trim(),
-      projectImages: form.projectImages
+      projectImages: form.projectImages,
+      isInstant: form.isInstant,
+      instantEtaMinutes: form.isInstant ? Number(form.instantEtaMinutes) || 30 : undefined
     };
 
     const result = serviceSchema.safeParse(data);
@@ -535,9 +545,16 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                       <div>
                         <div className="flex justify-between items-start">
-                          <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-widest inline-block">
-                            {subCat?.title || (categories.find(c => String(c.id) === String(service.categoryId?._id || service.categoryId))?.title || "Direct Service")}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-widest inline-block">
+                              {subCat?.title || (categories.find(c => String(c.id) === String(service.categoryId?._id || service.categoryId))?.title || "Direct Service")}
+                            </span>
+                            {service.isInstant && (
+                              <span title={`Instant Booking · ${service.instantEtaMinutes || 30} min`} className="text-[9px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full uppercase tracking-widest inline-block">
+                                ⚡ {service.instantEtaMinutes || 30}m
+                              </span>
+                            )}
+                          </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                             <button onClick={() => handleEdit(service)} className="p-1 bg-gray-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors">
                               <FiEdit2 size={12} />
@@ -673,6 +690,37 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
+            </div>
+          )}
+
+          {/* Instant Booking */}
+          {!form.isRecentProject && (
+            <div className="p-4 bg-amber-50/60 border border-amber-100 rounded-xl">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isInstant"
+                  checked={form.isInstant}
+                  onChange={e => setForm({ ...form, isInstant: e.target.checked })}
+                  className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                />
+                <label htmlFor="isInstant" className="text-sm font-bold text-gray-700">
+                  ⚡ Show in Instant Booking <span className="text-xs text-gray-400 font-normal">(Home Services landing page express section)</span>
+                </label>
+              </div>
+              {form.isInstant && (
+                <div className="mt-3 max-w-[220px]">
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Express ETA (minutes)</label>
+                  <input
+                    type="number"
+                    value={form.instantEtaMinutes}
+                    onChange={e => setForm({ ...form, instantEtaMinutes: e.target.value })}
+                    min="5"
+                    max="180"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              )}
             </div>
           )}
 

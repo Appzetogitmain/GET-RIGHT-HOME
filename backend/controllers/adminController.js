@@ -22,6 +22,7 @@ import Reel from '../models/Reel.js';
 import Enquiry from '../models/Enquiry.js';
 import Worker from '../models/Worker.js';
 import HomeServiceService from '../models/HomeServiceService.js';
+import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import Cart from '../models/Cart.js';
 import { syncBuilderProjectDetails } from './propertyController.js';
 
@@ -246,13 +247,200 @@ export const getDashboardStats = async (req, res) => {
 
 export const getDashboardRevenue = async (req, res) => {
   try {
-    const { period, startDate, endDate } = req.query;
-    // Just a placeholder to avoid 404, the frontend probably expects a specific format.
-    // Assuming format based on typical charts (e.g. { labels: [], datasets: [] } or just an array)
-    const revenueData = []; // Can be extended to actually query the DB based on dates
-    res.status(200).json({ success: true, data: revenueData });
+    const { period = 'monthly' } = req.query;
+
+    // Bucket size + lookback window per period, computed from completed
+    // Home Service bookings' finalAmount.
+    const dateFormat = period === 'daily' ? '%Y-%m-%d' : period === 'weekly' ? '%G-W%V' : '%Y-%m';
+    const lookbackDays = period === 'daily' ? 30 : period === 'weekly' ? 90 : 365;
+    const since = new Date();
+    since.setDate(since.getDate() - lookbackDays);
+
+    const rows = await HomeServiceBooking.aggregate([
+      { $match: { status: 'completed', createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
+          revenue: { $sum: '$finalAmount' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.status(200).json({ success: true, data: { revenueData: rows } });
   } catch (error) {
     console.error('Get Dashboard Revenue Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ─── Home Services admin dashboard/reports endpoints ───────────────────────
+// Scoped to Home Service data (bookings, users, wallet transactions) —
+// distinct from getDashboardStats above, which reports on the Property side.
+
+export const getHomeServiceDashboardStats = async (req, res) => {
+  try {
+    const [totalBookings, totalUsers, revenueAgg, commissionAgg] = await Promise.all([
+      HomeServiceBooking.countDocuments({}),
+      User.countDocuments({}),
+      Transaction.aggregate([
+        { $match: { category: 'booking_payment', status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Transaction.aggregate([
+        { $match: { category: 'commission_deduction', status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ])
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        stats: {
+          totalRevenue: revenueAgg[0]?.total || 0,
+          platformCommission: commissionAgg[0]?.total || 0,
+          totalBookings,
+          totalUsers
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get Home Service Dashboard Stats Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const getHomeServiceBookingTrends = async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    since.setHours(0, 0, 0, 0);
+
+    const trends = await HomeServiceBooking.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.status(200).json({ success: true, data: { trends } });
+  } catch (error) {
+    console.error('Get Home Service Booking Trends Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const getHomeServiceUserGrowth = async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    since.setHours(0, 0, 0, 0);
+
+    const userGrowth = await User.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.status(200).json({ success: true, data: { userGrowth } });
+  } catch (error) {
+    console.error('Get Home Service User Growth Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Platform-wide wallet ledger listing (worker/partner commissions, payouts,
+// refunds, etc. — everything recorded on the Transaction model). Note this
+// is the wallet ledger, not a record of end-user checkout payments, so the
+// "User" column will only ever populate for entries actually tied to a
+// worker/partner wallet.
+export const getAdminTransactionsList = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const { search, status, type } = req.query;
+
+    const filter = {};
+    if (status && status !== 'all') filter.status = status;
+
+    if (type && type !== 'all') {
+      if (['credit', 'debit'].includes(type)) {
+        filter.type = type;
+      } else if (type === 'payment') {
+        filter.category = 'booking_payment';
+      } else if (type === 'cash_collected') {
+        filter.category = 'cash_collected';
+      } else if (type === 'refund') {
+        filter.category = { $in: ['refund', 'commission_refund', 'refund_deduction'] };
+      }
+    }
+
+    if (search) {
+      filter.$or = [
+        { description: { $regex: search, $options: 'i' } },
+        { reference: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const [rows, total] = await Promise.all([
+      Transaction.find(filter)
+        .populate('workerId', 'name email phone')
+        .populate('partnerId')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      Transaction.countDocuments(filter)
+    ]);
+
+    // Alias a couple of fields to what the admin Payments UI already expects.
+    const data = rows.map(tx => ({
+      ...tx,
+      referenceId: tx.reference,
+      razorpayOrderId: tx.metadata?.razorpayOrderId
+    }));
+
+    res.status(200).json({
+      success: true,
+      data,
+      pagination: { total, pages: Math.max(1, Math.ceil(total / limit)), page, limit }
+    });
+  } catch (error) {
+    console.error('Get Admin Transactions Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const getAdminTransactionStats = async (req, res) => {
+  try {
+    const [revenueAgg, refundAgg] = await Promise.all([
+      Transaction.aggregate([
+        { $match: { type: 'credit', status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Transaction.aggregate([
+        { $match: { category: { $in: ['refund', 'commission_refund', 'refund_deduction'] }, status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ])
+    ]);
+
+    const totalRevenue = revenueAgg[0]?.total || 0;
+    const totalRefunds = refundAgg[0]?.total || 0;
+
+    res.status(200).json({
+      success: true,
+      data: { totalRevenue, totalRefunds, netRevenue: totalRevenue - totalRefunds }
+    });
+  } catch (error) {
+    console.error('Get Admin Transaction Stats Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

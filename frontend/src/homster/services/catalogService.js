@@ -242,6 +242,7 @@ export const publicCatalogService = {
     if (params.subCategoryId) queryParams.append('subCategoryId', params.subCategoryId);
     if (params.subCategorySlug) queryParams.append('subCategorySlug', params.subCategorySlug);
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
+    if (params.instant) queryParams.append('instant', 'true');
 
     const cacheKey = `public:services:${queryParams.toString()}`;
     const cached = apiCache.get(cacheKey);

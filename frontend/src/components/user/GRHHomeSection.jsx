@@ -6,9 +6,9 @@ import GRHPropertyCard from './GRHPropertyCard';
 
 const grhCache = {};
 
-const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
+const GRHHomeSection = ({ title, subtitle, availabilityFilter, searchCity, theme }) => {
   const navigate = useNavigate();
-  const cacheKey = availabilityFilter || 'default';
+  const cacheKey = `${availabilityFilter || 'default'}::${searchCity || 'all'}`;
   
   // Synchronously initialize from cache to prevent DOM height jumping on back navigation
   const [properties, setProperties] = useState(grhCache[cacheKey] || []);
@@ -36,7 +36,9 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
     const fetchProperties = async () => {
       if (!grhCache[cacheKey]) setLoading(true);
       try {
-        const promises = [propertyService.getPublic({ availability: availabilityFilter })];
+        const params = { availability: availabilityFilter };
+        if (searchCity) params.city = searchCity;
+        const promises = [propertyService.getPublic(params)];
         if (localStorage.getItem('user')) {
           promises.push(userService.getSavedPlaces());
         }
@@ -60,7 +62,7 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
       }
     };
     fetchProperties();
-  }, [availabilityFilter, title, cacheKey]);
+  }, [availabilityFilter, searchCity, title, cacheKey]);
 
   const handleViewMore = () => {
     navigate(`/search?availability=${encodeURIComponent(availabilityFilter)}`);
@@ -77,12 +79,14 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
           </div>
           {subtitle && <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 font-normal truncate">{subtitle}</p>}
         </div>
-        <button
-          onClick={handleViewMore}
-          className={`text-[12px] md:text-[14px] font-bold ${theme?.text || 'text-emerald-600'} ${theme?.hoverText || 'hover:text-emerald-700'} hover:underline whitespace-nowrap shrink-0 mt-1 md:mt-0`}
-        >
-          View All
-        </button>
+        {properties.length > 8 && (
+          <button
+            onClick={handleViewMore}
+            className={`text-[12px] md:text-[14px] font-bold ${theme?.text || 'text-emerald-600'} ${theme?.hoverText || 'hover:text-emerald-700'} hover:underline whitespace-nowrap shrink-0 mt-1 md:mt-0`}
+          >
+            View All
+          </button>
+        )}
       </div>
 
       {/* Section Content (Horizontal Carousel or Empty State) */}
@@ -96,7 +100,11 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
             🏢
           </div>
           <h4 className="text-sm font-bold text-gray-800 mb-1">No Properties Found</h4>
-          <p className="text-xs text-gray-400 max-w-xs mb-3">There are currently no "{title.toLowerCase()}" listed on Get Right Home. Be the first to list yours!</p>
+          <p className="text-xs text-gray-400 max-w-xs mb-3">
+            {searchCity
+              ? `There are currently no "${title.toLowerCase()}" listed in "${searchCity}". Be the first to list yours!`
+              : `There are currently no "${title.toLowerCase()}" listed on Get Right Home. Be the first to list yours!`}
+          </p>
           <button
             onClick={() => navigate('/list-property')}
             className="px-4 py-1.5 bg-[#0f172a] hover:bg-slate-800 active:scale-95 text-white text-xs font-bold rounded-lg transition-all shadow-sm animate-in fade-in"
@@ -108,7 +116,7 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, theme }) => {
         <div
           ref={carouselRef}
           onScroll={handleScroll}
-          className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full"
+          className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-fit max-w-full"
         >
           {properties.slice(0, 8).map((property) => (
             <GRHPropertyCard

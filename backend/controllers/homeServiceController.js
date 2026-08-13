@@ -120,11 +120,12 @@ export const getPublicSubCategories = async (req, res) => {
 
 export const getPublicServices = async (req, res) => {
   try {
-    const { categoryId, subCategoryId, cityId } = req.query;
+    const { categoryId, subCategoryId, cityId, instant } = req.query;
     const filter = { isActive: true };
 
     if (categoryId) filter.categoryId = categoryId;
     if (subCategoryId) filter.subCategoryId = subCategoryId;
+    if (instant === 'true') filter.isInstant = true;
     if (cityId) {
       filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
     }
@@ -184,10 +185,11 @@ export const deleteSubCategory = async (req, res) => {
 // Services
 export const getServices = async (req, res) => {
   try {
-    const { subCategoryId, categoryId } = req.query;
+    const { subCategoryId, categoryId, instant } = req.query;
     const filter = {};
     if (subCategoryId) filter.subCategoryId = subCategoryId;
     if (categoryId) filter.categoryId = categoryId;
+    if (instant === 'true') filter.isInstant = true;
 
     const services = await HomeServiceService.find(filter).populate('subCategoryId categoryId');
     res.json({ success: true, services });

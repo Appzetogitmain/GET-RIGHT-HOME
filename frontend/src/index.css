@@ -82,6 +82,18 @@ body:has(#hotel-root) {
   scrollbar-width: none;
 }
 
+/* Alias used across several pages (property galleries, wizard steps) —
+   same rules as .no-scrollbar. Was referenced in 8 files but never defined,
+   so those containers fell back to the native scrollbar. */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Thin, arrow-free scrollbar for scrollable panels (admin sidebar, modals,
    etc). Without this, browsers fall back to the native scrollbar, which on
    Windows/Edge/Chrome renders with clickable up/down arrow buttons. */

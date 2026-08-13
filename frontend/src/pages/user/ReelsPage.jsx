@@ -250,6 +250,16 @@ export default function ReelsPage() {
   }, [isLoggedIn, navigate]);
   const handleCloseComments = useCallback(() => setCommentReel(null), []);
 
+  const handleOpenUpload = useCallback(() => {
+    if (!isLoggedIn) {
+      toast.error('Please login to upload a reel');
+      navigate('/login');
+      return;
+    }
+    resetWizard();
+    setUploadOpen(true);
+  }, [isLoggedIn, navigate]);
+
   const handleCommentAdded = useCallback((reelId) => {
     setReels((prev) =>
       prev.map((r) =>
@@ -541,6 +551,16 @@ export default function ReelsPage() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Upload Reel — Instagram-style "+" */}
+        <button
+          type="button"
+          onClick={handleOpenUpload}
+          className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10"
+          aria-label="Upload a reel"
+        >
+          <Plus size={18} />
+        </button>
+
         {/* Search Toggle */}
         <button
           type="button"

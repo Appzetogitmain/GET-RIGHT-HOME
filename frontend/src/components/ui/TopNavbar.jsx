@@ -1,14 +1,32 @@
-import React from 'react';
-import { User, Globe, Bell } from 'lucide-react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
+import { User, Globe, Bell, MapPin, ChevronDown } from 'lucide-react';
 import logo from '../../assets/grh-logo.png';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
+
+// Pulls in the Google Maps Places library — only load it once someone
+// actually opens the picker, not on every page load (TopNavbar renders
+// everywhere, eagerly).
+const CityExploreModal = lazy(() => import('../user/CityExploreModal'));
+
+const ROLE_LINKS = [
+    { label: 'For Buyers', to: '/buy' },
+    { label: 'For Tenants', to: '/rent-pg' },
+    { label: 'For Owners', to: '/list-property' },
+    { label: 'For Dealers / Builders', to: '/partner-landing' },
+];
 
 const TopNavbar = () => {
     // Get user from useAuth hook
     const { user } = useAuth();
     const userName = user?.name || 'User';
     const location = useLocation();
+    const [city, setCity] = useState(getPreferredCity());
+    const [isCityModalOpen, setIsCityModalOpen] = useState(false);
+
+    // Stay in sync with the city picker on the home page, even without a reload
+    useEffect(() => onPreferredCityChange(setCity), []);
 
     // Determine theme based on route
     let themeBg = 'bg-orange-50/95';
@@ -42,34 +60,53 @@ const TopNavbar = () => {
     }
 
     return (
+        <>
         <nav className={`hidden lg:flex w-full h-20 ${themeBg} backdrop-blur-md border-b ${themeBorder} px-6 justify-between items-center fixed top-0 z-50 transition-colors duration-700`}>
 
-            {/* Left side: Logo */}
-            <Link to="/" className="shrink-0">
-                <div className="flex items-center gap-0 group">
-                    <img src={logo} alt="GRH Logo" className="h-12 w-auto object-contain" />
-                    <div className="flex flex-col leading-none">
-                        <span className="text-xl font-black tracking-tighter text-gray-900 uppercase">
-                            Get Right<span className={`${themeLogoColor} transition-colors duration-700`}> Home</span>
-                        </span>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Real Estate Hub</span>
+            {/* Left side: Logo + current city (persists across every page) */}
+            <div className="flex items-center gap-4 shrink-0">
+                <Link to="/" className="shrink-0">
+                    <div className="flex items-center gap-0 group">
+                        <img src={logo} alt="GRH Logo" className="h-12 w-auto object-contain" />
+                        <div className="flex flex-col leading-none">
+                            <span className="text-xl font-black tracking-tighter text-gray-900 uppercase">
+                                Get Right<span className={`${themeLogoColor} transition-colors duration-700`}> Home</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Real Estate Hub</span>
+                        </div>
                     </div>
-                </div>
-            </Link>
-
-            {/* Center: Desktop Links */}
-            <div className="flex items-center gap-8 px-4 shrink-0">
-                <Link to="/" className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}>
-                    Home
                 </Link>
+                <button
+                    type="button"
+                    onClick={() => setIsCityModalOpen(true)}
+                    title="Change city"
+                    className={`hidden xl:flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 rounded-full border transition-colors ${
+                        isCityModalOpen ? 'border-orange-300 bg-white' : 'border-gray-200 bg-white/70 hover:bg-white'
+                    }`}
+                >
+                    <MapPin size={13} className={themeText} />
+                    <span className="text-[13px] font-bold text-gray-700">{city}</span>
+                    <ChevronDown size={12} className={`text-gray-400 transition-transform ${isCityModalOpen ? 'rotate-180' : ''}`} />
+                </button>
+            </div>
+
+            {/* Center: Role-based links (99acres-style) + core utility pages */}
+            <div className="flex items-center gap-6 px-4 shrink-0">
+                {ROLE_LINKS.map((link) => (
+                    <Link
+                        key={link.to}
+                        to={link.to}
+                        className={`text-gray-500 font-bold text-[13px] hover:${themeText} transition tracking-tight whitespace-nowrap`}
+                    >
+                        {link.label}
+                    </Link>
+                ))}
+                <span className="h-4 w-px bg-gray-200" />
                 <Link to="/search" className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}>
                     Search
                 </Link>
                 <Link to="/reels" className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}>
                     Reels
-                </Link>
-                <Link to="/my-enquiries" className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}>
-                    Enquiry
                 </Link>
             </div>
 
@@ -127,6 +164,13 @@ const TopNavbar = () => {
             </div>
 
         </nav>
+
+        {isCityModalOpen && (
+            <Suspense fallback={null}>
+                <CityExploreModal isOpen={isCityModalOpen} onClose={() => setIsCityModalOpen(false)} />
+            </Suspense>
+        )}
+        </>
     );
 };
 

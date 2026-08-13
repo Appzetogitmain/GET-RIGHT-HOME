@@ -18,7 +18,12 @@ const homeServiceServiceSchema = new mongoose.Schema({
   isIdea: { type: Boolean, default: false },
   isRecentProject: { type: Boolean, default: false },
   workerName: { type: String, default: "" },
-  projectImages: [{ type: String }]
+  projectImages: [{ type: String }],
+  // Powers the "Instant Booking" section on the Home Services landing page —
+  // a service flagged here shows up as an express card there instead of the
+  // section being hardcoded/unmanaged.
+  isInstant: { type: Boolean, default: false },
+  instantEtaMinutes: { type: Number, default: 30 }
 }, { timestamps: true });
 
 export default mongoose.model('HomeServiceService', homeServiceServiceSchema);

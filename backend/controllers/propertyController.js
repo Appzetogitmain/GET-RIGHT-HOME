@@ -58,33 +58,33 @@ const notifyAdminOfNewProperty = async (property) => {
 export const getPublicBuilders = async (req, res) => {
   try {
     const { locality } = req.query;
-    
+
     if (locality) {
       // Aggregate builders based on properties in this locality
       const regexLocality = safeRegex(locality, { exact: true });
       const sellerAggregation = await Property.aggregate([
-          { $match: { 'address.area': regexLocality, status: 'Active', userId: { $exists: true } } },
-          { $group: { _id: "$userId", propertyCount: { $sum: 1 } } },
-          { $sort: { propertyCount: -1 } }
+        { $match: { 'address.area': regexLocality, status: 'Active', userId: { $exists: true } } },
+        { $group: { _id: "$userId", propertyCount: { $sum: 1 } } },
+        { $sort: { propertyCount: -1 } }
       ]);
 
       if (sellerAggregation.length > 0) {
-          const sellerIds = sellerAggregation.map(s => s._id);
-          const users = await User.find({ _id: { $in: sellerIds }, role: 'builder' }).select('name builderProfile profilePicture');
-          
-          let builders = users.map(u => {
-              const agg = sellerAggregation.find(s => s._id.toString() === u._id.toString());
-              return {
-                  _id: u._id,
-                  name: u.name,
-                  brandLogo: u.profilePicture,
-                  profile: u.builderProfile,
-                  cityProjects: agg ? agg.propertyCount : 0,
-                  totalProjects: agg ? agg.propertyCount : 0 // Adjust if needed
-              };
-          }).sort((a, b) => b.cityProjects - a.cityProjects);
+        const sellerIds = sellerAggregation.map(s => s._id);
+        const users = await User.find({ _id: { $in: sellerIds }, role: 'builder' }).select('name builderProfile profilePicture');
 
-          return res.json({ success: true, builders });
+        let builders = users.map(u => {
+          const agg = sellerAggregation.find(s => s._id.toString() === u._id.toString());
+          return {
+            _id: u._id,
+            name: u.name,
+            brandLogo: u.profilePicture,
+            profile: u.builderProfile,
+            cityProjects: agg ? agg.propertyCount : 0,
+            totalProjects: agg ? agg.propertyCount : 0 // Adjust if needed
+          };
+        }).sort((a, b) => b.cityProjects - a.cityProjects);
+
+        return res.json({ success: true, builders });
       }
     }
 
@@ -226,23 +226,23 @@ export const createProperty = async (req, res) => {
     }
 
     const { propertyName, contactNumber, propertyType, propertyCategory, dynamicData, description, shortDescription, logo, coverImage, propertyImages, amenities, highlights, topAmenities, otherAmenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating, dynamicCategory, pgDetails, rentDetails, plotDetails, buyDetails, status } = req.body;
-    
+
     // Extract and fallback fields from dynamicData if root is empty
     const finalPropertyName = propertyName || (dynamicData && dynamicData.propertyName) || `${propertyCategory || 'Residential'} ${propertyType} for ${req.body.transactionType || 'Sell'}`;
-    
+
     // Basic validation
     if (!finalPropertyName || !propertyType) return res.status(400).json({ message: 'Missing required fields: propertyName or propertyType' });
 
     const lowerType = propertyType.toLowerCase();
     const requiredDocs = PROPERTY_DOCUMENTS[lowerType] || [];
-    
-    const nearbyPlacesArray = Array.isArray(nearbyPlaces) && nearbyPlaces.length > 0 
-      ? nearbyPlaces 
+
+    const nearbyPlacesArray = Array.isArray(nearbyPlaces) && nearbyPlaces.length > 0
+      ? nearbyPlaces
       : (dynamicData && Array.isArray(dynamicData.nearbyPlaces) ? dynamicData.nearbyPlaces : []);
-      
+
     const finalAmenities = (amenities && amenities.length > 0) ? amenities : (dynamicData && Array.isArray(dynamicData.amenities) ? dynamicData.amenities : []);
     const finalHighlights = (highlights && highlights.length > 0) ? highlights : (dynamicData && Array.isArray(dynamicData.highlights) ? dynamicData.highlights : []);
-    
+
     // Auto-split amenities into topAmenities (first 6) and otherAmenities (rest) if not explicitly provided
     let finalTopAmenities = (topAmenities && topAmenities.length > 0) ? topAmenities : (dynamicData && Array.isArray(dynamicData.topAmenities) ? dynamicData.topAmenities : []);
     let finalOtherAmenities = (otherAmenities && otherAmenities.length > 0) ? otherAmenities : (dynamicData && Array.isArray(dynamicData.otherAmenities) ? dynamicData.otherAmenities : []);
@@ -250,18 +250,18 @@ export const createProperty = async (req, res) => {
       finalTopAmenities = finalAmenities.slice(0, 6);
       finalOtherAmenities = finalAmenities.slice(6);
     }
-    
-    const propertyImagesArray = Array.isArray(propertyImages) && propertyImages.length > 0 
-      ? propertyImages 
+
+    const propertyImagesArray = Array.isArray(propertyImages) && propertyImages.length > 0
+      ? propertyImages
       : (dynamicData && Array.isArray(dynamicData.propertyImages) ? dynamicData.propertyImages : []);
-    
+
     let finalLogo = logo || (dynamicData && dynamicData.logo) || '';
     if (!finalLogo && propertyImagesArray.length > 0) {
       finalLogo = propertyImagesArray[0];
     }
-    
+
     const coverImageValue = coverImage || (dynamicData && dynamicData.coverImage) || (propertyImagesArray.length > 0 ? propertyImagesArray[0] : '');
-    
+
     const addressValue = address || {
       city: (dynamicData && dynamicData.city) || '',
       locality: (dynamicData && dynamicData.locality) || '',
@@ -277,7 +277,7 @@ export const createProperty = async (req, res) => {
 
     let finalContactNumber = contactNumber || '';
     if (typeof finalContactNumber === 'string') finalContactNumber = finalContactNumber.trim();
-    
+
     if (!finalContactNumber && dynamicData) {
       const keys = ['contactNumber', 'mobileNumber', 'phone', 'mobile', 'phoneNumber'];
       for (const k of keys) {
@@ -301,10 +301,10 @@ export const createProperty = async (req, res) => {
     }
 
     const isProjectListing = Boolean(
-      req.body.isProject || 
-      req.user.role === 'builder' || 
-      (propertyCategory || '').toLowerCase().includes('project') || 
-      (propertyType || '').toLowerCase().includes('project') || 
+      req.body.isProject ||
+      req.user.role === 'builder' ||
+      (propertyCategory || '').toLowerCase().includes('project') ||
+      (propertyType || '').toLowerCase().includes('project') ||
       (dynamicData && (dynamicData.builderProjectDetails || dynamicData.builderName || (Array.isArray(dynamicData.towers) && dynamicData.towers.length > 0)))
     );
 
@@ -812,7 +812,7 @@ export const debugProperties = async (req, res) => {
         propertyCategory: p.propertyCategory, dynamicCategory: p.dynamicCategory
       }))
     });
-  } catch(e) {
+  } catch (e) {
     res.status(500).json({ message: e.message });
   }
 };
@@ -945,7 +945,7 @@ export const getPublicProperties = async (req, res) => {
       } else if (dynamicTypes.length > 0) {
         const categoryIds = dynamicTypes.map(id => new mongoose.Types.ObjectId(id));
         const categories = await PropertyCategory.find({ _id: { $in: categoryIds } }).select('displayName name').lean();
-        
+
         const fallbackPropertyTypes = new Set();
         const fallbackTransactionTypes = new Set();
 
@@ -1113,7 +1113,7 @@ export const getPublicProperties = async (req, res) => {
         }
         return new RegExp(t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
       });
-      
+
       const bhkMatch = {
         $or: [
           { 'dynamicData.bhkType': { $in: bhkRegexList } },
@@ -1143,7 +1143,7 @@ export const getPublicProperties = async (req, res) => {
         if (/unfurnished/i.test(f)) return /unfurnished/i;
         return new RegExp(f.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
       });
-      
+
       const furnishMatch = {
         $or: [
           { 'dynamicData.furnishingStatus': { $in: furnishRegexList } },
@@ -1282,7 +1282,7 @@ export const getPublicProperties = async (req, res) => {
       const availList = availability.split(',').map(a => a.trim()).filter(Boolean);
       if (availList.length > 0) {
         const availRegexes = availList.map(a => new RegExp('^' + a.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
-        
+
         const availabilityOr = [
           { 'dynamicData.availability': { $in: availRegexes } },
           { 'dynamicData.availabilityStatus': { $in: availRegexes } },
@@ -1344,21 +1344,30 @@ export const getPublicProperties = async (req, res) => {
       if (!isNaN(year)) {
         // If exact year or 'after 2030'
         if (possessionYear === '2030+') {
-           matchConditions['dynamicData.possessionYear'] = { $gt: 2030 };
+          matchConditions['dynamicData.possessionYear'] = { $gt: 2030 };
         } else {
-           matchConditions['dynamicData.possessionYear'] = year;
+          matchConditions['dynamicData.possessionYear'] = year;
         }
       } else if (possessionYear === '2030+') {
-         matchConditions['dynamicData.possessionYear'] = { $gt: 2030 };
+        matchConditions['dynamicData.possessionYear'] = { $gt: 2030 };
       }
     }
 
     if (city) {
-      const cityRegex = new RegExp('^' + city.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
+      // Unanchored + matches area/fullAddress too — a listing's location is
+      // free text set by whoever created it (GPS reverse-geocode or manual
+      // entry), not tied to any admin-curated location list. A search for
+      // "Koramangala" needs to match a listing whose city is "Bengaluru" but
+      // whose area is "Koramangala", and "Bengaluru" should still match a
+      // listing tagged "Bengaluru North" — hence unanchored, multi-field.
+      const escapedCity = city.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const cityRegex = new RegExp(escapedCity, 'i');
       const cityMatch = {
         $or: [
           { 'address.city': cityRegex },
-          { 'address.district': cityRegex }
+          { 'address.district': cityRegex },
+          { 'address.area': cityRegex },
+          { 'address.fullAddress': cityRegex }
         ]
       };
 
@@ -1405,14 +1414,14 @@ export const getPublicProperties = async (req, res) => {
       const minA = parseInt(minArea);
       const maxA = parseInt(maxArea);
       const areaMatchList = [];
-      
+
       const constructAreaQuery = (field) => {
         const conditions = [];
         if (!isNaN(minA)) {
-            conditions.push({ $gte: [ { $convert: { input: `$${field}`, to: "double", onError: null, onNull: null } }, minA ] });
+          conditions.push({ $gte: [{ $convert: { input: `$${field}`, to: "double", onError: null, onNull: null } }, minA] });
         }
         if (!isNaN(maxA)) {
-            conditions.push({ $lte: [ { $convert: { input: `$${field}`, to: "double", onError: null, onNull: null } }, maxA ] });
+          conditions.push({ $lte: [{ $convert: { input: `$${field}`, to: "double", onError: null, onNull: null } }, maxA] });
         }
         return { $expr: { $and: conditions } };
       };
@@ -1901,7 +1910,7 @@ export const getPublicProperties = async (req, res) => {
       if (sort === 'price_high' || sort === 'priceDesc') sortStage = { startingPrice: -1, rankingWeight: -1 };
       if (sort === 'rating') sortStage = { avgRating: -1, rankingWeight: -1 };
       if (sort === 'distance' && lat && lng) sortStage = { distance: 1, rankingWeight: -1 };
-      
+
       // Sort by calculated price per sqft
       if (sort === 'pricePerSqftAsc') sortStage = { pricePerSqft: 1, rankingWeight: -1 };
       if (sort === 'pricePerSqftDesc') sortStage = { pricePerSqft: -1, rankingWeight: -1 };
@@ -1955,7 +1964,7 @@ export const getPropertyDetails = async (req, res) => {
       { $inc: { views: 1 } },
       { new: true }
     ).populate('userId').populate('builderProjectDetails');
-    
+
     // Fallback to Project collection if not found in Property
     if (!property) {
       property = await Project.findByIdAndUpdate(
@@ -1963,7 +1972,7 @@ export const getPropertyDetails = async (req, res) => {
         { $inc: { views: 1 } },
         { new: true }
       ).populate('userId');
-      
+
       // If found in project, map embedded fields to builderProjectDetails for frontend compatibility
       if (property) {
         // We create a virtual builderProjectDetails object to satisfy the frontend expectation
@@ -2193,10 +2202,11 @@ export const getAdminPropertiesByLocation = async (req, res) => {
     };
 
     if (city && city.toLowerCase() !== 'all' && city.toLowerCase() !== 'any') {
-      const cityRegex = safeRegex(city);
+      const cityRegex = safeRegex(city.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'));
       query.$or = [
         { 'address.city': cityRegex },
         { 'address.district': cityRegex },
+        { 'address.area': cityRegex },
         { 'address.fullAddress': cityRegex },
         { 'address.state': cityRegex }
       ];
@@ -2236,16 +2246,16 @@ export const getAdminPropertiesByLocation = async (req, res) => {
     const sortedProperties = properties.sort((a, b) => {
       const getPlanWeight = (p) => (p.featuredDetails?.isFeatured && p.featuredDetails?.planId) ? (p.featuredDetails.planId.weight || 0) : 0;
       const getRoleWeight = (p) => {
-         if (p.isAddedByAdmin && !p.userId) return 4; // Admin pure
-         const role = p.userId?.role;
-         if (role === 'builder') return 3;
-         if (role === 'broker' || role === 'owner') return 2;
-         return 1;
+        if (p.isAddedByAdmin && !p.userId) return 4; // Admin pure
+        const role = p.userId?.role;
+        if (role === 'builder') return 3;
+        if (role === 'broker' || role === 'owner') return 2;
+        return 1;
       };
 
       const planDiff = getPlanWeight(b) - getPlanWeight(a);
       if (planDiff !== 0) return planDiff;
-      
+
       const roleDiff = getRoleWeight(b) - getRoleWeight(a);
       if (roleDiff !== 0) return roleDiff;
 
@@ -2312,8 +2322,8 @@ export const getPropertyStats = async (req, res) => {
 
     // Authorization check
     if (String(property.userId) !== String(req.user._id) &&
-        String(property.userId) !== String(req.user._id) &&
-        req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      String(property.userId) !== String(req.user._id) &&
+      req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Unauthorized access to property stats' });
     }
 
@@ -2393,12 +2403,12 @@ export const getPropertyStats = async (req, res) => {
 export const getPartnerPublicDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // First try to find a Partner
     let partner = await Partner.findById(id)
       .select('name email phone businessName businessAddress partnerSince profileImage subscription role')
       .populate('subscription.planId');
-    
+
     // If not found, try to find a User (who might be an owner or broker)
     if (!partner) {
       const user = await User.findById(id)
@@ -2408,11 +2418,11 @@ export const getPartnerPublicDetails = async (req, res) => {
         partner = user;
       }
     }
-    
+
     if (!partner) {
       return res.status(404).json({ success: false, message: 'Seller not found' });
     }
-    
+
     // Fetch all live properties of this seller
     const properties = await Property.find({
       $or: [
@@ -2422,7 +2432,7 @@ export const getPartnerPublicDetails = async (req, res) => {
       status: 'approved',
       isLive: true
     });
-    
+
     res.status(200).json({
       success: true,
       partner: {
