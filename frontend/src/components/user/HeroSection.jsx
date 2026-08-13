@@ -9,6 +9,8 @@ import CityDropdown from './CityDropdown';
 import toast from 'react-hot-toast';
 import MobileSearchOverlay from './MobileSearchOverlay';
 import DesktopSearchFilterBar from './DesktopSearchFilterBar';
+import { getPreferredCity, setPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
+import { addRecentSearch } from '../../utils/recentActivity';
 
 
 const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) => {
@@ -19,7 +21,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCity, setSelectedCity] = useState('Bengaluru');
+    const [selectedCity, setSelectedCity] = useState(getPreferredCity());
     const [selectedDistrict, setSelectedDistrict] = useState(null);
     const [detectingLocation, setDetectingLocation] = useState(false);
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(() => {
@@ -50,6 +52,29 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         sessionStorage.setItem('grh_search_modal_open', isSearchModalOpen);
     }, [isSearchModalOpen]);
 
+    // The city pill shows "Bengaluru" by default — actually filter the page
+    // to Bengaluru from the first render too, instead of leaving it
+    // unfiltered until the user explicitly opens the dropdown. Without this
+    // the pill and the property list disagreed on what was "selected".
+    useEffect(() => {
+        if (onSearch) {
+            onSearch(selectedCity);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Desktop's own city picker was removed (the top nav is the single
+    // source of truth now) — stay in sync when it's changed from there.
+    useEffect(() => {
+        return onPreferredCityChange((city) => {
+            if (!city || city === selectedCity) return;
+            setSelectedCity(city);
+            setSelectedDistrict(null);
+            if (onSearch) onSearch(city);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedCity]);
+
 
     const handleSearch = () => {
         setIsSearchModalOpen(true);
@@ -59,10 +84,22 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         const queryParams = new URLSearchParams();
         if (filters.categoryTab) queryParams.set('categoryTab', filters.categoryTab);
         if (filters.propertyCategory) queryParams.set('propertyCategory', filters.propertyCategory);
-        if (filters.areas && filters.areas.length > 0) queryParams.set('areas', filters.areas.join(','));
+        if (filters.areas && filters.areas.length > 0) {
+            queryParams.set('areas', filters.areas.join(','));
+        } else if (selectedCity) {
+            // The search modal itself didn't narrow to specific areas — carry
+            // over the location pill's city so results stay scoped to it
+            // instead of silently searching everywhere.
+            queryParams.set('areas', selectedCity);
+        }
         sessionStorage.removeItem('grh_search_modal_open'); // Clear on submit
         sessionStorage.removeItem('grh_search_draft'); // Clear draft
-        navigate(`/search?${queryParams.toString()}`);
+        const url = `/search?${queryParams.toString()}`;
+        const label = filters.categoryTab
+            ? `${filters.categoryTab} in ${filters.areas?.[0] || selectedCity || 'your city'}`
+            : `Search in ${filters.areas?.[0] || selectedCity || 'your city'}`;
+        addRecentSearch({ label, url });
+        navigate(url);
     };
 
     const handleCloseModal = () => {
@@ -73,8 +110,19 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     const handleCitySelect = ({ city, district }) => {
         setSelectedCity(city);
         setSelectedDistrict(district);
-        const combined = [district || city].filter(Boolean).join(' ');
-        navigate(`/search?search=${encodeURIComponent(combined)}`);
+        if (city) setPreferredCity(city); // persists across pages — read by TopNavbar
+
+        // If the page gave us an onSearch handler, filter the sections on
+        // this page in place instead of navigating away — that's what lets
+        // "Bengaluru" vs "Mumbai" actually change what's shown below.
+        if (onSearch) {
+            onSearch(city);
+            const section = document.getElementById('admin-properties-section');
+            if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            const combined = [district || city].filter(Boolean).join(' ');
+            navigate(`/search?search=${encodeURIComponent(combined)}`);
+        }
     };
 
     const handleLiveLocationDetect = async () => {
@@ -160,8 +208,10 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                 <BannerCarousel />
 
                 {/* ─── DESKTOP SEARCH + FILTER BAR (overlaps banner bottom) ─── */}
+                {/* Location is set from the top nav pill now (single source,
+                    no duplicate picker down here) — this bar just reads it. */}
                 <div className="hidden lg:flex absolute -bottom-[172px] left-0 right-0 z-40 justify-center">
-                    <DesktopSearchFilterBar theme={theme} selectedType={selectedType} />
+                    <DesktopSearchFilterBar theme={theme} selectedType={selectedType} selectedCity={selectedCity} />
                 </div>
 
                 {/* ─── FLOATING SEARCH BOX (overlaps banner bottom, mobile/tablet only) ─── */}

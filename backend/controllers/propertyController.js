@@ -1321,11 +1321,20 @@ export const getPublicProperties = async (req, res) => {
     }
 
     if (city) {
-      const cityRegex = new RegExp('^' + city.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i');
+      // Unanchored + matches area/fullAddress too — a listing's location is
+      // free text set by whoever created it (GPS reverse-geocode or manual
+      // entry), not tied to any admin-curated location list. A search for
+      // "Koramangala" needs to match a listing whose city is "Bengaluru" but
+      // whose area is "Koramangala", and "Bengaluru" should still match a
+      // listing tagged "Bengaluru North" — hence unanchored, multi-field.
+      const escapedCity = city.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const cityRegex = new RegExp(escapedCity, 'i');
       const cityMatch = {
         $or: [
           { 'address.city': cityRegex },
-          { 'address.district': cityRegex }
+          { 'address.district': cityRegex },
+          { 'address.area': cityRegex },
+          { 'address.fullAddress': cityRegex }
         ]
       };
 
@@ -2160,10 +2169,11 @@ export const getAdminPropertiesByLocation = async (req, res) => {
     };
 
     if (city && city.toLowerCase() !== 'all' && city.toLowerCase() !== 'any') {
-      const cityRegex = new RegExp(city, 'i');
+      const cityRegex = new RegExp(city.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
       query.$or = [
         { 'address.city': cityRegex },
         { 'address.district': cityRegex },
+        { 'address.area': cityRegex },
         { 'address.fullAddress': cityRegex },
         { 'address.state': cityRegex }
       ];

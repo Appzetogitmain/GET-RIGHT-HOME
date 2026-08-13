@@ -123,7 +123,7 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
   if (properties.length === 0) {
     return (
       <div className="text-center py-20 text-gray-500">
-        <p>No properties found in this category.</p>
+        <p>{selectedCity ? `No properties found in "${selectedCity}".` : 'No properties found in this category.'}</p>
       </div>
     );
   }

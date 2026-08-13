@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { goBackOrHome } from '../../utils/navigation';
+import { addRecentlyViewed } from '../../utils/recentActivity';
 import {
   ChevronUp,
   MapPin, Star, Share2, Heart, ArrowLeft, Loader2, ChevronLeft, ChevronRight,
@@ -233,6 +234,14 @@ const HandpickedDetailsPage = () => {
       const res = await propertyService.getDetails(id);
       if (res && res.property) {
         setProperty(res.property);
+
+        addRecentlyViewed({
+          id: res.property._id,
+          name: res.property.propertyName || 'Untitled Property',
+          image: res.property.coverImage || res.property.propertyImages?.[0] || '',
+          city: res.property.address?.city || '',
+          url: `/project/${res.property._id}`
+        });
 
         // Fetch locality details based on property address
         const localityString = res.property.address?.locality || res.property.address?.area || res.property.address?.city || '';

@@ -48,7 +48,12 @@ import {
   sendTargetedNotification,
   updateAdminProperty,
   createAdminBroker,
-  updateAdminPassword
+  updateAdminPassword,
+  getHomeServiceDashboardStats,
+  getHomeServiceBookingTrends,
+  getHomeServiceUserGrowth,
+  getAdminTransactionsList,
+  getAdminTransactionStats
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import {
@@ -108,6 +113,12 @@ router.post('/notifications/send-targeted', checkManagerPermission('notification
 router.put('/fcm-token', requireAdminOrManager, updateFcmToken);
 router.get('/dashboard-stats', checkManagerPermission('dashboard', 'view'), getDashboardStats);
 router.get('/dashboard/revenue', checkManagerPermission('dashboard', 'view'), getDashboardRevenue);
+// Home Services–scoped dashboard (distinct from /dashboard-stats above, which is Property-side)
+router.get('/dashboard/stats', checkManagerPermission('dashboard', 'view'), getHomeServiceDashboardStats);
+router.get('/dashboard/bookings/trends', checkManagerPermission('dashboard', 'view'), getHomeServiceBookingTrends);
+router.get('/dashboard/users/growth', checkManagerPermission('dashboard', 'view'), getHomeServiceUserGrowth);
+router.get('/transactions', checkManagerPermission('finance', 'view'), getAdminTransactionsList);
+router.get('/transactions/stats', checkManagerPermission('finance', 'view'), getAdminTransactionStats);
 router.get('/finance', checkManagerPermission('finance', 'view'), getFinanceStats);
 router.get('/users', checkManagerPermission('users', 'view'), getAllUsers);
 router.post('/users/create-broker', checkManagerPermission('users', 'add'), createAdminBroker);

@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext';
 import PropertyCard from '../../components/user/PropertyCard';
 import AdvancedFilterModal from '../../components/user/AdvancedFilterModal';
 import MobileSearchOverlay from '../../components/user/MobileSearchOverlay';
+import SearchSidebarFilters from '../../components/user/SearchSidebarFilters';
+import SortDropdown from '../../components/user/SortDropdown';
 import { locationData, bengaluruAreas } from '../../data/locationData';
 const getAvailablePropertyTypes = (category, subCategory) => {
     if (category === 'Paying Guest') {
@@ -444,6 +446,50 @@ const SearchPage = () => {
         });
     };
 
+    // Shared by the desktop sidebar's "Clear All" and the bottom-sheet
+    // modal's "Clear all" — resets both the URL and local filter state.
+    const clearAllFilters = () => {
+        setSearchParams({}, { replace: true });
+        setFilters({
+            search: '',
+            type: 'all',
+            propertyCategory: 'all',
+            categoryTab: 'All',
+            minPrice: '',
+            maxPrice: '',
+            sort: 'newest',
+            amenities: [],
+            propertyTypes: [],
+            radius: 50,
+            foodIncluded: false,
+            city: '',
+            minArea: '',
+            maxArea: '',
+            bathrooms: 0,
+            postedBy: '',
+            purchaseType: '',
+            areas: [],
+            builder: [],
+            projects: []
+        });
+        setLocation(null);
+    };
+
+    // Used by the desktop sidebar (SearchSidebarFilters) — commits an
+    // arbitrary set of filter changes straight to the URL, same as
+    // toggleQuickFilter above, so results refresh immediately without
+    // waiting for the "See All Properties" button in the bottom-sheet modal.
+    const applyFilterPatch = (patch) => {
+        setFilters(prev => {
+            const nextFilters = { ...prev, ...patch };
+            setTimeout(() => {
+                const newParams = getParamsFromFilters(nextFilters);
+                setSearchParams(newParams, { replace: true });
+            }, 0);
+            return nextFilters;
+        });
+    };
+
     const getParamsFromFilters = (targetFilters) => {
         const params = {};
         if (targetFilters.search) params.search = targetFilters.search;
@@ -683,6 +729,19 @@ const SearchPage = () => {
         { value: 'pricePerSqftDesc', label: 'Price / sq.ft. : High to Low' }
     ];
 
+    // Drives the breadcrumb + "N results | Property in X for Y" header —
+    // matches the 99acres results-page pattern.
+    const cityLabel = (filters.areas && filters.areas[0]) || filters.city || filters.search || '';
+    const dealLabel = (() => {
+        switch (filters.categoryTab) {
+            case 'Sell': return 'Sale';
+            case 'Rent / Lease': return 'Rent';
+            case 'Paying Guest': return 'PG';
+            case 'Rent / PG': return 'Rent/PG';
+            default: return '';
+        }
+    })();
+
     return (
         <div className="min-h-screen bg-white pb-24 pt-[110px]">
             <div className="fixed top-0 w-full z-50 bg-white border-b border-gray-100 pb-2 pt-3 md:pt-4 px-4 shadow-sm">
@@ -741,25 +800,18 @@ const SearchPage = () => {
                         </div>
 
                         {/* Scrolling Chip Container */}
-                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pl-[85px] pr-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pl-[85px] pr-8" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                             {/* Sort Dropdown */}
-                            <div className="relative shrink-0">
-                                <select
-                                    value={filters.sort}
-                                    onChange={(e) => {
-                                        updateFilter('sort', e.target.value);
-                                        const params = { ...Object.fromEntries([...searchParams]), sort: e.target.value };
-                                        setSearchParams(params, { replace: true });
-                                    }}
-                                    className="appearance-none pl-3 pr-7 py-0 h-[30px] border border-gray-300 rounded-full text-xs font-medium text-gray-700 bg-white outline-none cursor-pointer max-w-[110px] truncate"
-                                >
-                                    <option value="" disabled hidden>Sort</option>
-                                    {sortOptions.map(opt => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-                            </div>
+                            <SortDropdown
+                                options={sortOptions}
+                                value={filters.sort}
+                                disabledValues={location ? [] : ['distance']}
+                                onChange={(val) => {
+                                    updateFilter('sort', val);
+                                    const params = { ...Object.fromEntries([...searchParams]), sort: val };
+                                    setSearchParams(params, { replace: true });
+                                }}
+                            />
 
                             {/* Quick Filter Buttons */}
                             {(() => {
@@ -822,6 +874,9 @@ const SearchPage = () => {
                                 });
                             })()}
                         </div>
+
+                        {/* Right-edge fade — hints that the pill row scrolls for more options */}
+                        <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none" />
                     </div>
                 </div>
             </div>
@@ -829,93 +884,126 @@ const SearchPage = () => {
             {/* Content Area */}
             <div className="max-w-7xl mx-auto px-0 md:px-4 py-4 md:py-2">
 
+                {/* Breadcrumb (99acres-style) */}
+                <div className="hidden md:flex items-center gap-1.5 text-xs font-medium text-gray-400 mb-3 px-0">
+                    <button onClick={() => navigate('/')} className="hover:text-gray-600 transition-colors">Home</button>
+                    <span>&rsaquo;</span>
+                    <span className="text-gray-600 font-semibold">Property{cityLabel ? ` in ${cityLabel}` : ''}</span>
+                </div>
+
                 {/* Toggle & Results Count Area */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 px-4 md:px-0 gap-4">
                     {/* Top-Level Filter Toggle Removed as requested */}
                     <div className="flex items-center justify-between w-full md:w-auto md:gap-4">
                         <h2 className="text-sm font-bold text-gray-800">
-                            {properties.length} results found
+                            {properties.length} results {cityLabel && <span className="text-gray-400 font-medium">| Property{cityLabel ? ` in ${cityLabel}` : ''}{dealLabel ? ` for ${dealLabel}` : ''}</span>}
                         </h2>
 
                     {/* Sort Dropdown (Small) */}
-                    <div className="relative hidden md:block">
-                        <select
+                    <div className="hidden md:block">
+                        <SortDropdown
+                            variant="text"
+                            options={sortOptions}
                             value={filters.sort}
-                            onChange={(e) => {
-                                updateFilter('sort', e.target.value);
-                                const params = { ...Object.fromEntries([...searchParams]), sort: e.target.value };
+                            disabledValues={location ? [] : ['distance']}
+                            onChange={(val) => {
+                                updateFilter('sort', val);
+                                const params = { ...Object.fromEntries([...searchParams]), sort: val };
                                 setSearchParams(params, { replace: true });
                             }}
-                            className="text-xs font-bold text-gray-600 bg-transparent outline-none pr-1 cursor-pointer appearance-none"
-                        >
-                            <option value="newest" disabled hidden>Sort</option>
-                            {sortOptions.map(opt => (
-                                <option key={opt.value} value={opt.value} disabled={opt.value === 'distance' && !location}>
-                                    Sort by {opt.label}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </div>
                 </div>
                 </div>
 
-                {/* Grid */}
-                {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-5 justify-items-center">
-                        {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="bg-white h-[340px] w-full md:max-w-[340px] rounded-none md:rounded-[1.5rem] animate-pulse border-y md:border border-gray-100"></div>
-                        ))}
-                    </div>
-                ) : properties.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-                        <div className="bg-gray-50 p-6 rounded-full mb-6">
-                            <Search size={40} className="text-gray-300" />
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-800 mb-2">No properties found</h3>
-                        <p className="text-sm text-gray-500 max-w-xs mx-auto">
-                            Try changing your search or filters to find what you're looking for.
-                        </p>
-                        <button
-                            onClick={() => {
-                                setFilters({
-                                    search: '',
-                                    type: 'all',
-                                    minPrice: '',
-                                    maxPrice: '',
-                                    sort: 'newest',
-                                    amenities: [],
-                                    radius: 50,
-                                    builder: []
-                                });
-                                setLocation(null);
-                                setSearchParams({}, { replace: true });
-                            }}
-                            className="mt-8 text-sm font-bold text-surface hover:underline"
-                        >
-                            Clear all filters
-                        </button>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-5 justify-items-center bg-gray-100 md:bg-transparent pb-4 md:pb-0">
-                        {properties.map(property => (
-                            <div key={property._id} className="w-full md:max-w-[340px] flex justify-center bg-white md:bg-transparent">
-                                <PropertyCard
-                                    property={property}
-                                    isSaved={savedHotelIds.includes(property._id)}
-                                    onToggleSave={(newState) => {
-                                        if (newState) {
-                                            setSavedHotelIds(prev => [...prev, property._id]);
-                                        } else {
-                                            setSavedHotelIds(prev => prev.filter(id => id !== property._id));
-                                        }
-                                    }}
-                                    isSearchPage={true}
-                                    className="!w-full !rounded-none md:!rounded-[1.5rem] border-y-0 md:border border-gray-100 shadow-sm"
-                                />
+                {/* Sidebar + Grid (99acres layout: persistent left rail on desktop) */}
+                <div className="lg:flex lg:items-start lg:gap-6">
+                    <SearchSidebarFilters
+                        filters={filters}
+                        applyFilterPatch={applyFilterPatch}
+                        toggleQuickFilter={toggleQuickFilter}
+                        resultsCount={properties.length}
+                        onClearAll={clearAllFilters}
+                        onOpenFullFilters={() => {
+                            setActiveModalTab('Quick Filters');
+                            setShowFilters(true);
+                        }}
+                    />
+
+                    <div className="flex-1 min-w-0">
+                        {cityLabel && (
+                            <div className="hidden md:flex items-center gap-2.5 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5 mb-4">
+                                <MapPin size={15} className="text-amber-500 shrink-0" />
+                                <span className="text-xs text-gray-700">
+                                    Get to know more about <span className="font-bold">{cityLabel}</span>
+                                </span>
+                                <button
+                                    onClick={() => navigate(`/insights/${encodeURIComponent(cityLabel)}`)}
+                                    className="ml-auto text-xs font-bold text-blue-600 hover:underline flex items-center gap-0.5 shrink-0"
+                                >
+                                    View Insights <ChevronDown size={12} className="-rotate-90" />
+                                </button>
                             </div>
-                        ))}
+                        )}
+
+                        {loading ? (
+                            <div className="flex flex-col gap-4">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                    <div key={i} className="bg-white h-[220px] w-full rounded-none sm:rounded-2xl animate-pulse border-y sm:border border-gray-100"></div>
+                                ))}
+                            </div>
+                        ) : properties.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+                                <div className="bg-gray-50 p-6 rounded-full mb-6">
+                                    <Search size={40} className="text-gray-300" />
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-800 mb-2">No properties found</h3>
+                                <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                                    Try changing your search or filters to find what you're looking for.
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        setFilters({
+                                            search: '',
+                                            type: 'all',
+                                            minPrice: '',
+                                            maxPrice: '',
+                                            sort: 'newest',
+                                            amenities: [],
+                                            radius: 50,
+                                            builder: []
+                                        });
+                                        setLocation(null);
+                                        setSearchParams({}, { replace: true });
+                                    }}
+                                    className="mt-8 text-sm font-bold text-surface hover:underline"
+                                >
+                                    Clear all filters
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-4 bg-gray-100 sm:bg-transparent pb-4 sm:pb-0">
+                                {properties.map(property => (
+                                    <div key={property._id} className="bg-white sm:bg-transparent">
+                                        <PropertyCard
+                                            property={property}
+                                            isSaved={savedHotelIds.includes(property._id)}
+                                            onToggleSave={(newState) => {
+                                                if (newState) {
+                                                    setSavedHotelIds(prev => [...prev, property._id]);
+                                                } else {
+                                                    setSavedHotelIds(prev => prev.filter(id => id !== property._id));
+                                                }
+                                            }}
+                                            isSearchPage={true}
+                                            className="!rounded-none sm:!rounded-2xl border-y-0 sm:border border-gray-100 shadow-sm"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
 
             {/* Advanced Filters Modal (Bottom Sheet) */}
@@ -930,32 +1018,7 @@ const SearchPage = () => {
                 previewLoading={previewLoading}
                 builders={builders}
                 projects={projectsList}
-                clearAllFilters={() => {
-                    setSearchParams({}, { replace: true });
-                    setFilters({
-                        search: '',
-                        type: 'all',
-                        propertyCategory: 'all',
-                        categoryTab: 'All',
-                        minPrice: '',
-                        maxPrice: '',
-                        sort: 'newest',
-                        amenities: [],
-                        propertyTypes: [],
-                        radius: 50,
-                        foodIncluded: false,
-                        city: '',
-                        minArea: '',
-                        maxArea: '',
-                        bathrooms: 0,
-                        postedBy: '',
-                        purchaseType: '',
-                        areas: [],
-                        builder: [],
-                        projects: []
-                    });
-                    setLocation(null);
-                }}
+                clearAllFilters={clearAllFilters}
                 activeTab={activeModalTab}
                 setActiveTab={setActiveModalTab}
             />

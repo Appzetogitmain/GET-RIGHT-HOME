@@ -276,35 +276,21 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
         }
     };
 
-    // Sync with external searchCity prop (from HeroSection)
+    // Sync with external searchCity prop (from HeroSection).
+    // Search for whatever the user actually picked — a property can be in
+    // ANY location, so there's nothing to "match" against a known-cities
+    // list here. Falling back to a different city when the search term
+    // isn't already in availableCities (e.g. it has no featured listings
+    // yet) would silently ignore the user's search, which is exactly the
+    // bug this used to have.
     useEffect(() => {
         if (searchCity) {
-            const lowerSearch = searchCity.toLowerCase();
-            let matchedCity = null;
-            let queryText = searchCity;
-
-            const sortedCities = [...availableCities].sort((a, b) => b.city.length - a.city.length);
-            
-            for (const cityObj of sortedCities) {
-                if (lowerSearch.includes(cityObj.city.toLowerCase())) {
-                    matchedCity = cityObj.city;
-                    queryText = searchCity
-                        .replace(new RegExp(cityObj.city, 'gi'), '')
-                        .trim();
-                    break;
-                }
-            }
-
-            if (!matchedCity) {
-                matchedCity = selectedCity || (availableCities.length > 0 ? availableCities[0].city : 'Bengaluru');
-            }
-
-            setLocalQuery(queryText);
-            selectCity(matchedCity);
+            setLocalQuery("");
+            selectCity(searchCity);
         } else {
             setLocalQuery("");
         }
-    }, [searchCity, availableCities]);
+    }, [searchCity]);
 
     // Step 1: Fetch all available cities on mount.
     // Also kick off the Bengaluru properties fetch immediately in parallel —

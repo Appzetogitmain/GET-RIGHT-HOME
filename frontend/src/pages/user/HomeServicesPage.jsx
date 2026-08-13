@@ -28,6 +28,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCity } from '../../homster/context/CityContext';
+import { useCart } from '../../homster/context/CartContext';
 import CategoryModal from '../../homster/modules/user/pages/Home/components/CategoryModal';
 import BottomNav from '../../homster/modules/user/components/layout/BottomNav';
 import ActiveBookingCard from '../../homster/modules/user/pages/Home/components/ActiveBookingCard';
@@ -43,10 +44,22 @@ const toAssetUrl = (url) => {
     return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
 
+// Rotating icon/color/badge treatment for whichever services admin has
+// flagged instant — real content varies, this just keeps the cards visually
+// distinct without needing per-service icon/color fields.
+const INSTANT_STYLES = [
+    { icon: Zap, color: 'from-amber-500 to-orange-600', badge: '⚡ HOT' },
+    { icon: Droplets, color: 'from-blue-500 to-cyan-600', badge: 'QUICK' },
+    { icon: Wind, color: 'from-emerald-500 to-teal-600', badge: 'EXPRESS' },
+    { icon: Wrench, color: 'from-purple-500 to-indigo-600', badge: 'INSTANT' },
+    { icon: Hammer, color: 'from-rose-500 to-red-600', badge: '⚡ FAST' }
+];
+
 const HomeServicesPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { currentCity } = useCity();
+    const { addToCart } = useCart();
     const [searchQuery, setSearchQuery] = useState('');
     const [isScrolled, setIsScrolled] = useState(false);
     const [vipLoading, setVipLoading] = useState(false);
@@ -107,6 +120,8 @@ const HomeServicesPage = () => {
     const [directCategories, setDirectCategories] = useState([]);
     const [directServicesMap, setDirectServicesMap] = useState({});
     const [directSubCategoriesMap, setDirectSubCategoriesMap] = useState({});
+    const [instantServices, setInstantServices] = useState([]);
+    const [instantBookingIds, setInstantBookingIds] = useState([]);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -115,6 +130,42 @@ const HomeServicesPage = () => {
     const openCategoryModal = (cat) => {
         setSelectedCategory(cat);
         setIsModalOpen(true);
+    };
+
+    // Instant Booking cards map straight to a real Service now, so tapping
+    // one adds it to the cart directly instead of opening the category
+    // browse flow — the whole point of "instant" is skipping that.
+    const handleInstantBook = async (service) => {
+        const serviceId = service.id || service._id;
+        if (instantBookingIds.includes(serviceId)) return;
+        setInstantBookingIds(prev => [...prev, serviceId]);
+        try {
+            const cartItemData = {
+                serviceId,
+                categoryId: service.categoryId?._id || service.categoryId,
+                subCategoryId: service.subCategoryId?._id || service.subCategoryId || undefined,
+                title: service.title,
+                description: service.description || '',
+                icon: toAssetUrl(service.icon || service.imageUrl || ''),
+                category: service.categoryId?.title || '',
+                subCategory: service.subCategoryId?.title || '',
+                price: service.discountPrice || service.basePrice,
+                unitPrice: service.discountPrice || service.basePrice,
+                serviceCount: 1,
+            };
+            const response = await addToCart(cartItemData);
+            if (response.success) {
+                toast.success(`${service.title} added — redirecting to checkout...`);
+                setTimeout(() => navigate('/user/cart'), 900);
+            } else {
+                toast.error(response.message || 'Failed to add to cart');
+            }
+        } catch (err) {
+            console.error('Instant booking add-to-cart failed:', err);
+            toast.error('Failed to add to cart');
+        } finally {
+            setInstantBookingIds(prev => prev.filter(id => id !== serviceId));
+        }
     };
 
     const [promos, setPromos] = useState([]);
@@ -203,6 +254,17 @@ const HomeServicesPage = () => {
                 // 3. Fetch Curations (Thoughtful Curations)
                 if (contentRes?.homeContent?.curated) {
                     setCurations(contentRes.homeContent.curated);
+                }
+
+                // 4. Fetch Instant Booking services (admin-flagged via "Show in
+                // Instant Booking" on a service) — replaces the old hardcoded card list.
+                try {
+                    const instantRes = await publicCatalogService.getServices({ instant: true });
+                    if (instantRes?.success) {
+                        setInstantServices(instantRes.services || []);
+                    }
+                } catch (err) {
+                    console.error("Error fetching instant services:", err);
                 }
 
             } catch (error) {
@@ -379,7 +441,10 @@ const HomeServicesPage = () => {
                 </div>
             </section>
 
-            {/* Instant Booking Section (30-45 Min Express Service Hub) */}
+            {/* Instant Booking Section (30-45 Min Express Service Hub) —
+                driven by services admin has flagged "Show in Instant Booking"
+                (Home Services admin → Services). Hidden entirely if none are flagged. */}
+            {instantServices.length > 0 && (
             <section className="mt-12 px-5 max-w-7xl mx-auto">
                 <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-emerald-500/10 border border-amber-500/20 rounded-[2.2rem] p-5 sm:p-7 relative overflow-hidden shadow-xl shadow-amber-500/5">
                     {/* Ambient Glow */}
@@ -416,110 +481,50 @@ const HomeServicesPage = () => {
 
                     {/* Instant Services Cards Carousel / Grid */}
                     <div className="flex overflow-x-auto gap-4 no-scrollbar pb-2 -mx-1 px-1 snap-x snap-mandatory">
-                        {[
-                            {
-                                id: 'instant-elec',
-                                title: 'Emergency Electrician',
-                                subtitle: 'Power Cut / Short Circuit Repair',
-                                icon: Zap,
-                                eta: '25-30 Mins',
-                                price: '₹149',
-                                rating: '4.9',
-                                categoryQuery: 'Electrician',
-                                color: 'from-amber-500 to-orange-600',
-                                badge: '⚡ HOT'
-                            },
-                            {
-                                id: 'instant-plumb',
-                                title: 'Urgent Plumbing',
-                                subtitle: 'Leakage / Pipe Blockage Fix',
-                                icon: Droplets,
-                                eta: '30-40 Mins',
-                                price: '₹199',
-                                rating: '4.8',
-                                categoryQuery: 'Plumber',
-                                color: 'from-blue-500 to-cyan-600',
-                                badge: 'QUICK'
-                            },
-                            {
-                                id: 'instant-ac',
-                                title: 'Instant AC Repair',
-                                subtitle: 'Cooling Fix / Gas Check',
-                                icon: Wind,
-                                eta: '35-45 Mins',
-                                price: '₹299',
-                                rating: '4.9',
-                                categoryQuery: 'AC Repair',
-                                color: 'from-emerald-500 to-teal-600',
-                                badge: 'EXPRESS'
-                            },
-                            {
-                                id: 'instant-appliance',
-                                title: 'Appliance Repair',
-                                subtitle: 'Washing Machine / Fridge Fix',
-                                icon: Wrench,
-                                eta: '30-45 Mins',
-                                price: '₹249',
-                                rating: '4.7',
-                                categoryQuery: 'Appliance',
-                                color: 'from-purple-500 to-indigo-600',
-                                badge: 'INSTANT'
-                            },
-                            {
-                                id: 'instant-lock',
-                                title: 'Locksmith & Key Repair',
-                                subtitle: 'Emergency Lock Opening',
-                                icon: Hammer,
-                                eta: '20-30 Mins',
-                                price: '₹179',
-                                rating: '4.9',
-                                categoryQuery: 'Locksmith',
-                                color: 'from-rose-500 to-red-600',
-                                badge: '⚡ FAST'
-                            }
-                        ].map((instantService) => {
-                            const IconComponent = instantService.icon;
+                        {instantServices.map((service, idx) => {
+                            const style = INSTANT_STYLES[idx % INSTANT_STYLES.length];
+                            const IconComponent = style.icon;
+                            const serviceId = service.id || service._id;
+                            const isBooking = instantBookingIds.includes(serviceId);
+                            const price = service.discountPrice || service.basePrice;
+                            const subtitle = service.subheading || service.categoryId?.title || service.subCategoryId?.title || '';
                             return (
                                 <motion.div
-                                    key={instantService.id}
+                                    key={serviceId}
                                     whileHover={{ y: -4, scale: 1.02 }}
                                     whileTap={{ scale: 0.97 }}
-                                    onClick={() => {
-                                        const matched = categories.find(c =>
-                                            (c.title || c.name || '').toLowerCase().includes(instantService.categoryQuery.toLowerCase())
-                                        ) || categories[0];
-
-                                        if (matched) {
-                                            openCategoryModal({ ...matched, bookingType: 'instant' });
-                                        } else {
-                                            toast.success(`Instant ${instantService.title} request initialized!`);
-                                        }
-                                    }}
+                                    onClick={() => handleInstantBook(service)}
                                     className="min-w-[220px] sm:min-w-[240px] snap-center bg-white rounded-2xl border border-amber-100/80 p-4 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between relative group cursor-pointer"
                                 >
                                     {/* Top Badge & ETA Pill */}
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="bg-amber-100 text-amber-800 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                            {instantService.badge}
+                                            {style.badge}
                                         </span>
                                         <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
                                             <Clock size={10} className="text-emerald-600 animate-pulse" />
-                                            <span>{instantService.eta}</span>
+                                            <span>{service.instantEtaMinutes || 30} Mins</span>
                                         </div>
                                     </div>
 
                                     {/* Service Icon & Info */}
                                     <div className="flex items-start gap-3 mb-4">
-                                        <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${instantService.color} text-white flex items-center justify-center shadow-md shrink-0 group-hover:scale-110 transition-transform`}>
-                                            <IconComponent size={22} className="stroke-[2.5]" />
+                                        <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${style.color} text-white flex items-center justify-center shadow-md shrink-0 group-hover:scale-110 transition-transform overflow-hidden`}>
+                                            {(service.imageUrl || service.icon) ? (
+                                                <img src={toAssetUrl(service.imageUrl || service.icon)} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <IconComponent size={22} className="stroke-[2.5]" />
+                                            )}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h4 className="font-extrabold text-gray-900 text-xs sm:text-sm leading-tight group-hover:text-amber-600 transition-colors line-clamp-1">
-                                                {instantService.title}
+                                                {service.title}
                                             </h4>
-                                            <p className="text-[10px] font-semibold text-gray-400 leading-tight mt-0.5 line-clamp-1">
-                                                {instantService.subtitle}
-                                            </p>
+                                            {subtitle && (
+                                                <p className="text-[10px] font-semibold text-gray-400 leading-tight mt-0.5 line-clamp-1">
+                                                    {subtitle}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
 
@@ -527,11 +532,14 @@ const HomeServicesPage = () => {
                                     <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                                         <div>
                                             <div className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">Visiting</div>
-                                            <span className="text-xs font-black text-gray-900">{instantService.price}</span>
+                                            <span className="text-xs font-black text-gray-900">₹{price}</span>
                                         </div>
-                                        <button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-black uppercase px-3.5 py-1.5 rounded-xl shadow-md shadow-amber-500/30 flex items-center gap-1 group-hover:scale-105 transition-all">
-                                            <span>Book</span>
-                                            <Zap size={11} className="fill-white stroke-none" />
+                                        <button
+                                            disabled={isBooking}
+                                            className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-black uppercase px-3.5 py-1.5 rounded-xl shadow-md shadow-amber-500/30 flex items-center gap-1 group-hover:scale-105 transition-all disabled:opacity-60"
+                                        >
+                                            <span>{isBooking ? 'Adding...' : 'Book'}</span>
+                                            {!isBooking && <Zap size={11} className="fill-white stroke-none" />}
                                         </button>
                                     </div>
                                 </motion.div>
@@ -540,6 +548,7 @@ const HomeServicesPage = () => {
                     </div>
                 </div>
             </section>
+            )}
 
             {/* Thoughtful Curations */}
             {homeData?.isCuratedVisible !== false && curations.length > 0 && (

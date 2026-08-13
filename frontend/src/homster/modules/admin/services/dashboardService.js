@@ -8,6 +8,8 @@ const dashboardService = {
    * Get dashboard summary stats
    */
   getStats: async () => {
+    // Home-Services-scoped stats (revenue/commission/bookings/users) — not
+    // to be confused with the Property side's /admin/dashboard-stats.
     const response = await api.get('/admin/dashboard/stats');
     return response.data;
   },

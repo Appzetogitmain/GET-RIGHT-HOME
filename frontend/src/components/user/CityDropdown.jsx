@@ -1,28 +1,40 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, ChevronDown, ChevronRight } from 'lucide-react';
-import { locationData, COUNTRY } from '../../data/locationData';
+import React, { useState, useRef } from 'react';
+import { MapPin, ChevronDown, X, Search } from 'lucide-react';
+import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 
 /**
- * CityDropdown — Hero Section city picker
- * Currently scoped to Bangalore (Karnataka) only.
- * Shows Bengaluru Urban + Bengaluru Rural districts and their sub-areas.
+ * CityDropdown — Hero Section location picker
+ *
+ * Free-text location search (Google Places), NOT tied to the admin
+ * Location Manager. A property's real location is whatever address the
+ * lister set when creating it — search has to be able to match ANY of
+ * that, not just places an admin has pre-registered. Picking a place here
+ * calls onSelect({ city, district }) with the place name, same interface
+ * as before, so nothing downstream (HeroSection, the property sections)
+ * needed to change.
  */
 
-// Build Bangalore city-options from locationData
-const BANGALORE_DISTRICTS = locationData[COUNTRY]?.Karnataka || {};
+const libraries = ['places'];
 
-// Shape: [{ district: 'Bengaluru Urban', areas: [...] }, ...]
-const DISTRICT_LIST = Object.entries(BANGALORE_DISTRICTS).map(([district, areas]) => ({
-  district,
-  areas
-}));
+// Prefer the most specific human name for a place: neighbourhood > city > district > state
+const extractLocationName = (components = []) => {
+  const find = (type) => components.find((c) => c.types.includes(type))?.long_name;
+  return (
+    find('sublocality_level_1') ||
+    find('sublocality') ||
+    find('locality') ||
+    find('administrative_area_level_2') ||
+    find('administrative_area_level_1') ||
+    null
+  );
+};
 
-const CityDropdown = ({ 
-  selectedCity, 
-  selectedDistrict, 
-  onSelect, 
-  theme, 
-  fullWidth = false, 
+const CityDropdown = ({
+  selectedCity,
+  selectedDistrict,
+  onSelect,
+  theme,
+  fullWidth = false,
   rounded = 'rounded-xl',
   textClass = 'text-[13px]',
   iconSize = 15,
@@ -30,13 +42,26 @@ const CityDropdown = ({
   paddingClass = 'px-3 py-1.5'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [expandedDistrict, setExpandedDistrict] = useState(null);
+  const [query, setQuery] = useState('');
+  const [autocomplete, setAutocomplete] = useState(null);
   const dropdownRef = useRef(null);
   const accentColor = theme?.accent || '#10B981';
 
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAP_API_KEY,
+    libraries
+  });
+
   // Close on outside click
-  useEffect(() => {
+  React.useEffect(() => {
     const handleClickOutside = (e) => {
+      // Google's Places suggestion list (.pac-container) is appended
+      // directly to <body>, outside this dropdown's own DOM — so a tap on
+      // a suggestion looks like an "outside click" and would close the
+      // dropdown (unmounting the input) before the place selection could
+      // actually fire. Ignore clicks landing inside it.
+      if (e.target.closest('.pac-container')) return;
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsOpen(false);
       }
@@ -47,20 +72,21 @@ const CityDropdown = ({
 
   const handleSelectAll = () => {
     onSelect({ city: null, district: null });
+    setQuery('');
     setIsOpen(false);
-    setExpandedDistrict(null);
   };
 
-  const handleSelectDistrict = (district) => {
-    onSelect({ city: 'Bengaluru', district });
-    setIsOpen(false);
-    setExpandedDistrict(null);
-  };
+  const handlePlaceChanged = () => {
+    if (!autocomplete) return;
+    const place = autocomplete.getPlace();
+    if (!place?.geometry) return; // user pressed enter without picking a suggestion
 
-  const handleSelectArea = (district, area) => {
-    onSelect({ city: area, district });
+    const name = extractLocationName(place.address_components) || place.name;
+    if (!name) return;
+
+    onSelect({ city: name, district: null });
+    setQuery(name);
     setIsOpen(false);
-    setExpandedDistrict(null);
   };
 
   const displayLabel = selectedCity || (selectedDistrict ? selectedDistrict : 'All Cities');
@@ -73,9 +99,7 @@ const CityDropdown = ({
         id="city-dropdown-trigger"
         onClick={() => setIsOpen((v) => !v)}
         className={`flex items-center gap-2 ${paddingClass} ${rounded} border bg-white hover:border-gray-300 transition-all ${
-          fullWidth
-            ? 'w-full justify-between'
-            : 'min-w-[120px] max-w-[155px]'
+          fullWidth ? 'w-full justify-between' : 'min-w-[120px] max-w-[155px]'
         }`}
         style={{ borderColor: isOpen ? accentColor : '#e5e7eb' }}
       >
@@ -94,118 +118,75 @@ const CityDropdown = ({
       {/* Dropdown Panel */}
       {isOpen && (
         <div
-          className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[200] overflow-hidden"
-          style={{ maxHeight: '380px' }}
+          className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[200] overflow-hidden"
         >
-          {/* Header */}
-          <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-            <MapPin size={13} className="text-blue-600" />
-            <span className="text-[11px] font-black text-gray-500 uppercase tracking-wider">Bengaluru, Karnataka</span>
-          </div>
-
-          {/* Scrollable List */}
-          <div className="overflow-y-auto" style={{ maxHeight: '330px' }}>
-
-            {/* All Cities option */}
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              className={`w-full flex items-center justify-between px-4 py-3 text-left border-b border-gray-50 transition-colors ${
-                !selectedCity ? 'bg-blue-50' : 'hover:bg-gray-50'
-              }`}
-            >
-              <span
-                className="font-semibold text-sm"
-                style={{ color: !selectedCity ? accentColor : '#1f2937' }}
+          {/* Search box */}
+          <div className="p-3 border-b border-gray-100 bg-gray-50">
+            {isLoaded ? (
+              <Autocomplete
+                onLoad={setAutocomplete}
+                onPlaceChanged={handlePlaceChanged}
+                options={{
+                  componentRestrictions: { country: 'in' },
+                  fields: ['name', 'geometry', 'address_components']
+                }}
               >
-                All Cities
-              </span>
-              {!selectedCity && (
-                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                  Selected
-                </span>
-              )}
-            </button>
-
-            {/* District + Area list */}
-            {DISTRICT_LIST.map(({ district, areas }) => {
-              const isDistrictSelected = selectedDistrict === district && !selectedCity;
-              const isExpanded = expandedDistrict === district;
-
-              return (
-                <div key={district}>
-                  {/* District Row */}
-                  <div
-                    className={`flex items-center border-b border-gray-50 ${
-                      isDistrictSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-                    }`}
-                  >
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search any city or locality..."
+                    autoFocus
+                    className="w-full pl-8 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-[13px] focus:outline-none"
+                    style={{ borderColor: query ? accentColor : undefined }}
+                  />
+                  {query && (
                     <button
                       type="button"
-                      onClick={() => handleSelectDistrict(district)}
-                      className="flex-1 flex items-center px-4 py-3 text-left transition-colors"
+                      onClick={() => setQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      <div className="flex-1">
-                        <span
-                          className="font-bold text-[13px]"
-                          style={{ color: isDistrictSelected ? accentColor : '#1f2937' }}
-                        >
-                          {district}
-                        </span>
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          {areas.length} areas
-                        </p>
-                      </div>
+                      <X size={14} />
                     </button>
-                    {/* Expand arrow */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedDistrict(isExpanded ? null : district);
-                      }}
-                      className="px-3 py-3 text-gray-300 hover:text-gray-600 transition-colors"
-                    >
-                      <ChevronRight
-                        size={14}
-                        className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Areas Sub-list */}
-                  {isExpanded && (
-                    <div className="bg-gray-50/80 border-b border-gray-100">
-                      {areas.map((area) => {
-                        const isAreaSelected = selectedCity === area;
-                        return (
-                          <button
-                            key={area}
-                            type="button"
-                            onClick={() => handleSelectArea(district, area)}
-                            className={`w-full flex items-center gap-2 pl-8 pr-4 py-2.5 text-left transition-colors ${
-                              isAreaSelected ? 'bg-blue-50' : 'hover:bg-white'
-                            }`}
-                          >
-                            <div
-                              className="w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ background: isAreaSelected ? accentColor : '#d1d5db' }}
-                            />
-                            <span
-                              className="text-[13px] font-medium"
-                              style={{ color: isAreaSelected ? accentColor : '#374151' }}
-                            >
-                              {area}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
                   )}
                 </div>
-              );
-            })}
+              </Autocomplete>
+            ) : (
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+                <input
+                  type="text"
+                  disabled
+                  placeholder="Loading location search..."
+                  className="w-full pl-8 pr-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-[13px] text-gray-400"
+                />
+              </div>
+            )}
+            <p className="text-[10px] text-gray-400 mt-1.5 px-0.5">Search for any city or neighbourhood — not limited to a fixed list.</p>
           </div>
+
+          {/* All Cities option */}
+          <button
+            type="button"
+            onClick={handleSelectAll}
+            className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
+              !selectedCity ? 'bg-blue-50' : 'hover:bg-gray-50'
+            }`}
+          >
+            <span
+              className="font-semibold text-sm"
+              style={{ color: !selectedCity ? accentColor : '#1f2937' }}
+            >
+              All Cities
+            </span>
+            {!selectedCity && (
+              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                Selected
+              </span>
+            )}
+          </button>
         </div>
       )}
     </div>

@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, MapPin, Mic, ChevronDown, Check } from 'lucide-react';
+import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
+import { addRecentSearch } from '../../utils/recentActivity';
+
+const placesLibraries = ['places'];
 
 const TABS = [
     { key: 'buy', label: 'Buy' },
@@ -106,7 +110,7 @@ const CheckOption = ({ label, checked, onClick }) => (
     </button>
 );
 
-const DesktopSearchFilterBar = ({ theme, selectedType }) => {
+const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
     const navigate = useNavigate();
     const accentColor = theme?.accent || '#ea580c';
     const activeTab = tabForType(selectedType?.label);
@@ -123,10 +127,22 @@ const DesktopSearchFilterBar = ({ theme, selectedType }) => {
 
     const [openFilter, setOpenFilter] = useState(null); // 'category' | 'budget' | 'bedroom' | 'construction' | 'postedBy' | null
     const wrapperRef = useRef(null);
+    const [autocomplete, setAutocomplete] = useState(null);
+
+    const { isLoaded: placesLoaded } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAP_API_KEY,
+        libraries: placesLibraries
+    });
 
     // Close any open dropdown on outside click
     useEffect(() => {
         const handleClick = (e) => {
+            // Google's Places suggestion list (.pac-container) is appended
+            // directly to <body>, outside this bar's own DOM — a click on a
+            // suggestion would otherwise look like an "outside click" and
+            // close everything before the place selection could register.
+            if (e.target.closest('.pac-container')) return;
             if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
                 setOpenFilter(null);
             }
@@ -134,6 +150,13 @@ const DesktopSearchFilterBar = ({ theme, selectedType }) => {
         document.addEventListener('mousedown', handleClick);
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
+
+    const handlePlaceChanged = () => {
+        if (!autocomplete) return;
+        const place = autocomplete.getPlace();
+        const name = place?.name || place?.formatted_address;
+        if (name) setSearchText(name);
+    };
 
     const toggleFilter = (key) => setOpenFilter(prev => (prev === key ? null : key));
 
@@ -174,7 +197,16 @@ const DesktopSearchFilterBar = ({ theme, selectedType }) => {
 
     const handleSearch = () => {
         const params = new URLSearchParams();
-        if (searchText.trim()) params.set('search', searchText.trim());
+        if (searchText.trim()) {
+            // Typed/picked a specific place or project — that's a deliberate
+            // choice, let it stand on its own rather than also constraining
+            // to whatever city the pill above happens to be set to.
+            params.set('search', searchText.trim());
+        } else if (selectedCity) {
+            // Nothing typed — fall back to the location pill so results
+            // still stay scoped to it instead of searching everywhere.
+            params.set('areas', selectedCity);
+        }
         params.set('transactionType', transactionTypeForTab(activeTab));
         if (propertyCategory === 'Commercial') params.set('propertyCategory', 'Commercial');
         if (minPrice) params.set('minPrice', minPrice);
@@ -183,7 +215,10 @@ const DesktopSearchFilterBar = ({ theme, selectedType }) => {
         if (constructionStatus.length) params.set('availability', constructionStatus.join(','));
         if (postedBy.length) params.set('postedBy', postedBy.join(','));
         setOpenFilter(null);
-        navigate(`/search?${params.toString()}`);
+        const url = `/search?${params.toString()}`;
+        const tabLabel = TABS.find(t => t.key === activeTab)?.label || 'Search';
+        addRecentSearch({ label: searchText.trim() || `${tabLabel} in ${selectedCity || 'your city'}`, url });
+        navigate(url);
     };
 
     const budgetLabel = (minPrice || maxPrice)
@@ -243,14 +278,35 @@ const DesktopSearchFilterBar = ({ theme, selectedType }) => {
 
                 <div className="flex-1 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-gray-200 focus-within:border-gray-400 transition-colors">
                     <Search size={17} className="text-gray-400 shrink-0" />
-                    <input
-                        type="text"
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        placeholder='Search "City, Locality or Project"'
-                        className="flex-1 text-[14px] text-gray-800 outline-none bg-transparent placeholder:text-gray-400"
-                    />
+                    {placesLoaded ? (
+                        <Autocomplete
+                            onLoad={setAutocomplete}
+                            onPlaceChanged={handlePlaceChanged}
+                            options={{
+                                componentRestrictions: { country: 'in' },
+                                fields: ['name', 'formatted_address']
+                            }}
+                            className="flex-1"
+                        >
+                            <input
+                                type="text"
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                placeholder='Search "City, Locality or Project"'
+                                className="w-full text-[14px] text-gray-800 outline-none bg-transparent placeholder:text-gray-400"
+                            />
+                        </Autocomplete>
+                    ) : (
+                        <input
+                            type="text"
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            placeholder='Search "City, Locality or Project"'
+                            className="flex-1 text-[14px] text-gray-800 outline-none bg-transparent placeholder:text-gray-400"
+                        />
+                    )}
                     <button onClick={handleDetectLocation} title="Detect my location">
                         <MapPin size={17} className={`text-gray-400 hover:text-gray-600 transition-colors shrink-0 ${detecting ? 'animate-bounce text-blue-500' : ''}`} />
                     </button>

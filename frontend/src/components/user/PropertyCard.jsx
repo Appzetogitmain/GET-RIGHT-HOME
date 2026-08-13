@@ -424,156 +424,195 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
 
     const typeBadgeLabel = dynamicCatName || normalizedType || typeRaw || 'Property';
 
+    const isProject =
+      (badgeTypeKey || '').toLowerCase() === 'project' ||
+      (item.dynamicCategory?.displayName || '').toLowerCase().includes('project') ||
+      (item.dynamicCategory?.name || '').toLowerCase().includes('project') ||
+      (item.propertyCategory || '').toLowerCase().includes('project') ||
+      (item.propertyType || '').toLowerCase().includes('project') ||
+      item.isProject ||
+      !!item.projectName ||
+      !!item.project ||
+      (item.buyDetails?.propertyAge || '').toLowerCase() === 'new launch' ||
+      (item.dynamicData?.constructionStatus || '').toLowerCase() === 'new launch' ||
+      (item.availabilityStatus || '').toLowerCase() === 'new launch' ||
+      (item.availabilityStatus || '').toLowerCase() === 'under construction' ||
+      (postedByName || '').toLowerCase() === 'builder' ||
+      (postedByRole || '').toLowerCase() === 'builder';
+
+    const isFeatured = !!(item.isFeatured || item.featuredDetails?.isFeatured);
+    const description = (item.description || '').trim();
+    const amenitiesList = Array.isArray(item.amenities) ? item.amenities.filter(Boolean) : [];
+    const isNewBooking = (item.purchaseType || item.buyDetails?.propertyAge || '').toString().toLowerCase().includes('new');
+    const dealTag = isProject || isNewBooking ? 'NEW' : 'RESALE';
+
+    // Side thumbnail rail (99acres-style: main image + a 2-up stack, with a
+    // "+N more" overlay on the last tile once there are more photos than fit).
+    const sideThumbs = imageList.slice(1, 3);
+    const extraImageCount = imageList.length - 3;
+
     return (
       <>
-        <div 
+        <div
           ref={containerRef}
           onClick={() => navigateToProperty(item)}
-          className={`w-full bg-white rounded-[20px] border border-gray-200 shadow-sm hover:shadow-md overflow-hidden transition-all duration-300 flex flex-col cursor-pointer relative ${className}`}
+          className={`w-full bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md overflow-hidden transition-all duration-300 flex flex-col sm:flex-row cursor-pointer relative ${className}`}
         >
-          {/* Image Container with Slider */}
-          <div className="relative h-[200px] w-full bg-gray-100 group/slider rounded-t-[20px] overflow-hidden flex-shrink-0">
-            <img 
-              src={imageList[currentImageIndex]} 
-              alt={displayName} 
-              className="w-full h-full object-cover rounded-t-[20px]"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = NO_IMAGE_PLACEHOLDER;
-              }}
-            />
-            
-            {/* Hover chevrons for Image Slider */}
-            {imageList.length > 1 && (
-              <>
-                <button 
-                  onClick={prevImage}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center opacity-0 group-hover/slider:opacity-100 transition-opacity duration-200 z-20"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button 
-                  onClick={nextImage}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center opacity-0 group-hover/slider:opacity-100 transition-opacity duration-200 z-20"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </>
-            )}
+          {/* Image Block: main image + side thumbnail rail */}
+          <div className="relative w-full sm:w-[300px] md:w-[320px] shrink-0 h-[220px] sm:h-[212px] flex bg-gray-100 group/slider">
+            <div className="relative flex-1 h-full overflow-hidden">
+              <img
+                src={imageList[currentImageIndex]}
+                alt={displayName}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = NO_IMAGE_PLACEHOLDER;
+                }}
+              />
 
-            {/* Slider Dots */}
-            {imageList.length > 1 && (
-              <div 
-                className={`absolute left-1/2 -translate-x-1/2 flex gap-1.5 z-20 ${
-                  localEnquiryCount > 0 ? 'bottom-8' : 'bottom-3'
-                }`}
-              >
-                {imageList.map((_, idx) => (
+              {/* Hover chevrons for Image Slider */}
+              {imageList.length > 1 && (
+                <>
                   <button
-                    key={idx}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIndex(idx);
-                    }}
-                    className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                      idx === currentImageIndex ? 'bg-white w-3' : 'bg-white/50 hover:bg-white/80'
-                    }`}
-                  />
+                    onClick={prevImage}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center opacity-0 group-hover/slider:opacity-100 transition-opacity duration-200 z-20"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    onClick={nextImage}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center opacity-0 group-hover/slider:opacity-100 transition-opacity duration-200 z-20"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </>
+              )}
+
+              {isFeatured && (
+                <span className="absolute top-2.5 left-2.5 z-20 bg-slate-900/90 text-white text-[9px] font-black px-2 py-1 rounded uppercase tracking-wider">
+                  Featured
+                </span>
+              )}
+
+              <button
+                onClick={handleToggleSave}
+                className="absolute top-2.5 right-2.5 z-20 w-8 h-8 rounded-full bg-black/40 hover:bg-black/65 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
+                title="Save Property"
+              >
+                <Heart size={15} className={isSaved ? 'text-red-500 fill-red-500' : 'text-white'} />
+              </button>
+            </div>
+
+            {/* Side thumbnail rail — hidden on the smallest screens where the card stacks */}
+            {sideThumbs.length > 0 && (
+              <div className="hidden sm:flex flex-col w-[78px] shrink-0 h-full gap-[2px] ml-[2px]">
+                {sideThumbs.map((img, idx) => (
+                  <div key={idx} className="relative flex-1 overflow-hidden">
+                    <img
+                      src={img}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.onerror = null; e.target.src = NO_IMAGE_PLACEHOLDER; }}
+                    />
+                    {idx === sideThumbs.length - 1 && extraImageCount > 0 && (
+                      <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                        <span className="text-white text-[10px] font-bold">+{extraImageCount} more</span>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
 
-            {/* Dynamic Property Type Badge */}
-            <div className="absolute top-3 left-3 flex items-center gap-1.5 z-20">
-              <span className="bg-slate-900/80 backdrop-blur-sm text-white text-[9px] font-bold px-2.5 py-1 rounded tracking-wider uppercase">
-                {typeBadgeLabel}
-              </span>
-            </div>
-
-            {/* Top Right Action Icons: Heart & Share vertically stacked */}
-            <div className="absolute top-3 right-3 flex flex-col gap-2 z-20">
-              {/* Heart Icon */}
-              <button 
-                onClick={handleToggleSave}
-                className="w-9 h-9 rounded-full bg-black/40 hover:bg-black/65 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
-                title="Save Property"
-              >
-                <Heart size={16} className={isSaved ? 'text-red-500 fill-red-500' : 'text-white'} />
-              </button>
-              {/* Share Icon */}
-              <button 
-                onClick={handleShare}
-                className="w-9 h-9 rounded-full bg-black/40 hover:bg-black/65 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
-                title="Share Property"
-              >
-                <Share2 size={15} />
-              </button>
-            </div>
-
-            {/* 99acres style Bottom-Overlay Contacted Badge */}
+            {/* 99acres style Bottom-Overlay Contacted Badge — spans the whole image block */}
             {localEnquiryCount > 0 && (
               <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[11px] py-1.5 px-3 flex items-center gap-1.5 z-20 font-bold">
-                <span>🔥</span>
-                <span>{localEnquiryCount} {localEnquiryCount === 1 ? 'person' : 'people'} visited this property</span>
+                <span>⭐</span>
+                <span>{localEnquiryCount} {localEnquiryCount === 1 ? 'person' : 'people'} already contacted this week</span>
               </div>
             )}
           </div>
 
-          {/* Card Details (below image) */}
-          <div className="p-4 flex flex-col flex-grow justify-between">
-            <div>
-              {/* Row 1: Title (uppercase, bold) */}
-              <div className="flex justify-between items-center mb-1">
-                <h4 className="font-extrabold text-sm text-gray-900 uppercase tracking-wide truncate flex-1 pr-2">
+          {/* Details Block */}
+          <div className="flex-1 min-w-0 p-4 flex flex-col">
+            {/* Row 1: Title + New/Resale tag */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <h4 className="font-bold text-[15px] text-gray-900 truncate">
                   {displayName}
                 </h4>
                 {item.isVerified && (
-                  <span className="bg-gray-150 text-gray-600 text-[9px] px-1.5 py-0.5 rounded font-black flex items-center gap-0.5 shrink-0">
+                  <span className="shrink-0 bg-gray-100 text-gray-600 text-[9px] px-1.5 py-0.5 rounded font-black flex items-center gap-0.5">
                     <BadgeCheck size={10} className="text-blue-500 fill-blue-500" />
                     RERA
                   </span>
                 )}
               </div>
+              <span className="shrink-0 text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wide">
+                {dealTag}
+              </span>
+            </div>
 
-              {/* Row 2: Subtitle / Location */}
-              <p className="text-xs text-gray-500 mb-3 truncate">
-                <span className="font-bold text-gray-800">{item.bhk ? `${item.bhk} BHK ` : ''}{normalizedType || typeRaw}</span> in {locationText}
-              </p>
+            {/* Row 2: Subtitle / Location */}
+            <p className="text-xs text-gray-500 mt-0.5 truncate">
+              <span className="font-semibold text-gray-700">{item.bhk ? `${item.bhk} BHK ` : ''}{typeBadgeLabel}</span> in {locationText}
+            </p>
 
-              {/* Row 3: Grid (Price & Area layout matching 99acres with light borders) */}
-              <div className="grid grid-cols-2 gap-4 border-y border-slate-100 py-3 mb-3">
-                <div className="flex flex-col">
-                  <span className="text-base font-extrabold text-gray-900">
-                    ₹ {formattedPrice}
-                    {priceSuffix && <span className="text-[10px] font-normal text-gray-500"> {priceSuffix}</span>}
-                  </span>
-                  <span className="text-[11px] text-gray-400 mt-0.5">
-                    {displayPrice && exactArea ? `₹${Math.round(displayPrice / exactArea)} /sqft` : 'Price Negotiable'}
-                  </span>
-                  <span className="text-[11px] text-gray-600 font-semibold mt-1">
-                    {constructionStatus}
-                  </span>
-                </div>
-                
-                <div className="border-l border-slate-100 pl-4 flex flex-col">
-                  <span className="text-base font-extrabold text-gray-900">
-                    {carpet && superA && carpet !== superA ? `${carpet}-${superA}` : exactArea || 'N/A'} {exactAreaUnit}
-                  </span>
-                  <span className="text-[11px] text-gray-400 mt-0.5">
-                    {exactArea ? `(${Math.round(exactArea * 0.092903)} sqm)` : ''}
-                  </span>
-                  <span className="text-[11px] text-gray-600 font-semibold mt-1">
-                    {item.carpetArea ? 'Carpet Area' : 'Super Built-up Area'}
-                  </span>
-                </div>
+            {/* Row 3: Price · Area · Type/Status */}
+            <div className="flex items-start gap-6 mt-3 pb-3 border-b border-gray-100 flex-wrap">
+              <div className="flex flex-col">
+                <span className="text-[15px] font-extrabold text-gray-900">
+                  ₹ {formattedPrice}
+                  {priceSuffix && <span className="text-[10px] font-normal text-gray-500"> {priceSuffix}</span>}
+                </span>
+                <span className="text-[11px] text-gray-400 mt-0.5">
+                  {displayPrice && exactArea ? `₹${Math.round(displayPrice / exactArea)} /sqft` : 'Price Negotiable'}
+                </span>
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[15px] font-extrabold text-gray-900">
+                  {carpet && superA && carpet !== superA ? `${carpet}-${superA}` : exactArea || 'N/A'} {exactAreaUnit}
+                </span>
+                <span className="text-[11px] text-gray-400 mt-0.5">
+                  {item.carpetArea ? 'Carpet Area' : 'Super Built-up Area'}
+                </span>
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[13px] font-bold text-gray-800">{typeBadgeLabel}</span>
+                <span className="text-[11px] text-gray-400 mt-0.5">{constructionStatus}</span>
               </div>
             </div>
 
-            {/* Row 4: Builder Info & Action CTA Row */}
-            <div className="flex items-center justify-between mt-1 pt-1">
-              <div className="flex flex-col min-w-0 max-w-[42%]">
+            {/* Row 4: Amenity tags */}
+            {amenitiesList.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+                {amenitiesList.slice(0, 2).map(a => (
+                  <span key={a} className="text-[10px] font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">{a}</span>
+                ))}
+                {amenitiesList.length > 2 && (
+                  <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">+{amenitiesList.length - 2}</span>
+                )}
+              </div>
+            )}
+
+            {/* Row 5: Description snippet */}
+            {description && (
+              <p className="text-[12px] text-gray-500 mt-2.5 line-clamp-1">
+                {description}
+              </p>
+            )}
+
+            {/* Row 6: Poster info + CTAs */}
+            <div className="mt-auto pt-3 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] text-gray-400 font-medium">
+                  {postedByRole} · {getPostedTimeStr()}
+                </span>
                 <div className="flex items-center gap-1">
-                  <span className="font-extrabold text-xs text-gray-900 truncate" title={displayPostedName}>
+                  <span className="text-xs font-bold text-gray-900 truncate max-w-[160px]" title={displayPostedName}>
                     {postedByNameTruncated}
                   </span>
                   {isVerifiedBuilder && (
@@ -582,110 +621,62 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                     </div>
                   )}
                 </div>
-                <span className="text-[10px] text-gray-500 font-medium">
-                  {postedByRole} • {getPostedTimeStr()}
-                </span>
               </div>
-              
-              {(() => {
-                const isProject = 
-                  (badgeTypeKey || '').toLowerCase() === 'project' ||
-                  (item.dynamicCategory?.displayName || '').toLowerCase().includes('project') ||
-                  (item.dynamicCategory?.name || '').toLowerCase().includes('project') ||
-                  (item.propertyCategory || '').toLowerCase().includes('project') ||
-                  (item.propertyType || '').toLowerCase().includes('project') ||
-                  item.isProject ||
-                  !!item.projectName ||
-                  !!item.project ||
-                  (item.buyDetails?.propertyAge || '').toLowerCase() === 'new launch' ||
-                  (item.dynamicData?.constructionStatus || '').toLowerCase() === 'new launch' ||
-                  (item.availabilityStatus || '').toLowerCase() === 'new launch' ||
-                  (item.availabilityStatus || '').toLowerCase() === 'under construction' ||
-                  (postedByName || '').toLowerCase() === 'builder' || 
-                  (postedByRole || '').toLowerCase() === 'builder';
 
-                if (isProject) return null;
-
-                // Default Resale Property Style CTAs
-                return (
-                  <div className="flex items-center gap-1.5">
-                    <button 
-                      onClick={handleCall}
-                      className="px-2.5 py-1.5 bg-[#E0EFFF] text-[#0056B8] hover:bg-[#cde4ff] text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
-                    >
-                      View Number
-                    </button>
-                    <button 
-                      onClick={handleWhatsApp}
-                      className="w-8 h-8 rounded-full bg-[#25D366] text-white flex items-center justify-center hover:bg-[#20ba5a] transition-colors shrink-0 shadow-sm"
-                      title="WhatsApp"
-                    >
-                      <MessageCircle size={14} className="fill-white text-white" />
-                    </button>
-                    <button 
-                      onClick={handleCall}
-                      className="w-8 h-8 rounded-full bg-[#0069E0] text-white flex items-center justify-center hover:bg-[#0056b8] transition-colors shrink-0 shadow-sm"
-                      title="Call"
-                    >
-                      <Phone size={13} className="fill-white text-white" />
-                    </button>
-                  </div>
-                );
-              })()}
+              {isProject ? (
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!localStorage.getItem('user')) {
+                        toast.error("Please login to download brochure");
+                        navigate('/login');
+                        return;
+                      }
+                      const brochure = item.brochureUrl || item.dynamicData?.brochureUrl || item.projectDetails?.brochureUrl;
+                      if (brochure) {
+                        toast.success('Brochure downloading...');
+                        window.open(brochure, "_blank");
+                      } else {
+                        toast.error("Brochure not available.");
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-[#E0EFFF] text-[#0056B8] hover:bg-[#cde4ff] text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    Brochure
+                  </button>
+                  <button
+                    onClick={handleCall}
+                    className="px-3 py-1.5 bg-[#0069E0] hover:bg-[#0056b8] text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    View Number
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleCall}
+                    className="px-3 py-1.5 border border-blue-600 text-blue-600 hover:bg-blue-50 text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    View Number
+                  </button>
+                  <button
+                    onClick={handleWhatsApp}
+                    className="w-8 h-8 rounded-full bg-[#25D366] text-white flex items-center justify-center hover:bg-[#20ba5a] transition-colors shrink-0 shadow-sm"
+                    title="WhatsApp"
+                  >
+                    <MessageCircle size={14} className="fill-white text-white" />
+                  </button>
+                  <button
+                    onClick={handleCall}
+                    className="px-3 py-1.5 bg-[#0069E0] hover:bg-[#0056b8] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                  >
+                    <Phone size={12} className="fill-white text-white" />
+                    Contact
+                  </button>
+                </div>
+              )}
             </div>
-
-            {/* Row 5: Project CTAs (Only for Projects) */}
-            {(() => {
-                const isProject = 
-                  (badgeTypeKey || '').toLowerCase() === 'project' ||
-                  (item.dynamicCategory?.displayName || '').toLowerCase().includes('project') ||
-                  (item.dynamicCategory?.name || '').toLowerCase().includes('project') ||
-                  (item.propertyCategory || '').toLowerCase().includes('project') ||
-                  (item.propertyType || '').toLowerCase().includes('project') ||
-                  item.isProject ||
-                  !!item.projectName ||
-                  !!item.project ||
-                  (item.buyDetails?.propertyAge || '').toLowerCase() === 'new launch' ||
-                  (item.dynamicData?.constructionStatus || '').toLowerCase() === 'new launch' ||
-                  (item.availabilityStatus || '').toLowerCase() === 'new launch' ||
-                  (item.availabilityStatus || '').toLowerCase() === 'under construction' ||
-                  (postedByName || '').toLowerCase() === 'builder' || 
-                  (postedByRole || '').toLowerCase() === 'builder';
-
-                if (!isProject) return null;
-
-                return (
-                  <div className="flex items-center gap-2 w-full mt-3 pt-3 border-t border-slate-100">
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        if (!localStorage.getItem('user')) {
-                          toast.error("Please login to download brochure");
-                          navigate('/login');
-                          return;
-                        }
-                        const brochure = item.brochureUrl || item.dynamicData?.brochureUrl || item.projectDetails?.brochureUrl;
-                        if (brochure) {
-                          toast.success('Brochure downloading...');
-                          window.open(brochure, "_blank");
-                        } else {
-                          toast.error("Brochure not available.");
-                        }
-                      }}
-                      className="flex-1 py-2 bg-[#E0EFFF] text-[#0056B8] hover:bg-[#cde4ff] text-[13px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                      Brochure
-                    </button>
-                    <button 
-                      onClick={handleCall}
-                      className="flex-1 py-2 bg-[#0069E0] text-white hover:bg-[#0056b8] text-[13px] font-bold rounded-lg transition-colors flex items-center justify-center"
-                    >
-                      View Number
-                    </button>
-                  </div>
-                );
-            })()}
           </div>
         </div>
 

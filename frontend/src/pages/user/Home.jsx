@@ -15,6 +15,7 @@ import { categoryService } from '../../services/categoryService';
 import GRHHomeSection from '../../components/user/GRHHomeSection';
 import SupportSection from '../../components/user/SupportSection';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
+import RecentActivityBar from '../../components/user/RecentActivityBar';
 import { api } from '../../services/apiService';
 import toast from 'react-hot-toast';
 
@@ -83,7 +84,7 @@ const THEME_MAP = {
     }
 };
 
-const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onTypeSelect, theme, onViewAll }) => (
+const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onTypeSelect, theme, onViewAll, selectedCity }) => (
     <div id={`home-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
         <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
             <div className="flex-1 min-w-0 pr-2">
@@ -113,7 +114,7 @@ const HomeSection = ({ title, typeId, subtitle, extraFilters, sectionIds, onType
                 View All
             </button>
         </div>
-        <PropertyFeed selectedType={typeId} viewMode="carousel" limit={8} extraFilters={extraFilters} />
+        <PropertyFeed selectedType={typeId} viewMode="carousel" limit={8} extraFilters={extraFilters} selectedCity={selectedCity} />
     </div>
 );
 
@@ -231,6 +232,8 @@ const Home = () => {
                 </div>
             </div>
 
+            <RecentActivityBar />
+
             <div className="mt-2 w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-4">
                 {(!selectedType.id || selectedType.label === 'All') ? (
                     // Show Categorized Sections when "All" is selected
@@ -253,6 +256,7 @@ const Home = () => {
                                                 onTypeSelect={handleTypeSelect}
                                                 onViewAll={() => navigate(`/search?transactionType=pg&type=${sectionIds.pg}`)}
                                                 theme={activeTheme}
+                                                selectedCity={homeSearchCity}
                                             />
                                         );
                                     case 'recommended_brokers':
@@ -273,6 +277,7 @@ const Home = () => {
                                                 onTypeSelect={handleTypeSelect}
                                                 onViewAll={() => navigate(`/search?transactionType=rent&type=${sectionIds.rent}`)}
                                                 theme={activeTheme}
+                                                selectedCity={homeSearchCity}
                                             />
                                         );
                                     case 'buy_properties':
@@ -287,6 +292,7 @@ const Home = () => {
                                                 onTypeSelect={handleTypeSelect}
                                                 onViewAll={() => navigate(`/search?transactionType=sell&type=${sectionIds.buy}`)}
                                                 theme={activeTheme}
+                                                selectedCity={homeSearchCity}
                                             />
                                         );
                                     case 'plot_properties':
@@ -300,14 +306,15 @@ const Home = () => {
                                                 onTypeSelect={handleTypeSelect}
                                                 onViewAll={() => navigate(`/search?transactionType=sell&type=${sectionIds.plot}&subType=Plot+%2F+Land`)}
                                                 theme={activeTheme}
+                                                selectedCity={homeSearchCity}
                                             />
                                         );
                                     case 'under_construction':
-                                        return <GRHHomeSection key={section.id} title="Under Construction Properties" subtitle="Flexible payments & high value growth" availabilityFilter="Under construction" theme={activeTheme} />;
+                                        return <GRHHomeSection key={section.id} title="Under Construction Properties" subtitle="Flexible payments & high value growth" availabilityFilter="Under construction" searchCity={homeSearchCity} theme={activeTheme} />;
                                     case 'pre_launch':
-                                        return <GRHHomeSection key={section.id} title="Pre Launch Properties" subtitle="Exclusive early-stage launch offers" availabilityFilter="Pre Launch" theme={activeTheme} />;
+                                        return <GRHHomeSection key={section.id} title="Pre Launch Properties" subtitle="Exclusive early-stage launch offers" availabilityFilter="Pre Launch" searchCity={homeSearchCity} theme={activeTheme} />;
                                     case 'ready_to_move':
-                                        return <GRHHomeSection key={section.id} title="Ready to move in properties" subtitle="Verified titles & immediate occupancy" availabilityFilter="Ready to move" theme={activeTheme} />;
+                                        return <GRHHomeSection key={section.id} title="Ready to move in properties" subtitle="Verified titles & immediate occupancy" availabilityFilter="Ready to move" searchCity={homeSearchCity} theme={activeTheme} />;
                                     default:
                                         return null;
                                 }
