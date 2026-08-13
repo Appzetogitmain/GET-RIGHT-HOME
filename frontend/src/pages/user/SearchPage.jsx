@@ -7,7 +7,6 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import PropertyCard from '../../components/user/PropertyCard';
 import AdvancedFilterModal from '../../components/user/AdvancedFilterModal';
-import MobileSearchOverlay from '../../components/user/MobileSearchOverlay';
 import SearchSidebarFilters from '../../components/user/SearchSidebarFilters';
 import SortDropdown from '../../components/user/SortDropdown';
 import { locationData, bengaluruAreas } from '../../data/locationData';
@@ -230,7 +229,6 @@ const SearchPage = () => {
     };
 
     const [filters, setFilters] = useState(getInitialFilters());
-    const [showSearchOverlay, setShowSearchOverlay] = useState(false);
 
     const [location, setLocation] = useState(null); // { lat, lng }
     const [propertyTypes, setPropertyTypes] = useState([
@@ -750,9 +748,9 @@ const SearchPage = () => {
                         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
                             <ChevronLeft size={20} className="text-gray-600" />
                         </button>
-                        <div 
+                        <div
                             className="relative flex-grow"
-                            onClick={() => setShowSearchOverlay(true)}
+                            onClick={() => setShowFilters(true)}
                         >
                             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                             <div className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-400 bg-gray-50 flex items-center h-9">
@@ -947,9 +945,9 @@ const SearchPage = () => {
                         )}
 
                         {loading ? (
-                            <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-3 sm:gap-4 pt-3 px-3 sm:px-0">
                                 {[1, 2, 3, 4, 5].map(i => (
-                                    <div key={i} className="bg-white h-[220px] w-full rounded-none sm:rounded-2xl animate-pulse border-y sm:border border-gray-100"></div>
+                                    <div key={i} className="bg-white h-[220px] w-full rounded-xl sm:rounded-2xl animate-pulse border border-gray-100"></div>
                                 ))}
                             </div>
                         ) : properties.length === 0 ? (
@@ -982,7 +980,7 @@ const SearchPage = () => {
                                 </button>
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-4 bg-gray-100 sm:bg-transparent pb-4 sm:pb-0">
+                            <div className="flex flex-col gap-3 bg-gray-100 sm:bg-transparent sm:gap-4 pt-3 px-3 sm:px-0 pb-4 sm:pb-0">
                                 {properties.map(property => (
                                     <div key={property._id} className="bg-white sm:bg-transparent">
                                         <PropertyCard
@@ -996,7 +994,7 @@ const SearchPage = () => {
                                                 }
                                             }}
                                             isSearchPage={true}
-                                            className="!rounded-none sm:!rounded-2xl border-y-0 sm:border border-gray-100 shadow-sm"
+                                            className="!rounded-xl sm:!rounded-2xl border border-gray-100 shadow-sm"
                                         />
                                     </div>
                                 ))}
@@ -1022,18 +1020,6 @@ const SearchPage = () => {
                 activeTab={activeModalTab}
                 setActiveTab={setActiveModalTab}
             />
-
-            <MobileSearchOverlay 
-                isOpen={showSearchOverlay}
-                onClose={() => setShowSearchOverlay(false)}
-                initialFilters={filters}
-                onApplyFilters={(newFilters) => {
-                    const finalParams = getParamsFromFilters({...filters, ...newFilters});
-                    setSearchParams(finalParams, { replace: true });
-                    setFilters(prev => ({...prev, ...newFilters}));
-                }}
-            />
-
         </div>
     );
 };

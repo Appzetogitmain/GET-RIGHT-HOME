@@ -181,7 +181,7 @@ const UserSignupPage = () => {
             }
 
             await authService.verifyOtp(payload);
-            navigate('/');
+            navigate(isBuilder ? '/list-property' : '/');
         } catch (err) {
             setError(err.message || 'Invalid OTP');
         } finally {

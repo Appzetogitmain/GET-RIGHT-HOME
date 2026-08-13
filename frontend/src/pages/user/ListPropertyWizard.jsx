@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, ChevronRight, Check, Loader2, Phone, User } from 'lucide-react';
+import {
+  ArrowLeft, Plus, ChevronRight, Check, Loader2, Phone, User,
+  Tag, Key, BedDouble, Home, Building2, Users2, ShieldCheck
+} from 'lucide-react';
 import { api } from '../../services/apiService';
 import { categoryService } from '../../services/categoryService';
 import toast from 'react-hot-toast';
@@ -25,6 +28,22 @@ const ListPropertyWizard = () => {
     }
     keysToRemove.forEach(key => localStorage.removeItem(key));
   }, []);
+
+  // Builders already have a dedicated 15-step project stepper, so skip this
+  // basic-details screen entirely and jump straight in with sensible defaults.
+  useEffect(() => {
+    if (user?.role === 'builder') {
+      navigate('/list-property/dynamic-form', {
+        replace: true,
+        state: {
+          transactionType: 'Sell',
+          category: 'Residential',
+          propertyType: 'Apartment'
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role]);
 
   // State
   const [loading, setLoading] = useState(false);
@@ -270,120 +289,172 @@ const ListPropertyWizard = () => {
 
   const entityType = user?.role === 'builder' ? 'project' : 'property';
 
+  const intentIcons = { 'Sell': Tag, 'Rent / Lease': Key, 'Paying Guest': BedDouble };
+  const categoryIcons = { 'Residential': Home, 'Commercial': Building2 };
+  const roleCards = [
+    { value: 'owner', label: 'Property Owner', hint: 'I own the property', icon: Home },
+    { value: 'broker', label: 'Broker / Agent', hint: 'I represent a client', icon: Users2 },
+    { value: 'builder', label: 'Builder Partner', hint: 'I develop projects', icon: Building2 }
+  ];
+
+  const canSubmit = !!(intent && propertyCategory && selectedType);
+
+  const sectionMotion = {
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.25 }
+  };
+
+  if (user?.role === 'builder') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-[#0073E6]" size={28} />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-white pb-10 font-sans antialiased text-slate-800">
+    <div className="min-h-screen bg-slate-50 pb-32 font-sans antialiased text-slate-800">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 h-16 flex items-center justify-between border-b border-slate-50">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-700">
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 h-16 flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-700 hover:bg-slate-100 rounded-full transition-colors">
           <ArrowLeft size={22} strokeWidth={2} />
         </button>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-[#0073E6]">
+            {entityType === 'project' ? <Building2 size={16} strokeWidth={2.5} /> : <Home size={16} strokeWidth={2.5} />}
+          </div>
+          <span className="text-[13px] font-bold text-slate-800">List Your {entityType.charAt(0).toUpperCase() + entityType.slice(1)}</span>
+        </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-5 pt-8">
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">Add Basic Details</h1>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-10">STEP 1 OF {user?.role === 'builder' ? '7' : '4'}</p>
+      <div className="max-w-2xl mx-auto px-4 sm:px-5 pt-8">
+        <div className="mb-8">
+          <p className="text-[11px] font-bold text-[#0073E6] uppercase tracking-widest mb-2">Get Started</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Add Basic Details</h1>
+          <p className="text-[13px] text-slate-500 font-medium mt-1.5">Tell us a bit about your {entityType} to begin.</p>
+        </div>
 
         {/* Intent Selection */}
-        <section className="mb-10">
-          <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">You're looking to?</h2>
+        <motion.section {...sectionMotion} className="mb-5 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+          <h2 className="text-[14px] font-bold text-slate-900 mb-4 tracking-tight">You're looking to?</h2>
           <div className="flex flex-wrap gap-2.5">
-            {intentOptions.map((opt) => (
-              <button
-                key={opt}
-                onClick={() => {
-                  setIntent(opt);
-                  if (opt === 'Paying Guest') setPropertyCategory('Residential');
-                }}
-                className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all border ${
-                  intent === opt
-                    ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                {opt}
-              </button>
-            ))}
+            {intentOptions.map((opt) => {
+              const Icon = intentIcons[opt] || Tag;
+              const active = intent === opt;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => {
+                    setIntent(opt);
+                    if (opt === 'Paying Guest') setPropertyCategory('Residential');
+                  }}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all border ${
+                    active
+                      ? 'bg-[#0073E6] text-white border-[#0073E6] shadow-md shadow-blue-100'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <Icon size={14} strokeWidth={2.5} />
+                  {opt}
+                </button>
+              );
+            })}
           </div>
-        </section>
+        </motion.section>
 
         {/* Property Category */}
-        <section className="mb-10">
-          <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">What kind of {entityType}?</h2>
+        <motion.section {...sectionMotion} className="mb-5 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+          <h2 className="text-[14px] font-bold text-slate-900 mb-4 tracking-tight">What kind of {entityType}?</h2>
           <div className="flex gap-2.5">
-            {categoryOptions.map((opt) => (
-              <button
-                key={opt}
-                disabled={intent === 'Paying Guest' && opt === 'Commercial'}
-                onClick={() => setPropertyCategory(opt)}
-                className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all border ${
-                  propertyCategory === opt
-                    ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-30'
-                }`}
-              >
-                {opt}
-              </button>
-            ))}
+            {categoryOptions.map((opt) => {
+              const Icon = categoryIcons[opt] || Home;
+              const active = propertyCategory === opt;
+              const disabled = intent === 'Paying Guest' && opt === 'Commercial';
+              return (
+                <button
+                  key={opt}
+                  disabled={disabled}
+                  onClick={() => setPropertyCategory(opt)}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[13px] font-bold transition-all border ${
+                    active
+                      ? 'bg-[#0073E6] text-white border-[#0073E6] shadow-md shadow-blue-100'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-30'
+                  }`}
+                >
+                  <Icon size={15} strokeWidth={2.5} />
+                  {opt}
+                </button>
+              );
+            })}
           </div>
-        </section>
+        </motion.section>
 
         {/* Property Type Grid */}
-        <section className="mb-8">
-          <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">Select {entityType.charAt(0).toUpperCase() + entityType.slice(1)} Type</h2>
+        <motion.section {...sectionMotion} className="mb-5 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+          <h2 className="text-[14px] font-bold text-slate-900 mb-4 tracking-tight">Select {entityType.charAt(0).toUpperCase() + entityType.slice(1)} Type</h2>
           <div className="flex flex-wrap gap-2">
-            {visibleTypes.map((type) => (
-              <button
-                key={type}
-                onClick={() => handleTypeSelect(type)}
-                className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border ${
-                  selectedType === type
-                    ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                {type}
-              </button>
-            ))}
+            {visibleTypes.map((type) => {
+              const active = selectedType === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() => handleTypeSelect(type)}
+                  className={`flex items-center gap-1 px-3.5 py-2 rounded-full text-[12px] font-semibold transition-all border ${
+                    active
+                      ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  {active && <Check size={12} strokeWidth={3} />}
+                  {type}
+                </button>
+              );
+            })}
             {!showMoreTypes && hiddenCount > 0 && (
-              <button 
+              <button
                 onClick={() => setShowMoreTypes(true)}
-                className="px-3 py-1.5 rounded-full text-[12px] font-bold text-[#0073E6] border-none bg-transparent hover:bg-blue-50/50"
+                className="px-3.5 py-2 rounded-full text-[12px] font-bold text-[#0073E6] border border-dashed border-blue-200 bg-transparent hover:bg-blue-50/50"
               >
                 + {hiddenCount} more
               </button>
             )}
           </div>
-        </section>
+        </motion.section>
 
         {/* Commercial Sub-types */}
         {propertyCategory === 'Commercial' && subTypes.length > 0 && (
-          <section className="mb-10 animate-in fade-in slide-in-from-top-2 duration-300">
-            <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">What kind of {selectedType} is it?</h2>
+          <motion.section {...sectionMotion} className="mb-5 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+            <h2 className="text-[14px] font-bold text-slate-900 mb-4 tracking-tight">What kind of {selectedType} is it?</h2>
             <div className="flex flex-wrap gap-2">
-              {subTypes.map((sub) => (
-                <button
-                  key={sub}
-                  onClick={() => setSelectedSubType(sub)}
-                  className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border ${
-                    selectedSubType === sub
-                      ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  {sub}
-                </button>
-              ))}
+              {subTypes.map((sub) => {
+                const active = selectedSubType === sub;
+                return (
+                  <button
+                    key={sub}
+                    onClick={() => setSelectedSubType(sub)}
+                    className={`flex items-center gap-1 px-3.5 py-2 rounded-full text-[12px] font-semibold transition-all border ${
+                      active
+                        ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {active && <Check size={12} strokeWidth={3} />}
+                    {sub}
+                  </button>
+                );
+              })}
             </div>
-          </section>
+          </motion.section>
         )}
 
         {/* Contact Details Card */}
         {user ? (
-          <section className="mb-12">
-            <h2 className="text-[15px] font-bold text-[#000000] mb-4 tracking-tight">Your contact details</h2>
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
+          <motion.section {...sectionMotion} className="mb-5 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+            <h2 className="text-[14px] font-bold text-slate-900 mb-4 tracking-tight">Your contact details</h2>
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm overflow-hidden">
+                <div className="w-11 h-11 rounded-full bg-blue-50 ring-2 ring-white flex items-center justify-center text-blue-600 font-bold text-sm overflow-hidden shadow-sm">
                   {(user.profileImage || user.avatar || user.photo) ? (
                     <img src={user.profileImage || user.avatar || user.photo} alt={user.name} className="w-full h-full object-cover" />
                   ) : (
@@ -391,13 +462,18 @@ const ListPropertyWizard = () => {
                   )}
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold text-slate-800">Posting {entityType} as {user.name}</p>
+                  <p className="text-[13px] font-bold text-slate-800 flex items-center gap-1.5">
+                    Posting {entityType} as {user.name}
+                    {(user.role === 'owner' || user.role === 'broker' || user.role === 'builder') && (
+                      <ShieldCheck size={13} className="text-emerald-500" />
+                    )}
+                  </p>
                   <p className="text-[11px] text-slate-500 font-semibold">+91 {user.phone}</p>
                 </div>
               </div>
-              <button 
-                onClick={handleLogout} 
-                className="text-[11px] font-bold text-[#0073E6] hover:underline bg-transparent border-none cursor-pointer"
+              <button
+                onClick={handleLogout}
+                className="text-[11px] font-bold text-[#0073E6] hover:underline bg-transparent border-none cursor-pointer shrink-0"
               >
                 Change Account
               </button>
@@ -407,14 +483,16 @@ const ListPropertyWizard = () => {
                 Note: You'll be asked to choose your posting role (Owner/Broker/Builder) next.
               </p>
             )}
-          </section>
+          </motion.section>
         ) : (
-          <section className="mb-12 space-y-4">
-            <h2 className="text-[15px] font-bold text-[#000000] mb-2 tracking-tight">Your contact details</h2>
-            <p className="text-[11px] text-slate-500 font-medium -mt-2">Enter your details to create an account & start posting</p>
-            
+          <motion.section {...sectionMotion} className="mb-5 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-[14px] font-bold text-slate-900 mb-1 tracking-tight">Your contact details</h2>
+              <p className="text-[11px] text-slate-500 font-medium">Enter your details to create an account & start posting</p>
+            </div>
+
             {/* Name input */}
-            <div className="bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] transition-all">
+            <div className="bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] focus-within:ring-2 focus-within:ring-blue-50 transition-all">
               <label className="text-[10px] text-slate-400 font-bold block mb-1">YOUR NAME</label>
               <input
                 type="text"
@@ -427,7 +505,7 @@ const ListPropertyWizard = () => {
 
             {/* Mobile input */}
             <div className="flex gap-2">
-              <div className="flex-1 bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] transition-all">
+              <div className="flex-1 bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] focus-within:ring-2 focus-within:ring-blue-50 transition-all">
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">MOBILE NUMBER</label>
                 <div className="flex items-center">
                   <span className="text-[13px] text-slate-500 font-bold mr-1.5">+91</span>
@@ -441,7 +519,7 @@ const ListPropertyWizard = () => {
                   />
                 </div>
               </div>
-              
+
               <button
                 type="button"
                 disabled={sendingOtp || !listingForm.phone || listingForm.phone.length < 10}
@@ -454,7 +532,7 @@ const ListPropertyWizard = () => {
 
             {/* OTP input */}
             {otpSent && (
-              <div className="bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] transition-all animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] focus-within:ring-2 focus-within:ring-blue-50 transition-all animate-in fade-in slide-in-from-top-2 duration-200">
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">ENTER OTP</label>
                 <input
                   type="text"
@@ -473,61 +551,59 @@ const ListPropertyWizard = () => {
             {/* Role selection */}
             <div className="space-y-2">
               <label className="text-[11px] text-slate-400 font-bold uppercase tracking-wider block">Select Posting Role</label>
-              <div className="flex flex-wrap gap-2.5">
-                <label className={`flex-1 min-w-[140px] flex items-center justify-between p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${listingForm.role === 'owner' ? 'border-[#0073E6] bg-blue-50/20' : 'border-slate-200'}`}>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="listingRole"
-                      checked={listingForm.role === 'owner'}
-                      onChange={() => setListingForm({ ...listingForm, role: 'owner' })}
-                      className="accent-[#0073E6]"
-                    />
-                    <span className="text-[12px] font-bold text-slate-700">Property Owner</span>
-                  </div>
-                </label>
-                
-                <label className={`flex-1 min-w-[140px] flex items-center justify-between p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${listingForm.role === 'broker' ? 'border-[#0073E6] bg-blue-50/20' : 'border-slate-200'}`}>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="listingRole"
-                      checked={listingForm.role === 'broker'}
-                      onChange={() => setListingForm({ ...listingForm, role: 'broker' })}
-                      className="accent-[#0073E6]"
-                    />
-                    <span className="text-[12px] font-bold text-slate-700">Broker / Agent</span>
-                  </div>
-                </label>
-
-                <label className={`flex-1 min-w-[140px] flex items-center justify-between p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition-all ${listingForm.role === 'builder' ? 'border-[#0073E6] bg-blue-50/20' : 'border-slate-200'}`}>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="listingRole"
-                      checked={listingForm.role === 'builder'}
-                      onChange={() => setListingForm({ ...listingForm, role: 'builder' })}
-                      className="accent-[#0073E6]"
-                    />
-                    <span className="text-[12px] font-bold text-slate-700">Builder Partner</span>
-                  </div>
-                </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {roleCards.map(({ value, label, hint, icon: Icon }) => {
+                  const active = listingForm.role === value;
+                  return (
+                    <label
+                      key={value}
+                      className={`flex items-start gap-2.5 p-3 border rounded-xl cursor-pointer transition-all ${
+                        active ? 'border-[#0073E6] bg-blue-50/40 shadow-sm' : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="listingRole"
+                        checked={active}
+                        onChange={() => setListingForm({ ...listingForm, role: value })}
+                        className="sr-only"
+                      />
+                      <div className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${active ? 'bg-[#0073E6] text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        <Icon size={15} strokeWidth={2.5} />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-[12px] font-bold text-slate-800">{label}</span>
+                        <span className="block text-[10px] text-slate-500 font-medium leading-tight mt-0.5">{hint}</span>
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
             </div>
-            
-            <div className="mt-3 px-1 text-[11px] text-slate-500 font-semibold">
+
+            <div className="pt-1 text-[11px] text-slate-500 font-semibold">
               Already have an account? <button onClick={() => navigate('/login')} className="font-bold text-[#0073E6] hover:underline">Login</button>
             </div>
-          </section>
+          </motion.section>
         )}
+      </div>
 
-        {/* Next Button */}
-        <div className="mt-12 mb-10">
+      {/* Sticky Next Button */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
+        <div className="max-w-2xl mx-auto px-4 sm:px-5 py-4">
           <button
             onClick={handleNext}
-            className="w-full bg-[#0073E6] text-white font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all flex items-center justify-center text-[15px]"
+            disabled={loading}
+            className={`w-full text-white font-bold py-3.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-[15px] ${
+              canSubmit ? 'bg-[#0073E6] hover:bg-[#005fc2] shadow-lg shadow-blue-100' : 'bg-slate-300 cursor-not-allowed'
+            }`}
           >
-            Next
+            {loading ? <Loader2 className="animate-spin" size={18} /> : (
+              <>
+                Next
+                <ChevronRight size={18} strokeWidth={2.5} />
+              </>
+            )}
           </button>
         </div>
       </div>

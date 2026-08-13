@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Users, Search, Filter, MoreVertical, Ban, CheckCircle,
     Mail, Phone, Calendar, Shield, ArrowUpRight, Trash2, Unlock, Eye, Loader2,
-    ChevronLeft, ChevronRight, Download
+    ChevronLeft, ChevronRight, Download, Home, Briefcase, Building2, User
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -18,6 +18,27 @@ const UserStatusBadge = ({ status }) => {
             }`}>
             {isBlocked ? <Ban size={10} className="mr-1" /> : <CheckCircle size={10} className="mr-1" />}
             {status || 'ACTIVE'}
+        </span>
+    );
+};
+
+const ROLE_BADGES = {
+    admin: { label: 'Admin', className: 'bg-purple-100 text-purple-700', icon: Shield },
+    partner: { label: 'Partner', className: 'bg-blue-100 text-blue-700', icon: Users },
+    owner: { label: 'Owner', className: 'bg-teal-100 text-teal-700', icon: Home },
+    broker: { label: 'Broker', className: 'bg-amber-100 text-amber-700', icon: Briefcase },
+    builder: { label: 'Builder', className: 'bg-indigo-100 text-indigo-700', icon: Building2 },
+    user: { label: 'User', className: 'bg-gray-100 text-gray-700', icon: User }
+};
+
+export const RoleBadge = ({ role, size = 'sm' }) => {
+    const config = ROLE_BADGES[role] || { label: role || 'User', className: 'bg-gray-100 text-gray-700', icon: User };
+    const Icon = config.icon;
+    const isLg = size === 'lg';
+    return (
+        <span className={`inline-flex items-center gap-1 ${isLg ? 'text-xs py-1.5 px-3' : 'text-[10px] py-1 px-2'} font-bold uppercase rounded-md ${config.className}`}>
+            <Icon size={isLg ? 12 : 10} strokeWidth={2.5} />
+            {config.label}
         </span>
     );
 };
@@ -558,11 +579,7 @@ const AdminUsers = () => {
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <span className={`text-[10px] font-bold uppercase py-1 px-2 rounded-md ${user.role === 'admin' ? 'bg-purple-100 text-purple-700 font-bold' :
-                                                        user.role === 'partner' ? 'bg-blue-100 text-blue-700 font-bold' : 'bg-gray-100 text-gray-700 font-bold'
-                                                        }`}>
-                                                        {user.role}
-                                                    </span>
+                                                    <RoleBadge role={user.role} />
                                                 </td>
                                                 <td className="p-4">
                                                     <UserStatusBadge status={user.isBlocked ? 'BLOCKED' : 'ACTIVE'} />

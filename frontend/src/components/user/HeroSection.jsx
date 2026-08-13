@@ -7,7 +7,6 @@ import { useNavigate } from 'react-router-dom';
 import BannerCarousel from './BannerCarousel';
 import CityDropdown from './CityDropdown';
 import toast from 'react-hot-toast';
-import MobileSearchOverlay from './MobileSearchOverlay';
 import DesktopSearchFilterBar from './DesktopSearchFilterBar';
 import { getPreferredCity, setPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
 import { addRecentSearch } from '../../utils/recentActivity';
@@ -24,9 +23,6 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     const [selectedCity, setSelectedCity] = useState(getPreferredCity());
     const [selectedDistrict, setSelectedDistrict] = useState(null);
     const [detectingLocation, setDetectingLocation] = useState(false);
-    const [isSearchModalOpen, setIsSearchModalOpen] = useState(() => {
-        return sessionStorage.getItem('grh_search_modal_open') === 'true';
-    });
     const searchInputRef = useRef(null);
     // Track the Y position where the search box sits to trigger sticky correctly
     const searchBoxRef = useRef(null);
@@ -46,11 +42,6 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         }, 3000);
         return () => clearInterval(interval);
     }, []);
-
-    // Persist modal state
-    useEffect(() => {
-        sessionStorage.setItem('grh_search_modal_open', isSearchModalOpen);
-    }, [isSearchModalOpen]);
 
     // The city pill shows "Bengaluru" by default — actually filter the page
     // to Bengaluru from the first render too, instead of leaving it
@@ -77,34 +68,16 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
 
 
     const handleSearch = () => {
-        setIsSearchModalOpen(true);
-    };
-
-    const handleApplyFilters = (filters) => {
         const queryParams = new URLSearchParams();
-        if (filters.categoryTab) queryParams.set('categoryTab', filters.categoryTab);
-        if (filters.propertyCategory) queryParams.set('propertyCategory', filters.propertyCategory);
-        if (filters.areas && filters.areas.length > 0) {
-            queryParams.set('areas', filters.areas.join(','));
-        } else if (selectedCity) {
-            // The search modal itself didn't narrow to specific areas — carry
-            // over the location pill's city so results stay scoped to it
-            // instead of silently searching everywhere.
-            queryParams.set('areas', selectedCity);
-        }
-        sessionStorage.removeItem('grh_search_modal_open'); // Clear on submit
-        sessionStorage.removeItem('grh_search_draft'); // Clear draft
+        if (selectedType?.label) queryParams.set('categoryTab', selectedType.label);
+        queryParams.set('propertyCategory', 'Residential');
+        if (selectedCity) queryParams.set('areas', selectedCity);
         const url = `/search?${queryParams.toString()}`;
-        const label = filters.categoryTab
-            ? `${filters.categoryTab} in ${filters.areas?.[0] || selectedCity || 'your city'}`
-            : `Search in ${filters.areas?.[0] || selectedCity || 'your city'}`;
+        const label = selectedType?.label
+            ? `${selectedType.label} in ${selectedCity || 'your city'}`
+            : `Search in ${selectedCity || 'your city'}`;
         addRecentSearch({ label, url });
         navigate(url);
-    };
-
-    const handleCloseModal = () => {
-        setIsSearchModalOpen(false);
-        sessionStorage.removeItem('grh_search_modal_open');
     };
 
     const handleCitySelect = ({ city, district }) => {
@@ -236,7 +209,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                         <Search size={19} strokeWidth={2} className="text-gray-400 shrink-0" />
 
                         {/* Animated placeholder / real input */}
-                        <div className="flex-1 relative h-6 overflow-hidden cursor-text" onClick={() => setIsSearchModalOpen(true)}>
+                        <div className="flex-1 relative h-6 overflow-hidden cursor-text" onClick={handleSearch}>
                             <input
                                 ref={searchInputRef}
                                 type="text"
@@ -293,17 +266,6 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             )}
 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-
-            {/* Mobile Search Overlay Modal */}
-            <MobileSearchOverlay
-                isOpen={isSearchModalOpen}
-                onClose={handleCloseModal}
-                initialFilters={{
-                    categoryTab: selectedType?.label || 'Sell',
-                    propertyCategory: 'Residential'
-                }}
-                onApplyFilters={handleApplyFilters}
-            />
         </motion.section>
     );
 };

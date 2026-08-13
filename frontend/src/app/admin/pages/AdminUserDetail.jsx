@@ -8,6 +8,7 @@ import {
 import { Link, useParams, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
+import { RoleBadge } from './AdminUsers';
 import toast from 'react-hot-toast';
 
 const UserPropertiesTab = ({ properties }) => {
@@ -344,11 +345,7 @@ const AdminUserDetail = () => {
                             <CheckCircle size={14} className="text-green-500" />
                         </div>
                         <div className="flex items-center gap-3 text-sm pt-2">
-                            <span className={`text-[10px] font-bold uppercase py-1 px-3 rounded-md ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                                user.role === 'partner' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                                }`}>
-                                {user.role} Account
-                            </span>
+                            <RoleBadge role={user.role} size="lg" />
                         </div>
                     </div>
 

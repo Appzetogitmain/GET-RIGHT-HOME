@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video } from 'lucide-react';
+import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video, Briefcase } from 'lucide-react';
 import { authService } from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -45,6 +45,24 @@ const stateCitiesData = {
   "Andaman & Nicobar Islands": ["Port Blair"],
   "Dadra and Nagar Haveli and Daman and Diu": ["Daman", "Diu", "Silvassa"],
   "Lakshadweep": ["Kavaratti"]
+};
+
+const ROLE_BADGES = {
+  owner: { label: 'Property Owner', className: 'bg-teal-50 text-teal-700 border-teal-200', icon: Home },
+  broker: { label: 'Broker / Agent', className: 'bg-amber-50 text-amber-700 border-amber-200', icon: Briefcase },
+  builder: { label: 'Builder Partner', className: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: Building2 },
+  user: { label: 'User', className: 'bg-gray-50 text-gray-600 border-gray-200', icon: User }
+};
+
+const RoleBadge = ({ role }) => {
+  const config = ROLE_BADGES[role] || ROLE_BADGES.user;
+  const Icon = config.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide py-1.5 px-3 rounded-full border ${config.className}`}>
+      <Icon size={12} strokeWidth={2.5} />
+      {config.label}
+    </span>
+  );
 };
 
 const ProfileEdit = () => {
@@ -568,7 +586,7 @@ const ProfileEdit = () => {
     <div className="min-h-screen bg-white flex flex-col items-center pt-safe-top px-6 pb-24 md:pb-12">
 
       {/* Sticky Header */}
-      <div className="sticky top-0 left-0 right-0 w-full z-20 bg-white/95 backdrop-blur-sm shadow-sm mb-6">
+      <div className="sticky top-0 left-0 right-0 w-full z-20 bg-white/95 backdrop-blur-sm mb-6">
         <div className="w-full px-6 py-4 flex items-center justify-between">
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
             <ArrowLeft size={20} className="text-gray-700" />
@@ -627,6 +645,11 @@ const ProfileEdit = () => {
             />
           </div>
           <p className="mt-2 text-xs text-gray-500 font-medium group-hover:text-emerald-600 transition-colors">Tap icon to change photo</p>
+          {user?.role && (
+            <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+              <RoleBadge role={user.role} />
+            </div>
+          )}
         </div>
 
         {/* New Action Cards Layout */}

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import apiService from '../../../services/apiService';
 import toast from 'react-hot-toast';
 import {
   Building2, CheckCircle2, AlertCircle, Clock, ShieldCheck,
-  Upload, FileText, MapPin, Award, Layers, Sparkles
+  Upload, FileText, MapPin, Award, Layers, Sparkles, Plus
 } from 'lucide-react';
 
 const BuilderProfileManagement = () => {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -118,12 +120,20 @@ const BuilderProfileManagement = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => setEditing(!editing)}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md"
-          >
-            {editing ? 'Cancel Editing' : 'Edit Profile & Details'}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/list-property')}
+              className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 rounded-xl text-xs font-bold transition-all shadow-md hover:bg-slate-100"
+            >
+              <Plus size={16} strokeWidth={2.5} /> Add Project
+            </button>
+            <button
+              onClick={() => setEditing(!editing)}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+            >
+              {editing ? 'Cancel Editing' : 'Edit Profile & Details'}
+            </button>
+          </div>
         </div>
       </div>
 
