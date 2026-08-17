@@ -6,7 +6,7 @@ import { themeColors } from '../../../../../theme';
 // progress instead of one unchanging spinner for what can be several minutes.
 const WAVE_SECONDS = 60;
 
-const SearchStatusModal = ({ isOpen, onClose, currentStep, acceptedProfessional, onRetry, bookingModel = 'worker', searchMessage }) => {
+const SearchStatusModal = ({ isOpen, onClose, currentStep, acceptedProfessional, onRetry, bookingModel = 'worker', searchMessage, onViewBooking, onCancelBooking }) => {
   const [dots, setDots] = useState('.');
   const [elapsed, setElapsed] = useState(0);
   const isSearching = currentStep === 'searching' || currentStep === 'waiting';
@@ -213,15 +213,50 @@ const SearchStatusModal = ({ isOpen, onClose, currentStep, acceptedProfessional,
               </svg>
             </div>
 
-            <h3 className="text-2xl font-black text-gray-900 mb-2 italic text-center">ALL EXPERTS BUSY</h3>
+            <h3 className="text-2xl font-black text-gray-900 mb-2 italic text-center">Booking Cancelled</h3>
             <p className="text-gray-600 text-sm text-center mb-8 px-6 font-semibold leading-relaxed">
-              {searchMessage || `We couldn't find any available ${bookingModel}s in your area right now.`}
+              {searchMessage || `This booking is no longer active.`}
             </p>
-
 
             <button
               onClick={onClose}
               className="w-full text-gray-400 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
+            >
+              Close
+            </button>
+          </div>
+        )}
+
+        {/* No worker auto-accepted yet — the booking stays active and is moving
+            to admin manual assignment. This is a reassuring in-progress state,
+            not a dead end, so it deliberately avoids red/failure styling. */}
+        {currentStep === 'manual_assignment' && (
+          <div className="flex flex-col items-center pt-12 pb-10 px-6 bg-white w-full h-full min-h-[450px]">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-2xl bg-amber-50 border-2 border-amber-100">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={themeColors.brand.teal} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+
+            <h3 className="text-2xl font-black text-gray-900 mb-2 italic text-center">We're On It</h3>
+            <p className="text-gray-600 text-sm text-center mb-8 px-6 font-semibold leading-relaxed">
+              {searchMessage || "Your order has been taken successfully. We are currently assigning a service professional to your booking. You will receive the professional details shortly."}
+            </p>
+
+            <button
+              onClick={onViewBooking}
+              className="w-full text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 mb-3"
+              style={{
+                background: `linear-gradient(135deg, ${themeColors.brand.teal}, ${themeColors.brand.secondary})`,
+              }}
+            >
+              View Booking Status
+            </button>
+
+            <button
+              onClick={onCancelBooking}
+              className="px-6 py-2.5 rounded-full border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-sm"
             >
               Cancel Booking
             </button>
