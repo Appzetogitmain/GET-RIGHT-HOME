@@ -17,6 +17,14 @@ const ROLE_LINKS = [
     { label: 'For Dealers / Builders', to: '/partner-landing' },
 ];
 
+// A guest (or a plain buyer/tenant account) doesn't know which of these
+// personas they are yet, so the full "who are you" self-selection nav is
+// useful. Once an account is actually declared owner/broker/builder,
+// showing all 4 entry points — including personas they aren't — is just
+// noise; give them the one link to what they actually use instead.
+const LISTER_ROLES = ['owner', 'broker', 'builder'];
+const LISTER_LINKS = [{ label: 'My Properties', to: '/my-properties' }];
+
 const TopNavbar = () => {
     // Get user from useAuth hook
     const { user } = useAuth();
@@ -24,6 +32,7 @@ const TopNavbar = () => {
     const location = useLocation();
     const [city, setCity] = useState(getPreferredCity());
     const [isCityModalOpen, setIsCityModalOpen] = useState(false);
+    const roleLinks = (user && LISTER_ROLES.includes(user.role)) ? LISTER_LINKS : ROLE_LINKS;
 
     // Stay in sync with the city picker on the home page, even without a reload
     useEffect(() => onPreferredCityChange(setCity), []);
@@ -92,7 +101,7 @@ const TopNavbar = () => {
 
             {/* Center: Role-based links (99acres-style) + core utility pages */}
             <div className="flex items-center gap-6 px-4 shrink-0">
-                {ROLE_LINKS.map((link) => (
+                {roleLinks.map((link) => (
                     <Link
                         key={link.to}
                         to={link.to}
