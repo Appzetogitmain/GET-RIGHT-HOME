@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Loader2, Check, MapPin } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Loader2, Check, MapPin, Save } from 'lucide-react';
 import { api, hotelService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 import LocationSelector from '../../components/ui/LocationSelector';
@@ -31,6 +31,14 @@ const stepUsesLocationSelector = (step) => {
   if (!step) return false;
   if (typeof step.showLocationSelector === 'boolean') return step.showLocationSelector;
   return Boolean(step.title?.toLowerCase().includes('location'));
+};
+
+// A field's `dependsOn.value` can be a single value (exact match) or an array
+// (OR match) so one controlling field can drive more than a two-way branch.
+const matchesDependsOn = (dependsOn, dataObj) => {
+  if (!dependsOn?.field) return true;
+  const actual = dataObj?.[dependsOn.field];
+  return Array.isArray(dependsOn.value) ? dependsOn.value.includes(actual) : actual === dependsOn.value;
 };
 
 const DynamicFormEngine = () => {
@@ -157,6 +165,17 @@ const DynamicFormEngine = () => {
     }
   }, [currentStepIndex, stepStorageKey]);
 
+  // Keep the active step chip scrolled into view as currentStepIndex changes
+  // (15 steps overflow the header width, so without this the current step can
+  // scroll off-screen and the builder loses their place in the flow).
+  const stepChipRefs = useRef({});
+  useEffect(() => {
+    const el = stepChipRefs.current[currentStepIndex];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [currentStepIndex]);
+
   // Robust Lenis & Body Scroll Lock for Modal Dialogs
   useEffect(() => {
     const isAnyModalOpen = showPricingModal || customTagModal.open;
@@ -229,6 +248,20 @@ const DynamicFormEngine = () => {
     }
   };
 
+  const [draftSaved, setDraftSaved] = useState(false);
+
+  // Everything already autosaves to localStorage on every keystroke (see the
+  // formData effect above) — this button just gives the builder an explicit,
+  // visible confirmation that nothing will be lost if they leave now.
+  const saveDraft = () => {
+    if (!isEditMode) {
+      localStorage.setItem(storageKey, JSON.stringify(formData));
+    }
+    toast.success('Draft saved. Resume anytime from where you left off.');
+    setDraftSaved(true);
+    setTimeout(() => setDraftSaved(false), 2000);
+  };
+
   const handleNext = () => {
     const currentStep = template.steps[currentStepIndex];
     let newErrors = {};
@@ -270,10 +303,7 @@ const DynamicFormEngine = () => {
       }
 
       // Basic visibility check (dependency)
-      let isVisible = true;
-      if (field.dependsOn?.field) {
-        isVisible = formData[field.dependsOn.field] === field.dependsOn.value;
-      }
+      const isVisible = matchesDependsOn(field.dependsOn, formData);
 
       if (isVisible) {
         const value = formData[field.name];
@@ -338,10 +368,7 @@ const DynamicFormEngine = () => {
             if (field.subFields) {
               field.subFields.forEach(subF => {
                 if (subF.type === 'repeater') return; // Skip nested repeaters
-                let isSubVisible = true;
-                if (subF.dependsOn?.field) {
-                  isSubVisible = item[subF.dependsOn.field] === subF.dependsOn.value;
-                }
+                const isSubVisible = matchesDependsOn(subF.dependsOn, item);
                 if (isSubVisible && subF.required) {
                   const subVal = item[subF.name];
                   const isSubEmpty = subVal === undefined || subVal === null || subVal === '';
@@ -513,10 +540,8 @@ const DynamicFormEngine = () => {
   // Dynamic Field Renderer
   const renderField = (field) => {
     // Dependency check
-    if (field.dependsOn?.field) {
-      if (formData[field.dependsOn.field] !== field.dependsOn.value) {
-        return null; // Hide field
-      }
+    if (!matchesDependsOn(field.dependsOn, formData)) {
+      return null; // Hide field
     }
 
     // Horizontal combined layout check for areas and custom facade dimensions
@@ -1275,11 +1300,12 @@ const DynamicFormEngine = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                     {field.subFields?.map(subF => {
                       // Add dependency check
-                      let isSubVisible = true;
-                      if (subF.dependsOn?.field) {
-                        isSubVisible = item[subF.dependsOn.field] === subF.dependsOn.value;
-                      }
-                      if (!isSubVisible) return null;
+                      if (!matchesDependsOn(subF.dependsOn, item)) return null;
+
+                      // Tower dropdown options are dynamic (user-entered in Step 3), not static template options.
+                      const subFOptions = (field.name === 'unitConfigurations' && subF.name === 'towerName')
+                        ? (formData.towers || []).map(t => t.towerName).filter(Boolean)
+                        : subF.options;
 
                       if (subF.type === 'file') {
                          return (
@@ -1382,8 +1408,8 @@ const DynamicFormEngine = () => {
                               }}
                               className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500 bg-white"
                             >
-                              <option value="">Select an option</option>
-                              {subF.options?.map(opt => (
+                              <option value="">{subFOptions?.length ? 'Select an option' : 'Add towers in Step 3 first'}</option>
+                              {subFOptions?.map(opt => (
                                 <option key={opt} value={opt}>{opt}</option>
                               ))}
                             </select>
@@ -1740,14 +1766,26 @@ const DynamicFormEngine = () => {
           <button onClick={goBack} className="p-2 -ml-2 text-slate-700">
             <ArrowLeft size={22} />
           </button>
-          <span className="ml-2 font-bold text-[17px] tracking-tight truncate">{currentStep.title}</span>
-          <span className="ml-auto shrink-0 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            STEP {currentStepIndex + 1} OF {template.steps.length}
+          <div className="ml-2 min-w-0">
+            <span className="block font-bold text-[17px] tracking-tight truncate">{currentStep.title}</span>
+          </div>
+          <span className="ml-auto shrink-0 text-[11px] font-bold text-[#0073E6] uppercase tracking-widest">
+            {Math.round(((currentStepIndex + 1) / template.steps.length) * 100)}% Complete
           </span>
         </div>
 
+        {/* Thin overall-progress bar, independent of the step-chip row below. */}
+        <div className="h-1 bg-slate-100">
+          <motion.div
+            className="h-full bg-[#0073E6]"
+            initial={false}
+            animate={{ width: `${((currentStepIndex + 1) / template.steps.length) * 100}%` }}
+            transition={{ duration: 0.3 }}
+          />
+        </div>
+
         {/* Numbered step progress. Completed steps are clickable to jump back. */}
-        <div className="px-4 pb-3 overflow-x-auto">
+        <div className="px-4 pt-3 pb-3 overflow-x-auto">
           <div className="flex items-center gap-1 min-w-max">
             {template.steps.map((step, idx) => {
               const isDone = idx < currentStepIndex;
@@ -1758,8 +1796,9 @@ const DynamicFormEngine = () => {
                     <span className={`h-[2px] w-4 shrink-0 rounded-full ${isDone || isCurrent ? 'bg-[#0073E6]' : 'bg-slate-200'}`} />
                   )}
                   <button
+                    ref={(el) => { stepChipRefs.current[idx] = el; }}
                     type="button"
-                    title={step.title}
+                    title={`${step.stepNumber}. ${step.title}`}
                     disabled={idx > currentStepIndex}
                     onClick={() => goToStep(idx)}
                     className={`w-6 h-6 shrink-0 rounded-full text-[10px] font-bold flex items-center justify-center border transition-all ${
@@ -1921,17 +1960,33 @@ const DynamicFormEngine = () => {
           </motion.div>
         </AnimatePresence>
 
-        {/* Back / Next */}
+        {/* Save Draft / Back / Next */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 z-30 md:relative md:border-0 md:p-0 md:mt-10">
           <div className="flex gap-3 max-w-2xl mx-auto">
             <button
               type="button"
               onClick={goBack}
               disabled={loading}
-              className="px-6 py-3.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-[15px] hover:bg-slate-50 active:scale-[0.98] transition-all disabled:opacity-50"
+              className="px-5 py-3.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-[15px] hover:bg-slate-50 active:scale-[0.98] transition-all disabled:opacity-50"
             >
               Back
             </button>
+            {!isEditMode && (
+              <button
+                type="button"
+                onClick={saveDraft}
+                disabled={loading}
+                title="Save your progress and continue later"
+                className={`px-4 py-3.5 rounded-xl border font-bold text-[15px] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 ${
+                  draftSaved
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {draftSaved ? <Check size={16} strokeWidth={3} /> : <Save size={16} />}
+                <span className="hidden sm:inline">{draftSaved ? 'Saved' : 'Save Draft'}</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={handleNext}

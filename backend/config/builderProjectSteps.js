@@ -29,7 +29,7 @@ export const HIGHLIGHT_OPTIONS = [
 ];
 
 export const CONSTRUCTION_STAGES = [
-  'Foundation', 'Structure', 'Brick Work', 'Plastering', 'Flooring', 'Painting'
+  'Foundation', 'Structure', 'Brick Work', 'Plastering', 'Electrical', 'Plumbing', 'Flooring', 'Painting', 'Finishing'
 ];
 
 const AREA_UNITS = ['sq.ft.', 'sq.yards', 'sq.m.', 'acres'];
@@ -40,6 +40,7 @@ const typeFlags = (category, propertyType = '') => {
   const t = propertyType.toLowerCase();
   return {
     isPlot: t.includes('plot') || t.includes('land'),
+    isVilla: t.includes('villa') || t.includes('independent house'),
     isCommercial: category === 'Commercial',
     isOffice: t.includes('office') || t.includes('co-working'),
     isRetail: t.includes('shop') || t.includes('showroom'),
@@ -49,7 +50,7 @@ const typeFlags = (category, propertyType = '') => {
 
 // STEP 3 — Project Summary (scale of the project)
 const projectSummaryFields = (category, propertyType) => {
-  const { isPlot } = typeFlags(category, propertyType);
+  const { isPlot, isVilla } = typeFlags(category, propertyType);
 
   const common = [
     { name: 'totalLandArea', label: 'Total Land Area (Acres)', type: 'number', placeholder: 'e.g. 5.20', required: true, order: 1 },
@@ -69,11 +70,31 @@ const projectSummaryFields = (category, propertyType) => {
     ];
   }
 
+  if (isVilla) {
+    return [
+      ...common,
+      { name: 'totalPhases', label: 'Number of Phases', type: 'number', placeholder: 'e.g. 2', required: false, order: 2 },
+      { name: 'totalUnits', label: 'Number of Villas', type: 'number', placeholder: 'e.g. 120', required: true, order: 3 },
+      { name: 'villaTypes', label: 'Villa Types', type: 'multiselect_pill', options: ['2 BHK', '3 BHK', '4 BHK', '5 BHK'], required: false, order: 4 },
+      { name: 'communityArea', label: 'Community Area (sq.ft)', type: 'number', placeholder: 'e.g. 15000', required: false, order: 5 },
+      { name: 'openSpacePercentage', label: 'Open Space (%)', type: 'number', placeholder: 'e.g. 70', required: false, order: 6 }
+    ];
+  }
+
   return [
     ...common,
-    { name: 'totalTowers', label: 'Total Towers / Blocks', type: 'number', placeholder: 'e.g. 5', required: true, order: 2 },
-    { name: 'totalFloors', label: 'Floors per Tower', type: 'number', placeholder: 'e.g. 14', required: true, order: 3 },
-    { name: 'totalUnits', label: 'Total Units', type: 'number', placeholder: 'e.g. 550', required: true, order: 4 },
+    {
+      name: 'towers',
+      label: 'Towers / Blocks',
+      type: 'repeater',
+      required: true,
+      order: 2,
+      subFields: [
+        { name: 'towerName', label: 'Tower Name', type: 'text', placeholder: 'e.g. Tower A', required: true, order: 1 },
+        { name: 'numberOfFloors', label: 'Number of Floors', type: 'number', placeholder: 'e.g. 14', required: true, order: 2 },
+        { name: 'totalUnits', label: 'Total Units', type: 'number', placeholder: 'e.g. 110', required: true, order: 3 }
+      ]
+    },
     { name: 'openSpacePercentage', label: 'Open Space (%)', type: 'number', placeholder: 'e.g. 80', required: false, order: 5 },
     { name: 'clubHouseSize', label: 'Club House Size (sq.ft)', type: 'number', placeholder: 'e.g. 25000', required: false, order: 6 },
     { name: 'projectDensity', label: 'Project Density', type: 'text', placeholder: 'e.g. 63 units/acre', required: false, order: 7 }
@@ -82,7 +103,7 @@ const projectSummaryFields = (category, propertyType) => {
 
 // STEP 4 — Unit Details & Pricing
 const unitPricingFields = (category, propertyType) => {
-  const { isPlot, isCommercial } = typeFlags(category, propertyType);
+  const { isPlot, isVilla, isCommercial } = typeFlags(category, propertyType);
 
   const positionRepeater = {
     name: 'positionFacingRates',
@@ -105,12 +126,48 @@ const unitPricingFields = (category, propertyType) => {
         required: true,
         order: 1,
         subFields: [
-          { name: 'unitType', label: 'Plot Size (e.g. 200 sq.yards)', type: 'text', placeholder: 'e.g. 200 sq.yards', required: true, order: 1 },
-          { name: 'carpetArea', label: 'Plot Area', type: 'number', placeholder: 'e.g. 1800', required: true, order: 2 },
-          { name: 'areaUnit', label: 'Area Unit', type: 'dropdown', options: ['sq.yards', 'sq.ft.', 'sq.m.', 'acres'], required: true, order: 3 },
-          { name: 'price', label: 'Price (₹)', type: 'number', placeholder: 'e.g. 4500000', required: true, order: 4 },
-          { name: 'pricePerSqft', label: 'Rate (₹ per unit area)', type: 'number', placeholder: 'e.g. 2500', required: false, order: 5 },
-          { name: 'availableUnits', label: 'Available Plots', type: 'number', placeholder: 'e.g. 40', required: true, order: 6 }
+          { name: 'plotNumber', label: 'Plot Number', type: 'text', placeholder: 'e.g. 42', required: true, order: 1 },
+          { name: 'unitType', label: 'Plot Size (e.g. 200 sq.yards)', type: 'text', placeholder: 'e.g. 200 sq.yards', required: true, order: 2 },
+          { name: 'length', label: 'Length (ft)', type: 'number', placeholder: 'e.g. 40', required: false, order: 3 },
+          { name: 'width', label: 'Width (ft)', type: 'number', placeholder: 'e.g. 60', required: false, order: 4 },
+          { name: 'carpetArea', label: 'Plot Area', type: 'number', placeholder: 'e.g. 1800', required: true, order: 5 },
+          { name: 'areaUnit', label: 'Area Unit', type: 'dropdown', options: ['sq.yards', 'sq.ft.', 'sq.m.', 'acres'], required: true, order: 6 },
+          { name: 'facing', label: 'Facing', type: 'dropdown', options: ['East', 'West', 'North', 'South', 'North-East', 'North-West', 'South-East', 'South-West'], required: false, order: 7 },
+          { name: 'roadWidth', label: 'Road Width (ft)', type: 'number', placeholder: 'e.g. 30', required: false, order: 8 },
+          { name: 'isCornerPlot', label: 'Corner Plot?', type: 'pill', options: ['Yes', 'No'], required: false, order: 9 },
+          { name: 'pricePerSqft', label: 'Rate (₹ per unit area)', type: 'number', placeholder: 'e.g. 2500', required: false, order: 10 },
+          { name: 'premium', label: 'Premium (₹)', type: 'number', placeholder: 'e.g. 50000', required: false, order: 11 },
+          { name: 'price', label: 'Total Price (₹)', type: 'number', placeholder: 'e.g. 4500000', required: true, order: 12 },
+          { name: 'availableUnits', label: 'Available Plots', type: 'number', placeholder: 'e.g. 40', required: true, order: 13 },
+          { name: 'status', label: 'Status', type: 'dropdown', options: ['Available', 'Hold', 'Sold', 'Blocked'], required: false, order: 14 }
+        ]
+      },
+      positionRepeater
+    ];
+  }
+
+  if (isVilla) {
+    return [
+      {
+        name: 'villaConfigurations',
+        label: 'Villa Configuration & Pricing',
+        type: 'repeater',
+        required: true,
+        order: 1,
+        subFields: [
+          { name: 'villaType', label: 'Villa Type', type: 'pill', options: ['2 BHK', '3 BHK', '4 BHK', '5 BHK'], required: true, order: 1 },
+          { name: 'villaNumber', label: 'Villa Number', type: 'text', placeholder: 'e.g. V-14', required: true, order: 2 },
+          { name: 'plotArea', label: 'Plot Area (sq.ft)', type: 'number', placeholder: 'e.g. 2400', required: true, order: 3 },
+          { name: 'builtUpArea', label: 'Built-up Area (sq.ft)', type: 'number', placeholder: 'e.g. 3200', required: true, order: 4 },
+          { name: 'carpetArea', label: 'Carpet Area (sq.ft)', type: 'number', placeholder: 'e.g. 2800', required: false, order: 5 },
+          { name: 'numberOfFloors', label: 'Number of Floors', type: 'number', placeholder: 'e.g. 2', required: false, order: 6 },
+          { name: 'facing', label: 'Facing', type: 'dropdown', options: ['East', 'West', 'North', 'South', 'North-East', 'North-West', 'South-East', 'South-West'], required: false, order: 7 },
+          { name: 'isCornerVilla', label: 'Corner Villa?', type: 'pill', options: ['Yes', 'No'], required: false, order: 8 },
+          { name: 'hasPrivateGarden', label: 'Private Garden?', type: 'pill', options: ['Yes', 'No'], required: false, order: 9 },
+          { name: 'hasPrivatePool', label: 'Private Pool?', type: 'pill', options: ['Yes', 'No'], required: false, order: 10 },
+          { name: 'parking', label: 'Parking', type: 'text', placeholder: 'e.g. 2 Covered', required: false, order: 11 },
+          { name: 'price', label: 'Price (₹)', type: 'number', placeholder: 'e.g. 25000000', required: true, order: 12 },
+          { name: 'availableUnits', label: 'Available', type: 'number', placeholder: 'e.g. 5', required: true, order: 13 }
         ]
       },
       positionRepeater
@@ -125,6 +182,10 @@ const unitPricingFields = (category, propertyType) => {
       required: true,
       order: 1,
       subFields: [
+        ...(isCommercial ? [] : [
+          { name: 'towerName', label: 'Tower', type: 'dropdown', options: [], required: false, order: 0 },
+          { name: 'floorNumber', label: 'Floor Number', type: 'number', placeholder: 'e.g. 5', required: false, order: 0.5 }
+        ]),
         {
           name: 'unitType',
           label: isCommercial ? 'Unit Type (e.g. Suite, Shop)' : 'Unit Type (e.g. 2 BHK)',
@@ -187,7 +248,10 @@ export const createBuilderSteps = (category = 'Residential', propertyType = 'Apa
       { name: 'propertyName', label: 'Project Name', type: 'text', placeholder: 'e.g. Sujay Global Elara', required: true, order: 1 },
       { name: 'builderName', label: 'Builder / Developer Name', type: 'text', placeholder: 'e.g. Sujay Constructions', required: true, order: 2 },
       { name: 'projectStatus', label: 'Project Status', type: 'pill', options: ['Pre Launch', 'New Launch', 'Under Construction', 'Ready To Move', 'Completed'], required: true, order: 3 },
-      { name: 'reraNumber', label: 'RERA Registration Number', type: 'text', placeholder: 'e.g. P02400008905', required: true, order: 4 },
+      { name: 'reraStatus', label: 'RERA Status', type: 'pill', options: ['Registered', 'Not Registered', 'Not Applicable / Exempt'], required: true, order: 4 },
+      { name: 'reraNumber', label: 'RERA Registration Number', type: 'text', placeholder: 'e.g. P02400008905', required: true, order: 4.1, dependsOn: { field: 'reraStatus', value: 'Registered' } },
+      { name: 'reraCertificate', label: 'RERA Certificate', type: 'single_file', required: false, order: 4.2, dependsOn: { field: 'reraStatus', value: 'Registered' } },
+      { name: 'reraComplianceReason', label: 'Reason / Compliance Information', type: 'textarea', placeholder: 'Explain why RERA registration is not applicable or pending...', required: true, order: 4.3, dependsOn: { field: 'reraStatus', value: ['Not Registered', 'Not Applicable / Exempt'] } },
       { name: 'possessionDate', label: 'Possession Date', type: 'date', required: false, order: 5 },
       { name: 'description', label: 'Project Description', type: 'textarea', placeholder: 'Describe the project vision, lifestyle and unique selling points...', required: true, order: 6, validation: { minLength: 100, maxLength: 5000, customErrorMessage: 'Project description must be between 100 and 5000 characters' } },
       { name: 'coverImage', label: 'Project Cover Image', type: 'single_file', required: false, order: 7 }
@@ -292,10 +356,29 @@ export const createBuilderSteps = (category = 'Residential', propertyType = 'Apa
     title: 'Construction Status',
     description: 'Current construction progress',
     fields: [
-      { name: 'currentConstructionStatus', label: 'Current Status', type: 'pill', options: ['Not Started', 'Under Construction', 'Finishing Stage', 'Completed'], required: true, order: 1 },
-      { name: 'completionPercentage', label: 'Completion (%)', type: 'slider', required: false, order: 2 },
-      { name: 'expectedPossession', label: 'Expected Possession', type: 'date', required: false, order: 3 },
-      { name: 'constructionProgress', label: 'Construction Progress', type: 'progress_group', options: CONSTRUCTION_STAGES, required: false, order: 4 }
+      // Branches purely off Step 1's `projectStatus` — each block only shows for its status.
+      { name: 'expectedLaunchDate', label: 'Expected Launch Date', type: 'date', required: true, order: 1, dependsOn: { field: 'projectStatus', value: 'Pre Launch' } },
+      { name: 'expectedPossessionPL', label: 'Expected Possession', type: 'date', required: false, order: 2, dependsOn: { field: 'projectStatus', value: 'Pre Launch' } },
+      { name: 'priceStartingFrom', label: 'Price Starting From (₹)', type: 'number', placeholder: 'e.g. 5500000', required: false, order: 3, dependsOn: { field: 'projectStatus', value: 'Pre Launch' } },
+      { name: 'bookingEoiStatus', label: 'Booking / EOI Status', type: 'dropdown', options: ['Not Started', 'EOI Open', 'Booking Open'], required: false, order: 4, dependsOn: { field: 'projectStatus', value: 'Pre Launch' } },
+      { name: 'plannedDevelopment', label: 'Planned Development', type: 'textarea', placeholder: 'Describe the planned phases and timelines...', required: false, order: 5, dependsOn: { field: 'projectStatus', value: 'Pre Launch' } },
+
+      { name: 'launchDate', label: 'Launch Date', type: 'date', required: true, order: 1, dependsOn: { field: 'projectStatus', value: 'New Launch' } },
+      { name: 'bookingOpen', label: 'Booking Open?', type: 'pill', options: ['Yes', 'No'], required: false, order: 2, dependsOn: { field: 'projectStatus', value: 'New Launch' } },
+      { name: 'launchPrice', label: 'Launch Price (₹)', type: 'number', placeholder: 'e.g. 6000000', required: false, order: 3, dependsOn: { field: 'projectStatus', value: 'New Launch' } },
+      { name: 'launchOffer', label: 'Launch Offer', type: 'text', placeholder: 'e.g. No GST till March', required: false, order: 4, dependsOn: { field: 'projectStatus', value: 'New Launch' } },
+      { name: 'availableInventory', label: 'Available Inventory', type: 'number', placeholder: 'e.g. 80', required: false, order: 5, dependsOn: { field: 'projectStatus', value: 'New Launch' } },
+      { name: 'expectedPossessionNL', label: 'Expected Possession', type: 'date', required: false, order: 6, dependsOn: { field: 'projectStatus', value: 'New Launch' } },
+
+      { name: 'completionPercentage', label: 'Completion (%)', type: 'slider', required: false, order: 1, dependsOn: { field: 'projectStatus', value: 'Under Construction' } },
+      { name: 'constructionProgress', label: 'Construction Stage Progress', type: 'progress_group', options: CONSTRUCTION_STAGES, required: false, order: 2, dependsOn: { field: 'projectStatus', value: 'Under Construction' } },
+      { name: 'expectedPossession', label: 'Expected Possession', type: 'date', required: false, order: 3, dependsOn: { field: 'projectStatus', value: 'Under Construction' } },
+      { name: 'milestones', label: 'Milestones', type: 'textarea', placeholder: 'e.g. Structure completed Jan 2026, Finishing by Aug 2026...', required: false, order: 4, dependsOn: { field: 'projectStatus', value: 'Under Construction' } },
+
+      { name: 'projectCompletionConfirmed', label: 'Project Completion', type: 'pill', options: ['100%'], required: true, order: 1, dependsOn: { field: 'projectStatus', value: ['Ready To Move', 'Completed'] } },
+      { name: 'possessionAvailable', label: 'Possession Available?', type: 'pill', options: ['Yes', 'No'], required: false, order: 2, dependsOn: { field: 'projectStatus', value: ['Ready To Move', 'Completed'] } },
+      { name: 'availableUnitsAtPossession', label: 'Available Units', type: 'number', placeholder: 'e.g. 12', required: false, order: 3, dependsOn: { field: 'projectStatus', value: ['Ready To Move', 'Completed'] } },
+      { name: 'completionDocuments', label: 'Completion Documents', type: 'single_file', required: false, order: 4, dependsOn: { field: 'projectStatus', value: ['Ready To Move', 'Completed'] } }
     ]
   },
   {

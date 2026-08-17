@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   FiSearch, FiCalendar, FiDownload, FiMoreVertical,
-  FiClock, FiCheckCircle, FiBox, FiTruck, FiXCircle, FiRefreshCw, FiShoppingBag
+  FiClock, FiBox, FiTruck, FiXCircle, FiShoppingBag, FiBell
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { adminBookingService } from '../../../../services/adminBookingService';
-import { getDashboardStats } from '../../../../services/adminDashboardService';
 import AssignWorkerModal from './components/AssignWorkerModal';
 
 const BookingStatsCard = ({ title, count, icon: Icon, colorClass, bgClass }) => (
@@ -26,8 +25,9 @@ const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
     case 'completed': return 'bg-green-100 text-green-700';
     case 'cancelled': return 'bg-red-100 text-red-700';
+    // Not a failure — needs admin action, so amber (attention) rather than red (dead).
     case 'no_workers':
-    case 'no_vendors': return 'bg-red-50 text-red-600 border border-red-200';
+    case 'no_vendors': return 'bg-amber-50 text-amber-700 border border-amber-200';
     case 'searching': return 'bg-blue-50 text-blue-600 border border-blue-200 animate-pulse';
     case 'in_progress': return 'bg-purple-100 text-purple-700';
     case 'pending': return 'bg-orange-100 text-orange-700';
@@ -36,6 +36,12 @@ const getStatusColor = (status) => {
     case 'confirmed': return 'bg-teal-100 text-teal-700';
     default: return 'bg-yellow-100 text-yellow-700';
   }
+};
+
+const getStatusLabel = (status) => {
+  const s = status?.toLowerCase();
+  if (s === 'no_workers' || s === 'no_vendors') return 'MANUAL ASSIGNMENT REQUIRED';
+  return status?.replace('_', ' ');
 };
 
 const Bookings = () => {
@@ -58,7 +64,7 @@ const Bookings = () => {
   // Stats
   const [stats, setStats] = useState({
     pending: 0,
-    confirmed: 0,
+    manualAssignmentRequired: 0,
     inProgress: 0,
     completed: 0,
     cancelled: 0,
@@ -86,13 +92,13 @@ const Bookings = () => {
         endDate
       };
       if (statusFilter !== 'All Status') {
-        params.status = statusFilter.toUpperCase().replace(' ', '_');
+        params.status = statusFilter;
       }
 
       const res = await adminBookingService.getAllBookings(params);
       if (res.success) {
         setBookings(res.data || res.bookings || []);
-        
+
         if (res.pagination) {
           setTotalPages(res.pagination.pages);
         } else if (res.total !== undefined) {
@@ -100,20 +106,17 @@ const Bookings = () => {
         } else {
           setTotalPages(1);
         }
-      }
 
-      // 2. Fetch Stats (only if not already fetched or if total is 0)
-      if (stats.total === 0) {
-        const statsRes = await getDashboardStats();
-        if (statsRes.success) {
-          const s = statsRes.stats;
+        // getAllJobs returns booking-specific stats directly — no need for the
+        // unrelated hotel-booking/enquiry dashboard stats.
+        if (res.stats) {
           setStats({
-            pending: s.pendingBookings || 0,
-            confirmed: 0,
-            inProgress: 0,
-            completed: s.completedBookings || 0,
-            cancelled: s.cancelledBookings || 0,
-            total: s.totalBookings || 0
+            pending: res.stats.pending || 0,
+            manualAssignmentRequired: res.stats.manualAssignmentRequired || 0,
+            inProgress: res.stats.inProgress || 0,
+            completed: res.stats.completed || 0,
+            cancelled: res.stats.cancelled || 0,
+            total: res.stats.total || 0
           });
         }
       }
@@ -157,12 +160,10 @@ const Bookings = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <BookingStatsCard title="Awaiting" count={stats.pending} icon={FiClock} bgClass="bg-yellow-50" colorClass="text-yellow-600" />
-        <BookingStatsCard title="Confirmed" count={stats.pending} icon={FiCheckCircle} bgClass="bg-blue-50" colorClass="text-blue-600" />
+        <BookingStatsCard title="Manual Assignment Required" count={stats.manualAssignmentRequired} icon={FiBell} bgClass="bg-amber-50" colorClass="text-amber-600" />
         <BookingStatsCard title="In Progress" count={stats.inProgress} icon={FiBox} bgClass="bg-purple-50" colorClass="text-purple-600" />
         <BookingStatsCard title="Completed" count={stats.completed} icon={FiTruck} bgClass="bg-green-50" colorClass="text-green-600" />
-        <BookingStatsCard title="Delivered" count={stats.completed} icon={FiCheckCircle} bgClass="bg-emerald-50" colorClass="text-emerald-600" />
         <BookingStatsCard title="Cancelled" count={stats.cancelled} icon={FiXCircle} bgClass="bg-red-50" colorClass="text-red-600" />
-        <BookingStatsCard title="Returned" count={0} icon={FiRefreshCw} bgClass="bg-orange-50" colorClass="text-orange-600" />
         <BookingStatsCard title="Total Orders" count={stats.total} icon={FiShoppingBag} bgClass="bg-gray-50" colorClass="text-gray-600" />
       </div>
 
@@ -187,6 +188,9 @@ const Bookings = () => {
           >
             <option>All Status</option>
             <option value="pending">Pending</option>
+            <option value="searching">Searching</option>
+            <option value="no_workers">Manual Assignment Required</option>
+            <option value="assigned">Assigned</option>
             <option value="confirmed">Confirmed</option>
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
@@ -271,7 +275,7 @@ const Bookings = () => {
                         </span>
                       ) : (
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${getStatusColor(booking.status)}`}>
-                          {booking.status?.replace('_', ' ')}
+                          {getStatusLabel(booking.status)}
                         </span>
                       )}
                     </td>

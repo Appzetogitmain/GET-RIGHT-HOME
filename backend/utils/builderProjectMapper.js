@@ -105,11 +105,15 @@ export const mapBuilderProjectFields = (dynamicData) => {
   const mapped = {};
 
   // --- Step 1: Project Information ---
+  const reraStatus = toStr(get('reraStatus'));
   const reraNumber = toStr(get('reraNumber')) || toStr(get('reraRegistrationNumber'));
   if (reraNumber) {
     mapped.reraNumber = reraNumber;
     mapped.reraVerified = get('reraVerified') === true || get('reraVerified') === 'Yes';
   }
+  // Older submissions (pre-branching) never set reraStatus; infer it from the number instead.
+  const inferredReraStatus = reraStatus || (reraNumber ? 'Registered' : undefined);
+  if (inferredReraStatus) mapped.reraStatus = inferredReraStatus;
 
   // --- Step 2: Location Details ---
   // Promote the map pin into the 2dsphere-indexed field. GeoJSON is [lng, lat].
@@ -120,23 +124,52 @@ export const mapBuilderProjectFields = (dynamicData) => {
   }
 
   // --- Step 3: Project Summary ---
+  // `towers` (repeater, current) supersedes the old flat totalTowers/totalFloors
+  // fields (pre-v3 submissions); derive the same aggregate shape from either.
+  const rawTowers = get('towers');
+  const towers = Array.isArray(rawTowers)
+    ? rawTowers
+        .map(t => compact({
+          towerName: toStr(t?.towerName),
+          numberOfFloors: toNum(t?.numberOfFloors),
+          totalUnits: toNum(t?.totalUnits)
+        }))
+        .filter(t => t.towerName)
+    : [];
+
+  const derivedTotalTowers = towers.length || toNum(get('totalTowers'));
+  const derivedTotalFloors = towers.length
+    ? Math.max(...towers.map(t => t.numberOfFloors || 0))
+    : toNum(get('totalFloors'));
+  const derivedTotalUnits = towers.length
+    ? towers.reduce((sum, t) => sum + (t.totalUnits || 0), 0)
+    : toNum(get('totalUnits'));
+
   const projectSummary = compact({
     totalLandArea: toNum(get('totalLandArea')),
-    totalTowers: toNum(get('totalTowers')),
-    totalFloors: toNum(get('totalFloors')),
-    totalUnits: toNum(get('totalUnits')),
+    totalTowers: derivedTotalTowers,
+    totalFloors: derivedTotalFloors || undefined,
+    totalUnits: derivedTotalUnits || undefined,
     openSpacePercentage: toNum(get('openSpacePercentage')),
     clubHouseSize: toNum(get('clubHouseSize')),
     launchDate: toDate(get('launchDate')),
     possessionDate: toDate(get('possessionDate'))
   });
+  if (towers.length) projectSummary.towers = towers;
   if (Object.keys(projectSummary).length) mapped.projectSummary = projectSummary;
 
   // --- Step 4: Unit Details & Pricing ---
+  // Apartment/Plot use `unitConfigurations`; Villa uses its own `villaConfigurations`
+  // repeater since its fields (villaType/villaNumber/plotArea...) don't overlap cleanly.
   const rawUnits = get('unitConfigurations');
+  const rawVillas = get('villaConfigurations');
+
   if (Array.isArray(rawUnits)) {
     const units = rawUnits
       .map(u => compact({
+        towerName: toStr(u?.towerName),
+        floorNumber: toNum(u?.floorNumber),
+        plotNumber: toStr(u?.plotNumber),
         unitType: toStr(u?.unitType),
         carpetArea: toNum(u?.carpetArea),
         superArea: toNum(u?.superArea),
@@ -144,7 +177,8 @@ export const mapBuilderProjectFields = (dynamicData) => {
         price: toNum(u?.price),
         pricePerSqft: toNum(u?.pricePerSqft),
         availableUnits: toNum(u?.availableUnits),
-        facing: toStr(u?.facing)
+        facing: toStr(u?.facing),
+        status: toStr(u?.status)
       }))
       // drop rows the user added but never filled in
       .filter(u => u.unitType || u.price !== undefined || u.carpetArea !== undefined);
@@ -152,6 +186,26 @@ export const mapBuilderProjectFields = (dynamicData) => {
     mapped.unitConfigurations = units;
 
     const prices = units.map(u => u.price).filter(p => typeof p === 'number' && p > 0);
+    if (prices.length) {
+      mapped.priceRange = { min: Math.min(...prices), max: Math.max(...prices) };
+    }
+  } else if (Array.isArray(rawVillas)) {
+    const villas = rawVillas
+      .map(v => compact({
+        villaType: toStr(v?.villaType),
+        villaNumber: toStr(v?.villaNumber),
+        plotArea: toNum(v?.plotArea),
+        builtUpArea: toNum(v?.builtUpArea),
+        carpetArea: toNum(v?.carpetArea),
+        price: toNum(v?.price),
+        availableUnits: toNum(v?.availableUnits),
+        facing: toStr(v?.facing)
+      }))
+      .filter(v => v.villaType || v.price !== undefined || v.plotArea !== undefined);
+
+    mapped.unitConfigurations = villas;
+
+    const prices = villas.map(v => v.price).filter(p => typeof p === 'number' && p > 0);
     if (prices.length) {
       mapped.priceRange = { min: Math.min(...prices), max: Math.max(...prices) };
     }
@@ -194,11 +248,15 @@ export const mapBuilderProjectFields = (dynamicData) => {
             .filter(p => p.stage && p.percentage !== undefined)
         : []);
 
+  // Step 10 now branches per projectStatus (Step 1), each branch with its own
+  // "expected possession" field name; fall back across all of them.
+  const expectedPossession = get('expectedPossession') || get('expectedPossessionPL') || get('expectedPossessionNL');
+
   const constructionStatus = compact({
     // guard against a free-typed value failing the schema enum
     currentStatus: CONSTRUCTION_STATUSES.includes(rawStatus) ? rawStatus : undefined,
     completionPercentage: clampPercent(get('completionPercentage')),
-    expectedPossession: toDate(get('expectedPossession'))
+    expectedPossession: toDate(expectedPossession)
   });
   if (progress.length) constructionStatus.progress = progress;
   if (Object.keys(constructionStatus).length) mapped.constructionStatus = constructionStatus;

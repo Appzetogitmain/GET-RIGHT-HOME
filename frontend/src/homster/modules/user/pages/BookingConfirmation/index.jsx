@@ -18,7 +18,7 @@ import {
 } from 'react-icons/fi';
 import { bookingService } from '../../../../services/bookingService';
 import NotificationBell from '../../components/common/NotificationBell';
-import ConfirmDialog from '../../../../components/common/ConfirmDialog';
+import CancelBookingModal from '../../../../components/common/CancelBookingModal';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 
 // Inline Searching Animation Component
@@ -100,7 +100,8 @@ const BookingConfirmation = () => {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(!location.state?.noVendorsFound); // Respect passed state
-  const [confirmDialog, setConfirmDialog] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const loadBooking = async () => {
     try {
@@ -289,16 +290,16 @@ const BookingConfirmation = () => {
     navigate('/user', { replace: true });
   };
 
-  const handleCancelBooking = async () => {
+  const handleCancelBooking = async (reason) => {
     try {
-      setLoading(true);
-      await bookingService.cancel(booking._id || booking.id, { reason: 'Cancelled during uncertain vendor search' });
+      setCancelling(true);
+      await bookingService.cancel(booking._id || booking.id, reason);
       toast.success('Booking cancelled successfully');
       navigate('/user');
     } catch (error) {
       console.error(error);
       toast.error('Failed to cancel booking');
-      setLoading(false);
+      setCancelling(false);
     }
   };
 
@@ -376,15 +377,35 @@ const BookingConfirmation = () => {
             </div>
           )}
 
-          {/* Failure Icon - Show when expired/cancelled/rejected/no_workers */}
-          {!isSearching && ['expired', 'cancelled', 'rejected', 'failed', 'timeout', 'no_workers', 'no_vendors'].includes(String(booking?.status || '').toLowerCase()) && (
+          {/* Manual Assignment - Show when no worker auto-accepted (no_workers/no_vendors).
+              This is NOT a failure: the booking stays active and admin assigns a
+              professional directly, so this must never read as a dead end. */}
+          {!isSearching && ['no_workers', 'no_vendors'].includes(String(booking?.status || '').toLowerCase()) && (
+            <div className="flex flex-col items-center justify-center mb-6 text-center">
+              <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-4 border border-amber-100 shadow-sm">
+                <FiBell className="w-10 h-10 text-amber-500 animate-pulse" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">We're On It</h1>
+              <p className="text-sm text-gray-500 max-w-[260px] mb-6 mx-auto">
+                {booking?.message || "Your order has been taken successfully. We are currently assigning a service professional to your booking. You will receive the professional details shortly."}
+              </p>
+              <button
+                onClick={handleViewDetails}
+                className="px-8 py-3 bg-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-600/20 active:scale-95 transition-all flex items-center gap-2"
+              >
+                <FiArrowRight className="w-5 h-5" />
+                View Booking Details
+              </button>
+            </div>
+          )}
+
+          {/* Failure Icon - Show when expired/cancelled/rejected/genuinely failed */}
+          {!isSearching && ['expired', 'cancelled', 'rejected', 'failed', 'timeout'].includes(String(booking?.status || '').toLowerCase()) && (
             <div className="flex flex-col items-center justify-center mb-6 text-center">
               <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <FiXCircle className="w-12 h-12 text-red-600" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                {String(booking?.status || '').toLowerCase().includes('no_') ? 'All Experts Busy' : 'No Expert Found'}
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">No Expert Found</h1>
               <p className="text-sm text-gray-500 max-w-[260px] mb-6 mx-auto">
                 {booking?.message || "We couldn't find a nearby expert for your request at this moment."}
               </p>
@@ -623,7 +644,7 @@ const BookingConfirmation = () => {
           <div className="space-y-3">
             {isSearching && (
               <button
-                onClick={() => setConfirmDialog(true)}
+                onClick={() => setShowCancelModal(true)}
                 className="w-full py-3 rounded-lg text-base font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all mb-4"
               >
                 Cancel Booking Request
@@ -648,15 +669,11 @@ const BookingConfirmation = () => {
         </main>
       </div>
 
-      <ConfirmDialog
-        isOpen={confirmDialog}
-        onClose={() => setConfirmDialog(false)}
+      <CancelBookingModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
         onConfirm={handleCancelBooking}
-        title="Cancel Booking Request"
-        message="Are you sure you want to cancel this booking search?"
-        confirmLabel="Yes, Cancel"
-        cancelLabel="No, Keep It"
-        type="danger"
+        loading={cancelling}
       />
     </div>
   );

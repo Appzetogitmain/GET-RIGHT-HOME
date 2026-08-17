@@ -3,8 +3,26 @@ import Worker from '../models/Worker.js';
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import Transaction from '../models/Transaction.js';
 import Withdrawal from '../models/Withdrawal.js';
+import User from '../models/User.js';
 import { createNotification } from './notificationControllers/notificationController.js';
 import { BOOKING_STATUS } from '../utils/constants.js';
+import { safeRegex } from '../utils/escapeRegex.js';
+
+// Buckets the raw BOOKING_STATUS values into the groups the admin dashboard
+// cards show. "Manual Assignment Required" is the status this dashboard exists
+// to surface — bookings where no worker auto-accepted and admin must step in.
+const JOB_STATUS_BUCKETS = {
+  pending: [BOOKING_STATUS.PENDING, BOOKING_STATUS.SEARCHING],
+  manualAssignmentRequired: [BOOKING_STATUS.NO_WORKERS, BOOKING_STATUS.NO_VENDORS],
+  inProgress: [
+    BOOKING_STATUS.ASSIGNED, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.ACCEPTED,
+    BOOKING_STATUS.JOURNEY_STARTED, BOOKING_STATUS.VISITED, BOOKING_STATUS.ESTIMATE_PROVIDED,
+    BOOKING_STATUS.ESTIMATE_ACCEPTED, BOOKING_STATUS.IN_PROGRESS, BOOKING_STATUS.WORK_DONE,
+    BOOKING_STATUS.AWAITING_PAYMENT
+  ],
+  completed: [BOOKING_STATUS.COMPLETED],
+  cancelled: [BOOKING_STATUS.CANCELLED, BOOKING_STATUS.REJECTED]
+};
 
 export const getAllWorkers = async (req, res) => {
   try {
@@ -200,18 +218,59 @@ export const getAllJobs = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
+    const { status, search, startDate, endDate } = req.query;
 
-    const total = await HomeServiceBooking.countDocuments({});
+    const query = {};
 
-    const jobs = await HomeServiceBooking.find({}, null, { allowDiskUse: true })
-      .populate('userId', 'name email phone')
-      .populate('workerId', 'name email phone')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    if (status) {
+      // Frontend sends the raw BOOKING_STATUS value (lowercase, e.g. "no_workers").
+      query.status = status.toLowerCase();
+    }
 
-    res.json({ success: true, data: jobs, total, page, limit });
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(new Date(endDate).setHours(23, 59, 59, 999));
+    }
+
+    if (search) {
+      const searchRegex = safeRegex(search);
+      const users = await User.find({
+        $or: [{ name: searchRegex }, { phone: searchRegex }, { email: searchRegex }]
+      }).select('_id');
+
+      query.$or = [
+        { bookingNumber: searchRegex },
+        { userId: { $in: users.map(u => u._id) } }
+      ];
+    }
+
+    const [total, jobs, statsAgg] = await Promise.all([
+      HomeServiceBooking.countDocuments(query),
+      HomeServiceBooking.find(query, null, { allowDiskUse: true })
+        .populate('userId', 'name email phone')
+        .populate('workerId', 'name email phone')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      HomeServiceBooking.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ])
+    ]);
+
+    const countByStatus = Object.fromEntries(statsAgg.map(s => [s._id, s.count]));
+    const bucketCount = (statuses) => statuses.reduce((sum, s) => sum + (countByStatus[s] || 0), 0);
+    const stats = {
+      pending: bucketCount(JOB_STATUS_BUCKETS.pending),
+      manualAssignmentRequired: bucketCount(JOB_STATUS_BUCKETS.manualAssignmentRequired),
+      inProgress: bucketCount(JOB_STATUS_BUCKETS.inProgress),
+      completed: bucketCount(JOB_STATUS_BUCKETS.completed),
+      cancelled: bucketCount(JOB_STATUS_BUCKETS.cancelled),
+      total: statsAgg.reduce((sum, s) => sum + s.count, 0)
+    };
+
+    res.json({ success: true, data: jobs, total, page, limit, stats });
   } catch (error) {
     console.error("GET ALL JOBS ERROR:", error);
     res.status(500).json({ success: false, message: error.message, stack: error.stack });

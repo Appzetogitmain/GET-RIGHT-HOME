@@ -559,16 +559,24 @@ const Checkout = () => {
                 replace: true
               });
             }, 2000);
-          } else if (status === 'NO_VENDORS' || status === 'NO_WORKERS' || status === 'CANCELLED') {
+          } else if (status === 'CANCELLED') {
             setSearchingVendors(false);
             setCurrentStep('failed');
-            setSearchMessage(response.data.message || 'No professionals found nearby. Please try again later.');
-            toast.error(response.data.message || 'No professionals found nearby. Please try again later.');
-            
+            setSearchMessage(response.data.message || 'This booking was cancelled.');
+            toast.error(response.data.message || 'This booking was cancelled.');
+
             setTimeout(() => {
               setShowVendorModal(false);
               navigate('/user', { replace: true });
             }, 10000);
+          } else if (status === 'NO_VENDORS' || status === 'NO_WORKERS') {
+            // No worker auto-accepted — the booking stays active and moves to
+            // admin manual assignment. This is NOT a failure, so don't cancel
+            // or dead-end the customer; keep them updated and let them track it.
+            setSearchingVendors(false);
+            setCurrentStep('manual_assignment');
+            setSearchMessage(response.data.message || "Your order has been taken successfully. We are currently assigning a service professional to your booking. You will receive the professional details shortly.");
+            clearInterval(pollInterval);
           }
         }
       } catch (err) {
@@ -634,26 +642,13 @@ const Checkout = () => {
     });
 
     socket.on('booking_search_failed', (data) => {
+      // No worker auto-accepted within the search window — the booking stays
+      // active and moves to admin manual assignment. This must never
+      // auto-cancel the booking; admin will contact/assign a worker directly.
       if (data.bookingId === bookingRequest._id) {
         setSearchingVendors(false);
-        setCurrentStep('failed');
-        setSearchMessage(data.message || 'No professionals found nearby. Please try again later.');
-        toast.error(data.message || 'No professionals found nearby. Please try again later.');
-
-        const handleAutoCancel = async () => {
-          try {
-            await bookingService.cancel(bookingRequest._id, 'No vendors found after search timeout');
-            setTimeout(() => {
-              window.location.reload();
-            }, 3000); 
-          } catch (err) {
-            console.error('Auto-cancel failed:', err);
-            setTimeout(() => {
-              window.location.reload();
-            }, 3000);
-          }
-        };
-        handleAutoCancel();
+        setCurrentStep('manual_assignment');
+        setSearchMessage(data.message || "Your order has been taken successfully. We are currently assigning a service professional to your booking. You will receive the professional details shortly.");
       }
     });
 
@@ -664,11 +659,15 @@ const Checkout = () => {
           setSearchMessage(data.message);
         }
         if (socketStatus === 'NO_WORKERS' || socketStatus === 'NO_VENDORS') {
+          // Same non-failure treatment as the booking_search_failed handler above.
+          setSearchingVendors(false);
+          setCurrentStep('manual_assignment');
+          setSearchMessage(data.message || "Your order has been taken successfully. We are currently assigning a service professional to your booking. You will receive the professional details shortly.");
+        } else if (socketStatus === 'CANCELLED') {
           setSearchingVendors(false);
           setCurrentStep('failed');
-          setSearchMessage(data.message || 'All professionals are currently busy.');
-          toast.error('All experts are busy.');
-          
+          setSearchMessage(data.message || 'This booking was cancelled.');
+
           setTimeout(() => {
             setShowVendorModal(false);
             navigate('/user', { replace: true });
@@ -2003,6 +2002,8 @@ const Checkout = () => {
             setCurrentStep('payment');
           } else if (currentStep === 'failed') {
             setCurrentStep('details');
+          } else if (currentStep === 'manual_assignment') {
+            // Booking stays active — just minimize the modal, don't reset/cancel anything.
           }
         }}
         currentStep={currentStep}
@@ -2011,6 +2012,32 @@ const Checkout = () => {
         searchMessage={searchMessage}
         onRetry={() => {
           handleSearchVendors();
+        }}
+        onViewBooking={() => {
+          const bookingId = bookingRequest?._id || bookingRequest?.id;
+          setShowVendorModal(false);
+          if (bookingId) {
+            navigate(`/user/booking-confirmation/${bookingId}`, { replace: true });
+          }
+        }}
+        onCancelBooking={async () => {
+          const bookingId = bookingRequest?._id || bookingRequest?.id;
+          if (!bookingId) return;
+          toast.loading('Cancelling booking...');
+          try {
+            await bookingService.cancel(bookingId, 'User cancelled during manual assignment');
+            toast.dismiss();
+            toast.success('Booking cancelled successfully');
+          } catch (err) {
+            toast.dismiss();
+            console.error('Failed to cancel booking:', err);
+            toast.error('Failed to cancel booking');
+            return;
+          }
+          setShowVendorModal(false);
+          setBookingRequest(null);
+          setCurrentStep('details');
+          setSearchingVendors(false);
         }}
       />
 

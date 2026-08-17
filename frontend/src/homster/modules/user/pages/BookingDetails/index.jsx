@@ -34,6 +34,7 @@ import { legalService } from '../../../../../services/apiService';
 import RatingModal from '../../components/booking/RatingModal';
 import PaymentVerificationModal from '../../components/booking/PaymentVerificationModal';
 import { ConfirmDialog } from '../../../../components/common';
+import CancelBookingModal from '../../../../components/common/CancelBookingModal';
 import ReviewCard from '../../components/booking/ReviewCard';
 import WorkerArrivalModal from '../../components/booking/WorkerArrivalModal';
 import NotificationBell from '../../components/common/NotificationBell';
@@ -63,6 +64,8 @@ const BookingDetails = () => {
     message: '',
     onConfirm: () => { }
   });
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const [supportInfo, setSupportInfo] = useState({
     email: 'support@Truliq.com',
@@ -307,35 +310,32 @@ const BookingDetails = () => {
 
   // ... (keep handle methods same) ...
 
-  const handleCancelBooking = async () => {
-    // Check if journey has started to determine if a fee applies
-    const journeyStarted = ['journey_started', 'visited', 'in_progress'].includes(booking.status?.toLowerCase());
-    const cancellationFee = booking.visitingCharges || 49;
+  // Journey-started fee warning shown inside CancelBookingModal, if applicable.
+  const cancellationFeeWarning = (() => {
+    const journeyStarted = ['journey_started', 'visited', 'in_progress'].includes(booking?.status?.toLowerCase());
+    if (!journeyStarted) return null;
+    const cancellationFee = booking?.visitingCharges || 49;
+    return `The service agent has already started their journey. Cancelling now will incur a fee of ₹${cancellationFee}, which will be deducted from your wallet or refund amount.`;
+  })();
 
-    const modalTitle = journeyStarted ? 'Cancellation Fee Applies' : 'Cancel Booking';
-    const modalMessage = journeyStarted
-      ? `The service agent has already started their journey. Cancelling now will incur a fee of ₹${cancellationFee}, which will be deducted from your wallet or refund amount. Do you want to proceed?`
-      : 'Are you sure you want to cancel this booking? You will receive a full refund if applicable. This action cannot be undone.';
+  const handleCancelBooking = () => setShowCancelModal(true);
 
-    setConfirmDialog({
-      isOpen: true,
-      title: modalTitle,
-      message: modalMessage,
-      type: 'danger',
-      onConfirm: async () => {
-        try {
-          const response = await bookingService.cancel(booking._id || booking.id, 'Cancelled by user');
-          if (response.success) {
-            toast.success('Booking cancelled successfully');
-            loadBooking();
-          } else {
-            toast.error(response.message || 'Failed to cancel booking');
-          }
-        } catch (error) {
-          toast.error('Failed to cancel booking. Please try again.');
-        }
+  const handleConfirmCancellation = async (reason) => {
+    setCancelling(true);
+    try {
+      const response = await bookingService.cancel(booking._id || booking.id, reason);
+      if (response.success) {
+        toast.success('Booking cancelled successfully');
+        setShowCancelModal(false);
+        loadBooking();
+      } else {
+        toast.error(response.message || 'Failed to cancel booking');
       }
-    });
+    } catch (error) {
+      toast.error('Failed to cancel booking. Please try again.');
+    } finally {
+      setCancelling(false);
+    }
   };
 
   const handleOnlinePayment = async () => {
@@ -1544,6 +1544,14 @@ const BookingDetails = () => {
           title={confirmDialog.title}
           message={confirmDialog.message}
           type={confirmDialog.type}
+        />
+
+        <CancelBookingModal
+          isOpen={showCancelModal}
+          onClose={() => setShowCancelModal(false)}
+          onConfirm={handleConfirmCancellation}
+          feeWarning={cancellationFeeWarning}
+          loading={cancelling}
         />
       </div>
     </div>
