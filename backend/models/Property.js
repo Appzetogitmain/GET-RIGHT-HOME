@@ -386,4 +386,14 @@ propertySchema.virtual('builderProjectDetails', {
 
 propertySchema.index({ location: "2dsphere" });
 
+// Search-path compound indexes. Price isn't indexed directly — startingPrice
+// is computed at query time from several possible source fields (rent vs.
+// buy vs. plot vs. dynamicData), not stored as one real column, so it can't
+// be covered by a plain index without normalizing price into its own field
+// first (a separate, larger change).
+propertySchema.index({ status: 1, isLive: 1, transactionType: 1, propertyType: 1 });
+propertySchema.index({ status: 1, isLive: 1, 'address.city': 1 });
+propertySchema.index({ status: 1, isLive: 1, createdAt: -1 });
+propertySchema.index({ dynamicCategory: 1, status: 1, isLive: 1 });
+
 export default mongoose.model("Property", propertySchema);

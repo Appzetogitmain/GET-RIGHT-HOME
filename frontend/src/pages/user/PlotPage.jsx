@@ -130,7 +130,7 @@ const PlotPage = () => {
             <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 mx-auto flex flex-col gap-6">
                 {/* 3. Recommend Insights */}
                 <div id="recommended-insights-section">
-                    <RecommendInsights transactionType="Plot" themeColor="amber" />
+                    <RecommendInsights transactionType="Plot" city={searchCity} themeColor="amber" />
                 </div>
 
                 {/* Plot Feeds */}

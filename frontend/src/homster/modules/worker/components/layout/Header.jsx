@@ -134,7 +134,7 @@ const Header = ({
               />
             </div>
           )}
-          {showBack && <h1 className="text-base font-bold text-gray-800">{title || 'Worker'}</h1>}
+          {showBack && <h1 className="text-lg font-bold text-gray-800">{title || 'Worker'}</h1>}
         </div>
 
         {/* Right: Search and Notifications */}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, MapPin, Mic, ChevronDown, Check } from 'lucide-react';
 import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import { addRecentSearch } from '../../utils/recentActivity';
+import { parseSearchQuery } from '../../utils/searchQueryParser';
 import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 
 const TABS = [
@@ -196,7 +197,18 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
 
     const handleSearch = () => {
         const params = new URLSearchParams();
-        if (searchText.trim()) {
+
+        // "2bhk room in indore" should actually filter to 2-BHK listings in
+        // Indore, not just text-match the literal sentence — pull out
+        // whatever structured signal is in there (BHK, type, transaction,
+        // a price ceiling, location) before falling back to a plain search.
+        const parsed = parseSearchQuery(searchText);
+        const hasStructuredSignal = !!(parsed.bhk || parsed.subType || parsed.maxPrice || parsed.transactionType || parsed.gender || parsed.propertyCategory);
+
+        if (hasStructuredSignal) {
+            const location = parsed.location || selectedCity;
+            if (location) params.set('areas', location);
+        } else if (searchText.trim()) {
             // Typed/picked a specific place or project — that's a deliberate
             // choice, let it stand on its own rather than also constraining
             // to whatever city the pill above happens to be set to.
@@ -206,11 +218,22 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
             // still stay scoped to it instead of searching everywhere.
             params.set('areas', selectedCity);
         }
-        params.set('transactionType', transactionTypeForTab(activeTab));
-        if (propertyCategory === 'Commercial') params.set('propertyCategory', 'Commercial');
+
+        // An explicit signal in the query ("rent", "pg", "for sale") wins
+        // over whichever tab happens to be active.
+        params.set('transactionType', parsed.transactionType || transactionTypeForTab(activeTab));
+        if (parsed.propertyCategory) params.set('propertyCategory', parsed.propertyCategory);
+        else if (propertyCategory === 'Commercial') params.set('propertyCategory', 'Commercial');
+
         if (minPrice) params.set('minPrice', minPrice);
-        if (maxPrice) params.set('maxPrice', maxPrice);
-        if (bedrooms.length) params.set('bhkType', bedrooms.join(','));
+        const effectiveMaxPrice = maxPrice || (parsed.maxPrice ? String(parsed.maxPrice) : '');
+        if (effectiveMaxPrice) params.set('maxPrice', effectiveMaxPrice);
+
+        const effectiveBedrooms = (parsed.bhk && !bedrooms.includes(parsed.bhk)) ? [...bedrooms, parsed.bhk] : bedrooms;
+        if (effectiveBedrooms.length) params.set('bhkType', effectiveBedrooms.join(','));
+
+        if (parsed.subType) params.set('subType', parsed.subType);
+        if (parsed.gender) params.set('gender', parsed.gender);
         if (constructionStatus.length) params.set('availability', constructionStatus.join(','));
         if (postedBy.length) params.set('postedBy', postedBy.join(','));
         setOpenFilter(null);

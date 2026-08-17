@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video, Briefcase } from 'lucide-react';
+import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video, Briefcase, MapPin, ShieldCheck, IdCard } from 'lucide-react';
 import { authService } from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -64,6 +64,34 @@ const RoleBadge = ({ role }) => {
     </span>
   );
 };
+
+// Shared field styling — consistent bordered inputs instead of the old mix
+// of underline fields, used throughout every section below.
+const inputCls = "w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed";
+const labelCls = "text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block";
+
+const Field = ({ label, error, children }) => (
+  <div>
+    <label className={labelCls}>{label}</label>
+    {children}
+    {error && <p className="text-red-500 text-xs font-semibold mt-1.5">{error}</p>}
+  </div>
+);
+
+const SectionCard = ({ icon: Icon, iconClass = 'bg-emerald-50 text-emerald-600', title, action, children }) => (
+  <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.06)] p-5 md:p-6">
+    <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center gap-2.5">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconClass}`}>
+          <Icon size={16} strokeWidth={2.5} />
+        </div>
+        <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">{title}</h3>
+      </div>
+      {action}
+    </div>
+    <div className="space-y-4">{children}</div>
+  </div>
+);
 
 const ProfileEdit = () => {
   const navigate = useNavigate();
@@ -582,261 +610,223 @@ const ProfileEdit = () => {
   }
   citiesList.sort();
 
+  const quickActions = [
+    { label: 'Post Property', desc: 'Sell/Rent your property faster', icon: Home, iconBg: 'bg-blue-50 text-blue-500', to: '/list-property' },
+    { label: 'Search Properties', desc: 'Explore residential and commercial listings', icon: Search, iconBg: 'bg-orange-50 text-orange-500', to: '/search' },
+    { label: 'My Properties', desc: 'Manage your active listings', icon: Building2, iconBg: 'bg-emerald-50 text-emerald-500', to: '/my-properties' },
+    { label: 'My Reels', desc: 'Manage your property videos', icon: Video, iconBg: 'bg-purple-50 text-purple-500', to: '/reels/my' },
+  ];
+
+  const approvalStyles = {
+    approved: { wrap: 'bg-emerald-50 border-emerald-200', title: 'text-emerald-800', Icon: CheckCircle2, iconClass: 'text-emerald-500' },
+    rejected: { wrap: 'bg-red-50 border-red-200', title: 'text-red-800', Icon: XCircle, iconClass: 'text-red-500' },
+    pending: { wrap: 'bg-amber-50 border-amber-200', title: 'text-amber-800', Icon: Clock, iconClass: 'text-amber-500' },
+  };
+  const approval = approvalStyles[formData.builderProfile?.approvalStatus] || approvalStyles.pending;
+
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center pt-safe-top px-6 pb-24 md:pb-12">
+    <div className="min-h-screen bg-slate-50 pb-24 md:pb-16">
 
       {/* Sticky Header */}
-      <div className="sticky top-0 left-0 right-0 w-full z-20 bg-white/95 backdrop-blur-sm mb-6">
-        <div className="w-full px-6 py-4 flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
-            <ArrowLeft size={20} className="text-gray-700" />
+      <div className="sticky top-0 left-0 right-0 w-full z-20 bg-white/95 backdrop-blur-sm border-b border-slate-100">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 transition-colors">
+            <ArrowLeft size={20} className="text-slate-700" />
           </button>
-          <h1 className="text-lg font-black text-gray-900 tracking-wide">Edit Profile</h1>
-          <div className="w-10 text-right">
-            <button onClick={handleLogout} className="p-2 -mr-2 text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Logout">
-              <LogOut size={20} />
-            </button>
-          </div>
+          <h1 className="text-base font-black text-slate-900 tracking-wide">My Profile</h1>
+          <div className="w-9" />
         </div>
       </div>
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md space-y-6"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="max-w-5xl mx-auto px-4 md:px-6 pt-6 md:pt-8 lg:grid lg:grid-cols-[300px_1fr] lg:gap-8 lg:items-start"
       >
 
-        {/* Profile Picture */}
-        <div 
-          onClick={handleCameraClick}
-          className="flex flex-col items-center cursor-pointer group"
-        >
-          <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg overflow-hidden border-4 border-white group-hover:opacity-90 transition-opacity">
-              {formData.profileImage ? (
-                <img src={formData.profileImage} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <User size={32} />
-              )}
-              {imageUploading && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <Loader2 size={24} className="animate-spin text-white" />
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCameraClick();
-              }}
-              disabled={imageUploading}
-              className="absolute bottom-0 right-0 p-2 bg-emerald-600 text-white rounded-full border-2 border-white shadow-md cursor-pointer hover:bg-emerald-700 transition-colors"
+        {/* ───────── Left column: identity + quick actions (sticky on desktop) ───────── */}
+        <div className="lg:sticky lg:top-24 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.06)] p-6 flex flex-col items-center text-center">
+            <div
+              onClick={handleCameraClick}
+              className="relative cursor-pointer group"
             >
-              <Camera size={16} />
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              onChange={handleImageUpload}
-              disabled={imageUploading}
-            />
-          </div>
-          <p className="mt-2 text-xs text-gray-500 font-medium group-hover:text-emerald-600 transition-colors">Tap icon to change photo</p>
-          {user?.role && (
-            <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-              <RoleBadge role={user.role} />
+              <div className="w-24 h-24 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg overflow-hidden border-4 border-white ring-1 ring-slate-100 group-hover:opacity-90 transition-opacity">
+                {formData.profileImage ? (
+                  <img src={formData.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <User size={32} />
+                )}
+                {imageUploading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <Loader2 size={24} className="animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCameraClick();
+                }}
+                disabled={imageUploading}
+                className="absolute bottom-0 right-0 p-2 bg-emerald-600 text-white rounded-full border-2 border-white shadow-md cursor-pointer hover:bg-emerald-700 transition-colors"
+              >
+                <Camera size={16} />
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleImageUpload}
+                disabled={imageUploading}
+              />
             </div>
-          )}
+
+            <h2 className="mt-3.5 text-base font-black text-slate-900 truncate max-w-full">{formData.name || 'Your Name'}</h2>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">{formData.email}</p>
+            {user?.role && <div className="mt-3"><RoleBadge role={user.role} /></div>}
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.06)] overflow-hidden divide-y divide-slate-100">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={() => navigate(action.to)}
+                  className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors text-left group"
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${action.iconBg}`}>
+                    <Icon size={18} strokeWidth={2} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-900">{action.label}</p>
+                    <p className="text-[11px] text-slate-400 font-medium truncate">{action.desc}</p>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" />
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 py-3.5 text-red-500 font-bold text-sm bg-white hover:bg-red-50 rounded-2xl border border-slate-200/80 hover:border-red-100 active:scale-[0.98] transition-all cursor-pointer shadow-[0_2px_12px_-4px_rgba(15,23,42,0.06)]"
+          >
+            <LogOut size={16} />
+            Logout
+          </button>
+          <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+            Version 2.0.4 • Made with ❤️ in India
+          </p>
         </div>
 
-        {/* New Action Cards Layout */}
-        <div className="flex flex-col gap-3">
-          {/* Post Property Card */}
-          <div 
-            onClick={() => navigate('/list-property')}
-            className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] cursor-pointer hover:shadow-md hover:border-blue-100 transition-all active:scale-[0.98] group"
-          >
-            <div className="flex flex-col">
-              <span className="text-[15px] font-semibold text-gray-900 mb-0.5">Post Property</span>
-              <span className="text-[12px] text-gray-500 font-medium">Sell/Rent your property faster</span>
-            </div>
-            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
-              <Home size={22} className="text-blue-500" strokeWidth={2} />
-            </div>
-          </div>
+        {/* ───────── Right column: editable form ───────── */}
+        <form onSubmit={handleSubmit} className="space-y-5 mt-4 lg:mt-0">
 
-          {/* Search Properties Card */}
-          <div 
-            onClick={() => navigate('/search')}
-            className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] cursor-pointer hover:shadow-md hover:border-orange-100 transition-all active:scale-[0.98] group"
-          >
-            <div className="flex flex-col">
-              <span className="text-[15px] font-semibold text-gray-900 mb-0.5">Search Properties</span>
-              <span className="text-[12px] text-gray-500 font-medium">Explore residential and commercial properties</span>
-            </div>
-            <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
-              <Search size={22} className="text-orange-500" strokeWidth={2} />
-            </div>
-          </div>
+          <SectionCard icon={User} iconClass="bg-emerald-50 text-emerald-600" title="Contact Information">
+            <Field label="Full Name" error={errors.name}>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                  setFormData({ ...formData, name: val });
+                  validateField('name', val);
+                }}
+                className={inputCls}
+                placeholder="Your Name"
+              />
+            </Field>
 
-          {/* My Properties Card */}
-          <div 
-            onClick={() => navigate('/my-properties')}
-            className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] cursor-pointer hover:shadow-md hover:border-emerald-100 transition-all active:scale-[0.98] group"
-          >
-            <div className="flex flex-col">
-              <span className="text-[15px] font-semibold text-gray-900 mb-0.5">My Properties</span>
-              <span className="text-[12px] text-gray-500 font-medium uppercase tracking-wider">Manage your active listings</span>
-            </div>
-            <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
-              <Building2 size={22} className="text-emerald-500" strokeWidth={2} />
-            </div>
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Email Address">
+                <div className="relative">
+                  <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="email"
+                    value={formData.email}
+                    readOnly
+                    disabled
+                    className={`${inputCls} pl-10`}
+                    placeholder="email@example.com"
+                  />
+                </div>
+              </Field>
 
-          {/* My Reels Card */}
-          <div 
-            onClick={() => navigate('/reels/my')}
-            className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] cursor-pointer hover:shadow-md hover:border-purple-100 transition-all active:scale-[0.98] group"
-          >
-            <div className="flex flex-col">
-              <span className="text-[15px] font-semibold text-gray-900 mb-0.5">My Reels</span>
-              <span className="text-[12px] text-gray-500 font-medium uppercase tracking-wider">Manage your property videos</span>
+              <Field label="Phone Number">
+                <div className="relative">
+                  <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <span className="absolute left-9 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 select-none">+91</span>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    value={formData.phone}
+                    readOnly
+                    disabled
+                    className={`${inputCls} pl-[4.5rem]`}
+                    placeholder="9876543210"
+                  />
+                </div>
+              </Field>
             </div>
-            <div className="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
-              <Video size={22} className="text-purple-500" strokeWidth={2} />
-            </div>
-          </div>
-        </div>
+          </SectionCard>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-
-          {/* Section: Contact Information */}
-          <div className="space-y-5">
-            <div className="border-b border-gray-100 pb-2">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Contact Information</h3>
-            </div>
-            
-            {/* Full Name */}
-            <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Full Name</label>
-              <div className="flex items-center gap-3 border-b border-gray-200 pb-2 focus-within:border-emerald-600 transition-colors">
-                <User size={16} className="text-slate-400" />
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-                    setFormData({ ...formData, name: val });
-                    validateField('name', val);
-                  }}
-                  className="flex-1 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
-                  placeholder="Your Name"
-                />
-              </div>
-              {errors.name && (
-                <p className="text-red-500 text-xs font-semibold mt-1">{errors.name}</p>
-              )}
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Email Address</label>
-              <div className="flex items-center gap-3 border-b border-gray-200 pb-2 bg-gray-50/50 px-2 rounded-t">
-                <Mail size={16} className="text-slate-400" />
-                <input
-                  type="email"
-                  value={formData.email}
-                  readOnly
-                  disabled
-                  className="flex-1 text-sm font-semibold text-slate-500 outline-none bg-transparent cursor-not-allowed"
-                  placeholder="email@example.com"
-                />
-              </div>
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Phone Number</label>
-              <div className="flex items-center gap-2 border-b border-gray-200 pb-2 bg-gray-50/50 px-2 rounded-t">
-                <Phone size={16} className="text-slate-400" />
-                <span className="text-sm font-bold text-slate-400 select-none">+91</span>
-                <input
-                  type="tel"
-                  maxLength={10}
-                  value={formData.phone}
-                  readOnly
-                  disabled
-                  className="flex-1 text-sm font-semibold text-slate-500 outline-none bg-transparent cursor-not-allowed"
-                  placeholder="9876543210"
-                />
-              </div>
-            </div>
-          </div>
-
-
-          {/* Section: My Address */}
-          <div className="space-y-5 pt-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">My Address</h3>
+          <SectionCard
+            icon={MapPin}
+            iconClass="bg-blue-50 text-blue-600"
+            title="My Address"
+            action={
               <button
                 type="button"
                 onClick={handleGetCurrentLocation}
                 disabled={fetchingLocation}
-                className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition-colors cursor-pointer shrink-0"
               >
-                {fetchingLocation ? <Loader2 size={10} className="animate-spin" /> : <Navigation size={10} />}
+                {fetchingLocation ? <Loader2 size={11} className="animate-spin" /> : <Navigation size={11} />}
                 Auto-Detect
               </button>
-            </div>
-
-            {/* Country */}
-            <div>
-              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">Country</label>
-              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
+            }
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Country">
                 <select
                   value={formData.address.country}
                   onChange={(e) => handleAddressChange('country', e.target.value)}
-                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none bg-transparent cursor-pointer"
+                  className={`${inputCls} cursor-pointer`}
                 >
                   <option value="India">India</option>
                 </select>
-              </div>
-            </div>
+              </Field>
 
-            {/* State */}
-            <div>
-              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">State</label>
-              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
+              <Field label="State">
                 <select
                   value={formData.address.state}
                   onChange={(e) => {
                     const selectedState = e.target.value;
                     handleAddressChange('state', selectedState);
-                    // Reset city to first available or empty
                     const firstCity = stateCitiesData[selectedState]?.[0] || '';
                     handleAddressChange('city', firstCity);
                   }}
-                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none bg-transparent cursor-pointer"
+                  className={`${inputCls} cursor-pointer`}
                 >
                   <option value="" disabled>Select State</option>
                   {statesList.map((st) => (
                     <option key={st} value={st}>{st}</option>
                   ))}
                 </select>
-              </div>
-            </div>
+              </Field>
 
-            {/* City */}
-            <div>
-              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">City</label>
-              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
+              <Field label="City">
                 <select
                   value={formData.address.city}
                   onChange={(e) => handleAddressChange('city', e.target.value)}
-                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none bg-transparent cursor-pointer"
+                  className={`${inputCls} cursor-pointer`}
                   disabled={!formData.address.state}
                 >
                   <option value="" disabled>Select City</option>
@@ -844,106 +834,75 @@ const ProfileEdit = () => {
                     <option key={ct} value={ct}>{ct}</option>
                   ))}
                 </select>
-              </div>
+              </Field>
             </div>
 
-            {/* Area / Locality */}
-            <div>
-              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">Area / Locality</label>
-              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
-                <input
-                  type="text"
-                  value={formData.address.area}
-                  onChange={(e) => handleAddressChange('area', e.target.value)}
-                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none placeholder:text-gray-400 bg-transparent"
-                  placeholder="Area / Locality"
-                />
-              </div>
-            </div>
+            <Field label="Area / Locality">
+              <input
+                type="text"
+                value={formData.address.area}
+                onChange={(e) => handleAddressChange('area', e.target.value)}
+                className={inputCls}
+                placeholder="Area / Locality"
+              />
+            </Field>
 
-            {/* House No., Building Name */}
-            <div>
-              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">House No., Building Name</label>
-              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="House No., Building Name">
                 <input
                   type="text"
                   value={formData.address.houseNo}
                   onChange={(e) => handleAddressChange('houseNo', e.target.value)}
-                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none placeholder:text-gray-400 bg-transparent"
+                  className={inputCls}
                   placeholder="Flat/House No., Apartment/Building Name"
                 />
-              </div>
-            </div>
+              </Field>
 
-            {/* Street / Road */}
-            <div>
-              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">Street / Road</label>
-              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
+              <Field label="Street / Road">
                 <input
                   type="text"
                   value={formData.address.street}
                   onChange={(e) => handleAddressChange('street', e.target.value)}
-                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none placeholder:text-gray-400 bg-transparent"
+                  className={inputCls}
                   placeholder="Street / Road Name"
                 />
-              </div>
+              </Field>
             </div>
 
-            {/* Landmark (optional) */}
-            <div>
-              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">Landmark (optional)</label>
-              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Landmark (optional)">
                 <input
                   type="text"
                   value={formData.address.landmark}
                   onChange={(e) => handleAddressChange('landmark', e.target.value)}
-                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none placeholder:text-gray-400 bg-transparent"
+                  className={inputCls}
                   placeholder="e.g. Near Apollo Hospital"
                 />
-              </div>
-            </div>
+              </Field>
 
-            {/* PIN Code */}
-            <div>
-              <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 block">PIN Code</label>
-              <div className="border-b border-gray-300 focus-within:border-emerald-600 transition-colors">
+              <Field label="PIN Code">
                 <input
                   type="text"
                   inputMode="numeric"
                   maxLength={6}
                   value={formData.address.zipCode}
                   onChange={(e) => handleAddressChange('zipCode', e.target.value.replace(/\D/g, ''))}
-                  className="w-full py-2 text-sm font-bold text-slate-950 outline-none placeholder:text-gray-400 bg-transparent"
+                  className={inputCls}
                   placeholder="PIN Code"
                 />
-              </div>
+              </Field>
             </div>
-          </div>
+          </SectionCard>
 
           {/* Section: Builder Profile Information */}
           {user?.role === 'builder' && (
-            <div className="space-y-5 pt-4">
-              <div className="border-b border-gray-100 pb-2">
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Builder Profile Details</h3>
-              </div>
-
-              {/* Verification Status Banner */}
+            <SectionCard icon={Briefcase} iconClass="bg-indigo-50 text-indigo-600" title="Builder Profile Details">
               {formData.builderProfile?.approvalStatus && (
-                <div className={`p-4 rounded-xl border ${
-                  formData.builderProfile.approvalStatus === 'approved' ? 'bg-emerald-50 border-emerald-200' :
-                  formData.builderProfile.approvalStatus === 'rejected' ? 'bg-red-50 border-red-200' :
-                  'bg-amber-50 border-amber-200'
-                }`}>
+                <div className={`p-4 rounded-xl border ${approval.wrap}`}>
                   <div className="flex items-start gap-3">
-                    {formData.builderProfile.approvalStatus === 'approved' ? <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={18} /> :
-                     formData.builderProfile.approvalStatus === 'rejected' ? <XCircle className="text-red-500 shrink-0 mt-0.5" size={18} /> :
-                     <Clock className="text-amber-500 shrink-0 mt-0.5" size={18} />}
+                    <approval.Icon className={`${approval.iconClass} shrink-0 mt-0.5`} size={18} />
                     <div>
-                      <h4 className={`text-sm font-bold ${
-                        formData.builderProfile.approvalStatus === 'approved' ? 'text-emerald-800' :
-                        formData.builderProfile.approvalStatus === 'rejected' ? 'text-red-800' :
-                        'text-amber-800'
-                      }`}>
+                      <h4 className={`text-sm font-bold ${approval.title}`}>
                         Verification {formData.builderProfile.approvalStatus.charAt(0).toUpperCase() + formData.builderProfile.approvalStatus.slice(1)}
                       </h4>
                       {formData.builderProfile.approvalStatus === 'pending' && (
@@ -961,222 +920,123 @@ const ProfileEdit = () => {
                 </div>
               )}
 
-              {/* Company Name */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Company Name</label>
-                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
-                  <input
-                    type="text"
-                    value={formData.builderProfile?.companyName || ''}
-                    onChange={(e) => handleBuilderProfileChange('companyName', e.target.value)}
-                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
-                    placeholder="e.g. XYZ Developers Ltd."
-                  />
-                </div>
+              <Field label="Company Name">
+                <input
+                  type="text"
+                  value={formData.builderProfile?.companyName || ''}
+                  onChange={(e) => handleBuilderProfileChange('companyName', e.target.value)}
+                  className={inputCls}
+                  placeholder="e.g. XYZ Developers Ltd."
+                />
+              </Field>
+
+              <Field label="Registered Office Address">
+                <textarea
+                  rows={2}
+                  value={formData.builderProfile?.officeAddress || ''}
+                  onChange={(e) => handleBuilderProfileChange('officeAddress', e.target.value)}
+                  className={`${inputCls} resize-none`}
+                  placeholder="Full office address..."
+                />
+              </Field>
+
+              {/* Compliance documents */}
+              <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+                {[
+                  { key: 'cinNumber', doc: 'companyRegistrationCertificate', label: 'Company Registration (CIN) Number', docLabel: 'Company Registration', placeholder: 'L12345MH2000PLC123456', inputId: 'cin-upload' },
+                  { key: 'reraRegistrationNumber', doc: 'reraCertificate', label: 'RERA Number', docLabel: 'RERA Certificate', placeholder: 'PR/GJ/...', inputId: 'rera-upload' },
+                  { key: 'gstNumber', doc: 'gstCertificate', label: 'GST Number', docLabel: 'GST Certificate', placeholder: '22AAAAA0000A1Z5', inputId: 'gst-upload' },
+                ].map((row) => (
+                  <div key={row.key} className="p-4 bg-slate-50/60 space-y-3">
+                    <Field label={row.label}>
+                      <div className="relative">
+                        <IdCard size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={formData.builderProfile?.[row.key] || ''}
+                          onChange={(e) => handleBuilderProfileChange(row.key, e.target.value)}
+                          className={`${inputCls} pl-10 uppercase`}
+                          placeholder={row.placeholder}
+                        />
+                      </div>
+                    </Field>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        id={row.inputId}
+                        className="hidden"
+                        accept=".pdf,image/*"
+                        onChange={(e) => handleBuilderDocUpload(e, row.doc, row.docLabel)}
+                        disabled={docUploading}
+                      />
+                      <label htmlFor={row.inputId} className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-emerald-600 hover:bg-emerald-50 cursor-pointer transition-colors">
+                        <FileText size={14} /> Upload {row.docLabel}
+                      </label>
+                      {formData.builderProfile?.[row.doc] && (
+                        <a href={formData.builderProfile[row.doc]} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline font-semibold flex items-center gap-1">
+                          <CheckCircle2 size={12} className="text-emerald-500" /> Uploaded
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              {/* Office Address */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Registered Office Address</label>
-                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
-                  <textarea
-                    rows={2}
-                    value={formData.builderProfile?.officeAddress || ''}
-                    onChange={(e) => handleBuilderProfileChange('officeAddress', e.target.value)}
-                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent resize-none"
-                    placeholder="Full office address..."
-                  />
-                </div>
-              </div>
-
-              {/* CIN Number & Registration Doc */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Company Registration (CIN) Number</label>
-                  <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors bg-white px-2 rounded-t-md">
-                    <input
-                      type="text"
-                      value={formData.builderProfile?.cinNumber || ''}
-                      onChange={(e) => handleBuilderProfileChange('cinNumber', e.target.value)}
-                      className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent uppercase"
-                      placeholder="L12345MH2000PLC123456"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Upload Company Registration</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="file"
-                      id="cin-upload"
-                      className="hidden"
-                      accept=".pdf,image/*"
-                      onChange={(e) => handleBuilderDocUpload(e, 'companyRegistrationCertificate', 'Company Registration')}
-                      disabled={docUploading}
-                    />
-                    <label htmlFor="cin-upload" className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-emerald-600 hover:bg-emerald-50 cursor-pointer transition-colors">
-                      <FileText size={14} /> Upload Doc
-                    </label>
-                    {formData.builderProfile?.companyRegistrationCertificate && (
-                      <a href={formData.builderProfile.companyRegistrationCertificate} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline font-semibold flex items-center gap-1">
-                        <CheckCircle2 size={12} className="text-emerald-500" /> Uploaded
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* RERA Number & Certificate */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">RERA Number</label>
-                  <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors bg-white px-2 rounded-t-md">
-                    <input
-                      type="text"
-                      value={formData.builderProfile?.reraRegistrationNumber || ''}
-                      onChange={(e) => handleBuilderProfileChange('reraRegistrationNumber', e.target.value)}
-                      className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent uppercase"
-                      placeholder="PR/GJ/..."
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Upload RERA Certificate</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="file"
-                      id="rera-upload"
-                      className="hidden"
-                      accept=".pdf,image/*"
-                      onChange={(e) => handleBuilderDocUpload(e, 'reraCertificate', 'RERA Certificate')}
-                      disabled={docUploading}
-                    />
-                    <label htmlFor="rera-upload" className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-emerald-600 hover:bg-emerald-50 cursor-pointer transition-colors">
-                      <FileText size={14} /> Upload Doc
-                    </label>
-                    {formData.builderProfile?.reraCertificate && (
-                      <a href={formData.builderProfile.reraCertificate} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline font-semibold flex items-center gap-1">
-                        <CheckCircle2 size={12} className="text-emerald-500" /> Uploaded
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* GST Number & Certificate */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">GST Number</label>
-                  <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors bg-white px-2 rounded-t-md">
-                    <input
-                      type="text"
-                      value={formData.builderProfile?.gstNumber || ''}
-                      onChange={(e) => handleBuilderProfileChange('gstNumber', e.target.value)}
-                      className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent uppercase"
-                      placeholder="22AAAAA0000A1Z5"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Upload GST Certificate</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="file"
-                      id="gst-upload"
-                      className="hidden"
-                      accept=".pdf,image/*"
-                      onChange={(e) => handleBuilderDocUpload(e, 'gstCertificate', 'GST Certificate')}
-                      disabled={docUploading}
-                    />
-                    <label htmlFor="gst-upload" className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-emerald-600 hover:bg-emerald-50 cursor-pointer transition-colors">
-                      <FileText size={14} /> Upload Doc
-                    </label>
-                    {formData.builderProfile?.gstCertificate && (
-                      <a href={formData.builderProfile.gstCertificate} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline font-semibold flex items-center gap-1">
-                        <CheckCircle2 size={12} className="text-emerald-500" /> Uploaded
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Established Year */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Established Year</label>
-                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Field label="Established Year">
                   <input
                     type="number"
                     value={formData.builderProfile?.establishedYear || ''}
                     onChange={(e) => handleBuilderProfileChange('establishedYear', e.target.value)}
-                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                    className={inputCls}
                     placeholder="e.g. 1995"
                   />
-                </div>
-              </div>
+                </Field>
 
-              {/* Active Projects */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Active Projects</label>
-                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+                <Field label="Active Projects">
                   <input
                     type="number"
                     value={formData.builderProfile?.activeProjects !== undefined ? formData.builderProfile.activeProjects : 0}
                     onChange={(e) => handleBuilderProfileChange('activeProjects', e.target.value)}
-                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                    className={inputCls}
                   />
-                </div>
-              </div>
+                </Field>
 
-              {/* Completed Projects */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Completed Projects</label>
-                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
+                <Field label="Completed Projects">
                   <input
                     type="number"
                     value={formData.builderProfile?.completedProjects !== undefined ? formData.builderProfile.completedProjects : 0}
                     onChange={(e) => handleBuilderProfileChange('completedProjects', e.target.value)}
-                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent"
+                    className={inputCls}
                   />
-                </div>
+                </Field>
               </div>
 
-              {/* About Company */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">About Company</label>
-                <div className="border-b border-gray-200 focus-within:border-emerald-600 transition-colors">
-                  <textarea
-                    rows={3}
-                    value={formData.builderProfile?.description || ''}
-                    onChange={(e) => handleBuilderProfileChange('description', e.target.value)}
-                    className="w-full py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-gray-300 bg-transparent resize-none"
-                    placeholder="Brief description about the builder's history..."
-                  />
-                </div>
-              </div>
-            </div>
+              <Field label="About Company">
+                <textarea
+                  rows={3}
+                  value={formData.builderProfile?.description || ''}
+                  onChange={(e) => handleBuilderProfileChange('description', e.target.value)}
+                  className={`${inputCls} resize-none`}
+                  placeholder="Brief description about the builder's history..."
+                />
+              </Field>
+            </SectionCard>
           )}
 
           <button
             type="submit"
             disabled={loading || imageUploading}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold text-sm shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold text-sm shadow-xl shadow-emerald-600/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
           >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : 'Update Profile'}
+            {loading ? <Loader2 size={18} className="animate-spin" /> : (
+              <>
+                <ShieldCheck size={17} />
+                Save Profile
+              </>
+            )}
           </button>
         </form>
-
-        <div className="pt-8 pb-10">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-4 text-red-500 font-bold text-sm bg-red-50 hover:bg-red-100 rounded-2xl border border-red-100 active:scale-[0.98] transition-all cursor-pointer"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
-          <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-4">
-            Version 2.0.4 • Made with ❤️ in India
-          </p>
-        </div>
       </motion.div>
     </div>
   );

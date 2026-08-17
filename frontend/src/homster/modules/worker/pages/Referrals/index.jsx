@@ -68,7 +68,7 @@ const Referrals = () => {
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-800">
           <FiArrowLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-base font-bold text-gray-800">My Referrals</h1>
+        <h1 className="text-xl font-bold text-gray-800">My Referrals</h1>
       </div>
 
       {loading ? (
@@ -78,55 +78,55 @@ const Referrals = () => {
       ) : (
         <div className="p-4 space-y-6">
           {/* Referral Code Card */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg">
-            <h2 className="text-[11px] font-bold uppercase tracking-wide opacity-80 mb-1">Your Referral Code</h2>
-            <div className="flex items-center justify-between bg-white/20 rounded-xl p-3 mt-3 border border-white/30 backdrop-blur-sm">
-              <span className="text-lg font-bold tracking-wider">{data.referralCode || 'N/A'}</span>
-              <button
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+            <h2 className="text-lg font-medium mb-1 opacity-90">Your Referral Code</h2>
+            <div className="flex items-center justify-between bg-white/20 rounded-xl p-3 mt-4 border border-white/30 backdrop-blur-sm">
+              <span className="text-2xl font-bold tracking-widest">{data.referralCode || 'N/A'}</span>
+              <button 
                 onClick={handleCopy}
                 className="p-2 bg-white text-blue-600 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                <FiCopy className="w-4 h-4" />
+                <FiCopy className="w-5 h-5" />
               </button>
             </div>
-            <button
+            <button 
               onClick={handleShare}
-              className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 bg-white text-blue-600 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors shadow-sm"
+              className="w-full mt-4 flex items-center justify-center gap-2 py-3 bg-white text-blue-600 rounded-xl font-bold hover:bg-gray-50 transition-colors shadow-sm"
             >
-              <FiShare2 className="w-4 h-4" /> Share with Friends
+              <FiShare2 className="w-5 h-5" /> Share with Friends
             </button>
           </div>
 
           {/* Stats */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4">
-            <div className="p-3 bg-blue-50 rounded-full text-[#1E3A8A]">
-              <FiUsers className="w-6 h-6" />
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="p-4 bg-blue-50 rounded-full text-[#1E3A8A]">
+              <FiUsers className="w-8 h-8" />
             </div>
             <div>
-              <p className="text-gray-500 text-xs font-medium">Total Referred Workers</p>
-              <p className="text-xl font-bold text-gray-800">{data.totalReferrals}</p>
+              <p className="text-gray-500 text-sm font-medium">Total Referred Workers</p>
+              <p className="text-2xl font-bold text-gray-800">{data.totalReferrals}</p>
             </div>
           </div>
 
           {/* Referrals List */}
           <div>
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 px-1">Referred Friends</h3>
+            <h3 className="font-bold text-gray-800 mb-4 px-1">Referred Friends</h3>
             {data.referrals.length > 0 ? (
               <div className="space-y-3">
                 {data.referrals.map((referral, index) => (
-                  <div key={index} className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                  <div key={index} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
                       {referral.profilePhoto ? (
                         <img src={referral.profilePhoto} alt={referral.name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-sm">
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-lg">
                           {referral.name?.charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold text-gray-800 truncate">{referral.name}</h4>
-                      <p className="text-[11px] text-gray-500">{new Date(referral.createdAt).toLocaleDateString()}</p>
+                      <h4 className="font-bold text-gray-800 truncate">{referral.name}</h4>
+                      <p className="text-xs text-gray-500">{new Date(referral.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div>
                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
@@ -141,12 +141,12 @@ const Referrals = () => {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-xl p-6 text-center border border-gray-100 shadow-sm">
-                <div className="w-12 h-12 bg-blue-50 text-blue-300 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <FiUsers className="w-6 h-6" />
+              <div className="bg-white rounded-xl p-8 text-center border border-gray-100 shadow-sm">
+                <div className="w-16 h-16 bg-blue-50 text-blue-300 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <FiUsers className="w-8 h-8" />
                 </div>
-                <p className="text-sm text-gray-500 font-medium">You haven't referred anyone yet.</p>
-                <p className="text-xs text-gray-400 mt-1">Share your code to invite friends.</p>
+                <p className="text-gray-500 font-medium">You haven't referred anyone yet.</p>
+                <p className="text-sm text-gray-400 mt-1">Share your code to invite friends.</p>
               </div>
             )}
           </div>

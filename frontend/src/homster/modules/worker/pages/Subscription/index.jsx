@@ -150,7 +150,7 @@ const Subscription = () => {
           <FiArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-white font-bold text-base">Worker Subscription</h1>
+          <h1 className="text-white font-bold text-xl">Worker Subscription</h1>
           <p className="text-white/60 text-sm">Get unlimited job alerts</p>
         </div>
       </div>

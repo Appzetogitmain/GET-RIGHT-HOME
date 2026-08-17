@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiChevronDown, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward, FiPhone, FiMail, FiCheckCircle, FiGrid } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { workerTheme as themeColors } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
@@ -15,7 +15,6 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
-  const [categoriesOpen, setCategoriesOpen] = useState(false);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -60,8 +59,6 @@ const Profile = () => {
             phone: workerData.phone || '',
             email: workerData.email || '',
             address: addressString,
-            city: workerData.address?.city || '',
-            state: workerData.address?.state || '',
             rating: workerData.rating || 0,
             totalJobs: workerData.totalJobs || 0,
             completedJobs: workerData.completedJobs || 0,
@@ -82,15 +79,11 @@ const Profile = () => {
               phone: localWorkerData.phone || '',
               email: localWorkerData.email || '',
               address: 'Not set',
-              city: localWorkerData.address?.city || '',
-              state: localWorkerData.address?.state || '',
               rating: localWorkerData.rating || 0,
               totalJobs: localWorkerData.totalJobs || 0,
               completedJobs: localWorkerData.completedJobs || 0,
               serviceCategories: localWorkerData.serviceCategories || (localWorkerData.serviceCategory ? [localWorkerData.serviceCategory] : []),
-              photo: localWorkerData.profilePhoto || null,
-              isPhoneVerified: localWorkerData.isPhoneVerified || false,
-              isEmailVerified: localWorkerData.isEmailVerified || false
+              photo: localWorkerData.profilePhoto || null
             });
             toast('Loaded profile from local storage (API failed)');
           }
@@ -107,15 +100,11 @@ const Profile = () => {
             phone: localWorkerData.phone || '',
             email: localWorkerData.email || '',
             address: 'Not set',
-            city: localWorkerData.address?.city || '',
-            state: localWorkerData.address?.state || '',
             rating: localWorkerData.rating || 0,
             totalJobs: localWorkerData.totalJobs || 0,
             completedJobs: localWorkerData.completedJobs || 0,
             serviceCategories: localWorkerData.serviceCategories || (localWorkerData.serviceCategory ? [localWorkerData.serviceCategory] : []),
-            photo: localWorkerData.profilePhoto || null,
-            isPhoneVerified: localWorkerData.isPhoneVerified || false,
-            isEmailVerified: localWorkerData.isEmailVerified || false
+            photo: localWorkerData.profilePhoto || null
           });
           toast('Loaded profile from local storage (API failed)');
         }
@@ -150,11 +139,11 @@ const Profile = () => {
     return (
       <div className="flex items-center justify-center min-h-screen" style={{ background: themeColors.backgroundGradient }}>
         <div className="text-center p-6">
-          <h2 className="text-base font-bold text-gray-800 mb-2">Error loading profile</h2>
-          <p className="text-sm text-gray-600 mb-4">{error}</p>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Error loading profile</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 rounded-xl text-white text-sm font-semibold transition-all duration-300 hover:opacity-90"
+            className="px-6 py-3 rounded-xl text-white font-semibold transition-all duration-300 hover:opacity-90"
             style={{ backgroundColor: themeColors.button }}
           >
             Refresh Page
@@ -207,26 +196,22 @@ const Profile = () => {
     { icon: FiSettings, label: 'Settings', path: '/worker/settings' }
   ];
 
-  const locationLabel = profile.city
-    ? `${profile.city}${profile.state ? `, ${profile.state}` : ''}`
-    : 'Location not set';
-
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
-      <div className="bg-[#3B82F6] rounded-b-[32px] pt-8 pb-16 px-4 relative">
+      {/* Top Orange Header */}
+      <div className="bg-[#3B82F6] rounded-b-[40px] pt-8 pb-16 px-4 relative">
         {/* Edit Profile Button */}
         <button
           onClick={() => navigate('/worker/profile/edit')}
-          className="absolute top-6 right-4 w-9 h-9 flex items-center justify-center bg-white/15 hover:bg-white/25 rounded-full backdrop-blur-sm transition-all active:scale-95 border border-white/20"
+          className="absolute top-6 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur-sm transition-all active:scale-95 border border-white/20"
         >
-          <FiEdit2 className="w-4 h-4 text-white" />
+          <FiEdit2 className="w-5 h-5 text-white" />
         </button>
 
         <div className="flex flex-col items-center">
           {/* Profile Picture */}
           <div className="relative mb-3">
-            <div className="w-20 h-20 rounded-full border-[3px] border-white overflow-hidden bg-white shadow-lg flex items-center justify-center">
+            <div className="w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
               {profile.photo ? (
                 <img
                   src={profile.photo}
@@ -234,158 +219,77 @@ const Profile = () => {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <FiUser className="w-9 h-9 text-gray-300" />
+                <FiUser className="w-12 h-12 text-gray-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
               )}
+            </div>
+            {/* Check badge */}
+            <div className="absolute bottom-0 right-1 w-6 h-6 bg-[#3B82F6] rounded-full border-2 border-white flex items-center justify-center">
+              <FiStar className="w-3 h-3 text-white fill-white" />
             </div>
           </div>
 
           {/* Name & Badge */}
-          <h2 className="text-lg font-bold text-white mb-1.5 text-center px-6">{profile.name}</h2>
+          <h2 className="text-2xl font-extrabold text-white mb-2">{profile.name}</h2>
           {highestAchievement ? (
-            <div className={`${getTierColor(highestAchievement.tier)} text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full flex items-center gap-1 mb-3`}>
+            <div className={`${getTierColor(highestAchievement.tier)} text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 mb-3`}>
               <FiAward className="w-3 h-3" /> {highestAchievement.tier} Partner
             </div>
           ) : (
-            <div className="bg-[#CD7F32] text-white text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full flex items-center gap-1 mb-3">
+            <div className="bg-[#CD7F32] text-white text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 mb-3">
               <FiAward className="w-3 h-3" /> Bronze Partner
             </div>
           )}
 
-          {/* Location */}
-          <div className="flex items-center gap-1 text-white/80 text-xs">
-            <FiMapPin className="w-3 h-3" /> {locationLabel}
+          {/* Categories & Location */}
+          <p className="text-white text-xs font-semibold mb-1">
+            {profile.serviceCategories && profile.serviceCategories.length > 0
+              ? profile.serviceCategories.join(' • ')
+              : 'Services not set'}
+          </p>
+          <div className="flex items-center gap-1 text-white text-xs opacity-90">
+            <FiMapPin className="w-3 h-3" /> {profile.address ? profile.address.split(' ')[0] : 'Location not set'}
           </div>
         </div>
       </div>
 
       {/* Stats Cards - Overlapping the header */}
-      <div className="px-4 -mt-10 relative z-10 mb-4">
+      <div className="px-4 -mt-10 relative z-10 mb-6">
         <div className="flex justify-between gap-3">
           <div className="flex-1 bg-white rounded-2xl p-3 flex flex-col items-center justify-center shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-gray-50">
-            <p className="text-lg font-bold text-[#1E3A8A] mb-0.5">{completedJobs}</p>
+            <p className="text-xl font-bold text-[#1E3A8A] mb-1">{completedJobs}</p>
             <p className="text-[10px] font-medium text-gray-500">Jobs Done</p>
           </div>
           <div className="flex-1 bg-white rounded-2xl p-3 flex flex-col items-center justify-center shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-gray-50">
-            <p className="text-lg font-bold text-[#1E3A8A] mb-0.5 flex items-center gap-1">
+            <p className="text-xl font-bold text-[#1E3A8A] mb-1 flex items-center gap-1">
               <FiStar className="w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B]" /> {rating ? rating.toFixed(1) : '0.0'}
             </p>
             <p className="text-[10px] font-medium text-gray-500">Rating</p>
           </div>
           <div className="flex-1 bg-white rounded-2xl p-3 flex flex-col items-center justify-center shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-gray-50">
-            <p className="text-lg font-bold text-[#1E3A8A] mb-0.5">{completionPercentage}%</p>
+            <p className="text-xl font-bold text-[#1E3A8A] mb-1">{completionPercentage}%</p>
             <p className="text-[10px] font-medium text-gray-500">Completion</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Category */}
-      <div className="px-4 mb-4">
-        <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2 px-1">Category</h3>
-        <div className="bg-white rounded-2xl shadow-[0_4px_15px_rgba(0,0,0,0.02)] border border-gray-50 overflow-hidden">
-          <button
-            onClick={() => setCategoriesOpen(prev => !prev)}
-            className="w-full flex items-center justify-between p-3.5 active:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-blue-50 text-[#3B82F6] flex items-center justify-center shrink-0">
-                <FiGrid className="w-4 h-4" />
-              </div>
-              <span className="text-sm font-semibold text-gray-800">
-                {profile.serviceCategories?.length > 0
-                  ? `${profile.serviceCategories.length} ${profile.serviceCategories.length === 1 ? 'Category' : 'Categories'}`
-                  : 'No categories set'}
-              </span>
-            </div>
-            {profile.serviceCategories?.length > 0 && (
-              <FiChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${categoriesOpen ? 'rotate-180' : ''}`} />
-            )}
-          </button>
-
-          {categoriesOpen && profile.serviceCategories?.length > 0 && (
-            <div className="flex flex-wrap gap-2 px-3.5 pb-3.5 pt-0.5 border-t border-gray-50">
-              {profile.serviceCategories.map((cat, idx) => (
-                <span key={idx} className="text-xs font-semibold text-[#3B82F6] bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
-                  {cat}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Contact Details */}
-      <div className="px-4 mb-4">
-        <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2 px-1">Contact Details</h3>
-        <div className="bg-white rounded-2xl shadow-[0_4px_15px_rgba(0,0,0,0.02)] border border-gray-50 divide-y divide-gray-50">
-          <div className="flex items-center gap-3 p-3.5">
-            <div className="w-9 h-9 rounded-full bg-blue-50 text-[#3B82F6] flex items-center justify-center shrink-0">
-              <FiPhone className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate">{profile.phone || 'Not added'}</p>
-              <p className="text-[11px] text-gray-400">Mobile Number</p>
-            </div>
-            {profile.phone && (
-              profile.isPhoneVerified ? (
-                <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 shrink-0">
-                  <FiCheckCircle className="w-3.5 h-3.5" /> Verified
-                </span>
-              ) : (
-                <span className="text-[10px] font-bold text-amber-500 shrink-0">Unverified</span>
-              )
-            )}
-          </div>
-
-          <div className="flex items-center gap-3 p-3.5">
-            <div className="w-9 h-9 rounded-full bg-blue-50 text-[#3B82F6] flex items-center justify-center shrink-0">
-              <FiMail className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate">{profile.email || 'Not added'}</p>
-              <p className="text-[11px] text-gray-400">Email Address</p>
-            </div>
-            {profile.email && (
-              profile.isEmailVerified ? (
-                <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 shrink-0">
-                  <FiCheckCircle className="w-3.5 h-3.5" /> Verified
-                </span>
-              ) : (
-                <span className="text-[10px] font-bold text-amber-500 shrink-0">Unverified</span>
-              )
-            )}
-          </div>
-
-          <div className="flex items-start gap-3 p-3.5">
-            <div className="w-9 h-9 rounded-full bg-blue-50 text-[#3B82F6] flex items-center justify-center shrink-0">
-              <FiMapPin className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800">{profile.address && profile.address !== 'Not set' ? profile.address : 'Not added'}</p>
-              <p className="text-[11px] text-gray-400">Service Address</p>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Menu List */}
       <div className="px-4 pb-6">
-        <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2 px-1">Account</h3>
-        <div className="bg-white rounded-2xl p-1.5 shadow-[0_4px_15px_rgba(0,0,0,0.02)] border border-gray-50">
+        <div className="bg-white rounded-3xl p-2 shadow-[0_4px_15px_rgba(0,0,0,0.02)] border border-gray-50">
           {menuItems.map((item, index) => {
             const Icon = item.icon;
             return (
-              <div
+              <div 
                 key={index}
                 onClick={() => navigate(item.path)}
-                className={`flex items-center justify-between p-3 cursor-pointer active:bg-gray-50 rounded-xl transition-colors ${index !== menuItems.length - 1 ? 'border-b border-gray-50' : ''}`}
+                className={`flex items-center justify-between p-3 cursor-pointer active:bg-gray-50 rounded-2xl transition-colors ${index !== menuItems.length - 1 ? 'border-b border-gray-50' : ''}`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-blue-50 text-[#3B82F6] flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4" />
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-[#FEF0D9] text-[#3B82F6] flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5" />
                   </div>
-                  <span className="text-gray-800 font-semibold text-sm">{item.label}</span>
+                  <span className="text-[#1E3A8A] font-semibold text-sm">{item.label}</span>
                 </div>
-                <FiChevronRight className="w-4 h-4 text-gray-400" />
+                <FiChevronRight className="w-5 h-5 text-gray-400" />
               </div>
             );
           })}
@@ -399,9 +303,9 @@ const Profile = () => {
             e.preventDefault();
             handleLogout();
           }}
-          className="w-full bg-[#FFE4E6] text-[#E11D48] rounded-2xl p-3.5 flex items-center justify-center gap-2 font-bold text-sm transition-all active:scale-95 border border-[#FECDD3]"
+          className="w-full bg-[#FFE4E6] text-[#E11D48] rounded-2xl p-4 flex items-center justify-center gap-2 font-bold transition-all active:scale-95 border border-[#FECDD3]"
         >
-          <FiLogOut className="w-4 h-4" /> Log Out
+          <FiLogOut className="w-5 h-5" /> Log Out
         </button>
       </div>
 

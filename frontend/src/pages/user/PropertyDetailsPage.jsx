@@ -301,13 +301,41 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
           fetchLocalityData(localityString);
         }
         
-        // Fetch similar properties
+        // Fetch similar properties — same type, same city, and a price band
+        // around this listing (not type alone), so "similar" actually means
+        // similar rather than just "same category anywhere at any price".
         try {
-          const filterType = p.propertyType || '';
-          const simRes = await propertyService.getPublic({ type: filterType });
-          const propertiesArray = Array.isArray(simRes) ? simRes : (simRes && Array.isArray(simRes.properties) ? simRes.properties : []);
-          const filtered = propertiesArray.filter(item => item._id !== p._id).slice(0, 4);
-          setSimilarProperties(filtered);
+          const simParams = { type: p.propertyType || '' };
+          const cityVal = p.address?.city || p.address?.district;
+          if (cityVal) simParams.city = cityVal;
+
+          const anchorPrice = p.rentDetails?.monthlyRent ?? p.buyDetails?.expectedPrice ??
+            p.plotDetails?.expectedPrice ?? p.dynamicData?.price ?? p.dynamicData?.expectedPrice ??
+            p.dynamicData?.rent ?? p.dynamicData?.monthlyRent ?? null;
+          if (anchorPrice && anchorPrice > 0) {
+            simParams.minPrice = Math.round(anchorPrice * 0.7);
+            simParams.maxPrice = Math.round(anchorPrice * 1.3);
+          }
+
+          let simRes = await propertyService.getPublic(simParams);
+          let propertiesArray = Array.isArray(simRes) ? simRes : (simRes && Array.isArray(simRes.properties) ? simRes.properties : []);
+          let filtered = propertiesArray.filter(item => item._id !== p._id);
+
+          // City + price band is a real search — if it's too narrow to find
+          // anything, fall back to type + city, then type alone, rather than
+          // showing nothing.
+          if (filtered.length === 0 && (simParams.city || simParams.minPrice)) {
+            simRes = await propertyService.getPublic({ type: p.propertyType || '', city: simParams.city });
+            propertiesArray = Array.isArray(simRes) ? simRes : (simRes && Array.isArray(simRes.properties) ? simRes.properties : []);
+            filtered = propertiesArray.filter(item => item._id !== p._id);
+          }
+          if (filtered.length === 0) {
+            simRes = await propertyService.getPublic({ type: p.propertyType || '' });
+            propertiesArray = Array.isArray(simRes) ? simRes : (simRes && Array.isArray(simRes.properties) ? simRes.properties : []);
+            filtered = propertiesArray.filter(item => item._id !== p._id);
+          }
+
+          setSimilarProperties(filtered.slice(0, 4));
         } catch (err) {
           console.warn("Failed to load similar properties:", err);
         }
