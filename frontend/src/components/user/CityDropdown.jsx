@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { MapPin, ChevronDown, X, Search } from 'lucide-react';
 import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 
 /**
  * CityDropdown — Hero Section location picker
@@ -13,8 +14,6 @@ import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
  * as before, so nothing downstream (HeroSection, the property sections)
  * needed to change.
  */
-
-const libraries = ['places'];
 
 // Prefer the most specific human name for a place: neighbourhood > city > district > state
 const extractLocationName = (components = []) => {
@@ -48,9 +47,9 @@ const CityDropdown = ({
   const accentColor = theme?.accent || '#10B981';
 
   const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAP_API_KEY,
-    libraries
+    id: GOOGLE_MAPS_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   // Close on outside click

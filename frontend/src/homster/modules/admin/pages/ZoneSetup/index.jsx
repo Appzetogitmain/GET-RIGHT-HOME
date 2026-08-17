@@ -3,8 +3,7 @@ import { GoogleMap, useJsApiLoader, DrawingManager, Polygon } from '@react-googl
 import { api } from '../../../../../services/apiService';
 import toast from 'react-hot-toast';
 import { FiTrash2, FiMapPin, FiSave, FiX, FiLayers } from 'react-icons/fi';
-
-const libraries = ['drawing', 'places'];
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../../../../config/googleMaps';
 
 const mapContainerStyle = {
   width: '100%',
@@ -19,8 +18,9 @@ const center = {
 
 const ZoneSetup = () => {
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script-admin',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+    id: GOOGLE_MAPS_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   const [zones, setZones] = useState([]);

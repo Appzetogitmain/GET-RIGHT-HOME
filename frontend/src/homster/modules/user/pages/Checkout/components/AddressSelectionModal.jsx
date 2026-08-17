@@ -5,8 +5,7 @@ import { themeColors } from '../../../../../theme';
 import LocationPicker from './LocationPicker';
 import flutterBridge from '../../../../../utils/flutterBridge';
 import { toast } from 'react-hot-toast';
-
-const libraries = ['places', 'geometry'];
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../../../../../config/googleMaps';
 
 const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = '', onHouseNumberChange, onSave }) => {
   const [isClosing, setIsClosing] = useState(false);
@@ -18,9 +17,9 @@ const AddressSelectionModal = ({ isOpen, onClose, address = '', houseNumber = ''
   const locationPickerRef = useRef(null);
 
   const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries
+    id: GOOGLE_MAPS_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   useEffect(() => {
