@@ -290,6 +290,19 @@ const Checkout = () => {
     setCartItems(items);
   }, [globalCartItems, category, subCategoryName, plan]);
 
+  // Items added via the "Instant Booking" express section are marked
+  // isInstant at add-to-cart time. When every item in this checkout came
+  // from there, this is an instant-only checkout — force that mode and hide
+  // the Book/Slot toggle below instead of offering a scheduled slot picker
+  // that doesn't make sense for an "arrives in ~45 min" booking. A cart that
+  // mixes instant and regular items (or is entirely regular items) keeps the
+  // existing toggle so scheduling stays available where it's meaningful.
+  const cartIsInstant = cartItems.length > 0 && cartItems.every(item => item.isInstant);
+
+  useEffect(() => {
+    if (cartIsInstant) setBookingType('instant');
+  }, [cartIsInstant]);
+
   const loadCart = async () => {
     let items = globalCartItems || [];
     if (subCategoryName) {
@@ -1820,28 +1833,36 @@ const Checkout = () => {
       {/* Bottom Action Button */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
 
-        {/* Booking Type Toggle */}
+        {/* Booking Type — instant-only carts skip the toggle entirely, since
+            offering a scheduled slot on an express booking doesn't make sense */}
         <div className="px-4 pt-3 pb-0">
-          <div className="flex bg-gray-100 p-1 rounded-xl mb-1">
-            <button
-              onClick={() => setBookingType('instant')}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${bookingType === 'instant' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
-            >
-              <span className="text-yellow-500">⚡</span> Book
-            </button>
-            <button
-              onClick={() => {
-                setBookingType('scheduled');
-                setShowTimeSlotModal(true);
-                if (!selectedDate) {
-                  setSelectedDate(getDates()[0]);
-                }
-              }}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${bookingType === 'scheduled' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
-            >
-              <span>📅</span> Slot
-            </button>
-          </div>
+          {cartIsInstant ? (
+            <div className="flex items-center justify-center gap-2 py-2 rounded-xl bg-green-50 border border-green-100 mb-1">
+              <span className="text-yellow-500">⚡</span>
+              <span className="text-sm font-bold text-black">Instant Booking</span>
+            </div>
+          ) : (
+            <div className="flex bg-gray-100 p-1 rounded-xl mb-1">
+              <button
+                onClick={() => setBookingType('instant')}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${bookingType === 'instant' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
+              >
+                <span className="text-yellow-500">⚡</span> Book
+              </button>
+              <button
+                onClick={() => {
+                  setBookingType('scheduled');
+                  setShowTimeSlotModal(true);
+                  if (!selectedDate) {
+                    setSelectedDate(getDates()[0]);
+                  }
+                }}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${bookingType === 'scheduled' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
+              >
+                <span>📅</span> Slot
+              </button>
+            </div>
+          )}
           {bookingType === 'instant' && (
             <p className="text-xs text-center text-green-600 font-medium mt-1 mb-1">
               <span className="font-bold">⚡ Priority Service:</span> {bookingModel === 'worker' ? 'Worker' : 'Vendor'} arrives in ~45 mins

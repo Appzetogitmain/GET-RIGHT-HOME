@@ -152,6 +152,10 @@ const HomeServicesPage = () => {
                 price: service.discountPrice || service.basePrice,
                 unitPrice: service.discountPrice || service.basePrice,
                 serviceCount: 1,
+                // Marks this cart item as express/instant — Checkout reads
+                // this to skip the slot picker entirely for these bookings
+                // instead of offering a scheduled-vs-instant toggle.
+                isInstant: true,
             };
             const response = await addToCart(cartItemData);
             if (response.success) {
