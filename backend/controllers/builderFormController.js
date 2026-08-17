@@ -4,7 +4,9 @@ import { createBuilderSteps } from '../config/builderProjectSteps.js';
 // Bump this whenever createBuilderSteps() changes so that already-seeded
 // databases pick up the new step definitions on the next request.
 // v2 = the 15-step Builder Property Listing flow (was a 7-step flow at v0/v1).
-export const BUILDER_TEMPLATE_VERSION = 2;
+// v3 = dynamic branching added to Steps 1 (RERA status), 3/4 (tower/villa/plot
+// inventory repeaters), and 10 (project-status-specific fields).
+export const BUILDER_TEMPLATE_VERSION = 3;
 
 const generateAllTemplates = () => {
   const templates = [];

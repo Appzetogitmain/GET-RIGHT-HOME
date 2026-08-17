@@ -14,13 +14,23 @@ const nearbyPlaceSchema = new mongoose.Schema({
 
 const unitConfigurationSchema = new mongoose.Schema({
   unitType: String,          // "3 BHK", "200 sq.yards", "Office Suite A"
+  towerName: String,         // apartment: which tower this configuration belongs to
+  floorNumber: Number,
+  plotNumber: String,        // plot: individual plot identifier
   carpetArea: Number,
   superArea: Number,
   areaUnit: { type: String, default: 'sq.ft.' },
   price: Number,
   pricePerSqft: Number,
   availableUnits: Number,
-  facing: String
+  facing: String,
+  status: String             // plot inventory: Available / Hold / Sold / Blocked
+}, { _id: false });
+
+const towerSchema = new mongoose.Schema({
+  towerName: String,
+  numberOfFloors: Number,
+  totalUnits: Number
 }, { _id: false });
 
 const constructionProgressSchema = new mongoose.Schema({
@@ -272,7 +282,8 @@ const propertySchema = new mongoose.Schema({
     openSpacePercentage: Number,
     clubHouseSize: Number,
     launchDate: Date,
-    possessionDate: Date
+    possessionDate: Date,
+    towers: { type: [towerSchema], default: undefined }
   },
 
   projectDocuments: {
@@ -312,6 +323,7 @@ const propertySchema = new mongoose.Schema({
   },
 
   reraNumber: { type: String },
+  reraStatus: { type: String, enum: ['Registered', 'Not Registered', 'Not Applicable / Exempt'] },
   reraVerified: { type: Boolean, default: false },
 
   // Denormalised price range, derived from unitConfigurations on save
