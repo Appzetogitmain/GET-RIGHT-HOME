@@ -1677,6 +1677,37 @@ export const getPublicProperties = async (req, res) => {
       }
     );
 
+    // --- RELEVANCE SCORE ---
+    // Everything reaching this point has already passed the hard filters
+    // above (city/type/BHK/price/etc. are $match conditions, not soft
+    // preferences), so "relevance" here means: among properties that already
+    // match what was asked for, which ones are the better result? Subscription
+    // tier is now one input among several instead of being the entire score —
+    // verification, having real photos, freshness and genuine engagement all
+    // count too, so a paid boost alone can't outrank a stronger listing.
+    pipeline.push({
+      $addFields: {
+        relevanceScore: {
+          $add: [
+            { $multiply: [{ $ifNull: ['$rankingWeight', 0] }, 8] }, // subscription tier — capped influence
+            { $cond: [{ $eq: ['$isVerified', true] }, 15, 0] },
+            { $cond: [{ $eq: ['$reraVerified', true] }, 5, 0] },
+            { $cond: [{ $gt: [{ $size: { $ifNull: ['$propertyImages', []] } }, 0] }, 8, 0] },
+            // Engagement, capped so a handful of stale enquiries can't dominate
+            { $min: [{ $add: [
+              { $multiply: [{ $ifNull: ['$enquiryCount', 0] }, 2] },
+              { $ifNull: ['$views', 0] }
+            ] }, 20] },
+            // Freshness — linear decay from 10 to 0 over ~90 days
+            { $max: [0, { $subtract: [
+              10,
+              { $divide: [{ $divide: [{ $subtract: [new Date(), { $ifNull: ['$createdAt', new Date()] }] }, 1000 * 60 * 60 * 24] }, 9] }
+            ] }] }
+          ]
+        }
+      }
+    });
+
     // Filter by postedBy role accurately using populated user
     if (postedBy) {
       const postedByList = postedBy.split(',').map(p => p.trim().toLowerCase());
@@ -1902,27 +1933,59 @@ export const getPublicProperties = async (req, res) => {
     }
 
     // 7. Sorting
-    let sortStage = { rankingWeight: -1, createdAt: -1 }; // Priority: Weight then Newest
+    let sortStage = { relevanceScore: -1, createdAt: -1 }; // Priority: relevance then Newest
     if (sort) {
-      if (sort === 'relevance') sortStage = { rankingWeight: -1, createdAt: -1 };
-      if (sort === 'newest') sortStage = { createdAt: -1, rankingWeight: -1 };
-      if (sort === 'price_low' || sort === 'priceAsc') sortStage = { startingPrice: 1, rankingWeight: -1 };
-      if (sort === 'price_high' || sort === 'priceDesc') sortStage = { startingPrice: -1, rankingWeight: -1 };
-      if (sort === 'rating') sortStage = { avgRating: -1, rankingWeight: -1 };
-      if (sort === 'distance' && lat && lng) sortStage = { distance: 1, rankingWeight: -1 };
+      if (sort === 'relevance') sortStage = { relevanceScore: -1, createdAt: -1 };
+      if (sort === 'newest') sortStage = { createdAt: -1, relevanceScore: -1 };
+      if (sort === 'price_low' || sort === 'priceAsc') sortStage = { startingPrice: 1, relevanceScore: -1 };
+      if (sort === 'price_high' || sort === 'priceDesc') sortStage = { startingPrice: -1, relevanceScore: -1 };
+      if (sort === 'rating') sortStage = { avgRating: -1, relevanceScore: -1 };
+      if (sort === 'distance' && lat && lng) sortStage = { distance: 1, relevanceScore: -1 };
 
       // Sort by calculated price per sqft
-      if (sort === 'pricePerSqftAsc') sortStage = { pricePerSqft: 1, rankingWeight: -1 };
-      if (sort === 'pricePerSqftDesc') sortStage = { pricePerSqft: -1, rankingWeight: -1 };
+      if (sort === 'pricePerSqftAsc') sortStage = { pricePerSqft: 1, relevanceScore: -1 };
+      if (sort === 'pricePerSqftDesc') sortStage = { pricePerSqft: -1, relevanceScore: -1 };
     }
 
     pipeline.push({ $sort: sortStage });
 
-    // Honour ?limit= when supplied. This endpoint previously ignored it entirely
-    // and always returned every matching property, so callers passing limit=1000
-    // were really downloading the whole table. Only applied when the caller asks,
-    // so existing callers that omit it are unaffected.
+    // Pagination is opt-in via ?page= — every existing caller that omits it
+    // keeps getting the plain array response exactly as before (dozens of
+    // call sites across the app rely on that shape), so this can't regress
+    // anything that doesn't ask for it. Callers that do pass ?page= get a
+    // real paginated envelope with a total count instead of an ever-growing
+    // ?limit= dump.
+    const requestedPage = parseInt(req.query.page, 10);
     const requestedLimit = parseInt(req.query.limit, 10);
+
+    if (Number.isFinite(requestedPage) && requestedPage > 0) {
+      const pageSize = (Number.isFinite(requestedLimit) && requestedLimit > 0) ? requestedLimit : 20;
+      const skip = (requestedPage - 1) * pageSize;
+
+      pipeline.push({
+        $facet: {
+          properties: [{ $skip: skip }, { $limit: pageSize }],
+          totalCount: [{ $count: 'count' }]
+        }
+      });
+
+      const [result] = await Property.aggregate(pipeline);
+      const total = result?.totalCount?.[0]?.count || 0;
+
+      return res.json({
+        success: true,
+        properties: result?.properties || [],
+        total,
+        page: requestedPage,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize))
+      });
+    }
+
+    // Honour ?limit= when supplied without ?page= (legacy behaviour) — this
+    // endpoint previously ignored it entirely and always returned every
+    // matching property, so callers passing limit=1000 were really
+    // downloading the whole table.
     if (Number.isFinite(requestedLimit) && requestedLimit > 0) {
       pipeline.push({ $limit: requestedLimit });
     }

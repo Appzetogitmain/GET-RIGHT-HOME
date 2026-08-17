@@ -4,7 +4,7 @@ import { Map, ArrowRight, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/apiService';
 
-const RecommendInsights = ({ transactionType, themeColor = 'emerald' }) => {
+const RecommendInsights = ({ transactionType, city, themeColor = 'emerald' }) => {
     const navigate = useNavigate();
     const [insights, setInsights] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -22,24 +22,35 @@ const RecommendInsights = ({ transactionType, themeColor = 'emerald' }) => {
         const fetchInsights = async () => {
             try {
                 // Fetch dynamic insights based on transaction type (buy/rent/all)
-                const res = await api.get(`/public/insights`, {
-                    params: { transactionType: transactionType || 'all', limit: 10 }
-                });
-                
+                // and the currently selected city — without `city`, this always
+                // returned whatever locality insights exist regardless of what
+                // the user actually had selected (in practice, always Bengaluru,
+                // the only city with seeded insight content).
+                const params = { transactionType: transactionType || 'all', limit: 10 };
+                if (city) params.city = city;
+
+                const res = await api.get(`/public/insights`, { params });
+
                 if (res.data.success && res.data.insights.length > 0) {
                     setInsights(res.data.insights);
-                } else {
-                    // Fallback Dummy Data for UI demonstration
+                } else if (!city) {
+                    // No specific city requested — safe to show generic sample
+                    // content so the section isn't empty on first load.
                     setInsights([
                         { _id: '1', locality: 'Andheri East', city: 'Mumbai', coverImage: 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=200&q=80' },
                         { _id: '2', locality: 'Borivali West', city: 'Mumbai', coverImage: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=200&q=80' },
                         { _id: '3', locality: 'Kandivali West', city: 'Mumbai', coverImage: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=200&q=80' },
                         { _id: '4', locality: 'Whitefield', city: 'Bengaluru', coverImage: 'https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&w=200&q=80' },
                     ]);
+                } else {
+                    // A specific city was requested and there's genuinely nothing
+                    // for it yet — showing another city's insights here would be
+                    // the exact bug being fixed, so leave this empty instead.
+                    setInsights([]);
                 }
             } catch (error) {
                 console.error("Failed to fetch insights", error);
-                setInsights([
+                setInsights(city ? [] : [
                     { _id: '1', locality: 'Andheri East', city: 'Mumbai', coverImage: 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=200&q=80' },
                     { _id: '2', locality: 'Borivali West', city: 'Mumbai', coverImage: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=200&q=80' },
                     { _id: '3', locality: 'Kandivali West', city: 'Mumbai', coverImage: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=200&q=80' },
@@ -49,7 +60,7 @@ const RecommendInsights = ({ transactionType, themeColor = 'emerald' }) => {
             }
         };
         fetchInsights();
-    }, [transactionType]);
+    }, [transactionType, city]);
 
     // Restore Horizontal Scroll
     useEffect(() => {
@@ -80,6 +91,10 @@ const RecommendInsights = ({ transactionType, themeColor = 'emerald' }) => {
             </div>
         );
     }
+
+    // Nothing to show for the selected city — hide the whole section rather
+    // than render an empty card or (the bug being fixed) another city's data.
+    if (insights.length === 0) return null;
 
     return (
         <div id="buy-recommended-insights-section" className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mt-2 scroll-mt-24">

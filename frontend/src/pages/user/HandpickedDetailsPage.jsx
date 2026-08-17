@@ -247,23 +247,33 @@ const HandpickedDetailsPage = () => {
         const localityString = res.property.address?.locality || res.property.address?.area || res.property.address?.city || '';
         if (localityString) fetchLocalityData(localityString);
 
-        // Load similar handpicked/admin added projects strictly
+        // Load similar handpicked/admin added projects — same city first
+        // (an "in Bengaluru" project isn't a useful match for someone
+        // looking in Indore), falling back to unscoped if the city has
+        // nothing else to show.
         try {
-          const simRes = await propertyService.getPublic({
-            limit: 20
-          });
-          let rawList = simRes?.properties || (Array.isArray(simRes) ? simRes : []);
-          let projOnly = rawList.filter(p => {
+          const projCity = res.property.address?.city || res.property.address?.district || '';
+          const filterToProjects = (rawList) => rawList.filter(p => {
             if (!p || p._id === res.property._id) return false;
-            const isProj = p.isProject === true || 
-                           p.listingType === 'project' || 
-                           p.propertyCategory === 'project' || 
-                           p.propertyType === 'project' || 
-                           Boolean(p.builderProjectDetails) || 
-                           Boolean(p.dynamicData?.builderName) || 
-                           (Array.isArray(p.towersList) && p.towersList.length > 0);
-            return isProj;
+            return p.isProject === true ||
+                   p.listingType === 'project' ||
+                   p.propertyCategory === 'project' ||
+                   p.propertyType === 'project' ||
+                   Boolean(p.builderProjectDetails) ||
+                   Boolean(p.dynamicData?.builderName) ||
+                   (Array.isArray(p.towersList) && p.towersList.length > 0);
           });
+
+          let simRes = await propertyService.getPublic({ limit: 20, city: projCity || undefined });
+          let rawList = simRes?.properties || (Array.isArray(simRes) ? simRes : []);
+          let projOnly = filterToProjects(rawList);
+
+          if (projOnly.length === 0 && projCity) {
+            simRes = await propertyService.getPublic({ limit: 20 });
+            rawList = simRes?.properties || (Array.isArray(simRes) ? simRes : []);
+            projOnly = filterToProjects(rawList);
+          }
+
           setSimilarProperties(projOnly.slice(0, 6));
         } catch (err) {
           console.warn("Failed to load similar properties:", err);

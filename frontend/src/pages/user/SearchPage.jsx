@@ -955,10 +955,77 @@ const SearchPage = () => {
                                 <div className="bg-gray-50 p-6 rounded-full mb-6">
                                     <Search size={40} className="text-gray-300" />
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-800 mb-2">No properties found</h3>
+                                <h3 className="text-lg font-bold text-gray-800 mb-2">No exact matches found</h3>
                                 <p className="text-sm text-gray-500 max-w-xs mx-auto">
-                                    Try changing your search or filters to find what you're looking for.
+                                    Try one of these broader searches instead:
                                 </p>
+
+                                {/* Zero-result recovery: relax one constraint at a time instead of
+                                    only offering "clear everything". Each chip drops just the
+                                    filter it names and re-searches immediately. */}
+                                <div className="flex flex-wrap items-center justify-center gap-2 mt-5 max-w-sm">
+                                    {(filters.minPrice || filters.maxPrice) && (
+                                        <button
+                                            onClick={() => {
+                                                const next = { ...filters, minPrice: '', maxPrice: '' };
+                                                setFilters(next);
+                                                setSearchParams(getParamsFromFilters(next), { replace: true });
+                                            }}
+                                            className="px-3.5 py-2 border border-gray-300 rounded-full text-xs font-bold text-gray-700 hover:border-surface hover:text-surface transition-colors"
+                                        >
+                                            Any budget
+                                        </button>
+                                    )}
+                                    {filters.bhkType && filters.bhkType.length > 0 && (
+                                        <button
+                                            onClick={() => {
+                                                const next = { ...filters, bhkType: [] };
+                                                setFilters(next);
+                                                setSearchParams(getParamsFromFilters(next), { replace: true });
+                                            }}
+                                            className="px-3.5 py-2 border border-gray-300 rounded-full text-xs font-bold text-gray-700 hover:border-surface hover:text-surface transition-colors"
+                                        >
+                                            Any BHK
+                                        </button>
+                                    )}
+                                    {filters.propertyTypes && filters.propertyTypes.length > 0 && (
+                                        <button
+                                            onClick={() => {
+                                                const next = { ...filters, propertyTypes: [] };
+                                                setFilters(next);
+                                                setSearchParams(getParamsFromFilters(next), { replace: true });
+                                            }}
+                                            className="px-3.5 py-2 border border-gray-300 rounded-full text-xs font-bold text-gray-700 hover:border-surface hover:text-surface transition-colors"
+                                        >
+                                            Any property type
+                                        </button>
+                                    )}
+                                    {filters.amenities && filters.amenities.length > 0 && (
+                                        <button
+                                            onClick={() => {
+                                                const next = { ...filters, amenities: [] };
+                                                setFilters(next);
+                                                setSearchParams(getParamsFromFilters(next), { replace: true });
+                                            }}
+                                            className="px-3.5 py-2 border border-gray-300 rounded-full text-xs font-bold text-gray-700 hover:border-surface hover:text-surface transition-colors"
+                                        >
+                                            Drop amenity filters
+                                        </button>
+                                    )}
+                                    {filters.areas && filters.areas.length > 0 && filters.areas.length > 1 && (
+                                        <button
+                                            onClick={() => {
+                                                const next = { ...filters, areas: [filters.areas[0]] };
+                                                setFilters(next);
+                                                setSearchParams(getParamsFromFilters(next), { replace: true });
+                                            }}
+                                            className="px-3.5 py-2 border border-gray-300 rounded-full text-xs font-bold text-gray-700 hover:border-surface hover:text-surface transition-colors"
+                                        >
+                                            Just {filters.areas[0]}
+                                        </button>
+                                    )}
+                                </div>
+
                                 <button
                                     onClick={() => {
                                         setFilters({
@@ -974,7 +1041,7 @@ const SearchPage = () => {
                                         setLocation(null);
                                         setSearchParams({}, { replace: true });
                                     }}
-                                    className="mt-8 text-sm font-bold text-surface hover:underline"
+                                    className="mt-6 text-sm font-bold text-surface hover:underline"
                                 >
                                     Clear all filters
                                 </button>
