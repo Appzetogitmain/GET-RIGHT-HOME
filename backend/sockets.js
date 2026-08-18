@@ -33,6 +33,14 @@ export const initIO = (io) => {
       console.log(`Vendor ${vendorId} joined room: ${room}`);
     });
 
+    // Admin/superadmin joins the shared admin room — one broadcast (e.g. a
+    // new property submitted for approval) reaches every admin session at
+    // once, since there's no per-admin targeting needed for these alerts.
+    socket.on('join_admin_room', () => {
+      socket.join('admin_room');
+      console.log(`Admin ${socket.id} joined room: admin_room`);
+    });
+
     // User/Worker emits location updates
     socket.on('update_location', (data) => {
       const room = data.room || data.bookingId;

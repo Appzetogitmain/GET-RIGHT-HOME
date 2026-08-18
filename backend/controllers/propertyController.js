@@ -14,6 +14,7 @@ import Booking from '../models/Booking.js';
 import Enquiry from '../models/Enquiry.js';
 import { mapBuilderProjectFields, generateUniqueSlug } from '../utils/builderProjectMapper.js';
 import { escapeRegex, safeRegex } from '../utils/escapeRegex.js';
+import { getIO } from '../sockets.js';
 
 /**
  * Promotes the 15-step builder wizard's dynamicData onto queryable Property
@@ -44,7 +45,7 @@ const applyBuilderProjectFields = async (doc, dynamicData) => {
   }
 };
 
-const notifyAdminOfNewProperty = async (property) => {
+const notifyAdminOfNewProperty = async (property, submitter) => {
   try {
     const admin = await Admin.findOne({ role: { $in: ['admin', 'superadmin'] } });
     if (admin && admin.email) {
@@ -52,6 +53,26 @@ const notifyAdminOfNewProperty = async (property) => {
     }
   } catch (err) {
     console.warn('Could not notify admin about property:', err.message);
+  }
+
+  // Live "ding" for whoever's on the admin panel right now, on top of the
+  // email above — every admin/superadmin session joins 'admin_room' (see
+  // sockets.js), so this reaches all of them at once, not just one account.
+  try {
+    const io = getIO();
+    if (io) {
+      io.to('admin_room').emit('property_submitted', {
+        propertyId: property._id,
+        propertyName: property.propertyName,
+        propertyType: property.propertyType,
+        transactionType: property.transactionType,
+        city: property.address?.city || '',
+        submittedBy: submitter ? { name: submitter.name, role: submitter.role } : null,
+        createdAt: property.createdAt || new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.warn('Could not emit property_submitted socket event:', err.message);
   }
 };
 
@@ -394,7 +415,7 @@ export const createProperty = async (req, res) => {
     }
 
     if (doc.status === 'pending') {
-      notifyAdminOfNewProperty(doc).catch(e => console.error(e));
+      notifyAdminOfNewProperty(doc, req.user).catch(e => console.error(e));
     }
 
     if (isPartner && partner) {

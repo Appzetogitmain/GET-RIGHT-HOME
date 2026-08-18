@@ -235,13 +235,31 @@ export const addComment = async (req, res) => {
     const reel = await Reel.findById(id);
     if (!reel) return res.status(404).json({ success: false, message: 'Reel not found' });
 
+    // Optional: replying to another comment. A reply always attaches
+    // directly to the top-level comment it was made under — if someone
+    // replies to a reply, we flatten it onto the same parent (one level of
+    // nesting, matching the UI) rather than chaining parentComment refs.
+    let parentComment = null;
+    const { parentCommentId } = req.body;
+    if (parentCommentId) {
+      const parent = await ReelComment.findOne({ _id: parentCommentId, reel: id });
+      if (!parent) return res.status(404).json({ success: false, message: 'Comment being replied to was not found' });
+      parentComment = parent.parentComment || parent._id;
+    }
+
     const comment = await ReelComment.create({
       user: req.user._id,
       reel: id,
       text,
+      parentComment,
     });
+
     reel.commentsCount = (reel.commentsCount || 0) + 1;
     await reel.save();
+
+    if (parentComment) {
+      await ReelComment.findByIdAndUpdate(parentComment, { $inc: { repliesCount: 1 } });
+    }
 
     const populated = await ReelComment.findById(comment._id).populate('user', 'name profileImage');
     res.status(201).json({ success: true, comment: populated });
@@ -254,38 +272,50 @@ export const addComment = async (req, res) => {
 /**
  * GET /api/reels/:id/comments?cursor=&limit=20
  */
+// Shared by getComments/getReplies — fetches a cursor page, populates the
+// author, and marks which of the returned comments the requester has liked.
+const fetchCommentPage = async (query, { limit, cursor, viewerId }) => {
+  const finalQuery = { ...query };
+  if (cursor) finalQuery._id = { $lt: new mongoose.Types.ObjectId(cursor) };
+
+  const comments = await ReelComment.find(finalQuery)
+    .sort({ createdAt: -1 })
+    .limit(limit + 1)
+    .populate('user', 'name profileImage')
+    .lean();
+
+  const hasMore = comments.length > limit;
+  const items = hasMore ? comments.slice(0, limit) : comments;
+  const nextCursor = hasMore ? items[items.length - 1]._id.toString() : null;
+
+  let likedSet = new Set();
+  if (viewerId && items.length > 0) {
+    const commentIds = items.map((c) => c._id);
+    const likes = await ReelCommentLike.find({
+      user: viewerId,
+      comment: { $in: commentIds },
+    }).select('comment');
+    likes.forEach((l) => likedSet.add(l.comment.toString()));
+  }
+
+  const feed = items.map((c) => ({
+    ...c,
+    likedByMe: likedSet.has(c._id.toString()),
+  }));
+
+  return { feed, nextCursor };
+};
+
 export const getComments = async (req, res) => {
   try {
     const { id } = req.params;
     const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
-    const cursor = req.query.cursor;
-    const query = { reel: id };
-    if (cursor) query._id = { $lt: new mongoose.Types.ObjectId(cursor) }
-
-    const comments = await ReelComment.find(query)
-      .sort({ createdAt: -1 })
-      .limit(limit + 1)
-      .populate('user', 'name profileImage')
-      .lean();
-
-    const hasMore = comments.length > limit;
-    const items = hasMore ? comments.slice(0, limit) : comments;
-    const nextCursor = hasMore ? items[items.length - 1]._id.toString() : null;
-
-    let likedSet = new Set();
-    if (req.user && items.length > 0) {
-      const commentIds = items.map((c) => c._id);
-      const likes = await ReelCommentLike.find({
-        user: req.user._id,
-        comment: { $in: commentIds },
-      }).select('comment');
-      likes.forEach((l) => likedSet.add(l.comment.toString()));
-    }
-
-    const feed = items.map((c) => ({
-      ...c,
-      likedByMe: likedSet.has(c._id.toString()),
-    }));
+    // Top-level only — replies are fetched separately (on demand, via
+    // getReplies) so the main list doesn't balloon with nested comments.
+    const { feed, nextCursor } = await fetchCommentPage(
+      { reel: id, parentComment: null },
+      { limit, cursor: req.query.cursor, viewerId: req.user?._id }
+    );
 
     res.json({
       success: true,
@@ -296,6 +326,31 @@ export const getComments = async (req, res) => {
   } catch (err) {
     console.error('Reel comments list error:', err);
     res.status(500).json({ success: false, message: err.message || 'Failed to load comments' });
+  }
+};
+
+/**
+ * GET /api/reels/comment/:id/replies?cursor=&limit=20
+ * :id here is the parent COMMENT id, not the reel id.
+ */
+export const getReplies = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+    const { feed, nextCursor } = await fetchCommentPage(
+      { parentComment: id },
+      { limit, cursor: req.query.cursor, viewerId: req.user?._id }
+    );
+
+    res.json({
+      success: true,
+      comments: feed,
+      nextCursor,
+      hasMore: !!nextCursor,
+    });
+  } catch (err) {
+    console.error('Reel replies list error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to load replies' });
   }
 };
 
