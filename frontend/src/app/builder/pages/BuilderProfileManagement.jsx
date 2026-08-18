@@ -4,12 +4,13 @@ import apiService from '../../../services/apiService';
 import toast from 'react-hot-toast';
 import {
   Building2, CheckCircle2, AlertCircle, Clock, ShieldCheck,
-  Upload, FileText, MapPin, Award, Layers, Sparkles, Plus
+  Upload, FileText, MapPin, Award, Layers, Sparkles, Plus, ChevronDown, Home
 } from 'lucide-react';
 
 const BuilderProfileManagement = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -23,10 +24,6 @@ const BuilderProfileManagement = () => {
     logo: '',
     coverImage: ''
   });
-
-  useEffect(() => {
-    fetchProfile();
-  }, []);
 
   const fetchProfile = async () => {
     try {
@@ -55,6 +52,10 @@ const BuilderProfileManagement = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -121,12 +122,42 @@ const BuilderProfileManagement = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/list-property')}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 rounded-xl text-xs font-bold transition-all shadow-md hover:bg-slate-100"
-            >
-              <Plus size={16} strokeWidth={2.5} /> Add Project
-            </button>
+            <div className="relative">
+              <div className="flex items-center rounded-xl bg-white shadow-md overflow-hidden">
+                <button
+                  onClick={() => navigate('/list-property')}
+                  className="flex items-center gap-2 pl-5 pr-3 py-2.5 text-slate-900 text-xs font-bold transition-all hover:bg-slate-100"
+                >
+                  <Plus size={16} strokeWidth={2.5} /> Add Project
+                </button>
+                <button
+                  onClick={() => setShowAddMenu(v => !v)}
+                  title="More project types"
+                  className="px-2.5 py-2.5 border-l border-slate-100 text-slate-500 hover:bg-slate-100 transition-all"
+                >
+                  <ChevronDown size={14} strokeWidth={2.5} className={`transition-transform ${showAddMenu ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+              {showAddMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowAddMenu(false)} />
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-20">
+                  <button
+                    onClick={() => { setShowAddMenu(false); navigate('/list-property'); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                  >
+                    <Home size={14} className="text-blue-500" /> Residential Project
+                  </button>
+                  <button
+                    onClick={() => { setShowAddMenu(false); navigate('/list-property', { state: { category: 'Commercial' } }); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left border-t border-slate-50"
+                  >
+                    <Building2 size={14} className="text-indigo-500" /> Commercial Project
+                  </button>
+                  </div>
+                </>
+              )}
+            </div>
             <button
               onClick={() => setEditing(!editing)}
               className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md"

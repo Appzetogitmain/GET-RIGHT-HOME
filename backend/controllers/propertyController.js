@@ -227,9 +227,11 @@ export const createProperty = async (req, res) => {
         }
       }
 
-      // Count properties listed by this actor
+      // Count properties listed by this actor. Rejected/draft listings don't
+      // count against the plan — a rejection shouldn't permanently cost the
+      // user a slot they can't reclaim without knowing to delete it manually.
       const query = { userId: req.user._id };
-      query.status = { $ne: 'deleted' };
+      query.status = { $nin: ['rejected', 'draft'] };
 
       const currentPropertyCount = await Property.countDocuments(query);
 
@@ -321,12 +323,18 @@ export const createProperty = async (req, res) => {
       locationValue = { type: 'Point', coordinates: [0, 0] };
     }
 
+    // The dynamicData shape-sniffing below (builderProjectDetails/builderName/towers)
+    // is only trustworthy from a builder or an admin acting on a builder's behalf —
+    // an owner/broker's dynamicData could coincidentally contain a custom field with
+    // one of those exact names without their listing actually being a project.
+    const isTrustedProjectSubmitter = req.user.role === 'builder' || isAdmin;
+
     const isProjectListing = Boolean(
       req.body.isProject ||
       req.user.role === 'builder' ||
       (propertyCategory || '').toLowerCase().includes('project') ||
       (propertyType || '').toLowerCase().includes('project') ||
-      (dynamicData && (dynamicData.builderProjectDetails || dynamicData.builderName || (Array.isArray(dynamicData.towers) && dynamicData.towers.length > 0)))
+      (isTrustedProjectSubmitter && dynamicData && (dynamicData.builderProjectDetails || dynamicData.builderName || (Array.isArray(dynamicData.towers) && dynamicData.towers.length > 0)))
     );
 
     const doc = new Property({

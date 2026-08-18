@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video, Briefcase, MapPin, ShieldCheck, IdCard } from 'lucide-react';
+import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video, Briefcase, MapPin, ShieldCheck, IdCard, Image } from 'lucide-react';
 import { authService } from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -919,6 +919,48 @@ const ProfileEdit = () => {
                   </div>
                 </div>
               )}
+
+              <Field label="Company Logo">
+                <div className="flex items-center gap-4">
+                  <div
+                    onClick={() => !logoUploading && logoInputRef.current?.click()}
+                    className="relative w-20 h-20 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer shrink-0 group"
+                  >
+                    {formData.builderProfile?.brandLogo ? (
+                      <img src={formData.builderProfile.brandLogo} alt="Company logo" className="w-full h-full object-contain" />
+                    ) : (
+                      <Image size={22} className="text-slate-300" />
+                    )}
+                    {logoUploading && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Loader2 size={18} className="animate-spin text-white" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <Camera size={16} className="text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={logoUploading}
+                      className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                    >
+                      {formData.builderProfile?.brandLogo ? 'Change Logo' : 'Upload Logo'}
+                    </button>
+                    <p className="text-[11px] text-slate-400 mt-1.5">JPG, PNG or WebP. Max 2MB.</p>
+                  </div>
+                  <input
+                    type="file"
+                    ref={logoInputRef}
+                    className="hidden"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleLogoUpload}
+                    disabled={logoUploading}
+                  />
+                </div>
+              </Field>
 
               <Field label="Company Name">
                 <input

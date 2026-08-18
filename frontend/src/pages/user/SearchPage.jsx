@@ -81,6 +81,7 @@ const SearchPage = () => {
     const [activeModalTab, setActiveModalTab] = useState('Quick Filters');
     const [previewCount, setPreviewCount] = useState(0);
     const [previewLoading, setPreviewLoading] = useState(false);
+    const [nearMeLoading, setNearMeLoading] = useState(false);
 
     // Filters State
     // Initialize filters from URL
@@ -699,11 +700,11 @@ const SearchPage = () => {
     }, [filters, location, showFilters]);
 
     const handleNearMe = async () => {
+        setNearMeLoading(true);
         try {
-            toast.loading('Getting location...');
+            toast.loading('Getting location...', { id: 'near-me' });
             const loc = await propertyService.getCurrentLocation();
-            toast.dismiss();
-            toast.success('Location found!');
+            toast.success('Showing properties near you', { id: 'near-me' });
             setLocation(loc);
             // Automatically confirm params with sort by distance
             updateFilter('sort', 'distance');
@@ -713,13 +714,15 @@ const SearchPage = () => {
                 return p;
             }, { replace: true });
         } catch (err) {
-            toast.dismiss();
-            toast.error('Could not get location. Please enable permissions.');
+            toast.error('Could not get location. Please enable permissions.', { id: 'near-me' });
+        } finally {
+            setNearMeLoading(false);
         }
     };
 
     const sortOptions = [
         { value: 'relevance', label: 'Relevance' },
+        { value: 'distance', label: 'Distance: Nearest first' },
         { value: 'newest', label: 'Newest first' },
         { value: 'priceAsc', label: 'Price Low to High' },
         { value: 'priceDesc', label: 'Price High to Low' },
@@ -757,7 +760,17 @@ const SearchPage = () => {
                                 {filters.areas && filters.areas.length > 0 ? filters.areas.join(', ') : (filters.search || "Search City/Locality/Project")}
                             </div>
                         </div>
-                        <button 
+                        <button
+                            onClick={handleNearMe}
+                            disabled={nearMeLoading}
+                            title="Search near my current location"
+                            className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-colors disabled:opacity-60 ${
+                                location ? 'border-blue-200 bg-blue-50 text-blue-600' : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                            }`}
+                        >
+                            <Navigation size={16} className={nearMeLoading ? 'animate-spin' : ''} />
+                        </button>
+                        <button
                             onClick={() => {
                                 if (!localStorage.getItem('user')) {
                                     toast.error('Please login to view saved places');

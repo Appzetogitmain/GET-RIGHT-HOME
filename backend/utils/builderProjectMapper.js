@@ -16,6 +16,10 @@ const DOCUMENT_FIELDS = [
 ];
 
 const SPEC_PREFIX = 'spec';
+// Require a camelCase word boundary right after the prefix (specStructure,
+// not specialRequirement) so an unrelated field can't be swept in just for
+// starting with the same four letters.
+const SPEC_KEY_RE = /^spec[A-Z]/;
 
 const CONSTRUCTION_STATUSES = ['Not Started', 'Under Construction', 'Finishing Stage', 'Completed'];
 
@@ -217,7 +221,7 @@ export const mapBuilderProjectFields = (dynamicData) => {
     : (dynamicData || {});
   const specifications = {};
   Object.keys(specSource).forEach(key => {
-    if (!key.startsWith(SPEC_PREFIX) || key.length === SPEC_PREFIX.length) return;
+    if (!SPEC_KEY_RE.test(key)) return;
     const value = toStr(specSource[key]);
     if (value === undefined) return;
     // specStructure -> structure
@@ -236,7 +240,19 @@ export const mapBuilderProjectFields = (dynamicData) => {
   if (documents.length) mapped.projectDocuments = documents;
 
   // --- Step 10: Construction Status ---
-  const rawStatus = toStr(get('currentConstructionStatus'));
+  // Step 10 doesn't collect a single "currentConstructionStatus" field — it
+  // branches entirely on Step 1's `projectStatus`, each branch with its own
+  // field names. Derive the promoted enum from that instead.
+  const projectStatus = toStr(get('projectStatus'));
+  const PROJECT_STATUS_TO_CONSTRUCTION_STATUS = {
+    'Pre Launch': 'Not Started',
+    'New Launch': 'Not Started',
+    'Under Construction': 'Under Construction',
+    'Ready To Move': 'Completed',
+    'Completed': 'Completed'
+  };
+  const derivedCurrentStatus = PROJECT_STATUS_TO_CONSTRUCTION_STATUS[projectStatus];
+
   const rawProgress = get('constructionProgress');
   const progress = rawProgress && typeof rawProgress === 'object' && !Array.isArray(rawProgress)
     ? Object.entries(rawProgress)
@@ -248,14 +264,20 @@ export const mapBuilderProjectFields = (dynamicData) => {
             .filter(p => p.stage && p.percentage !== undefined)
         : []);
 
-  // Step 10 now branches per projectStatus (Step 1), each branch with its own
-  // "expected possession" field name; fall back across all of them.
+  // Each projectStatus branch names its own "expected possession" field;
+  // fall back across all of them.
   const expectedPossession = get('expectedPossession') || get('expectedPossessionPL') || get('expectedPossessionNL');
 
+  // `completionPercentage` only exists as a field on the "Under Construction"
+  // branch — a Ready To Move / Completed project is 100% complete by definition.
+  const completionPercentage = derivedCurrentStatus === 'Completed'
+    ? 100
+    : clampPercent(get('completionPercentage'));
+
   const constructionStatus = compact({
-    // guard against a free-typed value failing the schema enum
-    currentStatus: CONSTRUCTION_STATUSES.includes(rawStatus) ? rawStatus : undefined,
-    completionPercentage: clampPercent(get('completionPercentage')),
+    // guard against an unmapped/free-typed value failing the schema enum
+    currentStatus: CONSTRUCTION_STATUSES.includes(derivedCurrentStatus) ? derivedCurrentStatus : undefined,
+    completionPercentage,
     expectedPossession: toDate(expectedPossession)
   });
   if (progress.length) constructionStatus.progress = progress;

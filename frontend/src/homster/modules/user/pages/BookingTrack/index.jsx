@@ -59,7 +59,10 @@ const BookingTrack = () => {
   const [duration, setDuration] = useState('');
   const [routePath, setRoutePath] = useState([]);
   const [isAutoCenter, setIsAutoCenter] = useState(true);
-  const [isNavigationMode, setIsNavigationMode] = useState(false);
+
+  // Once the rider has actually started the journey, the recenter button
+  // zooms in closer for a turn-by-turn feel instead of the wider overview zoom.
+  const isNavigationMode = booking?.status?.toLowerCase() === 'journey_started';
 
   const [paying, setPaying] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -420,7 +423,6 @@ const BookingTrack = () => {
 
   const [heading, setHeading] = useState(0);
   const prevLocationRef = useRef(null);
-  const lastRouteOriginRef = useRef(null);
 
   // Calculate Heading based on movement (Direction Sense)
   useEffect(() => {
@@ -464,7 +466,6 @@ const BookingTrack = () => {
   */
 
   // Calculate Route ONCE on initial load only
-  const initialBoundsSetRef = useRef(false);
   const directionsCalculatedRef = useRef(false);
 
   const fullRoutePathRef = useRef([]);
@@ -764,7 +765,7 @@ const BookingTrack = () => {
             setIsAutoCenter(true);
             if (map && currentLocation) {
               map.panTo(currentLocation);
-              map.setZoom(16);
+              map.setZoom(isNavigationMode ? 18 : 16);
             }
           }}
           className={`absolute top-40 right-4 p-4 rounded-full shadow-2xl transition-all active:scale-90 z-20 ${isAutoCenter ? 'bg-teal-600 text-white animate-pulse' : 'bg-white text-gray-700'}`}

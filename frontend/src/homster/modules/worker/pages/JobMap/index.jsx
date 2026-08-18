@@ -28,11 +28,14 @@ const JobMap = () => {
   const [isAutoCenter, setIsAutoCenter] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [map, setMap] = useState(null);
-  const [isNavigationMode, setIsNavigationMode] = useState(false);
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
   const [routeError, setRouteError] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSimulating, setIsSimulating] = useState(false);
+
+  // Once the worker has actually started the journey, the recenter button
+  // zooms in closer for a turn-by-turn feel instead of the wider overview zoom.
+  const isNavigationMode = job?.status === 'journey_started';
 
   // Network Status Listener
   useEffect(() => {
@@ -53,8 +56,6 @@ const JobMap = () => {
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES
   });
-
-  const mapRef = useRef(null);
 
   useEffect(() => {
     const fetchJob = async () => {

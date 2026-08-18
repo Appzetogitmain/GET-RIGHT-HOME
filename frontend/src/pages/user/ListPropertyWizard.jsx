@@ -30,15 +30,19 @@ const ListPropertyWizard = () => {
   }, []);
 
   // Builders already have a dedicated 15-step project stepper, so skip this
-  // basic-details screen entirely and jump straight in with sensible defaults.
+  // basic-details screen entirely and jump straight in. Defaults to a
+  // Residential project unless the caller (e.g. the builder dashboard's
+  // "Add Commercial Project" button) explicitly asked for Commercial via
+  // location.state.category.
   useEffect(() => {
     if (user?.role === 'builder') {
+      const requestedCategory = location.state?.category === 'Commercial' ? 'Commercial' : 'Residential';
       navigate('/list-property/dynamic-form', {
         replace: true,
         state: {
           transactionType: 'Sell',
-          category: 'Residential',
-          propertyType: 'Apartment'
+          category: requestedCategory,
+          propertyType: requestedCategory === 'Commercial' ? 'Other' : 'Apartment'
         }
       });
     }
