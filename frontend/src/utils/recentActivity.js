@@ -39,6 +39,14 @@ export const addRecentSearch = (entry) => {
 
 export const getRecentSearches = () => readList(SEARCH_KEY);
 
+export const removeRecentSearch = (label) => {
+  const next = readList(SEARCH_KEY).filter((s) => s.label !== label);
+  writeList(SEARCH_KEY, next);
+  return next;
+};
+
+export const clearRecentSearches = () => writeList(SEARCH_KEY, []);
+
 /**
  * property: { id, name, image, city, url }
  */

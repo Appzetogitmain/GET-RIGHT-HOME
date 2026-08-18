@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { playNotificationSound, isSoundEnabled, playAlertRing } from '../utils/notificationSound';
+import { playNotificationSound, isSoundEnabled, playAlertRing, stopAlertRing } from '../utils/notificationSound';
 import { registerFCMToken, setupForegroundNotificationHandler } from '../services/pushNotificationService';
 
 const SwipeableNotification = ({ t, data, onClick }) => {
@@ -251,13 +251,17 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('booking_updated', (data) => {
       console.log(`[Socket] 📦 '${userType}' received BOOKING_UPDATED:`, data);
       
+      const status = (data.status || (data.data && data.data.status))?.toLowerCase();
+      if (['cancelled', 'rejected', 'failed', 'no_workers', 'no_vendors', 'completed', 'work_done'].includes(status)) {
+        stopAlertRing();
+      }
+
       if (userType === 'user') {
         const stored = localStorage.getItem('activeAssignedBooking');
         if (stored) {
           try {
              const activeData = JSON.parse(stored);
              const updatedBookingId = data.bookingId || data._id || (data.data && data.data._id);
-             const status = (data.status || (data.data && data.data.status))?.toLowerCase();
              
              if (activeData.bookingId === updatedBookingId && ['completed', 'cancelled', 'rejected', 'work_done'].includes(status)) {
                localStorage.removeItem('activeAssignedBooking');
@@ -303,6 +307,7 @@ export const SocketProvider = ({ children }) => {
     // Listen for special Worker Job Assignments
     if (userType === 'worker') {
       newSocket.on('job_cancelled', (data) => {
+        stopAlertRing();
         const bookingId = data.bookingId;
         if (bookingId) {
           // Remove from local storage
@@ -315,7 +320,7 @@ export const SocketProvider = ({ children }) => {
           window.dispatchEvent(new Event('workerJobsUpdated'));
           
           import('react-hot-toast').then(({ toast }) => {
-            toast.error(data.message || 'Job cancelled by customer');
+            toast.error(data.message || 'Job cancelled');
           });
         }
       });

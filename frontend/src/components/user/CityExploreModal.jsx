@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Search, History } from 'lucide-react';
 import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import { setPreferredCity } from '../../utils/locationPreference';
-import { getRecentSearches } from '../../utils/recentActivity';
+import { getRecentSearches, removeRecentSearch, clearRecentSearches } from '../../utils/recentActivity';
 import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 
 /**
@@ -45,6 +45,17 @@ const CityExploreModal = ({ isOpen, onClose }) => {
     const extractName = (components = []) => {
         const find = (type) => components.find((c) => c.types.includes(type))?.long_name;
         return find('sublocality_level_1') || find('sublocality') || find('locality') || find('administrative_area_level_2') || find('administrative_area_level_1') || null;
+    };
+
+    const handleRemoveSearch = (e, label) => {
+        e.stopPropagation();
+        setRecentSearches(removeRecentSearch(label));
+    };
+
+    const handleClearAllSearches = (e) => {
+        e.stopPropagation();
+        clearRecentSearches();
+        setRecentSearches([]);
     };
 
     const handlePlaceChanged = () => {
@@ -106,16 +117,32 @@ const CityExploreModal = ({ isOpen, onClose }) => {
 
                 {recentSearches.length > 0 && (
                     <div className="mt-6">
-                        <p className="text-[13px] font-bold text-gray-500 mb-2.5">Continue browsing where you left off&hellip;</p>
+                        <div className="flex items-center justify-between mb-2.5">
+                            <p className="text-[13px] font-bold text-gray-500">Continue browsing where you left off&hellip;</p>
+                            <button
+                                onClick={handleClearAllSearches}
+                                className="text-[11px] font-bold text-gray-400 hover:text-red-500 transition-colors"
+                            >
+                                Clear all
+                            </button>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                             {recentSearches.map((s) => (
-                                <button
+                                <div
                                     key={s.label}
                                     onClick={() => { onClose(); navigate(s.url); }}
-                                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-gray-200 bg-white text-[13px] font-semibold text-gray-700 hover:border-orange-300 hover:text-orange-600 transition-colors"
+                                    className="group flex items-center gap-1.5 pl-3.5 pr-1.5 py-1.5 rounded-full border border-gray-200 bg-white text-[13px] font-semibold text-gray-700 hover:border-orange-300 hover:text-orange-600 transition-colors cursor-pointer"
                                 >
-                                    <History size={12} className="text-gray-400" /> {s.label}
-                                </button>
+                                    <History size={12} className="text-gray-400 shrink-0" />
+                                    {s.label}
+                                    <button
+                                        onClick={(e) => handleRemoveSearch(e, s.label)}
+                                        title="Remove"
+                                        className="p-0.5 rounded-full text-gray-300 hover:text-white hover:bg-red-400 transition-colors shrink-0"
+                                    >
+                                        <X size={11} />
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     </div>

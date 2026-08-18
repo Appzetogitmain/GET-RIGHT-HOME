@@ -1385,10 +1385,10 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
   const localityNegatives = localityStats?.negatives || [];
 
   return (
-    <div className="bg-[#f8fafe] min-h-screen pb-32 pt-28 text-gray-800 font-sans selection:bg-blue-100 antialiased">
+    <div className="bg-[#f8fafe] min-h-screen pb-32 pt-24 lg:pt-28 text-gray-800 font-sans selection:bg-blue-100 antialiased">
       
       {/* Premium Top Navigation Action Bar */}
-      <div className="fixed top-0 w-full bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 z-40 transition-all">
+      <div className="fixed top-0 lg:top-20 w-full bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 z-40 transition-all">
         <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => goBackOrHome(navigate)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">

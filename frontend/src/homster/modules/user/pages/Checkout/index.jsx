@@ -82,7 +82,7 @@ const Checkout = () => {
   const [selectedTime, setSelectedTime] = useState(null);
   const [visitedFee, setVisitedFee] = useState(29);
   const [gstPercentage, setGstPercentage] = useState(18);
-  const [bookingType, setBookingType] = useState('instant'); // 'instant' | 'scheduled'
+  const [bookingType, setBookingType] = useState('scheduled'); // Default to 'scheduled' for regular slot bookings
 
   // Promo Code States
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -300,8 +300,15 @@ const Checkout = () => {
   const cartIsInstant = cartItems.length > 0 && cartItems.every(item => item.isInstant);
 
   useEffect(() => {
-    if (cartIsInstant) setBookingType('instant');
-  }, [cartIsInstant]);
+    if (cartIsInstant) {
+      setBookingType('instant');
+    } else {
+      setBookingType('scheduled');
+      if (!selectedDate) {
+        setSelectedDate(new Date());
+      }
+    }
+  }, [cartIsInstant, selectedDate]);
 
   const loadCart = async () => {
     let items = globalCartItems || [];
@@ -358,7 +365,6 @@ const Checkout = () => {
     try {
       const response = await removeItemGlobal(itemId);
       if (response.success) {
-        toast.success('Item removed');
         fetchCartGlobal();
       } else {
         toast.error(response.message || 'Failed to remove item');
@@ -1832,34 +1838,17 @@ const Checkout = () => {
       {/* Bottom Action Button */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
 
-        {/* Booking Type — instant-only carts skip the toggle entirely, since
-            offering a scheduled slot on an express booking doesn't make sense */}
+        {/* Booking Type — instant-only carts show Express Instant, regular carts show Scheduled Slot Booking */}
         <div className="px-4 pt-3 pb-0">
           {cartIsInstant ? (
             <div className="flex items-center justify-center gap-2 py-2 rounded-xl bg-green-50 border border-green-100 mb-1">
               <span className="text-yellow-500">⚡</span>
-              <span className="text-sm font-bold text-black">Instant Booking</span>
+              <span className="text-sm font-bold text-black">Instant Express Booking</span>
             </div>
           ) : (
-            <div className="flex bg-gray-100 p-1 rounded-xl mb-1">
-              <button
-                onClick={() => setBookingType('instant')}
-                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${bookingType === 'instant' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
-              >
-                <span className="text-yellow-500">⚡</span> Book
-              </button>
-              <button
-                onClick={() => {
-                  setBookingType('scheduled');
-                  setShowTimeSlotModal(true);
-                  if (!selectedDate) {
-                    setSelectedDate(getDates()[0]);
-                  }
-                }}
-                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${bookingType === 'scheduled' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
-              >
-                <span>📅</span> Slot
-              </button>
+            <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-50 border border-teal-100 mb-1">
+              <span className="text-teal-600 text-base">📅</span>
+              <span className="text-sm font-bold text-teal-900">Scheduled Slot Booking</span>
             </div>
           )}
           {bookingType === 'instant' && (

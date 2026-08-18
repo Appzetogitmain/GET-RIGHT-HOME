@@ -3,8 +3,9 @@ const router = express.Router();
 import { body } from 'express-validator';
 import { authenticate } from '../../middlewares/authMiddleware.js';
 import { isWorker } from '../../middlewares/authMiddleware.js';
-import { 
+import {
   getAssignedJobs,
+  getPendingRequests,
   getJobById,
   updateJobStatus,
   startJob,
@@ -36,6 +37,9 @@ const addNotesValidation = [
 
 // Routes
 router.get('/', authenticate, isWorker, getAssignedJobs);
+// Must come before '/:id' — otherwise Express would match "pending-requests"
+// as an :id param and route it into getJobById instead.
+router.get('/pending-requests', authenticate, isWorker, getPendingRequests);
 router.get('/:id', authenticate, isWorker, getJobById);
 router.put('/:id/respond', authenticate, isWorker, respondValidation, respondToJob);
 router.put('/:id/status', authenticate, isWorker, updateStatusValidation, updateJobStatus);

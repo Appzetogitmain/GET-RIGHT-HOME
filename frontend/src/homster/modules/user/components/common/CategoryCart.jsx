@@ -32,9 +32,7 @@ const CategoryCart = ({
   const handleDelete = async (itemId) => {
     try {
       const response = await removeItem(itemId);
-      if (response.success) {
-        toast.success('Item removed from cart');
-      } else {
+      if (!response.success) {
         toast.error(response.message || 'Failed to remove item');
       }
     } catch (error) {

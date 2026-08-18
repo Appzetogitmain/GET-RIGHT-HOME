@@ -60,7 +60,6 @@ const Cart = () => {
       for (const item of itemsInSub) {
         await removeItem(item._id || item.id);
       }
-      toast.success(`${subCategoryName} items removed`);
     } catch (error) {
       toast.error('Failed to remove items');
     }

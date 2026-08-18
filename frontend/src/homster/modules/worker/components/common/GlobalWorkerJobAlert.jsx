@@ -171,9 +171,80 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) 
   );
 };
 
+// Shapes a /workers/jobs/pending-requests row into the same object the
+// socket handlers build in SocketContext, so both sources render through
+// the identical WorkerAlertCard.
+const mapPendingRequestToJob = (data) => ({
+  id: data.bookingId,
+  _id: data.bookingId,
+  serviceType: data.serviceName || 'Service',
+  customerName: data.customerName,
+  customerPhone: data.customerPhone,
+  location: {
+    address: data.address?.addressLine1 || 'Location shared',
+    distance: data.distance ? `${data.distance.toFixed(1)} km` : 'Near you'
+  },
+  price: data.price,
+  serviceCategory: data.serviceCategory,
+  brandName: data.brandName,
+  brandIcon: data.brandIcon,
+  categoryIcon: data.categoryIcon,
+  bookedItems: data.bookedItems,
+  requirementText: data.requirementText,
+  isConsultancyRequest: data.isConsultancyRequest,
+  isEstimateBased: data.isEstimateBased,
+  scheduledDate: data.scheduledDate,
+  scheduledTime: data.scheduledTime,
+  timeSlot: {
+    date: data.scheduledDate ? new Date(data.scheduledDate).toLocaleDateString() : '',
+    time: data.scheduledTime
+  },
+  status: 'requested',
+  createdAt: data.createdAt || new Date().toISOString(),
+  expiresAt: data.expiresAt
+});
+
 export default function GlobalWorkerJobAlert() {
   const [activeAlerts, setActiveAlerts] = useState([]);
   const navigate = useNavigate();
+
+  // Catch up on any job offer sent while the app wasn't connected to receive
+  // the live socket alert (still loading, tab backgrounded, network drop) —
+  // runs on mount and again whenever the tab regains focus/network.
+  useEffect(() => {
+    const fetchPending = async () => {
+      try {
+        const res = await workerService.getPendingRequests();
+        if (!res?.success || !res.data?.length) return;
+        setActiveAlerts((prev) => {
+          const known = new Set(prev.map((b) => String(b.id || b._id)));
+          const missed = res.data
+            .map(mapPendingRequestToJob)
+            .filter((job) => !known.has(String(job.id)));
+          if (missed.length === 0) return prev;
+          playAlertRing(true);
+          return [...missed, ...prev];
+        });
+      } catch {
+        // Silent — this is a best-effort catch-up, not the primary delivery path
+      }
+    };
+
+    fetchPending();
+    window.addEventListener('focus', fetchPending);
+    window.addEventListener('online', fetchPending);
+    return () => {
+      window.removeEventListener('focus', fetchPending);
+      window.removeEventListener('online', fetchPending);
+    };
+  }, []);
+
+  // Stop sound ring whenever no active alerts remain
+  useEffect(() => {
+    if (activeAlerts.length === 0) {
+      stopAlertRing();
+    }
+  }, [activeAlerts]);
 
   useEffect(() => {
     const handleShowAlert = (e) => {
@@ -192,18 +263,10 @@ export default function GlobalWorkerJobAlert() {
 
     const handleRemoveAlert = (e) => {
       if (e.detail?.id) {
-        setActiveAlerts(prev => {
-          const np = prev.filter(b => String(b.id || b._id) !== String(e.detail.id));
-          return np;
-        });
-        
-        // Use a setTimeout to allow state to settle, or check current length
-        setActiveAlerts(prev => {
-          if (prev.length === 0) { 
-             stopAlertRing();
-          }
-          return prev;
-        });
+        setActiveAlerts(prev => prev.filter(b => String(b.id || b._id) !== String(e.detail.id)));
+      } else {
+        setActiveAlerts([]);
+        stopAlertRing();
       }
     };
 

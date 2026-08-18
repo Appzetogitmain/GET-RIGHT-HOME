@@ -1,19 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search,
     MapPin,
     ChevronRight,
     Star,
-    Clock,
     ShieldCheck,
     ArrowLeft,
     Sparkles,
-    Hammer,
-    Wrench,
     Paintbrush,
-    Wind,
-    Droplets,
     Zap,
     Bug,
     Briefcase,
@@ -28,8 +23,6 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCity } from '../../homster/context/CityContext';
-import { useCart } from '../../homster/context/CartContext';
-import CategoryModal from '../../homster/modules/user/pages/Home/components/CategoryModal';
 import BottomNav from '../../homster/modules/user/components/layout/BottomNav';
 import ActiveBookingCard from '../../homster/modules/user/pages/Home/components/ActiveBookingCard';
 import { userService } from '../../services/apiService';
@@ -44,22 +37,10 @@ const toAssetUrl = (url) => {
     return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
 
-// Rotating icon/color/badge treatment for whichever services admin has
-// flagged instant — real content varies, this just keeps the cards visually
-// distinct without needing per-service icon/color fields.
-const INSTANT_STYLES = [
-    { icon: Zap, color: 'from-amber-500 to-orange-600', badge: '⚡ HOT' },
-    { icon: Droplets, color: 'from-blue-500 to-cyan-600', badge: 'QUICK' },
-    { icon: Wind, color: 'from-emerald-500 to-teal-600', badge: 'EXPRESS' },
-    { icon: Wrench, color: 'from-purple-500 to-indigo-600', badge: 'INSTANT' },
-    { icon: Hammer, color: 'from-rose-500 to-red-600', badge: '⚡ FAST' }
-];
-
 const HomeServicesPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { currentCity } = useCity();
-    const { addToCart } = useCart();
     const [searchQuery, setSearchQuery] = useState('');
     const [isScrolled, setIsScrolled] = useState(false);
     const [vipLoading, setVipLoading] = useState(false);
@@ -121,56 +102,27 @@ const HomeServicesPage = () => {
     const [directServicesMap, setDirectServicesMap] = useState({});
     const [directSubCategoriesMap, setDirectSubCategoriesMap] = useState({});
     const [instantServices, setInstantServices] = useState([]);
-    const [instantBookingIds, setInstantBookingIds] = useState([]);
 
-    // Modal State
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState(null);
+    // Which categories actually have an instant-eligible service, so the
+    // ⚡ badge below only shows up where it's true (e.g. once admin flags an
+    // AC repair service as instant, "AC Service & Appliances" gets the badge).
+    const instantCategoryIds = new Set(
+        instantServices.map((s) => String(s.categoryId?._id || s.categoryId))
+    );
+    const fastestInstantEta = instantServices.length > 0
+        ? Math.min(...instantServices.map((s) => s.instantEtaMinutes || 30))
+        : 30;
 
-    const openCategoryModal = (cat) => {
-        setSelectedCategory(cat);
-        setIsModalOpen(true);
-    };
-
-    // Instant Booking cards map straight to a real Service now, so tapping
-    // one adds it to the cart directly instead of opening the category
-    // browse flow — the whole point of "instant" is skipping that.
-    const handleInstantBook = async (service) => {
-        const serviceId = service.id || service._id;
-        if (instantBookingIds.includes(serviceId)) return;
-        setInstantBookingIds(prev => [...prev, serviceId]);
-        try {
-            const cartItemData = {
-                serviceId,
-                categoryId: service.categoryId?._id || service.categoryId,
-                subCategoryId: service.subCategoryId?._id || service.subCategoryId || undefined,
-                title: service.title,
-                description: service.description || '',
-                icon: toAssetUrl(service.icon || service.imageUrl || ''),
-                category: service.categoryId?.title || '',
-                subCategory: service.subCategoryId?.title || '',
-                price: service.discountPrice || service.basePrice,
-                unitPrice: service.discountPrice || service.basePrice,
-                serviceCount: 1,
-                // Marks this cart item as express/instant — Checkout reads
-                // this to skip the slot picker entirely for these bookings
-                // instead of offering a scheduled-vs-instant toggle.
-                isInstant: true,
-            };
-            const response = await addToCart(cartItemData);
-            if (response.success) {
-                toast.success(`${service.title} added — redirecting to checkout...`);
-                setTimeout(() => navigate('/user/cart'), 900);
-            } else {
-                toast.error(response.message || 'Failed to add to cart');
-            }
-        } catch (err) {
-            console.error('Instant booking add-to-cart failed:', err);
-            toast.error('Failed to add to cart');
-        } finally {
-            setInstantBookingIds(prev => prev.filter(id => id !== serviceId));
-        }
-    };
+    // Tapping a category (or the Instant Services tile) is a full-page
+    // navigation now, not a popup — /home-services/category/:id renders the
+    // same sub-category/service browse flow the modal used to, and
+    // /home-services/instant is the equivalent for instant services.
+    const openCategoryModal = useCallback((cat) => {
+        if (!cat) return;
+        const id = cat.id || cat._id;
+        if (!id) return;
+        navigate(`/home-services/category/${id}`, { state: { category: cat } });
+    }, [navigate]);
 
     const [promos, setPromos] = useState([]);
     const [curations, setCurations] = useState([]);
@@ -190,21 +142,16 @@ const HomeServicesPage = () => {
         if (stored) setUser(stored);
     }, []);
 
-    // Check location state for openCategory request
+    // Check location state for openCategory request (e.g. "Explore Other
+    // Services" cards elsewhere link here with a category to jump straight into)
     useEffect(() => {
         if (location.state?.openCategory) {
             const cat = location.state.openCategory;
             // Clean up state so refresh doesn't reopen
             window.history.replaceState({}, document.title);
-            if (cat.isDirectService) {
-                 // For direct services we don't open modal, we let them navigate but wait, direct services don't use modal.
-                 // Actually they do if we pass them, or maybe it's better to just call openCategoryModal(cat)
-                 openCategoryModal(cat);
-            } else {
-                 openCategoryModal(cat);
-            }
+            openCategoryModal(cat);
         }
-    }, [location.state]);
+    }, [location.state, openCategoryModal]);
 
     useEffect(() => {
         const fetchHomeData = async () => {
@@ -297,16 +244,24 @@ const HomeServicesPage = () => {
         <div className="min-h-screen bg-[#F8FAFC] pb-24 font-sans">
             {/* Full-Width Edge-to-Edge Banner Section */}
             <div className="relative w-full">
-                {/* Full-Width Carousel Container (overflow-hidden with rounded bottom corners) */}
-                <div className="relative w-full h-[64vw] sm:h-80 bg-gray-150 overflow-hidden shadow-sm rounded-b-[2.5rem] sm:rounded-b-[3rem]">
+                {/* Full-Width Carousel Container */}
+                <div className="relative w-full h-64 sm:h-80 md:h-96 bg-gray-900 overflow-hidden shadow-md rounded-b-[2.5rem] sm:rounded-b-[3rem]">
                     <div
                         ref={scrollContainerRef}
                         onScroll={handleBannerScroll}
                         className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-full"
                     >
-                        {promos.map((promo) => (
+                        {((promos && promos.length > 0) ? promos : [
+                            {
+                                id: 'default-promo-1',
+                                title: 'Instant Home Services & Repairs',
+                                subtitle: 'Expert technicians delivered to your door in 30 minutes',
+                                imageUrl: '/instant-service.png',
+                                features: ['30 Min Arrival', 'Verified Technicians', 'Satisfaction Guaranteed']
+                            }
+                        ]).map((promo) => (
                             <motion.div
-                                key={promo.id}
+                                key={promo.id || promo._id}
                                 onClick={() => {
                                     if (promo.targetCategoryId) {
                                         const cat = categories.find(c => (c.id || c._id) === promo.targetCategoryId);
@@ -318,21 +273,33 @@ const HomeServicesPage = () => {
                                 className="min-w-full snap-center h-full relative cursor-pointer flex-shrink-0"
                             >
                                 <img
-                                    src={promo.imageUrl || promo.image}
-                                    alt={promo.title}
-                                    className="absolute inset-0 w-full h-full object-cover"
+                                    src={promo.imageUrl || promo.image || '/instant-service.png'}
+                                    alt={promo.title || 'Home Service'}
+                                    className="absolute inset-0 w-full h-full object-cover object-top sm:object-center"
                                 />
-                                {/* Bottom Overlay */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 pb-12 md:p-8">
-                                    <div className="space-y-1.5 md:space-y-2">
-                                        {(promo.features || [promo.title, promo.subtitle].filter(Boolean)).map((feature, i) => (
-                                            <div key={i} className="flex items-center gap-2">
-                                                <div className="bg-orange-500 rounded-md p-0.5">
-                                                    <CheckCircle2 size={12} className="text-white fill-orange-500" />
+                                {/* Gradient Bottom Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-end p-5 sm:p-7 pb-16 sm:pb-20">
+                                    <div className="space-y-1.5 sm:space-y-2 max-w-xl">
+                                        {promo.title && (
+                                            <h3 className="text-lg sm:text-2xl md:text-3xl font-black text-white leading-tight drop-shadow-md">
+                                                {promo.title}
+                                            </h3>
+                                        )}
+                                        {promo.subtitle && (
+                                            <p className="text-xs sm:text-sm font-semibold text-gray-200 line-clamp-1 drop-shadow">
+                                                {promo.subtitle}
+                                            </p>
+                                        )}
+                                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                                            {(promo.features || [promo.title, promo.subtitle].filter(Boolean)).map((feature, i) => (
+                                                <div key={i} className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/15 shadow-sm">
+                                                    <div className="bg-orange-500 rounded-sm p-0.5">
+                                                        <CheckCircle2 size={10} className="text-white fill-orange-500" />
+                                                    </div>
+                                                    <span className="text-[10px] sm:text-xs font-extrabold text-white uppercase tracking-wider">{feature}</span>
                                                 </div>
-                                                <span className="text-xs md:text-sm font-black text-white uppercase tracking-wide">{feature}</span>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>
@@ -340,8 +307,8 @@ const HomeServicesPage = () => {
                     </div>
 
                     {/* Floating Carousel Indicators */}
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex justify-center gap-2 z-20">
-                        {promos.map((_, i) => (
+                    <div className="absolute bottom-12 sm:bottom-14 left-1/2 -translate-x-1/2 flex justify-center gap-2 z-20">
+                        {((promos && promos.length > 0) ? promos : [1]).map((_, i) => (
                             <div
                                 key={i}
                                 className={`h-1.5 rounded-full transition-all duration-300 ${activeBanner === i ? 'w-6 bg-orange-500' : 'w-1.5 bg-white/50'}`}
@@ -371,7 +338,7 @@ const HomeServicesPage = () => {
                     </div>
                 </div>
 
-                {/* Overlapping Floating Search Bar (Placed OUTSIDE overflow parent to prevent clipping) */}
+                {/* Overlapping Floating Search Bar */}
                 <div className="absolute bottom-0 left-6 right-6 translate-y-1/2 z-30 max-w-xl mx-auto">
                     <div className="flex items-center bg-white border border-gray-100 rounded-xl px-4 py-3.5 shadow-lg shadow-gray-200/80 gap-2.5">
                         <Search size={18} className="text-gray-400 flex-shrink-0 stroke-[3]" />
@@ -399,41 +366,80 @@ const HomeServicesPage = () => {
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Premium Home Solutions for Every Need</p>
                 </div>
 
-                <div className="grid grid-cols-4 gap-y-4 gap-x-2">
+                <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
+                    {/* Dedicated Instant Services Tile */}
+                    <motion.button
+                        whileHover={{ y: -6 }}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => navigate('/home-services/instant')}
+                        className="w-full h-32 sm:h-40 bg-white border border-amber-200/80 rounded-2xl shadow-sm overflow-hidden flex flex-col p-2.5 sm:p-3 relative group cursor-pointer text-left ring-2 ring-amber-400/20"
+                    >
+                        <span className="text-[9px] sm:text-xs font-black text-gray-900 leading-tight line-clamp-1 mb-1.5 sm:mb-2">
+                            Instant Booking
+                        </span>
+                        <div className="flex-1 relative rounded-xl overflow-hidden bg-gray-100">
+                            <img
+                                src="/instant-service.png"
+                                alt="Instant Booking"
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent flex items-end justify-between p-1.5">
+                                <span className="text-[8px] sm:text-[10px] font-black text-white flex items-center gap-0.5">
+                                    <Zap size={9} className="text-amber-400 fill-amber-400" /> Instant
+                                </span>
+                                <span className="text-[7px] sm:text-[9px] font-black text-white bg-amber-500/90 px-1 py-0.5 rounded uppercase">
+                                    ⚡ {fastestInstantEta}m
+                                </span>
+                            </div>
+                        </div>
+                    </motion.button>
+
                     {categories.map((cat) => (
                         <motion.button
                             key={cat.id || cat._id}
                             whileHover={{ y: -6 }}
                             whileTap={{ scale: 0.96 }}
                             onClick={() => openCategoryModal(cat)}
-                            className="w-full h-32 sm:h-40 bg-white border border-gray-100 rounded-xl shadow-md shadow-gray-100/50 overflow-hidden flex flex-col justify-between relative group cursor-pointer"
+                            className="w-full h-32 sm:h-40 bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col p-2.5 sm:p-3 relative group cursor-pointer text-left"
                         >
-                            {/* Centered Title on Top */}
-                            <div className="p-2 sm:p-3 pt-3 sm:pt-4 text-center z-10 flex flex-col items-center justify-center flex-1 w-full">
-                                <span className="text-[9px] sm:text-xs font-black text-gray-800 uppercase tracking-tight leading-tight line-clamp-2">
-                                    {cat.title || cat.name}
-                                </span>
-                            </div>
+                            {/* Title top-left */}
+                            <span className="text-[9px] sm:text-xs font-black text-gray-900 leading-tight line-clamp-2 mb-1.5 sm:mb-2">
+                                {cat.title || cat.name}
+                            </span>
 
-                            {/* High Quality Category Image at the bottom */}
-                            <div className="w-full h-[58%] relative overflow-hidden flex-shrink-0 bg-gray-50/50">
+                            {/* Framed category photo below the title */}
+                            <div className="flex-1 relative rounded-xl overflow-hidden bg-gray-50">
                                 <img
                                     src={cat.imageUrl || cat.image || cat.homeIconUrl}
                                     alt={cat.title || cat.name}
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                 />
-                                {/* Overlay Gradient blending image into the top white background */}
-                                <div className="absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-white via-white/40 to-transparent" />
+
+                                {/* ⚡ Instant badge — only for categories that actually have an
+                                    instant-eligible service. Tapping it jumps straight to booking
+                                    one, instead of going through the category → sub-category →
+                                    service browse flow. */}
+                                {instantCategoryIds.has(String(cat.id || cat._id)) && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate(`/home-services/instant?category=${String(cat.id || cat._id)}`);
+                                        }}
+                                        className="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter"
+                                    >
+                                        <Zap size={7} className="fill-white" /> Instant
+                                    </button>
+                                )}
 
                                 {/* Premium Overlay Badge logic placed cleanly on the image itself to prevent title clipping */}
                                 {(cat.hasSaleBadge && cat.homeBadge) ? (
-                                    <div className="absolute top-2 right-2 z-20">
+                                    <div className="absolute top-1.5 right-1.5 z-20">
                                         <span className="bg-emerald-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
                                             {cat.homeBadge}
                                         </span>
                                     </div>
                                 ) : cat.isPopular ? (
-                                    <div className="absolute top-2 right-2 z-20">
+                                    <div className="absolute top-1.5 right-1.5 z-20">
                                         <span className="bg-[#D68F35] text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
                                             POPULAR
                                         </span>
@@ -444,115 +450,6 @@ const HomeServicesPage = () => {
                     ))}
                 </div>
             </section>
-
-            {/* Instant Booking Section (30-45 Min Express Service Hub) —
-                driven by services admin has flagged "Show in Instant Booking"
-                (Home Services admin → Services). Hidden entirely if none are flagged. */}
-            {instantServices.length > 0 && (
-            <section className="mt-12 px-5 max-w-7xl mx-auto">
-                <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-emerald-500/10 border border-amber-500/20 rounded-[2.2rem] p-5 sm:p-7 relative overflow-hidden shadow-xl shadow-amber-500/5">
-                    {/* Ambient Glow */}
-                    <div className="absolute -top-10 -right-10 w-48 h-48 bg-amber-400/15 rounded-full blur-3xl pointer-events-none" />
-                    <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
-
-                    {/* Section Header */}
-                    <div className="flex items-center justify-between mb-6 z-10 relative">
-                        <div className="flex flex-col">
-                            <div className="flex items-center gap-2 mb-1.5">
-                                <span className="flex h-2.5 w-2.5 relative">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-                                </span>
-                                <span className="text-[10px] font-black text-amber-600 uppercase tracking-[0.25em]">Express Dispatch</span>
-                            </div>
-                            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight leading-none flex items-center gap-2">
-                                <span>Instant</span>
-                                <span className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 bg-clip-text text-transparent flex items-center gap-1">
-                                    Booking <Zap size={22} className="text-amber-500 fill-amber-400 animate-bounce" />
-                                </span>
-                            </h2>
-                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1.5">
-                                Verified Technicians at your doorstep in 30–45 minutes
-                            </p>
-                        </div>
-
-                        {/* Quick Status Tag */}
-                        <div className="hidden sm:flex items-center gap-2 bg-white/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-amber-200 shadow-sm text-xs font-bold text-amber-800">
-                            <Clock size={14} className="text-amber-500 animate-spin" style={{ animationDuration: '4s' }} />
-                            <span>⚡ Live Slot Available</span>
-                        </div>
-                    </div>
-
-                    {/* Instant Services Cards Carousel / Grid */}
-                    <div className="flex overflow-x-auto gap-4 no-scrollbar pb-2 -mx-1 px-1 snap-x snap-mandatory">
-                        {instantServices.map((service, idx) => {
-                            const style = INSTANT_STYLES[idx % INSTANT_STYLES.length];
-                            const IconComponent = style.icon;
-                            const serviceId = service.id || service._id;
-                            const isBooking = instantBookingIds.includes(serviceId);
-                            const price = service.discountPrice || service.basePrice;
-                            const subtitle = service.subheading || service.categoryId?.title || service.subCategoryId?.title || '';
-                            return (
-                                <motion.div
-                                    key={serviceId}
-                                    whileHover={{ y: -4, scale: 1.02 }}
-                                    whileTap={{ scale: 0.97 }}
-                                    onClick={() => handleInstantBook(service)}
-                                    className="min-w-[220px] sm:min-w-[240px] snap-center bg-white rounded-2xl border border-amber-100/80 p-4 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between relative group cursor-pointer"
-                                >
-                                    {/* Top Badge & ETA Pill */}
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="bg-amber-100 text-amber-800 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                            {style.badge}
-                                        </span>
-                                        <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
-                                            <Clock size={10} className="text-emerald-600 animate-pulse" />
-                                            <span>{service.instantEtaMinutes || 30} Mins</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Service Icon & Info */}
-                                    <div className="flex items-start gap-3 mb-4">
-                                        <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${style.color} text-white flex items-center justify-center shadow-md shrink-0 group-hover:scale-110 transition-transform overflow-hidden`}>
-                                            {(service.imageUrl || service.icon) ? (
-                                                <img src={toAssetUrl(service.imageUrl || service.icon)} alt="" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <IconComponent size={22} className="stroke-[2.5]" />
-                                            )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-extrabold text-gray-900 text-xs sm:text-sm leading-tight group-hover:text-amber-600 transition-colors line-clamp-1">
-                                                {service.title}
-                                            </h4>
-                                            {subtitle && (
-                                                <p className="text-[10px] font-semibold text-gray-400 leading-tight mt-0.5 line-clamp-1">
-                                                    {subtitle}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Bottom Row: Price & Action Button */}
-                                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                                        <div>
-                                            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">Visiting</div>
-                                            <span className="text-xs font-black text-gray-900">₹{price}</span>
-                                        </div>
-                                        <button
-                                            disabled={isBooking}
-                                            className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-black uppercase px-3.5 py-1.5 rounded-xl shadow-md shadow-amber-500/30 flex items-center gap-1 group-hover:scale-105 transition-all disabled:opacity-60"
-                                        >
-                                            <span>{isBooking ? 'Adding...' : 'Book'}</span>
-                                            {!isBooking && <Zap size={11} className="fill-white stroke-none" />}
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </section>
-            )}
 
             {/* Thoughtful Curations */}
             {homeData?.isCuratedVisible !== false && curations.length > 0 && (
@@ -1517,13 +1414,6 @@ const HomeServicesPage = () => {
             )}
 
             {/* Custom Bottom Nav for Home Services */}
-            {/* Category Modal */}
-            <CategoryModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                category={selectedCategory}
-                currentCity={currentCity}
-            />
 
             {/* Active Booking Card (Shows when a worker is assigned) */}
             <ActiveBookingCard />

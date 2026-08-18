@@ -37,8 +37,9 @@ const PropertyDetailsDispatcher = () => {
           
           if (isProject) {
             setIsHandpicked(true);
+            setLoading(false);
             // Route all Projects to the premium Handpicked/Project Details UI
-            navigate(`/project/${p._id}`, { replace: true });
+            navigate(`/project/${p._id || id}`, { replace: true });
           } else {
             setIsHandpicked(false);
             setPrefetchedDetails({ id, response });
@@ -54,7 +55,8 @@ const PropertyDetailsDispatcher = () => {
       } catch (err) {
         if (isMounted) {
           console.error('Error in PropertyDetailsDispatcher:', err);
-          setError(err.message || 'Failed to load property details');
+          const messageStr = typeof err === 'string' ? err : (err?.message || 'Property or Project not found');
+          setError(messageStr);
           setLoading(false);
         }
       }

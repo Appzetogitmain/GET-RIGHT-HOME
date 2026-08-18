@@ -92,7 +92,15 @@ api.interceptors.request.use((config) => {
     // Followers attach their own handlers; this guards the unhandled-rejection
     // warning for the window where no follower exists yet.
     promise.catch(() => {});
-    inFlightGets.set(fullUrl, { promise, resolve: resolveFn, reject: rejectFn });
+
+    // Safety timeout to prevent stuck in-flight locks if network fails unexpectedly
+    const lockTimer = setTimeout(() => {
+      if (inFlightGets.has(fullUrl)) {
+        inFlightGets.delete(fullUrl);
+      }
+    }, 15000);
+
+    inFlightGets.set(fullUrl, { promise, resolve: resolveFn, reject: rejectFn, lockTimer });
     config.__inFlightKey = fullUrl;
   }
 
@@ -114,6 +122,7 @@ api.interceptors.response.use(
     const key = response.config.__inFlightKey;
     if (key) {
       const pending = inFlightGets.get(key);
+      if (pending?.lockTimer) clearTimeout(pending.lockTimer);
       inFlightGets.delete(key);
       if (pending) pending.resolve(response.data);
     }
@@ -124,6 +133,7 @@ api.interceptors.response.use(
     const key = error.config?.__inFlightKey;
     if (key) {
       const pending = inFlightGets.get(key);
+      if (pending?.lockTimer) clearTimeout(pending.lockTimer);
       inFlightGets.delete(key);
       if (pending) pending.reject(error);
     }

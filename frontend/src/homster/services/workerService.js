@@ -47,6 +47,14 @@ const workerService = {
     return response.data;
   },
 
+  // Job offers still open for this worker (fetch-on-load catch-up for the
+  // real-time 'new_booking_request'/'new_job_assigned' socket alert, in case
+  // the app wasn't connected yet when it was sent).
+  getPendingRequests: async () => {
+    const response = await api.get('/workers/jobs/pending-requests');
+    return response.data;
+  },
+
   updateJobStatus: async (id, status, data = {}) => {
     const response = await api.put(`/workers/jobs/${id}/status`, { status, ...data });
     return response.data;

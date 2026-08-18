@@ -64,6 +64,8 @@ const ReelUploadPage = React.lazy(() => import('./pages/user/ReelUploadPage'));
 const MyProperties = React.lazy(() => import('./pages/user/MyProperties'));
 const HomeServicesPage = React.lazy(() => import('./pages/user/HomeServicesPage'));
 const SubCategoryPage = React.lazy(() => import('./pages/user/SubCategoryPage'));
+const CategoryPage = React.lazy(() => import('./pages/user/CategoryPage'));
+const InstantServicesPage = React.lazy(() => import('./pages/user/InstantServicesPage'));
 const HomsterAdminRoutes = React.lazy(() => import('./homster/modules/admin/routes/index.jsx'));
 const UserReceivedBookingsPage = React.lazy(() => import('./pages/user/UserReceivedBookingsPage'));
 const UserReceivedEnquiriesPage = React.lazy(() => import('./pages/user/UserReceivedEnquiriesPage'));
@@ -465,6 +467,8 @@ function App() {
                     {/* Home Services Public Routes */}
                     <Route path="/home-services" element={<HomeServicesPage />} />
                     <Route path="/home-services/sub-category" element={<SubCategoryPage />} />
+                    <Route path="/home-services/category/:categoryId" element={<CategoryPage />} />
+                    <Route path="/home-services/instant" element={<InstantServicesPage />} />
                     <Route path="/home-service" element={<Navigate to="/home-services" replace />} />
                     {/* Cart is guest-friendly (localStorage-backed, syncs silently once logged
                         in) — only the actual checkout step below requires login. */}

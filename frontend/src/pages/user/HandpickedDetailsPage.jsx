@@ -521,6 +521,7 @@ const HandpickedDetailsPage = () => {
   };
 
   // Extracted values matching mapping blueprint
+  const towersList = dynamicData.towers || [];
   const projectDensity = dynamicData.projectDensity || property?.projectDensity || "";
   const densityType = dynamicData.densityType || property?.densityType || "";
   const totalArea = property?.totalArea || property?.landArea || dynamicData.totalArea || dynamicData.totalLandArea || dynamicData.landArea || property?.plotDetails?.plotArea || property?.buyDetails?.area?.total || 0;
@@ -667,9 +668,6 @@ const HandpickedDetailsPage = () => {
 
   // Payment plans
   const paymentPlansList = dynamicData.paymentPlans || [];
-
-  // Towers list
-  const towersList = dynamicData.towers || [];
 
   // Deep Construction specifications
   const constructionSpecs = {

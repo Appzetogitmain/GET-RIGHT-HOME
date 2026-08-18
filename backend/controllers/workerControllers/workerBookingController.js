@@ -64,6 +64,84 @@ const getAssignedJobs = async (req, res) => {
 };
 
 /**
+ * Get this worker's still-open job offers (BookingRequests they were sent
+ * that are still PENDING and unexpired) — the fetch-on-load counterpart to
+ * the real-time 'new_booking_request'/'new_job_assigned' socket events.
+ * The popup a worker sees for a new job is normally pushed live over
+ * socket.io the moment a booking is created, but that only reaches a worker
+ * whose app happened to already be open and fully connected at that exact
+ * instant; a page that was still loading, backgrounded, or reconnecting
+ * misses it with no way to recover. Calling this on app mount (and on
+ * window focus/reconnect) lets the worker "catch up" on anything they
+ * missed instead of the offer silently vanishing until the next new job.
+ */
+const getPendingRequests = async (req, res) => {
+  try {
+    const workerId = req.user.id;
+
+    const requests = await BookingRequest.find({
+      workerId,
+      status: 'PENDING',
+      expiresAt: { $gt: new Date() }
+    }).sort({ sentAt: -1 }).lean();
+
+    if (requests.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const bookingIds = requests.map(r => r.bookingId);
+    // SEARCHING-only: once a booking is accepted (by anyone) or cancelled,
+    // its status moves on and it should stop showing up as an open offer,
+    // even if this worker's own BookingRequest row hasn't expired yet.
+    const bookings = await HomeServiceBooking.find({
+      _id: { $in: bookingIds },
+      status: BOOKING_STATUS.SEARCHING
+    }).populate('userId', 'name phone').lean();
+    const bookingMap = new Map(bookings.map(b => [String(b._id), b]));
+
+    const platformSettings = await PlatformSettings.getSettings();
+    const platformFlatFee = platformSettings.platformFlatFee || 0;
+
+    const data = requests
+      .map(r => {
+        const booking = bookingMap.get(String(r.bookingId));
+        if (!booking) return null;
+        const workerAmount = Math.max(0, (booking.basePrice || 0) - platformFlatFee);
+        return {
+          bookingId: booking._id,
+          serviceName: booking.serviceName,
+          customerName: booking.userId?.name || 'Customer',
+          customerPhone: booking.userId?.phone,
+          scheduledDate: booking.scheduledDate,
+          scheduledTime: booking.scheduledTime,
+          price: workerAmount || booking.finalAmount,
+          address: booking.address,
+          distance: r.distance,
+          serviceCategory: booking.serviceCategory,
+          brandName: booking.brandName,
+          brandIcon: booking.brandIcon,
+          categoryIcon: booking.categoryIcon,
+          bookedItems: booking.bookedItems,
+          requirementText: booking.requirementText,
+          isConsultancyRequest: booking.isConsultancyRequest,
+          isEstimateBased: booking.isEstimateBased,
+          createdAt: booking.createdAt,
+          expiresAt: r.expiresAt
+        };
+      })
+      .filter(Boolean);
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('Get pending requests error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pending requests. Please try again.'
+    });
+  }
+};
+
+/**
  * Get job details by ID
  */
 const getJobById = async (req, res) => {
@@ -1341,8 +1419,9 @@ const generateEstimate = async (req, res) => {
   }
 };
 
-export { 
+export {
   getAssignedJobs,
+  getPendingRequests,
   getJobById,
   updateJobStatus,
   startJob,

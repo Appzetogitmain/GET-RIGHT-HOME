@@ -346,9 +346,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
         };
 
         addToCart(cartItemData).then(response => {
-            if (response.success) {
-                toast.success('Estimate request added to cart!');
-            } else {
+            if (!response.success) {
                 toast.error(response.message || 'Failed to add estimate request');
             }
         });
@@ -1290,9 +1288,7 @@ const SubCategoryPage = () => {
         if (existingItem) {
             try {
                 const response = await removeItem(existingItem._id || existingItem.id);
-                if (response.success) {
-                    toast.success('Removed from cart');
-                } else {
+                if (!response.success) {
                     toast.error('Failed to remove from cart');
                 }
             } catch (error) {
@@ -1313,12 +1309,11 @@ const SubCategoryPage = () => {
                     price: service.discountPrice || service.basePrice || service.price,
                     unitPrice: service.discountPrice || service.basePrice || service.price,
                     serviceCount: 1,
+                    isInstant: false,
                 };
 
                 const response = await addToCart(cartItemData);
-                if (response.success) {
-                    toast.success('Added to cart!');
-                } else {
+                if (!response.success) {
                     toast.error(response.message || 'Failed to add to cart');
                 }
             } catch (error) {
