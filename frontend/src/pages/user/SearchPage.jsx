@@ -126,9 +126,9 @@ const SearchPage = () => {
 
         const genderList = [];
         genderFromUrl.forEach(v => {
-            if (v === 'Boys') genderList.push('Boys Only');
-            else if (v === 'Girls') genderList.push('Girls Only');
-            else if (v === 'Co-ed') genderList.push('Coliving');
+            if (v === 'Bachelors') genderList.push('Bachelors');
+            else if (v === 'Family') genderList.push('Family');
+            else if (v === 'Any') genderList.push('Any');
         });
 
         occupancyFromUrl.forEach(v => {
@@ -618,9 +618,9 @@ const SearchPage = () => {
 
         const targetGenders = Array.isArray(targetFilters.gender) ? targetFilters.gender : [];
         targetGenders.forEach(am => {
-            if (am === 'Boys Only') genders.push('Boys');
-            else if (am === 'Girls Only') genders.push('Girls');
-            else if (am === 'Coliving') genders.push('Co-ed');
+            if (am === 'Bachelors') genders.push('Bachelors');
+            else if (am === 'Family') genders.push('Family');
+            else if (am === 'Any') genders.push('Any');
         });
 
         if (finalAmenities.length > 0) params.amenities = finalAmenities.join(',');
@@ -829,7 +829,7 @@ const SearchPage = () => {
                                 const qfButtons = [
                                     { label: 'Owner', key: 'postedBy', isToggle: true, val: 'Owner' },
                                     { label: 'Budget', isModal: true, tab: 'Budget' },
-                                    { label: 'Gender', isModal: true, tab: 'Gender' },
+
                                     { label: 'BHK', isModal: true, tab: 'BHK' },
                                     { label: 'Property Type', isModal: true, tab: 'Property Type' },
                                     { label: 'New Launch', key: 'amenities', isToggle: true, val: 'Pre Launch' },
@@ -854,7 +854,7 @@ const SearchPage = () => {
                                         isSelected = current.includes(qf.val);
                                     } else if (qf.isModal) {
                                         if (qf.tab === 'Budget' && (filters.minPrice || filters.maxPrice)) isSelected = true;
-                                        if (qf.tab === 'Gender' && filters.amenities.some(a => ['Boys Only', 'Girls Only', 'Coliving'].includes(a))) isSelected = true;
+
                                         if (qf.tab === 'BHK' && filters.amenities.some(a => ['1 RK/1 BHK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'].includes(a))) isSelected = true;
                                         if (qf.tab === 'Property Type' && filters.propertyTypes && filters.propertyTypes.length > 0) isSelected = true;
                                         if (qf.tab === 'Property Size' && (filters.minArea || filters.maxArea)) isSelected = true;

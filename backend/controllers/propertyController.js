@@ -1205,7 +1205,8 @@ export const getPublicProperties = async (req, res) => {
       const genderMatch = {
         $or: [
           { pgType: { $in: genderList } },
-          { 'pgDetails.gender': { $in: genderList } }
+          { 'pgDetails.gender': { $in: genderList } },
+          { 'rentDetails.tenantPreference': { $in: genderList } }
         ]
       };
 
