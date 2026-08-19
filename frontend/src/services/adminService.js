@@ -16,6 +16,16 @@ const adminService = {
     return response.data;
   },
 
+  getRecommendedBrokers: async (params) => {
+    const response = await axiosInstance.get('/admin/recommended-brokers', { params });
+    return response.data;
+  },
+
+  updateRecommendedBroker: async (id, data) => {
+    const response = await axiosInstance.put(`/admin/recommended-brokers/${id}`, data);
+    return response.data;
+  },
+
   getPartners: async (params) => {
     const response = await axiosInstance.get('/admin/partners', { params });
     return response.data;
@@ -366,6 +376,24 @@ const adminService = {
   },
   getManagerModules: async () => {
     const response = await axiosInstance.get('/managers/modules');
+    return response.data;
+  },
+
+  // Support Chat
+  getSupportConversations: async (params) => {
+    const response = await axiosInstance.get('/admin/support/conversations', { params });
+    return response.data;
+  },
+  getSupportMessages: async (userId, params) => {
+    const response = await axiosInstance.get(`/admin/support/conversations/${userId}/messages`, { params });
+    return response.data;
+  },
+  sendSupportMessage: async (userId, text) => {
+    const response = await axiosInstance.post(`/admin/support/conversations/${userId}/messages`, { text });
+    return response.data;
+  },
+  updateSupportConversationStatus: async (userId, status) => {
+    const response = await axiosInstance.patch(`/admin/support/conversations/${userId}/status`, { status });
     return response.data;
   }
 };

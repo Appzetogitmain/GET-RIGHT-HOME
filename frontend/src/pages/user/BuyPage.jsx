@@ -15,6 +15,7 @@ import PropertyVideoCurations from '../../components/user/PropertyVideoCurations
 import DemandInCitySection from '../../components/user/DemandInCitySection';
 import AdminPropertiesSection from '../../components/user/AdminPropertiesSection';
 import PopularToolsSection from '../../components/user/PopularToolsSection';
+import { getPreferredCity } from '../../utils/locationPreference';
 
 // Theme for Buy Page
 const THEME = {
@@ -30,7 +31,12 @@ const THEME = {
 
 const BuyPage = () => {
     const navigate = useNavigate();
-    const [searchCity, setSearchCity] = useState("");
+    // Seed from the globally selected city (navbar dropdown) instead of "" —
+    // otherwise the first fetch of Recommended Insights / Demand-in-City goes
+    // out unfiltered before HeroSection's own mount effect catches up, and
+    // whatever city happens to have the most seeded data (Bengaluru) shows
+    // instead of the city the user actually picked.
+    const [searchCity, setSearchCity] = useState(getPreferredCity());
     const [buyCategoryId, setBuyCategoryId] = useState(null);
 
     // Initial state to match the Buy tab

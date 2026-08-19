@@ -498,6 +498,67 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
+// @desc    List brokers for the admin "Recommended Brokers" picker — search
+//          across all brokers, currently-recommended ones sorted first.
+// @route   GET /api/admin/recommended-brokers
+export const getRecommendedBrokersAdmin = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const { search } = req.query;
+
+    const query = { role: 'broker' };
+    if (search) {
+      query.$or = [
+        { name: { $regex: safeRegex(search) } },
+        { email: { $regex: safeRegex(search) } },
+        { phone: { $regex: safeRegex(search) } }
+      ];
+    }
+
+    const total = await User.countDocuments(query);
+    const brokers = await User.find(query)
+      .select('name email phone profileImage isRecommendedBroker recommendedBrokerOrder createdAt')
+      .sort({ isRecommendedBroker: -1, recommendedBrokerOrder: 1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({ success: true, brokers, total, page, limit });
+  } catch (error) {
+    console.error('Error fetching brokers for admin recommendation list:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching brokers' });
+  }
+};
+
+// @desc    Feature/unfeature a broker on the public "Recommended Brokers"
+//          section, and set their display order.
+// @route   PUT /api/admin/recommended-brokers/:id
+export const updateRecommendedBroker = async (req, res) => {
+  try {
+    const { isRecommendedBroker, recommendedBrokerOrder } = req.body;
+
+    const update = {};
+    if (typeof isRecommendedBroker === 'boolean') update.isRecommendedBroker = isRecommendedBroker;
+    if (recommendedBrokerOrder !== undefined) update.recommendedBrokerOrder = Number(recommendedBrokerOrder) || 0;
+
+    const broker = await User.findOneAndUpdate(
+      { _id: req.params.id, role: 'broker' },
+      update,
+      { new: true }
+    ).select('name isRecommendedBroker recommendedBrokerOrder');
+
+    if (!broker) {
+      return res.status(404).json({ success: false, message: 'Broker not found' });
+    }
+
+    res.status(200).json({ success: true, broker });
+  } catch (error) {
+    console.error('Error updating recommended broker:', error);
+    res.status(500).json({ success: false, message: 'Server error updating broker' });
+  }
+};
+
 export const getAllPartners = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;

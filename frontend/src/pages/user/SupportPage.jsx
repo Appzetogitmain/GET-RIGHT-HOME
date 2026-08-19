@@ -44,7 +44,7 @@ const SupportPage = () => {
                     <h3 className="font-bold text-surface text-sm mb-4">Contact Us</h3>
                     <div className="grid grid-cols-2 gap-3">
                         <button
-                            onClick={() => navigate('/contact')}
+                            onClick={() => navigate('/support/chat')}
                             className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-blue-50 border border-blue-100 group active:scale-95 transition-transform"
                         >
                             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm">

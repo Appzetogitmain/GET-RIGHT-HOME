@@ -203,6 +203,13 @@ export const SocketProvider = ({ children }) => {
           console.warn('[Socket] ⚠️ USER: no userId found in localStorage under "userData" or "user". userData:', userData);
         }
       }
+
+      if (userType === 'admin') {
+        // Shared room — every admin/superadmin session gets the same alerts
+        // (e.g. a new property submitted for approval), no per-admin id needed.
+        console.log('[Socket] ADMIN joining room: admin_room');
+        newSocket.emit('join_admin_room');
+      }
     });
 
     newSocket.on('disconnect', (reason) => {
@@ -301,6 +308,61 @@ export const SocketProvider = ({ children }) => {
           </div>,
           { duration: 5000, position: 'top-center' }
         );
+      });
+
+      // A support reply from admin — the widget itself decides whether to
+      // show a toast (it won't, if the thread is already open on screen).
+      newSocket.on('support_message', (data) => {
+        console.log('[Socket] 💬 USER received SUPPORT_MESSAGE:', data);
+        if (data.senderType === 'admin' && isSoundEnabled('user')) {
+          playNotificationSound();
+        }
+        window.dispatchEvent(new CustomEvent('supportMessageReceived', { detail: data }));
+      });
+    }
+
+    // Listen for a property being submitted for approval — plays a sound and
+    // pops a toast on whichever admin page is currently open, since this is
+    // a room broadcast rather than a targeted per-user event.
+    if (userType === 'admin') {
+      newSocket.on('property_submitted', (data) => {
+        console.log('[Socket] 🔔 ADMIN received PROPERTY_SUBMITTED:', data);
+        if (isSoundEnabled('admin')) {
+          playNotificationSound();
+        }
+
+        toast.success(
+          <div className="flex flex-col gap-1">
+            <span className="font-bold text-sm">New property submitted for approval</span>
+            <span className="text-xs opacity-90">
+              {data.propertyName || 'A property'}
+              {data.submittedBy?.name ? ` by ${data.submittedBy.name}` : ''}
+              {data.submittedBy?.role ? ` (${data.submittedBy.role})` : ''}
+            </span>
+          </div>,
+          { duration: 6000, position: 'top-right' }
+        );
+
+        window.dispatchEvent(new CustomEvent('propertySubmittedForApproval', { detail: data }));
+      });
+
+      // A support message — from either side (a user writing in, or another
+      // admin replying) — so every admin's inbox/badge stays in sync live.
+      newSocket.on('support_message', (data) => {
+        console.log('[Socket] 💬 ADMIN received SUPPORT_MESSAGE:', data);
+        if (data.senderType === 'user' && isSoundEnabled('admin')) {
+          playNotificationSound();
+          toast.success(
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-sm">New support message</span>
+              <span className="text-xs opacity-90">
+                {data.userName || 'A user'}: {data.text?.slice(0, 80)}
+              </span>
+            </div>,
+            { duration: 6000, position: 'top-right' }
+          );
+        }
+        window.dispatchEvent(new CustomEvent('adminSupportMessage', { detail: data }));
       });
     }
 

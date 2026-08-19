@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import TopNavbar from './components/ui/TopNavbar';
 import MobileTopNav from './components/ui/MobileTopNav';
 import BottomNavbar from './components/ui/BottomNavbar';
+import FloatingSupportButton from './components/support/FloatingSupportButton';
 import PartnerBottomNavbar from './app/partner/components/PartnerBottomNavbar';
 import useScrollRestoration from './hooks/useScrollRestoration';
 
@@ -43,6 +44,7 @@ const BookingConfirmationPage = React.lazy(() => import('./pages/user/BookingCon
 const WalletPage = React.lazy(() => import('./pages/user/WalletPage'));
 const PaymentPage = React.lazy(() => import('./pages/user/PaymentPage'));
 const SupportPage = React.lazy(() => import('./pages/user/SupportPage'));
+const SupportChatPage = React.lazy(() => import('./pages/user/SupportChatPage'));
 const ReferAndEarnPage = React.lazy(() => import('./pages/user/ReferAndEarnPage'));
 const SavedPlacesPage = React.lazy(() => import('./pages/user/SavedPlacesPage'));
 const NotificationsPage = React.lazy(() => import('./pages/user/NotificationsPage'));
@@ -117,6 +119,7 @@ const AdminAddProperty = React.lazy(() => import('./app/admin/pages/AdminAddProp
 const AdminLegalPages = React.lazy(() => import('./app/admin/pages/AdminLegalPages'));
 const AdminContactMessages = React.lazy(() => import('./app/admin/pages/AdminContactMessages'));
 const AdminNotifications = React.lazy(() => import('./app/admin/pages/AdminNotifications'));
+const AdminSupportChat = React.lazy(() => import('./app/admin/pages/AdminSupportChat'));
 const AdminFaqs = React.lazy(() => import('./app/admin/pages/AdminFaqs'));
 const AdminCategories = React.lazy(() => import('./app/admin/pages/AdminCategories'));
 const AdminFeaturedProperties = React.lazy(() => import('./app/admin/pages/AdminFeaturedProperties'));
@@ -130,6 +133,7 @@ const AdminLocationsPage = React.lazy(() => import('./app/admin/pages/AdminLocat
 const AdminManagers = React.lazy(() => import('./app/admin/pages/AdminManagers'));
 const AdminBuilders = React.lazy(() => import('./app/admin/pages/AdminBuilders'));
 const AdminBuilderVerification = React.lazy(() => import('./app/admin/pages/AdminBuilderVerification'));
+const AdminRecommendedBrokers = React.lazy(() => import('./app/admin/pages/AdminRecommendedBrokers'));
 const AdminManageLocalityInsights = React.lazy(() => import('./app/admin/pages/AdminManageLocalityInsights'));
 
 // Lazy Imports - Manager Panel
@@ -301,6 +305,7 @@ const Layout = ({ children }) => {
 
       {showUserBottomNav && <BottomNavbar />}
       {showPartnerBottomNav && <PartnerBottomNavbar />}
+      {showUserNavs && <FloatingSupportButton />}
     </>
   );
 };
@@ -595,6 +600,7 @@ function App() {
                         <Route path="partners/:id" element={<AdminPartnerDetail />} />
                         <Route path="builders" element={<AdminBuilders />} />
                         <Route path="builder-verification" element={<AdminBuilderVerification />} />
+                        <Route path="recommended-brokers" element={<AdminRecommendedBrokers />} />
                         <Route path="reviews" element={<AdminReviews />} />
                         <Route path="finance" element={<AdminFinance />} />
                         <Route path="legal" element={<AdminLegalPages />} />
@@ -610,6 +616,7 @@ function App() {
                         <Route path="offers" element={<AdminOffers />} />
                         <Route path="refer-earn" element={<AdminReferEarn />} />
                         <Route path="notifications" element={<AdminNotifications />} />
+                        <Route path="support-chat" element={<AdminSupportChat />} />
                         <Route path="faqs" element={<AdminFaqs />} />
                         <Route path="categories" element={<AdminCategories />} />
                         <Route path="featured-projects" element={<AdminFeaturedProperties />} />
@@ -687,10 +694,11 @@ function App() {
                       <Route path="/wallet" element={<WalletPage />} />
                       <Route path="/payment" element={<PaymentPage />} />
                       <Route path="/support" element={<SupportPage />} />
+                      <Route path="/support/chat" element={<SupportChatPage />} />
+                      <Route path="/refer" element={<ReferAndEarnPage />} />
                       <Route path="/checkout" element={<BookingCheckoutPage />} />
                       <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
                       <Route path="/booking/:id" element={<BookingConfirmationPage />} />
-                      <Route path="/refer" element={<ReferAndEarnPage />} />
                       <Route path="/saved-places" element={<SavedPlacesPage />} />
                       <Route path="/notifications" element={<NotificationsPage />} />
                       <Route path="/settings" element={<SettingsPage />} />

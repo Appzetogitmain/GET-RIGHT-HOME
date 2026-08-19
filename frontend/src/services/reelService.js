@@ -36,10 +36,15 @@ export const reelService = {
 
     shortlist: (id) => api.post(`/reels/shortlist/${id}`).then((r) => r.data),
 
-    comment: (id, text) => api.post(`/reels/comment/${id}`, { text }).then((r) => r.data),
+    comment: (id, text, parentCommentId = null) =>
+        api.post(`/reels/comment/${id}`, { text, ...(parentCommentId && { parentCommentId }) }).then((r) => r.data),
 
     getComments: (id, params = {}) =>
         api.get(`/reels/${id}/comments`, { params }).then((r) => r.data),
+
+    // commentId here is the PARENT comment being replied to
+    getReplies: (commentId, params = {}) =>
+        api.get(`/reels/comment/${commentId}/replies`, { params }).then((r) => r.data),
 
     likeComment: (commentId) => api.post(`/reels/comment/${commentId}/like`).then((r) => r.data),
 
