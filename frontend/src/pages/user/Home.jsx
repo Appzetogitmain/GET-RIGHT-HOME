@@ -17,6 +17,7 @@ import SupportSection from '../../components/user/SupportSection';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 import { api } from '../../services/apiService';
 import toast from 'react-hot-toast';
+import { getPreferredCity } from '../../utils/locationPreference';
 
 
 // Category Theme Map - Professional light palettes inspired by modern premium designs
@@ -122,7 +123,9 @@ const Home = () => {
     const [selectedType, setSelectedType] = useState({ id: null, label: 'All' });
     const [pgFilters, setPgFilters] = useState({ gender: undefined, occupancy: undefined, foodIncluded: undefined });
     const [sectionIds, setSectionIds] = useState({ pg: null, rent: null, buy: null, plot: null });
-    const [homeSearchCity, setHomeSearchCity] = useState('');
+    // See BuyPage for why this seeds from the globally selected city rather
+    // than "".
+    const [homeSearchCity, setHomeSearchCity] = useState(getPreferredCity());
     const [layoutOrder, setLayoutOrder] = useState([]);
 
     // Fetch Dynamic Layout

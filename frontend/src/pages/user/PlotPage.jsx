@@ -13,6 +13,7 @@ import DemandInCitySection from '../../components/user/DemandInCitySection';
 import PopularToolsSection from '../../components/user/PopularToolsSection';
 import PropertyFeed from '../../components/user/PropertyFeed';
 import { ArrowRight } from 'lucide-react';
+import { getPreferredCity } from '../../utils/locationPreference';
 
 // Theme for Plot Page (Amber style from Home.jsx)
 const THEME = {
@@ -65,7 +66,9 @@ const PlotSection = ({ title, subtitle, extraFilters, plotCategoryId }) => {
 
 const PlotPage = () => {
     const navigate = useNavigate();
-    const [searchCity, setSearchCity] = useState("");
+    // See BuyPage for why this seeds from the globally selected city rather
+    // than "".
+    const [searchCity, setSearchCity] = useState(getPreferredCity());
     const [plotCategoryId, setPlotCategoryId] = useState(null);
 
     // Initial state to match the Plot tab

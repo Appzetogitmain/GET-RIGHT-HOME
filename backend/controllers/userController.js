@@ -584,9 +584,11 @@ export const getRecommendedBrokers = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const skip = (page - 1) * limit;
     
-    // Aggregation pipeline to fetch brokers, join their properties, calculate stats, and sort by active plan ranking/listings count
+    // Aggregation pipeline to fetch brokers, join their properties, calculate stats, and sort by active plan ranking/listings count.
+    // Which brokers appear here is admin-curated (isRecommendedBroker), not
+    // automatic — see AdminRecommendedBrokers.
     const brokers = await User.aggregate([
-      { $match: { role: 'broker' } },
+      { $match: { role: 'broker', isRecommendedBroker: true } },
       
       // Lookup active subscription plan for rankingWeight
       {
@@ -661,15 +663,14 @@ export const getRecommendedBrokers = async (req, res) => {
           totalListings: 1,
           verifiedListings: 1,
           expertLocalities: 1,
-          memberSince: 1
+          memberSince: 1,
+          recommendedBrokerOrder: 1
         }
       },
-      
-      // Filter out brokers with 0 listings
-      { $match: { totalListings: { $gt: 0 } } },
-      
-      // Sort: most listings first, then highest ranking weight
-      { $sort: { totalListings: -1, rankingWeight: -1, _id: -1 } },
+
+      // Sort: admin's chosen order first (lower = earlier), then most
+      // listings, then highest plan ranking as a tiebreaker.
+      { $sort: { recommendedBrokerOrder: 1, totalListings: -1, rankingWeight: -1, _id: -1 } },
       
       {
         $facet: {

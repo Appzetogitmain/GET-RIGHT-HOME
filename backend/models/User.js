@@ -57,6 +57,17 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Admin curation for the "Recommended Brokers" home-page section (brokers
+  // only) — replaces the old fully-automatic listings/plan ranking so admin
+  // decides who shows up and in what order.
+  isRecommendedBroker: {
+    type: Boolean,
+    default: false
+  },
+  recommendedBrokerOrder: {
+    type: Number,
+    default: 0
+  },
   savedHotels: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Property'

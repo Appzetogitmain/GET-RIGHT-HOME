@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, User, Wallet, Heart, HelpCircle, FileText, Shield, ChevronRight,
     LogOut, Settings, BookOpen, Building, Briefcase, Bell, Edit3, Video,
-    Home, Star, CalendarCheck, PlusCircle, CreditCard, MessageSquare, Wrench, Lightbulb, IndianRupee, Calculator
+    Home, Star, CalendarCheck, PlusCircle, CreditCard, MessageSquare, Wrench, Lightbulb, IndianRupee, Calculator, Gift
 } from 'lucide-react';
 import { userService } from '../../services/apiService';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -196,6 +196,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                     <div className="flex flex-col gap-1">
                                         <MenuItem icon={Wallet} label="My Wallet" path="/wallet" />
                                         <MenuItem icon={CreditCard} label="Subscription Plans" path="/my-subscriptions" />
+                                        <MenuItem icon={Gift} label="Refer & Earn" path="/refer" />
                                     </div>
                                 </div>
                             )}

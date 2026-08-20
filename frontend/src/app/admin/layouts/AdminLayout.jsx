@@ -26,6 +26,9 @@ const AdminLayout = () => {
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const notifRef = useRef(null);
 
+    // Support Chat unread badge (sidebar)
+    const [supportUnreadCount, setSupportUnreadCount] = useState(0);
+
     useEffect(() => {
         loadNotifications();
         // Close dropdown when clicking outside
@@ -35,7 +38,27 @@ const AdminLayout = () => {
             }
         }
         document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+
+        // Refresh the bell's list/badge whenever SocketContext plays the
+        // "property submitted for approval" sound, so the two stay in sync.
+        const handlePropertySubmitted = () => loadNotifications();
+        window.addEventListener('propertySubmittedForApproval', handlePropertySubmitted);
+
+        loadSupportUnreadCount();
+        const handleSupportMessage = (e) => {
+            // Only an incoming user message affects the unread badge — an
+            // admin's own reply (possibly from this same session) doesn't.
+            if (e.detail?.senderType === 'user') loadSupportUnreadCount();
+        };
+        window.addEventListener('adminSupportMessage', handleSupportMessage);
+        window.addEventListener('supportConversationRead', loadSupportUnreadCount);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            window.removeEventListener('propertySubmittedForApproval', handlePropertySubmitted);
+            window.removeEventListener('adminSupportMessage', handleSupportMessage);
+            window.removeEventListener('supportConversationRead', loadSupportUnreadCount);
+        };
     }, []);
 
     const loadNotifications = async () => {
@@ -45,6 +68,15 @@ const AdminLayout = () => {
                 setNotifications(data.notifications);
                 setUnreadCount(data.meta.unreadCount);
             }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const loadSupportUnreadCount = async () => {
+        try {
+            const data = await adminService.getSupportConversations({ limit: 1 });
+            if (data.success) setSupportUnreadCount(data.unreadConversationsCount || 0);
         } catch (error) {
             console.error(error);
         }
@@ -91,6 +123,7 @@ const AdminLayout = () => {
                     ]
                 },
                 { icon: ShieldCheck, label: 'Managers', path: '/admin/managers' },
+                { icon: Star, label: 'Recommended Brokers', path: '/admin/recommended-brokers' },
                 {
                     icon: Building2, label: 'Builders', children: [
                         { label: 'All Builders', path: '/admin/builders' },
@@ -170,6 +203,7 @@ const AdminLayout = () => {
         {
             title: 'SYSTEM',
             items: [
+                { icon: MessageSquare, label: 'Support Chat', path: '/admin/support-chat', badge: supportUnreadCount > 0 },
                 { icon: Bell, label: 'Notifications', path: '/admin/notifications', badge: unreadCount > 0 },
                 {
                     icon: FileText, label: 'Content & Support', children: [

@@ -1082,6 +1082,8 @@ export const reviewService = {
 };
 
 export const referralService = {
+  // Reward amount shown here always comes from the admin's active Refer &
+  // Earn program (see AdminReferEarn) — there is no user-side control over it.
   getMyStats: async () => {
     try {
       const response = await api.get('/referrals/my-stats');
@@ -1093,15 +1095,6 @@ export const referralService = {
   getActiveProgram: async () => {
     try {
       const response = await api.get('/referrals/program/active');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  // Update FCM Token
-  updateFcmToken: async (token, platform = 'web') => {
-    try {
-      const response = await api.post('/fcm-tokens/save', { token, platform });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

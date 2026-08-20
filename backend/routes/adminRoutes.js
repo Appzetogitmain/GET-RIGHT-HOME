@@ -4,6 +4,8 @@ import {
   getDashboardStats,
   getDashboardRevenue,
   getAllUsers,
+  getRecommendedBrokersAdmin,
+  updateRecommendedBroker,
   getAllPartners,
   getAllHotels,
   getAllProjects,
@@ -122,6 +124,8 @@ router.get('/transactions/stats', checkManagerPermission('finance', 'view'), get
 router.get('/finance', checkManagerPermission('finance', 'view'), getFinanceStats);
 router.get('/users', checkManagerPermission('users', 'view'), getAllUsers);
 router.post('/users/create-broker', checkManagerPermission('users', 'add'), createAdminBroker);
+router.get('/recommended-brokers', checkManagerPermission('users', 'view'), getRecommendedBrokersAdmin);
+router.put('/recommended-brokers/:id', checkManagerPermission('users', 'edit'), updateRecommendedBroker);
 router.get('/partners', checkManagerPermission('partners', 'view'), getAllPartners);
 router.get('/hotels', checkManagerPermission('properties', 'view'), getAllHotels);
 router.post('/properties', checkManagerPermission('properties', 'add'), createAdminProperty);
