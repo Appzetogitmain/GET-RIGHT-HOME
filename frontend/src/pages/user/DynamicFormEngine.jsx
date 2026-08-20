@@ -35,8 +35,16 @@ const stepUsesLocationSelector = (step) => {
 
 // A field's `dependsOn.value` can be a single value (exact match) or an array
 // (OR match) so one controlling field can drive more than a two-way branch.
+//
+// `dependsOn` itself may also be an array of conditions, which are ANDed. The
+// builder wizard needs this because fields branch on Property Type *and*
+// Transaction Type at once (e.g. apartment inventory priced for sale vs rent).
 const matchesDependsOn = (dependsOn, dataObj) => {
-  if (!dependsOn?.field) return true;
+  if (!dependsOn) return true;
+  if (Array.isArray(dependsOn)) {
+    return dependsOn.every((condition) => matchesDependsOn(condition, dataObj));
+  }
+  if (!dependsOn.field) return true;
   const actual = dataObj?.[dependsOn.field];
   return Array.isArray(dependsOn.value) ? dependsOn.value.includes(actual) : actual === dependsOn.value;
 };
@@ -50,12 +58,12 @@ const DynamicFormEngine = () => {
 
   const [loading, setLoading] = useState(true);
   const [template, setTemplate] = useState(null);
-  
+
   const stepStorageKey = isEditMode
     ? `draft_step_edit_${existingProperty._id}`
-    : ((transactionType && category && displayPropertyType) 
-        ? `draft_step_${transactionType}_${category}_${displayPropertyType}` 
-        : 'draft_step_default');
+    : ((transactionType && category && displayPropertyType)
+      ? `draft_step_${transactionType}_${category}_${displayPropertyType}`
+      : 'draft_step_default');
 
   const [currentStepIndex, setCurrentStepIndex] = useState(() => {
     const savedStep = localStorage.getItem(stepStorageKey);
@@ -66,15 +74,9 @@ const DynamicFormEngine = () => {
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
   const isBrokerOrBuilder = user && (user.role === 'broker' || user.role === 'builder');
-  
+
   // Modal states for custom tag editing
   const [customTagModal, setCustomTagModal] = useState({ open: false, fieldName: '', index: null, value: '' });
-
-  // Tracks gallery thumbnails whose preview image failed to load, so we can
-  // swap in a fallback via React state instead of touching the DOM directly
-  // (mutating a React-owned node here used to desync the virtual DOM and
-  // crash the whole app with a blank screen on the next re-render).
-  const [brokenMedia, setBrokenMedia] = useState({});
 
   // Modal states for pricing details
   const [showPricingModal, setShowPricingModal] = useState(false);
@@ -88,6 +90,10 @@ const DynamicFormEngine = () => {
     if (isEditMode) {
       const initialForm = {
         ...existingProperty.dynamicData,
+        // Step 1's master selections drive every later step's `dependsOn`, so
+        // they must be seeded when editing or the whole form renders empty.
+        transactionType: existingProperty.dynamicData?.transactionType || existingProperty.transactionType,
+        propertyType: existingProperty.dynamicData?.propertyType || existingProperty.propertyType,
         propertyName: existingProperty.propertyName || existingProperty.dynamicData?.propertyName,
         description: existingProperty.description || existingProperty.dynamicData?.description,
         amenities: existingProperty.amenities || existingProperty.dynamicData?.amenities,
@@ -119,6 +125,11 @@ const DynamicFormEngine = () => {
     const saved = localStorage.getItem(storageKey);
     const parsed = saved ? JSON.parse(saved) : {};
     if (!parsed.country) parsed.country = 'India';
+    // The builder wizard asks for Transaction Type and Property Type as the
+    // first two fields of Step 1. Whatever the entry point passed is only a
+    // prefill for them, so never overwrite a value the builder already picked.
+    if (!parsed.transactionType && transactionType) parsed.transactionType = transactionType;
+    if (!parsed.propertyType && propertyType) parsed.propertyType = propertyType;
     return parsed;
   });
 
@@ -133,9 +144,9 @@ const DynamicFormEngine = () => {
       try {
         const endpoint = user?.role === 'builder' ? `/builder-forms/template` : `/property-forms/template`;
         const res = await api.get(endpoint, {
-          params: { 
-            transactionType, 
-            category, 
+          params: {
+            transactionType,
+            category,
             propertyType: displayPropertyType
           }
         });
@@ -184,7 +195,7 @@ const DynamicFormEngine = () => {
 
   // Robust Lenis & Body Scroll Lock for Modal Dialogs
   useEffect(() => {
-    const isAnyModalOpen = showPricingModal || customTagModal.open;
+    const isAnyModalOpen = showPricingModal || customTagModal.open || Boolean(masterChangeWarning) || Boolean(subscriptionGate);
     if (isAnyModalOpen) {
       if (window.lenis) window.lenis.stop();
       document.body.style.overflow = 'hidden';
@@ -196,7 +207,7 @@ const DynamicFormEngine = () => {
       if (window.lenis) window.lenis.start();
       document.body.style.overflow = '';
     };
-  }, [showPricingModal, customTagModal.open]);
+  }, [showPricingModal, customTagModal.open, masterChangeWarning, subscriptionGate]);
 
   // Sync pricing modal fields when loaded/edited
   useEffect(() => {
@@ -207,10 +218,10 @@ const DynamicFormEngine = () => {
     }
   }, [showPricingModal, formData.maintenanceCharges, formData.maintenanceFrequency, formData.bookingAmount]);
 
-  const handleChange = (name, value) => {
+  const applyChange = (name, value) => {
     setFormData(prev => {
       const next = { ...prev, [name]: value };
-      
+
       // Automatically default unit if not selected yet
       const unitFieldKey = unitFieldMapping[name];
       if (unitFieldKey && !next[unitFieldKey]) {
@@ -229,6 +240,64 @@ const DynamicFormEngine = () => {
         return updated;
       });
     }
+  };
+
+  const hasValue = (val) => {
+    if (Array.isArray(val)) return val.length > 0;
+    if (val && typeof val === 'object') return Object.keys(val).length > 0;
+    return val !== undefined && val !== null && val !== '';
+  };
+
+  // Which already-filled fields would be hidden if `name` changed to `value`.
+  // Derived by re-evaluating every field's `dependsOn` against the prospective
+  // form state, so it stays correct as the template changes.
+  const fieldsInvalidatedBy = (name, value) => {
+    if (!template) return [];
+    const nextData = { ...formData, [name]: value };
+    const affected = [];
+
+    template.steps.forEach((step) => {
+      (step.fields || []).forEach((field) => {
+        if (!field.dependsOn) return;
+        if (!matchesDependsOn(field.dependsOn, formData)) return;
+        if (matchesDependsOn(field.dependsOn, nextData)) return;
+        if (hasValue(formData[field.name])) {
+          affected.push({ label: field.label, name: field.name, step: step.stepNumber });
+        }
+      });
+    });
+    return affected;
+  };
+
+  // Changing a master selection (Property Type / Transaction Type) can make
+  // downstream answers meaningless — e.g. towers entered for an apartment have
+  // no place in a villa project. Spec requires an explicit impact warning
+  // before that data is dropped.
+  const MASTER_FIELDS = ['propertyType', 'transactionType', 'projectStatus'];
+
+  const handleChange = (name, value) => {
+    if (MASTER_FIELDS.includes(name) && formData[name] && formData[name] !== value) {
+      const affected = fieldsInvalidatedBy(name, value);
+      if (affected.length > 0) {
+        setMasterChangeWarning({ name, value, affected });
+        return;
+      }
+    }
+    applyChange(name, value);
+  };
+
+  const confirmMasterChange = () => {
+    if (!masterChangeWarning) return;
+    const { name, value, affected } = masterChangeWarning;
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      // Clear the now-incompatible answers rather than leaving orphaned values
+      // in dynamicData that no step will ever show again.
+      affected.forEach((f) => { delete next[f.name]; });
+      return next;
+    });
+    setErrors({});
+    setMasterChangeWarning(null);
   };
 
   const scrollToTop = () => {
@@ -344,7 +413,7 @@ const DynamicFormEngine = () => {
             if (!firstErrorField) firstErrorField = field.name;
           } else if (field.validation) {
             const { min, max, minLength, maxLength, customErrorMessage } = field.validation;
-            
+
             if (field.type === 'number') {
               const numVal = Number(value);
               if (min !== undefined && min !== null && numVal < min) {
@@ -387,10 +456,10 @@ const DynamicFormEngine = () => {
             }
 
             ['planImageOrUrl', 'floorPlanImage'].forEach(key => {
-               if (item[key] && !item[key].startsWith('http')) {
-                  newErrors[`${field.name}_${index}_${key}`] = 'Please provide a valid image URL (must start with http or https) or upload an image.';
-                  if (!firstErrorField) firstErrorField = field.name;
-               }
+              if (item[key] && !item[key].startsWith('http')) {
+                newErrors[`${field.name}_${index}_${key}`] = 'Please provide a valid image URL (must start with http or https) or upload an image.';
+                if (!firstErrorField) firstErrorField = field.name;
+              }
             });
           });
         }
@@ -475,18 +544,23 @@ const DynamicFormEngine = () => {
     try {
       setLoading(true);
       const isProjectListing = Boolean(
-        category?.toLowerCase().includes('project') || 
-        displayPropertyType?.toLowerCase().includes('project') || 
-        formData.builderProjectDetails || 
-        formData.builderName || 
+        category?.toLowerCase().includes('project') ||
+        displayPropertyType?.toLowerCase().includes('project') ||
+        formData.builderProjectDetails ||
+        formData.builderName ||
         (Array.isArray(formData.towers) && formData.towers.length > 0)
       );
 
+      // Step 1 of the builder wizard collects these itself, so what the builder
+      // actually chose wins over whatever the entry point prefilled.
+      const effectiveTransactionType = formData.transactionType || transactionType;
+      const effectivePropertyType = formData.propertyType || displayPropertyType;
+
       const payload = {
-        propertyName: formData.propertyName || `${category} ${displayPropertyType} for ${transactionType}`,
-        transactionType,
+        propertyName: formData.propertyName || `${category} ${effectivePropertyType} for ${effectiveTransactionType}`,
+        transactionType: effectiveTransactionType,
         propertyCategory: category,
-        propertyType: displayPropertyType,
+        propertyType: effectivePropertyType,
         isProject: isProjectListing,
         dynamicCategory: template?._id,
         dynamicData: formData,
@@ -500,7 +574,10 @@ const DynamicFormEngine = () => {
           fullAddress: formData.houseNumber || formData.fullAddress || '',
           pincode: formData.pincode || ''
         },
-        status: 'pending' // Draft / Pending review
+        // Always persist as a draft first. Saving is never metered, so the
+        // builder's work is safe even if their trial has expired — the
+        // subscription step below decides whether it also goes live.
+        status: 'draft'
       };
 
       let res;
@@ -510,14 +587,63 @@ const DynamicFormEngine = () => {
         res = await api.post('/properties', payload);
       }
 
+      if (!res.data.success) return;
+
+      const savedId = res.data.property?._id || existingProperty?._id;
+
+      // The draft is safely stored server-side now, so the local copy is
+      // redundant — keeping it would resurrect a stale duplicate later.
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(stepStorageKey);
+
+      const eligibility = await fetchEligibility();
+
+      // Paying subscribers skip the upsell entirely and go straight through.
+      if (eligibility?.isSubscriptionActive && eligibility?.canSubmit) {
+        await submitDraftForApproval(savedId);
+        return;
+      }
+
+      // Trial (active or expired) → show the subscription step. Skip is only
+      // offered while the trial is still valid.
+      setSubscriptionGate({ propertyId: savedId, eligibility });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not save your project');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchEligibility = async () => {
+    try {
+      const res = await api.get('/properties/listing-eligibility');
+      return res.data?.eligibility || null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Promotes the saved draft to "pending". Used by Skip during an active trial
+  // and after a successful subscription.
+  const submitDraftForApproval = async (propertyId) => {
+    if (!propertyId) return;
+    try {
+      setLoading(true);
+      const res = await api.post(`/properties/${propertyId}/submit`);
       if (res.data.success) {
-        localStorage.removeItem(storageKey);
-        localStorage.removeItem(stepStorageKey);
-        toast.success(isEditMode ? 'Property details updated successfully!' : 'Property details submitted successfully!');
+        toast.success('Submitted for approval.');
+        setSubscriptionGate(null);
         navigate('/my-properties');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed');
+      const data = err.response?.data;
+      // Trial lapsed between saving and submitting — fall back to the paywall
+      // rather than dropping the user on an error toast.
+      if (data?.eligibility) {
+        setSubscriptionGate({ propertyId, eligibility: data.eligibility });
+      } else {
+        toast.error(data?.message || 'Could not submit for approval');
+      }
     } finally {
       setLoading(false);
     }
@@ -560,10 +686,9 @@ const DynamicFormEngine = () => {
           <label className="block text-[14px] font-semibold text-slate-800 mb-2">
             {field.label} {field.required && <span className="text-red-500">*</span>}
           </label>
-          
-          <div className={`flex items-center bg-white border rounded-xl overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all ${
-            errors[field.name] ? 'border-red-400' : 'border-slate-200'
-          }`}>
+
+          <div className={`flex items-center bg-white border rounded-xl overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all ${errors[field.name] ? 'border-red-400' : 'border-slate-200'
+            }`}>
             <input
               type="number"
               value={formData[field.name] || ''}
@@ -594,7 +719,7 @@ const DynamicFormEngine = () => {
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-slate-400">
                 <svg className="fill-current h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
                 </svg>
               </div>
             </div>
@@ -619,9 +744,8 @@ const DynamicFormEngine = () => {
               const isPhoneField = ['contactNumber', 'phone', 'mobile', 'mobileNumber', 'phoneNumber'].includes(field.name);
               if (isPhoneField) {
                 return (
-                  <div className={`flex items-center bg-white border rounded-xl px-4 py-3.5 transition-all focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 ${
-                    errors[field.name] ? 'border-red-400' : 'border-slate-200'
-                  }`}>
+                  <div className={`flex items-center bg-white border rounded-xl px-4 py-3.5 transition-all focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 ${errors[field.name] ? 'border-red-400' : 'border-slate-200'
+                    }`}>
                     <span className="text-[15px] font-bold text-slate-500 mr-2">+91</span>
                     <input
                       type="tel"
@@ -658,11 +782,10 @@ const DynamicFormEngine = () => {
                     handleChange(field.name, val);
                   }}
                   placeholder={field.placeholder || ''}
-                  className={`w-full bg-white border rounded-xl px-4 py-3.5 text-[15px] outline-none transition-all ${
-                    errors[field.name] 
-                      ? 'border-red-400 focus:ring-1 focus:ring-red-400' 
+                  className={`w-full bg-white border rounded-xl px-4 py-3.5 text-[15px] outline-none transition-all ${errors[field.name]
+                      ? 'border-red-400 focus:ring-1 focus:ring-red-400'
                       : 'border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
-                  }`}
+                    }`}
                 />
               );
             })()}
@@ -680,7 +803,7 @@ const DynamicFormEngine = () => {
                   />
                   <span className="text-[14px] font-medium text-slate-700">Price Negotiable</span>
                 </label>
-                
+
                 {isRentTxn && (
                   <label className="flex items-center gap-3 cursor-pointer select-none">
                     <input
@@ -692,7 +815,7 @@ const DynamicFormEngine = () => {
                     <span className="text-[14px] font-medium text-slate-700">Electricity & Water charges excluded</span>
                   </label>
                 )}
-                
+
                 <button
                   type="button"
                   onClick={() => setShowPricingModal(true)}
@@ -700,7 +823,7 @@ const DynamicFormEngine = () => {
                 >
                   <span className="text-lg font-bold leading-none">+</span> Add Maintenance and Booking Amount
                 </button>
-                
+
                 {/* Summary of maintenance and booking amount if added */}
                 {(formData.maintenanceCharges || formData.bookingAmount) && (
                   <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 mt-2 flex flex-col gap-2 text-[13px] text-slate-600 font-semibold max-w-sm shadow-sm">
@@ -722,7 +845,7 @@ const DynamicFormEngine = () => {
             )}
           </div>
         );
-      
+
       case 'pill':
         return (
           <div key={field.name} id={`field-${field.name}`} className="mb-6">
@@ -735,13 +858,12 @@ const DynamicFormEngine = () => {
                   key={opt}
                   type="button"
                   onClick={() => handleChange(field.name, opt)}
-                  className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all border whitespace-nowrap flex-shrink-0 ${
-                    formData[field.name] === opt
+                  className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all border whitespace-nowrap flex-shrink-0 ${formData[field.name] === opt
                       ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm font-semibold'
                       : errors[field.name]
                         ? 'bg-white text-slate-500 border-red-200'
                         : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                  }`}
+                    }`}
                 >
                   {opt}
                 </button>
@@ -772,26 +894,25 @@ const DynamicFormEngine = () => {
                     onClick={() => {
                       let next;
                       const isNoneOpt = ['not available', 'none', 'no washroom', 'no parking'].includes(opt.toLowerCase());
-                      
+
                       if (isNoneOpt) {
                         next = isSelected ? [] : [opt];
                       } else {
-                        const filtered = selectedPills.filter(o => 
+                        const filtered = selectedPills.filter(o =>
                           !['not available', 'none', 'no washroom', 'no parking'].includes(o.toLowerCase())
                         );
-                        next = isSelected 
-                          ? filtered.filter(o => o !== opt) 
+                        next = isSelected
+                          ? filtered.filter(o => o !== opt)
                           : [...filtered, opt];
                       }
                       handleChange(field.name, next);
                     }}
-                    className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all border whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 ${
-                      isSelected
+                    className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all border whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 ${isSelected
                         ? 'bg-[#F2FAFD] text-[#0073E6] border-[#0073E6] shadow-sm font-bold'
                         : errors[field.name]
                           ? 'bg-white text-slate-500 border-red-200'
                           : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                    }`}
+                      }`}
                   >
                     <span className="text-sm font-bold leading-none">{isSelected ? '✓' : '+'}</span>
                     <span>{opt}</span>
@@ -799,7 +920,7 @@ const DynamicFormEngine = () => {
                 );
               })}
             </div>
-            
+
             <div className="mt-3 flex gap-2">
               <input
                 type="text"
@@ -846,11 +967,10 @@ const DynamicFormEngine = () => {
               type="date"
               value={formData[field.name] || ''}
               onChange={(e) => handleChange(field.name, e.target.value)}
-              className={`w-full bg-white border rounded-xl px-4 py-3 text-[15px] outline-none transition-all ${
-                errors[field.name] 
-                  ? 'border-red-400 focus:ring-1 focus:ring-red-400' 
+              className={`w-full bg-white border rounded-xl px-4 py-3 text-[15px] outline-none transition-all ${errors[field.name]
+                  ? 'border-red-400 focus:ring-1 focus:ring-red-400'
                   : 'border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
-              }`}
+                }`}
             />
             {errors[field.name] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[field.name]}</p>}
           </div>
@@ -874,7 +994,7 @@ const DynamicFormEngine = () => {
             </select>
           </div>
         );
-      
+
       case 'file':
         const isGalleryField = field.name === 'propertyImages';
         const isBrochureField = field.name === 'brochure' || field.name === 'brochureUrl' || field.label?.toLowerCase().includes('brochure');
@@ -885,9 +1005,8 @@ const DynamicFormEngine = () => {
             <label className="block text-[14px] font-semibold text-slate-800 mb-2">
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </label>
-            <div className={`w-full border-2 border-dashed rounded-xl p-8 text-center transition-all relative ${
-              errors[field.name] ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
-            }`}>
+            <div className={`w-full border-2 border-dashed rounded-xl p-8 text-center transition-all relative ${errors[field.name] ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+              }`}>
               <div className="flex flex-col items-center justify-center space-y-2">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -908,19 +1027,19 @@ const DynamicFormEngine = () => {
                 onChange={async (e) => {
                   const files = Array.from(e.target.files);
                   if (files.length === 0) return;
-                  
+
                   const uploadToastId = toast.loading('Uploading media to server...');
                   try {
                     const fd = new FormData();
                     files.forEach(f => fd.append('images', f));
-                    
+
                     const res = await hotelService.uploadImages(fd);
                     const urls = Array.isArray(res?.urls) ? res.urls : [];
-                    
+
                     if (urls.length > 0) {
                       const currentImages = formData[field.name] || [];
                       handleChange(field.name, [...currentImages, ...urls]);
-                      
+
                       // Bind videoUrl if uploaded file is a video
                       const videoUrls = urls.filter(u => typeof u === 'string' && (u.match(/\.(mp4|webm|ogg|mov|mkv)(\?.*)?$/i) || u.includes('/video/upload/')));
                       if (videoUrls.length > 0) {
@@ -980,7 +1099,7 @@ const DynamicFormEngine = () => {
                 Add URL
               </button>
             </div>
-            
+
             {/* Display selected files with Tags & Video Preview Support */}
             {formData[field.name] && Array.isArray(formData[field.name]) && formData[field.name].length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
@@ -1008,7 +1127,7 @@ const DynamicFormEngine = () => {
                         ) : isVid ? (
                           <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
                         ) : brokenMedia[`${field.name}_${i}`] ? (
-                          <div className="text-[10px] text-slate-400 font-bold p-2 text-center">Media File/Video<br/>{url.slice(0, 20)}...</div>
+                          <div className="text-[10px] text-slate-400 font-bold p-2 text-center">Media File/Video<br />{url.slice(0, 20)}...</div>
                         ) : (
                           <img
                             src={url}
@@ -1045,7 +1164,7 @@ const DynamicFormEngine = () => {
                           ×
                         </button>
                       </div>
-                      
+
                       {/* Image/Video Tag Dropdown + Custom Tag Modal Trigger */}
                       <div className="flex flex-col gap-1">
                         <select
@@ -1058,9 +1177,8 @@ const DynamicFormEngine = () => {
                               handleChange(tagKey, { ...tags, [i]: val });
                             }
                           }}
-                          className={`text-[11px] font-bold text-slate-700 bg-white border rounded-lg px-2 py-1 outline-none w-full cursor-pointer transition-colors ${
-                            !currentTag && errors[field.name] ? 'border-red-500 bg-red-50/50' : 'border-slate-200'
-                          }`}
+                          className={`text-[11px] font-bold text-slate-700 bg-white border rounded-lg px-2 py-1 outline-none w-full cursor-pointer transition-colors ${!currentTag && errors[field.name] ? 'border-red-500 bg-red-50/50' : 'border-slate-200'
+                            }`}
                         >
                           <option value="">+ Tag Media Type</option>
                           <option value="Hall">Hall / Living</option>
@@ -1109,11 +1227,10 @@ const DynamicFormEngine = () => {
               onChange={(e) => handleChange(field.name, e.target.value)}
               placeholder={field.placeholder || ''}
               rows={4}
-              className={`w-full bg-white border rounded-xl px-4 py-3 text-[15px] outline-none transition-all resize-none ${
-                errors[field.name] 
-                  ? 'border-red-400 focus:ring-1 focus:ring-red-400' 
+              className={`w-full bg-white border rounded-xl px-4 py-3 text-[15px] outline-none transition-all resize-none ${errors[field.name]
+                  ? 'border-red-400 focus:ring-1 focus:ring-red-400'
                   : 'border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
-              }`}
+                }`}
             />
             {errors[field.name] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[field.name]}</p>}
           </div>
@@ -1134,16 +1251,15 @@ const DynamicFormEngine = () => {
                     key={opt}
                     type="button"
                     onClick={() => {
-                      const next = isChecked 
-                        ? selectedOptions.filter(o => o !== opt) 
+                      const next = isChecked
+                        ? selectedOptions.filter(o => o !== opt)
                         : [...selectedOptions, opt];
                       handleChange(field.name, next);
                     }}
-                    className={`flex items-center gap-2 p-3 rounded-xl border text-[13px] font-medium text-left transition-all ${
-                      isChecked
+                    className={`flex items-center gap-2 p-3 rounded-xl border text-[13px] font-medium text-left transition-all ${isChecked
                         ? 'bg-blue-50 border-blue-500 text-blue-600'
                         : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                    }`}
+                      }`}
                   >
                     <span className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${isChecked ? 'bg-blue-500 border-blue-500 text-white' : 'border-slate-300'}`}>
                       {isChecked && <Check size={10} strokeWidth={3} />}
@@ -1215,7 +1331,7 @@ const DynamicFormEngine = () => {
               <label className="block text-[14px] font-semibold text-slate-800 mb-2">
                 {field.label} {field.required && <span className="text-red-500">*</span>}
               </label>
-              
+
               {places.length > 0 && (
                 <div className="space-y-2 mb-4">
                   {places.map((place, idx) => (
@@ -1241,7 +1357,7 @@ const DynamicFormEngine = () => {
                   ))}
                 </div>
               )}
-              
+
               <div className="flex flex-col md:flex-row gap-2">
                 <input
                   type="text"
@@ -1250,7 +1366,7 @@ const DynamicFormEngine = () => {
                   onChange={(e) => setName(e.target.value)}
                   className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-blue-500 flex-1 min-w-0"
                 />
-                
+
                 <input
                   type="text"
                   placeholder="Category (e.g. Hospital)"
@@ -1291,7 +1407,7 @@ const DynamicFormEngine = () => {
                 {field.label} {field.required && <span className="text-red-500">*</span>}
               </label>
             </div>
-            
+
             <div className="space-y-4">
               {repeaterItems.map((item, index) => (
                 <div key={index} className="p-4 bg-white border border-slate-200 rounded-xl relative shadow-sm">
@@ -1317,47 +1433,47 @@ const DynamicFormEngine = () => {
                         : subF.options;
 
                       if (subF.type === 'file') {
-                         return (
-                           <div key={subF.name} className="flex flex-col">
-                             <label className="text-[12px] font-semibold text-slate-600 mb-1">
-                               {subF.label} {subF.required && <span className="text-red-500">*</span>}
-                             </label>
-                             <div className="flex flex-col gap-2 items-start w-full">
-                               <input type="text" placeholder="Image URL..." 
-                                 className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
-                                 value={item[subF.name] || ''}
-                                 onChange={(e) => {
-                                    const next = [...repeaterItems];
-                                    next[index] = { ...next[index], [subF.name]: e.target.value };
-                                    handleChange(field.name, next);
-                                 }}
-                               />
-                               <label className="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg text-[12px] font-bold cursor-pointer transition-colors w-fit">
-                                 Upload Image
-                                 <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                                    const file = e.target.files[0];
-                                    if (!file) return;
-                                    const fd = new FormData();
-                                    fd.append('images', file);
-                                    const toastId = toast.loading('Uploading...');
-                                    try {
-                                      const res = await hotelService.uploadImages(fd);
-                                      if (res?.urls?.[0]) {
-                                        const next = [...repeaterItems];
-                                        next[index] = { ...next[index], [subF.name]: res.urls[0] };
-                                        handleChange(field.name, next);
-                                        toast.success('Uploaded', { id: toastId });
-                                      }
-                                    } catch (err) {
-                                      toast.error('Upload failed', { id: toastId });
+                        return (
+                          <div key={subF.name} className="flex flex-col">
+                            <label className="text-[12px] font-semibold text-slate-600 mb-1">
+                              {subF.label} {subF.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <div className="flex flex-col gap-2 items-start w-full">
+                              <input type="text" placeholder="Image URL..."
+                                className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
+                                value={item[subF.name] || ''}
+                                onChange={(e) => {
+                                  const next = [...repeaterItems];
+                                  next[index] = { ...next[index], [subF.name]: e.target.value };
+                                  handleChange(field.name, next);
+                                }}
+                              />
+                              <label className="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg text-[12px] font-bold cursor-pointer transition-colors w-fit">
+                                Upload Image
+                                <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                                  const file = e.target.files[0];
+                                  if (!file) return;
+                                  const fd = new FormData();
+                                  fd.append('images', file);
+                                  const toastId = toast.loading('Uploading...');
+                                  try {
+                                    const res = await hotelService.uploadImages(fd);
+                                    if (res?.urls?.[0]) {
+                                      const next = [...repeaterItems];
+                                      next[index] = { ...next[index], [subF.name]: res.urls[0] };
+                                      handleChange(field.name, next);
+                                      toast.success('Uploaded', { id: toastId });
                                     }
-                                 }} />
-                               </label>
-                             </div>
-                             {item[subF.name] && <img src={item[subF.name]} alt="preview" className="h-12 w-auto mt-2 rounded border" />}
-                             {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-2 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
-                           </div>
-                         );
+                                  } catch (err) {
+                                    toast.error('Upload failed', { id: toastId });
+                                  }
+                                }} />
+                              </label>
+                            </div>
+                            {item[subF.name] && <img src={item[subF.name]} alt="preview" className="h-12 w-auto mt-2 rounded border" />}
+                            {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-2 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
+                          </div>
+                        );
                       }
 
                       if (subF.type === 'pill') {
@@ -1376,18 +1492,17 @@ const DynamicFormEngine = () => {
                                     next[index] = { ...next[index], [subF.name]: opt };
                                     handleChange(field.name, next);
                                   }}
-                                  className={`px-4 py-2 text-[12px] font-medium rounded-full border transition-all ${
-                                    item[subF.name] === opt 
-                                      ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                                  className={`px-4 py-2 text-[12px] font-medium rounded-full border transition-all ${item[subF.name] === opt
+                                      ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                                       : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:bg-blue-50'
-                                  }`}
+                                    }`}
                                 >
                                   {opt}
                                 </button>
                               ))}
-                              <input 
-                                type="text" 
-                                placeholder="Custom tag..." 
+                              <input
+                                type="text"
+                                placeholder="Custom tag..."
                                 className="border border-slate-200 rounded-full px-4 py-2 text-[12px] outline-none focus:border-blue-500 w-32 transition-all"
                                 value={(!subF.options?.includes(item[subF.name])) ? (item[subF.name] || '') : ''}
                                 onChange={(e) => {
@@ -1401,7 +1516,7 @@ const DynamicFormEngine = () => {
                           </div>
                         );
                       }
-                      
+
                       if (subF.type === 'dropdown') {
                         return (
                           <div key={subF.name} className="flex flex-col">
@@ -1500,7 +1615,7 @@ const DynamicFormEngine = () => {
                           <label className="text-[12px] font-semibold text-slate-600 mb-1">
                             {subF.label} {subF.required && <span className="text-red-500">*</span>}
                           </label>
-                          <input 
+                          <input
                             type={subF.type === 'number' ? 'number' : 'text'}
                             className="border rounded-lg px-3 py-2 text-[13px] w-full outline-none focus:border-blue-500"
                             placeholder={subF.placeholder || ''}
@@ -1532,7 +1647,7 @@ const DynamicFormEngine = () => {
                 </div>
               ))}
             </div>
-            
+
             <button
               type="button"
               onClick={() => {
@@ -1579,9 +1694,8 @@ const DynamicFormEngine = () => {
             <label className="block text-[14px] font-semibold text-slate-800 mb-2">
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </label>
-            <div className={`flex items-center gap-3 bg-white border rounded-xl p-3 ${
-              errors[field.name] ? 'border-red-400' : 'border-slate-200'
-            }`}>
+            <div className={`flex items-center gap-3 bg-white border rounded-xl p-3 ${errors[field.name] ? 'border-red-400' : 'border-slate-200'
+              }`}>
               <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-200 shrink-0 overflow-hidden flex items-center justify-center">
                 {fileUrl ? (
                   isImage
@@ -1810,13 +1924,12 @@ const DynamicFormEngine = () => {
                     title={`${step.stepNumber}. ${step.title}`}
                     disabled={idx > currentStepIndex}
                     onClick={() => goToStep(idx)}
-                    className={`w-6 h-6 shrink-0 rounded-full text-[10px] font-bold flex items-center justify-center border transition-all ${
-                      isCurrent
+                    className={`w-6 h-6 shrink-0 rounded-full text-[10px] font-bold flex items-center justify-center border transition-all ${isCurrent
                         ? 'bg-[#0073E6] text-white border-[#0073E6] ring-2 ring-blue-100'
                         : isDone
                           ? 'bg-blue-50 text-[#0073E6] border-[#0073E6] cursor-pointer hover:bg-blue-100'
                           : 'bg-white text-slate-400 border-slate-200 cursor-not-allowed'
-                    }`}
+                      }`}
                   >
                     {isDone ? <Check size={12} strokeWidth={3} /> : idx + 1}
                   </button>
@@ -1848,7 +1961,7 @@ const DynamicFormEngine = () => {
                 <p className="text-[11px] text-slate-500 mb-3">
                   Upload a logo to display on your {user?.role === 'builder' ? 'project' : 'property'} card listings (e.g. your builder or broker brand).
                 </p>
-                
+
                 {formData.logo ? (
                   <div className="relative w-24 h-24 bg-white border border-slate-200 rounded-xl overflow-hidden group">
                     <img src={formData.logo} alt="Property Logo" className="w-full h-full object-contain" />
@@ -1861,9 +1974,8 @@ const DynamicFormEngine = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-all relative ${
-                    errors.logo ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
-                  }`}>
+                  <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-all relative ${errors.logo ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+                    }`}>
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -1879,15 +1991,15 @@ const DynamicFormEngine = () => {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        
+
                         const uploadToastId = toast.loading('Uploading logo...');
                         try {
                           const fd = new FormData();
                           fd.append('images', file);
-                          
+
                           const res = await hotelService.uploadImages(fd);
                           const urls = Array.isArray(res?.urls) ? res.urls : [];
-                          
+
                           if (urls.length > 0) {
                             handleChange('logo', urls[0]);
                             toast.success('Logo uploaded successfully!', { id: uploadToastId });
@@ -1915,73 +2027,94 @@ const DynamicFormEngine = () => {
                     district: formData.district || '',
                     city: formData.city || ''
                   }}
-                  onChange={({ country, state, district, city }) => {
+                  onChange={({ country, state, district, city, locality, pincode, latitude, longitude, formattedAddress }) => {
                     handleChange('country', country);
                     handleChange('state', state);
                     handleChange('district', district);
                     handleChange('city', city);
+                    // Everything below is derived from the picked place. Only
+                    // overwrite when Google actually returned a value, so a
+                    // reverse-geocode that finds nothing can't wipe what the
+                    // lister already typed.
+                    if (locality) handleChange('locality', locality);
+                    if (pincode) handleChange('pincode', pincode);
+                    if (latitude) handleChange('latitude', latitude);
+                    if (longitude) handleChange('longitude', longitude);
+                    // Prefill the address box, but never clobber something the
+                    // lister typed themselves. Replacing it is only safe when
+                    // it is still exactly the address we auto-filled last time
+                    // — otherwise picking a new place would leave the previous
+                    // location's address sitting there.
+                    const current = formData.fullAddress || formData.houseNumber || '';
+                    const isOursToReplace = !current || current === autoFilledAddressRef.current;
+                    if (formattedAddress && isOursToReplace) {
+                      autoFilledAddressRef.current = formattedAddress;
+                      handleChange('fullAddress', formattedAddress);
+                      handleChange('houseNumber', formattedAddress);
+                    }
                   }}
                   errors={errors}
                   required
                 />
-                
+
                 <div className="space-y-4 mt-6">
-                   <div>
-                     <label className="block text-[14px] font-semibold text-slate-800 mb-2">Locality / Sector</label>
-                     <input
-                       type="text"
-                       value={formData.locality || ''}
-                       onChange={(e) => handleChange('locality', e.target.value)}
-                       placeholder="e.g. Super Corridor"
-                       className={`w-full bg-white border rounded-xl px-4 py-3 text-[13px] font-medium outline-none transition-all ${errors.locality ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#005B9F]'}`}
-                     />
-                   </div>
-                   <div>
-                     <label className="block text-[14px] font-semibold text-slate-800 mb-2">Complete Property Address <span className="text-red-500">*</span></label>
-                     <textarea
-                       value={formData.fullAddress || formData.houseNumber || ''}
-                       onChange={(e) => {
-                         handleChange('fullAddress', e.target.value);
-                         handleChange('houseNumber', e.target.value);
-                       }}
-                       placeholder="e.g. Plot No 12, Main Road..."
-                       className={`w-full bg-white border rounded-xl px-4 py-3 text-[13px] font-medium outline-none transition-all resize-none ${errors.fullAddress || errors.houseNumber ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#005B9F]'}`}
-                       rows={3}
-                     />
-                     {(errors.fullAddress || errors.houseNumber) && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.fullAddress || errors.houseNumber}</p>}
-                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[14px] font-semibold text-slate-800 mb-2">Locality / Sector</label>
+                      <input
+                        type="text"
+                        value={formData.locality || ''}
+                        onChange={(e) => handleChange('locality', e.target.value)}
+                        placeholder="e.g. Super Corridor"
+                        className={`w-full bg-white border rounded-xl px-4 py-3 text-[13px] font-medium outline-none transition-all ${errors.locality ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#005B9F]'}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[14px] font-semibold text-slate-800 mb-2">
+                        Pincode
+                        {formData.pincode && (
+                          <span className="ml-2 text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Auto-filled</span>
+                        )}
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formData.pincode || ''}
+                        onChange={(e) => handleChange('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="Filled from the location you pick"
+                        className={`w-full bg-white border rounded-xl px-4 py-3 text-[13px] font-medium outline-none transition-all ${errors.pincode ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#005B9F]'}`}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[14px] font-semibold text-slate-800 mb-2">Complete Property Address <span className="text-red-500">*</span></label>
+                    <textarea
+                      value={formData.fullAddress || formData.houseNumber || ''}
+                      onChange={(e) => {
+                        handleChange('fullAddress', e.target.value);
+                        handleChange('houseNumber', e.target.value);
+                      }}
+                      placeholder="e.g. Plot No 12, Main Road..."
+                      className={`w-full bg-white border rounded-xl px-4 py-3 text-[13px] font-medium outline-none transition-all resize-none ${errors.fullAddress || errors.houseNumber ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#005B9F]'}`}
+                      rows={3}
+                    />
+                    {(errors.fullAddress || errors.houseNumber) && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.fullAddress || errors.houseNumber}</p>}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Render Fields sorted by order. On desktop, short fields (text,
-                number, dropdown, date...) sit two-per-row instead of each
-                taking the full form width; fields that need the extra room
-                (file uploads, textareas, tag clouds, repeaters...) still
-                span both columns. */}
-            <div className="md:grid md:grid-cols-2 md:gap-x-6">
-              {currentStep.fields
-                .sort((a,b) => a.order - b.order)
-                .filter(field => {
-                  const isLocationField = stepUsesLocationSelector(currentStep) && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber'].includes(field.name.toLowerCase());
-                  const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
-                  const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
+            {/* Render Fields sorted by order */}
+            {currentStep.fields
+              .sort((a, b) => a.order - b.order)
+              .filter(field => {
+                const isLocationField = stepUsesLocationSelector(currentStep) && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber'].includes(field.name.toLowerCase());
+                const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
+                const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
 
-                  return !isLocationField && !isUnitField && !isCustomPricingField;
-                })
-                .map(field => {
-                  const rendered = renderField(field);
-                  if (!rendered) return null;
-                  const isCombinedUnitField = !!unitFieldMapping[field.name];
-                  const wideTypes = ['pill', 'multiselect_pill', 'file', 'textarea', 'checkbox_group', 'nearby_places', 'repeater', 'review', 'progress_group'];
-                  const isWide = isCombinedUnitField || wideTypes.includes(field.type);
-                  return (
-                    <div key={field.name} className={isWide ? 'md:col-span-2' : ''}>
-                      {rendered}
-                    </div>
-                  );
-                })}
-            </div>
+                return !isLocationField && !isUnitField && !isCustomPricingField;
+              })
+              .map(renderField)}
 
           </motion.div>
         </AnimatePresence>
@@ -2003,11 +2136,10 @@ const DynamicFormEngine = () => {
                 onClick={saveDraft}
                 disabled={loading}
                 title="Save your progress and continue later"
-                className={`px-4 py-3.5 rounded-xl border font-bold text-[15px] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 ${
-                  draftSaved
+                className={`px-4 py-3.5 rounded-xl border font-bold text-[15px] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 ${draftSaved
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 {draftSaved ? <Check size={16} strokeWidth={3} /> : <Save size={16} />}
                 <span className="hidden sm:inline">{draftSaved ? 'Saved' : 'Save Draft'}</span>
@@ -2029,7 +2161,7 @@ const DynamicFormEngine = () => {
       {/* More Pricing Details Popup Modal */}
       {showPricingModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4 transition-all">
-          <div 
+          <div
             className="absolute inset-0 bg-transparent"
             onClick={() => setShowPricingModal(false)}
           />
@@ -2050,11 +2182,11 @@ const DynamicFormEngine = () => {
                 className="p-1 rounded-full text-slate-400 hover:bg-slate-100 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            
+
             {/* Content */}
             <div className="p-6 space-y-5">
               <div>
@@ -2081,13 +2213,13 @@ const DynamicFormEngine = () => {
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
                       <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
                       </svg>
                     </div>
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Booking Amount (Optional)</label>
                 <input
@@ -2099,7 +2231,7 @@ const DynamicFormEngine = () => {
                 />
               </div>
             </div>
-            
+
             {/* Action Buttons */}
             <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
               <button
@@ -2135,6 +2267,118 @@ const DynamicFormEngine = () => {
       )}
 
       {/* Custom Tag Editing In-App Modal */}
+      {subscriptionGate && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-slate-100"
+          >
+            <div className="px-6 pt-6 pb-5 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <Check size={16} />
+                <span className="text-xs font-bold uppercase tracking-wide">Saved as draft</span>
+              </div>
+
+              <h3 className="text-lg font-bold text-slate-900">
+                {subscriptionGate.eligibility?.trialExpired
+                  ? 'Your free trial has ended'
+                  : 'Subscribe to unlock more'}
+              </h3>
+
+              <p className="text-[13px] text-slate-600 leading-relaxed">
+                {subscriptionGate.eligibility?.trialExpired
+                  ? (subscriptionGate.eligibility?.message
+                    || 'Your free trial has expired. Subscribe to a plan to publish this project.')
+                  : subscriptionGate.eligibility?.limitReached
+                    ? subscriptionGate.eligibility?.message
+                    : `You're on the free trial with ${subscriptionGate.eligibility?.trialDaysRemaining ?? 0} day${subscriptionGate.eligibility?.trialDaysRemaining === 1 ? '' : 's'} left. Subscribe now for uninterrupted listings, or skip and submit this project for approval.`}
+              </p>
+
+              <p className="text-[12px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                Your project is safe in <span className="font-semibold text-slate-700">My Listings</span> as a draft
+                {subscriptionGate.eligibility?.trialExpired ? ' — submit it once you subscribe.' : '.'}
+              </p>
+            </div>
+
+            <div className="px-6 pb-6 flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => navigate('/my-subscriptions')}
+                className="w-full py-3 bg-[#005B9F] hover:bg-[#004a83] text-white text-sm font-bold rounded-xl transition-all"
+              >
+                View Subscription Plans
+              </button>
+
+              {/* Skip only exists while the trial is still valid — an expired
+                  trial has to go through payment. */}
+              {subscriptionGate.eligibility?.canSubmit ? (
+                <button
+                  type="button"
+                  onClick={() => submitDraftForApproval(subscriptionGate.propertyId)}
+                  className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-all"
+                >
+                  Skip &amp; Submit for Approval
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setSubscriptionGate(null); navigate('/my-properties'); }}
+                  className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold rounded-xl transition-all"
+                >
+                  Go to My Listings
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {masterChangeWarning && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-slate-100 p-6 space-y-4"
+          >
+            <h3 className="text-base font-bold text-slate-900">
+              Change {masterChangeWarning.name === 'propertyType' ? 'Property Type' : masterChangeWarning.name === 'transactionType' ? 'Transaction Type' : 'Project Status'} to “{masterChangeWarning.value}”?
+            </h3>
+
+            <p className="text-xs text-slate-500">
+              This selection controls which fields the rest of the form shows.
+              The following {masterChangeWarning.affected.length === 1 ? 'answer no longer applies' : 'answers no longer apply'} and will be cleared:
+            </p>
+
+            <ul className="max-h-48 overflow-y-auto bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1.5">
+              {masterChangeWarning.affected.map((f) => (
+                <li key={f.name} className="text-xs text-amber-900 flex gap-2">
+                  <span className="font-bold shrink-0">Step {f.step}</span>
+                  <span>{f.label}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setMasterChangeWarning(null)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all"
+              >
+                Keep Current
+              </button>
+              <button
+                type="button"
+                onClick={confirmMasterChange}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+              >
+                Change &amp; Clear
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {customTagModal.open && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <motion.div

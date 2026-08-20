@@ -1,68 +1,37 @@
 import BuilderFormTemplate from '../models/BuilderFormTemplate.js';
-import { createBuilderSteps } from '../config/builderProjectSteps.js';
+import {
+  createBuilderSteps,
+  TRANSACTION_TYPES,
+  BUILDER_PROPERTY_TYPES
+} from '../config/builderProjectSteps.js';
 
 // Bump this whenever createBuilderSteps() changes so that already-seeded
 // databases pick up the new step definitions on the next request.
 // v2 = the 15-step Builder Property Listing flow (was a 7-step flow at v0/v1).
 // v3 = dynamic branching added to Steps 1 (RERA status), 3/4 (tower/villa/plot
 // inventory repeaters), and 10 (project-status-specific fields).
-export const BUILDER_TEMPLATE_VERSION = 3;
+// v4 = Transaction Type + Property Type moved INTO Step 1 and every downstream
+// step branches off them, so a single universal template replaces the old
+// one-row-per-property-type seeding.
+export const BUILDER_TEMPLATE_VERSION = 4;
 
-const generateAllTemplates = () => {
-  const templates = [];
-
-  const sellResTypes = [
-    'Apartment', 'Independent House / Villa', 'Builder Floor',
-    '1 RK/ Studio Apartment', 'Serviced Apartment', 'Farmhouse',
-    'Plot / Land', 'Other'
-  ];
-
-  const commercialSubtypes = [
-    'Ready to move office space',
-    'Bare shell office space',
-    'Co-working office space',
-    'Commercial Shops',
-    'Commercial Showrooms',
-    'Commercial Land/Inst. Land',
-    'Agricultural/Farm Land',
-    'Industrial Lands/Plots',
-    'Ware House',
-    'Cold Storage',
-    'Factory',
-    'Manufacturing',
-    'Hotel/Resorts',
-    'Guest-House/Banquet-Halls',
-    'Other'
-  ];
-
-  sellResTypes.forEach(type => {
-    templates.push({
-      transactionType: 'Sell',
-      category: 'Residential',
-      propertyType: type,
-      version: BUILDER_TEMPLATE_VERSION,
-      steps: createBuilderSteps('Residential', type)
-    });
-  });
-
-  commercialSubtypes.forEach(type => {
-    templates.push({
-      transactionType: 'Sell',
-      category: 'Commercial',
-      propertyType: type,
-      version: BUILDER_TEMPLATE_VERSION,
-      steps: createBuilderSteps('Commercial', type)
-    });
-  });
-
-  return templates;
+// The wizard is now self-describing: Step 1 collects transactionType and
+// propertyType, and later steps branch on them via `dependsOn`. So exactly one
+// template row is stored, under a sentinel key.
+export const UNIVERSAL_TEMPLATE_KEY = {
+  transactionType: 'All',
+  category: 'All',
+  propertyType: 'All'
 };
 
 const reseedAll = async () => {
-  const allTemplates = generateAllTemplates();
   await BuilderFormTemplate.deleteMany({});
-  await BuilderFormTemplate.create(allTemplates);
-  return allTemplates.length;
+  await BuilderFormTemplate.create([{
+    ...UNIVERSAL_TEMPLATE_KEY,
+    version: BUILDER_TEMPLATE_VERSION,
+    steps: createBuilderSteps()
+  }]);
+  return 1;
 };
 
 // Seeds on an empty collection, and re-seeds when the stored templates were
@@ -83,37 +52,40 @@ export const ensureSeeded = async () => {
   }
 };
 
-// Get a specific template based on transaction, category, and property type
+// Returns the single universal 15-step template.
+//
+// transactionType / category / propertyType are no longer required: the wizard
+// collects them in Step 1 and branches on them client-side. They are still
+// accepted (and used as a legacy lookup) so older callers keep working.
 export const getBuilderTemplate = async (req, res) => {
     try {
-        let { transactionType, category, propertyType } = req.query;
-
-        if (!transactionType || !category || !propertyType) {
-            return res.status(400).json({ success: false, message: "Missing required query parameters: transactionType, category, propertyType" });
-        }
+        const { transactionType, category, propertyType } = req.query;
 
         await ensureSeeded();
 
         let template = await BuilderFormTemplate.findOne({
-            transactionType,
-            category,
-            propertyType,
+            ...UNIVERSAL_TEMPLATE_KEY,
             isActive: true
         });
 
-        // Fall back to the category's generic "Other" template so an unmapped
-        // property type still gets the full 15-step flow instead of a dead end.
-        if (!template) {
+        // Legacy: a database still holding per-property-type rows.
+        if (!template && transactionType && category && propertyType) {
             template = await BuilderFormTemplate.findOne({
                 transactionType,
                 category,
-                propertyType: 'Other',
+                propertyType,
                 isActive: true
             });
         }
 
+        // Last resort so an unmapped combination still gets the full flow
+        // instead of a dead end.
         if (!template) {
-            return res.status(404).json({ success: false, message: "No builder form template found for this configuration." });
+            template = await BuilderFormTemplate.findOne({ isActive: true });
+        }
+
+        if (!template) {
+            return res.status(404).json({ success: false, message: "No builder form template found." });
         }
 
         res.status(200).json({ success: true, template });
@@ -143,41 +115,28 @@ export const saveBuilderTemplate = async (req, res) => {
     }
 };
 
-// Get all unique combinations to show in Step 1
+// The transaction / category / property-type combinations the builder wizard
+// supports. Derived from the step-config constants rather than aggregated from
+// stored rows, because there is now only one universal template row.
+const RESIDENTIAL_TYPES = BUILDER_PROPERTY_TYPES.filter(t => t !== 'Commercial');
+
 export const getAvailableBuilderConfigurations = async (req, res) => {
     try {
         await ensureSeeded();
 
-        const configs = await BuilderFormTemplate.aggregate([
-            { $match: { isActive: true } },
-            {
-                $group: {
-                    _id: {
-                        transactionType: "$transactionType",
-                        category: "$category"
-                    },
-                    propertyTypes: { $addToSet: "$propertyType" }
-                }
-            },
-            {
-                $group: {
-                    _id: "$_id.transactionType",
-                    categories: {
-                        $push: {
-                            category: "$_id.category",
-                            propertyTypes: "$propertyTypes"
-                        }
-                    }
-                }
-            },
-            {
-                $project: {
-                    _id: 0,
-                    transactionType: "$_id",
-                    categories: 1
-                }
-            }
-        ]);
+        const configs = TRANSACTION_TYPES.map(transactionType => ({
+            transactionType,
+            categories: [
+                {
+                    category: 'Residential',
+                    // Plots and land are sold, not rented, through this flow.
+                    propertyTypes: transactionType === 'Sell'
+                        ? RESIDENTIAL_TYPES
+                        : RESIDENTIAL_TYPES.filter(t => t !== 'Plot' && t !== 'Land')
+                },
+                { category: 'Commercial', propertyTypes: ['Commercial'] }
+            ]
+        }));
 
         res.status(200).json({ success: true, configs });
     } catch (error) {

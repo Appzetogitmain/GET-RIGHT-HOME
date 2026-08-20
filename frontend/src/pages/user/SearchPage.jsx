@@ -82,6 +82,7 @@ const SearchPage = () => {
     const [previewCount, setPreviewCount] = useState(0);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [nearMeLoading, setNearMeLoading] = useState(false);
+    const [searchInputValue, setSearchInputValue] = useState("");
 
     // Filters State
     // Initialize filters from URL
@@ -250,13 +251,17 @@ const SearchPage = () => {
             document.body.style.overflow = 'hidden';
         } else {
             if (window.lenis) window.lenis.start();
-            document.body.style.overflow = '';
+            document.body.style.overflow = 'unset';
         }
         return () => {
             if (window.lenis) window.lenis.start();
-            document.body.style.overflow = '';
+            document.body.style.overflow = 'unset';
         };
     }, [showFilters]);
+
+    useEffect(() => {
+        setSearchInputValue(filters.areas && filters.areas.length > 0 ? filters.areas.join(', ') : (filters.search || ""));
+    }, [filters.areas, filters.search]);
 
     useEffect(() => {
         setFilters(getInitialFilters());
@@ -751,15 +756,37 @@ const SearchPage = () => {
                         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
                             <ChevronLeft size={20} className="text-gray-600" />
                         </button>
-                        <div
+                        <form
                             className="relative flex-grow"
-                            onClick={() => setShowFilters(true)}
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                const val = searchInputValue.trim();
+                                setSearchParams(prev => {
+                                    const p = Object.fromEntries([...prev]);
+                                    if (val) {
+                                        p.search = val;
+                                        delete p.areas;
+                                        delete p.city;
+                                    } else {
+                                        delete p.search;
+                                        delete p.areas;
+                                        delete p.city;
+                                    }
+                                    return p;
+                                }, { replace: true });
+                            }}
                         >
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                            <div className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-400 bg-gray-50 flex items-center h-9">
-                                {filters.areas && filters.areas.length > 0 ? filters.areas.join(', ') : (filters.search || "Search City/Locality/Project")}
-                            </div>
-                        </div>
+                            <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors">
+                                <Search size={16} />
+                            </button>
+                            <input
+                                type="text"
+                                value={searchInputValue}
+                                onChange={(e) => setSearchInputValue(e.target.value)}
+                                placeholder="Search City/Locality/Project"
+                                className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-800 bg-gray-50 flex items-center h-9 outline-none focus:bg-white focus:border-blue-300 focus:shadow-sm transition-all"
+                            />
+                        </form>
                         <button
                             onClick={handleNearMe}
                             disabled={nearMeLoading}
@@ -803,7 +830,6 @@ const SearchPage = () => {
                                     if (filters.bathrooms > 0) count++;
                                     if (filters.postedBy) count++;
                                     if (filters.purchaseType) count++;
-                                    if (filters.areas && filters.areas.length > 0) count++;
                                     if (filters.builder && Array.isArray(filters.builder) && filters.builder.length > 0) count++;
                                     return count > 0 ? <span className="text-xs font-bold text-white bg-red-500 rounded-full w-4 h-4 flex items-center justify-center">{count}</span> : null;
                                 })()}

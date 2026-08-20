@@ -12,19 +12,49 @@ const nearbyPlaceSchema = new mongoose.Schema({
 
 // --- Builder project listing sub-schemas (15-step wizard) ---
 
+// One promoted inventory row for every property type. The builder wizard fills a
+// different Step 4 repeater per type (apartment / villa / plot / commercial /
+// rental) and normalises all of them onto this shape — so every type-specific
+// column below must exist here, or Mongoose strict mode silently drops it.
 const unitConfigurationSchema = new mongoose.Schema({
   unitType: String,          // "3 BHK", "200 sq.yards", "Office Suite A"
   towerName: String,         // apartment: which tower this configuration belongs to
   floorNumber: Number,
   plotNumber: String,        // plot: individual plot identifier
   carpetArea: Number,
+  builtUpArea: Number,
   superArea: Number,
   areaUnit: { type: String, default: 'sq.ft.' },
   price: Number,
   pricePerSqft: Number,
+  totalUnits: Number,
   availableUnits: Number,
   facing: String,
-  status: String             // plot inventory: Available / Hold / Sold / Blocked
+  status: String,            // plot inventory: Available / Hold / Sold / Blocked
+
+  // villa
+  villaType: String,
+  villaNumber: String,
+  plotArea: Number,
+  numberOfFloors: Number,
+
+  // plot
+  length: Number,
+  width: Number,
+  roadWidth: Number,
+  isCornerPlot: String,
+  premium: Number,
+
+  // commercial
+  unitNumber: String,
+
+  // rent / lease
+  furnishing: String,
+  monthlyRent: Number,
+  securityDeposit: Number,
+  maintenanceCharges: Number,
+  lockInPeriod: Number,
+  availableFrom: Date
 }, { _id: false });
 
 const towerSchema = new mongoose.Schema({
@@ -278,7 +308,9 @@ const propertySchema = new mongoose.Schema({
     totalLandArea: Number,
     totalTowers: Number,
     totalFloors: Number,
+    // headline count for the project: units / villas / plots / commercial units
     totalUnits: Number,
+    totalPhases: Number,
     openSpacePercentage: Number,
     clubHouseSize: Number,
     launchDate: Date,
@@ -328,6 +360,14 @@ const propertySchema = new mongoose.Schema({
 
   // Denormalised price range, derived from unitConfigurations on save
   priceRange: {
+    min: Number,
+    max: Number
+  },
+
+  // Monthly rent range for Rent / Lease projects. Kept separate from priceRange
+  // so buy-side filters and "starting price" labels never read a monthly figure
+  // as a sale price.
+  rentRange: {
     min: Number,
     max: Number
   },

@@ -16,17 +16,44 @@ import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } fro
  * searches for and picks becomes the property's real address — the
  * source of truth for where it shows up in search later.
  *
- * Interface is unchanged from the old cascading version:
+ * Picking a place also auto-fills everything else derivable from it —
+ * locality, pincode and map coordinates — so the lister never types them by
+ * hand. Broad searches (a city, a large locality) often carry no postal_code
+ * on the Places result, so we reverse-geocode the coordinates to recover one.
+ *
  *   value: { country, state, district, city }
- *   onChange({ country, state, district, city })
+ *   onChange({ country, state, district, city, locality, pincode, latitude, longitude, formattedAddress })
  */
 
 const getComponent = (components, type) =>
   components?.find((c) => c.types.includes(type))?.long_name || '';
 
+// Ask Google what postal code covers these coordinates. Used when the picked
+// place itself has no postal_code component.
+const reverseGeocodePincode = (lat, lng) =>
+  new Promise((resolve) => {
+    if (!window.google?.maps?.Geocoder) return resolve('');
+    try {
+      new window.google.maps.Geocoder().geocode(
+        { location: { lat, lng } },
+        (results, status) => {
+          if (status !== 'OK' || !results?.length) return resolve('');
+          for (const result of results) {
+            const pin = getComponent(result.address_components, 'postal_code');
+            if (pin) return resolve(pin);
+          }
+          resolve('');
+        }
+      );
+    } catch {
+      resolve('');
+    }
+  });
+
 const LocationSelector = ({ value = {}, onChange, required = false, className = '', errors = {} }) => {
   const [autocomplete, setAutocomplete] = useState(null);
   const [query, setQuery] = useState('');
+  const [resolvingPincode, setResolvingPincode] = useState(false);
   // If we already have a value (editing an existing property, or a place
   // was just picked), show it as a resolved summary instead of a live search box.
   const [isEditing, setIsEditing] = useState(!(value?.city || value?.state));
@@ -37,7 +64,7 @@ const LocationSelector = ({ value = {}, onChange, required = false, className = 
     libraries: GOOGLE_MAPS_LIBRARIES
   });
 
-  const handlePlaceChanged = () => {
+  const handlePlaceChanged = async () => {
     if (!autocomplete) return;
     const place = autocomplete.getPlace();
     if (!place?.address_components) return;
@@ -55,9 +82,44 @@ const LocationSelector = ({ value = {}, onChange, required = false, className = 
     const state = getComponent(components, 'administrative_area_level_1');
     const country = getComponent(components, 'country') || 'India';
 
-    onChange({ country, state, district, city });
+    // The neighbourhood/sector within the city. Only meaningful when it isn't
+    // just the city name repeated back.
+    const localityRaw =
+      getComponent(components, 'sublocality_level_1') ||
+      getComponent(components, 'sublocality') ||
+      getComponent(components, 'neighborhood') ||
+      (place.name && place.name !== city ? place.name : '');
+    const locality = localityRaw === city ? '' : localityRaw;
+
+    const lat = place.geometry?.location?.lat?.();
+    const lng = place.geometry?.location?.lng?.();
+    const latitude = typeof lat === 'number' ? String(lat) : '';
+    const longitude = typeof lng === 'number' ? String(lng) : '';
+
+    const base = {
+      country,
+      state,
+      district,
+      city,
+      locality,
+      latitude,
+      longitude,
+      formattedAddress: place.formatted_address || ''
+    };
+
+    // Emit immediately so the form updates without waiting on the network,
+    // then fill the pincode in once resolved.
+    const directPincode = getComponent(components, 'postal_code');
+    onChange({ ...base, pincode: directPincode });
     setQuery('');
     setIsEditing(false);
+
+    if (!directPincode && typeof lat === 'number' && typeof lng === 'number') {
+      setResolvingPincode(true);
+      const pincode = await reverseGeocodePincode(lat, lng);
+      setResolvingPincode(false);
+      if (pincode) onChange({ ...base, pincode });
+    }
   };
 
   const hasValue = value?.city || value?.state;
@@ -91,7 +153,9 @@ const LocationSelector = ({ value = {}, onChange, required = false, className = 
           onPlaceChanged={handlePlaceChanged}
           options={{
             componentRestrictions: { country: 'in' },
-            fields: ['name', 'address_components']
+            // geometry is required to auto-fill coordinates and to
+            // reverse-geocode a pincode when the place has none.
+            fields: ['name', 'address_components', 'geometry', 'formatted_address']
           }}
         >
           <div className="relative">
@@ -123,7 +187,11 @@ const LocationSelector = ({ value = {}, onChange, required = false, className = 
           className="w-full px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-400"
         />
       )}
-      <p className="text-[10px] text-gray-400 mt-1.5">Search any city, town, or locality — it doesn't need to be pre-registered by admin.</p>
+      <p className="text-[10px] text-gray-400 mt-1.5">
+        {resolvingPincode
+          ? 'Looking up pincode for this location...'
+          : "Search any city, town, or locality — it doesn't need to be pre-registered by admin. Pincode and map coordinates are filled in automatically."}
+      </p>
       {errors.city && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors.city}</p>}
     </div>
   );

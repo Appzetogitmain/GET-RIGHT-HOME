@@ -145,15 +145,23 @@ export const mapBuilderProjectFields = (dynamicData) => {
   const derivedTotalFloors = towers.length
     ? Math.max(...towers.map(t => t.numberOfFloors || 0))
     : toNum(get('totalFloors'));
+
+  // Each property type names its own headline count in Step 3. Fall back across
+  // all of them (plus the legacy flat `totalUnits`) so one promoted field works
+  // for every type.
   const derivedTotalUnits = towers.length
     ? towers.reduce((sum, t) => sum + (t.totalUnits || 0), 0)
-    : toNum(get('totalUnits'));
+    : (toNum(get('totalVillas'))
+      ?? toNum(get('totalPlots'))
+      ?? toNum(get('totalCommercialUnits'))
+      ?? toNum(get('totalUnits')));
 
   const projectSummary = compact({
-    totalLandArea: toNum(get('totalLandArea')),
+    totalLandArea: toNum(get('totalLandArea')) ?? toNum(get('totalLayoutArea')),
     totalTowers: derivedTotalTowers,
     totalFloors: derivedTotalFloors || undefined,
     totalUnits: derivedTotalUnits || undefined,
+    totalPhases: toNum(get('totalPhases')) ?? toNum(get('plotPhases')),
     openSpacePercentage: toNum(get('openSpacePercentage')),
     clubHouseSize: toNum(get('clubHouseSize')),
     launchDate: toDate(get('launchDate')),
@@ -163,55 +171,127 @@ export const mapBuilderProjectFields = (dynamicData) => {
   if (Object.keys(projectSummary).length) mapped.projectSummary = projectSummary;
 
   // --- Step 4: Unit Details & Pricing ---
-  // Apartment/Plot use `unitConfigurations`; Villa uses its own `villaConfigurations`
-  // repeater since its fields (villaType/villaNumber/plotArea...) don't overlap cleanly.
-  const rawUnits = get('unitConfigurations');
-  const rawVillas = get('villaConfigurations');
+  // Each property type / transaction model fills its own Step 4 repeater, since
+  // their columns don't overlap cleanly (a plot has no BHK, a rental has no sale
+  // price). They all normalise down onto the single promoted `unitConfigurations`
+  // array so search and listing pages stay type-agnostic.
+  //
+  // Chosen by Step 1's propertyType + transactionType rather than by "whichever
+  // array happens to be non-empty", so a stale draft from a previously-selected
+  // property type can never win over the real inventory.
+  const propertyType = toStr(get('propertyType'));
+  const transactionType = toStr(get('transactionType'));
+  const isRental = transactionType === 'Rent' || transactionType === 'Lease';
+  const isPlotType = propertyType === 'Plot' || propertyType === 'Land';
 
-  if (Array.isArray(rawUnits)) {
-    const units = rawUnits
+  const asArray = (val) => (Array.isArray(val) ? val : []);
+
+  // The repeater whose values are authoritative for this combination.
+  let inventory = [];
+  let priceKey = 'price';
+
+  if (isPlotType) {
+    inventory = asArray(get('plotConfigurations'))
+      .map(p => compact({
+        plotNumber: toStr(p?.plotNumber),
+        unitType: toStr(p?.plotNumber) ? `Plot ${toStr(p.plotNumber)}` : undefined,
+        length: toNum(p?.length),
+        width: toNum(p?.width),
+        carpetArea: toNum(p?.plotArea),
+        areaUnit: toStr(p?.areaUnit) || 'sq.yards',
+        facing: toStr(p?.facing),
+        roadWidth: toNum(p?.roadWidth),
+        isCornerPlot: toStr(p?.isCornerPlot),
+        pricePerSqft: toNum(p?.pricePerSqft),
+        premium: toNum(p?.premium),
+        price: toNum(p?.price),
+        status: toStr(p?.status)
+      }))
+      .filter(p => p.plotNumber || p.price !== undefined || p.carpetArea !== undefined);
+  } else if (isRental) {
+    priceKey = 'monthlyRent';
+    inventory = asArray(get('rentalConfigurations'))
+      .map(r => compact({
+        unitType: toStr(r?.unitType),
+        carpetArea: toNum(r?.carpetArea),
+        superArea: toNum(r?.superArea),
+        areaUnit: 'sq.ft.',
+        furnishing: toStr(r?.furnishing),
+        facing: toStr(r?.facing),
+        monthlyRent: toNum(r?.monthlyRent),
+        securityDeposit: toNum(r?.securityDeposit),
+        maintenanceCharges: toNum(r?.maintenanceCharges),
+        lockInPeriod: toNum(r?.lockInPeriod),
+        availableFrom: toDate(r?.availableFrom),
+        availableUnits: toNum(r?.availableUnits)
+      }))
+      .filter(r => r.unitType || r.monthlyRent !== undefined || r.carpetArea !== undefined);
+  } else if (propertyType === 'Villa') {
+    inventory = asArray(get('villaConfigurations'))
+      .map(v => compact({
+        villaType: toStr(v?.villaType),
+        unitType: toStr(v?.villaType),
+        villaNumber: toStr(v?.villaNumber),
+        plotArea: toNum(v?.plotArea),
+        builtUpArea: toNum(v?.builtUpArea),
+        carpetArea: toNum(v?.carpetArea),
+        numberOfFloors: toNum(v?.numberOfFloors),
+        facing: toStr(v?.facing),
+        price: toNum(v?.price),
+        availableUnits: toNum(v?.availableUnits),
+        status: toStr(v?.status)
+      }))
+      .filter(v => v.villaType || v.price !== undefined || v.plotArea !== undefined);
+  } else if (propertyType === 'Commercial') {
+    inventory = asArray(get('commercialConfigurations'))
+      .map(c => compact({
+        unitType: toStr(c?.unitType),
+        unitNumber: toStr(c?.unitNumber),
+        floorNumber: toNum(c?.floorNumber),
+        carpetArea: toNum(c?.carpetArea),
+        superArea: toNum(c?.superArea),
+        areaUnit: toStr(c?.areaUnit) || 'sq.ft.',
+        price: toNum(c?.price),
+        pricePerSqft: toNum(c?.pricePerSqft),
+        availableUnits: toNum(c?.availableUnits),
+        status: toStr(c?.status)
+      }))
+      .filter(c => c.unitType || c.price !== undefined || c.carpetArea !== undefined);
+  } else {
+    // Apartment, and any pre-v4 submission that only ever wrote unitConfigurations.
+    inventory = asArray(get('unitConfigurations'))
       .map(u => compact({
         towerName: toStr(u?.towerName),
         floorNumber: toNum(u?.floorNumber),
         plotNumber: toStr(u?.plotNumber),
         unitType: toStr(u?.unitType),
         carpetArea: toNum(u?.carpetArea),
+        builtUpArea: toNum(u?.builtUpArea),
         superArea: toNum(u?.superArea),
         areaUnit: toStr(u?.areaUnit) || 'sq.ft.',
         price: toNum(u?.price),
         pricePerSqft: toNum(u?.pricePerSqft),
+        totalUnits: toNum(u?.totalUnits),
         availableUnits: toNum(u?.availableUnits),
         facing: toStr(u?.facing),
         status: toStr(u?.status)
       }))
-      // drop rows the user added but never filled in
       .filter(u => u.unitType || u.price !== undefined || u.carpetArea !== undefined);
+  }
 
-    mapped.unitConfigurations = units;
+  if (inventory.length) {
+    mapped.unitConfigurations = inventory;
 
-    const prices = units.map(u => u.price).filter(p => typeof p === 'number' && p > 0);
-    if (prices.length) {
-      mapped.priceRange = { min: Math.min(...prices), max: Math.max(...prices) };
-    }
-  } else if (Array.isArray(rawVillas)) {
-    const villas = rawVillas
-      .map(v => compact({
-        villaType: toStr(v?.villaType),
-        villaNumber: toStr(v?.villaNumber),
-        plotArea: toNum(v?.plotArea),
-        builtUpArea: toNum(v?.builtUpArea),
-        carpetArea: toNum(v?.carpetArea),
-        price: toNum(v?.price),
-        availableUnits: toNum(v?.availableUnits),
-        facing: toStr(v?.facing)
-      }))
-      .filter(v => v.villaType || v.price !== undefined || v.plotArea !== undefined);
+    const amounts = inventory
+      .map(item => item[priceKey])
+      .filter(p => typeof p === 'number' && p > 0);
 
-    mapped.unitConfigurations = villas;
-
-    const prices = villas.map(v => v.price).filter(p => typeof p === 'number' && p > 0);
-    if (prices.length) {
-      mapped.priceRange = { min: Math.min(...prices), max: Math.max(...prices) };
+    if (amounts.length) {
+      const range = { min: Math.min(...amounts), max: Math.max(...amounts) };
+      // Rentals are a monthly figure — keep them out of the sale priceRange that
+      // buy-side search filters and "starting price" labels read from.
+      if (isRental) mapped.rentRange = range;
+      else mapped.priceRange = range;
     }
   }
 
