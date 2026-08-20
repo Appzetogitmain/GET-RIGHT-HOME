@@ -78,6 +78,28 @@ const DynamicFormEngine = () => {
   // Modal states for custom tag editing
   const [customTagModal, setCustomTagModal] = useState({ open: false, fieldName: '', index: null, value: '' });
 
+  // Confirmation modal shown when changing a "master" field (property type /
+  // transaction type / project status) would invalidate answers already
+  // filled in on other steps — { name, value, affected } while open, else null.
+  const [masterChangeWarning, setMasterChangeWarning] = useState(null);
+
+  // Builder subscription/trial gate modal — { propertyId, eligibility } while
+  // a builder needs to subscribe (or explicitly skip) before submitting, else
+  // null. These two were read and set throughout this component but never
+  // declared, so every mount threw "masterChangeWarning is not defined" and
+  // crashed the whole form before it could render.
+  const [subscriptionGate, setSubscriptionGate] = useState(null);
+
+  // Tracks gallery thumbnails whose preview image failed to load, so we can
+  // swap in a fallback via React state instead of touching the DOM directly.
+  const [brokenMedia, setBrokenMedia] = useState({});
+
+  // Remembers the address string we last auto-filled from the location
+  // picker, so a later reverse-geocode only overwrites the address box when
+  // it still holds that same auto-filled value (i.e. the lister hasn't typed
+  // their own edit over it) — see the LocationSelector's onChange below.
+  const autoFilledAddressRef = useRef(null);
+
   // Modal states for pricing details
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [modalMaintenance, setModalMaintenance] = useState('');
