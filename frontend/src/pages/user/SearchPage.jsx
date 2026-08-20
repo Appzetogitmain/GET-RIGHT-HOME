@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { propertyService } from '../../services/propertyService';
 import { userService, api } from '../../services/apiService';
@@ -10,6 +10,10 @@ import AdvancedFilterModal from '../../components/user/AdvancedFilterModal';
 import SearchSidebarFilters from '../../components/user/SearchSidebarFilters';
 import SortDropdown from '../../components/user/SortDropdown';
 import { locationData, bengaluruAreas } from '../../data/locationData';
+    import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
+import { parseSearchQuery } from '../../utils/searchQueryParser';
+import { addRecentSearch } from '../../utils/recentActivity';
 const getAvailablePropertyTypes = (category, subCategory) => {
     if (category === 'Paying Guest') {
         return [
@@ -83,6 +87,101 @@ const SearchPage = () => {
     const [previewLoading, setPreviewLoading] = useState(false);
     const [nearMeLoading, setNearMeLoading] = useState(false);
     const [searchInputValue, setSearchInputValue] = useState("");
+
+    // Google Places suggestions for the results-page search bar, so it behaves
+    // like the dashboard bar instead of being a plain text box.
+    const [searchAutocomplete, setSearchAutocomplete] = useState(null);
+    const { isLoaded: placesLoaded } = useJsApiLoader({
+        id: GOOGLE_MAPS_SCRIPT_ID,
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+        libraries: GOOGLE_MAPS_LIBRARIES
+    });
+
+    // Holds exactly what the user typed. Google Places rewrites the input's DOM
+    // value when a suggestion is chosen (including on Enter), which would
+    // otherwise destroy the rest of the query — see handleSearchPlaceChanged.
+    const typedQueryRef = useRef('');
+
+    const hasStructuredSignal = (parsed) => !!(
+        parsed.bhk || parsed.subType || parsed.maxPrice ||
+        parsed.transactionType || parsed.gender || parsed.propertyCategory
+    );
+
+    // Mirrors the dashboard bar's behaviour: a query like "3bhk in indore under
+    // 50 lakh" is turned into real filters rather than being text-matched
+    // literally. Existing filters on the page are preserved; only the keys the
+    // query actually speaks to are overwritten.
+    const runSearch = (rawValue) => {
+        const text = (rawValue !== undefined ? rawValue : searchInputValue).trim();
+
+        setSearchParams(prev => {
+            const p = Object.fromEntries([...prev]);
+
+            // A new search always replaces the previous location scope.
+            delete p.search;
+            delete p.areas;
+            delete p.city;
+
+            if (!text) return p;
+
+            const parsed = parseSearchQuery(text);
+
+            if (hasStructuredSignal(parsed)) {
+                if (parsed.location) p.areas = parsed.location;
+
+                if (parsed.transactionType) p.transactionType = parsed.transactionType;
+                if (parsed.propertyCategory) p.propertyCategory = parsed.propertyCategory;
+                if (parsed.subType) p.subType = parsed.subType;
+                if (parsed.gender) p.gender = parsed.gender;
+                if (parsed.maxPrice) p.maxPrice = String(parsed.maxPrice);
+
+                if (parsed.bhk) {
+                    const existing = p.bhkType ? p.bhkType.split(',').filter(Boolean) : [];
+                    if (!existing.includes(parsed.bhk)) existing.push(parsed.bhk);
+                    p.bhkType = existing.join(',');
+                }
+
+                // Nothing location-ish in the query — keep it as free text too
+                // so a project name inside the phrase still matches.
+                if (!parsed.location) p.search = text;
+            } else {
+                p.search = text;
+            }
+
+            return p;
+        }, { replace: true });
+
+        addRecentSearch({
+            label: text || 'Search',
+            url: `/search?${new URLSearchParams({ ...Object.fromEntries([...searchParams]), search: text }).toString()}`
+        });
+    };
+
+    // Picking a Places suggestion should search immediately, the way choosing
+    // one from the dashboard bar does.
+    const handleSearchPlaceChanged = () => {
+        if (!searchAutocomplete) return;
+        const place = searchAutocomplete.getPlace();
+        const name = place?.name || place?.formatted_address;
+        if (!name) return;
+
+        // Pressing Enter makes Google pick the highlighted suggestion and
+        // collapse the input to just that place — so "2bhk in indore" became
+        // "indore" and the 2 BHK was silently dropped. When the typed query
+        // carries filters beyond the location, keep what was typed and let the
+        // parser split it; the place name is only an upgrade for a query that
+        // was purely a location.
+        const typed = typedQueryRef.current.trim();
+        if (typed && hasStructuredSignal(parseSearchQuery(typed))) {
+            setSearchInputValue(typed);
+            runSearch(typed);
+            return;
+        }
+
+        setSearchInputValue(name);
+        typedQueryRef.current = name;
+        runSearch(name);
+    };
 
     // Filters State
     // Initialize filters from URL
@@ -260,7 +359,14 @@ const SearchPage = () => {
     }, [showFilters]);
 
     useEffect(() => {
-        setSearchInputValue(filters.areas && filters.areas.length > 0 ? filters.areas.join(', ') : (filters.search || ""));
+        const next = filters.areas && filters.areas.length > 0
+            ? filters.areas.join(', ')
+            : (filters.search || "");
+        setSearchInputValue(next);
+        // Keep the "what the user typed" ref in step with programmatic updates
+        // (URL/filter changes), or a later Places pick would compare against a
+        // stale query.
+        typedQueryRef.current = next;
     }, [filters.areas, filters.search]);
 
     useEffect(() => {
@@ -760,32 +866,44 @@ const SearchPage = () => {
                             className="relative flex-grow"
                             onSubmit={(e) => {
                                 e.preventDefault();
-                                const val = searchInputValue.trim();
-                                setSearchParams(prev => {
-                                    const p = Object.fromEntries([...prev]);
-                                    if (val) {
-                                        p.search = val;
-                                        delete p.areas;
-                                        delete p.city;
-                                    } else {
-                                        delete p.search;
-                                        delete p.areas;
-                                        delete p.city;
-                                    }
-                                    return p;
-                                }, { replace: true });
+                                runSearch();
                             }}
                         >
-                            <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors">
+                            <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors z-10">
                                 <Search size={16} />
                             </button>
-                            <input
-                                type="text"
-                                value={searchInputValue}
-                                onChange={(e) => setSearchInputValue(e.target.value)}
-                                placeholder="Search City/Locality/Project"
-                                className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-800 bg-gray-50 flex items-center h-9 outline-none focus:bg-white focus:border-blue-300 focus:shadow-sm transition-all"
-                            />
+                            {placesLoaded ? (
+                                <Autocomplete
+                                    onLoad={setSearchAutocomplete}
+                                    onPlaceChanged={handleSearchPlaceChanged}
+                                    options={{
+                                        componentRestrictions: { country: 'in' },
+                                        fields: ['name', 'formatted_address']
+                                    }}
+                                >
+                                    <input
+                                        type="text"
+                                        value={searchInputValue}
+                                        onChange={(e) => {
+                                            setSearchInputValue(e.target.value);
+                                            typedQueryRef.current = e.target.value;
+                                        }}
+                                        placeholder="Search City/Locality/Project"
+                                        className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-800 bg-gray-50 flex items-center h-9 outline-none focus:bg-white focus:border-blue-300 focus:shadow-sm transition-all"
+                                    />
+                                </Autocomplete>
+                            ) : (
+                                <input
+                                    type="text"
+                                    value={searchInputValue}
+                                    onChange={(e) => {
+                                        setSearchInputValue(e.target.value);
+                                        typedQueryRef.current = e.target.value;
+                                    }}
+                                    placeholder="Search City/Locality/Project"
+                                    className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-800 bg-gray-50 flex items-center h-9 outline-none focus:bg-white focus:border-blue-300 focus:shadow-sm transition-all"
+                                />
+                            )}
                         </form>
                         <button
                             onClick={handleNearMe}
