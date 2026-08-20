@@ -10,6 +10,8 @@ import {
   getPublicProperties,
   getPropertyDetails,
   getMyProperties,
+  getMyListingEligibility,
+  submitPropertyForApproval,
   deleteProperty,
   revealContact,
   getRecommendedSellers,
@@ -36,11 +38,14 @@ router.get('/partner-public-details/:id', getPartnerPublicDetails);
 const ownerRoles = authorizedRoles('partner', 'admin', 'user', 'superadmin', 'owner', 'broker', 'builder');
 
 router.get('/my', protect, ownerRoles, getMyProperties);
+// Must stay above '/:id' so "listing-eligibility" isn't parsed as a property id.
+router.get('/listing-eligibility', protect, ownerRoles, getMyListingEligibility);
 router.get('/:id/reveal-contact', revealContact);
 router.get('/:id/stats', protect, ownerRoles, getPropertyStats);
 router.get('/:id', getPropertyDetails);
 
 router.post('/', protect, ownerRoles, createProperty);
+router.post('/:id/submit', protect, ownerRoles, submitPropertyForApproval);
 router.put('/:id', protect, ownerRoles, updateProperty);
 router.delete('/:id', protect, ownerRoles, deleteProperty);
 router.post('/:propertyId/room-types', protect, ownerRoles, addRoomType);

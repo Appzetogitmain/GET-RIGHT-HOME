@@ -16,10 +16,10 @@ const stepFieldSchema = new mongoose.Schema({
   required: { type: Boolean, default: false },
   placeholder: String,
   order: { type: Number, default: 0 },
-  dependsOn: {
-    field: String,
-    value: mongoose.Schema.Types.Mixed
-  },
+  // Either a single condition `{ field, value }` or an array of them (AND).
+  // `value` may itself be an array, which matches as an OR over that field.
+  // Mixed (not a typed subdoc) so the array-of-conditions form survives a save.
+  dependsOn: mongoose.Schema.Types.Mixed,
   validation: fieldValidationSchema,
   subFields: [mongoose.Schema.Types.Mixed] // for repeater types
 }, { _id: false });

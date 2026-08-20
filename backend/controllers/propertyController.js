@@ -14,6 +14,7 @@ import Booking from '../models/Booking.js';
 import Enquiry from '../models/Enquiry.js';
 import { mapBuilderProjectFields, generateUniqueSlug } from '../utils/builderProjectMapper.js';
 import { escapeRegex, safeRegex } from '../utils/escapeRegex.js';
+import { getListingEligibility } from '../utils/listingEligibility.js';
 import { getIO } from '../sockets.js';
 
 /**
@@ -180,70 +181,35 @@ export const createProperty = async (req, res) => {
 
     let partner = null;
     let uDoc = null;
-    let maxAllowed = Infinity;
-    let isSubscriptionRequired = false;
 
     if (isPartner) {
-      isSubscriptionRequired = true;
       partner = await Partner.findById(req.user._id).populate('subscription.planId');
       if (!partner) return res.status(404).json({ message: 'Partner not found' });
     } else if (['owner', 'broker', 'builder'].includes(req.user.role)) {
-      isSubscriptionRequired = true;
       uDoc = await User.findById(req.user._id).populate('subscription.planId');
       if (!uDoc) return res.status(404).json({ message: 'User not found' });
     }
 
-    if (isSubscriptionRequired) {
-      const subject = partner || uDoc;
-      const { subscription } = subject;
-      const isSubscriptionActive =
-        subscription?.status === 'active' &&
-        subscription?.expiryDate &&
-        new Date(subscription.expiryDate) > new Date();
+    // Saving a draft is ALWAYS allowed — an expired trial must never cost the
+    // lister the work they just filled in. Only going live is metered, so the
+    // eligibility gate below is skipped entirely for drafts. Drafts also don't
+    // count toward the slot total (see SLOT_CONSUMING_STATUS).
+    const isDraftSave = req.body.status === 'draft';
 
-      let isFreeTrialMode = false;
-
-      if (isSubscriptionActive) {
-        maxAllowed = subscription.planId?.maxProperties || 1;
-      } else {
-        // Free Trial Mode: Use PlatformSettings to determine listing limit
-        const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
-        const settings = await PlatformSettings.getSettings();
-        maxAllowed = settings.freeTrialListingLimit || 10;
-        isFreeTrialMode = true;
-
-        // Also check free trial duration
-        const trialDays = settings.freeTrialDurationDays || 30;
-        const createdAt = subject.createdAt || subject.partnerSince || new Date();
-        const trialEndDate = new Date(createdAt);
-        trialEndDate.setDate(trialEndDate.getDate() + trialDays);
-
-        if (new Date() > trialEndDate) {
-          return res.status(403).json({
-            message: `Your free trial period of ${trialDays} days has expired. Please subscribe to a plan to continue listing properties.`,
-            trialExpired: true,
-            limitReached: true
-          });
-        }
+    if (!isDraftSave) {
+      const eligibility = await getListingEligibility(req.user);
+      if (!eligibility.found) {
+        return res.status(404).json({ message: 'Account not found' });
       }
-
-      // Count properties listed by this actor. Rejected/draft listings don't
-      // count against the plan — a rejection shouldn't permanently cost the
-      // user a slot they can't reclaim without knowing to delete it manually.
-      const query = { userId: req.user._id };
-      query.status = { $nin: ['rejected', 'draft'] };
-
-      const currentPropertyCount = await Property.countDocuments(query);
-
-      if (currentPropertyCount >= maxAllowed) {
+      if (!eligibility.canSubmit) {
         return res.status(403).json({
-          message: isFreeTrialMode
-            ? `Free trial limit reached. You can add up to ${maxAllowed} properties during your trial. Please subscribe to add more.`
-            : `Property limit reached. Your plan allows ${maxAllowed} properties. Please upgrade your subscription.`,
-          limitReached: true,
-          currentCount: currentPropertyCount,
-          maxAllowed: maxAllowed,
-          isFreeTrialMode
+          message: eligibility.message,
+          trialExpired: eligibility.trialExpired,
+          limitReached: eligibility.limitReached,
+          currentCount: eligibility.currentCount,
+          maxAllowed: eligibility.maxAllowed,
+          isFreeTrialMode: eligibility.isFreeTrialMode,
+          eligibility
         });
       }
     }
@@ -412,18 +378,26 @@ export const createProperty = async (req, res) => {
         },
         { new: true, upsert: true }
       );
-      doc.status = 'pending';
+      // An explicit draft save must stay a draft — attaching documents or room
+      // types shouldn't quietly submit it for review behind the user's back.
+      if (!isDraftSave) doc.status = 'pending';
       doc.isLive = false;
       await doc.save();
     }
 
-    if (Array.isArray(roomTypes) && roomTypes.length > 0 && doc.status === 'draft') {
+    if (!isDraftSave && Array.isArray(roomTypes) && roomTypes.length > 0 && doc.status === 'draft') {
       doc.status = 'pending';
       await doc.save();
     }
 
     if (doc.status === 'pending') {
       notifyAdminOfNewProperty(doc, req.user).catch(e => console.error(e));
+    }
+
+    // Drafts don't consume a listing slot, so they must not bump the counters
+    // either — otherwise saving drafts would silently eat the plan allowance.
+    if (isDraftSave) {
+      return res.status(201).json({ success: true, property: doc });
     }
 
     if (isPartner && partner) {
@@ -2032,13 +2006,17 @@ export const getPublicProperties = async (req, res) => {
 
 export const getMyProperties = async (req, res) => {
   try {
-    const query = {
-      $or: [
-        { userId: req.user._id },
-        { userId: req.user._id }
-      ],
-      status: { $ne: 'draft' }
-    };
+    // Drafts ARE included: "My Listings" is where a lister resumes unfinished
+    // work, so hiding drafts here made them unreachable once the wizard's
+    // localStorage copy was gone.
+    const query = { userId: req.user._id };
+
+    if (req.query.status) {
+      const requested = String(req.query.status).toLowerCase();
+      if (['draft', 'pending', 'approved', 'rejected'].includes(requested)) {
+        query.status = requested;
+      }
+    }
     if (req.query.type) {
       query.propertyType = String(req.query.type).toLowerCase();
     }
@@ -2046,6 +2024,71 @@ export const getMyProperties = async (req, res) => {
     res.json({ success: true, properties });
   } catch (e) {
     res.status(500).json({ message: e.message });
+  }
+};
+
+/**
+ * Lets the listing wizard find out, before asking the user to do anything,
+ * whether they can submit — and if not, why (trial still running vs expired).
+ */
+export const getMyListingEligibility = async (req, res) => {
+  try {
+    const eligibility = await getListingEligibility(req.user);
+    if (!eligibility.found) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+    res.json({ success: true, eligibility });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+/**
+ * Promotes an existing draft to 'pending' (submitted for approval).
+ *
+ * This is the path used both by the wizard's "Skip" during an active trial and
+ * by the Submit action on a draft in My Listings, so the metering gate lives
+ * here rather than being duplicated in the client.
+ */
+export const submitPropertyForApproval = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    if (String(property.userId) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Not authorised to submit this property' });
+    }
+
+    if (!['draft', 'rejected'].includes(property.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `This property is already ${property.status}.`
+      });
+    }
+
+    const eligibility = await getListingEligibility(req.user);
+    if (!eligibility.found) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+    if (!eligibility.canSubmit) {
+      return res.status(403).json({
+        success: false,
+        message: eligibility.message,
+        trialExpired: eligibility.trialExpired,
+        limitReached: eligibility.limitReached,
+        eligibility
+      });
+    }
+
+    property.status = 'pending';
+    property.isLive = false;
+    await property.save();
+
+    notifyAdminOfNewProperty(property, req.user).catch(e => console.error(e));
+
+    res.json({ success: true, property, message: 'Submitted for approval.' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
   }
 };
 
