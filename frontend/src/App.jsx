@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 import { Clock, Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Eager Imports (Critical UI)
 import TopNavbar from './components/ui/TopNavbar';
@@ -459,6 +460,7 @@ function App() {
             <SocketProvider>
               <EnquiryModalProvider>
               <Layout>
+                <ErrorBoundary>
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     {/* User Auth Routes (Public Only) */}
@@ -722,6 +724,7 @@ function App() {
                     <Route path="/worker/*" element={<WorkerRoutes />} />
                   </Routes>
                 </Suspense>
+                </ErrorBoundary>
               </Layout>
               <GlobalEnquiryModal />
               </EnquiryModalProvider>

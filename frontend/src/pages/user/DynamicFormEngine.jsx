@@ -70,6 +70,12 @@ const DynamicFormEngine = () => {
   // Modal states for custom tag editing
   const [customTagModal, setCustomTagModal] = useState({ open: false, fieldName: '', index: null, value: '' });
 
+  // Tracks gallery thumbnails whose preview image failed to load, so we can
+  // swap in a fallback via React state instead of touching the DOM directly
+  // (mutating a React-owned node here used to desync the virtual DOM and
+  // crash the whole app with a blank screen on the next re-render).
+  const [brokenMedia, setBrokenMedia] = useState({});
+
   // Modal states for pricing details
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [modalMaintenance, setModalMaintenance] = useState('');
@@ -1001,15 +1007,18 @@ const DynamicFormEngine = () => {
                           <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt="video preview" className="w-full h-full object-cover" />
                         ) : isVid ? (
                           <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
+                        ) : brokenMedia[`${field.name}_${i}`] ? (
+                          <div className="text-[10px] text-slate-400 font-bold p-2 text-center">Media File/Video<br/>{url.slice(0, 20)}...</div>
                         ) : (
                           <img
                             src={url}
                             alt="upload preview"
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                              // Fallback if image load fails
-                              e.target.style.display = 'none';
-                              e.target.parentNode.innerHTML = `<div class="text-[10px] text-slate-400 font-bold p-2 text-center">Media File/Video<br/>${url.slice(0, 20)}...</div>`;
+                            onError={() => {
+                              // Fallback if image load fails - update state instead of
+                              // mutating the DOM directly, which would desync React's
+                              // virtual DOM and crash the app on the next re-render.
+                              setBrokenMedia(prev => ({ ...prev, [`${field.name}_${i}`]: true }));
                             }}
                           />
                         )}
@@ -1762,12 +1771,12 @@ const DynamicFormEngine = () => {
     <div className="min-h-screen bg-white pb-24 md:pb-10 font-sans text-slate-800">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white border-b border-slate-100">
-        <div className="px-4 h-14 flex items-center">
+        <div className="px-4 md:px-6 h-14 md:h-16 flex items-center md:max-w-3xl lg:max-w-4xl md:mx-auto">
           <button onClick={goBack} className="p-2 -ml-2 text-slate-700">
             <ArrowLeft size={22} />
           </button>
           <div className="ml-2 min-w-0">
-            <span className="block font-bold text-[17px] tracking-tight truncate">{currentStep.title}</span>
+            <span className="block font-bold text-[17px] md:text-[19px] tracking-tight truncate">{currentStep.title}</span>
           </div>
           <span className="ml-auto shrink-0 text-[11px] font-bold text-[#0073E6] uppercase tracking-widest">
             {Math.round(((currentStepIndex + 1) / template.steps.length) * 100)}% Complete
@@ -1785,8 +1794,8 @@ const DynamicFormEngine = () => {
         </div>
 
         {/* Numbered step progress. Completed steps are clickable to jump back. */}
-        <div className="px-4 pt-3 pb-3 overflow-x-auto">
-          <div className="flex items-center gap-1 min-w-max">
+        <div className="px-4 md:px-6 pt-3 pb-3 overflow-x-auto">
+          <div className="flex items-center gap-1 min-w-max md:max-w-3xl lg:max-w-4xl md:mx-auto">
             {template.steps.map((step, idx) => {
               const isDone = idx < currentStepIndex;
               const isCurrent = idx === currentStepIndex;
@@ -1818,7 +1827,7 @@ const DynamicFormEngine = () => {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-5 pt-6">
+      <div className="max-w-2xl md:max-w-3xl lg:max-w-4xl mx-auto px-5 md:px-6 pt-6 md:pt-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStepIndex}
@@ -1945,24 +1954,41 @@ const DynamicFormEngine = () => {
               </div>
             )}
 
-            {/* Render Fields sorted by order */}
-            {currentStep.fields
-              .sort((a,b) => a.order - b.order)
-              .filter(field => {
-                const isLocationField = stepUsesLocationSelector(currentStep) && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber'].includes(field.name.toLowerCase());
-                const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
-                const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
-                
-                return !isLocationField && !isUnitField && !isCustomPricingField;
-              })
-              .map(renderField)}
+            {/* Render Fields sorted by order. On desktop, short fields (text,
+                number, dropdown, date...) sit two-per-row instead of each
+                taking the full form width; fields that need the extra room
+                (file uploads, textareas, tag clouds, repeaters...) still
+                span both columns. */}
+            <div className="md:grid md:grid-cols-2 md:gap-x-6">
+              {currentStep.fields
+                .sort((a,b) => a.order - b.order)
+                .filter(field => {
+                  const isLocationField = stepUsesLocationSelector(currentStep) && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber'].includes(field.name.toLowerCase());
+                  const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
+                  const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
+
+                  return !isLocationField && !isUnitField && !isCustomPricingField;
+                })
+                .map(field => {
+                  const rendered = renderField(field);
+                  if (!rendered) return null;
+                  const isCombinedUnitField = !!unitFieldMapping[field.name];
+                  const wideTypes = ['pill', 'multiselect_pill', 'file', 'textarea', 'checkbox_group', 'nearby_places', 'repeater', 'review', 'progress_group'];
+                  const isWide = isCombinedUnitField || wideTypes.includes(field.type);
+                  return (
+                    <div key={field.name} className={isWide ? 'md:col-span-2' : ''}>
+                      {rendered}
+                    </div>
+                  );
+                })}
+            </div>
 
           </motion.div>
         </AnimatePresence>
 
         {/* Save Draft / Back / Next */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 z-30 md:relative md:border-0 md:p-0 md:mt-10">
-          <div className="flex gap-3 max-w-2xl mx-auto">
+          <div className="flex gap-3 max-w-2xl md:max-w-3xl lg:max-w-4xl mx-auto">
             <button
               type="button"
               onClick={goBack}
