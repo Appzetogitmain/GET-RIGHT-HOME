@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Trash2, MapPin, Save, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, MapPin, Save, AlertCircle, Pencil, X } from 'lucide-react';
 import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -21,6 +21,12 @@ const AdminManageLocalityInsights = () => {
         residentialZones: ['']
     });
     const [errors, setErrors] = useState({});
+    // When editing an existing insight, its locality+city are the lookup key
+    // the backend upserts on (see saveInsight) — so we lock them instead of
+    // routing edits back through the cascading location pickers, and keep
+    // the id around so Cancel/Delete know which entry is active.
+    const [editingId, setEditingId] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
     const [locationTree, setLocationTree] = useState([]);
     const [selectedCountryId, setSelectedCountryId] = useState('');
     const [selectedStateId, setSelectedStateId] = useState('');
@@ -138,29 +144,80 @@ const AdminManageLocalityInsights = () => {
         return Object.keys(newErrors).length === 0;
     };
 
+    const resetForm = () => {
+        setFormData({
+            locality: '', city: '', coverImage: '', transactionType: 'all', midSegmentLocality: false,
+            pros: [''], cons: [''], upcomingDevelopments: [{ title: '', badge: '' }],
+            landmarks: [{ name: '', distance: '', type: '' }], residentialZones: ['']
+        });
+        setSelectedDistrictId('');
+        setAvailableLocalities([]);
+        setEditingId(null);
+        setErrors({});
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validate()) return;
-        
+
         try {
             const token = localStorage.getItem('adminToken');
+            // The backend upserts by locality+city (see saveInsight), so this
+            // same POST both creates new entries and saves edits to existing
+            // ones — no separate PUT route needed.
             const res = await axios.post(`${API_URL}/admin/insights`, formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data.success) {
-                toast.success('Locality Insight saved successfully!');
+                toast.success(editingId ? 'Locality Insight updated successfully!' : 'Locality Insight saved successfully!');
                 fetchInsights();
-                // Reset form
-                setFormData({
-                    locality: '', city: '', coverImage: '', transactionType: 'all', midSegmentLocality: false,
-                    pros: [''], cons: [''], upcomingDevelopments: [{ title: '', badge: '' }],
-                    landmarks: [{ name: '', distance: '', type: '' }], residentialZones: ['']
-                });
-                setSelectedDistrictId('');
-                setAvailableLocalities([]);
+                resetForm();
             }
         } catch (error) {
             toast.error(error.response?.data?.message || 'Error saving insight');
+        }
+    };
+
+    // Locality/city are the upsert key on the backend, so editing keeps them
+    // locked rather than re-running them through the cascading location
+    // pickers (which would risk creating a second entry instead of updating
+    // this one). To move an insight to a different locality, delete and
+    // re-add it.
+    const handleEdit = (insight) => {
+        setFormData({
+            locality: insight.locality || '',
+            city: insight.city || '',
+            coverImage: insight.coverImage || '',
+            transactionType: insight.transactionType || 'all',
+            midSegmentLocality: !!insight.midSegmentLocality,
+            pros: insight.pros?.length ? insight.pros : [''],
+            cons: insight.cons?.length ? insight.cons : [''],
+            upcomingDevelopments: insight.upcomingDevelopments?.length ? insight.upcomingDevelopments : [{ title: '', badge: '' }],
+            landmarks: insight.landmarks?.length ? insight.landmarks : [{ name: '', distance: '', type: '' }],
+            residentialZones: insight.residentialZones?.length ? insight.residentialZones : ['']
+        });
+        setEditingId(insight._id);
+        setErrors({});
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Delete this locality insight? This cannot be undone.')) return;
+        setDeletingId(id);
+        try {
+            const token = localStorage.getItem('adminToken');
+            const res = await axios.delete(`${API_URL}/admin/insights/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.data.success) {
+                toast.success('Locality Insight deleted');
+                if (editingId === id) resetForm();
+                fetchInsights();
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Error deleting insight');
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -174,6 +231,18 @@ const AdminManageLocalityInsights = () => {
                     </p>
                 </div>
             </div>
+
+            {editingId && (
+                <div className="mb-6 flex items-center justify-between gap-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                        <Pencil size={16} />
+                        Editing "{formData.locality}, {formData.city}" — Save to apply changes.
+                    </div>
+                    <button type="button" onClick={resetForm} className="flex items-center gap-1 text-sm font-bold text-blue-700 hover:text-blue-900">
+                        <X size={14} /> Cancel
+                    </button>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Form Column */}
@@ -192,7 +261,7 @@ const AdminManageLocalityInsights = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">State</label>
-                                    <select value={selectedStateId} onChange={handleStateChange} className="w-full p-2 border rounded-md">
+                                    <select value={selectedStateId} onChange={handleStateChange} disabled={!!editingId} className="w-full p-2 border rounded-md disabled:bg-gray-50 disabled:text-gray-500">
                                         <option value="">Select State</option>
                                         {availableStates.map(s => (
                                             <option key={s._id} value={s._id}>{s.name}</option>
@@ -201,23 +270,36 @@ const AdminManageLocalityInsights = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">District <span className="text-red-500">*</span></label>
-                                    <select value={selectedDistrictId} onChange={handleDistrictChange} disabled={!selectedStateId} className={`w-full p-2 border rounded-md ${errors.city ? 'border-red-500' : ''}`}>
-                                        <option value="">Select District</option>
-                                        {availableDistricts.map(d => (
-                                            <option key={d._id} value={d._id}>{d.name}</option>
-                                        ))}
-                                    </select>
-                                    {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+                                    {editingId ? (
+                                        <input type="text" value={formData.city} disabled className="w-full p-2 border rounded-md bg-gray-50 text-gray-500" />
+                                    ) : (
+                                        <>
+                                            <select value={selectedDistrictId} onChange={handleDistrictChange} disabled={!selectedStateId} className={`w-full p-2 border rounded-md ${errors.city ? 'border-red-500' : ''}`}>
+                                                <option value="">Select District</option>
+                                                {availableDistricts.map(d => (
+                                                    <option key={d._id} value={d._id}>{d.name}</option>
+                                                ))}
+                                            </select>
+                                            {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+                                        </>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">City / Area <span className="text-red-500">*</span></label>
-                                    <select value={formData.locality} onChange={handleLocalityChange} disabled={!selectedDistrictId} className={`w-full p-2 border rounded-md ${errors.locality ? 'border-red-500' : ''}`}>
-                                        <option value="">{selectedDistrictId ? 'Select Locality' : 'Select district first'}</option>
-                                        {availableLocalities.map(l => (
-                                            <option key={l._id} value={l.name}>{l.name}</option>
-                                        ))}
-                                    </select>
-                                    {errors.locality && <p className="text-red-500 text-xs mt-1">{errors.locality}</p>}
+                                    {editingId ? (
+                                        <input type="text" value={formData.locality} disabled className="w-full p-2 border rounded-md bg-gray-50 text-gray-500" />
+                                    ) : (
+                                        <>
+                                            <select value={formData.locality} onChange={handleLocalityChange} disabled={!selectedDistrictId} className={`w-full p-2 border rounded-md ${errors.locality ? 'border-red-500' : ''}`}>
+                                                <option value="">{selectedDistrictId ? 'Select Locality' : 'Select district first'}</option>
+                                                {availableLocalities.map(l => (
+                                                    <option key={l._id} value={l.name}>{l.name}</option>
+                                                ))}
+                                            </select>
+                                            {errors.locality && <p className="text-red-500 text-xs mt-1">{errors.locality}</p>}
+                                        </>
+                                    )}
+                                    {editingId && <p className="text-[11px] text-gray-400 mt-1">Locality can't be changed here — delete and re-add to move it.</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Cover Image URL <span className="text-red-500">*</span></label>
@@ -304,9 +386,16 @@ const AdminManageLocalityInsights = () => {
                             </div>
                         </div>
 
-                        <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2">
-                            <Save size={18} /> Save Locality Insight
-                        </button>
+                        <div className="flex gap-3">
+                            <button type="submit" className={`flex-1 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 ${editingId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                <Save size={18} /> {editingId ? 'Update Locality Insight' : 'Save Locality Insight'}
+                            </button>
+                            {editingId && (
+                                <button type="button" onClick={resetForm} className="px-6 py-3 rounded-lg border border-gray-300 text-gray-600 font-bold hover:bg-gray-50">
+                                    Cancel
+                                </button>
+                            )}
+                        </div>
                     </form>
                 </div>
 
@@ -320,11 +409,30 @@ const AdminManageLocalityInsights = () => {
                     ) : (
                         <div className="space-y-3">
                             {insights.map(insight => (
-                                <div key={insight._id} className="bg-white p-3 rounded-lg border shadow-sm flex items-center gap-3">
-                                    <img src={insight.coverImage} alt="" className="w-12 h-12 rounded-full object-cover border" />
+                                <div key={insight._id} className={`bg-white p-3 rounded-lg border shadow-sm flex items-center gap-3 ${editingId === insight._id ? 'ring-2 ring-blue-400' : ''}`}>
+                                    <img src={insight.coverImage} alt="" className="w-12 h-12 rounded-full object-cover border shrink-0" />
                                     <div className="flex-1 min-w-0">
                                         <p className="font-bold text-sm truncate">{insight.locality}</p>
-                                        <p className="text-xs text-slate-500 truncate">{insight.city}</p>
+                                        <p className="text-xs text-slate-500 truncate">{insight.city} · {insight.transactionType === 'all' ? 'Buy & Rent' : insight.transactionType}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleEdit(insight)}
+                                            title="Edit"
+                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
+                                        >
+                                            <Pencil size={15} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(insight._id)}
+                                            disabled={deletingId === insight._id}
+                                            title="Delete"
+                                            className="p-2 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-40"
+                                        >
+                                            <Trash2 size={15} />
+                                        </button>
                                     </div>
                                 </div>
                             ))}

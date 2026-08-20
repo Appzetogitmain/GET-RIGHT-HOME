@@ -38,13 +38,27 @@ const FloatingSupportButton = () => {
         return () => window.removeEventListener('supportMessageReceived', handleIncoming);
     }, []);
 
-    if (!isLoggedIn || location.pathname.startsWith('/support/chat')) return null;
+    // Only surface this once someone is actually looking at something —
+    // a property, hotel, builder project, or profile — not on the home/buy/
+    // rent/search browse feeds, matching where a "chat with an expert"
+    // prompt is actually useful instead of just competing for attention on
+    // every screen.
+    const isDetailPage = /^\/(property|hotel|handpicked|project|builder|broker)\//.test(location.pathname);
+
+    if (!isLoggedIn || !isDetailPage || location.pathname.startsWith('/support/chat')) return null;
 
     return (
         <button
             type="button"
             onClick={() => { setHasUnread(false); navigate('/support/chat'); }}
-            className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-40 w-14 h-14 rounded-full bg-surface text-white shadow-xl shadow-black/20 flex items-center justify-center active:scale-95 hover:scale-105 transition-transform"
+            // z-[60] + bottom-44 keep this clear of every page's own sticky
+            // bottom bar (property/hotel/builder pages all render their own
+            // full-width contact bar, some over 100px tall and some at
+            // z-[9999], which used to sit right on top of this button at its
+            // old bottom-24/z-40 and hide it completely — so despite being
+            // "always on" in the code, it only ever showed up in practice on
+            // pages with no bottom bar, like Home).
+            className="fixed bottom-44 right-4 md:bottom-8 md:right-8 z-[60] w-14 h-14 rounded-full bg-surface text-white shadow-xl shadow-black/20 flex items-center justify-center active:scale-95 hover:scale-105 transition-transform"
             aria-label="Chat with support"
         >
             <MessageCircle size={24} className="fill-white/10" />

@@ -6,14 +6,15 @@ import { BOOKING_STATUS } from '../utils/constants.js';
 import { createNotification } from '../controllers/notificationControllers/notificationController.js';
 import { findNearbyWorkers } from '../services/locationService.js';
 
-// The Wave Timeout in milliseconds (60 seconds) — controls ONLY how long the
-// scheduler waits before advancing to the next wave. Do NOT reuse this for
+// Fallback wave timeout (60 seconds) used only until Settings.waveDuration is
+// read — Admin configures the real value via Settings (worker response
+// window), fetched fresh each scheduler tick below. Do NOT reuse this for
 // BookingRequest.expiresAt: that field carries a Mongo TTL index
-// (expireAfterSeconds: 0), so setting it to this same 60s value causes every
+// (expireAfterSeconds: 0), so setting it to this same ~60s value causes every
 // BookingRequest to self-delete almost immediately after creation — wiping
 // out the "who's already been notified" / "did everyone reject" tracking
 // this whole wave system depends on. Use BOOKING_REQUEST_TTL_MS for that.
-const WAVE_TIMEOUT_MS = 60000;
+const DEFAULT_WAVE_TIMEOUT_MS = 60000;
 const WORKERS_PER_WAVE = 3;
 
 // How long a BookingRequest record survives before Mongo's TTL index deletes
@@ -167,6 +168,12 @@ export const startWaveScheduler = (io) => {
 
   setInterval(async () => {
     try {
+      // Admin-configurable worker response window (Settings.waveDuration,
+      // seconds) — read once per tick rather than per-booking. Falls back to
+      // the 60s default if Settings hasn't been created/configured yet.
+      const globalSettings = await Settings.findOne({ type: 'global' }).select('waveDuration').lean();
+      const waveTimeoutMs = globalSettings?.waveDuration ? globalSettings.waveDuration * 1000 : DEFAULT_WAVE_TIMEOUT_MS;
+
       // Find bookings that are currently in SEARCHING status and have an active wave
       const activeBookings = await HomeServiceBooking.find({
         status: BOOKING_STATUS.SEARCHING,
@@ -185,8 +192,8 @@ export const startWaveScheduler = (io) => {
         const timeElapsed = Date.now() - new Date(booking.waveStartedAt).getTime();
         let shouldAdvanceWave = false;
 
-        // Condition 1: Wave Timeout Reached (60 seconds)
-        if (timeElapsed >= WAVE_TIMEOUT_MS) {
+        // Condition 1: Wave Timeout Reached (admin-configured response window)
+        if (timeElapsed >= waveTimeoutMs) {
           shouldAdvanceWave = true;
         } else {
           // Condition 2: Check if all notified workers for the CURRENT wave have REJECTED

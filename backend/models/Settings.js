@@ -180,4 +180,12 @@ const settingsSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+settingsSchema.statics.getSettings = async function () {
+  let settings = await this.findOne({ type: 'global' });
+  if (!settings) {
+    settings = await this.create({ type: 'global' });
+  }
+  return settings;
+};
+
 export default mongoose.model('Settings', settingsSchema);

@@ -4,6 +4,7 @@ import Partner from '../models/Partner.js';
 import InfoPage from '../models/InfoPage.js';
 import ContactMessage from '../models/ContactMessage.js';
 import PlatformSettings from '../models/PlatformSettings.js';
+import Settings from '../models/Settings.js';
 import Property from '../models/Property.js';
 import Project from '../models/Project.js';
 import RoomType from '../models/RoomType.js';
@@ -1403,7 +1404,23 @@ export const updateContactStatus = async (req, res) => {
 export const getPlatformSettings = async (req, res) => {
   try {
     const settings = await PlatformSettings.getSettings();
-    res.status(200).json({ success: true, settings });
+
+    // Home Services worker-assignment tuning (search radius, wave/response
+    // window, max search time, cancellation penalty) actually lives on the
+    // separate `Settings` doc that hsBookingController/waveScheduler read
+    // from — merge it in here so the admin Settings page (which posts these
+    // same field names to this endpoint) reflects real values instead of
+    // silently reading fields PlatformSettings never had.
+    const hsSettings = await Settings.getSettings();
+    const merged = {
+      ...settings.toObject(),
+      searchRadius: hsSettings.searchRadius,
+      waveDuration: hsSettings.waveDuration,
+      maxSearchTime: hsSettings.maxSearchTime,
+      cancellationPenalty: hsSettings.cancellationPenalty
+    };
+
+    res.status(200).json({ success: true, settings: merged });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching platform settings' });
   }
@@ -1438,7 +1455,11 @@ export const updatePlatformSettings = async (req, res) => {
       privacyPolicy,
       supportEmail,
       supportPhone,
-      supportWhatsapp
+      supportWhatsapp,
+      searchRadius,
+      waveDuration,
+      maxSearchTime,
+      cancellationPenalty
     } = req.body;
 
     const settings = await PlatformSettings.getSettings();
@@ -1477,7 +1498,27 @@ export const updatePlatformSettings = async (req, res) => {
     if (privacyPolicy !== undefined) settings.privacyPolicy = privacyPolicy;
 
     await settings.save();
-    res.status(200).json({ success: true, settings });
+
+    // Same bridge as getPlatformSettings: these four fields belong to the
+    // Home Services `Settings` doc (type: 'global'), not PlatformSettings —
+    // update it here too so waveScheduler/hsBookingController actually pick
+    // up what Admin sets on this page.
+    const hsSettings = await Settings.getSettings();
+    if (searchRadius !== undefined) hsSettings.searchRadius = Number(searchRadius);
+    if (waveDuration !== undefined) hsSettings.waveDuration = Number(waveDuration);
+    if (maxSearchTime !== undefined) hsSettings.maxSearchTime = Number(maxSearchTime);
+    if (cancellationPenalty !== undefined) hsSettings.cancellationPenalty = Number(cancellationPenalty);
+    await hsSettings.save();
+
+    const merged = {
+      ...settings.toObject(),
+      searchRadius: hsSettings.searchRadius,
+      waveDuration: hsSettings.waveDuration,
+      maxSearchTime: hsSettings.maxSearchTime,
+      cancellationPenalty: hsSettings.cancellationPenalty
+    };
+
+    res.status(200).json({ success: true, settings: merged });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error updating platform settings' });
   }

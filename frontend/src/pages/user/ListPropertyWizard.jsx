@@ -175,6 +175,13 @@ const ListPropertyWizard = () => {
   };
 
   const subTypes = getSubTypes();
+  // Commercial categories (Office, Retail, Plot/Land, Storage, Industry,
+  // Hospitality) only have form templates seeded for their specific
+  // sub-types, not the umbrella label itself — "Office" alone has none.
+  // Letting someone continue without picking a sub-type sent them into the
+  // dynamic form with a propertyType the backend has no template for, which
+  // 404s and crashes the whole page instead of rendering a form.
+  const needsSubType = propertyCategory === 'Commercial' && subTypes.length > 0;
 
   const handleSendOtp = async () => {
     if (!listingForm.phone) {
@@ -201,6 +208,10 @@ const ListPropertyWizard = () => {
   const handleNext = async () => {
     if (!intent || !propertyCategory || !selectedType) {
       toast.error('Please select all details to continue');
+      return;
+    }
+    if (needsSubType && !selectedSubType) {
+      toast.error(`Please select what kind of ${selectedType} it is`);
       return;
     }
 
@@ -305,7 +316,7 @@ const ListPropertyWizard = () => {
     { value: 'builder', label: 'Builder Partner', hint: 'I develop projects', icon: Building2 }
   ];
 
-  const canSubmit = !!(intent && propertyCategory && selectedType);
+  const canSubmit = !!(intent && propertyCategory && selectedType && (!needsSubType || selectedSubType));
 
   const sectionMotion = {
     initial: { opacity: 0, y: 10 },
@@ -336,7 +347,7 @@ const ListPropertyWizard = () => {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-5 pt-8">
+      <div className="max-w-2xl md:max-w-3xl lg:max-w-4xl mx-auto px-4 sm:px-5 md:px-6 pt-8">
         <div className="mb-8">
           <p className="text-[11px] font-bold text-[#0073E6] uppercase tracking-widest mb-2">Get Started</p>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Add Basic Details</h1>
@@ -499,43 +510,46 @@ const ListPropertyWizard = () => {
               <p className="text-[11px] text-slate-500 font-medium">Enter your details to create an account & start posting</p>
             </div>
 
-            {/* Name input */}
-            <div className="bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] focus-within:ring-2 focus-within:ring-blue-50 transition-all">
-              <label className="text-[10px] text-slate-400 font-bold block mb-1">YOUR NAME</label>
-              <input
-                type="text"
-                value={listingForm.name}
-                onChange={(e) => setListingForm({ ...listingForm, name: e.target.value })}
-                placeholder="e.g. John Doe"
-                className="w-full bg-transparent outline-none text-[13px] font-semibold text-slate-800"
-              />
-            </div>
-
-            {/* Mobile input */}
-            <div className="flex gap-2">
-              <div className="flex-1 bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] focus-within:ring-2 focus-within:ring-blue-50 transition-all">
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">MOBILE NUMBER</label>
-                <div className="flex items-center">
-                  <span className="text-[13px] text-slate-500 font-bold mr-1.5">+91</span>
-                  <input
-                    type="tel"
-                    value={listingForm.phone}
-                    onChange={(e) => setListingForm({ ...listingForm, phone: e.target.value })}
-                    placeholder="9876543210"
-                    maxLength={10}
-                    className="w-full bg-transparent outline-none text-[13px] font-bold tracking-wide text-slate-800"
-                  />
-                </div>
+            {/* Name + Mobile: stacked on mobile, side by side once there's room */}
+            <div className="md:grid md:grid-cols-2 md:gap-3 space-y-4 md:space-y-0">
+              {/* Name input */}
+              <div className="bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] focus-within:ring-2 focus-within:ring-blue-50 transition-all">
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">YOUR NAME</label>
+                <input
+                  type="text"
+                  value={listingForm.name}
+                  onChange={(e) => setListingForm({ ...listingForm, name: e.target.value })}
+                  placeholder="e.g. John Doe"
+                  className="w-full bg-transparent outline-none text-[13px] font-semibold text-slate-800"
+                />
               </div>
 
-              <button
-                type="button"
-                disabled={sendingOtp || !listingForm.phone || listingForm.phone.length < 10}
-                onClick={handleSendOtp}
-                className="px-4 bg-blue-50 text-[#0073E6] hover:bg-blue-100 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
-              >
-                {sendingOtp ? <Loader2 className="animate-spin" size={16} /> : otpSent ? 'Resend' : 'Send OTP'}
-              </button>
+              {/* Mobile input */}
+              <div className="flex gap-2">
+                <div className="flex-1 bg-white border border-slate-200 rounded-xl p-3 relative focus-within:border-[#0073E6] focus-within:ring-2 focus-within:ring-blue-50 transition-all">
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">MOBILE NUMBER</label>
+                  <div className="flex items-center">
+                    <span className="text-[13px] text-slate-500 font-bold mr-1.5">+91</span>
+                    <input
+                      type="tel"
+                      value={listingForm.phone}
+                      onChange={(e) => setListingForm({ ...listingForm, phone: e.target.value })}
+                      placeholder="9876543210"
+                      maxLength={10}
+                      className="w-full bg-transparent outline-none text-[13px] font-bold tracking-wide text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={sendingOtp || !listingForm.phone || listingForm.phone.length < 10}
+                  onClick={handleSendOtp}
+                  className="px-4 bg-blue-50 text-[#0073E6] hover:bg-blue-100 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  {sendingOtp ? <Loader2 className="animate-spin" size={16} /> : otpSent ? 'Resend' : 'Send OTP'}
+                </button>
+              </div>
             </div>
 
             {/* OTP input */}
@@ -598,7 +612,7 @@ const ListPropertyWizard = () => {
 
       {/* Sticky Next Button */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
-        <div className="max-w-2xl mx-auto px-4 sm:px-5 py-4">
+        <div className="max-w-2xl md:max-w-3xl lg:max-w-4xl mx-auto px-4 sm:px-5 md:px-6 py-4">
           <button
             onClick={handleNext}
             disabled={loading}
