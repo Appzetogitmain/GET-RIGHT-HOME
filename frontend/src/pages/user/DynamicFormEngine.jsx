@@ -35,8 +35,16 @@ const stepUsesLocationSelector = (step) => {
 
 // A field's `dependsOn.value` can be a single value (exact match) or an array
 // (OR match) so one controlling field can drive more than a two-way branch.
+//
+// `dependsOn` itself may also be an array of conditions, which are ANDed. The
+// builder wizard needs this because fields branch on Property Type *and*
+// Transaction Type at once (e.g. apartment inventory priced for sale vs rent).
 const matchesDependsOn = (dependsOn, dataObj) => {
-  if (!dependsOn?.field) return true;
+  if (!dependsOn) return true;
+  if (Array.isArray(dependsOn)) {
+    return dependsOn.every((condition) => matchesDependsOn(condition, dataObj));
+  }
+  if (!dependsOn.field) return true;
   const actual = dataObj?.[dependsOn.field];
   return Array.isArray(dependsOn.value) ? dependsOn.value.includes(actual) : actual === dependsOn.value;
 };
@@ -70,6 +78,18 @@ const DynamicFormEngine = () => {
   // Modal states for custom tag editing
   const [customTagModal, setCustomTagModal] = useState({ open: false, fieldName: '', index: null, value: '' });
 
+  // Pending change to a master selection that would discard filled-in answers.
+  // { name, value, affected: [{ label, name, step }] }
+  const [masterChangeWarning, setMasterChangeWarning] = useState(null);
+
+  // The address text we last auto-filled from a picked place, so we can tell
+  // our own prefill apart from something the lister typed.
+  const autoFilledAddressRef = useRef('');
+
+  // Set once the project is saved as a draft and we need the builder to deal
+  // with subscription. { propertyId, eligibility }
+  const [subscriptionGate, setSubscriptionGate] = useState(null);
+
   // Modal states for pricing details
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [modalMaintenance, setModalMaintenance] = useState('');
@@ -82,6 +102,10 @@ const DynamicFormEngine = () => {
     if (isEditMode) {
       const initialForm = {
         ...existingProperty.dynamicData,
+        // Step 1's master selections drive every later step's `dependsOn`, so
+        // they must be seeded when editing or the whole form renders empty.
+        transactionType: existingProperty.dynamicData?.transactionType || existingProperty.transactionType,
+        propertyType: existingProperty.dynamicData?.propertyType || existingProperty.propertyType,
         propertyName: existingProperty.propertyName || existingProperty.dynamicData?.propertyName,
         description: existingProperty.description || existingProperty.dynamicData?.description,
         amenities: existingProperty.amenities || existingProperty.dynamicData?.amenities,
@@ -113,6 +137,11 @@ const DynamicFormEngine = () => {
     const saved = localStorage.getItem(storageKey);
     const parsed = saved ? JSON.parse(saved) : {};
     if (!parsed.country) parsed.country = 'India';
+    // The builder wizard asks for Transaction Type and Property Type as the
+    // first two fields of Step 1. Whatever the entry point passed is only a
+    // prefill for them, so never overwrite a value the builder already picked.
+    if (!parsed.transactionType && transactionType) parsed.transactionType = transactionType;
+    if (!parsed.propertyType && propertyType) parsed.propertyType = propertyType;
     return parsed;
   });
 
@@ -178,7 +207,7 @@ const DynamicFormEngine = () => {
 
   // Robust Lenis & Body Scroll Lock for Modal Dialogs
   useEffect(() => {
-    const isAnyModalOpen = showPricingModal || customTagModal.open;
+    const isAnyModalOpen = showPricingModal || customTagModal.open || Boolean(masterChangeWarning) || Boolean(subscriptionGate);
     if (isAnyModalOpen) {
       if (window.lenis) window.lenis.stop();
       document.body.style.overflow = 'hidden';
@@ -190,7 +219,7 @@ const DynamicFormEngine = () => {
       if (window.lenis) window.lenis.start();
       document.body.style.overflow = '';
     };
-  }, [showPricingModal, customTagModal.open]);
+  }, [showPricingModal, customTagModal.open, masterChangeWarning, subscriptionGate]);
 
   // Sync pricing modal fields when loaded/edited
   useEffect(() => {
@@ -201,10 +230,10 @@ const DynamicFormEngine = () => {
     }
   }, [showPricingModal, formData.maintenanceCharges, formData.maintenanceFrequency, formData.bookingAmount]);
 
-  const handleChange = (name, value) => {
+  const applyChange = (name, value) => {
     setFormData(prev => {
       const next = { ...prev, [name]: value };
-      
+
       // Automatically default unit if not selected yet
       const unitFieldKey = unitFieldMapping[name];
       if (unitFieldKey && !next[unitFieldKey]) {
@@ -223,6 +252,64 @@ const DynamicFormEngine = () => {
         return updated;
       });
     }
+  };
+
+  const hasValue = (val) => {
+    if (Array.isArray(val)) return val.length > 0;
+    if (val && typeof val === 'object') return Object.keys(val).length > 0;
+    return val !== undefined && val !== null && val !== '';
+  };
+
+  // Which already-filled fields would be hidden if `name` changed to `value`.
+  // Derived by re-evaluating every field's `dependsOn` against the prospective
+  // form state, so it stays correct as the template changes.
+  const fieldsInvalidatedBy = (name, value) => {
+    if (!template) return [];
+    const nextData = { ...formData, [name]: value };
+    const affected = [];
+
+    template.steps.forEach((step) => {
+      (step.fields || []).forEach((field) => {
+        if (!field.dependsOn) return;
+        if (!matchesDependsOn(field.dependsOn, formData)) return;
+        if (matchesDependsOn(field.dependsOn, nextData)) return;
+        if (hasValue(formData[field.name])) {
+          affected.push({ label: field.label, name: field.name, step: step.stepNumber });
+        }
+      });
+    });
+    return affected;
+  };
+
+  // Changing a master selection (Property Type / Transaction Type) can make
+  // downstream answers meaningless — e.g. towers entered for an apartment have
+  // no place in a villa project. Spec requires an explicit impact warning
+  // before that data is dropped.
+  const MASTER_FIELDS = ['propertyType', 'transactionType', 'projectStatus'];
+
+  const handleChange = (name, value) => {
+    if (MASTER_FIELDS.includes(name) && formData[name] && formData[name] !== value) {
+      const affected = fieldsInvalidatedBy(name, value);
+      if (affected.length > 0) {
+        setMasterChangeWarning({ name, value, affected });
+        return;
+      }
+    }
+    applyChange(name, value);
+  };
+
+  const confirmMasterChange = () => {
+    if (!masterChangeWarning) return;
+    const { name, value, affected } = masterChangeWarning;
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      // Clear the now-incompatible answers rather than leaving orphaned values
+      // in dynamicData that no step will ever show again.
+      affected.forEach((f) => { delete next[f.name]; });
+      return next;
+    });
+    setErrors({});
+    setMasterChangeWarning(null);
   };
 
   const scrollToTop = () => {
@@ -476,11 +563,16 @@ const DynamicFormEngine = () => {
         (Array.isArray(formData.towers) && formData.towers.length > 0)
       );
 
+      // Step 1 of the builder wizard collects these itself, so what the builder
+      // actually chose wins over whatever the entry point prefilled.
+      const effectiveTransactionType = formData.transactionType || transactionType;
+      const effectivePropertyType = formData.propertyType || displayPropertyType;
+
       const payload = {
-        propertyName: formData.propertyName || `${category} ${displayPropertyType} for ${transactionType}`,
-        transactionType,
+        propertyName: formData.propertyName || `${category} ${effectivePropertyType} for ${effectiveTransactionType}`,
+        transactionType: effectiveTransactionType,
         propertyCategory: category,
-        propertyType: displayPropertyType,
+        propertyType: effectivePropertyType,
         isProject: isProjectListing,
         dynamicCategory: template?._id,
         dynamicData: formData,
@@ -494,7 +586,10 @@ const DynamicFormEngine = () => {
           fullAddress: formData.houseNumber || formData.fullAddress || '',
           pincode: formData.pincode || ''
         },
-        status: 'pending' // Draft / Pending review
+        // Always persist as a draft first. Saving is never metered, so the
+        // builder's work is safe even if their trial has expired — the
+        // subscription step below decides whether it also goes live.
+        status: 'draft'
       };
 
       let res;
@@ -504,14 +599,63 @@ const DynamicFormEngine = () => {
         res = await api.post('/properties', payload);
       }
 
+      if (!res.data.success) return;
+
+      const savedId = res.data.property?._id || existingProperty?._id;
+
+      // The draft is safely stored server-side now, so the local copy is
+      // redundant — keeping it would resurrect a stale duplicate later.
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(stepStorageKey);
+
+      const eligibility = await fetchEligibility();
+
+      // Paying subscribers skip the upsell entirely and go straight through.
+      if (eligibility?.isSubscriptionActive && eligibility?.canSubmit) {
+        await submitDraftForApproval(savedId);
+        return;
+      }
+
+      // Trial (active or expired) → show the subscription step. Skip is only
+      // offered while the trial is still valid.
+      setSubscriptionGate({ propertyId: savedId, eligibility });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not save your project');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchEligibility = async () => {
+    try {
+      const res = await api.get('/properties/listing-eligibility');
+      return res.data?.eligibility || null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Promotes the saved draft to "pending". Used by Skip during an active trial
+  // and after a successful subscription.
+  const submitDraftForApproval = async (propertyId) => {
+    if (!propertyId) return;
+    try {
+      setLoading(true);
+      const res = await api.post(`/properties/${propertyId}/submit`);
       if (res.data.success) {
-        localStorage.removeItem(storageKey);
-        localStorage.removeItem(stepStorageKey);
-        toast.success(isEditMode ? 'Property details updated successfully!' : 'Property details submitted successfully!');
+        toast.success('Submitted for approval.');
+        setSubscriptionGate(null);
         navigate('/my-properties');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed');
+      const data = err.response?.data;
+      // Trial lapsed between saving and submitting — fall back to the paywall
+      // rather than dropping the user on an error toast.
+      if (data?.eligibility) {
+        setSubscriptionGate({ propertyId, eligibility: data.eligibility });
+      } else {
+        toast.error(data?.message || 'Could not submit for approval');
+      }
     } finally {
       setLoading(false);
     }
@@ -1906,26 +2050,64 @@ const DynamicFormEngine = () => {
                     district: formData.district || '',
                     city: formData.city || ''
                   }}
-                  onChange={({ country, state, district, city }) => {
+                  onChange={({ country, state, district, city, locality, pincode, latitude, longitude, formattedAddress }) => {
                     handleChange('country', country);
                     handleChange('state', state);
                     handleChange('district', district);
                     handleChange('city', city);
+                    // Everything below is derived from the picked place. Only
+                    // overwrite when Google actually returned a value, so a
+                    // reverse-geocode that finds nothing can't wipe what the
+                    // lister already typed.
+                    if (locality) handleChange('locality', locality);
+                    if (pincode) handleChange('pincode', pincode);
+                    if (latitude) handleChange('latitude', latitude);
+                    if (longitude) handleChange('longitude', longitude);
+                    // Prefill the address box, but never clobber something the
+                    // lister typed themselves. Replacing it is only safe when
+                    // it is still exactly the address we auto-filled last time
+                    // — otherwise picking a new place would leave the previous
+                    // location's address sitting there.
+                    const current = formData.fullAddress || formData.houseNumber || '';
+                    const isOursToReplace = !current || current === autoFilledAddressRef.current;
+                    if (formattedAddress && isOursToReplace) {
+                      autoFilledAddressRef.current = formattedAddress;
+                      handleChange('fullAddress', formattedAddress);
+                      handleChange('houseNumber', formattedAddress);
+                    }
                   }}
                   errors={errors}
                   required
                 />
                 
                 <div className="space-y-4 mt-6">
-                   <div>
-                     <label className="block text-[14px] font-semibold text-slate-800 mb-2">Locality / Sector</label>
-                     <input
-                       type="text"
-                       value={formData.locality || ''}
-                       onChange={(e) => handleChange('locality', e.target.value)}
-                       placeholder="e.g. Super Corridor"
-                       className={`w-full bg-white border rounded-xl px-4 py-3 text-[13px] font-medium outline-none transition-all ${errors.locality ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#005B9F]'}`}
-                     />
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div>
+                       <label className="block text-[14px] font-semibold text-slate-800 mb-2">Locality / Sector</label>
+                       <input
+                         type="text"
+                         value={formData.locality || ''}
+                         onChange={(e) => handleChange('locality', e.target.value)}
+                         placeholder="e.g. Super Corridor"
+                         className={`w-full bg-white border rounded-xl px-4 py-3 text-[13px] font-medium outline-none transition-all ${errors.locality ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#005B9F]'}`}
+                       />
+                     </div>
+                     <div>
+                       <label className="block text-[14px] font-semibold text-slate-800 mb-2">
+                         Pincode
+                         {formData.pincode && (
+                           <span className="ml-2 text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Auto-filled</span>
+                         )}
+                       </label>
+                       <input
+                         type="text"
+                         inputMode="numeric"
+                         value={formData.pincode || ''}
+                         onChange={(e) => handleChange('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                         placeholder="Filled from the location you pick"
+                         className={`w-full bg-white border rounded-xl px-4 py-3 text-[13px] font-medium outline-none transition-all ${errors.pincode ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#005B9F]'}`}
+                       />
+                     </div>
                    </div>
                    <div>
                      <label className="block text-[14px] font-semibold text-slate-800 mb-2">Complete Property Address <span className="text-red-500">*</span></label>
@@ -1949,7 +2131,10 @@ const DynamicFormEngine = () => {
             {currentStep.fields
               .sort((a,b) => a.order - b.order)
               .filter(field => {
-                const isLocationField = stepUsesLocationSelector(currentStep) && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber'].includes(field.name.toLowerCase());
+                // These are all rendered by the LocationSelector block above
+                // (pincode included — it is auto-filled from the picked place),
+                // so skip them here or they render twice.
+                const isLocationField = stepUsesLocationSelector(currentStep) && ['city', 'state', 'district', 'country', 'locality', 'fulladdress', 'housenumber', 'pincode'].includes(field.name.toLowerCase());
                 const isUnitField = ['carpetAreaUnit', 'builtUpAreaUnit', 'superAreaUnit', 'areaUnit', 'entranceWidthUnit', 'ceilingHeightUnit'].includes(field.name);
                 const isCustomPricingField = pricingFieldsToFilter.includes(field.name);
                 
@@ -2109,6 +2294,118 @@ const DynamicFormEngine = () => {
       )}
 
       {/* Custom Tag Editing In-App Modal */}
+      {subscriptionGate && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-slate-100"
+          >
+            <div className="px-6 pt-6 pb-5 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <Check size={16} />
+                <span className="text-xs font-bold uppercase tracking-wide">Saved as draft</span>
+              </div>
+
+              <h3 className="text-lg font-bold text-slate-900">
+                {subscriptionGate.eligibility?.trialExpired
+                  ? 'Your free trial has ended'
+                  : 'Subscribe to unlock more'}
+              </h3>
+
+              <p className="text-[13px] text-slate-600 leading-relaxed">
+                {subscriptionGate.eligibility?.trialExpired
+                  ? (subscriptionGate.eligibility?.message
+                     || 'Your free trial has expired. Subscribe to a plan to publish this project.')
+                  : subscriptionGate.eligibility?.limitReached
+                    ? subscriptionGate.eligibility?.message
+                    : `You're on the free trial with ${subscriptionGate.eligibility?.trialDaysRemaining ?? 0} day${subscriptionGate.eligibility?.trialDaysRemaining === 1 ? '' : 's'} left. Subscribe now for uninterrupted listings, or skip and submit this project for approval.`}
+              </p>
+
+              <p className="text-[12px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                Your project is safe in <span className="font-semibold text-slate-700">My Listings</span> as a draft
+                {subscriptionGate.eligibility?.trialExpired ? ' — submit it once you subscribe.' : '.'}
+              </p>
+            </div>
+
+            <div className="px-6 pb-6 flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => navigate('/my-subscriptions')}
+                className="w-full py-3 bg-[#005B9F] hover:bg-[#004a83] text-white text-sm font-bold rounded-xl transition-all"
+              >
+                View Subscription Plans
+              </button>
+
+              {/* Skip only exists while the trial is still valid — an expired
+                  trial has to go through payment. */}
+              {subscriptionGate.eligibility?.canSubmit ? (
+                <button
+                  type="button"
+                  onClick={() => submitDraftForApproval(subscriptionGate.propertyId)}
+                  className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-all"
+                >
+                  Skip &amp; Submit for Approval
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setSubscriptionGate(null); navigate('/my-properties'); }}
+                  className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold rounded-xl transition-all"
+                >
+                  Go to My Listings
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {masterChangeWarning && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-slate-100 p-6 space-y-4"
+          >
+            <h3 className="text-base font-bold text-slate-900">
+              Change {masterChangeWarning.name === 'propertyType' ? 'Property Type' : masterChangeWarning.name === 'transactionType' ? 'Transaction Type' : 'Project Status'} to “{masterChangeWarning.value}”?
+            </h3>
+
+            <p className="text-xs text-slate-500">
+              This selection controls which fields the rest of the form shows.
+              The following {masterChangeWarning.affected.length === 1 ? 'answer no longer applies' : 'answers no longer apply'} and will be cleared:
+            </p>
+
+            <ul className="max-h-48 overflow-y-auto bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1.5">
+              {masterChangeWarning.affected.map((f) => (
+                <li key={f.name} className="text-xs text-amber-900 flex gap-2">
+                  <span className="font-bold shrink-0">Step {f.step}</span>
+                  <span>{f.label}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setMasterChangeWarning(null)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all"
+              >
+                Keep Current
+              </button>
+              <button
+                type="button"
+                onClick={confirmMasterChange}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+              >
+                Change &amp; Clear
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {customTagModal.open && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <motion.div

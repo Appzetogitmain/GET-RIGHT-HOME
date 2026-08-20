@@ -517,6 +517,23 @@ export const propertyService = {
       throw error.response?.data || error.message;
     }
   },
+  // Promotes a saved draft to "pending" (submitted for admin approval).
+  submitForApproval: async (id) => {
+    try {
+      const response = await api.post(`/properties/${id}/submit`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getListingEligibility: async () => {
+    try {
+      const response = await api.get('/properties/listing-eligibility');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
   addRoomType: async (propertyId, data) => {
     try {
       const response = await api.post(`/properties/${propertyId}/room-types`, data);

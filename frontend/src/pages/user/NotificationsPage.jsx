@@ -177,9 +177,23 @@ const NotificationsPage = () => {
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, height: 0 }}
                                     transition={{ delay: index * 0.05 }}
-                                    onClick={() => isSelectionMode && toggleSelect(notif._id)}
+                                    onClick={() => {
+                                        if (isSelectionMode) {
+                                            toggleSelect(notif._id);
+                                        } else {
+                                            const link = notif.data?.pushData?.link || notif.pushData?.link || notif.data?.link || notif.link;
+                                            const relatedId = notif.data?.relatedId || notif.relatedId;
+                                            const relatedType = notif.data?.relatedType || notif.relatedType;
+
+                                            if (link) {
+                                                navigate(link);
+                                            } else if (relatedId && (relatedType === 'booking' || notif.type === 'finding_professional' || notif.type === 'booking')) {
+                                                navigate(`/user/booking/${relatedId}`);
+                                            }
+                                        }
+                                    }}
                                     className={`
-                                        bg-white rounded-2xl p-4 shadow-sm border flex gap-4 relative overflow-hidden transition-all
+                                        bg-white rounded-2xl p-4 shadow-sm border flex gap-4 relative overflow-hidden transition-all cursor-pointer hover:shadow-md
                                         ${isSelectionMode && selectedIds.includes(notif._id) ? 'border-surface bg-gray-50' : 'border-gray-100'}
                                     `}
                                 >

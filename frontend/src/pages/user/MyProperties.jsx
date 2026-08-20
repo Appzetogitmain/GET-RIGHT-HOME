@@ -17,6 +17,8 @@ const MyProperties = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [propertyToDelete, setPropertyToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [submittingId, setSubmittingId] = useState(null);
 
   const fetchProperties = async () => {
     setLoading(true);
@@ -82,17 +84,56 @@ const MyProperties = () => {
     }
   };
 
-  const filteredProperties = properties.filter(p => 
-    p.propertyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.address?.city?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Drafts are unfinished work the lister needs to come back to, so they get
+  // their own tab rather than being mixed into the list unlabelled.
+  const STATUS_TABS = [
+    { key: 'all', label: 'All' },
+    { key: 'draft', label: 'Draft' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' }
+  ];
+
+  const statusCount = (key) =>
+    key === 'all' ? properties.length : properties.filter(p => p.status === key).length;
+
+  const filteredProperties = properties
+    .filter(p => statusFilter === 'all' || p.status === statusFilter)
+    .filter(p =>
+      p.propertyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.address?.city?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'approved': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
       case 'pending': return 'bg-amber-50 text-amber-600 border-amber-100';
       case 'rejected': return 'bg-red-50 text-red-600 border-red-100';
+      case 'draft': return 'bg-slate-100 text-slate-600 border-slate-200';
       default: return 'bg-gray-50 text-gray-600 border-gray-100';
+    }
+  };
+
+  // Submits a draft straight from the listing. The server re-checks
+  // eligibility, so an expired trial is redirected to plans instead.
+  const handleSubmitDraft = async (property) => {
+    setSubmittingId(property._id);
+    try {
+      const res = await propertyService.submitForApproval(property._id);
+      if (res.success) {
+        toast.success('Submitted for approval.');
+        setProperties(prev => prev.map(p =>
+          p._id === property._id ? { ...p, status: 'pending' } : p
+        ));
+      }
+    } catch (e) {
+      // propertyService rethrows the response body itself, not the axios error.
+      toast.error(e?.message || 'Could not submit for approval');
+      if (e?.trialExpired || e?.limitReached) {
+        navigate('/my-subscriptions');
+      }
+    } finally {
+      setSubmittingId(null);
     }
   };
 
@@ -151,6 +192,29 @@ const MyProperties = () => {
           </div>
         </div>
 
+        {/* Status Tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {STATUS_TABS.map(tab => {
+            const count = statusCount(tab.key);
+            const isActive = statusFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStatusFilter(tab.key)}
+                className={`shrink-0 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider border transition-all ${
+                  isActive
+                    ? 'bg-gray-900 text-white border-gray-900'
+                    : 'bg-white text-gray-500 border-gray-100 hover:border-gray-300'
+                }`}
+              >
+                {tab.label}
+                <span className={`ml-1.5 ${isActive ? 'text-white/60' : 'text-gray-300'}`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Properties List */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
@@ -201,6 +265,10 @@ const MyProperties = () => {
                           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[9px] font-black border border-emerald-100">
                             <CheckCircle2 size={10} /> VERIFIED
                           </div>
+                        ) : property.status === 'draft' ? (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full text-[9px] font-black border border-slate-200">
+                            <Clock size={10} /> NOT SUBMITTED
+                          </div>
                         ) : null}
                       </div>
                     </div>
@@ -221,12 +289,32 @@ const MyProperties = () => {
                         <Trash2 size={16} />
                       </button>
                     </div>
-                    <button 
-                      onClick={() => handleViewDetails(property)}
-                      className="px-5 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all"
-                    >
-                      View Details
-                    </button>
+                    {/* A draft has no dashboard to view yet — the useful
+                        actions are resuming it or sending it for approval. */}
+                    {property.status === 'draft' ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEditProperty(property)}
+                          className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-[10px] font-black uppercase tracking-widest rounded-xl active:scale-95 transition-all"
+                        >
+                          Continue
+                        </button>
+                        <button
+                          onClick={() => handleSubmitDraft(property)}
+                          disabled={submittingId === property._id}
+                          className="px-4 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          {submittingId === property._id ? 'Submitting...' : 'Submit'}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleViewDetails(property)}
+                        className="px-5 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all"
+                      >
+                        View Details
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ))}

@@ -1389,7 +1389,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
       
       {/* Premium Top Navigation Action Bar */}
       <div className="fixed top-0 lg:top-20 w-full bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 z-40 transition-all">
-        <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-xl lg:max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => goBackOrHome(navigate)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
               <ArrowLeft size={20} className="text-gray-700" />
@@ -1416,7 +1416,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
         {/* Scroll link Horizontal Navigation Tabs */}
         <div 
           ref={tabsContainerRef}
-          className="max-w-xl mx-auto px-3 border-t border-gray-50 flex items-center gap-1 overflow-x-auto hide-scrollbar py-2 bg-white"
+          className="max-w-xl lg:max-w-7xl mx-auto px-3 border-t border-gray-50 flex items-center gap-1 overflow-x-auto hide-scrollbar py-2 bg-white"
         >
           {[
             { id: 'overview', label: 'Overview' },
@@ -1443,8 +1443,11 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
         </div>
       </div>
 
-      {/* Main Single Column Container - Match Premium Mobile View */}
-      <div className="max-w-xl mx-auto px-4 pt-4 space-y-4">
+      {/* Main Container - Grid on Desktop, Single Column on Mobile */}
+      <div className="max-w-xl lg:max-w-7xl mx-auto px-4 pt-4 lg:pt-8 lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start">
+        
+        {/* Left Column (Desktop) / Main Stack (Mobile) */}
+        <div className="lg:col-span-8 space-y-4">
 
         {/* 1. SECTION: HERO IMAGE GALLERY (id="overview") */}
         <div id="overview" className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm relative group">
@@ -2322,12 +2325,10 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
           </div>
         </div>
 
-      </div>
+      </div> {/* End of Left Column */}
 
-
-
-      {/* Sticky Bottom Actions Bar (Matches Image 1) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 p-2.5 shadow-2xl z-50 max-w-xl mx-auto">
+      {/* Right Column Sidebar (Desktop) / Sticky Bottom Actions Bar (Mobile) */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 p-2.5 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.15)] z-50 max-w-xl mx-auto lg:static lg:col-span-4 lg:sticky lg:top-44 lg:border lg:border-slate-100 lg:rounded-2xl lg:p-5 lg:shadow-xl lg:max-w-none lg:bg-white lg:z-10">
         {/* Booking row — only for bookable stays (has inventory, not a Buy/Plot listing) */}
         {hasInventory && !isBuyGroup && (
           <div className="flex items-center gap-2 mb-2">
@@ -2364,7 +2365,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
           </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-row lg:flex-col items-center lg:items-stretch gap-2 lg:gap-3">
 
           {/* WhatsApp Support */}
           <button
@@ -2376,7 +2377,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
                 handleEnquiryButtonClick('whatsapp');
               }
             }}
-            className="flex-1 py-3 bg-white hover:bg-slate-50 text-emerald-600 border border-emerald-500 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all text-center"
+            className="flex-1 lg:flex-none lg:w-full py-3 lg:h-[46px] lg:py-0 bg-white hover:bg-slate-50 text-emerald-600 border border-emerald-500 rounded-full lg:rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all text-center"
           >
             💬 WhatsApp
           </button>
@@ -2390,7 +2391,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
                 handleEnquiryButtonClick('call');
               }
             }}
-            className="flex-[2] py-3.5 bg-[#0061df] hover:bg-blue-700 text-white rounded-full text-xs font-bold flex items-center justify-center gap-1 shadow-lg active:scale-95 transition-all"
+            className="flex-[2] lg:flex-none lg:w-full py-3.5 lg:h-[46px] lg:py-0 bg-[#0061df] hover:bg-blue-700 text-white rounded-full lg:rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-lg active:scale-95 transition-all"
           >
             <span>{revealedNumber ? `📞 ${revealedNumber}` : 'View Number / Enquire'}</span>
           </button>
@@ -2399,9 +2400,10 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
           {revealedNumber ? (
             <a
               href={`tel:${revealedNumber}`}
-              className="w-11 h-11 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all"
+              className="w-11 h-11 lg:w-full lg:h-[46px] lg:px-4 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-600 rounded-full lg:rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-all"
             >
               <Phone size={16} className="fill-current" />
+              <span className="hidden lg:inline font-bold text-xs ml-2">Quick Call</span>
             </a>
           ) : (
             <button
@@ -2410,9 +2412,10 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
                 handleEnquiryButtonClick('call');
               }}
               disabled={revealLoading}
-              className="w-11 h-11 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-[#0061df] rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all"
+              className="w-11 h-11 lg:w-full lg:h-[46px] lg:px-4 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-[#0061df] rounded-full lg:rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-all"
             >
               {revealLoading ? <Loader2 size={14} className="animate-spin" /> : <Phone size={16} className="fill-current" />}
+              <span className="hidden lg:inline font-bold text-xs ml-2">Quick Call</span>
             </button>
           )}
 
@@ -2420,13 +2423,15 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
           <button
             onClick={() => setShowVisitModal(true)}
             title="Schedule a Visit"
-            className="w-11 h-11 bg-purple-50 border border-purple-100 hover:bg-purple-100 text-purple-600 rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all"
+            className="w-11 h-11 lg:w-full lg:h-[46px] lg:px-4 bg-purple-50 border border-purple-100 hover:bg-purple-100 text-purple-600 rounded-full lg:rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-all"
           >
             <Calendar size={16} />
+            <span className="hidden lg:inline font-bold text-xs ml-2">Schedule a Visit</span>
           </button>
 
         </div>
       </div>
+      </div> {/* End of Main Grid Container */}
 
       <ScheduleVisitModal
         isOpen={showVisitModal}
