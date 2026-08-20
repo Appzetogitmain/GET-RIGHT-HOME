@@ -150,14 +150,22 @@ const DynamicFormEngine = () => {
             propertyType: displayPropertyType
           }
         });
-        if (res.data.success) {
+        if (res.data.success && res.data.template?.steps?.length) {
           // Sort steps
           const sortedSteps = res.data.template.steps.sort((a, b) => a.stepNumber - b.stepNumber);
           setTemplate({ ...res.data.template, steps: sortedSteps });
+        } else {
+          // `success: false` (or an empty/malformed template) leaves `template`
+          // at its initial null — previously that fell through the `loading`
+          // guard below into `template.steps[...]` and crashed the whole page.
+          // Send the owner back to pick again instead of hard-failing on them.
+          toast.error(res.data?.message || `No form is set up yet for "${displayPropertyType}". Please choose a different property type.`);
+          navigate('/list-property', { replace: true });
         }
       } catch (err) {
         console.error(err);
-        toast.error('Failed to load form fields for this category.');
+        toast.error(err.response?.data?.message || 'Failed to load form fields for this category.');
+        navigate('/list-property', { replace: true });
       } finally {
         setLoading(false);
       }
@@ -653,6 +661,24 @@ const DynamicFormEngine = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // Belt-and-suspenders: fetchTemplate() above already redirects away on any
+  // failure, but if `template` is ever null here anyway, show a recoverable
+  // screen instead of crashing on `template.steps[...]` below.
+  if (!template) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6 text-center gap-4">
+        <p className="text-slate-600 font-medium">Couldn't load this form. Please try again.</p>
+        <button
+          type="button"
+          onClick={() => navigate('/list-property', { replace: true })}
+          className="px-5 py-2.5 rounded-xl bg-[#0073E6] text-white font-bold text-sm"
+        >
+          Go Back
+        </button>
       </div>
     );
   }

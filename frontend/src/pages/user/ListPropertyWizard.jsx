@@ -175,6 +175,13 @@ const ListPropertyWizard = () => {
   };
 
   const subTypes = getSubTypes();
+  // Commercial categories (Office, Retail, Plot/Land, Storage, Industry,
+  // Hospitality) only have form templates seeded for their specific
+  // sub-types, not the umbrella label itself — "Office" alone has none.
+  // Letting someone continue without picking a sub-type sent them into the
+  // dynamic form with a propertyType the backend has no template for, which
+  // 404s and crashes the whole page instead of rendering a form.
+  const needsSubType = propertyCategory === 'Commercial' && subTypes.length > 0;
 
   const handleSendOtp = async () => {
     if (!listingForm.phone) {
@@ -201,6 +208,10 @@ const ListPropertyWizard = () => {
   const handleNext = async () => {
     if (!intent || !propertyCategory || !selectedType) {
       toast.error('Please select all details to continue');
+      return;
+    }
+    if (needsSubType && !selectedSubType) {
+      toast.error(`Please select what kind of ${selectedType} it is`);
       return;
     }
 
@@ -305,7 +316,7 @@ const ListPropertyWizard = () => {
     { value: 'builder', label: 'Builder Partner', hint: 'I develop projects', icon: Building2 }
   ];
 
-  const canSubmit = !!(intent && propertyCategory && selectedType);
+  const canSubmit = !!(intent && propertyCategory && selectedType && (!needsSubType || selectedSubType));
 
   const sectionMotion = {
     initial: { opacity: 0, y: 10 },
