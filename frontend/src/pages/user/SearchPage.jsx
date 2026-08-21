@@ -825,7 +825,12 @@ const SearchPage = () => {
         <div className="min-h-screen bg-white pb-24 pt-[110px]">
             <div className="fixed top-0 w-full z-50 bg-white border-b border-gray-100 pb-2 pt-3 md:pt-4 px-4 shadow-sm">
                 <div className="max-w-7xl mx-auto">
-                    <div className="flex items-center gap-3 mb-3">
+                    {/* `relative` lives on the ROW, not the input's form, so the
+                        suggestions dropdown can span the full row width. Anchored to
+                        the form it inherited that narrow flex-grow width and long
+                        labels like "2 BHK Ready to Move Apartment in Indore" wrapped
+                        onto a second line. */}
+                    <div className="flex items-center gap-3 mb-3 relative">
                         {/* Search results are the most-shared/deep-linked page in the
                             app, so a raw navigate(-1) is often a dead button — there's
                             nothing behind it when the tab opened straight onto this URL. */}
@@ -856,20 +861,6 @@ const SearchPage = () => {
                                 placeholder="Search City/Locality/Project"
                                 className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-800 bg-gray-50 flex items-center h-9 outline-none focus:bg-white focus:border-blue-300 focus:shadow-sm transition-all"
                             />
-                            <SearchSuggestions
-                                query={searchInputValue}
-                                open={suggestionsOpen}
-                                onClose={() => setSuggestionsOpen(false)}
-                                onSelect={(item) => {
-                                    setSuggestionsOpen(false);
-                                    setSearchInputValue(item.label);
-                                    typedQueryRef.current = item.label;
-                                    // Suggestions carry a ready-made filter URL, so
-                                    // navigate to it instead of re-parsing the label.
-                                    if (item.url) navigate(item.url);
-                                    else runSearch(item.label);
-                                }}
-                            />
                         </form>
                         <button
                             onClick={handleNearMe}
@@ -894,6 +885,24 @@ const SearchPage = () => {
                         >
                             <Heart size={18} className="text-gray-600" />
                         </button>
+
+                        {/* Sibling of the row (not the form) so it spans back-button
+                            edge to heart-button edge — enough width for a full
+                            suggestion on one line. */}
+                        <SearchSuggestions
+                            query={searchInputValue}
+                            open={suggestionsOpen}
+                            onClose={() => setSuggestionsOpen(false)}
+                            onSelect={(item) => {
+                                setSuggestionsOpen(false);
+                                setSearchInputValue(item.label);
+                                typedQueryRef.current = item.label;
+                                // Suggestions carry a ready-made filter URL, so
+                                // navigate to it instead of re-parsing the label.
+                                if (item.url) navigate(item.url);
+                                else runSearch(item.label);
+                            }}
+                        />
                     </div>
 
                     {/* Quick Filters Horizontal Scroll */}

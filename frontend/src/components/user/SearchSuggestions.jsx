@@ -130,8 +130,13 @@ const SearchSuggestions = ({ query, open, onSelect, onClose, className = '' }) =
               {isRecent
                 ? <Clock size={13} className="mt-0.5 text-gray-400 shrink-0" />
                 : <ArrowUpRight size={13} className="mt-0.5 text-gray-400 shrink-0" />}
+              {/* One line per suggestion — a wrapped label makes the list hard to
+                  scan. `truncate` needs the min-w-0 on its flex parent to work. */}
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-medium text-gray-800 leading-snug">
+                <span
+                  className="block text-[13px] font-medium text-gray-800 leading-snug truncate"
+                  title={row.label}
+                >
                   {row.label}
                 </span>
               </span>
