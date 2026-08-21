@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -37,6 +37,7 @@ const UserSubscriptionsPage = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(null); // Changed from boolean to planId
+    const purchaseInFlightRef = useRef(false);
     const [plans, setPlans] = useState([]);
     const [currentSub, setCurrentSub] = useState(null);
     const { user } = useAuth();
@@ -63,14 +64,48 @@ const UserSubscriptionsPage = () => {
     };
 
     const handlePurchase = async (plan) => {
-        if (processing) return;
+        // `processing` is state, so it hasn't updated yet if this fires twice in
+        // the same tick — which was creating duplicate checkout requests (and
+        // would mean duplicate Razorpay orders on a paid plan). The ref flips
+        // synchronously, so the second call is dropped.
+        if (purchaseInFlightRef.current || processing) return;
+        purchaseInFlightRef.current = true;
         setProcessing(plan._id);
-        const tid = toast.loading('Initializing payment...');
+
+        const isFreePlan = Number(plan.price) <= 0;
+        const tid = toast.loading(isFreePlan ? 'Activating plan...' : 'Initializing payment...');
         try {
+            // A ₹0 plan is activated server-side with no payment step — don't
+            // even load the Razorpay SDK for it.
+            if (isFreePlan) {
+                const res = await subscriptionService.createSubscriptionOrder(plan._id);
+                if (res?.success) {
+                    toast.success('Plan activated!', { id: tid });
+                    setCurrentSub(res.subscription);
+                    fetchData();
+                } else {
+                    toast.error(res?.message || 'Could not activate plan', { id: tid });
+                }
+                return;
+            }
+
             const loaded = await loadRazorpay();
             if (!loaded) throw new Error('Razorpay SDK failed');
 
-            const { order, key } = await subscriptionService.createSubscriptionOrder(plan._id);
+            const { order, key, free, subscription, message } = await subscriptionService.createSubscriptionOrder(plan._id);
+
+            // Server may still decide it's free (e.g. a 100% discount).
+            if (free) {
+                toast.success(message || 'Plan activated!', { id: tid });
+                setCurrentSub(subscription);
+                fetchData();
+                return;
+            }
+
+            if (!order?.id) {
+                toast.error(message || 'Could not start payment', { id: tid });
+                return;
+            }
 
             new window.Razorpay({
                 key,
@@ -105,6 +140,7 @@ const UserSubscriptionsPage = () => {
         } catch (err) {
             toast.error(err.response?.data?.message || 'Could not start payment', { id: tid });
         } finally {
+            purchaseInFlightRef.current = false;
             setProcessing(null);
         }
     };

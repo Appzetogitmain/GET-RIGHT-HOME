@@ -348,9 +348,20 @@ const DynamicFormEngine = () => {
   const goBack = () => {
     if (currentStepIndex > 0) {
       goToStep(currentStepIndex - 1);
-    } else {
-      navigate(-1);
+      return;
     }
+
+    // On step 1 there is no previous step, and history can't be trusted here:
+    // /list-property auto-forwards builders straight back into this wizard, so
+    // navigate(-1) bounces and the button looks dead. Go somewhere stable
+    // instead. Work is already autosaved to localStorage, so leaving is safe.
+    // Editing an existing listing, or a builder (who never sees the
+    // /list-property chooser) belongs back in their listings. Everyone else
+    // came through the chooser, so that's the natural step back.
+    const exitTo = (isEditMode || user?.role === 'builder')
+      ? '/my-properties'
+      : '/list-property';
+    navigate(exitTo);
   };
 
   const [draftSaved, setDraftSaved] = useState(false);
@@ -1872,16 +1883,28 @@ const DynamicFormEngine = () => {
           <div key={field.name} id={`field-${field.name}`} className="mb-6">
             <div className="space-y-3">
               {template.steps.slice(0, -1).map((step, idx) => {
+                // Only summarise fields that actually apply to the current
+                // master selections. Without the dependsOn check a villa
+                // project would list apartment-only fields, and the several
+                // same-named variants of one field (e.g. the per-property-type
+                // amenity catalogs, all called "amenities") would each emit an
+                // identical row — duplicating content and colliding on key.
+                const seen = new Set();
                 const rows = step.fields
-                  .filter(f => f.type !== 'review')
-                  .map(f => ({ label: f.label, value: formatValue(formData[f.name]) }))
+                  .filter(f => f.type !== 'review' && matchesDependsOn(f.dependsOn, formData))
+                  .filter(f => {
+                    if (seen.has(f.name)) return false;
+                    seen.add(f.name);
+                    return true;
+                  })
+                  .map(f => ({ name: f.name, label: f.label, value: formatValue(formData[f.name]) }))
                   .filter(r => r.value !== null);
 
                 // Surface the address captured by the LocationSelector too
                 if (stepUsesLocationSelector(step)) {
                   const addressLine = [formData.locality, formData.city, formData.district, formData.state]
                     .filter(Boolean).join(', ');
-                  if (addressLine) rows.unshift({ label: 'Address', value: addressLine });
+                  if (addressLine) rows.unshift({ name: '__address', label: 'Address', value: addressLine });
                 }
 
                 return (
@@ -1904,7 +1927,7 @@ const DynamicFormEngine = () => {
                       ) : (
                         <dl className="space-y-1.5">
                           {rows.map(row => (
-                            <div key={row.label} className="flex gap-3 text-[12px]">
+                            <div key={row.name} className="flex gap-3 text-[12px]">
                               <dt className="text-slate-500 font-medium w-2/5 shrink-0">{row.label}</dt>
                               <dd className="text-slate-800 font-semibold break-words min-w-0">{row.value}</dd>
                             </div>

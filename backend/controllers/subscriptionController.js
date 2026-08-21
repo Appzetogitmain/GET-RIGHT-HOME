@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import PaymentConfig from '../config/payment.config.js';
+import { SLOT_CONSUMING_STATUS } from '../utils/listingEligibility.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -194,6 +195,46 @@ export const getCurrentSubscription = async (req, res) => {
 };
 
 /**
+ * Writes an active subscription onto the user/partner record.
+ *
+ * Shared by paid activation (after signature verification) and free-plan
+ * activation, so the two can't drift apart.
+ *
+ * @returns the saved subscription, or null when the account is missing.
+ */
+const activatePlanForUser = async ({ userId, role, plan, transactionId }) => {
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + plan.durationDays);
+
+    const Model = role === 'partner' ? Partner : User;
+    const subject = await Model.findById(userId);
+    if (!subject) return null;
+
+    // Recount properties that actually occupy a plan slot. Must use the same
+    // rule as the listing-eligibility gate (drafts and rejected listings are
+    // free), otherwise the plan usage shown to the user disagrees with what
+    // the server actually enforces — e.g. "2/1" right after subscribing.
+    const Property = (await import('../models/Property.js')).default;
+    const query = role === 'partner' ? { partnerId: userId } : { userId };
+    query.status = SLOT_CONSUMING_STATUS;
+    const actualPropsCount = await Property.countDocuments(query);
+
+    subject.subscription = {
+        planId: plan._id,
+        status: 'active',
+        startDate: new Date(),
+        expiryDate,
+        propertiesAdded: actualPropsCount,
+        transactionId,
+        leadsUsedThisMonth: 0, // Reset/Initialize leads
+        isPaused: false
+    };
+
+    await subject.save();
+    return subject.subscription;
+};
+
+/**
  * @desc    Create Razorpay Order for Subscription
  * @route   POST /api/subscriptions/checkout
  * @access  Private (Partner)
@@ -207,6 +248,28 @@ export const createSubscriptionOrder = async (req, res) => {
         if (!plan) return res.status(404).json({ message: 'Plan not found' });
 
         const amountInPaise = Math.round(plan.price * 100);
+
+        // A ₹0 plan has nothing to charge for, and Razorpay rejects any order
+        // below its minimum (₹1) with "Order amount less than minimum amount
+        // allowed" — which surfaced to the user as a hard crash. Activate free
+        // plans directly and tell the client to skip the payment sheet.
+        if (amountInPaise <= 0) {
+            const activated = await activatePlanForUser({
+                userId: partnerId,
+                role: req.user.role,
+                plan,
+                transactionId: `free_${Date.now()}`
+            });
+
+            if (!activated) return res.status(404).json({ message: 'User not found' });
+
+            return res.json({
+                success: true,
+                free: true,
+                message: 'Plan activated',
+                subscription: activated
+            });
+        }
 
         const options = {
             amount: amountInPaise,
@@ -270,36 +333,19 @@ export const verifySubscription = async (req, res) => {
         const plan = await SubscriptionPlan.findById(planId);
         if (!plan) return res.status(404).json({ message: 'Plan not found during activation' });
 
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + plan.durationDays);
+        const subscription = await activatePlanForUser({
+            userId: partnerId,
+            role: req.user.role,
+            plan,
+            transactionId: razorpay_payment_id
+        });
 
-        const Model = req.user.role === 'partner' ? Partner : User;
-        const partner = await Model.findById(partnerId);
-        if (!partner) return res.status(404).json({ message: 'User not found' });
-
-        // Recount active properties to ensure data integrity
-        const Property = (await import('../models/Property.js')).default;
-        const query = req.user.role === 'partner' ? { partnerId } : { userId: partnerId };
-        query.status = { $ne: 'deleted' };
-        const actualPropsCount = await Property.countDocuments(query);
-
-        partner.subscription = {
-            planId: plan._id,
-            status: 'active',
-            startDate: new Date(),
-            expiryDate: expiryDate,
-            propertiesAdded: actualPropsCount,
-            transactionId: razorpay_payment_id,
-            leadsUsedThisMonth: 0, // Reset/Initialize leads
-            isPaused: false
-        };
-
-        await partner.save();
+        if (!subscription) return res.status(404).json({ message: 'User not found' });
 
         res.json({
             success: true,
             message: 'Subscription activated successfully',
-            subscription: partner.subscription
+            subscription
         });
 
     } catch (error) {
