@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, Calendar, Tag, Info, Trash2, CheckCircle, Circle } from 'lucide-react';
+import { ArrowLeft, Bell, Calendar, Tag, Trash2, CheckCircle, Circle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { userService } from '../../services/apiService';
 import toast from 'react-hot-toast';
@@ -85,13 +85,23 @@ const NotificationsPage = () => {
         }
     };
 
+    // The generic "i" fallback was showing on almost every notification and
+    // carried no information. Only render an icon where it actually says
+    // something about the notification; otherwise the slot is left for the
+    // admin-supplied image (see notificationImage below).
     const getIcon = (type) => {
         switch (type) {
             case 'booking': return <Calendar size={20} />;
             case 'offer': return <Tag size={20} />;
-            default: return <Info size={20} />;
+            default: return null;
         }
     };
+
+    // `data` on the Notification model is Mixed, so an admin-supplied image can
+    // travel there with no schema change. Accept a top-level `image` too, in
+    // case one is promoted to a real field later.
+    const notificationImage = (notif) =>
+        notif?.image || notif?.imageUrl || notif?.data?.image || notif?.data?.imageUrl || '';
 
     const getColor = (type) => {
         switch (type) {
@@ -209,9 +219,30 @@ const NotificationsPage = () => {
                                         </div>
                                     )}
 
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${getColor(notif.type)}`}>
-                                        {getIcon(notif.type || 'general')}
-                                    </div>
+                                    {/* Image the admin attached wins; a meaningful type
+                                        icon is the fallback. Neither present → no
+                                        circle at all, so the text uses the full width
+                                        instead of sitting next to an empty badge. */}
+                                    {(() => {
+                                        const image = notificationImage(notif);
+                                        if (image) {
+                                            return (
+                                                <img
+                                                    src={image}
+                                                    alt=""
+                                                    className="w-12 h-12 rounded-full object-cover flex-shrink-0 bg-gray-100"
+                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                />
+                                            );
+                                        }
+                                        const icon = getIcon(notif.type || 'general');
+                                        if (!icon) return null;
+                                        return (
+                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${getColor(notif.type)}`}>
+                                                {icon}
+                                            </div>
+                                        );
+                                    })()}
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-start">
                                             <h3 className={`font-bold text-sm truncate pr-2 ${notif.isRead ? 'text-gray-600' : 'text-surface'}`}>
