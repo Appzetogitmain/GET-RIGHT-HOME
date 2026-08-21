@@ -120,6 +120,7 @@ import walletRoutes from './routes/walletRoutes.js';
 import infoRoutes from './routes/infoRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import propertyRoutes from './routes/propertyRoutes.js';
+import { getSitemap } from './controllers/sitemapController.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
@@ -167,6 +168,9 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/info', infoRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/properties', propertyRoutes);
+// Generated from live inventory rather than a static file, so it never points
+// crawlers at listings that have since been removed.
+app.get('/sitemap.xml', getSitemap);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);

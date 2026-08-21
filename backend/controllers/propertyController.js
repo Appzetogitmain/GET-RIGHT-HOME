@@ -15,6 +15,9 @@ import Enquiry from '../models/Enquiry.js';
 import { mapBuilderProjectFields, generateUniqueSlug } from '../utils/builderProjectMapper.js';
 import { escapeRegex, safeRegex } from '../utils/escapeRegex.js';
 import { getListingEligibility } from '../utils/listingEligibility.js';
+import { rankSuggestions, titleCaseCity, displayPropertyType, displayAvailability, displayBhk } from '../utils/searchSuggestions.js';
+import { buildZeroResultAlternatives } from '../utils/zeroResultRecovery.js';
+import { recordSearch, recordSearchOutcome, getSearchAnalytics } from '../services/searchAnalyticsService.js';
 import { getIO } from '../sockets.js';
 
 /**
@@ -1660,7 +1663,19 @@ export const getPublicProperties = async (req, res) => {
           from: 'users',
           localField: 'userId',
           foreignField: '_id',
-          as: 'user'
+          as: 'user',
+          // SECURITY: this endpoint is public and unauthenticated. A bare
+          // $lookup pulls the ENTIRE user document into every search result —
+          // password hash, aadhaar/PAN numbers and their document URLs, and
+          // the live OTP. Note that Mongoose `select: false` (which protects
+          // `otp` on normal queries) does NOT apply inside an aggregation
+          // $lookup, so it has to be an explicit allow-list here.
+          //
+          // Only `role` (postedBy filter) and `subscription.planId` (the plan
+          // lookup below) are actually used downstream.
+          pipeline: [
+            { $project: { _id: 1, role: 1, 'subscription.planId': 1 } }
+          ]
         }
       },
       { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
@@ -1689,10 +1704,36 @@ export const getPublicProperties = async (req, res) => {
     // tier is now one input among several instead of being the entire score —
     // verification, having real photos, freshness and genuine engagement all
     // count too, so a paid boost alone can't outrank a stronger listing.
+    // Free-text queries match across nine fields of very different strength —
+    // a hit on the project's own name means far more than the same word buried
+    // in a description. Without this the two rank identically and ordering
+    // falls back to subscription tier, which is exactly what a paid boost is
+    // not supposed to decide. Scored (not filtered), so the result set is
+    // unchanged — only its order improves.
+    const searchTerm = typeof search === 'string' ? search.trim() : '';
+    const matchStrengthScore = searchTerm
+      ? {
+          $add: [
+            { $cond: [{ $regexMatch: { input: { $ifNull: ['$propertyName', ''] }, regex: escapeRegex(searchTerm), options: 'i' } }, 25, 0] },
+            { $cond: [{ $regexMatch: { input: { $ifNull: ['$address.area', ''] }, regex: escapeRegex(searchTerm), options: 'i' } }, 20, 0] },
+            { $cond: [{ $regexMatch: { input: { $ifNull: ['$address.city', ''] }, regex: escapeRegex(searchTerm), options: 'i' } }, 16, 0] },
+            { $cond: [{ $regexMatch: { input: { $ifNull: ['$propertyType', ''] }, regex: escapeRegex(searchTerm), options: 'i' } }, 10, 0] },
+            { $cond: [{ $regexMatch: { input: { $ifNull: ['$address.fullAddress', ''] }, regex: escapeRegex(searchTerm), options: 'i' } }, 6, 0] },
+            // Weakest signal — a passing mention in prose.
+            { $cond: [{ $regexMatch: { input: { $ifNull: ['$description', ''] }, regex: escapeRegex(searchTerm), options: 'i' } }, 3, 0] }
+          ]
+        }
+      : 0;
+
     pipeline.push({
       $addFields: {
+        // Kept as its own field so search analytics (and anyone debugging a
+        // ranking complaint) can see match strength separately from the
+        // quality/monetisation half of the score.
+        matchScore: matchStrengthScore,
         relevanceScore: {
           $add: [
+            matchStrengthScore,
             { $multiply: [{ $ifNull: ['$rankingWeight', 0] }, 8] }, // subscription tier — capped influence
             { $cond: [{ $eq: ['$isVerified', true] }, 15, 0] },
             { $cond: [{ $eq: ['$reraVerified', true] }, 5, 0] },
@@ -1976,13 +2017,25 @@ export const getPublicProperties = async (req, res) => {
       const [result] = await Property.aggregate(pipeline);
       const total = result?.totalCount?.[0]?.count || 0;
 
+      // Fire-and-forget: never awaited, so instrumentation can't slow or
+      // break the search.
+      recordSearch(req, { resultsCount: total });
+
+      // Nothing matched — offer broader searches that actually have inventory
+      // instead of a dead end. Only computed on the empty path, so the normal
+      // case pays nothing for it.
+      const alternatives = total === 0
+        ? await buildZeroResultAlternatives(req.query)
+        : [];
+
       return res.json({
         success: true,
         properties: result?.properties || [],
         total,
         page: requestedPage,
         pageSize,
-        totalPages: Math.max(1, Math.ceil(total / pageSize))
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        ...(total === 0 ? { alternatives } : {})
       });
     }
 
@@ -1996,6 +2049,7 @@ export const getPublicProperties = async (req, res) => {
 
     // Execute
     const list = await Property.aggregate(pipeline);
+    recordSearch(req, { resultsCount: list.length });
     res.json(list);
 
   } catch (e) {
@@ -2024,6 +2078,189 @@ export const getMyProperties = async (req, res) => {
     res.json({ success: true, properties });
   } catch (e) {
     res.status(500).json({ message: e.message });
+  }
+};
+
+/**
+ * Properties similar to the one being viewed.
+ *
+ * @route GET /api/properties/:id/similar
+ *
+ * Ranked on the signals a buyer actually compares — same locality, same type,
+ * same configuration, comparable price — rather than "newest in the same city",
+ * so the strip under a listing shows genuine alternatives.
+ */
+export const getSimilarProperties = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 8, 20);
+    const source = await Property.findById(req.params.id).lean();
+    if (!source) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    const city = source.address?.city;
+    const basePrice = source.priceRange?.min || source.startingPrice || 0;
+
+    const pipeline = [
+      {
+        $match: {
+          _id: { $ne: source._id },
+          status: 'approved',
+          isLive: true,
+          // Keep the candidate pool meaningful: same city, or same type
+          // elsewhere. Comparing a Bengaluru flat to a Noida plot is noise.
+          ...(city
+            ? { $or: [{ 'address.city': city }, { propertyType: source.propertyType }] }
+            : { propertyType: source.propertyType })
+        }
+      },
+      {
+        $addFields: {
+          similarityScore: {
+            $add: [
+              { $cond: [{ $eq: ['$address.city', city] }, 25, 0] },
+              { $cond: [{ $eq: ['$address.area', source.address?.area] }, 20, 0] },
+              { $cond: [{ $eq: ['$propertyType', source.propertyType] }, 20, 0] },
+              { $cond: [{ $eq: ['$transactionType', source.transactionType] }, 10, 0] },
+              // Price proximity: full marks within 15%, tapering to 0 by 50%.
+              basePrice > 0
+                ? {
+                    $let: {
+                      vars: {
+                        diff: {
+                          $abs: {
+                            $divide: [
+                              { $subtract: [{ $ifNull: ['$priceRange.min', basePrice] }, basePrice] },
+                              basePrice
+                            ]
+                          }
+                        }
+                      },
+                      in: {
+                        $cond: [
+                          { $lte: ['$$diff', 0.15] }, 25,
+                          { $cond: [{ $lte: ['$$diff', 0.5] }, 12, 0] }
+                        ]
+                      }
+                    }
+                  }
+                : 0,
+              { $cond: [{ $eq: ['$isVerified', true] }, 5, 0] }
+            ]
+          }
+        }
+      },
+      { $sort: { similarityScore: -1, createdAt: -1 } },
+      { $limit: limit },
+      // Same privacy rule as public search — never widen what a listing exposes.
+      { $project: { userId: 0, contactNumber: 0, documents: 0 } }
+    ];
+
+    const properties = await Property.aggregate(pipeline);
+    res.json({ success: true, properties });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+/**
+ * Attributes a click/enquiry to the session's latest search.
+ * @route POST /api/properties/:id/search-outcome
+ */
+export const trackSearchOutcome = async (req, res) => {
+  try {
+    const { sessionId, kind } = req.body || {};
+    recordSearchOutcome(sessionId, req.params.id, kind === 'enquiry' ? 'enquiry' : 'click');
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+/**
+ * Search analytics for the admin dashboard.
+ * @route GET /api/properties/admin/search-analytics
+ */
+export const getSearchAnalyticsReport = async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days, 10) || 30, 365);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
+    res.json({ success: true, analytics: await getSearchAnalytics({ days, limit }) });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+/**
+ * Autocomplete suggestions built from live inventory.
+ *
+ * @route GET /api/properties/suggestions?q=2bhk villa
+ *
+ * Returns portal-style phrases ("2 BHK Villa in Indore") that are guaranteed
+ * to have matching listings behind them, plus the search URL to open. Cities
+ * and property types are entered free-hand, so identical values are grouped on
+ * a normalised key before a suggestion is built — otherwise "Indore",
+ * "INDORE " and "indore" would each produce their own entry.
+ */
+export const getSearchSuggestions = async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const limit = Math.min(parseInt(req.query.limit, 10) || 12, 25);
+
+    const buckets = await Property.aggregate([
+      { $match: { status: 'approved', isLive: true } },
+      {
+        $project: {
+          city: {
+            $trim: { input: { $ifNull: ['$address.city', ''] } }
+          },
+          propertyType: { $ifNull: ['$propertyType', ''] },
+          transactionType: { $ifNull: ['$transactionType', ''] },
+          availability: {
+            $ifNull: ['$availability', { $ifNull: ['$dynamicData.availability', ''] }]
+          },
+          // BHK is written to whichever sub-document the listing flow used, so
+          // fall back across all of them (same set the bhkType filter checks).
+          bhk: {
+            $ifNull: ['$dynamicData.bhkType',
+              { $ifNull: ['$dynamicData.bhk',
+                { $ifNull: ['$buyDetails.bhkType',
+                  { $ifNull: ['$buyDetails.type',
+                    { $ifNull: ['$rentDetails.type', ''] }] }] }] }]
+          }
+        }
+      },
+      { $match: { city: { $ne: '' }, propertyType: { $ne: '' } } },
+      {
+        $group: {
+          _id: {
+            cityKey: { $toLower: '$city' },
+            propertyType: { $toLower: '$propertyType' },
+            availability: '$availability',
+            bhk: '$bhk',
+            transactionType: '$transactionType'
+          },
+          city: { $first: '$city' },
+          propertyType: { $first: '$propertyType' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      // Guard against an unbounded fan-out as inventory grows; ranking happens
+      // over this shortlist, which is far more than the handful shown.
+      { $limit: 400 }
+    ]);
+
+    const normalised = buckets.map((b) => ({
+      city: titleCaseCity(b.city),
+      propertyType: displayPropertyType(b.propertyType),
+      availability: displayAvailability(b._id?.availability),
+      bhk: displayBhk(b._id?.bhk),
+      transactionType: b._id?.transactionType || '',
+      count: b.count
+    }));
+
+    res.json({ success: true, query: q, suggestions: rankSuggestions(normalised, q, limit) });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
   }
 };
 

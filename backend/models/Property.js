@@ -436,4 +436,19 @@ propertySchema.index({ status: 1, isLive: 1, 'address.city': 1 });
 propertySchema.index({ status: 1, isLive: 1, createdAt: -1 });
 propertySchema.index({ dynamicCategory: 1, status: 1, isLive: 1 });
 
+// City + type is the single most common search shape (every category page and
+// most suggestion click-throughs), so give it a dedicated compound index
+// rather than making it ride the city-only one.
+propertySchema.index({ status: 1, isLive: 1, 'address.city': 1, propertyType: 1 });
+
+// priceRange.min IS a stored field (denormalised from unitConfigurations on
+// save), unlike the computed startingPrice — so budget-filtered browsing can
+// be index-served even though free-text price sorting cannot.
+propertySchema.index({ status: 1, isLive: 1, 'priceRange.min': 1 });
+
+// Slug lookups for SEO property URLs (/property/2-bhk-villa-indore).
+// The field already declares its own unique+sparse index; this pairs it with
+// the live-status filter the public route applies.
+propertySchema.index({ slug: 1, status: 1, isLive: 1 });
+
 export default mongoose.model("Property", propertySchema);

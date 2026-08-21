@@ -10,10 +10,9 @@ import AdvancedFilterModal from '../../components/user/AdvancedFilterModal';
 import SearchSidebarFilters from '../../components/user/SearchSidebarFilters';
 import SortDropdown from '../../components/user/SortDropdown';
 import { locationData, bengaluruAreas } from '../../data/locationData';
-    import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
-import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
-import { parseSearchQuery } from '../../utils/searchQueryParser';
+    import { parseSearchQuery } from '../../utils/searchQueryParser';
 import { addRecentSearch } from '../../utils/recentActivity';
+import SearchSuggestions from '../../components/user/SearchSuggestions';
 const getAvailablePropertyTypes = (category, subCategory) => {
     if (category === 'Paying Guest') {
         return [
@@ -88,18 +87,10 @@ const SearchPage = () => {
     const [nearMeLoading, setNearMeLoading] = useState(false);
     const [searchInputValue, setSearchInputValue] = useState("");
 
-    // Google Places suggestions for the results-page search bar, so it behaves
-    // like the dashboard bar instead of being a plain text box.
-    const [searchAutocomplete, setSearchAutocomplete] = useState(null);
-    const { isLoaded: placesLoaded } = useJsApiLoader({
-        id: GOOGLE_MAPS_SCRIPT_ID,
-        googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-        libraries: GOOGLE_MAPS_LIBRARIES
-    });
+    const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
-    // Holds exactly what the user typed. Google Places rewrites the input's DOM
-    // value when a suggestion is chosen (including on Enter), which would
-    // otherwise destroy the rest of the query — see handleSearchPlaceChanged.
+    // Holds exactly what the user typed, kept in step with programmatic updates
+    // (URL/filter changes, picking a suggestion) so the two never diverge.
     const typedQueryRef = useRef('');
 
     const hasStructuredSignal = (parsed) => !!(
@@ -157,31 +148,6 @@ const SearchPage = () => {
         });
     };
 
-    // Picking a Places suggestion should search immediately, the way choosing
-    // one from the dashboard bar does.
-    const handleSearchPlaceChanged = () => {
-        if (!searchAutocomplete) return;
-        const place = searchAutocomplete.getPlace();
-        const name = place?.name || place?.formatted_address;
-        if (!name) return;
-
-        // Pressing Enter makes Google pick the highlighted suggestion and
-        // collapse the input to just that place — so "2bhk in indore" became
-        // "indore" and the 2 BHK was silently dropped. When the typed query
-        // carries filters beyond the location, keep what was typed and let the
-        // parser split it; the place name is only an upgrade for a query that
-        // was purely a location.
-        const typed = typedQueryRef.current.trim();
-        if (typed && hasStructuredSignal(parseSearchQuery(typed))) {
-            setSearchInputValue(typed);
-            runSearch(typed);
-            return;
-        }
-
-        setSearchInputValue(name);
-        typedQueryRef.current = name;
-        runSearch(name);
-    };
 
     // Filters State
     // Initialize filters from URL
@@ -872,38 +838,34 @@ const SearchPage = () => {
                             <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors z-10">
                                 <Search size={16} />
                             </button>
-                            {placesLoaded ? (
-                                <Autocomplete
-                                    onLoad={setSearchAutocomplete}
-                                    onPlaceChanged={handleSearchPlaceChanged}
-                                    options={{
-                                        componentRestrictions: { country: 'in' },
-                                        fields: ['name', 'formatted_address']
-                                    }}
-                                >
-                                    <input
-                                        type="text"
-                                        value={searchInputValue}
-                                        onChange={(e) => {
-                                            setSearchInputValue(e.target.value);
-                                            typedQueryRef.current = e.target.value;
-                                        }}
-                                        placeholder="Search City/Locality/Project"
-                                        className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-800 bg-gray-50 flex items-center h-9 outline-none focus:bg-white focus:border-blue-300 focus:shadow-sm transition-all"
-                                    />
-                                </Autocomplete>
-                            ) : (
-                                <input
-                                    type="text"
-                                    value={searchInputValue}
-                                    onChange={(e) => {
-                                        setSearchInputValue(e.target.value);
-                                        typedQueryRef.current = e.target.value;
-                                    }}
-                                    placeholder="Search City/Locality/Project"
-                                    className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-800 bg-gray-50 flex items-center h-9 outline-none focus:bg-white focus:border-blue-300 focus:shadow-sm transition-all"
-                                />
-                            )}
+                            {/* Suggestions come from our own inventory rather than a
+                                places API, so every option leads to real results. */}
+                            <input
+                                type="text"
+                                value={searchInputValue}
+                                onChange={(e) => {
+                                    setSearchInputValue(e.target.value);
+                                    typedQueryRef.current = e.target.value;
+                                    setSuggestionsOpen(true);
+                                }}
+                                onFocus={() => setSuggestionsOpen(true)}
+                                placeholder="Search City/Locality/Project"
+                                className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-800 bg-gray-50 flex items-center h-9 outline-none focus:bg-white focus:border-blue-300 focus:shadow-sm transition-all"
+                            />
+                            <SearchSuggestions
+                                query={searchInputValue}
+                                open={suggestionsOpen}
+                                onClose={() => setSuggestionsOpen(false)}
+                                onSelect={(item) => {
+                                    setSuggestionsOpen(false);
+                                    setSearchInputValue(item.label);
+                                    typedQueryRef.current = item.label;
+                                    // Suggestions carry a ready-made filter URL, so
+                                    // navigate to it instead of re-parsing the label.
+                                    if (item.url) navigate(item.url);
+                                    else runSearch(item.label);
+                                }}
+                            />
                         </form>
                         <button
                             onClick={handleNearMe}

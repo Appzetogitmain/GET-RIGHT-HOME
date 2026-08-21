@@ -1,9 +1,27 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 
 const ScrollToTop = () => {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const action = useNavigationType();
+
+  // Scroll state is keyed on the FULL url, not just the path.
+  //
+  // Searching and filtering only change the query string — /search?areas=Indore
+  // to /search?areas=Pune is the same pathname. Keying on pathname alone meant
+  // the effect never re-ran for a new search, so the page kept the old scroll
+  // offset and a fresh result list opened halfway down (or at the very bottom
+  // on mobile, where lists are much taller). It also made every query on a
+  // route share one saved position, so "back" could restore an offset that
+  // belonged to a completely different result set.
+  const locationKey = `${pathname}${search}`;
+
+  // `performance.getEntriesByType('navigation')[0].type` describes how the
+  // DOCUMENT loaded and keeps saying "reload" for the rest of the session.
+  // Checking it on every POP meant that after a single refresh, back-button
+  // restoration stayed broken until a full re-navigation. Only the first run
+  // after mount can be a reload.
+  const isFirstRunRef = useRef(true);
 
   // We use useLayoutEffect to aggressively hijack the scroll before the browser paints
   useLayoutEffect(() => {
@@ -26,13 +44,15 @@ const ScrollToTop = () => {
       setTimeout(goToTop, 50);
 
     } else if (action === 'POP') {
-      const lastSectionId = sessionStorage.getItem(`last-clicked-section-${pathname}`);
-      const savedPosition = sessionStorage.getItem(`scrollPos-${pathname}`);
-      
-      // Instantly wipe memory so a refresh never triggers this twice
-      if (lastSectionId) sessionStorage.removeItem(`last-clicked-section-${pathname}`);
+      const lastSectionId = sessionStorage.getItem(`last-clicked-section-${locationKey}`);
+      const savedPosition = sessionStorage.getItem(`scrollPos-${locationKey}`);
 
-      const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
+      // Instantly wipe memory so a refresh never triggers this twice
+      if (lastSectionId) sessionStorage.removeItem(`last-clicked-section-${locationKey}`);
+
+      const isReload =
+        isFirstRunRef.current &&
+        performance.getEntriesByType('navigation')[0]?.type === 'reload';
 
       if (lastSectionId) {
         // --- ELEMENT ANCHOR LOGIC ---
@@ -138,7 +158,9 @@ const ScrollToTop = () => {
         }, 8000);
       }
     }
-  }, [pathname, action]);
+
+    isFirstRunRef.current = false;
+  }, [locationKey, action]);
 
   useEffect(() => {
     // Prevent saving scroll state during the chaotic first second of mount/restoration
@@ -149,7 +171,7 @@ const ScrollToTop = () => {
     const handleScroll = () => {
       if (isRestoring) return;
       const currentPos = window.lenis ? window.lenis.scroll : window.scrollY;
-      sessionStorage.setItem(`scrollPos-${pathname}`, (currentPos || 0).toString());
+      sessionStorage.setItem(`scrollPos-${locationKey}`, (currentPos || 0).toString());
     };
 
     let scrollTimeout;
@@ -166,8 +188,8 @@ const ScrollToTop = () => {
         // Find the closest parent that has an ID containing 'section'
         const section = e.target.closest('[id*="section"]');
         if (section && section.id) {
-            // Save it specific to the current page path so back nav knows where to go
-            sessionStorage.setItem(`last-clicked-section-${pathname}`, section.id);
+            // Save it specific to the current URL so back nav knows where to go
+            sessionStorage.setItem(`last-clicked-section-${locationKey}`, section.id);
         }
     };
     window.addEventListener('click', clickTracker, true); // use capture phase
@@ -178,7 +200,7 @@ const ScrollToTop = () => {
       window.removeEventListener('scroll', onScrollHandler);
       window.removeEventListener('click', clickTracker, true);
     };
-  }, [pathname]);
+  }, [locationKey]);
 
   return null;
 };
