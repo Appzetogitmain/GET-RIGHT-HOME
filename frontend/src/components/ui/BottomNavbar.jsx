@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Home, Briefcase, Search, User, Video, MessageSquare, Building, Key, Map } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
+import MobileSearchOverlay from '../user/MobileSearchOverlay';
 
 const BottomNavbar = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [searchOpen, setSearchOpen] = useState(false);
 
     let firstItem = { name: 'Home', icon: Home, route: '/' };
     let themeActiveText = 'text-surface';
@@ -49,15 +51,25 @@ const BottomNavbar = () => {
     const activeTab = getActiveTab(location.pathname);
 
     const handleNavClick = (item) => {
+        // Search opens the full-screen search sheet instead of dropping the
+        // user on an unfiltered results page they then have to narrow down.
+        // Already on /search? Let the tap fall through so the existing results
+        // and filters aren't blown away.
+        if (item.name === 'Search' && !location.pathname.startsWith('/search')) {
+            setSearchOpen(true);
+            return;
+        }
         navigate(item.route);
     };
 
     return (
+        <>
+        <MobileSearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
         <div id="global-bottom-navbar" className="md:hidden fixed bottom-0 left-0 right-0 z-[100] print:hidden">
             <div className="
-        bg-white/95 backdrop-blur-xl 
+        bg-white/95 backdrop-blur-xl
         border-t border-gray-100 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]
-        flex justify-between items-center 
+        flex justify-between items-center
         px-2 pt-2 pb-0 h-[60px]
       ">
                 {navItems.map((item) => {
@@ -93,6 +105,7 @@ const BottomNavbar = () => {
                 })}
             </div>
         </div>
+        </>
     );
 };
 

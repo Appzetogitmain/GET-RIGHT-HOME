@@ -2190,6 +2190,38 @@ export const getSearchAnalyticsReport = async (req, res) => {
 };
 
 /**
+ * Cities we actually have listings in, most inventory first.
+ *
+ * @route GET /api/properties/popular-cities
+ *
+ * Driven by live inventory rather than the admin-curated Location master,
+ * because that list is optional and can be empty — offering a city chip that
+ * returns nothing is worse than offering no chip.
+ */
+export const getPopularCities = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 8, 24);
+
+    const rows = await Property.aggregate([
+      { $match: { status: 'approved', isLive: true } },
+      { $project: { city: { $trim: { input: { $ifNull: ['$address.city', ''] } } } } },
+      { $match: { city: { $ne: '' } } },
+      // Group case-insensitively: "Indore", "INDORE " and "indore" are one city.
+      { $group: { _id: { $toLower: '$city' }, city: { $first: '$city' }, count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } },
+      { $limit: limit }
+    ]);
+
+    res.json({
+      success: true,
+      cities: rows.map((r) => ({ city: titleCaseCity(r.city), count: r.count }))
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+/**
  * Autocomplete suggestions built from live inventory.
  *
  * @route GET /api/properties/suggestions?q=2bhk villa

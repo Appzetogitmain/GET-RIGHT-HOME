@@ -13,6 +13,7 @@ import { locationData, bengaluruAreas } from '../../data/locationData';
     import { parseSearchQuery } from '../../utils/searchQueryParser';
 import { addRecentSearch } from '../../utils/recentActivity';
 import SearchSuggestions from '../../components/user/SearchSuggestions';
+import { goBackOrHome } from '../../utils/navigation';
 const getAvailablePropertyTypes = (category, subCategory) => {
     if (category === 'Paying Guest') {
         return [
@@ -825,7 +826,10 @@ const SearchPage = () => {
             <div className="fixed top-0 w-full z-50 bg-white border-b border-gray-100 pb-2 pt-3 md:pt-4 px-4 shadow-sm">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex items-center gap-3 mb-3">
-                        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
+                        {/* Search results are the most-shared/deep-linked page in the
+                            app, so a raw navigate(-1) is often a dead button — there's
+                            nothing behind it when the tab opened straight onto this URL. */}
+                        <button onClick={() => goBackOrHome(navigate)} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center shrink-0">
                             <ChevronLeft size={20} className="text-gray-600" />
                         </button>
                         <form
