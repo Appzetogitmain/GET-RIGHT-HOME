@@ -14,6 +14,7 @@ import {
     FEATURE_MODE,
     PROFILE_TYPE,
     SUBSCRIPTION_MODE,
+    SUBSCRIPTION_SCOPE,
     PLAN_TIER,
     SYSTEM_FEATURE_KEYS as K,
     TIER_DEFAULT_VALIDITY_DAYS,
@@ -49,6 +50,19 @@ const OPTIONAL_FEATURES = [
     { key: 'campaign_promotion_support', label: 'Campaign / promotion support', valueType: B, displayOrder: 150 },
     { key: 'meeting_consultation_support', label: 'Meeting / consultation support', valueType: B, displayOrder: 160 },
     { key: 'rm_response_target', label: 'RM response target', valueType: T, displayOrder: 170 },
+];
+
+/**
+ * Buyer Membership (§3's "BUYER → Buyer → Separate Buyer Membership" row).
+ * Distinct from every seller-side feature above — a buyer never posts a
+ * listing, so property_limit/lead_limit/ranking_weight mean nothing to them.
+ */
+const BUYER_FEATURES = [
+    { key: 'priority_property_alerts', label: 'Priority new-listing alerts', valueType: B, displayOrder: 200, applicableRoles: [PROFILE_TYPE.BUYER] },
+    { key: 'saved_search_limit', label: 'Saved search allowance', valueType: N, unit: 'searches', displayOrder: 210, applicableRoles: [PROFILE_TYPE.BUYER] },
+    { key: 'direct_contact_unlocks', label: 'Direct seller/broker contact unlocks', valueType: N, unit: 'contacts', displayOrder: 220, applicableRoles: [PROFILE_TYPE.BUYER] },
+    { key: 'verified_buyer_badge', label: 'Verified Buyer badge', valueType: B, displayOrder: 230, applicableRoles: [PROFILE_TYPE.BUYER] },
+    { key: 'buyer_priority_support', label: 'Priority support', valueType: B, displayOrder: 240, applicableRoles: [PROFILE_TYPE.BUYER] },
 ];
 
 /** Feature values per tier, following the §4 recommendation. */
@@ -120,6 +134,7 @@ const seedFeatures = async () => {
     const all = [
         ...SYSTEM_FEATURES.map((f) => ({ ...f, isSystem: true })),
         ...OPTIONAL_FEATURES.map((f) => ({ ...f, isSystem: false })),
+        ...BUYER_FEATURES.map((f) => ({ ...f, isSystem: false })),
     ];
 
     let created = 0;
@@ -192,13 +207,84 @@ const seedPlans = async () => {
     return created;
 };
 
+/** Buyer tier feature values. No property/lead/ranking figures — none apply. */
+const BUYER_TIER_FEATURES = {
+    [PLAN_TIER.BASIC]: {
+        priority_property_alerts: false,
+        saved_search_limit: 3,
+        direct_contact_unlocks: 5,
+        verified_buyer_badge: false,
+        buyer_priority_support: false,
+    },
+    [PLAN_TIER.PREMIUM]: {
+        priority_property_alerts: true,
+        saved_search_limit: 15,
+        direct_contact_unlocks: 25,
+        verified_buyer_badge: true,
+        buyer_priority_support: false,
+    },
+    [PLAN_TIER.RELATIONSHIP_MANAGER]: {
+        priority_property_alerts: true,
+        saved_search_limit: 0, // unlimited
+        direct_contact_unlocks: 0, // unlimited
+        verified_buyer_badge: true,
+        buyer_priority_support: true,
+    },
+};
+
+/**
+ * Creates the 3 Buyer Membership plans (§3's fourth catalogue, independent of
+ * Sale/Rental and of any property — scope is ACCOUNT, per §14/§15). Missing
+ * from the original matrix, which only covered the three seller profiles;
+ * without this a buyer account has zero purchasable plans in the new system.
+ */
+const seedBuyerPlans = async () => {
+    const tiers = [PLAN_TIER.BASIC, PLAN_TIER.PREMIUM, PLAN_TIER.RELATIONSHIP_MANAGER];
+    let created = 0;
+    let order = 1000; // after the seller matrix's displayOrder range
+
+    for (const planTier of tiers) {
+        order += 1;
+        const exists = await SubscriptionPlan.findOne({ targetRole: PROFILE_TYPE.BUYER, mode: SUBSCRIPTION_MODE.BUYER, planTier });
+        if (exists) continue;
+
+        const values = BUYER_TIER_FEATURES[planTier] || {};
+        const catalogue = await Feature.find({ key: { $in: Object.keys(values) } });
+        const features = catalogue.map((f) => ({
+            featureId: f._id, key: f.key, label: f.label, valueType: f.valueType,
+            value: f.coerce(values[f.key]), displayOrder: f.displayOrder,
+        }));
+
+        await SubscriptionPlan.create({
+            name: `Buyer ${TIER_LABEL[planTier]}`,
+            targetRole: PROFILE_TYPE.BUYER,
+            mode: SUBSCRIPTION_MODE.BUYER,
+            planTier,
+            scope: SUBSCRIPTION_SCOPE.ACCOUNT,
+            price: 0,
+            durationDays: TIER_DEFAULT_VALIDITY_DAYS[planTier],
+            // Schema requires >= 1; buyer plans are account-scoped and never
+            // read this field (assertPurchasable returns before checking it
+            // for SUBSCRIPTION_MODE.BUYER), so the value itself is inert.
+            propertiesPerPurchase: 1,
+            features,
+            tagline: 'Buyer membership',
+            description: `${TIER_LABEL[planTier]} buyer membership.`,
+            displayOrder: order,
+            isActive: false,
+        });
+        created += 1;
+    }
+    return created;
+};
+
 /**
  * Runs both seeds. Called on boot; safe to call repeatedly.
  */
 export const seedSubscriptionCatalogue = async ({ withPlans = true } = {}) => {
     try {
         const features = await seedFeatures();
-        const plans = withPlans ? await seedPlans() : 0;
+        const plans = withPlans ? (await seedPlans()) + (await seedBuyerPlans()) : 0;
 
         if (features || plans) {
             console.log(`[SubscriptionSeeder] created ${features} feature(s), ${plans} plan(s)`);

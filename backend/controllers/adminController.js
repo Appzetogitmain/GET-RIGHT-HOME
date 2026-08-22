@@ -120,8 +120,12 @@ export const getDashboardStats = async (req, res) => {
     };
 
     // --- SUBSCRIPTION REVENUE TRACKING ---
-    // Calculate total subscription revenue from all active subscriptions
-    const subscriptionStats = await Partner.aggregate([
+    // F-10: this used to aggregate over Partner only. Owner and broker
+    // accounts hold the identical embedded `subscription` shape but live in
+    // the User collection, so two of every three active subscribers were
+    // silently missing from the figure admin saw. Run the same pipeline over
+    // both collections and merge by plan.
+    const subscriptionRevenuePipeline = [
       {
         $match: {
           'subscription.status': 'active',
@@ -147,11 +151,26 @@ export const getDashboardStats = async (req, res) => {
           subscriberCount: { $sum: 1 },
           totalRevenue: { $sum: '$planDetails.price' }
         }
-      },
-      {
-        $sort: { totalRevenue: -1 }
       }
+    ];
+
+    const [partnerStats, userStats] = await Promise.all([
+      Partner.aggregate(subscriptionRevenuePipeline),
+      User.aggregate(subscriptionRevenuePipeline),
     ]);
+
+    const mergedByPlan = new Map();
+    for (const stat of [...partnerStats, ...userStats]) {
+      const key = String(stat._id);
+      const existing = mergedByPlan.get(key);
+      if (existing) {
+        existing.subscriberCount += stat.subscriberCount;
+        existing.totalRevenue += stat.totalRevenue;
+      } else {
+        mergedByPlan.set(key, { ...stat });
+      }
+    }
+    const subscriptionStats = [...mergedByPlan.values()].sort((a, b) => b.totalRevenue - a.totalRevenue);
 
     const totalSubscriptionRevenue = subscriptionStats.reduce((sum, stat) => sum + stat.totalRevenue, 0);
     const totalActiveSubscribers = subscriptionStats.reduce((sum, stat) => sum + stat.subscriberCount, 0);
@@ -606,7 +625,7 @@ export const getAllHotels = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const { search, status, type, builder } = req.query;
+    const { search, status, type, builder, mode, subscriptionStatus, planTier, paymentType } = req.query;
 
     const query = {};
 
@@ -628,6 +647,29 @@ export const getAllHotels = async (req, res) => {
 
     if (builder) {
       query.userId = builder;
+    }
+
+    // §11 — Sale/Rental and subscription-state filters for the admin
+    // Properties screen. `promotion` is denormalised onto the property
+    // itself (see models/Property.js), so this needs no $lookup.
+    if (mode === 'sale' || mode === 'rental') {
+      query['promotion.mode'] = mode;
+    }
+    if (subscriptionStatus === 'subscribed') {
+      query['promotion.isActive'] = true;
+    } else if (subscriptionStatus === 'expired') {
+      // Had a subscription once (subscriptionId survives expiry/cancel — see
+      // clearPromotionFromProperties) but it is not currently active.
+      query['promotion.isActive'] = false;
+      query['promotion.subscriptionId'] = { $ne: null };
+    } else if (subscriptionStatus === 'none') {
+      query['promotion.subscriptionId'] = null;
+    }
+    if (planTier) {
+      query['promotion.planTier'] = planTier;
+    }
+    if (paymentType === 'online' || paymentType === 'offline') {
+      query['promotion.paymentType'] = paymentType;
     }
 
     const total = await Property.countDocuments(query);

@@ -15,6 +15,7 @@ import referralService from '../services/referralService.js';
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import VendorBill from '../models/VendorBill.js';
 import { settleOrder, failOrder } from '../services/subscriptionActivationService.js';
+import { activateLegacySubscriptionFromWebhook } from './subscriptionController.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -575,6 +576,20 @@ export const handleWebhook = async (req, res) => {
             });
             if (result.ok && !result.alreadySettled) {
               console.log(`[Webhook] activated subscription ${result.subscription?.subscriptionId}`);
+            } else if (!result.ok) {
+              // Not a new-system order — check whether it's a legacy (System
+              // 1) subscription purchase before giving up. Every other order
+              // type (booking payment, VIP, etc.) also lands here and is
+              // correctly ignored by the notes.type check below (F-3).
+              const rzpOrder = await razorpay.orders.fetch(razorpayOrderId);
+              if (rzpOrder?.notes?.type === 'subscription_purchase') {
+                const legacy = await activateLegacySubscriptionFromWebhook(rzpOrder, paymentId);
+                if (legacy.ok && !legacy.alreadySettled) {
+                  console.log(`[Webhook] activated legacy subscription for account ${rzpOrder.notes.partnerId}`);
+                } else if (!legacy.ok) {
+                  console.error('[Webhook] legacy subscription activation failed:', legacy.reason);
+                }
+              }
             }
           } catch (err) {
             // Never fail the webhook on our own error — Razorpay would retry

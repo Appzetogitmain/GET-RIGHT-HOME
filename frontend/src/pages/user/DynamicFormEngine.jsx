@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, Loader2, Check, MapPin, Save } from 'lucide-re
 import { api, hotelService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 import LocationSelector from '../../components/ui/LocationSelector';
+import InlinePropertySubscribe from '../subscriptions/InlinePropertySubscribe';
 
 const unitFieldMapping = {
   carpetArea: 'carpetAreaUnit',
@@ -89,6 +90,11 @@ const DynamicFormEngine = () => {
   // declared, so every mount threw "masterChangeWarning is not defined" and
   // crashed the whole form before it could render.
   const [subscriptionGate, setSubscriptionGate] = useState(null);
+  // Whether the gate modal is showing the property-level plan picker
+  // (§2 of the subscription architecture — the free/subscription choice
+  // lives inside the posting flow, for this specific property) instead of
+  // its default trial-upsell content.
+  const [showPlanPicker, setShowPlanPicker] = useState(false);
 
   // Tracks gallery thumbnails whose preview image failed to load, so we can
   // swap in a fallback via React state instead of touching the DOM directly.
@@ -647,6 +653,7 @@ const DynamicFormEngine = () => {
 
       // Trial (active or expired) → show the subscription step. Skip is only
       // offered while the trial is still valid.
+      setShowPlanPicker(false);
       setSubscriptionGate({ propertyId: savedId, eligibility });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not save your project');
@@ -673,6 +680,7 @@ const DynamicFormEngine = () => {
       const res = await api.post(`/properties/${propertyId}/submit`);
       if (res.data.success) {
         toast.success('Submitted for approval.');
+        setShowPlanPicker(false);
         setSubscriptionGate(null);
         navigate('/my-properties');
       }
@@ -681,6 +689,7 @@ const DynamicFormEngine = () => {
       // Trial lapsed between saving and submitting — fall back to the paywall
       // rather than dropping the user on an error toast.
       if (data?.eligibility) {
+        setShowPlanPicker(false);
         setSubscriptionGate({ propertyId, eligibility: data.eligibility });
       } else {
         toast.error(data?.message || 'Could not submit for approval');
@@ -2337,7 +2346,12 @@ const DynamicFormEngine = () => {
         </div>
       )}
 
-      {/* Custom Tag Editing In-App Modal */}
+      {/* Free Listing vs Subscription Listing gate (§2/§4 of the property
+          subscription architecture). Reusing the trial-upsell modal shell:
+          default content is the free-trial state; "Get a Subscription Plan"
+          switches it to the inline, property-scoped plan picker so the
+          purchase happens for THIS listing without leaving the posting flow
+          or re-selecting the property in a separate picker. */}
       {subscriptionGate && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <motion.div
@@ -2345,62 +2359,79 @@ const DynamicFormEngine = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-slate-100"
           >
-            <div className="px-6 pt-6 pb-5 space-y-4">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <Check size={16} />
-                <span className="text-xs font-bold uppercase tracking-wide">Saved as draft</span>
-              </div>
+            {showPlanPicker ? (
+              <InlinePropertySubscribe
+                propertyId={subscriptionGate.propertyId}
+                user={user}
+                onBack={() => setShowPlanPicker(false)}
+                onActivated={async () => {
+                  setShowPlanPicker(false);
+                  // A subscribed listing is meant to publish, not sit as a
+                  // draft — go straight to approval the way a paying
+                  // subscriber on the account-level gate already does above.
+                  await submitDraftForApproval(subscriptionGate.propertyId);
+                }}
+              />
+            ) : (
+              <>
+                <div className="px-6 pt-6 pb-5 space-y-4">
+                  <div className="flex items-center gap-2 text-emerald-600">
+                    <Check size={16} />
+                    <span className="text-xs font-bold uppercase tracking-wide">Saved as draft</span>
+                  </div>
 
-              <h3 className="text-lg font-bold text-slate-900">
-                {subscriptionGate.eligibility?.trialExpired
-                  ? 'Your free trial has ended'
-                  : 'Subscribe to unlock more'}
-              </h3>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    {subscriptionGate.eligibility?.trialExpired
+                      ? 'Your free trial has ended'
+                      : 'Free Listing or Subscription Listing?'}
+                  </h3>
 
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                {subscriptionGate.eligibility?.trialExpired
-                  ? (subscriptionGate.eligibility?.message
-                    || 'Your free trial has expired. Subscribe to a plan to publish this project.')
-                  : subscriptionGate.eligibility?.limitReached
-                    ? subscriptionGate.eligibility?.message
-                    : `You're on the free trial with ${subscriptionGate.eligibility?.trialDaysRemaining ?? 0} day${subscriptionGate.eligibility?.trialDaysRemaining === 1 ? '' : 's'} left. Subscribe now for uninterrupted listings, or skip and submit this project for approval.`}
-              </p>
+                  <p className="text-[13px] text-slate-600 leading-relaxed">
+                    {subscriptionGate.eligibility?.trialExpired
+                      ? (subscriptionGate.eligibility?.message
+                        || 'Your free trial has expired. Subscribe to a plan to publish this listing.')
+                      : subscriptionGate.eligibility?.limitReached
+                        ? subscriptionGate.eligibility?.message
+                        : `You're on the free trial with ${subscriptionGate.eligibility?.trialDaysRemaining ?? 0} day${subscriptionGate.eligibility?.trialDaysRemaining === 1 ? '' : 's'} left. A subscription gets this listing higher ranking, showcase placement and more lead access — or skip and publish it as a free listing.`}
+                  </p>
 
-              <p className="text-[12px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
-                Your project is safe in <span className="font-semibold text-slate-700">My Listings</span> as a draft
-                {subscriptionGate.eligibility?.trialExpired ? ' — submit it once you subscribe.' : '.'}
-              </p>
-            </div>
+                  <p className="text-[12px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                    Your project is safe in <span className="font-semibold text-slate-700">My Listings</span> as a draft
+                    {subscriptionGate.eligibility?.trialExpired ? ' — submit it once you subscribe.' : '.'}
+                  </p>
+                </div>
 
-            <div className="px-6 pb-6 flex flex-col gap-2.5">
-              <button
-                type="button"
-                onClick={() => navigate('/my-subscriptions')}
-                className="w-full py-3 bg-[#005B9F] hover:bg-[#004a83] text-white text-sm font-bold rounded-xl transition-all"
-              >
-                View Subscription Plans
-              </button>
+                <div className="px-6 pb-6 flex flex-col gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowPlanPicker(true)}
+                    className="w-full py-3 bg-[#005B9F] hover:bg-[#004a83] text-white text-sm font-bold rounded-xl transition-all"
+                  >
+                    Get a Subscription Plan
+                  </button>
 
-              {/* Skip only exists while the trial is still valid — an expired
-                  trial has to go through payment. */}
-              {subscriptionGate.eligibility?.canSubmit ? (
-                <button
-                  type="button"
-                  onClick={() => submitDraftForApproval(subscriptionGate.propertyId)}
-                  className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-all"
-                >
-                  Skip &amp; Submit for Approval
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => { setSubscriptionGate(null); navigate('/my-properties'); }}
-                  className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold rounded-xl transition-all"
-                >
-                  Go to My Listings
-                </button>
-              )}
-            </div>
+                  {/* Skip only exists while the trial is still valid — an expired
+                      trial has to go through payment. */}
+                  {subscriptionGate.eligibility?.canSubmit ? (
+                    <button
+                      type="button"
+                      onClick={() => submitDraftForApproval(subscriptionGate.propertyId)}
+                      className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-all"
+                    >
+                      Free Listing — Submit for Approval
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { setSubscriptionGate(null); navigate('/my-properties'); }}
+                      className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold rounded-xl transition-all"
+                    >
+                      Go to My Listings
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </motion.div>
         </div>
       )}

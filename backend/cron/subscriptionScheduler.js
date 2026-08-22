@@ -17,6 +17,8 @@
 
 import Subscription from '../models/Subscription.js';
 import Property from '../models/Property.js';
+import User from '../models/User.js';
+import Partner from '../models/Partner.js';
 import { expireSubscription } from '../services/subscriptionActivationService.js';
 import { createNotification } from '../controllers/notificationControllers/notificationController.js';
 import {
@@ -125,12 +127,36 @@ export const runRenewalReminders = async () => {
     return { sent };
 };
 
+/**
+ * F-6 — System 1 (the legacy account-embedded subscription) has never had a
+ * scheduled sweep either; its status was only ever checked lazily at read
+ * time, so a lapsed row stayed "active" forever and was still counted as a
+ * paying subscriber. This flips `subscription.status` to 'expired' on both
+ * account collections it lives on, without touching the new property-level
+ * system's own Subscription documents.
+ */
+export const runLegacyExpirySweep = async () => {
+    const now = new Date();
+    const filter = { 'subscription.status': 'active', 'subscription.expiryDate': { $lte: now } };
+    const update = { $set: { 'subscription.status': 'expired' } };
+
+    const [users, partners] = await Promise.all([
+        User.updateMany(filter, update),
+        Partner.updateMany(filter, update),
+    ]);
+
+    const expired = (users.modifiedCount || 0) + (partners.modifiedCount || 0);
+    if (expired) console.log(`[SubscriptionCron] (legacy) expired ${expired} System-1 subscription(s)`);
+    return { expired };
+};
+
 const tick = async () => {
     if (running) return;          // never overlap two passes
     running = true;
     try {
         await runExpirySweep();
         await runRenewalReminders();
+        await runLegacyExpirySweep();
     } catch (err) {
         console.error('[SubscriptionCron] pass failed:', err.message);
     } finally {

@@ -1764,7 +1764,18 @@ export const getPublicProperties = async (req, res) => {
         relevanceScore: {
           $add: [
             matchStrengthScore,
-            { $multiply: [{ $ifNull: ['$rankingWeight', 0] }, 8] }, // subscription tier — capped influence
+            // Subscription tier — capped at 60, deliberately below the ~80 a
+            // property can earn from a strong free-text name/area match. That
+            // keeps the doc's ordering (relevance, then subscription weight,
+            // then verification/completeness/freshness/engagement) true even
+            // for the RM tier (weight 100): an RM-boosted listing with only an
+            // incidental description-text hit still can't outrank a listing
+            // whose name or locality genuinely matches the search. On a pure
+            // filter search (no free-text term — the common case, and the
+            // doc's own worked example) matchStrengthScore is 0, so the cap
+            // never interferes with tier ordering among equally-filtered
+            // results: RM > Premium > Basic > unsubscribed still holds.
+            { $min: [{ $multiply: [{ $ifNull: ['$rankingWeight', 0] }, 0.6] }, 60] },
             { $cond: ['$isShowcased', 12, 0] }, // showcase entitlement — visibility, not an outrank-everything switch
             { $cond: [{ $eq: ['$isVerified', true] }, 15, 0] },
             { $cond: [{ $eq: ['$reraVerified', true] }, 5, 0] },
@@ -2366,18 +2377,28 @@ export const submitPropertyForApproval = async (req, res) => {
       });
     }
 
-    const eligibility = await getListingEligibility(req.user);
-    if (!eligibility.found) {
-      return res.status(404).json({ success: false, message: 'Account not found' });
-    }
-    if (!eligibility.canSubmit) {
-      return res.status(403).json({
-        success: false,
-        message: eligibility.message,
-        trialExpired: eligibility.trialExpired,
-        limitReached: eligibility.limitReached,
-        eligibility
-      });
+    // A property-level subscription (the new system — see
+    // subscriptionActivationService.applyPromotionToProperties) covers THIS
+    // listing on its own terms and must clear it for submission regardless of
+    // the account's free-trial state. Without this check, a builder who just
+    // paid for this exact property would still be bounced back to the paywall
+    // by the old trial gate below, which has never heard of the new system.
+    const hasPropertySubscription = property.promotion?.isActive === true;
+
+    if (!hasPropertySubscription) {
+      const eligibility = await getListingEligibility(req.user);
+      if (!eligibility.found) {
+        return res.status(404).json({ success: false, message: 'Account not found' });
+      }
+      if (!eligibility.canSubmit) {
+        return res.status(403).json({
+          success: false,
+          message: eligibility.message,
+          trialExpired: eligibility.trialExpired,
+          limitReached: eligibility.limitReached,
+          eligibility
+        });
+      }
     }
 
     property.status = 'pending';

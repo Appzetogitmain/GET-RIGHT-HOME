@@ -408,6 +408,9 @@ const propertySchema = new mongoose.Schema({
     verifiedBadge: { type: Boolean, default: false },
     startDate: { type: Date, default: null },
     expiryDate: { type: Date, default: null },
+    // Denormalised too, so the admin Properties screen can filter by
+    // Online/Offline (§11) without a $lookup against Subscription per row.
+    paymentType: { type: String, default: null },
   },
 
   isUrgent: { type: Boolean, default: false },
@@ -477,5 +480,7 @@ propertySchema.index({ slug: 1, status: 1, isLive: 1 });
 propertySchema.index({ status: 1, isLive: 1, 'promotion.isActive': 1, 'promotion.weight': -1 });
 // The expiry sweep finds promotions whose subscription window has closed.
 propertySchema.index({ 'promotion.isActive': 1, 'promotion.expiryDate': 1 });
+// Admin Properties screen: filter by mode + subscribed/expired/never + tier.
+propertySchema.index({ 'promotion.mode': 1, 'promotion.isActive': 1, 'promotion.planTier': 1 });
 
 export default mongoose.model("Property", propertySchema);

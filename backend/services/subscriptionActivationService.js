@@ -55,6 +55,7 @@ export const applyPromotionToProperties = async (subscription) => {
                 'promotion.verifiedBadge': !!snap.verifiedBadge,
                 'promotion.startDate': subscription.startDate,
                 'promotion.expiryDate': subscription.expiryDate,
+                'promotion.paymentType': subscription.paymentType,
                 // Showcase plans light up the existing featured surfaces too,
                 // so a paid subscription behaves like admin featuring without
                 // either system having to know about the other.

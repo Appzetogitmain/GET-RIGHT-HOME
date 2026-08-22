@@ -37,6 +37,39 @@ const PropertyStatusBadge = ({ status }) => {
     );
 };
 
+const TIER_LABEL = { basic: 'Basic', premium: 'Premium', relationship_manager: 'RM', custom: 'Custom' };
+
+// §11 — property-level subscription state, read straight off
+// `property.promotion` (see models/Property.js). No fetch of its own: the
+// admin Properties list already returns full property documents.
+const SubscriptionBadge = ({ promotion }) => {
+    if (!promotion?.subscriptionId) {
+        return <span className="text-[10px] text-gray-300 font-bold uppercase">Free listing</span>;
+    }
+    if (promotion.isActive) {
+        return (
+            <div>
+                <span className="flex items-center w-fit px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold border bg-emerald-100 text-emerald-700 border-emerald-200">
+                    {TIER_LABEL[promotion.planTier] || promotion.planTier} · {promotion.mode}
+                </span>
+                <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">
+                    {promotion.paymentType} · till {promotion.expiryDate ? new Date(promotion.expiryDate).toLocaleDateString('en-IN') : '—'}
+                </p>
+            </div>
+        );
+    }
+    return (
+        <div>
+            <span className="flex items-center w-fit px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold border bg-red-50 text-red-500 border-red-100">
+                Expired — {TIER_LABEL[promotion.planTier] || promotion.planTier}
+            </span>
+            <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">
+                ended {promotion.expiryDate ? new Date(promotion.expiryDate).toLocaleDateString('en-IN') : '—'}
+            </p>
+        </div>
+    );
+};
+
 const AdminProperties = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -51,7 +84,15 @@ const AdminProperties = () => {
     const [filters, setFilters] = useState({
         search: '',
         status: '',
-        type: ''
+        type: '',
+        // §11 — Sale/Rental and subscription-state filters, property-level
+        // (backed by Property.promotion, denormalised from the new
+        // property-scoped Subscription system — see AdminPropertySubscriptions
+        // for the subscription-centric view of the same data).
+        mode: '',
+        subscriptionStatus: '',
+        planTier: '',
+        paymentType: ''
     });
 
     const [dynamicCategories, setDynamicCategories] = useState([]);
@@ -82,7 +123,11 @@ const AdminProperties = () => {
                 limit: 10,
                 search: currentFilters.search || undefined,
                 status: currentFilters.status || undefined,
-                type: currentFilters.type || undefined
+                type: currentFilters.type || undefined,
+                mode: currentFilters.mode || undefined,
+                subscriptionStatus: currentFilters.subscriptionStatus || undefined,
+                planTier: currentFilters.planTier || undefined,
+                paymentType: currentFilters.paymentType || undefined
             };
             const data = await adminService.getHotels(params);
             if (data.success) {
@@ -281,6 +326,48 @@ const AdminProperties = () => {
                             <option key={cat._id} value={cat._id}>{cat.displayName}</option>
                         ))}
                     </select>
+                    <select
+                        value={filters.mode}
+                        onChange={(e) => handleFilterChange('mode', e.target.value)}
+                        className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
+                    >
+                        <option value="">Sale & Rental</option>
+                        <option value="sale">Sale</option>
+                        <option value="rental">Rental</option>
+                    </select>
+                    <select
+                        value={filters.subscriptionStatus}
+                        onChange={(e) => handleFilterChange('subscriptionStatus', e.target.value)}
+                        className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
+                    >
+                        <option value="">Any Subscription</option>
+                        <option value="subscribed">Subscribed</option>
+                        <option value="expired">Expired</option>
+                        <option value="none">Never Subscribed</option>
+                    </select>
+                    {filters.subscriptionStatus === 'subscribed' && (
+                        <>
+                            <select
+                                value={filters.planTier}
+                                onChange={(e) => handleFilterChange('planTier', e.target.value)}
+                                className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
+                            >
+                                <option value="">All Tiers</option>
+                                <option value="basic">Basic</option>
+                                <option value="premium">Premium</option>
+                                <option value="relationship_manager">Relationship Manager</option>
+                            </select>
+                            <select
+                                value={filters.paymentType}
+                                onChange={(e) => handleFilterChange('paymentType', e.target.value)}
+                                className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
+                            >
+                                <option value="">Online & Offline</option>
+                                <option value="online">Online</option>
+                                <option value="offline">Offline</option>
+                            </select>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -293,6 +380,7 @@ const AdminProperties = () => {
                                 <th className="p-4">Type</th>
                                 <th className="p-4">Owner</th>
                                 <th className="p-4">Status</th>
+                                <th className="p-4">Subscription</th>
                                 <th className="p-4 text-center">Actions</th>
                             </tr>
                         </thead>
@@ -367,6 +455,9 @@ const AdminProperties = () => {
                                                  </td>
                                                 <td className="p-4">
                                                     <PropertyStatusBadge status={property.status} />
+                                                </td>
+                                                <td className="p-4">
+                                                    <SubscriptionBadge promotion={property.promotion} />
                                                 </td>
                                                 <td className="p-4 text-center relative">
                                                     <button

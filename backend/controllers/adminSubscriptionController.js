@@ -35,6 +35,7 @@ import {
     PROFILE_TYPE,
     SYSTEM_FEATURE_KEYS,
     resolveMode,
+    resolveProfileType,
     MS_PER_DAY,
 } from '../utils/subscriptionConstants.js';
 
@@ -554,13 +555,21 @@ export const assignOfflineSubscription = async (req, res) => {
 
         // The same role and mode rules the self-serve path enforces — an admin
         // assigning a plan must not be able to bypass criteria 4, 5 and 6.
-        const pseudoUser = { _id: subject._id, id: subject._id, role: subject.role };
+        //
+        // subject.role is the raw account role ('user', 'partner', 'owner', …)
+        // — never a valid Subscription.userRole enum value on its own (a buyer
+        // account's role is literally 'user', a builder-via-Partner's is
+        // 'partner'). Normalise it the same way the self-serve path's order
+        // does, or this 500s the moment admin assigns to a buyer or a
+        // Partner-model builder.
+        const normalizedRole = resolveProfileType({ role: model === 'Partner' ? 'partner' : subject.role });
+        const pseudoUser = { _id: subject._id, id: subject._id, role: normalizedRole };
         const ids = (Array.isArray(propertyIds) ? propertyIds : [propertyIds]).filter(Boolean);
 
-        if (plan.targetRole !== (model === 'Partner' ? 'builder' : String(subject.role).toLowerCase())) {
+        if (plan.targetRole !== normalizedRole) {
             // Allow it, but say so plainly — admin may legitimately be fixing
             // an account whose role changed after purchase.
-            console.warn(`[Admin] assigning ${plan.targetRole} plan to ${subject.role} account ${subject._id}`);
+            console.warn(`[Admin] assigning ${plan.targetRole} plan to ${normalizedRole} account ${subject._id}`);
         }
 
         if (plan.mode !== SUBSCRIPTION_MODE.BUYER) {

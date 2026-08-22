@@ -128,41 +128,53 @@ export const deletePlan = async (req, res) => {
 
 // --- PARTNER CONTROLLERS ---
 
+/** Maps an account's real role to the value SubscriptionPlan.targetRole uses. */
+const resolveLegacyTargetRole = (req) => {
+    let role = String(req.user?.role || '').toLowerCase();
+    if (role === 'partner') role = 'builder'; // legacy partner accounts are builders
+    return ['owner', 'broker', 'builder'].includes(role) ? role : null;
+};
+
 /**
  * @desc    Get active subscription plans for partners
  * @route   GET /api/subscriptions/plans
  * @access  Private (Partner)
+ *
+ * F-1: role used to come from `req.query.role`, so any logged-in account
+ * could ask for `?role=builder` and be shown (then sell itself) plans that
+ * were never meant for it. The route is already `protect`-guarded, so the
+ * real role is sitting on `req.user` — read it from there instead. The
+ * `listingType` query param still narrows within that role's plans.
  */
 export const getActivePlans = async (req, res) => {
     try {
-        const { role, listingType } = req.query;
-        let filter = { isActive: true };
+        const { listingType } = req.query;
+        const targetRole = resolveLegacyTargetRole(req);
 
-        // If a role is provided, filter plans by that target role.
-        if (role) {
-            // Map 'partner' to 'builder' for backward compatibility
-            let parsedRole = role.toLowerCase();
-            if (parsedRole === 'partner') {
-                parsedRole = 'builder';
-            }
-            // Only apply filter if it matches one of the valid enums
-            if (['owner', 'broker', 'builder'].includes(parsedRole)) {
-                filter.targetRole = parsedRole;
-            }
+        if (!targetRole) {
+            // A buyer / plain user account has no plans in this seller-only
+            // catalogue — say so rather than silently showing everything.
+            return res.json({ success: true, plans: [] });
         }
 
-        // If a listing type is given, show plans built for that type plus
-        // any 'all'-type plan (a universal plan the builder/owner made to
-        // work across rent, buy, PG etc). Omit the param to see everything.
+        const filter = { isActive: true, targetRole };
+
+        // If a listing type is given, show plans built for that type plus any
+        // 'all'-type plan, OR a legacy plan that predates this field entirely
+        // (F-5 — all 7 original plans have no listingType stored at all, so a
+        // strict $in match against them returns nothing).
         if (listingType) {
             const parsedType = listingType.toLowerCase();
             if (['rent', 'buy', 'pg', 'commercial'].includes(parsedType)) {
-                filter.listingType = { $in: [parsedType, 'all'] };
+                filter.$or = [
+                    { listingType: { $in: [parsedType, 'all'] } },
+                    { listingType: { $exists: false } },
+                ];
             }
         }
 
         const plans = await SubscriptionPlan.find(filter).sort({ price: 1 });
-        res.json({ success: true, plans, debug_filter: filter, debug_role_received: role });
+        res.json({ success: true, plans });
     } catch (error) {
         console.error('Get Active Plans Error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch plans' });
@@ -235,6 +247,46 @@ const activatePlanForUser = async ({ userId, role, plan, transactionId }) => {
 };
 
 /**
+ * F-3 — activates a legacy (System 1) subscription from the Razorpay webhook.
+ *
+ * There is no local orders collection for this system (the whole point of
+ * F-3/F-8), so the only durable record of what was being bought is the order
+ * itself, held by Razorpay. `partnerId`/`planId` were written into its
+ * `notes` at order-creation time in `createSubscriptionOrder` and are read
+ * back here — never trusted from anywhere client-controlled.
+ *
+ * Idempotent: if this payment id is already the one recorded on the account
+ * (the browser's own POST /verify got there first), this is a no-op. Called
+ * from paymentController.handleWebhook only for orders whose notes mark them
+ * as `subscription_purchase` — every other order type is left alone.
+ */
+export const activateLegacySubscriptionFromWebhook = async (rzpOrder, paymentId) => {
+    const { partnerId, planId } = rzpOrder?.notes || {};
+    if (!partnerId || !planId) return { ok: false, reason: 'Order notes missing partnerId/planId' };
+
+    const plan = await SubscriptionPlan.findById(planId);
+    if (!plan) return { ok: false, reason: 'Plan no longer exists' };
+
+    // Figure out which collection this account lives in without trusting a
+    // role the webhook never received — try User first (the common case for
+    // owner/broker), then Partner.
+    let subject = await User.findById(partnerId);
+    let role = 'user';
+    if (!subject) {
+        subject = await Partner.findById(partnerId);
+        role = 'partner';
+    }
+    if (!subject) return { ok: false, reason: 'Account not found' };
+
+    if (subject.subscription?.transactionId === paymentId) {
+        return { ok: true, alreadySettled: true };
+    }
+
+    const subscription = await activatePlanForUser({ userId: partnerId, role, plan, transactionId: paymentId });
+    return { ok: true, alreadySettled: false, subscription };
+};
+
+/**
  * @desc    Create Razorpay Order for Subscription
  * @route   POST /api/subscriptions/checkout
  * @access  Private (Partner)
@@ -245,7 +297,16 @@ export const createSubscriptionOrder = async (req, res) => {
         const partnerId = req.user._id || req.user.id;
 
         const plan = await SubscriptionPlan.findById(planId);
-        if (!plan) return res.status(404).json({ message: 'Plan not found' });
+        if (!plan || !plan.isActive) return res.status(404).json({ message: 'Plan not found' });
+
+        // F-1 (second half): getActivePlans stopped showing plans outside the
+        // caller's role, but checkout itself accepted ANY planId with no
+        // check at all — a buyer who somehow learned a Builder plan's id
+        // could still purchase it directly. Enforce the same rule here.
+        const callerRole = resolveLegacyTargetRole(req);
+        if (!callerRole || plan.targetRole !== callerRole) {
+            return res.status(403).json({ success: false, message: 'This plan is not available for your account type' });
+        }
 
         const amountInPaise = Math.round(plan.price * 100);
 
@@ -315,7 +376,7 @@ export const createSubscriptionOrder = async (req, res) => {
  */
 export const verifySubscription = async (req, res) => {
     try {
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planId } = req.body;
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
         const partnerId = req.user._id || req.user.id;
 
         // 1. Verify Signature
@@ -328,6 +389,17 @@ export const verifySubscription = async (req, res) => {
         if (expectedSignature !== razorpay_signature) {
             return res.status(400).json({ success: false, message: "Invalid signature" });
         }
+
+        // F-2: which plan to activate used to come from req.body.planId — the
+        // signature only proves a payment happened, not what it was for, so
+        // paying ₹999 for Silver and posting Diamond's id activated Diamond.
+        // Read it back from the order Razorpay itself holds instead; that was
+        // written once, at order-creation time, and the client cannot edit it.
+        const rzpOrder = await razorpay.orders.fetch(razorpay_order_id);
+        if (String(rzpOrder?.notes?.partnerId) !== String(partnerId)) {
+            return res.status(403).json({ success: false, message: 'This order belongs to another account' });
+        }
+        const planId = rzpOrder?.notes?.planId;
 
         // 2. Activate Subscription
         const plan = await SubscriptionPlan.findById(planId);
