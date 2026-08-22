@@ -20,6 +20,9 @@ import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
 import { createNotification } from './notificationControllers/notificationController.js';
 import { sendNotificationToUser, sendNotificationToWorker } from '../services/firebaseAdmin.js';
 import { findNearbyWorkers, geocodeAddress } from '../services/locationService.js';
+
+
+import Zone from '../models/Zone.js';
 import { getIO } from '../sockets.js';
 import { sendBookingEmails } from '../services/emailService.js';
 import { computeBookingPricing, pricingMatchesClient } from '../utils/bookingPricing.js';
@@ -158,6 +161,38 @@ const createBooking = async (req, res) => {
         `${address.addressLine1}, ${address.city}, ${address.state} ${address.pincode}`
       );
       console.log('Geocoded address for partner search:', bookingLocation);
+    }
+
+    // --- ZONE AVAILABILITY GATE ---
+    // If the platform has active service zones configured, the booking
+    // address must fall inside one of them. Previously this was only
+    // checked deep inside findNearbyWorkers() *after* the booking had
+    // already been created, so users outside every zone would still get a
+    // booking stuck in "searching" for 3 minutes before being told no
+    // vendor was available. Reject upfront instead, before anything is
+    // created or charged.
+    const activeZoneCount = await Zone.countDocuments({ status: 'active' });
+    if (activeZoneCount > 0) {
+      const matchingZone = await Zone.findOne({
+        status: 'active',
+        area: {
+          $geoIntersects: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [bookingLocation.lng, bookingLocation.lat]
+            }
+          }
+        }
+      }).select('_id name').lean();
+
+      if (!matchingZone) {
+        console.log(`[CreateBooking] Rejected: address [${bookingLocation.lng}, ${bookingLocation.lat}] is outside all active zones.`);
+        return res.status(400).json({
+          success: false,
+          code: 'OUT_OF_SERVICE_AREA',
+          message: 'Service is not available in your area yet. Please try a different address or check back soon.'
+        });
+      }
     }
 
     let nearbyPartners = await findNearbyWorkers(

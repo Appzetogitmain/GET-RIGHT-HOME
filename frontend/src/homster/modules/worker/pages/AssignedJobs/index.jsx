@@ -126,7 +126,7 @@ const AssignedJobs = () => {
     } else if (filter === 'confirmed') {
       matchesFilter = ['confirmed', 'assigned', 'pending', 'requested', 'searching', 'pending_offer'].includes(status);
     } else if (filter === 'in_progress') {
-      matchesFilter = ['in_progress', 'started', 'reached', 'visited', 'work_done', 'on_the_way'].includes(status);
+      matchesFilter = ['in_progress', 'started', 'reached', 'visited', 'work_done', 'awaiting_payment', 'on_the_way'].includes(status);
     } else if (filter === 'completed') {
       matchesFilter = ['completed', 'worker_paid', 'paid'].includes(status);
     }

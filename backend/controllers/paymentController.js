@@ -14,6 +14,7 @@ import smsService from '../utils/smsService.js';
 import referralService from '../services/referralService.js';
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import VendorBill from '../models/VendorBill.js';
+import { settleOrder, failOrder } from '../services/subscriptionActivationService.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -224,7 +225,14 @@ export const verifyPayment = async (req, res) => {
       if (isHomeService) {
         booking.paymentStatus = 'paid';
         booking.paymentMethod = 'online';
-        booking.status = 'completed';
+        // Paying does NOT close the job — the worker still has to enter the
+        // customer's end OTP. Jumping to `completed` here hid the OTP card
+        // (gated on work_done/awaiting_payment) and auto-opened the review
+        // modal, so the customer paid and was pushed straight to a rating
+        // while the worker had no way to close the booking.
+        if (booking.status !== 'completed') {
+          booking.status = 'awaiting_payment';
+        }
         // Clear pending worker payment status
         booking.workerPaymentStatus = 'PAID';
         booking.isWorkerPaid = true;
@@ -294,14 +302,14 @@ export const verifyPayment = async (req, res) => {
           io.to(`user_${String(booking.userId?._id || booking.userId)}`).emit('payment_success', {
             bookingId: booking._id,
             paymentStatus: 'paid',
-            status: 'completed',
+            status: booking.status,
             paymentMethod: 'online',
             type: 'payment_success'
           });
           io.to(`worker_${String(booking.workerId?._id || booking.workerId)}`).emit('payment_success', {
             bookingId: booking._id,
             paymentStatus: 'paid',
-            status: 'completed',
+            status: booking.status,
             type: 'payment_success'
           });
         }
@@ -543,22 +551,49 @@ export const handleWebhook = async (req, res) => {
 
     console.log(`📨 Webhook received: ${event}`);
 
-    // Handle different events
+    // Handle different events.
+    //
+    // These arms used to only log. That meant a customer who paid and then
+    // closed the tab was charged and received nothing, because activation
+    // depended entirely on the browser returning to /verify. Settlement is
+    // idempotent, so whichever of the webhook and the browser arrives first
+    // does the work and the other is a no-op.
     switch (event) {
       case 'payment.captured':
-        // Payment successful
-        console.log('Payment captured:', payload.payment.entity.id);
-        break;
+      case 'order.paid': {
+        const entity = payload?.payment?.entity || payload?.order?.entity || {};
+        const razorpayOrderId = entity.order_id || entity.id;
+        const paymentId = payload?.payment?.entity?.id || null;
 
-      case 'payment.failed':
-        // Payment failed
-        console.log('Payment failed:', payload.payment.entity.id);
-        break;
+        console.log(`Payment captured: ${paymentId} (order ${razorpayOrderId})`);
 
-      case 'order.paid':
-        // Order paid
-        console.log('Order paid:', payload.order.entity.id);
+        if (razorpayOrderId) {
+          try {
+            const result = await settleOrder(razorpayOrderId, {
+              paymentId,
+              settledVia: 'webhook',
+            });
+            if (result.ok && !result.alreadySettled) {
+              console.log(`[Webhook] activated subscription ${result.subscription?.subscriptionId}`);
+            }
+          } catch (err) {
+            // Never fail the webhook on our own error — Razorpay would retry
+            // and we would rather investigate from the log than churn.
+            console.error('[Webhook] subscription settlement failed:', err.message);
+          }
+        }
         break;
+      }
+
+      case 'payment.failed': {
+        const entity = payload?.payment?.entity || {};
+        console.log('Payment failed:', entity.id);
+        if (entity.order_id) {
+          await failOrder(entity.order_id, entity.error_description || 'Payment failed')
+            .catch((err) => console.error('[Webhook] failOrder error:', err.message));
+        }
+        break;
+      }
 
       default:
         console.log('Unhandled event:', event);

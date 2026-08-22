@@ -115,7 +115,7 @@ const BookingDetails = () => {
             }
             // Preserve payment OTP if it exists in previous state but not in the new fetch
             // Only preserve if we are still in work_done stage
-            if (prev.customerConfirmationOTP && !data.customerConfirmationOTP && ['work_done'].includes(data.status?.toLowerCase())) {
+            if (prev.customerConfirmationOTP && !data.customerConfirmationOTP && ['work_done', 'awaiting_payment'].includes(data.status?.toLowerCase())) {
               data.customerConfirmationOTP = prev.customerConfirmationOTP;
               data.paymentOtp = prev.paymentOtp || prev.customerConfirmationOTP;
             }
@@ -199,8 +199,12 @@ const BookingDetails = () => {
   // Auto-show rating modal ONLY when booking is fully completed AND paid
   useEffect(() => {
     if (booking) {
-      const isCompleted = ['completed', 'work_done'].includes(booking.status?.toLowerCase());
-      const isPaid = ['success', 'paid', 'collected_by_vendor'].includes(booking.paymentStatus?.toLowerCase());
+      // `work_done` means the WORKER finished — payment and closure still
+      // haven't happened. Including it here pushed the customer straight to a
+      // review while they were still trying to pay. Only a booking the server
+      // has actually closed (`completed`) is reviewable.
+      const isCompleted = booking.status?.toLowerCase() === 'completed';
+      const isPaid = ['paid', 'collected_by_vendor', 'plan_covered'].includes(booking.paymentStatus?.toLowerCase());
       const isRated = !!booking.rating;
       const isDismissed = localStorage.getItem(`rating_dismissed_${id}`);
 
@@ -218,7 +222,9 @@ const BookingDetails = () => {
   useEffect(() => {
     if (!booking) return;
 
-    const isPaymentDone = ['success', 'paid', 'collected_by_vendor'].includes(booking.paymentStatus?.toLowerCase()) || booking.cashCollected === true;
+    // 'success' isn't a real payment status; 'plan_covered' is, and means the
+    // customer owes nothing.
+    const isPaymentDone = ['paid', 'collected_by_vendor', 'plan_covered'].includes(booking.paymentStatus?.toLowerCase()) || booking.cashCollected === true;
 
     // Track the latest OTP to detect a fresh payment request from the vendor
     const lastSeenOtp = sessionStorage.getItem(`last_seen_otp_${booking._id}`);
@@ -677,6 +683,17 @@ const BookingDetails = () => {
   const hasBill = !!bill;
   const finalTotal = bill?.grandTotal || (booking.finalAmount || booking.totalAmount || 0);
 
+  // 'success' is not a value the API ever returns for paymentStatus, so every
+  // check against it read as "unpaid" — the card kept offering "Pay Online Now"
+  // after the money had already been taken. These are the real statuses.
+  const isPaidStatus = ['paid', 'collected_by_vendor', 'plan_covered']
+    .includes(booking.paymentStatus?.toLowerCase());
+
+  // The bill is finalised and the customer still has to settle / hand over the
+  // end OTP. `awaiting_payment` is where a booking sits once the worker asks
+  // for payment, so it has to render the same payment UI as `work_done`.
+  const isPaymentStage = ['work_done', 'awaiting_payment'].includes(booking.status?.toLowerCase());
+
   // --------------------------------------
 
   return (
@@ -740,7 +757,7 @@ const BookingDetails = () => {
               <div className="flex justify-between relative z-10">
                 {/* Step 1: Booked */}
                 <div className="flex flex-col items-center gap-2 w-1/4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${['pending', 'requested', 'searching', 'confirmed', 'assigned', 'journey_started', 'visited', 'in_progress', 'work_done', 'completed'].includes(booking.status?.toLowerCase())
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${['pending', 'requested', 'searching', 'confirmed', 'assigned', 'journey_started', 'visited', 'in_progress', 'work_done', 'awaiting_payment', 'completed'].includes(booking.status?.toLowerCase())
                     ? 'bg-teal-600 text-white shadow-lg shadow-teal-200' : 'bg-gray-100 text-gray-400'
                     }`}>
                     <FiCheckCircle className="w-4 h-4" />
@@ -750,7 +767,7 @@ const BookingDetails = () => {
 
                 {/* Step 2: Assigned */}
                 <div className="flex flex-col items-center gap-2 w-1/4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${['assigned', 'journey_started', 'visited', 'in_progress', 'work_done', 'completed'].includes(booking.status?.toLowerCase())
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${['assigned', 'journey_started', 'visited', 'in_progress', 'work_done', 'awaiting_payment', 'completed'].includes(booking.status?.toLowerCase())
                     ? 'bg-teal-600 text-white shadow-lg shadow-teal-200' : 'bg-gray-100 text-gray-400'
                     }`}>
                     2
@@ -760,7 +777,7 @@ const BookingDetails = () => {
 
                 {/* Step 3: In Progress */}
                 <div className="flex flex-col items-center gap-2 w-1/4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${['journey_started', 'visited', 'in_progress', 'work_done', 'completed'].includes(booking.status?.toLowerCase())
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${['journey_started', 'visited', 'in_progress', 'work_done', 'awaiting_payment', 'completed'].includes(booking.status?.toLowerCase())
                     ? 'bg-teal-600 text-white shadow-lg shadow-teal-200' : 'bg-gray-100 text-gray-400'
                     }`}>
                     3
@@ -770,7 +787,7 @@ const BookingDetails = () => {
 
                 {/* Step 4: Done */}
                 <div className="flex flex-col items-center gap-2 w-1/4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${['work_done', 'completed'].includes(booking.status?.toLowerCase())
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${['work_done', 'awaiting_payment', 'completed'].includes(booking.status?.toLowerCase())
                     ? 'bg-teal-600 text-white shadow-lg shadow-teal-200' : 'bg-gray-100 text-gray-400'
                     }`}>
                     4
@@ -782,7 +799,7 @@ const BookingDetails = () => {
               <div className="absolute top-[4.5rem] left-[15%] right-[15%] h-0.5 bg-gray-100 -z-0">
                 <div className="h-full bg-teal-500 transition-all duration-1000" style={{
                   width:
-                    ['work_done', 'completed'].includes(booking.status?.toLowerCase()) ? '100%' :
+                    ['work_done', 'awaiting_payment', 'completed'].includes(booking.status?.toLowerCase()) ? '100%' :
                       ['journey_started', 'visited', 'in_progress'].includes(booking.status?.toLowerCase()) ? '66%' :
                         ['assigned'].includes(booking.status?.toLowerCase()) ? '33%' : '0%'
                 }}></div>
@@ -972,8 +989,8 @@ const BookingDetails = () => {
           )}
 
           {/* Plan Covered Card - Show for plan_benefit bookings (before OTP is sent) */}
-          {(booking.paymentStatus === 'plan_covered' || (booking.paymentMethod === 'plan_benefit' && booking.paymentStatus !== 'success')) &&
-            ['visited', 'in_progress', 'work_done', 'completed'].includes(booking.status?.toLowerCase()) &&
+          {(booking.paymentStatus === 'plan_covered' || (booking.paymentMethod === 'plan_benefit' && !isPaidStatus)) &&
+            ['visited', 'in_progress', 'work_done', 'awaiting_payment', 'completed'].includes(booking.status?.toLowerCase()) &&
             !booking.customerConfirmationOTP && (
               <div className="relative overflow-hidden rounded-3xl shadow-lg border border-emerald-100 mb-6">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-teal-600 to-green-700 opacity-95"></div>
@@ -1015,13 +1032,13 @@ const BookingDetails = () => {
             )}
 
           {/* Payment Card - Show when work is done AND bill is finalized (OTP exists) or paid */}
-          {(booking.customerConfirmationOTP || booking.paymentStatus === 'success') && ['work_done'].includes(booking.status?.toLowerCase()) && !booking.cashCollected && (
+          {(booking.customerConfirmationOTP || isPaidStatus) && isPaymentStage && !booking.cashCollected && (
             <div
               onClick={() => setShowPaymentModal(true)}
-              className={`relative overflow-hidden rounded-3xl shadow-lg border cursor-pointer active:scale-[0.98] transition-all ${booking.paymentStatus === 'success' ? 'border-green-100' : 'border-orange-100'
+              className={`relative overflow-hidden rounded-3xl shadow-lg border cursor-pointer active:scale-[0.98] transition-all ${isPaidStatus ? 'border-green-100' : 'border-orange-100'
                 }`}>
               {/* Animated gradient background */}
-              <div className={`absolute inset-0 opacity-95 ${booking.paymentStatus === 'success'
+              <div className={`absolute inset-0 opacity-95 ${isPaidStatus
                 ? 'bg-gradient-to-br from-green-500 via-green-600 to-emerald-700'
                 : 'bg-gradient-to-br from-orange-500 via-orange-600 to-red-600'
                 }`}></div>
@@ -1030,7 +1047,7 @@ const BookingDetails = () => {
               <div className="relative z-10 p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
-                    {booking.paymentStatus === 'success' ? (
+                    {isPaidStatus ? (
                       <FiCheckCircle className="w-6 h-6 text-white" />
                     ) : (
                       <FiDollarSign className="w-6 h-6 text-white" />
@@ -1038,55 +1055,61 @@ const BookingDetails = () => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white tracking-tight">
-                      {booking.paymentStatus === 'success' ? 'Payment Received' : 'Final Payment'}
+                      {isPaidStatus ? 'Payment Received' : 'Final Payment'}
                     </h3>
-                    <p className={`text-xs font-medium ${booking.paymentStatus === 'success' ? 'text-green-50' : 'text-orange-100'}`}>
-                      {booking.paymentStatus === 'success' ? 'Transaction verified successfully' : 'Final amount after service completion'}
+                    <p className={`text-xs font-medium ${isPaidStatus ? 'text-green-50' : 'text-orange-100'}`}>
+                      {isPaidStatus ? 'Transaction verified successfully' : 'Final amount after service completion'}
                     </p>
                   </div>
                 </div>
 
                 {/* Action Button for Online Payment - Only show if not paid */}
-                {booking.paymentStatus !== 'success' && (
-                  <>
-                    <button
-                      onClick={handleOnlinePayment}
-                      className="w-full py-4 mb-4 bg-white text-orange-600 rounded-2xl font-black text-sm shadow-xl hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-2 group"
-                    >
-                      <FiDollarSign className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                      Pay Online Now
-                      <FiChevronRight className="w-4 h-4" />
-                    </button>
-
-                    <div className="flex flex-col items-center mb-6">
-                      <p className="text-[10px] font-bold text-orange-100 uppercase tracking-[0.2em] mb-3 opacity-90">Verification Code</p>
-                      <div className="flex justify-center gap-2">
-                        {String(booking.customerConfirmationOTP || booking.paymentOtp || '0000').split('').map((digit, idx) => (
-                          <div
-                            key={idx}
-                            className="w-12 h-14 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/30 shadow-lg"
-                          >
-                            <span className="text-2xl font-black text-white">{digit}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-orange-50 mt-3 font-medium bg-black/10 px-3 py-1 rounded-full backdrop-blur-sm">
-                        Share this code with the professional ONLY after your satisfaction
-                      </p>
-                    </div>
-                  </>
+                {!isPaidStatus && (
+                  <button
+                    onClick={handleOnlinePayment}
+                    className="w-full py-4 mb-4 bg-white text-orange-600 rounded-2xl font-black text-sm shadow-xl hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    <FiDollarSign className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                    Pay Online Now
+                    <FiChevronRight className="w-4 h-4" />
+                  </button>
                 )}
 
-                <div className={`backdrop-blur-sm rounded-xl p-4 border ${booking.paymentStatus === 'success' ? 'bg-white/10 border-white/10' : 'bg-white/15 border-white/20'
+                {/* The end OTP is what closes the job, so it has to stay on
+                    screen AFTER paying too — it used to be hidden together with
+                    the pay button, leaving a paid customer with no code to give
+                    the worker. */}
+                {booking.customerConfirmationOTP && (
+                  <div className="flex flex-col items-center mb-6">
+                    <p className="text-[10px] font-bold text-orange-100 uppercase tracking-[0.2em] mb-3 opacity-90">Verification Code</p>
+                    <div className="flex justify-center gap-2">
+                      {String(booking.customerConfirmationOTP || booking.paymentOtp || '0000').split('').map((digit, idx) => (
+                        <div
+                          key={idx}
+                          className="w-12 h-14 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/30 shadow-lg"
+                        >
+                          <span className="text-2xl font-black text-white">{digit}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-orange-50 mt-3 font-medium bg-black/10 px-3 py-1 rounded-full backdrop-blur-sm">
+                      {isPaidStatus
+                        ? 'Payment received — share this code with the professional to close the booking'
+                        : 'Share this code with the professional ONLY after your satisfaction'}
+                    </p>
+                  </div>
+                )}
+
+                <div className={`backdrop-blur-sm rounded-xl p-4 border ${isPaidStatus ? 'bg-white/10 border-white/10' : 'bg-white/15 border-white/20'
                   }`}>
                   <div className="flex items-center gap-3 text-white">
-                    {booking.paymentStatus === 'success' ? (
+                    {isPaidStatus ? (
                       <FiCheckCircle className="w-5 h-5 text-green-200" />
                     ) : (
                       <FiClock className="w-5 h-5 text-orange-200" />
                     )}
                     <div className="text-sm">
-                      {booking.paymentStatus === 'success'
+                      {isPaidStatus
                         ? (
                           booking.paymentMethod === 'plan_benefit'
                             ? <p className="font-medium">Covered by your Membership Plan</p>
@@ -1463,7 +1486,7 @@ const BookingDetails = () => {
           )}
 
           {/* Action Card for Awaiting Payment */}
-          {booking.status === 'awaiting_payment' && (
+          {booking.status === 'awaiting_payment' && !isPaidStatus && (
             <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 p-6 space-y-4">
               <div className="text-center mb-4">
                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -1498,7 +1521,7 @@ const BookingDetails = () => {
           <div className="grid grid-cols-2 gap-4">
 
             {/* Cancel */}
-            {!['cancelled', 'completed', 'work_done'].includes(booking.status?.toLowerCase()) && (
+            {!['cancelled', 'completed', 'work_done', 'awaiting_payment'].includes(booking.status?.toLowerCase()) && (
               <button
                 onClick={handleCancelBooking}
                 className="col-span-2 py-4 rounded-2xl text-red-600 font-bold text-sm bg-red-50 border border-red-100 hover:bg-red-100 transition-colors active:scale-95"

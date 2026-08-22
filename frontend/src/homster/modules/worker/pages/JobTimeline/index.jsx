@@ -68,6 +68,7 @@ const JobTimeline = () => {
       case 'visited':
       case 'in_progress': setCurrentStage(3); break;
       case 'work_done':
+      case 'awaiting_payment':
         if (customerPaid) setCurrentStage(6); // Move to Vendor Approval
         else setCurrentStage(5); // Go to Customer Payment
         break;

@@ -907,13 +907,42 @@ const collectCash = async (req, res) => {
       return res.status(200).json({ success: true, message: 'Payment already collected' });
     }
 
-    const allowedStatuses = [BOOKING_STATUS.WORK_DONE, BOOKING_STATUS.VISITED, BOOKING_STATUS.IN_PROGRESS];
+    // AWAITING_PAYMENT is the state a booking sits in between the worker asking
+    // for payment and it actually being settled, so it must be collectable.
+    const allowedStatuses = [
+      BOOKING_STATUS.AWAITING_PAYMENT,
+      BOOKING_STATUS.WORK_DONE,
+      BOOKING_STATUS.VISITED,
+      BOOKING_STATUS.IN_PROGRESS
+    ];
     if (!allowedStatuses.includes(booking.status)) {
       return res.status(400).json({ success: false, message: `Cannot collect payment with status: ${booking.status}` });
     }
 
     if (String(booking.paymentOtp) !== String(otp)) {
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    // The customer already settled this online — the OTP is only closing the
+    // job now, so record it as an online payment and skip the cash bookkeeping
+    // (crediting the wallet twice would pay the job out twice).
+    if (booking.isWorkerPaid === true || booking.paymentStatus === PAYMENT_STATUS.PAID) {
+      booking.status = BOOKING_STATUS.COMPLETED;
+      booking.completedAt = new Date();
+      booking.paymentOtp = undefined;
+      booking.customerConfirmationOTP = null;
+      await booking.save();
+
+      const ioPaid = req.app.get('io');
+      if (ioPaid) {
+        ioPaid.to(`user_${String(booking.userId?._id || booking.userId)}`).emit('booking_updated', {
+          bookingId: String(booking._id),
+          status: BOOKING_STATUS.COMPLETED,
+          paymentStatus: booking.paymentStatus
+        });
+      }
+
+      return res.status(200).json({ success: true, message: 'Booking closed — payment was already received online' });
     }
 
     // Fetch VendorBill (single source of truth)
@@ -1249,6 +1278,13 @@ const initiateOnlineCollection = async (req, res) => {
     booking.paymentOtp = payOtp;
     booking.customerConfirmationOTP = payOtp;
     booking.qrPaymentInitiated = true;
+    // Move into AWAITING_PAYMENT so the customer's "Payment Required" card
+    // actually renders — it is gated on this status, but nothing in the
+    // codebase ever assigned it. Bookings went straight from work_done to
+    // completed, so the customer could never pay in-app.
+    if (booking.status === BOOKING_STATUS.WORK_DONE) {
+      booking.status = BOOKING_STATUS.AWAITING_PAYMENT;
+    }
     await booking.save();
 
     const amount = booking.finalAmount || 0;
@@ -1259,7 +1295,7 @@ const initiateOnlineCollection = async (req, res) => {
     if (io) {
       io.to(`user_${booking.userId}`).emit('booking_updated', {
         bookingId: booking._id,
-        status: BOOKING_STATUS.WORK_DONE,
+        status: BOOKING_STATUS.AWAITING_PAYMENT,
         customerConfirmationOTP: payOtp,
         paymentOtp: payOtp,
         qrPaymentInitiated: true,
@@ -1288,7 +1324,13 @@ const verifyOnlineCollection = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    const isPaid = booking.paymentStatus === 'paid' || booking.paymentStatus === 'SUCCESS';
+    // 'SUCCESS' is not a PAYMENT_STATUS value — that arm never matched. Use the
+    // real constants, and count vendor-collected cash as paid.
+    const isPaid = [
+      PAYMENT_STATUS.PAID,
+      PAYMENT_STATUS.COLLECTED_BY_VENDOR,
+      PAYMENT_STATUS.PLAN_COVERED
+    ].includes(booking.paymentStatus);
     if (isPaid) {
       res.status(200).json({ success: true, message: 'Payment verified successfully' });
     } else {
@@ -1311,6 +1353,10 @@ const initiateCashCollection = async (req, res) => {
     const payOtp = booking.paymentOtp || Math.floor(1000 + Math.random() * 9000).toString();
     booking.paymentOtp = payOtp;
     booking.customerConfirmationOTP = payOtp;
+    // Same as the online path — surface the customer's payment step.
+    if (booking.status === BOOKING_STATUS.WORK_DONE) {
+      booking.status = BOOKING_STATUS.AWAITING_PAYMENT;
+    }
     await booking.save();
 
     const io = req.app.get('io');
@@ -1318,7 +1364,7 @@ const initiateCashCollection = async (req, res) => {
       const userIdStr = String(booking.userId?._id || booking.userId);
       io.to(`user_${userIdStr}`).emit('booking_updated', {
         bookingId: String(booking._id),
-        status: BOOKING_STATUS.WORK_DONE,
+        status: BOOKING_STATUS.AWAITING_PAYMENT,
         customerConfirmationOTP: payOtp,
         paymentOtp: payOtp
       });
@@ -1350,7 +1396,7 @@ const confirmManualOnlineCollection = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Unauthorized action' });
     }
 
-    if (booking.status !== BOOKING_STATUS.WORK_DONE) {
+    if (![BOOKING_STATUS.WORK_DONE, BOOKING_STATUS.AWAITING_PAYMENT].includes(booking.status)) {
       return res.status(400).json({ success: false, message: 'Work is not marked as done yet' });
     }
 
@@ -1366,12 +1412,18 @@ const confirmManualOnlineCollection = async (req, res) => {
     const grandTotal = Number(bill.grandTotal) || 0;
     const vendorEarning = Number(bill.vendorTotalEarning) || 0;
 
+    // The customer may already have paid in-app (paymentController credits the
+    // worker at that point). Crediting again here would pay the job out twice,
+    // so settle only if nobody has.
+    const alreadySettled = booking.isWorkerPaid === true;
+
     booking.status = BOOKING_STATUS.COMPLETED;
     booking.paymentMethod = 'online';
     booking.paymentStatus = 'paid';
     booking.completedAt = new Date();
     booking.paymentOtp = undefined;
     booking.customerConfirmationOTP = null;
+    booking.isWorkerPaid = true;
     await booking.save();
 
     bill.status = 'paid';
@@ -1379,7 +1431,9 @@ const confirmManualOnlineCollection = async (req, res) => {
     await bill.save();
 
     // Update Wallet based on Booking Model
-    if (booking.bookingModel === 'worker') {
+    if (alreadySettled) {
+      // no-op: wallet was credited when the online payment was verified
+    } else if (booking.bookingModel === 'worker') {
       const workerDoc = await Worker.findById(booking.workerId);
       if (workerDoc) {
         workerDoc.wallet.balance = (workerDoc.wallet.balance || 0) + vendorEarning;

@@ -160,6 +160,7 @@ const AdminLayout = () => {
                     ]
                 },
                 { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
+                { icon: Layers, label: 'Property Subscriptions', path: '/admin/property-subscriptions' },
                 { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' },
                 { icon: Star, label: 'Reviews', path: '/admin/reviews' },
             ]

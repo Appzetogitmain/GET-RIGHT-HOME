@@ -294,6 +294,7 @@ const JobDetails = () => {
       'journey_started': 'On The Way',
       'in_progress': 'In Progress',
       'work_done': 'Work Done',
+      'awaiting_payment': 'Awaiting Payment',
       'completed': 'Completed',
       'cancelled': 'Cancelled',
     };
@@ -309,6 +310,7 @@ const JobDetails = () => {
       'visited': '#F59E0B',
       'in_progress': '#F59E0B',
       'work_done': '#10B981',
+      'awaiting_payment': '#F97316',
       'completed': '#10B981',
       'cancelled': '#EF4444',
     };
@@ -418,7 +420,7 @@ const JobDetails = () => {
             </button>
           )}
 
-          {job.status === 'work_done' && (
+          {['work_done', 'awaiting_payment'].includes(job.status?.toLowerCase()) && (
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => navigate(`/worker/job/${id}/billing`)}

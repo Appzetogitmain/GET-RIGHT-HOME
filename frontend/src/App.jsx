@@ -125,6 +125,7 @@ const AdminFaqs = React.lazy(() => import('./app/admin/pages/AdminFaqs'));
 const AdminCategories = React.lazy(() => import('./app/admin/pages/AdminCategories'));
 const AdminFeaturedProperties = React.lazy(() => import('./app/admin/pages/AdminFeaturedProperties'));
 const AdminSubscriptions = React.lazy(() => import('./app/admin/pages/AdminSubscriptions'));
+const AdminPropertySubscriptions = React.lazy(() => import('./app/admin/pages/AdminPropertySubscriptions'));
 const AdminReelAnalysis = React.lazy(() => import('./app/admin/pages/AdminReelAnalysis'));
 const AdminBanners = React.lazy(() => import('./app/admin/pages/AdminBanners'));
 const AdminHomePageLayout = React.lazy(() => import('./app/admin/pages/AdminHomePageLayout'));
@@ -624,6 +625,7 @@ function App() {
                         <Route path="categories" element={<AdminCategories />} />
                         <Route path="featured-projects" element={<AdminFeaturedProperties />} />
                         <Route path="subscriptions" element={<AdminSubscriptions />} />
+                        <Route path="property-subscriptions" element={<AdminPropertySubscriptions />} />
                         <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                         <Route path="banners" element={<AdminBanners />} />
                         <Route path="homepage-layout" element={<AdminHomePageLayout />} />
@@ -675,6 +677,7 @@ function App() {
                         <Route path="reel-analysis" element={<AdminReelAnalysis />} />
                         <Route path="reviews" element={<AdminReviews />} />
                         <Route path="subscriptions" element={<AdminSubscriptions />} />
+                        <Route path="property-subscriptions" element={<AdminPropertySubscriptions />} />
 
                         {/* System */}
                         <Route path="finance" element={<AdminFinance />} />

@@ -871,7 +871,7 @@ const BookingTrack = () => {
         )}
 
         {/* Final Payment Card - Show when work is done AND bill is finalized (OTP exists) */}
-        {(booking?.customerConfirmationOTP || booking?.paymentStatus === 'success') && booking?.status?.toLowerCase() === 'work_done' && !booking?.cashCollected && (
+        {(booking?.customerConfirmationOTP || ['paid', 'collected_by_vendor', 'plan_covered'].includes(booking?.paymentStatus?.toLowerCase())) && ['work_done', 'awaiting_payment'].includes(booking?.status?.toLowerCase()) && !booking?.cashCollected && (
           <div
             onClick={() => setShowPaymentModal(true)}
             className={`mb-4 relative overflow-hidden rounded-2xl p-5 shadow-lg cursor-pointer active:scale-[0.98] transition-all ${booking?.paymentStatus === 'success'

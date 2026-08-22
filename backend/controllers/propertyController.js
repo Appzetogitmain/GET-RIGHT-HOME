@@ -1690,8 +1690,38 @@ export const getPublicProperties = async (req, res) => {
       { $unwind: { path: '$plan', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
-          rankingWeight: { $ifNull: ['$plan.rankingWeight', 0] },
-          hasVerifiedTag: { $ifNull: ['$plan.hasVerifiedTag', false] }
+          // Two subscription systems currently coexist (see
+          // SUBSCRIPTION-FLOW-CURRENT-STATE.md): the legacy account-level plan
+          // looked up above, and the new property-level Subscription, which is
+          // denormalised directly onto `promotion` at purchase time so this
+          // pipeline never needs another $lookup per result. A listing counts
+          // as boosted only while its own promotion window is still open —
+          // `promotion.isActive` is cleared by the hourly expiry sweep, but
+          // checking `expiryDate` here too means a result is never over-ranked
+          // in the up-to-an-hour gap before that sweep runs.
+          promotionLive: {
+            $and: [
+              { $eq: ['$promotion.isActive', true] },
+              { $gt: [{ $ifNull: ['$promotion.expiryDate', new Date(0)] }, new Date()] }
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          rankingWeight: {
+            $add: [
+              { $ifNull: ['$plan.rankingWeight', 0] },
+              { $cond: ['$promotionLive', { $ifNull: ['$promotion.weight', 0] }, 0] }
+            ]
+          },
+          hasVerifiedTag: {
+            $or: [
+              { $ifNull: ['$plan.hasVerifiedTag', false] },
+              { $cond: ['$promotionLive', { $ifNull: ['$promotion.verifiedBadge', false] }, false] }
+            ]
+          },
+          isShowcased: { $cond: ['$promotionLive', { $ifNull: ['$promotion.showcase', false] }, false] }
         }
       }
     );
@@ -1735,6 +1765,7 @@ export const getPublicProperties = async (req, res) => {
           $add: [
             matchStrengthScore,
             { $multiply: [{ $ifNull: ['$rankingWeight', 0] }, 8] }, // subscription tier — capped influence
+            { $cond: ['$isShowcased', 12, 0] }, // showcase entitlement — visibility, not an outrank-everything switch
             { $cond: [{ $eq: ['$isVerified', true] }, 15, 0] },
             { $cond: [{ $eq: ['$reraVerified', true] }, 5, 0] },
             { $cond: [{ $gt: [{ $size: { $ifNull: ['$propertyImages', []] } }, 0] }, 8, 0] },

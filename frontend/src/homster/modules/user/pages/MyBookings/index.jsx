@@ -192,7 +192,7 @@ const MyBookings = () => {
         return 'In Progress';
       case 'journey_started': return 'On The Way';
       case 'visited': return 'Arrived';
-      case 'awaiting_payment': return 'Request Accepted';
+      case 'awaiting_payment': return 'Payment Pending';
       case 'work_done': return 'Work Completed';
       case 'assigned':
       case 'accepted':

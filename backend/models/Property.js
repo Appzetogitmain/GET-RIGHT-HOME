@@ -389,6 +389,27 @@ const propertySchema = new mongoose.Schema({
     pausedAt: { type: Date },
     adminNotes: { type: String }
   },
+
+  // ── Paid subscription entitlement (§8, §10) ──────────────────────────────
+  // Denormalised from the property's active Subscription on purchase, and
+  // cleared on expiry. Search sorts by `weight` on every query, so resolving
+  // this per result through a $lookup would be the slowest part of the page.
+  // The Subscription record remains the source of truth; this is a cache.
+  promotion: {
+    isActive: { type: Boolean, default: false, index: true },
+    subscriptionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subscription', default: null },
+    // 'sale' or 'rental' — a sale boost must never apply to a rental listing.
+    mode: { type: String, default: null },
+    planName: { type: String, default: '' },
+    planTier: { type: String, default: '' },
+    weight: { type: Number, default: 0 },
+    showcase: { type: Boolean, default: false },
+    priorityPlacement: { type: Boolean, default: false },
+    verifiedBadge: { type: Boolean, default: false },
+    startDate: { type: Date, default: null },
+    expiryDate: { type: Date, default: null },
+  },
+
   isUrgent: { type: Boolean, default: false },
   isNegotiable: { type: Boolean, default: false },
   virtualTourLink: String,
@@ -450,5 +471,11 @@ propertySchema.index({ status: 1, isLive: 1, 'priceRange.min': 1 });
 // The field already declares its own unique+sparse index; this pairs it with
 // the live-status filter the public route applies.
 propertySchema.index({ slug: 1, status: 1, isLive: 1 });
+
+// Search sorts boosted listings above the rest within a matching result set, so
+// the promotion weight has to be indexed alongside the live filter it runs with.
+propertySchema.index({ status: 1, isLive: 1, 'promotion.isActive': 1, 'promotion.weight': -1 });
+// The expiry sweep finds promotions whose subscription window has closed.
+propertySchema.index({ 'promotion.isActive': 1, 'promotion.expiryDate': 1 });
 
 export default mongoose.model("Property", propertySchema);

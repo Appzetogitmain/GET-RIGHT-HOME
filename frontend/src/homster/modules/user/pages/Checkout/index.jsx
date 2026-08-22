@@ -522,9 +522,14 @@ const Checkout = () => {
           setCurrentStep('waiting'); // Waiting for vendor acceptance
           // Keep searchingVendors = true to disable buttons and show progress
         }
+      } else {
+        toast.error(response.message || 'Failed to initiate booking request. Please try again.');
+        setShowVendorModal(false);
+        setSearchingVendors(false);
       }
     } catch (error) {
-      toast.error('Failed to initiate booking request. Please try again.');
+      const backendMessage = error.response?.data?.message;
+      toast.error(backendMessage || 'Failed to initiate booking request. Please try again.');
       setShowVendorModal(false);
       setSearchingVendors(false);
     }
@@ -830,10 +835,12 @@ const Checkout = () => {
 
       // Cart will be cleared only after payment is confirmed or Pay At Home is confirmed
 
-      // Note: the backend never fails a booking instantly anymore, even when zero
-      // vendors are nearby at creation time — it keeps retrying the search for up
-      // to 3 minutes (see waveScheduler.js) before reporting "no vendor available"
-      // via the 'waiting' step's socket/poll listeners below.
+      // Note: the backend rejects instantly only when the address falls outside
+      // every active service zone (handled by the `!bookingResponse.success`
+      // branch above). Otherwise, even when zero vendors are nearby at creation
+      // time, it keeps retrying the search for up to 3 minutes (see
+      // waveScheduler.js) before reporting "no vendor available" via the
+      // 'waiting' step's socket/poll listeners below.
 
       // If online payment is selected, trigger it before moving to waiting state
       if (paymentMethod === 'online' && amountToPay > 0) {
@@ -857,7 +864,8 @@ const Checkout = () => {
     } catch (error) {
       toast.dismiss();
       console.error('Search vendors error:', error);
-      toast.error('Failed to search for vendors. Please try again.');
+      const backendMessage = error.response?.data?.message;
+      toast.error(backendMessage || 'Failed to search for vendors. Please try again.');
       setCurrentStep('details');
       setSearchingVendors(false);
       setShowVendorModal(false);

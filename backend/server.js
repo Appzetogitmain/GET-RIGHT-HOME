@@ -60,6 +60,10 @@ app.set('io', io);
 // Start Wave Scheduler for dynamic booking routing
 import { startWaveScheduler } from './cron/waveScheduler.js';
 startWaveScheduler(io);
+// Expires lapsed subscriptions and sends renewal reminders. Without this the
+// stored status goes stale — expiry was only ever evaluated at read time.
+import { startSubscriptionScheduler } from './cron/subscriptionScheduler.js';
+startSubscriptionScheduler();
 
 // Middleware
 app.use(morgan('dev'));
@@ -130,6 +134,7 @@ import referralRoutes from './routes/referralRoutes.js';
 import faqRoutes from './routes/faqRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
+import propertySubscriptionRoutes from './routes/propertySubscriptionRoutes.js';
 import reelRoutes from './routes/reelRoutes.js';
 import bannerRoutes from './routes/bannerRoutes.js';
 import homeContentRoutes from './routes/homeContentRoutes.js';
@@ -181,6 +186,9 @@ app.use('/api/referrals', referralRoutes);
 app.use('/api/faqs', faqRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+// Sale/Rental property-level subscriptions. Kept on its own mount so the
+// older account-level routes above continue to serve existing subscribers.
+app.use('/api/property-subscriptions', propertySubscriptionRoutes);
 app.use('/api/reels', reelRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/admin/home-content', homeContentRoutes);
@@ -297,6 +305,12 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
           );
         }
         console.log('✅ Subscription Tiers verified on startup');
+
+        // Feature catalogue + the recommended Sale/Rental plan matrix.
+        // Idempotent, and seeded plans start inactive so admin prices them
+        // before anything appears in the catalogue.
+        const { seedSubscriptionCatalogue } = await import('./utils/subscriptionSeeder.js');
+        await seedSubscriptionCatalogue();
       } catch (tierErr) {
         console.error('❌ Auto-seeding tiers failed on startup:', tierErr.message);
       }

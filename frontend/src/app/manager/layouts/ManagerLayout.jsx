@@ -65,6 +65,15 @@ const ManagerLayout = () => {
         .map(key => MODULE_NAV_MAP[key])
         .filter(Boolean); // Remove any unknown keys
 
+    // The new property-level subscription screen shares the 'subscriptions'
+    // permission with the legacy one above (see backend propertySubscriptionRoutes.js),
+    // so it rides along on the same module key rather than needing its own.
+    if (permittedModuleKeys.includes('subscriptions')) {
+        navItems.splice(navItems.findIndex(i => i.path === '/manager/subscriptions') + 1, 0, {
+            icon: ShieldCheck, label: 'Property Subscriptions', path: '/manager/property-subscriptions',
+        });
+    }
+
     useEffect(() => {
         loadNotifications();
         const handleClickOutside = (event) => {
