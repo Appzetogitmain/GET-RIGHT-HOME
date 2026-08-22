@@ -198,7 +198,14 @@ const MyBookings = () => {
       case 'accepted':
       case 'confirmed':
         return 'Confirmed';
-      default: return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
+      case 'searching': return 'Finding Professional';
+      // Still an ACTIVE booking — ops is assigning by hand. Must never render
+      // the internal name ("no workers"), which reads as a failure.
+      case 'no_workers':
+      case 'no_vendors':
+      case 'manual_assignment_required':
+        return 'Assigning Professional';
+      default: return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
     }
   };
 

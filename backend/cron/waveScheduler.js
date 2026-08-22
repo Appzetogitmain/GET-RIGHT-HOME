@@ -26,6 +26,54 @@ const BOOKING_REQUEST_TTL_MS = 60 * 60 * 1000;
 // booking-creation time, before finally declaring "no workers available".
 const INITIAL_SEARCH_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
 
+// Fallback for Settings.manualEscalationDuration — how long a booking may sit
+// unassigned before the ops team is pulled in.
+const DEFAULT_MANUAL_ESCALATION_MS = 3 * 60 * 1000; // 3 minutes
+
+/**
+ * Flags bookings that have gone too long without a worker so the ops team can
+ * start assigning by hand.
+ *
+ * Deliberately does NOT touch the automatic search: outstanding BookingRequests
+ * keep their full response window and the wave machinery carries on. This is an
+ * escalation, not a takeover — the booking is simply visible to ops as well
+ * now, and either path can complete it.
+ */
+const escalateStaleBookingsToOps = async (manualEscalationMs, io) => {
+  try {
+    const cutoff = new Date(Date.now() - manualEscalationMs);
+
+    const stale = await HomeServiceBooking.find({
+      status: BOOKING_STATUS.SEARCHING,
+      workerId: null,
+      createdAt: { $lte: cutoff },
+      // Only escalate once.
+      assignmentStatus: { $ne: 'manual_assignment_required' }
+    }).select('_id userId bookingNumber');
+
+    for (const booking of stale) {
+      await HomeServiceBooking.updateOne(
+        { _id: booking._id },
+        { $set: { assignmentStatus: 'manual_assignment_required' } }
+      );
+
+      console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: unassigned past the escalation window → ops queue (automatic search continues).`);
+
+      try {
+        io.to(`user_${booking.userId}`).emit('booking_updated', {
+          bookingId: booking._id,
+          // The customer-facing state doesn't change — they're still waiting
+          // for a professional, and how we find one isn't their concern.
+          status: BOOKING_STATUS.SEARCHING,
+          message: 'We are assigning a service professional to your booking.'
+        });
+      } catch { /* socket optional */ }
+    }
+  } catch (err) {
+    console.error('[WaveScheduler] Ops escalation check failed:', err);
+  }
+};
+
 /**
  * Handles bookings that had ZERO nearby partners at creation time (currentWave === 0).
  * Re-runs the geo search on every scheduler tick (10s) for up to 3 minutes.
@@ -36,6 +84,11 @@ const handleInitialSearchRetry = async (booking, io) => {
   try {
     const timeElapsed = Date.now() - new Date(booking.waveStartedAt).getTime();
     const bookingModel = 'worker';
+
+    // Same admin-configured response window the main loop uses, so a worker
+    // alerted from this retry path gets an identical countdown.
+    const windowSettings = await Settings.findOne({ type: 'global' }).select('waveDuration').lean();
+    const RETRY_RESPONSE_WINDOW_SEC = windowSettings?.waveDuration || Math.round(DEFAULT_WAVE_TIMEOUT_MS / 1000);
 
     const bookingLocation = { lat: booking.address?.lat, lng: booking.address?.lng };
     let partners = [];
@@ -97,7 +150,9 @@ const handleInitialSearchRetry = async (booking, io) => {
           categoryIcon: booking.categoryIcon,
           scheduledDate: booking.scheduledDate,
           scheduledTime: booking.scheduledTime,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          respondBySeconds: RETRY_RESPONSE_WINDOW_SEC,
+          responseWindowSeconds: RETRY_RESPONSE_WINDOW_SEC
         });
 
         createNotification({
@@ -124,32 +179,33 @@ const handleInitialSearchRetry = async (booking, io) => {
 
     // Still nothing found this tick.
     if (timeElapsed >= INITIAL_SEARCH_WINDOW_MS) {
-      // 3 minutes of retrying with zero partners found — give up.
-      booking.status = BOOKING_STATUS.NO_WORKERS;
+      // 3 minutes of retrying with zero partners found. This is NOT a failed
+      // booking — it hands over to the ops team's manual-assignment queue and
+      // the booking stays active.
+      booking.status = BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED;
+      booking.assignmentStatus = 'manual_assignment_required';
       booking.waveStartedAt = null;
       await booking.save();
 
-      console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: No ${bookingModel}s found after 3 minutes of searching. Giving up.`);
+      console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: No ${bookingModel}s found after 3 minutes. Handing to manual assignment.`);
 
-      io.to(`user_${booking.userId}`).emit('booking_search_failed', {
-        bookingId: booking._id,
-        message: `No ${bookingModel}s available nearby right now.`
-      });
       io.to(`user_${booking.userId}`).emit('booking_updated', {
         bookingId: booking._id,
-        status: BOOKING_STATUS.NO_WORKERS,
-        message: 'No professionals available nearby at the moment.'
+        status: BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED,
+        message: 'We are assigning a service professional to your booking.'
       });
 
       await createNotification({
         userId: booking.userId,
-        type: 'booking_failed',
-        title: 'No Professionals Available',
-        message: `We couldn't find any ${bookingModel}s nearby after searching for 3 minutes. Our team will contact you shortly.`,
+        type: 'assignment_pending',
+        title: 'Assigning Your Professional',
+        // Deliberately says nothing about workers rejecting, timing out, or
+        // the team calling around — internal detail the customer shouldn't see.
+        message: 'Your order has been taken successfully. We are currently assigning a service professional to your booking. You will receive the professional details shortly.',
         relatedId: booking._id,
         relatedType: 'booking',
         priority: 'high',
-        pushData: { type: 'booking_failed', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
+        pushData: { type: 'assignment_pending', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
       });
     }
     // else: still within the 3-minute window — do nothing, next tick (10s) will retry again.
@@ -171,14 +227,26 @@ export const startWaveScheduler = (io) => {
       // Admin-configurable worker response window (Settings.waveDuration,
       // seconds) — read once per tick rather than per-booking. Falls back to
       // the 60s default if Settings hasn't been created/configured yet.
-      const globalSettings = await Settings.findOne({ type: 'global' }).select('waveDuration').lean();
+      const globalSettings = await Settings.findOne({ type: 'global' })
+        .select('waveDuration manualEscalationDuration')
+        .lean();
       const waveTimeoutMs = globalSettings?.waveDuration ? globalSettings.waveDuration * 1000 : DEFAULT_WAVE_TIMEOUT_MS;
+      const manualEscalationMs = globalSettings?.manualEscalationDuration
+        ? globalSettings.manualEscalationDuration * 1000
+        : DEFAULT_MANUAL_ESCALATION_MS;
 
       // Find bookings that are currently in SEARCHING status and have an active wave
       const activeBookings = await HomeServiceBooking.find({
         status: BOOKING_STATUS.SEARCHING,
         waveStartedAt: { $ne: null }
       });
+
+      // Hand long-unassigned bookings to the ops team, WITHOUT stopping the
+      // automatic search. The worker who was already notified keeps their full
+      // response window; ops just starts working the same booking in parallel,
+      // and whoever lands first wins. Without this the customer waits out every
+      // wave before anyone human looks at it.
+      await escalateStaleBookingsToOps(manualEscalationMs, io);
 
       for (const booking of activeBookings) {
         // currentWave === 0 means the initial search found zero partners — keep
@@ -231,28 +299,56 @@ export const startWaveScheduler = (io) => {
           );
 
           if (unnotifiedWorkers.length === 0) {
-            // No more workers left to notify
-            console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: No more workers available.`);
-            booking.status = BOOKING_STATUS.NO_WORKERS;
+            // Everyone eligible has been asked and nobody took it. Hand over to
+            // the ops team — the booking remains active.
+            console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: all eligible workers exhausted → manual assignment.`);
+
+            // Anyone still sitting on an unanswered request timed out; record
+            // it so ops can see the attempt history rather than guessing.
+            (booking.assignmentAttempts || []).forEach((att) => {
+              if (att.outcome === 'notified') {
+                att.outcome = 'timeout';
+                att.respondedAt = new Date();
+              }
+            });
+
+            booking.status = BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED;
+            booking.assignmentStatus = 'manual_assignment_required';
             booking.waveStartedAt = null;
             await booking.save();
 
-            // Notify User
+            // Re-open the offer to everyone who didn't explicitly decline.
+            //
+            // Advancing a wave expires that wave's PENDING requests, so by the
+            // time the last wave was exhausted EVERY request was EXPIRED and
+            // the job was invisible in every worker's panel — roughly two
+            // minutes after booking. The booking still needs a worker, so any
+            // request still inside its TTL goes back to PENDING; workers who
+            // actually pressed reject stay rejected.
+            await BookingRequest.updateMany(
+              {
+                bookingId: booking._id,
+                status: 'EXPIRED',
+                expiresAt: { $gt: new Date() }
+              },
+              { $set: { status: 'PENDING' } }
+            );
+
             io.to(`user_${booking.userId}`).emit('booking_updated', {
               bookingId: booking._id,
-              status: BOOKING_STATUS.NO_WORKERS,
-              message: 'Our team will shortly contact you directly and assign an Expert.'
+              status: BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED,
+              message: 'We are assigning a service professional to your booking.'
             });
 
             await createNotification({
               userId: booking.userId,
-              type: 'booking_failed',
-              title: 'No Professionals Available',
-              message: 'We couldn\'t find any professionals nearby at the moment. Our team will contact you shortly.',
+              type: 'assignment_pending',
+              title: 'Assigning Your Professional',
+              message: 'Your order has been taken successfully. We are currently assigning a service professional to your booking. You will receive the professional details shortly.',
               relatedId: booking._id,
               relatedType: 'booking',
               priority: 'high',
-              pushData: { type: 'booking_failed', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
+              pushData: { type: 'assignment_pending', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
             });
 
             continue;
@@ -266,7 +362,21 @@ export const startWaveScheduler = (io) => {
 
           booking.currentWave = nextWaveNumber;
           booking.waveStartedAt = new Date();
-          
+          booking.assignmentStatus = 'searching';
+
+          // Log every worker we ask, so the manual-assignment queue can show
+          // ops what was already tried instead of them re-calling the same
+          // people.
+          booking.assignmentAttempts = booking.assignmentAttempts || [];
+          nextBatch.forEach((pw) => {
+            booking.assignmentAttempts.push({
+              workerId: pw.workerId,
+              waveNumber: nextWaveNumber,
+              notifiedAt: new Date(),
+              outcome: 'notified'
+            });
+          });
+
           await booking.save();
 
           // Create Booking Requests
@@ -303,7 +413,12 @@ export const startWaveScheduler = (io) => {
               categoryIcon: fullBooking.categoryIcon,
               scheduledDate: fullBooking.scheduledDate,
               scheduledTime: fullBooking.scheduledTime,
-              createdAt: new Date().toISOString()
+              createdAt: new Date().toISOString(),
+              // Real response window, so the worker's countdown matches what
+              // the server actually allows. The alert card hard-coded 60s and
+              // AUTO-REJECTED at zero, losing the job minutes early.
+              respondBySeconds: Math.round(waveTimeoutMs / 1000),
+              responseWindowSeconds: Math.round(waveTimeoutMs / 1000)
             });
 
             createNotification({

@@ -10,6 +10,7 @@ import {
   updateJobStatus,
   startJob,
   completeJob,
+  releaseJob,
   addWorkerNotes,
   verifyVisit,
   workerReachedLocation,
@@ -47,6 +48,8 @@ router.post('/:id/start', authenticate, isWorker, startJob);
 router.post('/:id/reached', authenticate, isWorker, workerReachedLocation);
 router.post('/:id/visit/verify', authenticate, isWorker, verifyVisit);
 router.post('/:id/complete', authenticate, isWorker, completeJob);
+// Worker drops an accepted job -> booking returns for reassignment (never cancelled).
+router.post('/:id/release', authenticate, isWorker, releaseJob);
 router.post('/:id/payment/collect', authenticate, isWorker, collectCash);
 router.post('/:id/payment/initiate-cash', authenticate, isWorker, initiateCashCollection);
 router.post('/:id/notes', authenticate, isWorker, addNotesValidation, addWorkerNotes);

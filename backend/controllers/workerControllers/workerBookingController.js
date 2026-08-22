@@ -6,12 +6,42 @@ import Worker from '../../models/Worker.js';
 import Vendor from '../../models/Partner.js';
 import Transaction from '../../models/Transaction.js';
 import BookingRequest from '../../models/HomeServiceBookingRequest.js';
+import { getIO } from '../../sockets.js';
+
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import PlatformSettings from '../../models/PlatformSettings.js';
 import Settings from '../../models/Settings.js';
 import VendorBill from '../../models/VendorBill.js';
 import { checkAndAwardTargetBonus } from '../../utils/targetBonusUtil.js';
+
+/**
+ * Records how one worker responded to a booking offer.
+ *
+ * Updates the existing attempt row where there is one (the wave scheduler
+ * creates it when the offer goes out) and otherwise appends — bookings created
+ * before attempt-tracking existed, and wave-1 offers, have no row yet.
+ * Mutates `booking`; the caller saves.
+ */
+const recordAssignmentOutcome = (booking, workerId, outcome, reason = '') => {
+  booking.assignmentAttempts = booking.assignmentAttempts || [];
+  const existing = booking.assignmentAttempts.find(
+    (a) => String(a.workerId) === String(workerId) && a.outcome === 'notified'
+  );
+  if (existing) {
+    existing.outcome = outcome;
+    existing.respondedAt = new Date();
+    if (reason) existing.reason = reason;
+    return;
+  }
+  booking.assignmentAttempts.push({
+    workerId,
+    notifiedAt: new Date(),
+    respondedAt: new Date(),
+    outcome,
+    reason
+  });
+};
 
 /**
  * Get assigned jobs for worker
@@ -90,17 +120,38 @@ const getPendingRequests = async (req, res) => {
     }
 
     const bookingIds = requests.map(r => r.bookingId);
-    // SEARCHING-only: once a booking is accepted (by anyone) or cancelled,
-    // its status moves on and it should stop showing up as an open offer,
-    // even if this worker's own BookingRequest row hasn't expired yet.
+    // Show offers for bookings that are still LOOKING for a worker. Once one is
+    // accepted or cancelled the status moves on and the offer disappears, even
+    // if this worker's own request row hasn't expired yet.
+    //
+    // manual_assignment_required (and its legacy names) must be included: the
+    // booking is still active and still needs a professional — ops is just
+    // helping. Restricting this to SEARCHING meant that ~2 minutes after
+    // booking, once the waves were exhausted, the job vanished from every
+    // worker's panel and only an admin could assign it. A worker who came free
+    // shortly afterwards could no longer pick it up.
+    const openForWorkStatuses = [
+      BOOKING_STATUS.SEARCHING,
+      BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED,
+      BOOKING_STATUS.NO_WORKERS,
+      BOOKING_STATUS.NO_VENDORS
+    ];
     const bookings = await HomeServiceBooking.find({
       _id: { $in: bookingIds },
-      status: BOOKING_STATUS.SEARCHING
+      status: { $in: openForWorkStatuses }
     }).populate('userId', 'name phone').lean();
     const bookingMap = new Map(bookings.map(b => [String(b._id), b]));
 
     const platformSettings = await PlatformSettings.getSettings();
     const platformFlatFee = platformSettings.platformFlatFee || 0;
+
+    // The worker's response window is Settings.waveDuration, counted from when
+    // this wave went out — NOT BookingRequest.expiresAt, which is the record's
+    // 1-hour TTL. The alert card used to hard-code 60s and auto-reject at zero,
+    // so a worker lost the job four minutes before the server actually gave up
+    // on them.
+    const globalSettings = await Settings.findOne({ type: 'global' }).select('waveDuration').lean();
+    const responseWindowSec = globalSettings?.waveDuration || 300;
 
     const data = requests
       .map(r => {
@@ -126,7 +177,16 @@ const getPendingRequests = async (req, res) => {
           isConsultancyRequest: booking.isConsultancyRequest,
           isEstimateBased: booking.isEstimateBased,
           createdAt: booking.createdAt,
-          expiresAt: r.expiresAt
+          expiresAt: r.expiresAt,
+          // Seconds this worker actually has left to respond, so the countdown
+          // reflects the server's real window instead of a hard-coded 60.
+          respondBySeconds: Math.max(
+            0,
+            Math.round(
+              (new Date(booking.waveStartedAt || r.sentAt).getTime() + responseWindowSec * 1000 - Date.now()) / 1000
+            )
+          ),
+          responseWindowSeconds: responseWindowSec
         };
       })
       .filter(Boolean);
@@ -1080,6 +1140,11 @@ const respondToJob = async (req, res) => {
       booking.bookingModel = 'worker'; // Ensure model is set
       booking.workerAcceptedAt = new Date();
       booking.workerResponse = 'ACCEPTED';
+      // Assignment lifecycle is tracked separately from the booking lifecycle;
+      // without this a job accepted out of the manual queue stayed flagged as
+      // "manual assignment required" forever.
+      booking.assignmentStatus = 'assigned';
+      recordAssignmentOutcome(booking, workerId, 'accepted');
 
 
       // Notify Vendor
@@ -1144,6 +1209,9 @@ const respondToJob = async (req, res) => {
         reqEntry.respondedAt = new Date();
         await reqEntry.save();
       }
+      // So ops can see this worker actively declined rather than just not
+      // responding — the two need different follow-up.
+      recordAssignmentOutcome(booking, workerId, 'rejected');
 
       booking.workerId = null;
       // Do NOT set to CONFIRMED. Keep it SEARCHING so the Wave Scheduler can pick it up.
@@ -1419,6 +1487,109 @@ const generateEstimate = async (req, res) => {
   }
 };
 
+/**
+ * Worker drops a job they had already accepted.
+ *
+ * Deliberately does NOT cancel the customer's booking. The booking goes back
+ * into assignment: first a fresh search, and if that finds nobody it lands in
+ * the ops team's manual-assignment queue. Only ops (or the customer) may
+ * actually cancel — a worker changing their mind must never end someone's
+ * paid booking.
+ */
+const releaseJob = async (req, res) => {
+  const { id } = req.params;
+  const { reason = '' } = req.body || {};
+  const workerId = req.user.id;
+
+  try {
+    const booking = await HomeServiceBooking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    if (String(booking.workerId || '') !== String(workerId)) {
+      return res.status(403).json({ success: false, message: 'This job is not assigned to you' });
+    }
+
+    // Once the work is done (or being paid for) releasing it would strand the
+    // customer mid-service — that needs an ops decision, not a self-service drop.
+    const tooLate = [
+      BOOKING_STATUS.WORK_DONE,
+      BOOKING_STATUS.AWAITING_PAYMENT,
+      BOOKING_STATUS.COMPLETED,
+      BOOKING_STATUS.CANCELLED
+    ];
+    if (tooLate.includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot release a job that is already ${booking.status}. Please contact support.`
+      });
+    }
+
+    // Record it against this worker's attempt so ops can see who dropped out.
+    booking.assignmentAttempts = booking.assignmentAttempts || [];
+    const attempt = booking.assignmentAttempts.find(
+      (a) => String(a.workerId) === String(workerId) && a.outcome !== 'cancelled_by_worker'
+    );
+    if (attempt) {
+      attempt.outcome = 'cancelled_by_worker';
+      attempt.respondedAt = new Date();
+      attempt.reason = reason;
+    } else {
+      booking.assignmentAttempts.push({
+        workerId,
+        notifiedAt: new Date(),
+        respondedAt: new Date(),
+        outcome: 'cancelled_by_worker',
+        reason
+      });
+    }
+
+    // Don't offer it back to the worker who just dropped it.
+    booking.notifiedWorkers = (booking.notifiedWorkers || []).filter(
+      (w) => String(w) !== String(workerId)
+    );
+    booking.potentialWorkers = (booking.potentialWorkers || []).filter(
+      (p) => String(p.workerId) !== String(workerId)
+    );
+
+    booking.workerId = null;
+    booking.assignmentStatus = 'reassigning';
+    booking.status = BOOKING_STATUS.SEARCHING;
+    // Restart the wave clock so the scheduler picks this up on its next tick.
+    booking.waveStartedAt = new Date();
+    booking.currentWave = 0;
+
+    await booking.save();
+
+    try {
+      const io = getIO();
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
+        bookingId: booking._id,
+        status: BOOKING_STATUS.SEARCHING,
+        // Never expose that a worker dropped out.
+        message: 'We are assigning a service professional to your booking.'
+      });
+    } catch { /* socket optional */ }
+
+    await createNotification({
+      userId: booking.userId,
+      type: 'assignment_pending',
+      title: 'Assigning Your Professional',
+      message: 'We are currently assigning a service professional to your booking. You will receive the professional details shortly.',
+      relatedId: booking._id,
+      relatedType: 'booking',
+      priority: 'high',
+      pushData: { type: 'assignment_pending', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
+    }).catch(() => {});
+
+    res.json({ success: true, message: 'Job released. It has been returned for reassignment.' });
+  } catch (error) {
+    console.error('[WorkerAction] releaseJob error:', error);
+    res.status(500).json({ success: false, message: 'Failed to release job' });
+  }
+};
+
 export {
   getAssignedJobs,
   getPendingRequests,
@@ -1426,6 +1597,7 @@ export {
   updateJobStatus,
   startJob,
   completeJob,
+  releaseJob,
   addWorkerNotes,
   verifyVisit,
   workerReachedLocation,

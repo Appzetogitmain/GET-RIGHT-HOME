@@ -121,15 +121,30 @@ export const playSingleBeep = () => {
 let currentAudio = null; // Global variable to track current playing audio
 let alertInterval = null; // Global variable to track synthesizer interval
 
+// Identifies the most recent play/stop request.
+//
+// audio.play() rejects ASYNCHRONOUSLY when the mp3 is missing or autoplay is
+// blocked, and the synth-fallback interval is started inside that .catch. So a
+// stopAlertRing() that ran in between — e.g. the worker rejecting the job —
+// could be immediately undone by a late callback installing a fresh interval,
+// leaving a ring nothing held a reference to and no way to silence it.
+// Every callback now checks it still owns the current token before starting,
+// and stopAlertRing() invalidates any in-flight one by bumping it.
+let ringToken = 0;
+
 export const playAlertRing = (loop = false) => {
   try {
     stopAlertRing();
+
+    const myToken = ++ringToken;
 
     const audio = new Audio('/booking-alert.mp3');
     if (loop) audio.loop = true;
     currentAudio = audio; // Track the new audio instance
 
     audio.play().catch(e => {
+      // Superseded by a newer ring, or already stopped — don't start anything.
+      if (myToken !== ringToken) return;
       console.warn('External audio file not found/allowed, falling back to Web Audio API synthesis:', e);
       
       // Synthesized Fallback: Play urgent ringing tones
@@ -172,7 +187,19 @@ export const playAlertRing = (loop = false) => {
 
       playSynthRing();
       if (loop) {
-        alertInterval = setInterval(playSynthRing, 1200);
+        // Re-check: stopAlertRing() may have run while the tones above were
+        // being scheduled.
+        if (myToken !== ringToken) return;
+        alertInterval = setInterval(() => {
+          // Belt and braces — if this interval somehow outlives its token,
+          // it clears itself instead of ringing forever.
+          if (myToken !== ringToken) {
+            clearInterval(alertInterval);
+            alertInterval = null;
+            return;
+          }
+          playSynthRing();
+        }, 1200);
       }
     });
 
@@ -191,6 +218,10 @@ export const playAlertRing = (loop = false) => {
 };
 
 export const stopAlertRing = () => {
+  // Invalidate any play() rejection still in flight so it can't resurrect the
+  // ring after this point.
+  ringToken++;
+
   if (currentAudio) {
     try {
       currentAudio.pause();

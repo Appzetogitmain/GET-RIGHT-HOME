@@ -27,7 +27,8 @@ const getStatusColor = (status) => {
     case 'cancelled': return 'bg-red-100 text-red-700';
     // Not a failure — needs admin action, so amber (attention) rather than red (dead).
     case 'no_workers':
-    case 'no_vendors': return 'bg-amber-50 text-amber-700 border border-amber-200';
+    case 'no_vendors':
+    case 'manual_assignment_required': return 'bg-amber-50 text-amber-700 border border-amber-200';
     case 'searching': return 'bg-blue-50 text-blue-600 border border-blue-200 animate-pulse';
     case 'in_progress': return 'bg-purple-100 text-purple-700';
     case 'pending': return 'bg-orange-100 text-orange-700';
@@ -40,7 +41,7 @@ const getStatusColor = (status) => {
 
 const getStatusLabel = (status) => {
   const s = status?.toLowerCase();
-  if (s === 'no_workers' || s === 'no_vendors') return 'MANUAL ASSIGNMENT REQUIRED';
+  if (s === 'no_workers' || s === 'no_vendors' || s === 'manual_assignment_required') return 'MANUAL ASSIGNMENT REQUIRED';
   return status?.replace('_', ' ');
 };
 
@@ -290,7 +291,7 @@ const Bookings = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {['SEARCHING', 'NO_WORKERS', 'PENDING'].includes(booking.status?.toUpperCase()) ? (
+                      {['SEARCHING', 'NO_WORKERS', 'NO_VENDORS', 'MANUAL_ASSIGNMENT_REQUIRED', 'PENDING'].includes(booking.status?.toUpperCase()) ? (
                         <button
                           onClick={() => setSelectedAssignBooking(booking)}
                           className="px-2 py-1 bg-blue-50 border border-blue-100 text-blue-600 rounded text-[10px] font-bold hover:bg-blue-100 transition-colors"

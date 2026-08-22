@@ -304,7 +304,14 @@ const BookingDetails = () => {
       case 'cancelled': return 'Cancelled';
       case 'requested':
       case 'searching': return 'Finding Expert';
-      default: return status?.replace('_', ' ') || 'Pending';
+      // Automatic matching didn't find anyone, so our ops team is assigning
+      // manually. The booking is still active — never surface the internal
+      // name ("no workers"), which read like a failure and was what the raw
+      // fallback below produced.
+      case 'no_workers':
+      case 'no_vendors':
+      case 'manual_assignment_required': return 'Assigning Professional';
+      default: return status?.replace(/_/g, ' ') || 'Pending';
     }
   };
 

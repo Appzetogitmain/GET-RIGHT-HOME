@@ -64,8 +64,25 @@ const settingsSchema = new mongoose.Schema({
   },
   waveDuration: {
     type: Number,
-    default: 60, // 60 seconds per wave default
+    // How long a notified worker has to accept before the job moves to the
+    // next wave. 60s was too short in practice — a phone in a pocket misses
+    // the whole window.
+    default: 300, // 5 minutes
     min: 10
+  },
+  // How long after a booking is created we hand it to the ops team if no
+  // worker has accepted yet.
+  //
+  // Runs in PARALLEL with waveDuration rather than replacing it: at this point
+  // the booking also appears in the admin's manual-assignment queue, while any
+  // outstanding worker request stays live until its own window expires.
+  // Whoever gets there first — the worker accepting or ops assigning — wins.
+  // That's only safe because workers can still see and accept bookings that
+  // are in the manual-assignment queue.
+  manualEscalationDuration: {
+    type: Number,
+    default: 180, // 3 minutes
+    min: 30
   },
   searchRadius: {
     type: Number,

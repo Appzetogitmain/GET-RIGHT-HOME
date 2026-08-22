@@ -13,7 +13,13 @@ import { safeRegex } from '../utils/escapeRegex.js';
 // to surface — bookings where no worker auto-accepted and admin must step in.
 const JOB_STATUS_BUCKETS = {
   pending: [BOOKING_STATUS.PENDING, BOOKING_STATUS.SEARCHING],
-  manualAssignmentRequired: [BOOKING_STATUS.NO_WORKERS, BOOKING_STATUS.NO_VENDORS],
+  // MANUAL_ASSIGNMENT_REQUIRED is the current value; no_workers/no_vendors are
+  // the legacy ones existing rows still carry and mean exactly the same thing.
+  manualAssignmentRequired: [
+    BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED,
+    BOOKING_STATUS.NO_WORKERS,
+    BOOKING_STATUS.NO_VENDORS
+  ],
   inProgress: [
     BOOKING_STATUS.ASSIGNED, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.ACCEPTED,
     BOOKING_STATUS.JOURNEY_STARTED, BOOKING_STATUS.VISITED, BOOKING_STATUS.ESTIMATE_PROVIDED,
@@ -224,7 +230,24 @@ export const getAllJobs = async (req, res) => {
 
     if (status) {
       // Frontend sends the raw BOOKING_STATUS value (lowercase, e.g. "no_workers").
-      query.status = status.toLowerCase();
+      const requested = status.toLowerCase();
+
+      // "Manual assignment required" is one queue spread over three status
+      // values (the current one plus two legacy ones existing rows still use),
+      // so filtering on any of them must return the whole queue — otherwise
+      // ops silently misses bookings depending on when they were created.
+      const manualBucket = JOB_STATUS_BUCKETS.manualAssignmentRequired;
+      if (manualBucket.includes(requested)) {
+        // A booking can need manual assignment while its booking status is
+        // still `searching`: the ops escalation timer fires before the
+        // automatic waves finish, so the two run in parallel. Match on either.
+        query.$or = [
+          { status: { $in: manualBucket } },
+          { assignmentStatus: 'manual_assignment_required' }
+        ];
+      } else {
+        query.status = requested;
+      }
     }
 
     if (startDate || endDate) {
@@ -245,7 +268,7 @@ export const getAllJobs = async (req, res) => {
       ];
     }
 
-    const [total, jobs, statsAgg] = await Promise.all([
+    const [total, jobs, statsAgg, escalatedNotYetTerminal] = await Promise.all([
       HomeServiceBooking.countDocuments(query),
       HomeServiceBooking.find(query, null, { allowDiskUse: true })
         .populate('userId', 'name email phone')
@@ -256,14 +279,21 @@ export const getAllJobs = async (req, res) => {
         .lean(),
       HomeServiceBooking.aggregate([
         { $group: { _id: '$status', count: { $sum: 1 } } }
-      ])
+      ]),
+      // Escalated bookings whose booking status is still `searching` — they
+      // belong in the manual-assignment count but a status-only group misses
+      // them entirely, so the ops card would under-report the real queue.
+      HomeServiceBooking.countDocuments({
+        assignmentStatus: 'manual_assignment_required',
+        status: { $nin: JOB_STATUS_BUCKETS.manualAssignmentRequired }
+      })
     ]);
 
     const countByStatus = Object.fromEntries(statsAgg.map(s => [s._id, s.count]));
     const bucketCount = (statuses) => statuses.reduce((sum, s) => sum + (countByStatus[s] || 0), 0);
     const stats = {
       pending: bucketCount(JOB_STATUS_BUCKETS.pending),
-      manualAssignmentRequired: bucketCount(JOB_STATUS_BUCKETS.manualAssignmentRequired),
+      manualAssignmentRequired: bucketCount(JOB_STATUS_BUCKETS.manualAssignmentRequired) + escalatedNotYetTerminal,
       inProgress: bucketCount(JOB_STATUS_BUCKETS.inProgress),
       completed: bucketCount(JOB_STATUS_BUCKETS.completed),
       cancelled: bucketCount(JOB_STATUS_BUCKETS.cancelled),

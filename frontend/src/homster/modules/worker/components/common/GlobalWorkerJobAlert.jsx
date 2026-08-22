@@ -7,8 +7,22 @@ import { workerTheme as themeColors } from '../../../../theme';
 import { playAlertRing, stopAlertRing } from '../../../../utils/notificationSound';
 import workerService from '../../../../services/workerService';
 
-const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) => {
-  const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
+const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft }) => {
+  // The countdown auto-rejects at zero, so it MUST match the server's real
+  // response window (Settings.waveDuration). It was hard-coded to 60s: with a
+  // 5-minute window configured, the worker's own screen threw the job away
+  // four minutes before the server had given up on them.
+  const windowSeconds = Math.max(
+    5,
+    Math.round(
+      Number(booking?.respondBySeconds) ||
+      Number(booking?.responseWindowSeconds) ||
+      Number(initialTimeLeft) ||
+      60
+    )
+  );
+
+  const [timeLeft, setTimeLeft] = useState(windowSeconds);
   const [loadingAction, setLoadingAction] = useState(null);
 
   const handleAction = async (actionFn, actionType) => {
@@ -43,7 +57,9 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) 
 
   const radius = 24;
   const circumference = 2 * Math.PI * radius;
-  const progress = (timeLeft / initialTimeLeft) * circumference;
+  // Ring must be drawn against the same window the countdown runs on —
+  // `initialTimeLeft` is now optional and would be undefined (→ NaN offset).
+  const progress = (timeLeft / windowSeconds) * circumference;
   const dashoffset = circumference - progress;
 
   return (
@@ -86,8 +102,16 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft = 60 }) 
               />
             </svg>
             <div className="text-center mt-0.5">
-              <span className={`text-xl font-black block leading-none ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-[#3B82F6]'}`}>{timeLeft}</span>
-              <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter block -mt-1">Sec</span>
+              {/* Windows are minutes now, so "300 SEC" would be unreadable —
+                  show m:ss above a minute and plain seconds below it. */}
+              <span className={`text-xl font-black block leading-none ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-[#3B82F6]'}`}>
+                {timeLeft >= 60
+                  ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`
+                  : timeLeft}
+              </span>
+              <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter block -mt-1">
+                {timeLeft >= 60 ? 'Min' : 'Sec'}
+              </span>
             </div>
           </div>
         </div>
@@ -193,6 +217,10 @@ const mapPendingRequestToJob = (data) => ({
   requirementText: data.requirementText,
   isConsultancyRequest: data.isConsultancyRequest,
   isEstimateBased: data.isEstimateBased,
+  // Carry the server's response window through, or the card falls back to its
+  // 60s default and auto-rejects early.
+  respondBySeconds: data.respondBySeconds,
+  responseWindowSeconds: data.responseWindowSeconds,
   scheduledDate: data.scheduledDate,
   scheduledTime: data.scheduledTime,
   timeSlot: {
@@ -289,12 +317,12 @@ export default function GlobalWorkerJobAlert() {
       const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(id));
       localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
 
+      // The effect below stops the ring once no alerts remain. Deciding it
+      // here meant reading `activeAlerts` from this handler's closure, which is
+      // the value from the render it was created in — stale as soon as another
+      // offer arrives, so the ring could be left playing (or cut while other
+      // offers were still open).
       setActiveAlerts(prev => prev.filter(b => String(b.id || b._id) !== String(id)));
-      
-      // Stop alert ring if this was the last alert
-      if (activeAlerts.length <= 1) {
-        stopAlertRing();
-      }
 
       window.dispatchEvent(new Event('workerJobsUpdated'));
       toast.success('Job Accepted Successfully!');
@@ -314,12 +342,9 @@ export default function GlobalWorkerJobAlert() {
       const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(id));
       localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
 
+      // Same as accept: let the effect below silence the ring when the list is
+      // actually empty, rather than guessing from a stale closure value.
       setActiveAlerts(prev => prev.filter(b => String(b.id || b._id) !== String(id)));
-      
-      // Stop alert ring if this was the last alert
-      if (activeAlerts.length <= 1) {
-        stopAlertRing();
-      }
 
       if (!isAutoReject) toast.success('Job Rejected');
       window.dispatchEvent(new Event('workerJobsUpdated'));

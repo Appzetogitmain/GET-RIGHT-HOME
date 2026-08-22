@@ -22,6 +22,7 @@ import { sendNotificationToUser, sendNotificationToWorker } from '../services/fi
 import { findNearbyWorkers, geocodeAddress } from '../services/locationService.js';
 import { getIO } from '../sockets.js';
 import { sendBookingEmails } from '../services/emailService.js';
+import { computeBookingPricing, pricingMatchesClient } from '../utils/bookingPricing.js';
 
 /**
  * Create a new booking
@@ -242,31 +243,51 @@ const createBooking = async (req, res) => {
 
     // 3. Standard Pricing (Fallback) if NOT using Plan Benefits
     if (!usePlanBenefits) {
-      if (amount && amount > 0) {
-        // Use amount from frontend logic
-        if (reqBasePrice !== undefined && reqTax !== undefined) {
-          // Use breakdown provided by frontend
-          basePrice = reqBasePrice;
-          discount = reqDiscount || 0;
-          const currentPromoDiscount = reqPromoDiscount || 0;
-          tax = reqTax;
-          visitingCharges = (reqVisitingCharges !== undefined) ? reqVisitingCharges : (visitingCharges || 0);
-          finalAmount = Math.max(0, (basePrice - discount - currentPromoDiscount + tax + visitingCharges) + pendingPenalty);
-        } else {
-          // Backward compatibility: Reverse calculate
-          if (!visitingCharges) visitingCharges = 0;
-          basePrice = amount;
-          tax = 0;
-          discount = 0;
-          finalAmount = amount + pendingPenalty;
+      // SECURITY: pricing is recomputed from the service records the server
+      // loaded. The client's basePrice/tax/discount/promoDiscount used to be
+      // written straight onto the booking, so a request claiming
+      // `basePrice: 1` booked a ₹629 service for ₹1. Those fields are now only
+      // compared against the server's own figure.
+      //
+      // Cart lines are priced from a server-side lookup keyed by serviceId, so
+      // a tampered per-item `price` can't inflate or deflate the total either.
+      let trustedPrices = null;
+      if (Array.isArray(bookedItems) && bookedItems.length > 0) {
+        const itemIds = bookedItems
+          .map((it) => String(it?.serviceId?._id || it?.serviceId || it?.card?._id || it?._id || ''))
+          .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+        if (itemIds.length > 0) {
+          const priced = await Service.find({ _id: { $in: itemIds } })
+            .select('basePrice discountPrice')
+            .lean();
+          trustedPrices = new Map(
+            priced.map((p) => [String(p._id), p.discountPrice > 0 ? p.discountPrice : p.basePrice])
+          );
         }
-      } else {
-        // Fallback to service pricing (if no amount sent)
-        if (!visitingCharges) visitingCharges = 0;
-        basePrice = service.basePrice || 500;
-        discount = service.discountPrice ? (basePrice - service.discountPrice) : 0;
-        tax = 0;
-        finalAmount = (basePrice - discount + tax + visitingCharges) + pendingPenalty;
+      }
+
+      const pricing = computeBookingPricing({
+        service,
+        bookedItems,
+        trustedPrices,
+        visitingCharges,
+        // Promo validation lives upstream; clamp here so a promo can never
+        // exceed the service value regardless of what was sent.
+        promoDiscount: reqPromoDiscount,
+        pendingPenalty
+      });
+
+      basePrice = pricing.basePrice;
+      discount = pricing.discount;
+      tax = pricing.tax;
+      visitingCharges = pricing.visitingCharges;
+      finalAmount = pricing.finalAmount;
+
+      if (!pricingMatchesClient(finalAmount, amount)) {
+        console.warn(
+          `[CreateBooking] Client/server price mismatch for user ${userId}: client=${amount}, server=${finalAmount} (service ${service._id}). Charging server price.`
+        );
       }
     }
 
@@ -275,11 +296,14 @@ const createBooking = async (req, res) => {
     // This prevents inconsistency between Booking and VendorBill.
     console.log(`[CreateBooking] Payment=${paymentMethod}, FinalAmount=${finalAmount}, Penalty=${pendingPenalty}`);
 
-    // Clear penalty from user wallet if we charged it
-    if (pendingPenalty > 0) {
-      user.wallet.penalty = 0;
-      await user.save();
-    }
+    // NOTE: the pending penalty is deliberately NOT cleared here.
+    //
+    // It used to be zeroed at booking creation, before the booking was even
+    // saved and long before payment — `paymentStatus` is still `pending` at
+    // this point, and COD settles much later. If creation failed afterwards,
+    // or the user never paid, the penalty was already gone with no way to
+    // restore it. It is now cleared only when the payment that includes it is
+    // confirmed (see markPenaltySettled).
 
     // Ensure minimum amount for Razorpay (₹1) for paid bookings
     if (finalAmount < 1 && paymentMethod !== 'plan_benefit') {
@@ -452,6 +476,21 @@ const createBooking = async (req, res) => {
         bookingForBackground.currentWave = 1;
         bookingForBackground.waveStartedAt = new Date();
         bookingForBackground.notifiedPartners = wave1Partners.map(v => v._id);
+        bookingForBackground.assignmentStatus = 'searching';
+
+        // Log wave 1 the same way the scheduler logs later waves, so the
+        // manual-assignment queue shows the FULL attempt history rather than
+        // starting from wave 2.
+        bookingForBackground.assignmentAttempts = bookingForBackground.assignmentAttempts || [];
+        wave1Partners.forEach((p) => {
+          bookingForBackground.assignmentAttempts.push({
+            workerId: p._id,
+            waveNumber: 1,
+            notifiedAt: new Date(),
+            outcome: 'notified'
+          });
+        });
+
         await bookingForBackground.save();
 
         // Fetch Platform Settings for Dynamic Worker Price
@@ -646,6 +685,21 @@ const createBooking = async (req, res) => {
 
   } catch (error) {
     console.error('Create booking error:', error);
+
+    // A schema validation failure is bad input, not a server fault. Returning
+    // 500 with a generic message left the client unable to tell the user which
+    // field was wrong — every mistake looked like an outage.
+    if (error?.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: Object.values(error.errors || {}).map((e) => ({
+          field: e.path,
+          message: e.message
+        }))
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Failed to create booking. Please try again.'
@@ -676,12 +730,16 @@ const getUserBookings = async (req, res) => {
       } else {
         query.status = status;
       }
-    } else {
-      // "All Bookings": exclude internal dispatch statuses
-      query.status = {
-        $nin: ['searching', 'SEARCHING', 'no_vendors', 'no_workers']
-      };
     }
+    // else: no status filter → return everything.
+    //
+    // These used to be excluded as "internal dispatch statuses", which meant a
+    // booking the customer had just paid for was INVISIBLE in My Bookings for
+    // the whole time we were finding a professional — and a booking that ended
+    // in `no_workers` disappeared permanently without the customer ever being
+    // told. Both are real, user-meaningful states ("Finding Professional" /
+    // "Assigning Professional") and must be shown; the customer-facing label
+    // is mapped in the UI so internal names are never exposed.
     if (startDate || endDate) {
       query.scheduledDate = {};
       if (startDate) query.scheduledDate.$gte = new Date(startDate);
@@ -868,7 +926,11 @@ const cancelBooking = async (req, res) => {
     }
 
     const hasStartedJourney = !!booking.journeyStartedAt;
-    const isPaid = booking.paymentStatus === PAYMENT_STATUS.SUCCESS;
+    // PAYMENT_STATUS has no SUCCESS member — it was `undefined`, so this
+    // comparison was false for every real booking and prepaid customers were
+    // refunded ₹0 on cancellation. PLAN_COVERED counts as paid too: the user
+    // already gave up plan credit for it.
+    const isPaid = [PAYMENT_STATUS.PAID, PAYMENT_STATUS.PLAN_COVERED].includes(booking.paymentStatus);
     const isWalletOrOnline = ['wallet', 'razorpay', 'upi', 'card'].includes(booking.paymentMethod);
     const isCash = booking.paymentMethod === 'cash';
 

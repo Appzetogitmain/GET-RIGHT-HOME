@@ -46,6 +46,47 @@ const bookingSchema = new mongoose.Schema({
   }],
 
   // ==========================================
+  // ASSIGNMENT LIFECYCLE
+  // ==========================================
+  //
+  // Kept SEPARATE from `status` (the booking lifecycle) on purpose: a booking
+  // can be perfectly alive and paid while its assignment is still unresolved.
+  // Conflating the two is what made "nobody accepted yet" look like "booking
+  // failed" to the customer.
+  assignmentStatus: {
+    type: String,
+    enum: [
+      'pending',                     // not started
+      'searching',                   // requests going out to workers
+      'manual_assignment_required',  // automatic matching exhausted → ops queue
+      'assigned',                    // a worker holds this booking
+      'reassigning',                 // previous worker dropped out, retrying
+      'unfulfillable'                // ops determined it cannot be served
+    ],
+    default: 'pending',
+    index: true
+  },
+
+  // One row per worker we asked, so ops can see WHY a booking reached the
+  // manual queue (rejected vs never responded) instead of guessing.
+  assignmentAttempts: [{
+    workerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Worker' },
+    waveNumber: { type: Number, default: 1 },
+    notifiedAt: { type: Date, default: Date.now },
+    respondedAt: { type: Date, default: null },
+    outcome: {
+      type: String,
+      enum: ['notified', 'accepted', 'rejected', 'timeout', 'cancelled_by_worker'],
+      default: 'notified'
+    },
+    reason: { type: String, default: '' }
+  }],
+
+  // Set when ops assigns by hand, for accountability.
+  manuallyAssignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
+  manuallyAssignedAt: { type: Date, default: null },
+
+  // ==========================================
   // WAVE-BASED ALERTING
   // ==========================================
   potentialVendors: [{

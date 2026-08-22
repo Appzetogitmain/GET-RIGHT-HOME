@@ -36,10 +36,31 @@ const AssignedJobs = () => {
       setLoading(true);
       setError(null);
 
-      const response = await workerService.getAssignedJobs({ limit: 100 });
-      if (response.success) {
-        setJobs(response.data);
-      }
+      // Assigned jobs and open offers are two different things and were only
+      // ever fetched separately: getAssignedJobs filters on { workerId }, so a
+      // pending OFFER (workerId still null) could never appear here. Offers
+      // existed solely inside the transient popup alert, so a worker who
+      // missed or dismissed it had nowhere to find the job. Fetch both.
+      const [assignedRes, pendingRes] = await Promise.all([
+        workerService.getAssignedJobs({ limit: 100 }),
+        workerService.getPendingRequests().catch(() => null)
+      ]);
+
+      const assigned = assignedRes?.success ? (assignedRes.data || []) : [];
+
+      // Offers use a different shape (bookingId, not _id) — normalise so the
+      // list can render them, and flag them so the UI can show Accept/Reject.
+      const offers = (pendingRes?.success ? pendingRes.data || [] : []).map((o) => ({
+        ...o,
+        _id: o.bookingId,
+        status: 'pending_offer',
+        isPendingOffer: true
+      }));
+
+      // Offers first — they expire, so they're the time-critical ones.
+      const assignedIds = new Set(assigned.map((j) => String(j._id)));
+      setJobs([...offers.filter((o) => !assignedIds.has(String(o._id))), ...assigned]);
+
       setLoading(false);
     } catch (err) {
       console.error('Fetch jobs error:', err);
@@ -69,6 +90,8 @@ const AssignedJobs = () => {
       'completed': '#10B981',
       'cancelled': '#EF4444',
       'rejected': '#EF4444',
+      // Time-critical: this offer expires, so it needs to stand out.
+      'pending_offer': '#8B5CF6',
     };
     return colors[status] || '#6B7280';
   };
@@ -81,6 +104,8 @@ const AssignedJobs = () => {
       'completed': 'Completed',
       'cancelled': 'Cancelled',
       'rejected': 'Rejected',
+      // Offer waiting for this worker to accept — not yet theirs.
+      'pending_offer': 'New Request',
     };
     return labels[status] || status;
   };
@@ -99,7 +124,7 @@ const AssignedJobs = () => {
     if (filter === 'all') {
       matchesFilter = true;
     } else if (filter === 'confirmed') {
-      matchesFilter = ['confirmed', 'assigned', 'pending', 'requested', 'searching'].includes(status);
+      matchesFilter = ['confirmed', 'assigned', 'pending', 'requested', 'searching', 'pending_offer'].includes(status);
     } else if (filter === 'in_progress') {
       matchesFilter = ['in_progress', 'started', 'reached', 'visited', 'work_done', 'on_the_way'].includes(status);
     } else if (filter === 'completed') {

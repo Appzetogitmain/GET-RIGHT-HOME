@@ -3,6 +3,11 @@ export const BOOKING_STATUS = {
   PENDING: 'pending',
   SEARCHING: 'searching',
   ASSIGNED: 'assigned',
+  // Automatic matching found nobody. The booking stays ACTIVE and moves to the
+  // ops team's manual-assignment queue — it is not a cancellation. Kept
+  // alongside the older no_workers/no_vendors values, which existing rows
+  // still use and which mean the same thing.
+  MANUAL_ASSIGNMENT_REQUIRED: 'manual_assignment_required',
   CONFIRMED: 'confirmed',
   ACCEPTED: 'accepted',
   JOURNEY_STARTED: 'journey_started',
