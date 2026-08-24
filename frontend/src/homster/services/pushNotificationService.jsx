@@ -349,7 +349,16 @@ function setupForegroundNotificationHandler(handler) {
             </button>
           </div>
         </div>
-      ), { duration: isEmergency ? 15000 : 8000, position: 'top-right' });
+      ), {
+        // Fixed id — multiple FCM messages arriving close together (e.g. a
+        // booking firing several distinct notifications) previously each
+        // spawned their own toast with no id, so they all stacked up the
+        // screen at once. A shared id makes react-hot-toast replace the
+        // current toast in place instead, so only the latest is ever shown.
+        id: 'fcm-foreground-toast',
+        duration: isEmergency ? 15000 : 8000,
+        position: 'top-right'
+      });
     } catch (toastErr) {
       console.error('[FCM] ❌ Toast fallback failed:', toastErr);
     }
@@ -465,7 +474,15 @@ async function initializePushNotifications() {
               </button>
             </div>
           </div>
-        ), { duration: isEmergency ? 15000 : 8000, position: 'top-right', id: `fcm-${payload.notificationId || Date.now()}` });
+        ), {
+          // Same fixed id as the other foreground-toast path — several
+          // notifications firing close together for one event previously
+          // stacked up because the id here varied per call (Date.now()
+          // fallback). A shared id replaces the current toast instead.
+          id: 'fcm-foreground-toast',
+          duration: isEmergency ? 15000 : 8000,
+          position: 'top-right'
+        });
       } catch (toastErr) {
         console.error('[FCM] Toast error:', toastErr);
       }
