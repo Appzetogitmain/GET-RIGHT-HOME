@@ -206,8 +206,12 @@ const Layout = ({ children }) => {
     maintenanceMessage: ''
   });
 
-  // Disable Lenis on Admin and Manager routes (as requested)
-  const isCmsRoute = location.pathname.startsWith('/admin') || location.pathname.startsWith('/manager');
+  // Disable Lenis on Admin, Manager, and Worker routes. Lenis drives smooth
+  // scrolling by transforming a wrapper element as the page scrolls — any
+  // position:fixed descendant of that wrapper (the worker app's BottomNav)
+  // stops being fixed to the viewport and instead moves with the transform,
+  // which is exactly what made the bottom nav drift up while scrolling.
+  const isCmsRoute = location.pathname.startsWith('/admin') || location.pathname.startsWith('/manager') || location.pathname.startsWith('/worker');
   useLenis(isCmsRoute);
 
   React.useEffect(() => {
