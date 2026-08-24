@@ -143,11 +143,7 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
   const tokenPaid = isEstimate ? (Number(booking.estimate?.tokenAmount) || 0) : 0;
 
   const baseOnlineTotal = bill?.finalOnlineAmount || booking.finalOnlineAmount || bill?.grandTotal || booking.finalAmount || 0;
-  const baseCashTotal = bill?.finalCashAmount || booking.finalCashAmount || (booking.finalAmount ? booking.finalAmount + (isEstimate ? 0 : (bill?.cashCollectionFee ?? 20)) : null) || bill?.grandTotal || booking.finalAmount || 0;
-
   const onlineTotal = isEstimate ? Math.max(0, baseOnlineTotal - tokenPaid) : baseOnlineTotal;
-  const cashTotal = isEstimate ? onlineTotal : baseCashTotal;
-  const isDualPricing = onlineTotal !== cashTotal;
 
   // --- 2. Identity Helpers ---
   const categoryName = booking.serviceCategory || 'General';
@@ -224,14 +220,6 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                     ₹{onlineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
-                {isDualPricing && (
-                  <div className="flex justify-between items-end bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-2">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Cash Pay Amount</p>
-                    <p className="text-xl font-bold text-slate-600">
-                      ₹{cashTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* 1. Services */}
@@ -359,28 +347,23 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                       <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
                         <FiAlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                         <p className="text-[10px] font-bold text-amber-800 uppercase tracking-tight">
-                           Online payment temporarily unavailable. Please pay by cash.
+                           Online payment is temporarily unavailable. Please try again shortly.
                         </p>
                       </div>
                     )
                   )}
 
-                  <div className="relative py-1 text-center">
-                    <span className="bg-white px-2 text-[10px] font-bold text-slate-400 relative z-10 uppercase tracking-wider">OR</span>
-                    <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-100 z-0"></div>
-                  </div>
-
-                  {/* Cash Code (Always rendered to prevent layout jumping) */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
-                    <p className="text-xs font-bold text-slate-700 mb-2">
-                      Paying ₹{cashTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} Cash?
-                    </p>
+                  {/* Job-completion OTP — needed once payment goes through
+                      too, to confirm with the professional that the job is
+                      actually done. Not tied to a cash payment method. */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center mt-3">
+                    <p className="text-xs font-bold text-slate-700 mb-2">Job Completion OTP</p>
                     <div className="bg-white border-2 border-dashed border-slate-300 rounded-lg py-2 px-4 inline-block mb-1">
                       <span className="text-2xl font-black font-mono text-slate-900 tracking-[0.2em]">
                         {booking.customerConfirmationOTP || booking.paymentOtp || '....'}
                       </span>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-1">Share with professional to confirm cash payment</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Share with your professional once the work is done to confirm completion</p>
                   </div>
                 </>
               )}

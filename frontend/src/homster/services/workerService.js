@@ -36,6 +36,14 @@ const workerService = {
     return response.data;
   },
 
+  /**
+   * Silent SOS — sends an emergency alert to admin. Never places a call.
+   */
+  sendEmergencyAlert: async (message, location) => {
+    const response = await api.post('/workers/emergency', { message, location });
+    return response.data;
+  },
+
   // Jobs
   getAssignedJobs: async (params) => {
     const response = await api.get('/workers/jobs', { params });

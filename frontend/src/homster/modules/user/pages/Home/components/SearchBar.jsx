@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiSearch } from 'react-icons/fi';
 import NotificationBell from '../../../components/common/NotificationBell';
+import EmergencySOSButton from '../../../components/common/EmergencySOSButton';
 import { themeColors } from '../../../../../theme';
 
 const SearchBar = ({ onInputClick }) => {
@@ -97,7 +98,8 @@ const SearchBar = ({ onInputClick }) => {
         </div>
       </div>
 
-      {/* Notification Bell next to Search Bar */}
+      {/* Emergency SOS + Notification Bell next to Search Bar */}
+      <EmergencySOSButton />
       <div className="shrink-0">
         <NotificationBell />
       </div>

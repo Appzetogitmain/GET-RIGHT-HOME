@@ -76,7 +76,6 @@ const BillingPage = () => {
   const [onlinePaymentData, setOnlinePaymentData] = useState(null);
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
-  const [paymentMode, setPaymentMode] = useState(null); // 'cash' | 'online'
 
   const socket = useAppNotifications('worker');
 
@@ -884,15 +883,9 @@ const BillingPage = () => {
                 <p className="text-gray-400 text-xs font-medium uppercase tracking-widest mb-4 text-center">
                   {calculations.isAlreadyPaid ? 'BALANCE TO COLLECT' : 'FINAL USER BILL'}
                 </p>
-                <div className="grid grid-cols-2 gap-4 divide-x divide-gray-800">
-                  <div className="flex flex-col items-center justify-center">
-                    <span className="text-gray-400 text-[10px] mb-1">ONLINE PAY</span>
-                    <span className="text-3xl font-black text-blue-400">₹{calculations.finalBillAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center pl-4">
-                    <span className="text-gray-400 text-[10px] mb-1">CASH PAY</span>
-                    <span className="text-3xl font-black text-emerald-400">₹{calculations.finalCashCollectAmount.toFixed(2)}</span>
-                  </div>
+                <div className="flex flex-col items-center justify-center">
+                  <span className="text-gray-400 text-[10px] mb-1">ONLINE PAY</span>
+                  <span className="text-3xl font-black text-blue-400">₹{calculations.finalBillAmount.toFixed(2)}</span>
                 </div>
               </div>
               <div className="p-6 space-y-6">
@@ -953,13 +946,6 @@ const BillingPage = () => {
                             </div>
                           )}
                           
-                          {calculations.cashCollectionFee > 0 && (
-                            <div className="flex justify-between text-emerald-600 text-sm font-medium">
-                              <span>Cash Collection Fee (If cash paid)</span>
-                              <span>+₹{calculations.cashCollectionFee}</span>
-                            </div>
-                          )}
-
                           {calculations.prepaidAmount > 0 && (
                             <div className="flex justify-between text-emerald-600 text-sm font-bold border-t border-gray-100 pt-2 mt-2">
                               <span>{calculations.isAlreadyPaid ? 'Already Paid Online' : 'Advance Token Paid'}</span>
@@ -969,12 +955,8 @@ const BillingPage = () => {
 
                           <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
                             <div className="flex justify-between font-black text-gray-900">
-                              <span>Total Online Bill</span>
+                              <span>Total Bill</span>
                               <span>₹{calculations.finalBillAmount.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between font-black text-emerald-600">
-                              <span>Total Cash Bill</span>
-                              <span>₹{calculations.finalCashCollectAmount.toFixed(2)}</span>
                             </div>
                           </div>
                         </>

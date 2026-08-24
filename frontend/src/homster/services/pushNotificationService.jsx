@@ -301,9 +301,10 @@ function setupForegroundNotificationHandler(handler) {
     // 3. ALWAYS Show Internal Alert in Foreground (Premium Toast)
     try {
       console.log('[FCM] 🎨 Rendering custom toast...');
+      const isEmergency = type.includes('emergency');
       toast.custom((t) => (
-        <div 
-          className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white/95 backdrop-blur-sm shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 border-l-4 border-orange-500 overflow-hidden cursor-pointer`}
+        <div
+          className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white/95 backdrop-blur-sm shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 overflow-hidden cursor-pointer border-l-4 ${isEmergency ? 'border-red-600' : 'border-orange-500'}`}
           onClick={() => {
             toast.dismiss(t.id);
             if (data.link) window.location.href = data.link;
@@ -312,16 +313,24 @@ function setupForegroundNotificationHandler(handler) {
           <div className="flex-1 w-0 p-4">
             <div className="flex items-start">
               <div className="flex-shrink-0 pt-0.5">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white shadow-lg">
-                  <img className="h-10 w-10 rounded-full border-2 border-white/50" src={icon} alt="" onError={(e) => e.target.src = '/truliq-logo.png'} />
+                <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white shadow-lg ${isEmergency ? 'bg-red-600' : 'bg-gradient-to-br from-orange-400 to-red-500'}`}>
+                  {isEmergency ? (
+                    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                  ) : (
+                    <img className="h-10 w-10 rounded-full border-2 border-white/50" src={icon} alt="" onError={(e) => e.target.src = '/truliq-logo.png'} />
+                  )}
                 </div>
               </div>
               <div className="ml-3 flex-1">
                 <p className="text-sm font-bold text-gray-900 leading-tight">{title}</p>
                 <p className="mt-1 text-xs text-gray-600 font-medium line-clamp-2">{body}</p>
                 <div className="mt-2 flex items-center gap-2">
-                   <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full uppercase tracking-widest border border-orange-100">
-                     {type.replace('_', ' ')}
+                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${isEmergency ? 'text-red-600 bg-red-50 border-red-100' : 'text-orange-600 bg-orange-50 border-orange-100'}`}>
+                     {type.replace(/_/g, ' ')}
                    </span>
                    <span className="text-[10px] font-bold text-gray-400">Just now</span>
                 </div>
@@ -340,7 +349,7 @@ function setupForegroundNotificationHandler(handler) {
             </button>
           </div>
         </div>
-      ), { duration: 8000, position: 'top-right' });
+      ), { duration: isEmergency ? 15000 : 8000, position: 'top-right' });
     } catch (toastErr) {
       console.error('[FCM] ❌ Toast fallback failed:', toastErr);
     }
@@ -411,9 +420,10 @@ async function initializePushNotifications() {
       // 2. Show premium toast
       try {
         const { toast } = await import('react-hot-toast');
+        const isEmergency = notifType.includes('emergency');
         toast.custom((t) => (
           <div
-            className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white/95 backdrop-blur-sm shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 border-l-4 border-orange-500 overflow-hidden cursor-pointer`}
+            className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white/95 backdrop-blur-sm shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 overflow-hidden cursor-pointer border-l-4 ${isEmergency ? 'border-red-600' : 'border-orange-500'}`}
             onClick={() => {
               toast.dismiss(t.id);
               if (payload.link) window.location.href = payload.link;
@@ -422,15 +432,23 @@ async function initializePushNotifications() {
             <div className="flex-1 w-0 p-4">
               <div className="flex items-start">
                 <div className="flex-shrink-0 pt-0.5">
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg">
-                    <img className="h-10 w-10 rounded-full border-2 border-white/50" src={icon} alt="" onError={(e) => e.target.src = '/truliq-logo.png'} />
+                  <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white shadow-lg ${isEmergency ? 'bg-red-600' : 'bg-gradient-to-br from-orange-400 to-red-500'}`}>
+                    {isEmergency ? (
+                      <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                    ) : (
+                      <img className="h-10 w-10 rounded-full border-2 border-white/50" src={icon} alt="" onError={(e) => e.target.src = '/truliq-logo.png'} />
+                    )}
                   </div>
                 </div>
                 <div className="ml-3 flex-1">
                   <p className="text-sm font-bold text-gray-900 leading-tight">{title}</p>
                   <p className="mt-1 text-xs text-gray-600 font-medium line-clamp-2">{body}</p>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full uppercase tracking-widest border border-orange-100">
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${isEmergency ? 'text-red-600 bg-red-50 border-red-100' : 'text-orange-600 bg-orange-50 border-orange-100'}`}>
                       {notifType.replace(/_/g, ' ')}
                     </span>
                     <span className="text-[10px] font-bold text-gray-400">Just now</span>
@@ -447,7 +465,7 @@ async function initializePushNotifications() {
               </button>
             </div>
           </div>
-        ), { duration: 8000, position: 'top-right', id: `fcm-${payload.notificationId || Date.now()}` });
+        ), { duration: isEmergency ? 15000 : 8000, position: 'top-right', id: `fcm-${payload.notificationId || Date.now()}` });
       } catch (toastErr) {
         console.error('[FCM] Toast error:', toastErr);
       }

@@ -959,7 +959,7 @@ const BookingTrack = () => {
                         ))}
                       </div>
                       <p className="mt-4 text-[9px] text-white/70 text-center font-medium bg-black/10 px-4 py-1.5 rounded-full">
-                        Share with professional to confirm cash payment
+                        Share with professional to confirm job completion
                       </p>
                     </div>
                   ) : (
@@ -981,7 +981,7 @@ const BookingTrack = () => {
 
               {booking?.paymentStatus !== 'success' && (
                 <p className="mt-4 text-[10px] text-white/70 text-center font-medium">
-                  Professional will mark as completed after cash collection.
+                  Professional will mark the job completed once payment is confirmed.
                 </p>
               )}
             </div>
