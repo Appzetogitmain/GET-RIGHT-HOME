@@ -62,7 +62,13 @@ export const createPlan = async (req, res) => {
             rankingWeight: rankingWeight || 1,
             pauseDaysAllowed: pauseDaysAllowed || 0,
             targetRole: targetRole || 'owner',
-            listingType: listingType || 'all'
+            listingType: listingType || 'all',
+            // `schemaVersion` defaults to 2 (the new Sale/Rental system) on
+            // the shared model — without this override, a plan created here
+            // would silently be born looking like a new-system plan: it'd
+            // leak straight into the property-level storefront, purchasable,
+            // with zero real features behind it.
+            schemaVersion: 1,
         });
 
         res.status(201).json({ success: true, plan });
@@ -79,7 +85,11 @@ export const createPlan = async (req, res) => {
  */
 export const getAllPlans = async (req, res) => {
     try {
-        const plans = await SubscriptionPlan.find().sort({ createdAt: -1 });
+        // Both catalogue generations share this collection. Without this
+        // filter the 21 new Sale/Rental/Buyer plans (schemaVersion 2) show up
+        // here too — confusing duplicate-looking "Sale Basic"/"Rental
+        // Premium" entries the admin never created, alongside the real 7.
+        const plans = await SubscriptionPlan.find({ schemaVersion: { $ne: 2 } }).sort({ createdAt: -1 });
         res.json({ success: true, plans });
     } catch (error) {
         console.error('Get All Plans Error:', error);
@@ -94,6 +104,12 @@ export const getAllPlans = async (req, res) => {
  */
 export const updatePlan = async (req, res) => {
     try {
+        // getAllPlans no longer lists version-2 plans, but the id is still a
+        // valid ObjectId an admin could paste in directly — block editing a
+        // new-system plan through the legacy screen either way.
+        const existing = await SubscriptionPlan.findById(req.params.id).select('schemaVersion');
+        if (!existing || existing.schemaVersion === 2) return res.status(404).json({ message: 'Plan not found' });
+
         const plan = await SubscriptionPlan.findByIdAndUpdate(req.params.id, req.body, { new: true });
         if (!plan) return res.status(404).json({ message: 'Plan not found' });
         res.json({ success: true, plan });
@@ -110,6 +126,9 @@ export const updatePlan = async (req, res) => {
  */
 export const deletePlan = async (req, res) => {
     try {
+        const existing = await SubscriptionPlan.findById(req.params.id).select('schemaVersion');
+        if (!existing || existing.schemaVersion === 2) return res.status(404).json({ success: false, message: 'Plan not found' });
+
         const { hard } = req.query;
         if (hard === 'true') {
             const plan = await SubscriptionPlan.findByIdAndDelete(req.params.id);
@@ -157,7 +176,13 @@ export const getActivePlans = async (req, res) => {
             return res.json({ success: true, plans: [] });
         }
 
-        const filter = { isActive: true, targetRole };
+        // Both generations of the catalogue share this collection and this
+        // `targetRole` value, so without this the new Sale/Rental plans
+        // (schemaVersion 2, activated for the property-level system) leak
+        // into this — completely unrelated — legacy panel, mixed in with
+        // plans that grant real entitlements here and duplicate-looking
+        // "Basic"/"Premium" names that don't.
+        const filter = { isActive: true, targetRole, schemaVersion: 1 };
 
         // If a listing type is given, show plans built for that type plus any
         // 'all'-type plan, OR a legacy plan that predates this field entirely
@@ -265,7 +290,7 @@ export const activateLegacySubscriptionFromWebhook = async (rzpOrder, paymentId)
     if (!partnerId || !planId) return { ok: false, reason: 'Order notes missing partnerId/planId' };
 
     const plan = await SubscriptionPlan.findById(planId);
-    if (!plan) return { ok: false, reason: 'Plan no longer exists' };
+    if (!plan || plan.schemaVersion === 2) return { ok: false, reason: 'Plan no longer exists' };
 
     // Figure out which collection this account lives in without trusting a
     // role the webhook never received — try User first (the common case for
@@ -297,7 +322,15 @@ export const createSubscriptionOrder = async (req, res) => {
         const partnerId = req.user._id || req.user.id;
 
         const plan = await SubscriptionPlan.findById(planId);
-        if (!plan || !plan.isActive) return res.status(404).json({ message: 'Plan not found' });
+        // Also rejects a schemaVersion-2 (new-system) plan. That gap was
+        // real and live: activating the new Sale/Rental catalogue for the
+        // property-level system made 21 plans `isActive: true` with
+        // `targetRole` values that collide with this endpoint's own roles,
+        // so an owner could buy "Sale Basic" — a per-property plan — through
+        // THIS account-level checkout. It would "succeed", write into
+        // `user.subscription`, and grant nothing: no property attachment, no
+        // entitlement snapshot, no ranking boost, for a real payment.
+        if (!plan || !plan.isActive || plan.schemaVersion === 2) return res.status(404).json({ message: 'Plan not found' });
 
         // F-1 (second half): getActivePlans stopped showing plans outside the
         // caller's role, but checkout itself accepted ANY planId with no
@@ -402,8 +435,11 @@ export const verifySubscription = async (req, res) => {
         const planId = rzpOrder?.notes?.planId;
 
         // 2. Activate Subscription
+        // Defense in depth: createSubscriptionOrder now refuses to mint an
+        // order for a new-system plan, so this should never see one — but
+        // never trust that the only path in stayed the only path in.
         const plan = await SubscriptionPlan.findById(planId);
-        if (!plan) return res.status(404).json({ message: 'Plan not found during activation' });
+        if (!plan || plan.schemaVersion === 2) return res.status(404).json({ message: 'Plan not found during activation' });
 
         const subscription = await activatePlanForUser({
             userId: partnerId,

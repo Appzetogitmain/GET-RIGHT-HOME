@@ -61,6 +61,7 @@ export const getEligiblePlans = async (user, opts = {}) => {
 
     const plans = await SubscriptionPlan.find({
         isActive: true,
+        schemaVersion: 2,
         targetRole: userRole,
         mode: { $in: modes },
     })
@@ -79,6 +80,12 @@ export const getEligiblePlans = async (user, opts = {}) => {
 export const assertPurchasable = async (user, plan, propertyIds = []) => {
     if (!plan) return { ok: false, reason: 'Plan not found' };
     if (!plan.isActive) return { ok: false, reason: 'This plan is no longer available' };
+
+    // A version-1 plan has no feature set, so buying one would grant nothing.
+    // It can only reach this point if a legacy row picked up the `mode` default.
+    if (plan.schemaVersion !== 2) {
+        return { ok: false, reason: 'This plan is not available for purchase' };
+    }
 
     const userRole = resolveProfileType(user);
 

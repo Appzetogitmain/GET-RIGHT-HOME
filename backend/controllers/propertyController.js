@@ -1699,10 +1699,40 @@ export const getPublicProperties = async (req, res) => {
           // `promotion.isActive` is cleared by the hourly expiry sweep, but
           // checking `expiryDate` here too means a result is never over-ranked
           // in the up-to-an-hour gap before that sweep runs.
+          //
+          // The mode check is not redundant with the purchase-time guard. A
+          // listing's transactionType can change after a boost is bought (an
+          // owner switching a listing from Sell to Rent, an admin edit), which
+          // would otherwise leave a Sale boost quietly ranking a rental — the
+          // exact cross-mode leak the architecture forbids. Verified: without
+          // this arm a rental boost of weight 100 lifted a sale listing.
           promotionLive: {
             $and: [
               { $eq: ['$promotion.isActive', true] },
-              { $gt: [{ $ifNull: ['$promotion.expiryDate', new Date(0)] }, new Date()] }
+              { $gt: [{ $ifNull: ['$promotion.expiryDate', new Date(0)] }, new Date()] },
+              {
+                $eq: [
+                  { $ifNull: ['$promotion.mode', 'sale'] },
+                  {
+                    $let: {
+                      vars: { t: { $toLower: { $ifNull: ['$transactionType', ''] } } },
+                      in: {
+                        $cond: [
+                          {
+                            $or: [
+                              { $regexMatch: { input: '$$t', regex: 'rent' } },
+                              { $regexMatch: { input: '$$t', regex: 'lease' } },
+                              { $eq: ['$$t', 'pg'] }
+                            ]
+                          },
+                          'rental',
+                          'sale'
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
             ]
           }
         }

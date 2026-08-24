@@ -84,6 +84,19 @@ const subscriptionPlanSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true, index: true },
     displayOrder: { type: Number, default: 0 },
 
+    // Which generation of the catalogue this plan belongs to.
+    //
+    // 1 = the original account-level plans; 2 = Sale/Rental property plans.
+    //
+    // This exists because `mode` carries a default of 'sale'. Without an
+    // explicit marker, ANY code path that loads a version-1 plan through this
+    // model and saves it — the old admin editor, a populate-and-save — silently
+    // stamps `mode: 'sale'` on it and the plan joins the new catalogue carrying
+    // zero features. That actually happened to two priced plans: a customer
+    // could have bought a ₹4,999 plan and received no entitlements at all.
+    // The new catalogue therefore filters on this field, never on `mode` alone.
+    schemaVersion: { type: Number, default: 2, index: true },
+
     // ── Legacy fields ────────────────────────────────────────────────────────
     // The previous generation of plans. Kept so the existing account-level
     // subscriptions, the listing-eligibility gate and the old admin screen keep
