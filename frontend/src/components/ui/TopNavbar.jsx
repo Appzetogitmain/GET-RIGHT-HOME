@@ -4,7 +4,8 @@ import logo from '../../assets/grh-logo.png';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
-import EmergencySOSButton from './EmergencySOSButton';
+// EmergencySOSButton hidden from this header for now — component kept,
+// just not rendered here (see MobileTopNav.jsx for the mobile counterpart).
 
 // Pulls in the Google Maps Places library — only load it once someone
 // actually opens the picker, not on every page load (TopNavbar renders
@@ -129,7 +130,6 @@ const TopNavbar = () => {
                     <span className={`${themeText} font-bold text-[14px] transition-colors duration-700`}>Post property</span>
                     <span className={`${themeBtn} text-white text-[10px] px-2 py-0.5 rounded uppercase font-black tracking-widest shadow-sm transition-colors duration-700`}>Free</span>
                 </Link>
-                <EmergencySOSButton />
                 <Link to="/notifications" className="relative p-2 text-gray-500 hover:bg-gray-50 rounded-full transition-all active:scale-95">
                     <Bell size={20} strokeWidth={2} />
                     <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
