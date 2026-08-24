@@ -278,8 +278,10 @@ const BookingTrack = () => {
       // The backend fires both a 'notification' and a 'booking_updated' socket
       // event for the same status change (see notificationController.js), and
       // this handler is registered on both, so it runs twice per real event.
-      // Every toast below uses a stable, booking-scoped id so the second
-      // firing updates the existing toast instead of stacking a duplicate.
+      // Toasts for these live status updates are intentionally suppressed on
+      // this page — they stacked up several at once as a booking progressed
+      // through its stages. Every other side effect (booking state, modals,
+      // refresh) is unchanged; only the toast() calls were removed.
       const handleBookingUpdate = (data) => {
         if (data.bookingId === id || data.relatedId === id || data.data?.bookingId === id) {
           setBooking(prev => {
@@ -288,19 +290,13 @@ const BookingTrack = () => {
           });
 
           if (data.type === 'visit_verified' || data.status === 'visited' || data.status === 'VISITED') {
-            toast.success('Worker reached your location!', { id: 'worker_reached_toast' });
             setShowArrivalModal(false);
           } else if (data.qrPaymentInitiated) {
             setShowPaymentModal(true);
-            toast.success('Professional has initiated payment!', { id: `payment_initiated_toast_${id}` });
           } else if (data.customerConfirmationOTP && (data.status?.toLowerCase() === 'awaiting_payment' || ['paid', 'collected_by_vendor', 'plan_covered'].includes(data.paymentStatus?.toLowerCase()))) {
             setShowPaymentModal(true);
-            toast.success('Professional has requested payment!', { id: `payment_requested_toast_${id}` });
           } else if (data.customerConfirmationOTP) {
             setShowPaymentModal(true);
-            toast.success('Professional added extra items — share the OTP to confirm', { id: `items_otp_toast_${id}` });
-          } else if (data.message) {
-            toast(data.message, { icon: '🔍', duration: 4000, id: `booking_track_toast_${id}` });
           }
           refreshBooking(false);
         }
@@ -313,7 +309,6 @@ const BookingTrack = () => {
             return { ...prev, visitOtp: data.visitOtp || data.data?.visitOtp };
           });
           setShowArrivalModal(true);
-          toast.success('Professional has arrived! Please check the OTP.');
         }
       };
 
