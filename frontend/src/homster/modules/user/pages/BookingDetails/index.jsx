@@ -1116,6 +1116,7 @@ const BookingDetails = () => {
                             : <p className="font-medium">Booking completed successfully. Thank you for choosing us!</p>
                         )
                         : (
+                          // Payment mode is online-only — no cash amount to show.
                           <div className="flex flex-col gap-1 w-full">
                             <div className="flex justify-between items-center bg-white/10 rounded-lg px-3 py-2">
                               <span className="text-xs font-bold text-orange-100">Pay Online:</span>
@@ -1125,21 +1126,6 @@ const BookingDetails = () => {
                                   const isEstimate = booking.isEstimateBased;
                                   const token = isEstimate ? (Number(booking.estimate?.tokenAmount) || 0) : 0;
                                   return Math.max(0, base - token).toLocaleString('en-IN');
-                                })()
-                              }</span>
-                            </div>
-                            <div className="flex justify-between items-center bg-white/5 rounded-lg px-3 py-2">
-                              <span className="text-xs font-medium text-orange-200">Pay Cash:</span>
-                              <span className="text-sm font-bold text-orange-50">₹{
-                                (() => {
-                                  const isEstimate = booking.isEstimateBased;
-                                  if (isEstimate) {
-                                    const base = (booking.bill?.finalOnlineAmount > 0 ? booking.bill.finalOnlineAmount : null) || booking.finalOnlineAmount || booking.finalAmount || 0;
-                                    const token = (Number(booking.estimate?.tokenAmount) || 0);
-                                    return Math.max(0, base - token).toLocaleString('en-IN');
-                                  }
-                                  const baseCash = (booking.bill?.finalCashAmount > 0 ? booking.bill.finalCashAmount : null) || booking.finalCashAmount || 0;
-                                  return baseCash.toLocaleString('en-IN');
                                 })()
                               }</span>
                             </div>
@@ -1285,7 +1271,6 @@ const BookingDetails = () => {
                           const mainServiceTitle = booking.serviceName || booking.serviceCategory || 'Service';
                           const isEstimate = booking.isEstimateBased;
                           const platformFlatFee = isEstimate ? 0 : (bill?.adminCommission ?? 20);
-                          const cashFee = isEstimate ? 0 : (bill?.cashCollectionFee ?? 20);
                           const tokenPaid = isEstimate ? (booking.estimate?.tokenAmount || 0) : 0;
                           
                           // Use bill.originalServiceBase (correct field) or fallback to booking.basePrice
@@ -1320,14 +1305,7 @@ const BookingDetails = () => {
                               ? billGrandTotal
                               : (bookingFinalOnline || bookingFinalAmount || manualTotal || 0);
                           
-                          const billFinalCash = bill?.finalCashAmount ?? null;
-                          const bookingFinalCash = booking.finalCashAmount || null;
-                          const baseTotalCash = (billFinalCash != null && billFinalCash > 0)
-                            ? billFinalCash
-                            : (bookingFinalCash || (baseTotalOnline > 0 ? baseTotalOnline + cashFee : 0) || 0);
-
                           const totalOnline = isEstimate ? Math.max(0, baseTotalOnline - tokenPaid) : baseTotalOnline;
-                          const totalCash = isEstimate ? totalOnline : baseTotalCash;
 
                           return (
                             <>
@@ -1385,13 +1363,6 @@ const BookingDetails = () => {
                                 </div>
                               )}
                               
-                              {cashFee > 0 && (
-                                <div className="flex justify-between text-emerald-600 text-sm font-medium">
-                                  <span>Cash Collection Fee (If cash paid)</span>
-                                  <span>+₹{cashFee}</span>
-                                </div>
-                              )}
-
                               {isEstimate && tokenPaid > 0 && (
                                 <div className="flex justify-between items-center text-emerald-600 text-sm font-medium mt-2 pt-2 border-t border-gray-100">
                                   <div className="flex items-center gap-2">
@@ -1406,12 +1377,8 @@ const BookingDetails = () => {
 
                               <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
                                 <div className="flex justify-between font-black text-gray-900">
-                                  <span>{isEstimate ? 'Pending Online Bill' : 'Total Online Bill'}</span>
+                                  <span>{isEstimate ? 'Pending Bill' : 'Total Bill'}</span>
                                   <span>₹{totalOnline.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between font-black text-emerald-600">
-                                  <span>{isEstimate ? 'Pending Cash Bill' : 'Total Cash Bill'}</span>
-                                  <span>₹{totalCash.toFixed(2)}</span>
                                 </div>
                               </div>
                             </>
