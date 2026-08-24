@@ -89,7 +89,8 @@ const BillingPage = () => {
 
   const [platformFees, setPlatformFees] = useState({
     platformFlatFee: 0,
-    cashCollectionFee: 0
+    cashCollectionFee: 0,
+    defaultCommission: 10
   });
 
   // Fetch Data
@@ -186,7 +187,8 @@ const BillingPage = () => {
           setPlatformFees({
             platformFlatFee: billRes.platformSettings.platformFlatFee || 0,
             cashCollectionFee: billRes.platformSettings.cashCollectionFee || 0,
-            applyGst: billRes.platformSettings.applyGst || false
+            applyGst: billRes.platformSettings.applyGst || false,
+            defaultCommission: billRes.platformSettings.defaultCommission ?? 10
           });
         }
         
@@ -355,11 +357,16 @@ const BillingPage = () => {
     const totalDiscount = baseDiscount + promoDiscount;
 
     const isEstimate = job.isEstimateBased;
-    // Platform fee from admin settings (e.g. 20)
-    const originalPlatformFee = isEstimate ? 0 : (platformFees?.platformFlatFee || 0);
+    // Commission is a PERCENTAGE of the original booked price (matches
+    // createBill on the backend exactly — this preview used to compute a
+    // flat ₹ platformFlatFee here instead, a leftover from before the
+    // commission model changed to percentage-based, so this Review screen
+    // could show a different worker amount than what actually got billed).
+    const commissionPercentage = isEstimate ? 0 : (platformFees?.defaultCommission ?? 10);
+    const originalPlatformFee = isEstimate ? 0 : parseFloat((((Number(job.basePrice) || 0) * commissionPercentage) / 100).toFixed(2));
     const cashCollectionFee = isEstimate ? 0 : (platformFees?.cashCollectionFee || 0);
 
-    // Worker sees: basePrice - platformFee = 100 - 20 = 80
+    // Worker sees: basePrice - commission = 399 - 10% = 359.10
     const originalBase = isPlanBooking ? 0 : Math.max(0, (Number(job.basePrice) || 0) - originalPlatformFee);
     const originalServiceGST = isPlanBooking ? 0 : parseFloat(((originalBase * serviceGstPct) / 100).toFixed(2));
 
@@ -881,12 +888,21 @@ const BillingPage = () => {
             <div className="bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-100 mb-6">
               <div className="bg-gray-900 px-6 py-8 text-white">
                 <p className="text-gray-400 text-xs font-medium uppercase tracking-widest mb-4 text-center">
-                  {calculations.isAlreadyPaid ? 'BALANCE TO COLLECT' : 'FINAL USER BILL'}
+                  {calculations.isAlreadyPaid ? 'BALANCE TO COLLECT' : 'YOUR EARNINGS'}
                 </p>
-                <div className="flex flex-col items-center justify-center">
-                  <span className="text-gray-400 text-[10px] mb-1">ONLINE PAY</span>
-                  <span className="text-3xl font-black text-blue-400">₹{calculations.finalBillAmount.toFixed(2)}</span>
-                </div>
+                {calculations.isAlreadyPaid ? (
+                  // Actionable for the worker — how much cash is still left
+                  // to collect from the customer, not the worker's own cut.
+                  <div className="flex flex-col items-center justify-center">
+                    <span className="text-gray-400 text-[10px] mb-1">COLLECT FROM USER</span>
+                    <span className="text-3xl font-black text-blue-400">₹{calculations.finalBillAmount.toFixed(2)}</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center">
+                    <span className="text-gray-400 text-[10px] mb-1">YOU EARN</span>
+                    <span className="text-3xl font-black text-emerald-400">₹{calculations.totalWorkerEarnings.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
               <div className="p-6 space-y-6">
                 <div>
@@ -897,6 +913,10 @@ const BillingPage = () => {
                   <div className="space-y-2 text-sm pl-2">
                     {(() => {
                       const mainServiceTitle = (typeof job?.serviceId === 'object' ? job?.serviceId?.title : null) || job?.serviceName || 'Service';
+                      // Vendor/worker's own price for this line — basePrice
+                      // minus the platform fee, i.e. what the worker actually
+                      // keeps from the service (not the customer-facing full
+                      // price).
                       const basePriceToDisplay = Math.max(0, calculations.originalBase);
                       
                       return (
@@ -932,13 +952,6 @@ const BillingPage = () => {
                             <span>₹{calculations.totalWorkerEarnings.toFixed(2)}</span>
                           </div>
                           
-                          {calculations.platformFlatFee !== 0 && (
-                            <div className="flex justify-between text-blue-600 text-sm font-medium mt-2">
-                              <span>Base Platform Fee</span>
-                              <span>+₹{calculations.platformFlatFee.toFixed(2)}</span>
-                            </div>
-                          )}
-
                           {calculations.totalDiscount > 0 && (
                             <div className="flex justify-between text-rose-500 text-sm font-medium">
                               <span>Subscription Discount (on fee)</span>
@@ -953,12 +966,6 @@ const BillingPage = () => {
                             </div>
                           )}
 
-                          <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
-                            <div className="flex justify-between font-black text-gray-900">
-                              <span>Total Bill</span>
-                              <span>₹{calculations.finalBillAmount.toFixed(2)}</span>
-                            </div>
-                          </div>
                         </>
                       );
                     })()}
