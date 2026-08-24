@@ -279,6 +279,18 @@ const Bookings = () => {
                           {getStatusLabel(booking.status)}
                         </span>
                       )}
+                      {/* The customer's cancellation reason was already being
+                          saved (CancelBookingModal → cancellationReason on the
+                          booking) but had no screen anywhere in admin that
+                          showed it — this is that screen. */}
+                      {booking.status?.toLowerCase() === 'cancelled' && booking.cancellationReason && (
+                        <p
+                          className="mt-1 text-[10px] text-red-500 font-medium max-w-[180px] truncate"
+                          title={booking.cancellationReason}
+                        >
+                          "{booking.cancellationReason}"
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-[11px] text-gray-600 capitalize font-medium">{booking.paymentMethod?.replace('_', ' ')}</span>
