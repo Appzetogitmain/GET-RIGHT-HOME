@@ -115,6 +115,61 @@ class NotificationService {
   }
 
   /**
+   * Push-only send — same FCM delivery as sendToUser, but does NOT create
+   * its own Notification document. For callers (createNotification) that
+   * already wrote the canonical DB record themselves: sendToUser's own
+   * internal Notification.create() was firing a second, redundant record
+   * for every single notification sent this way, built from a different
+   * `data` shape (whatever was passed as push metadata, not the actual
+   * notification data) and defaulting title/type to generic fallbacks —
+   * so every admin/user notification created via createNotification
+   * silently duplicated in the DB, with the duplicate showing wrong
+   * type/title/data (e.g. the "DEFAULT" badge and empty details seen on
+   * the admin notification list).
+   */
+  async sendPushOnly(userId, notification, data = {}, userType = 'user') {
+    try {
+      let user;
+      if (userType === 'admin') {
+        const Admin = (await import('../models/Admin.js')).default;
+        user = await Admin.findById(userId);
+      } else if (userType === 'partner') {
+        const Partner = (await import('../models/Partner.js')).default;
+        user = await Partner.findById(userId);
+      } else if (userType === 'worker') {
+        const Worker = (await import('../models/Worker.js')).default;
+        user = await Worker.findById(userId);
+      } else {
+        user = await User.findById(userId);
+      }
+
+      if (!user) {
+        return { success: false, error: `${userType} not found` };
+      }
+
+      const fcmTokens = this.getUserFcmTokens(user);
+      if (fcmTokens.length === 0) {
+        return { success: false, error: `${userType} does not have FCM token` };
+      }
+
+      let successCount = 0;
+      for (const token of fcmTokens) {
+        try {
+          const result = await this.sendToToken(token, notification, data);
+          if (result.success) successCount++;
+        } catch (err) {
+          console.error('[NotificationService] FCM send exception:', err);
+        }
+      }
+
+      return { success: successCount > 0, successCount };
+    } catch (error) {
+      console.error('[NotificationService] [ERROR] sendPushOnly failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Send notification to a user or admin by ID
    * @param {string} userId - User or Admin ID
    * @param {Object} notification - Notification payload

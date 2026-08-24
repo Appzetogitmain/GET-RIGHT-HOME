@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUserProfile, updateUserProfile, updateFcmToken, getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead, getSavedPlaces, toggleSavedPlace, updateUserRole, getCheckoutData, validatePromo, getRecommendedBrokers, getBrokerProfile, syncCart } from '../controllers/userController.js';
+import { getUserProfile, updateUserProfile, updateFcmToken, getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead, getSavedPlaces, toggleSavedPlace, updateUserRole, getCheckoutData, validatePromo, getRecommendedBrokers, getBrokerProfile, syncCart, sendEmergencyAlert } from '../controllers/userController.js';
 import { createVipOrder, verifyVipPayment } from '../controllers/vipController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
@@ -17,6 +17,7 @@ router.put('/role', protect, updateUserRole);
 router.put('/fcm-token', protect, updateFcmToken);
 router.post('/validate-promo', protect, validatePromo);
 router.post('/cart/sync', protect, syncCart);
+router.post('/emergency', protect, sendEmergencyAlert);
 
 // Wishlist Routes
 router.get('/saved-places', protect, getSavedPlaces);

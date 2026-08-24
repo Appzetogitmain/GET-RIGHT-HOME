@@ -1,7 +1,9 @@
 import HomeServiceBooking from '../../models/HomeServiceBooking.js';
 import Worker from '../../models/Worker.js';
 import PlatformSettings from '../../models/PlatformSettings.js';
+import Admin from '../../models/Admin.js';
 import { BOOKING_STATUS } from '../../utils/constants.js';
+import { createNotification } from '../notificationControllers/notificationController.js';
 
 /**
  * Get worker dashboard statistics
@@ -238,7 +240,61 @@ const getPublicSettings = async (req, res) => {
   }
 };
 
-export { 
+/**
+ * Silent SOS — worker sends an emergency alert to admin. Never places a
+ * call; just logs the alert and notifies every admin account (in-app +
+ * push, via the existing createNotification pipeline) so someone sees it
+ * even if a specific admin is offline.
+ */
+const sendEmergencyAlert = async (req, res) => {
+  try {
+    const workerId = req.user.id;
+    const { message, location } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: 'A message is required to send an alert' });
+    }
+
+    const worker = await Worker.findById(workerId).select('name phone');
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    const admins = await Admin.find({ role: { $in: ['admin', 'superadmin', 'super_admin'] } });
+
+    const hasLocation = location && typeof location.lat === 'number' && typeof location.lng === 'number';
+    // Keep this short — it's rendered inline (2-line clamp) in the foreground
+    // toast, and the map link previously pushed it well past that, cutting
+    // the worker's own message off mid-sentence. Location is still kept,
+    // just moved into the notification's structured `data` instead of the
+    // display text.
+    const body = `${worker.name} (${worker.phone}): "${message.trim()}"`;
+
+    await Promise.all(admins.map((admin) =>
+      createNotification({
+        userId: admin._id,
+        userType: 'admin',
+        type: 'worker_emergency',
+        title: '🚨 Worker Emergency Alert',
+        body,
+        priority: 'high',
+        data: hasLocation ? { location, mapUrl: `https://maps.google.com/?q=${location.lat},${location.lng}` } : {},
+        // Without this the foreground toast's category badge falls back to
+        // a literal "DEFAULT" — it reads pushData.type, not the top-level
+        // `type` above (that one only labels the DB record).
+        pushData: { type: 'worker_emergency' }
+      }).catch((err) => console.error('[EmergencyAlert] notify admin failed:', err))
+    ));
+
+    res.status(200).json({ success: true, message: 'Emergency alert sent to admin' });
+  } catch (error) {
+    console.error('Send emergency alert error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send emergency alert' });
+  }
+};
+
+export {
   getDashboardStats,
-  getPublicSettings
+  getPublicSettings,
+  sendEmergencyAlert
 };

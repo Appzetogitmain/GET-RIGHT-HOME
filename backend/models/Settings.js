@@ -47,11 +47,6 @@ const settingsSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
-  vendorCashLimit: {
-    type: Number,
-    default: 10000,
-    min: 0
-  },
   cancellationPenalty: {
     type: Number,
     default: 49,
