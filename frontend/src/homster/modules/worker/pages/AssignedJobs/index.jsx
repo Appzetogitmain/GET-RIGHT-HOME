@@ -266,7 +266,7 @@ const AssignedJobs = () => {
                           border: '1px solid rgba(59, 130, 246, 0.2)',
                         }}
                       >
-                        ₹{job.finalAmount}
+                        ₹{job.workerAmount ?? job.finalAmount}
                       </div>
                     </div>
 
