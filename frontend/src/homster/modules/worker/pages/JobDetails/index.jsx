@@ -88,7 +88,10 @@ const JobDetails = () => {
   useEffect(() => {
     if (socket && id) {
       const handleJobUpdate = (data) => {
-        if (data.bookingId === id || data.relatedId === id || data._id === id) {
+        // Stringify both sides — a raw Mongoose ObjectId (rather than its
+        // .toString()) sent from any backend emit compares unequal to the
+        // URL's string :id here, silently dropping the update.
+        if (String(data.bookingId) === String(id) || String(data.relatedId) === String(id) || String(data._id) === String(id)) {
           setJob(prev => {
             if (!prev) return prev;
             return {
@@ -431,7 +434,11 @@ const JobDetails = () => {
                 <FiFileText className="w-5 h-5" /> PREPARE BILL / EDIT
               </button>
 
-              {(job?.customerConfirmationOTP || job?.paymentOtp) && (
+              {/* Only once payment has actually been requested (status moved
+                  to awaiting_payment) — the OTP exists as soon as a bill is
+                  created too, purely to let the customer confirm extra items,
+                  and must not be usable to close the job before that. */}
+              {(job?.customerConfirmationOTP || job?.paymentOtp) && job.status?.toLowerCase() === 'awaiting_payment' && (
                 <button
                   onClick={() => setIsPaymentModalOpen(true)}
                   disabled={actionLoading}

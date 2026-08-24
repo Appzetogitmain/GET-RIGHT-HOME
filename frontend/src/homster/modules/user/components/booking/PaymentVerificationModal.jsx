@@ -28,6 +28,64 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
 
   if (!isOpen || !booking) return null;
 
+  // Before the worker actually requests payment, the booking sits in
+  // 'work_done' with an OTP already generated purely to let the customer
+  // confirm any extra items the worker has added — there's nothing to pay
+  // yet, so showing the full bill breakdown + "Pay Online" button here would
+  // be misleading. Once the worker requests payment, status moves to
+  // 'awaiting_payment' (or payment is already settled) and the full view
+  // below applies.
+  const isPaidAlready = ['paid', 'collected_by_vendor', 'plan_covered'].includes(booking.paymentStatus?.toLowerCase());
+  const isItemsCheckpointOnly = booking.status?.toLowerCase() === 'work_done' && !isPaidAlready;
+
+  if (isItemsCheckpointOnly) {
+    const otp = booking.customerConfirmationOTP || booking.paymentOtp;
+    return (
+      <AnimatePresence>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ type: "spring", bounce: 0.3 }}
+            className="bg-white w-full max-w-sm rounded-[2rem] overflow-hidden shadow-2xl relative"
+          >
+            <div className="relative bg-slate-900 p-5">
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <FiX className="w-5 h-5 text-white/80" />
+              </button>
+              <div className="flex flex-col items-center text-center mt-2">
+                <div className="w-14 h-14 bg-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/30 mb-1 text-white">
+                  <FiShield className="w-7 h-7" />
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-8 text-center">
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Extra Items Added</h3>
+              <p className="text-sm text-slate-500 mb-6">
+                Your professional has added extra items to the bill for <span className="font-semibold text-slate-700">{booking.serviceName || 'this service'}</span>. Share this OTP with them to confirm.
+              </p>
+              {otp ? (
+                <div className="flex justify-center gap-2.5 mb-2">
+                  {String(otp).split('').map((digit, idx) => (
+                    <div key={idx} className="w-12 h-14 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center shadow-sm">
+                      <span className="text-2xl font-black text-slate-900">{digit}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400 mb-2">Generating OTP…</p>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      </AnimatePresence>
+    );
+  }
+
   // --- 1. Total & Breakdown Calculations ---
   const isPlanBenefit = booking.paymentMethod === 'plan_benefit';
   const bill = booking.bill;

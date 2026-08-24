@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiCheck, FiTool, FiPackage, FiFileText, FiPlus, FiTrash2, FiArrowLeft, FiDollarSign, FiClock, FiCreditCard, FiArrowRight, FiKey, FiCheckCircle } from 'react-icons/fi';
+import { FiCheck, FiTool, FiPackage, FiFileText, FiPlus, FiTrash2, FiArrowLeft, FiDollarSign, FiCreditCard, FiArrowRight, FiKey, FiCheckCircle } from 'react-icons/fi';
 import { MdQrCode } from 'react-icons/md';
 import { toast } from 'react-hot-toast';
 import { workerTheme as themeColors } from '../../../../theme';
@@ -56,6 +56,7 @@ const BillingPage = () => {
   const [customItems, setCustomItems] = useState([]);
   const [transportCharges, setTransportCharges] = useState(0);
   const [applyPartsGST, setApplyPartsGST] = useState(false);
+  const [syncingItems, setSyncingItems] = useState(false);
 
   // Search
   const [serviceSearch, setServiceSearch] = useState('');
@@ -65,6 +66,11 @@ const BillingPage = () => {
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
+
+  // Extra-items OTP gate — customer must confirm added items before the
+  // worker can proceed to Review. Separate from the closing OTP above.
+  const [showItemsOtpModal, setShowItemsOtpModal] = useState(false);
+  const [itemsOtpLoading, setItemsOtpLoading] = useState(false);
 
   // Payment Options
   const [onlinePaymentData, setOnlinePaymentData] = useState(null);
@@ -451,6 +457,62 @@ const BillingPage = () => {
     };
   }, [job, selectedServices, selectedParts, customItems, transportCharges, payoutSettings, applyPartsGST, platformFees]);
 
+  // Leaving the "Any Extra Item" step is where the worker's added items become
+  // real charges — push the bill to the backend right here (not only later at
+  // "Request Payment") so the customer is notified with the same OTP + full
+  // itemized breakdown (via PaymentVerificationModal) as soon as extra items
+  // exist. The worker then can't proceed to Review until they actually enter
+  // that OTP back here — i.e. items only get "added" once the customer has
+  // confirmed them, not just on the worker's say-so. createBill on the
+  // backend safely reuses the existing OTP if one was already generated, so
+  // this never invalidates an OTP the customer may already have.
+  const handleNextFromItems = async () => {
+    const validCustomItems = customItems.filter(item => item.name.trim() !== '');
+    const hasExtras = validCustomItems.length > 0 || selectedParts.length > 0;
+    if (!hasExtras) {
+      setCurrentStep(currentStep + 1);
+      return;
+    }
+    try {
+      setSyncingItems(true);
+      await workerBillService.createOrUpdateBill(id, {
+        services: selectedServices,
+        parts: selectedParts,
+        customItems: validCustomItems,
+        transportCharges,
+        applyPartsGST
+      });
+      toast.success('OTP sent to customer for these items');
+      setShowItemsOtpModal(true);
+    } catch (error) {
+      console.error('Sync extra items error:', error);
+      toast.error('Could not send items to customer — please try again');
+    } finally {
+      setSyncingItems(false);
+    }
+  };
+
+  const handleVerifyItemsOtp = async (code) => {
+    if (itemsOtpLoading) return;
+    try {
+      setItemsOtpLoading(true);
+      const res = await workerService.verifyItemsOtp(id, code);
+      if (res.success) {
+        setShowItemsOtpModal(false);
+        toast.success('Items verified by customer ✅');
+        setCurrentStep(currentStep + 1);
+      } else {
+        toast.error(res.message || 'Invalid OTP');
+      }
+    } catch (error) {
+      console.error('Verify items OTP error:', error);
+      const msg = error?.response?.data?.message || 'Verification failed';
+      toast.error(msg);
+    } finally {
+      setItemsOtpLoading(false);
+    }
+  };
+
   const handleRequestPayment = async () => {
     try {
       setQrLoading(true);
@@ -530,11 +592,16 @@ const BillingPage = () => {
         if (incomingId !== String(id)) return;
         const isPaymentSuccess = data.paymentStatus === 'SUCCESS' || data.paymentStatus === 'paid' || data.type === 'payment_success';
         if (isPaymentSuccess) {
-          toast.success('Online Payment Received! Job Completed 🎉');
-          localStorage.removeItem(`worker_billing_step_${id}`);
-          localStorage.removeItem(`worker_billing_max_step_${id}`);
-          localStorage.removeItem(`worker_billing_data_${id}`);
-          setTimeout(() => goToDashboard(), 1000);
+          // Payment succeeding does NOT close the job — the worker still has
+          // to collect the closing OTP from the customer (collectCash /
+          // confirmManualOnlineCollection). This used to say "Job Completed"
+          // and yank the worker back to the dashboard within a second,
+          // before they ever got a chance to see or tap "ENTER OTP" — so the
+          // option to close the job effectively disappeared on them every
+          // time. Just notify and stay put; isOtpSent is already true (they
+          // requested payment to get here), so the ENTER OTP button they
+          // need is already visible below.
+          toast.success('Online Payment Received! Please collect the OTP from the customer to close the job.');
         }
       };
       socket.on('booking_updated', handleJobUpdate);
@@ -641,7 +708,6 @@ const BillingPage = () => {
   if (selectedServices.length > 0) completedSteps++;
   if (selectedParts.length > 0) completedSteps++;
   if (customItems.length > 0) completedSteps++;
-  if (transportCharges > 0) completedSteps++;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
@@ -656,14 +722,13 @@ const BillingPage = () => {
       <div className="px-5 pt-6 pb-2">
         <div className="flex justify-between relative max-w-sm mx-auto z-10">
           <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-200 -translate-y-1/2 -z-10 rounded-full overflow-hidden">
-            <div className="h-full bg-gray-900 transition-all duration-500 ease-out" style={{ width: `${(currentStep - 3) * 50}%` }} />
+            <div className="h-full bg-gray-900 transition-all duration-500 ease-out" style={{ width: `${(currentStep - 3) * 100}%` }} />
           </div>
           {[
             // { step: 1, icon: <FiTool />, label: 'Services' },
             // { step: 2, icon: <FiPackage />, label: 'Parts' },
             { step: 3, icon: <FiPlus />, label: 'Any Extra Item' },
-            { step: 4, icon: <FiClock />, label: 'Any transport Charges' },
-            { step: 5, icon: <FiFileText />, label: 'Review' }
+            { step: 4, icon: <FiFileText />, label: 'Review' }
           ].map(({ step, icon, label }) => {
             const isActive = currentStep === step;
             const isPast = currentStep > step;
@@ -812,26 +877,7 @@ const BillingPage = () => {
           </div>
         )}
 
-        {currentStep === 4 && (
-          <div className="animate-in fade-in slide-in-from-right-4">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
-                <FiPackage className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Any transport Charges</h3>
-              <div className="w-full max-w-xs relative text-left">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 mb-1 block">Amount (₹)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">₹</span>
-                  <input type="number" placeholder="0" value={transportCharges || ''} onChange={e => setTransportCharges(Number(e.target.value))}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-8 pr-4 py-4 text-xl font-black outline-none focus:ring-2 focus:ring-blue-500/20 text-gray-900" />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {currentStep === 5 && calculations && (
+        {currentStep === 4 && calculations && (
           <div className="animate-in fade-in slide-in-from-right-4 pb-10">
             <div className="bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-100 mb-6">
               <div className="bg-gray-900 px-6 py-8 text-white">
@@ -880,13 +926,6 @@ const BillingPage = () => {
                               <span>₹{(p.price * (p.quantity || 1)).toFixed(2)}</span>
                             </div>
                           ))}
-
-                          {calculations.transportCharges > 0 && (
-                            <div className="flex justify-between text-gray-600 text-xs">
-                              <span>Any transport Charges</span>
-                              <span>₹{calculations.transportCharges.toFixed(2)}</span>
-                            </div>
-                          )}
 
                           {calculations.visitingCharges > 0 && (
                             <div className="flex justify-between text-gray-600 text-xs">
@@ -965,8 +1004,10 @@ const BillingPage = () => {
         {currentStep > 3 && (
           <button onClick={() => setCurrentStep(currentStep - 1)} disabled={submitting || otpLoading} className="flex-1 py-3 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl disabled:opacity-50">Back</button>
         )}
-        {currentStep < 5 ? (
-          <button onClick={() => setCurrentStep(currentStep + 1)} className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg">Next <FiArrowRight /></button>
+        {currentStep < 4 ? (
+          <button onClick={handleNextFromItems} disabled={syncingItems} className="flex-[2] py-3.5 bg-gray-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
+            {syncingItems ? 'Notifying customer...' : <>Next <FiArrowRight /></>}
+          </button>
         ) : (
           <div className="flex-[2] grid grid-cols-1 gap-2">
             {isOtpSent ? (
@@ -988,6 +1029,7 @@ const BillingPage = () => {
       </div>
 
       <OtpVerificationModal isOpen={showOtpModal} onClose={() => setShowOtpModal(false)} onVerify={handleVerifyOTP} loading={otpLoading} />
+      <OtpVerificationModal isOpen={showItemsOtpModal} onClose={() => setShowItemsOtpModal(false)} onVerify={handleVerifyItemsOtp} loading={itemsOtpLoading} />
 
       <ScanAndPayModal
         isOpen={showQrModal}

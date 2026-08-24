@@ -104,6 +104,16 @@ const workerService = {
     return response.data;
   },
 
+  /**
+   * Confirm with the customer's OTP that they've seen & approved the extra
+   * items added to the bill so far. Does not close the job — just a gate
+   * before letting the worker move on to Review.
+   */
+  verifyItemsOtp: async (id, otp) => {
+    const response = await api.post(`/workers/jobs/${id}/verify-items-otp`, { otp });
+    return response.data;
+  },
+
   collectCash: async (id, otp, amount, extraItems = []) => {
     const response = await api.post(`/workers/jobs/${id}/payment/collect`, {
       otp,

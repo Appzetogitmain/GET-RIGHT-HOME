@@ -293,9 +293,12 @@ const BookingTrack = () => {
           } else if (data.qrPaymentInitiated) {
             setShowPaymentModal(true);
             toast.success('Professional has initiated payment!', { id: `payment_initiated_toast_${id}` });
-          } else if (data.customerConfirmationOTP) {
+          } else if (data.customerConfirmationOTP && (data.status?.toLowerCase() === 'awaiting_payment' || ['paid', 'collected_by_vendor', 'plan_covered'].includes(data.paymentStatus?.toLowerCase()))) {
             setShowPaymentModal(true);
             toast.success('Professional has requested payment!', { id: `payment_requested_toast_${id}` });
+          } else if (data.customerConfirmationOTP) {
+            setShowPaymentModal(true);
+            toast.success('Professional added extra items — share the OTP to confirm', { id: `items_otp_toast_${id}` });
           } else if (data.message) {
             toast(data.message, { icon: '🔍', duration: 4000, id: `booking_track_toast_${id}` });
           }
@@ -870,8 +873,42 @@ const BookingTrack = () => {
           </div>
         )}
 
-        {/* Final Payment Card - Show when work is done AND bill is finalized (OTP exists) */}
-        {(booking?.customerConfirmationOTP || ['paid', 'collected_by_vendor', 'plan_covered'].includes(booking?.paymentStatus?.toLowerCase())) && ['work_done', 'awaiting_payment'].includes(booking?.status?.toLowerCase()) && !booking?.cashCollected && (
+        {/* Items Verification Card - worker added extra items but hasn't
+            requested payment yet (status still work_done). Only the OTP
+            matters here — no bill breakdown or "Pay Online" yet, since
+            there's nothing to pay until the worker actually requests it. */}
+        {booking?.customerConfirmationOTP && booking?.status?.toLowerCase() === 'work_done' && !booking?.cashCollected && (
+          <div
+            onClick={() => setShowPaymentModal(true)}
+            className="mb-4 relative overflow-hidden rounded-2xl p-5 shadow-lg cursor-pointer active:scale-[0.98] transition-all bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl"></div>
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="flex items-center gap-3 w-full mb-4">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                  <FiDollarSign className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest">Extra Items Added</p>
+                  <p className="text-white text-xs font-medium">Share the OTP to confirm</p>
+                </div>
+              </div>
+              <div className="flex justify-center gap-2.5">
+                {String(booking.customerConfirmationOTP).split('').map((digit, idx) => (
+                  <div key={idx} className="w-10 h-12 bg-white/15 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 shadow-md">
+                    <span className="text-xl font-black text-white">{digit}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Final Payment Card - Show once the worker has actually requested
+            payment (status moved to awaiting_payment) or payment is already
+            settled. Not shown for the earlier items-verification checkpoint
+            above. */}
+        {(['paid', 'collected_by_vendor', 'plan_covered'].includes(booking?.paymentStatus?.toLowerCase()) || booking?.status?.toLowerCase() === 'awaiting_payment') && !booking?.cashCollected && (
           <div
             onClick={() => setShowPaymentModal(true)}
             className={`mb-4 relative overflow-hidden rounded-2xl p-5 shadow-lg cursor-pointer active:scale-[0.98] transition-all ${booking?.paymentStatus === 'success'
@@ -908,22 +945,32 @@ const BookingTrack = () => {
                     Pay Online Now
                   </button>
 
-                  <div className="mt-6 flex flex-col items-center w-full">
-                    <p className="text-[9px] font-black text-white/60 uppercase tracking-[0.3em] mb-3">Payment Verification OTP</p>
-                    <div className="flex justify-center gap-2.5">
-                      {String(booking?.customerConfirmationOTP || booking?.paymentOtp || '0000').split('').map((digit, idx) => (
-                        <div
-                          key={idx}
-                          className="w-10 h-12 bg-white/15 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 shadow-md"
-                        >
-                          <span className="text-xl font-black text-white">{digit}</span>
-                        </div>
-                      ))}
+                  {(booking?.customerConfirmationOTP || booking?.paymentOtp) ? (
+                    <div className="mt-6 flex flex-col items-center w-full">
+                      <p className="text-[9px] font-black text-white/60 uppercase tracking-[0.3em] mb-3">Payment Verification OTP</p>
+                      <div className="flex justify-center gap-2.5">
+                        {String(booking?.customerConfirmationOTP || booking?.paymentOtp).split('').map((digit, idx) => (
+                          <div
+                            key={idx}
+                            className="w-10 h-12 bg-white/15 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 shadow-md"
+                          >
+                            <span className="text-xl font-black text-white">{digit}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-4 text-[9px] text-white/70 text-center font-medium bg-black/10 px-4 py-1.5 rounded-full">
+                        Share with professional to confirm cash payment
+                      </p>
                     </div>
-                    <p className="mt-4 text-[9px] text-white/70 text-center font-medium bg-black/10 px-4 py-1.5 rounded-full">
-                      Share with professional to confirm cash payment
+                  ) : (
+                    // Never show a fake fallback code here — it can never
+                    // match the real OTP the worker verifies against, which
+                    // is exactly what let a worker get stuck unable to close
+                    // out a job that was paid before this OTP existed.
+                    <p className="mt-6 text-[10px] text-white/70 text-center font-medium">
+                      Generating your verification OTP…
                     </p>
-                  </div>
+                  )}
                 </>
               ) : (
                 <div className="w-full py-4 bg-white/10 backdrop-blur-md text-white rounded-xl font-bold text-sm border border-white/20 flex items-center justify-center gap-2">
