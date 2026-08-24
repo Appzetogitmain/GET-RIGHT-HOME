@@ -250,8 +250,10 @@ const buildPlanFeatures = async (input = []) => {
  */
 export const listPlans = async (req, res) => {
     try {
-        const { mode, role, tier, isActive } = req.query;
-        const query = {};
+        const { mode, role, tier, isActive, includeLegacy } = req.query;
+        // Version-1 plans belong to the old account-level screen and have no
+        // features; they are hidden here unless explicitly asked for.
+        const query = includeLegacy === 'true' ? {} : { schemaVersion: 2 };
         if (mode) query.mode = mode;
         if (role) query.targetRole = role;
         if (tier) query.planTier = tier;
@@ -346,6 +348,17 @@ export const updatePlan = async (req, res) => {
         const plan = await SubscriptionPlan.findById(req.params.id);
         if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
 
+        // A version-1 (legacy) plan reaching this far isn't just wrong-screen
+        // — `plan.save()` below runs the schema's pre-save hook, which derives
+        // `listingType` from `mode`'s schema DEFAULT even though the legacy
+        // document never had `mode` stored. That silently stamped 'buy' onto
+        // two real legacy plans mid-session and broke their listing-type
+        // filter (see subscriptionController.js's F-5 fix) until it was
+        // caught. This is the version-1 equivalent of that same bug.
+        if (plan.schemaVersion !== 2) {
+            return res.status(404).json({ success: false, message: 'Plan not found' });
+        }
+
         const before = plan.toObject();
         const fields = ['name', 'targetRole', 'mode', 'planTier', 'price', 'durationDays',
             'propertiesPerPurchase', 'description', 'tagline', 'displayOrder', 'isActive'];
@@ -386,7 +399,7 @@ export const updatePlan = async (req, res) => {
 export const deactivatePlan = async (req, res) => {
     try {
         const plan = await SubscriptionPlan.findById(req.params.id);
-        if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
+        if (!plan || plan.schemaVersion !== 2) return res.status(404).json({ success: false, message: 'Plan not found' });
 
         plan.isActive = false;
         await plan.save();
@@ -543,7 +556,12 @@ export const assignOfflineSubscription = async (req, res) => {
         }
 
         const plan = await SubscriptionPlan.findById(planId);
-        if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
+        // Version-1 plans have no `features`/`mode` of their own — offline-
+        // assigning one through this endpoint would create a Subscription
+        // with an empty entitlement snapshot (nothing to show for a real
+        // offline payment) and, via activateSubscription's write to
+        // Property.promotion, could stamp `mode: null` onto a listing.
+        if (!plan || plan.schemaVersion !== 2) return res.status(404).json({ success: false, message: 'Plan not found' });
 
         let subject = await User.findById(userId).select('name role email');
         let model = 'User';

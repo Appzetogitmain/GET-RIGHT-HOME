@@ -262,9 +262,10 @@ const JobTimeline = () => {
       id: 5,
       title: 'Customer Payment',
       icon: FiDollarSign,
-      action: currentStage === 5 && !job?.cashCollected && job?.paymentMode === 'CASH' ? () => setIsPaymentModalOpen(true) : null,
-      actionLabel: 'Collect Cash',
-      description: job?.cashCollected ? 'Cash collected successfully.' : (job?.paymentMode === 'CASH' ? 'Pending cash collection.' : 'Online payment verified.'),
+      // Cash collection is no longer supported — payment mode is online-only,
+      // so this stage is purely informational now and never offers an action.
+      action: null,
+      description: 'Online payment verified.',
       timestamp: null
     },
     {

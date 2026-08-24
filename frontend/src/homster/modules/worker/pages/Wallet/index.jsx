@@ -121,6 +121,13 @@ const Wallet = () => {
     switch (category) {
       case 'worker_payment':
       case 'earnings_credit':
+      // The actual category an online-payment earnings credit is saved
+      // under (see paymentController.settleBookingPayment) — 'earnings_credit'
+      // above was never a real category value, just a leftover from when
+      // these records were being saved with an invalid `type` and silently
+      // failing to write at all.
+      case 'booking_payment':
+      case 'estimate_token':
         return 'Earnings Received';
       case 'cash_collected':
         return 'Cash Collected';

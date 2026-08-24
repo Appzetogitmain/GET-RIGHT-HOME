@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBriefcase, FiCheckCircle, FiClock, FiTrendingUp, FiChevronRight, FiUser, FiBell, FiMapPin, FiArrowRight, FiAlertCircle, FiTool, FiNavigation, FiX, FiCheck, FiStar, FiTarget, FiGift, FiAward, FiThumbsUp, FiLock, FiClipboard, FiHeadphones, FiBook, FiPhone, FiMail, FiXCircle, FiTag } from 'react-icons/fi';
+import { FiBriefcase, FiCheckCircle, FiClock, FiTrendingUp, FiChevronRight, FiUser, FiBell, FiMapPin, FiArrowRight, FiAlertCircle, FiAlertTriangle, FiTool, FiNavigation, FiX, FiCheck, FiStar, FiTarget, FiGift, FiAward, FiThumbsUp, FiLock, FiClipboard, FiHeadphones, FiBook, FiPhone, FiMail, FiXCircle, FiTag, FiSend } from 'react-icons/fi';
 import { FaWallet, FaHourglassHalf } from 'react-icons/fa';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -105,6 +105,48 @@ const Dashboard = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [togglingOnline, setTogglingOnline] = useState(false);
   const [locationWatchId, setLocationWatchId] = useState(null);
+
+  // Emergency SOS — silent alert to admin, never places a call
+  const DEFAULT_EMERGENCY_MESSAGE = 'I need urgent help — please contact me immediately.';
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [emergencyMessage, setEmergencyMessage] = useState(DEFAULT_EMERGENCY_MESSAGE);
+  const [sendingEmergency, setSendingEmergency] = useState(false);
+
+  const handleSendEmergencyAlert = async () => {
+    if (!emergencyMessage.trim() || sendingEmergency) return;
+    setSendingEmergency(true);
+    const { toast } = await import('react-hot-toast');
+    try {
+      // Best-effort location — never block the alert on it, and never ask
+      // twice if the worker already denied location elsewhere in the app.
+      let location = null;
+      try {
+        location = await new Promise((resolve) => {
+          if (!navigator.geolocation) return resolve(null);
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () => resolve(null),
+            { timeout: 3000 }
+          );
+        });
+      } catch {
+        location = null;
+      }
+
+      const res = await workerService.sendEmergencyAlert(emergencyMessage.trim(), location);
+      if (res.success) {
+        toast.success('Alert sent to admin');
+        setShowEmergencyModal(false);
+        setEmergencyMessage(DEFAULT_EMERGENCY_MESSAGE);
+      } else {
+        toast.error(res.message || 'Failed to send alert');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send alert');
+    } finally {
+      setSendingEmergency(false);
+    }
+  };
 
   // Get current GPS position as a promise
   const getCurrentPosition = () => {
@@ -522,54 +564,20 @@ const Dashboard = () => {
             </div>
           )}
 
-        {/* Notification Status & Debug - NEW */}
+        {/* Emergency SOS */}
         <div className="px-4 py-2">
-          <div className="bg-white/50 backdrop-blur-md rounded-2xl p-3 border border-white/20 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-2 h-2 rounded-full ${Notification.permission === 'granted' ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`}
-              />
-              <div>
-                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Notification Status</p>
-                <p className={`text-xs font-bold ${Notification.permission === 'granted' ? 'text-green-600' : 'text-red-600'}`}>
-                  {Notification.permission === 'granted' ? '✅ Active & Ready' : '❌ Blocked / Not Setup'}
-                </p>
-              </div>
+          <button
+            onClick={() => setShowEmergencyModal(true)}
+            className="w-full bg-red-50 border border-red-100 rounded-2xl p-3 shadow-sm flex items-center gap-3 active:scale-[0.98] transition-all"
+          >
+            <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+              <FiAlertTriangle className="w-4 h-4 text-red-600" />
             </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleTestPush}
-                className="p-2 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 active:scale-95 transition-all"
-              >
-                TEST PUSH
-              </button>
-              <button
-                onClick={() => {
-                  if (window.fcmDebug) window.fcmDebug();
-                  if (window.testLocalFCMUI) window.testLocalFCMUI();
-                  window.dispatchEvent(new CustomEvent('showWorkerJobAlert', { detail: { id: 'test-id' } }));
-                }}
-                className="p-2 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 active:scale-95 transition-all"
-              >
-                TEST UI
-              </button>
-              <button
-                onClick={async () => {
-                  const { registerFCMToken } = await import('../../../../services/pushNotificationService');
-                  registerFCMToken('worker', true);
-                }}
-                className="p-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-100 active:scale-95 transition-all"
-              >
-                RE-REGISTER
-              </button>
+            <div className="text-left">
+              <p className="text-xs font-black text-red-700">Emergency SOS</p>
+              <p className="text-[10px] text-red-500 font-medium">Silently alert admin if you need help</p>
             </div>
-          </div>
-          {Notification.permission !== 'granted' && (
-            <p className="text-[9px] text-red-500 font-bold mt-1 px-1">
-              ⚠️ Notifications are disabled in your browser. Click the lock icon in the URL bar to fix.
-            </p>
-          )}
+          </button>
         </div>
 
         {/* Earnings Card */}
@@ -1182,6 +1190,53 @@ const Dashboard = () => {
           <FiBell className="w-7 h-7 text-white" />
         </button>
       </div>
+
+      {/* Emergency SOS Modal — silent alert only, never places a call */}
+      {showEmergencyModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl">
+            <div className="bg-red-600 px-5 py-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                <FiAlertTriangle className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-white font-black text-base leading-tight">Emergency SOS</h3>
+                <p className="text-red-100 text-[11px]">This silently alerts admin — no call is made</p>
+              </div>
+              <button
+                onClick={() => setShowEmergencyModal(false)}
+                disabled={sendingEmergency}
+                className="p-1.5 bg-white/10 hover:bg-white/20 rounded-full text-white active:scale-95 transition-all disabled:opacity-50"
+              >
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5 block">
+                Message to admin
+              </label>
+              <textarea
+                value={emergencyMessage}
+                onChange={(e) => setEmergencyMessage(e.target.value)}
+                disabled={sendingEmergency}
+                rows={4}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 resize-none disabled:opacity-60"
+                placeholder="Describe what's happening..."
+              />
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                A default message is filled in — send as-is or edit it. Your current location is shared if available.
+              </p>
+              <button
+                onClick={handleSendEmergencyAlert}
+                disabled={sendingEmergency || !emergencyMessage.trim()}
+                className="w-full mt-4 py-3.5 rounded-xl bg-red-600 text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {sendingEmergency ? 'Sending...' : <><FiSend className="w-4 h-4" /> Send Alert to Admin</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

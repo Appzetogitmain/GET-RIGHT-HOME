@@ -17,7 +17,6 @@ const AdminSettings = () => {
     partsGstPercentage: 18,
     servicePayoutPercentage: 90,
     partsPayoutPercentage: 100,
-    vendorCashLimit: 10000,
     cancellationPenalty: 49,
     tdsPercentage: 1,
     platformFeePercentage: 1,
@@ -124,7 +123,6 @@ const AdminSettings = () => {
             platformFeePercentage: res.settings.platformFeePercentage || 1,
             platformFlatFee: res.settings.platformFlatFee || 20,
             cashCollectionFee: res.settings.cashCollectionFee || 20,
-            vendorCashLimit: res.settings.vendorCashLimit || 10000,
             cancellationPenalty: res.settings.cancellationPenalty !== undefined ? res.settings.cancellationPenalty : 49,
             searchRadius: res.settings.searchRadius || 10,
             isOnlinePaymentEnabled: res.settings.isOnlinePaymentEnabled !== undefined ? res.settings.isOnlinePaymentEnabled : true,
@@ -585,11 +583,6 @@ const AdminSettings = () => {
                 <form onSubmit={handleFinancialSave} className="space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Vendor Cash Limit (₹)</label>
-                      <input type="number" name="vendorCashLimit" value={financialSettings.vendorCashLimit} onChange={handleFinancialChange}
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                    </div>
                     <div className="col-span-1 md:col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
                       <div className="flex items-center justify-between">
                         <div>

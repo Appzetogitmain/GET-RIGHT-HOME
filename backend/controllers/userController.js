@@ -2,6 +2,8 @@ import User from '../models/User.js';
 import Partner from '../models/Partner.js';
 import Cart from '../models/Cart.js';
 import bcrypt from 'bcryptjs';
+import Admin from '../models/Admin.js';
+import { createNotification } from './notificationControllers/notificationController.js';
 
 // @desc    Get user profile
 // @route   GET /api/users/profile
@@ -792,5 +794,58 @@ export const getBrokerProfile = async (req, res) => {
   } catch (error) {
     console.error('Error fetching broker profile:', error);
     res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+/**
+ * Silent SOS — customer sends an emergency alert to admin (e.g. feeling
+ * unsafe during a home visit). Never places a call; just notifies every
+ * admin account (in-app + push, via the existing createNotification
+ * pipeline) so someone sees it even if a specific admin is offline.
+ */
+export const sendEmergencyAlert = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { message, location } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: 'A message is required to send an alert' });
+    }
+
+    const user = await User.findById(userId).select('name phone');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const admins = await Admin.find({ role: { $in: ['admin', 'superadmin', 'super_admin'] } });
+
+    const hasLocation = location && typeof location.lat === 'number' && typeof location.lng === 'number';
+    // Keep this short — it's rendered inline (2-line clamp) in the foreground
+    // toast, and the map link previously pushed it well past that, cutting
+    // the customer's own message off mid-sentence. Location is still kept,
+    // just moved into the notification's structured `data` instead of the
+    // display text.
+    const body = `${user.name} (${user.phone}): "${message.trim()}"`;
+
+    await Promise.all(admins.map((admin) =>
+      createNotification({
+        userId: admin._id,
+        userType: 'admin',
+        type: 'customer_emergency',
+        title: '🚨 Customer Emergency Alert',
+        body,
+        priority: 'high',
+        data: hasLocation ? { location, mapUrl: `https://maps.google.com/?q=${location.lat},${location.lng}` } : {},
+        // Without this the foreground toast's category badge falls back to
+        // a literal "DEFAULT" — it reads pushData.type, not the top-level
+        // `type` above (that one only labels the DB record).
+        pushData: { type: 'customer_emergency' }
+      }).catch((err) => console.error('[EmergencyAlert] notify admin failed:', err))
+    ));
+
+    res.status(200).json({ success: true, message: 'Emergency alert sent to admin' });
+  } catch (error) {
+    console.error('Send user emergency alert error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send emergency alert' });
   }
 };

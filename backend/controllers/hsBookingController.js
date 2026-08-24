@@ -528,11 +528,26 @@ const createBooking = async (req, res) => {
 
         await bookingForBackground.save();
 
-        // Fetch Platform Settings for Dynamic Worker Price
+        // Fetch Platform Settings for Dynamic Worker Price — this is only the
+        // "Earn ₹X" preview shown in the job-alert notification, before the
+        // worker has even accepted; createBill computes the real, final split
+        // at job completion using this same percentage, so the two can't
+        // drift apart the way a separately-hardcoded flat fee could.
         const platformSettings = await PlatformSettings.getSettings();
-        const platformFlatFee = platformSettings.platformFlatFee || 0;
-        const workerAmount = Math.max(0, (bookingForBackground.basePrice || 0) - platformFlatFee);
-        console.log(`[WorkerAmount Calc] basePrice: ${bookingForBackground.basePrice}, platformFlatFee: ${platformFlatFee}, workerAmount: ${workerAmount}`);
+        const commissionPercentage = platformSettings.defaultCommission ?? 10;
+        const workerAmount = Math.max(0, parseFloat((((bookingForBackground.basePrice || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
+        console.log(`[WorkerAmount Calc] basePrice: ${bookingForBackground.basePrice}, commission%: ${commissionPercentage}, workerAmount: ${workerAmount}`);
+
+        // The worker's response window is the admin-configurable
+        // Settings.waveDuration, not a hard-coded 60s — this alert is being
+        // sent right now (wave just started), so the full window is what's
+        // left. getPendingRequests already computes this correctly for the
+        // catch-up/poll path; this live socket push was still hard-coding
+        // 60s, so a worker's countdown showed 60s and auto-rejected the job
+        // long before the server's real (e.g. 5-minute) window actually
+        // expired.
+        const waveSettings = await Settings.findOne({ type: 'global' }).select('waveDuration').lean();
+        const responseWindowSec = waveSettings?.waveDuration || 300;
 
         if (wave1Partners.length > 0) {
           console.log(`[CreateBooking] Wave 1: Alerting ${wave1Partners.length} closest ${bookingModel}s (of ${sortedPartners.length} total)`);
@@ -643,7 +658,9 @@ const createBooking = async (req, res) => {
               isConsultancyRequest: bookingForBackground.isConsultancyRequest,
               isEstimateBased: bookingForBackground.isEstimateBased,
               createdAt: bookingForBackground.createdAt || new Date(),
-              expiresAt: new Date(new Date(bookingForBackground.createdAt || Date.now()).getTime() + (60 * 1000)).toISOString(),
+              expiresAt: new Date(Date.now() + responseWindowSec * 1000).toISOString(),
+              respondBySeconds: responseWindowSec,
+              responseWindowSeconds: responseWindowSec,
               playSound: true,
               message: `New booking request within ${partner.distance?.toFixed(1) || '?'}km!`
             });

@@ -70,6 +70,12 @@ import {
   rejectWorkerWithdrawal
 } from '../controllers/adminWorkerController.js';
 import { getHomePageConfig, updateHomePageConfig } from '../controllers/homePageConfigController.js';
+import {
+  getWorkerPlans,
+  createWorkerPlan,
+  updateWorkerPlan,
+  deleteWorkerPlan,
+} from '../controllers/adminWorkerPlanController.js';
 import { checkManagerPermission, requireAdminOrManager } from '../middlewares/managerPermission.js';
 
 import builderRoutes from './builderRoutes.js';
@@ -171,6 +177,17 @@ router.put('/platform-settings', checkManagerPermission('settings', 'edit'), upd
 router.get('/homepage-layout', checkManagerPermission('settings', 'view'), getHomePageConfig);
 router.put('/homepage-layout', checkManagerPermission('settings', 'edit'), updateHomePageConfig);
 router.get('/reel-analysis', checkManagerPermission('reel_analysis', 'view'), getReelAnalysis);
+
+// Worker subscription plans (the "Worker Plans" screen under Plans in the
+// home-service admin panel) — the model and this exact screen already
+// existed, but no route ever answered `/admin/worker-plans`, so every
+// request 404'd and the page was permanently stuck on "No worker plans
+// found." No dedicated manager-permission module exists for this yet, so it
+// falls back to the router-level admin/superadmin/manager gate above.
+router.get('/worker-plans', getWorkerPlans);
+router.post('/worker-plans', createWorkerPlan);
+router.put('/worker-plans/:id', updateWorkerPlan);
+router.delete('/worker-plans/:id', deleteWorkerPlan);
 router.get('/reports/workers', checkManagerPermission('dashboard', 'view'), getWorkerAnalytics);
 
 // Worker Withdrawals

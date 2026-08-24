@@ -3,6 +3,7 @@ import { Menu } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import MobileMenu from './MobileMenu';
+import EmergencySOSButton from './EmergencySOSButton';
 
 const MobileTopNav = () => {
     const navigate = useNavigate();
@@ -66,7 +67,9 @@ const MobileTopNav = () => {
                         <span className="bg-[#10B981] text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Free</span>
                     </div>
 
-                    <button 
+                    <EmergencySOSButton />
+
+                    <button
                         onClick={() => navigate('/notifications')}
                         className="relative p-1.5 text-gray-600 hover:bg-gray-100 rounded-full transition-all active:scale-90"
                     >

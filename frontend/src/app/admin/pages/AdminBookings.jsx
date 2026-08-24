@@ -318,6 +318,14 @@ const AdminBookings = () => {
                                                 </td>
                                                 <td className="p-4">
                                                     <BookingStatusBadge status={booking.bookingStatus} />
+                                                    {booking.bookingStatus === 'cancelled' && booking.cancellationReason && (
+                                                        <p
+                                                            className="mt-1 text-[10px] text-red-500 font-medium max-w-[160px] truncate"
+                                                            title={booking.cancellationReason}
+                                                        >
+                                                            "{booking.cancellationReason}"
+                                                        </p>
+                                                    )}
                                                 </td>
                                                 <td className="p-4 text-right font-bold text-gray-900 text-sm">
                                                     ₹{booking.totalAmount?.toLocaleString()}

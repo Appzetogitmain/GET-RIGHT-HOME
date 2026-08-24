@@ -7,6 +7,7 @@ import {
 import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
 import { bookingService } from '../../services/apiService';
+import CancelBookingModal from '../../homster/components/common/CancelBookingModal';
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='12' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>";
 
@@ -20,6 +21,8 @@ const BookingConfirmationPage = () => {
     const [booking, setBooking] = useState(location.state?.booking || null);
     const [loading, setLoading] = useState(!location.state?.booking);
     const [imgError, setImgError] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
 
     const animate = location.state?.animate;
 
@@ -329,22 +332,7 @@ const BookingConfirmationPage = () => {
                                 <>
                                     {isCancellableTime ? (
                                         <button
-                                            onClick={async () => {
-                                                if (window.confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
-                                                    try {
-                                                        const loadToast = toast.loading('Cancelling...');
-                                                        // Fallback ID usage: booking._id or booking.bookingId might be different depending on API
-                                                        const idToCancel = booking._id || booking.id;
-                                                        await bookingService.cancel(idToCancel);
-                                                        toast.dismiss(loadToast);
-                                                        toast.success('Booking cancelled successfully');
-                                                        navigate('/bookings');
-                                                    } catch (error) {
-                                                        toast.dismiss();
-                                                        toast.error(error.response?.data?.message || 'Failed to cancel booking');
-                                                    }
-                                                }
-                                            }}
+                                            onClick={() => setShowCancelModal(true)}
                                             className="w-full bg-white border-2 border-red-100 text-red-500 font-bold py-4 rounded-2xl shadow-sm hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2 mt-4 print:hidden"
                                         >
                                             Cancel Booking
@@ -361,12 +349,36 @@ const BookingConfirmationPage = () => {
                         {booking.bookingStatus === 'cancelled' && (
                             <div className="w-full bg-red-50 border border-red-100 text-red-600 font-bold py-4 rounded-2xl text-center mt-4">
                                 This booking has been cancelled
+                                {booking.cancellationReason && (
+                                    <p className="text-xs font-medium text-red-400 mt-1 normal-case">"{booking.cancellationReason}"</p>
+                                )}
                             </div>
                         )}
                     </div>
 
                 </div>
             </main>
+
+            <CancelBookingModal
+                isOpen={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                loading={cancelling}
+                onConfirm={async (reason) => {
+                    setCancelling(true);
+                    try {
+                        const idToCancel = booking._id || booking.id;
+                        const res = await bookingService.cancel(idToCancel, reason);
+                        toast.success('Booking cancelled successfully');
+                        setShowCancelModal(false);
+                        setBooking((prev) => ({ ...prev, bookingStatus: 'cancelled', cancellationReason: reason }));
+                        navigate('/bookings');
+                    } catch (error) {
+                        toast.error(error.response?.data?.message || 'Failed to cancel booking');
+                    } finally {
+                        setCancelling(false);
+                    }
+                }}
+            />
         </div>
     );
 };

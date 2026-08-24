@@ -407,7 +407,12 @@ export const SocketProvider = ({ children }) => {
             time: data.scheduledTime
           },
           status: 'ASSIGNED',
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          // Server's real response window — without this the alert card
+          // falls back to a hard-coded 60s and can auto-reject the job long
+          // before the server (e.g. a 5-minute wave) actually gives up.
+          respondBySeconds: data.respondBySeconds,
+          responseWindowSeconds: data.responseWindowSeconds
         };
 
         const pendingJobs = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
@@ -456,7 +461,11 @@ export const SocketProvider = ({ children }) => {
           },
           status: 'requested',
           createdAt: data.createdAt || new Date().toISOString(),
-          expiresAt: data.expiresAt
+          expiresAt: data.expiresAt,
+          // Same as new_job_assigned above — carry the server's real response
+          // window through so the countdown doesn't fall back to 60s.
+          respondBySeconds: data.respondBySeconds,
+          responseWindowSeconds: data.responseWindowSeconds
         };
 
         // Save to localStorage for persistence

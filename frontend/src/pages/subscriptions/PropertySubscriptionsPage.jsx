@@ -153,6 +153,17 @@ const PropertySubscriptionsPage = () => {
     const [submitting, setSubmitting] = useState(false);
     const purchaseInFlightRef = useRef(false);
 
+    // This page renders both standalone (owner/broker, at /my-subscriptions)
+    // and nested inside the partner shell (builder, at /hotel/subscriptions).
+    // Getting here is also possible via a direct link or a redirect chain
+    // (e.g. the posting-flow gate), so `navigate(-1)` isn't reliable — it can
+    // "bounce" straight back to wherever sent the user here, or fall through
+    // to '/' when there's no usable history. Same failure mode already fixed
+    // in DynamicFormEngine's goBack; the fix here is the same: go somewhere
+    // explicit and stable instead of trusting browser history.
+    const isBuilder = user?.role === 'builder' || user?.role === 'partner';
+    const backTo = isBuilder ? '/hotel/properties' : '/my-properties';
+
     useEffect(() => { loadCatalog(mode); }, [mode]);
     useEffect(() => { loadMine(); }, []);
 
@@ -269,7 +280,7 @@ const PropertySubscriptionsPage = () => {
         <div className="min-h-screen bg-gray-50 pb-28">
             <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
                 <div className="flex items-center gap-4 px-4 py-4">
-                    <button onClick={() => navigate(-1)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors">
+                    <button onClick={() => navigate(backTo)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors">
                         <ArrowLeft size={18} className="text-gray-700" />
                     </button>
                     <div className="flex-1">

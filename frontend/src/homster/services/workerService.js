@@ -36,6 +36,14 @@ const workerService = {
     return response.data;
   },
 
+  /**
+   * Silent SOS — sends an emergency alert to admin. Never places a call.
+   */
+  sendEmergencyAlert: async (message, location) => {
+    const response = await api.post('/workers/emergency', { message, location });
+    return response.data;
+  },
+
   // Jobs
   getAssignedJobs: async (params) => {
     const response = await api.get('/workers/jobs', { params });
@@ -101,6 +109,16 @@ const workerService = {
    */
   verifyOnlineCollection: async (id) => {
     const response = await api.post(`/bookings/cash/${id}/verify-online`);
+    return response.data;
+  },
+
+  /**
+   * Confirm with the customer's OTP that they've seen & approved the extra
+   * items added to the bill so far. Does not close the job — just a gate
+   * before letting the worker move on to Review.
+   */
+  verifyItemsOtp: async (id, otp) => {
+    const response = await api.post(`/workers/jobs/${id}/verify-items-otp`, { otp });
     return response.data;
   },
 

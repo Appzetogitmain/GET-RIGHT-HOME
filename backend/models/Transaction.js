@@ -46,7 +46,8 @@ const transactionSchema = new mongoose.Schema({
       'referral_penalty',
       'cash_collected',
       'target_bonus',
-      'achievement_bonus'
+      'achievement_bonus',
+      'estimate_token'
     ],
     required: true
   },

@@ -106,6 +106,11 @@ const AdminBookingDetail = () => {
                         </span>
                     </div>
                     <p className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">Booked on {new Date(booking.createdAt).toLocaleDateString()} • {new Date(booking.createdAt).toLocaleTimeString()}</p>
+                    {(booking.bookingStatus || booking.status) === 'cancelled' && booking.cancellationReason && (
+                        <p className="text-xs font-semibold text-red-500 mt-1.5">
+                            Cancellation reason: <span className="font-normal text-red-400">{booking.cancellationReason}</span>
+                        </p>
+                    )}
                 </div>
                 <div className="flex gap-2">
                     <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 transition-colors">
