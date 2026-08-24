@@ -598,18 +598,8 @@ const JobDetails = () => {
           </div>
 
           <div className="space-y-3 text-sm">
-            {/* Base Items */}
-            <div className="flex justify-between items-center text-gray-600">
-              <span>Base Price</span>
-              {job.paymentMethod === 'plan_benefit' ? (
-                <div className="flex items-center gap-2">
-                  <span className="line-through text-gray-400 text-xs">₹{(job.basePrice || 0).toFixed(2)}</span>
-                  <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE ✓</span>
-                </div>
-              ) : (
-                <span>₹{(job.basePrice || 0).toFixed(2)}</span>
-              )}
-            </div>
+            {/* Base Price intentionally not shown to the worker — see
+                "Your Earning" below instead. */}
 
             {job.tax > 0 && (
               <div className="flex justify-between items-center text-gray-600">
@@ -670,12 +660,15 @@ const JobDetails = () => {
 
             <div className="my-4 border-t border-gray-200"></div>
 
-            <div className="flex justify-between items-end mb-2">
-              <span className="text-gray-900 font-bold">Total Amount (User Pays)</span>
-              <span className="text-2xl font-bold text-gray-900">
-                ₹{(job.paymentMethod === 'plan_benefit' ? (job.extraChargesTotal || 0) : (job.finalAmount || 0)).toFixed(2)}
-              </span>
-            </div>
+            {/* Workers see their own earning, not the customer's total bill. */}
+            {job.workerAmount !== undefined && (
+              <div className="flex justify-between items-end mb-2">
+                <span className="text-gray-900 font-bold">Your Earning</span>
+                <span className="text-2xl font-bold text-emerald-600">
+                  ₹{job.workerAmount.toFixed(2)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
         )}

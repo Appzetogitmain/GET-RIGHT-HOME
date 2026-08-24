@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { FiDollarSign, FiArrowUp, FiArrowDown, FiClock, FiBell, FiX, FiImage, FiFileText, FiCreditCard, FiCalendar, FiInfo, FiChevronRight } from 'react-icons/fi';
+import { FiDollarSign, FiArrowUp, FiArrowDown, FiBell, FiX, FiImage, FiFileText, FiCreditCard, FiCalendar, FiInfo, FiChevronRight } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
@@ -10,7 +10,6 @@ import LogoLoader from '../../../../components/common/LogoLoader';
 const Wallet = () => {
   const [loading, setLoading] = useState(true);
   const [payoutLoading, setPayoutLoading] = useState(false);
-  const [payingDues, setPayingDues] = useState(false);
   const [wallet, setWallet] = useState({
     balance: 0,
     pendingPayout: 0
@@ -187,69 +186,6 @@ const Wallet = () => {
     return <LogoLoader />;
   }
 
-  const loadRazorpay = () => new Promise((resolve) => {
-    if (window.Razorpay) return resolve(true);
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-
-  const handlePayDues = async () => {
-    if (!wallet.dues || wallet.dues <= 0) return;
-
-    try {
-      setPayingDues(true);
-      const isLoaded = await loadRazorpay();
-      if (!isLoaded || !window.Razorpay) {
-        toast.error('Razorpay SDK failed to load. Are you online?');
-        return;
-      }
-
-      // Initiate order
-      const initRes = await workerWalletService.payAdminDuesInitiate(wallet.dues);
-
-      const options = {
-        key: initRes.order.key,
-        amount: initRes.order.amount,
-        currency: initRes.order.currency,
-        name: " Get Right Home",
-        description: "Clear Admin Dues",
-        order_id: initRes.order.id,
-        handler: async function (response) {
-          try {
-            const verifyRes = await workerWalletService.payAdminDuesVerify({
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
-              amount: wallet.dues
-            });
-            if (verifyRes.success) {
-              toast.success('Dues cleared successfully!');
-              loadWalletData();
-            }
-          } catch (err) {
-            toast.error(err.message || 'Payment verification failed');
-          }
-        },
-        theme: {
-          color: "#0F766E"
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (response) {
-        toast.error('Payment Failed: ' + response.error.description);
-      });
-      rzp.open();
-    } catch (err) {
-      toast.error(err.message || 'Failed to initiate payment');
-    } finally {
-      setPayingDues(false);
-    }
-  };
-
   const handleWithdrawalRequest = async (e) => {
     e.preventDefault();
     if (!withdrawAmount || Number(withdrawAmount) <= 0) {
@@ -353,31 +289,8 @@ const Wallet = () => {
           </div>
         </div>
 
-        {/* Admin Dues Card */}
-        <div className={`rounded-2xl p-5 shadow-lg relative overflow-hidden mb-6 bg-white border-l-4 ${wallet.dues > 0 ? 'border-red-500' : 'border-green-500'}`}>
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-2">
-              <FiClock className={`${wallet.dues > 0 ? 'text-red-500' : 'text-green-500'} w-5 h-5`} />
-              <h3 className="font-semibold text-gray-800">Admin Commission Dues</h3>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 mb-4">
-            This amount is pending from the cash payments you collected directly from customers.
-          </p>
-          <div className="flex justify-between items-end">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">To Pay</p>
-              <p className={`text-2xl font-bold ${wallet.dues > 0 ? 'text-red-600' : 'text-green-600'}`}>₹{wallet.dues?.toLocaleString() || 0}</p>
-            </div>
-            <button
-              onClick={handlePayDues}
-              disabled={payingDues || !wallet.dues || wallet.dues <= 0}
-              className={`px-6 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${wallet.dues > 0 ? 'bg-red-500 hover:bg-red-600 text-white active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-            >
-              {payingDues ? 'Processing...' : (wallet.dues > 0 ? 'Pay Now' : 'All Cleared')}
-            </button>
-          </div>
-        </div>
+        {/* Admin Dues Card removed — dues only ever accrued from cash
+            collections, and payment mode is online-only now. */}
 
         {/* Pending Payouts List Removed */}
 

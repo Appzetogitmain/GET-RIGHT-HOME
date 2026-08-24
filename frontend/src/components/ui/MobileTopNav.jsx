@@ -3,7 +3,8 @@ import { Menu } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import MobileMenu from './MobileMenu';
-import EmergencySOSButton from './EmergencySOSButton';
+// EmergencySOSButton hidden from this header for now — component kept,
+// just not rendered here (see TopNavbar.jsx for the desktop counterpart).
 
 const MobileTopNav = () => {
     const navigate = useNavigate();
@@ -66,8 +67,6 @@ const MobileTopNav = () => {
                         <span className="text-[#005B9F] font-semibold text-[13px]">Post property</span>
                         <span className="bg-[#10B981] text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Free</span>
                     </div>
-
-                    <EmergencySOSButton />
 
                     <button
                         onClick={() => navigate('/notifications')}

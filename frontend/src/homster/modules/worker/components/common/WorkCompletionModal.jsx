@@ -192,11 +192,14 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
                 </ul>
               </div>
 
-              {/* Payment Info */}
+              {/* Payment Info — worker sees their own earning, not the
+                  customer's total bill value. */}
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase">Total Bill Value</p>
-                  <p className="text-lg font-black text-gray-800">₹{calculateTotal().toFixed(2)}</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase">Your Earning</p>
+                  <p className="text-lg font-black text-emerald-600">
+                    ₹{(typeof job?.workerAmount === 'number' ? job.workerAmount : calculateTotal()).toFixed(2)}
+                  </p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-white border border-gray-100 flex items-center justify-center text-green-600 shadow-sm">
                   <FiDollarSign className="w-5 h-5" />
