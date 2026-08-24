@@ -143,7 +143,7 @@ const getPendingRequests = async (req, res) => {
     const bookingMap = new Map(bookings.map(b => [String(b._id), b]));
 
     const platformSettings = await PlatformSettings.getSettings();
-    const platformFlatFee = platformSettings.platformFlatFee || 0;
+    const commissionPercentage = platformSettings.defaultCommission ?? 10;
 
     // The worker's response window is Settings.waveDuration, counted from when
     // this wave went out — NOT BookingRequest.expiresAt, which is the record's
@@ -157,7 +157,7 @@ const getPendingRequests = async (req, res) => {
       .map(r => {
         const booking = bookingMap.get(String(r.bookingId));
         if (!booking) return null;
-        const workerAmount = Math.max(0, (booking.basePrice || 0) - platformFlatFee);
+        const workerAmount = Math.max(0, parseFloat((((booking.basePrice || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
         return {
           bookingId: booking._id,
           serviceName: booking.serviceName,
@@ -760,21 +760,31 @@ const createBill = async (req, res) => {
     const visitingCharges = 0;
     const transport = Number(transportCharges) || 0;
     
-    // IMPORTANT: booking.basePrice = FULL original service price (e.g. 100)
-    // booking.discount / booking.promoDiscount = discount amount (e.g. 10)
-    // Discount applies ONLY to platform fee — NOT to the worker's cut.
+    // IMPORTANT: booking.basePrice = FULL original service price (e.g. 500)
+    // booking.discount / booking.promoDiscount = discount amount
+    // Discount applies ONLY to the admin's cut — NOT to the worker's.
     const trueOriginalServiceBase = booking.basePrice || booking.totalAmount || 0;
     const baseDiscount = booking.discount || 0;
     const promoDiscount = booking.promoDiscount || 0;
     const totalDiscount = baseDiscount + promoDiscount;
-    
+
     // Fetch Platform Settings
+    //
+    // Commission is a PERCENTAGE of the original booked service price, not a
+    // flat ₹ fee — a ₹500 job at the admin-configured rate (e.g. 20%) splits
+    // ₹100 to admin / ₹400 to worker; a ₹5,000 job at the same rate splits
+    // ₹1,000 / ₹4,000. If `defaultCommission` isn't set, we fall back to a
+    // 10% default rather than silently taking a ₹0 cut.
+    // Applies only to the ORIGINAL booked price — a worker's own added
+    // extras/parts (below) stay 100% theirs, same as before.
     const isEstimate = booking.isEstimateBased;
-    const platformFlatFee = isEstimate ? 0 : (platformSettings?.platformFlatFee ?? 20);
+    const commissionPercentage = isEstimate ? 0 : (platformSettings?.defaultCommission ?? 10);
     const cashExtraFee = isEstimate ? 0 : (platformSettings?.cashCollectionFee ?? 20);
 
-    // Worker sees: basePrice - platformFee = 100 - 20 = 80
-    const originalServiceBase = Math.max(0, trueOriginalServiceBase - platformFlatFee);
+    const grossAdminCommission = isEstimate ? 0 : parseFloat(((trueOriginalServiceBase * commissionPercentage) / 100).toFixed(2));
+
+    // Worker sees: basePrice - commission = 500 - 100 = 400 (at 20%)
+    const originalServiceBase = Math.max(0, parseFloat((trueOriginalServiceBase - grossAdminCommission).toFixed(2)));
     const originalServiceGST = booking.tax || 0;
     
     // Grand total = worker's cut + extras + parts
@@ -807,18 +817,20 @@ const createBill = async (req, res) => {
     bill.visitingCharges = visitingCharges;
     bill.grandTotal = grandTotal;
     
-    // Discount reduces platform fee only: 20 - 10 = 10
-    const adjustedPlatformFee = Math.max(0, platformFlatFee - totalDiscount);
+    // Discount reduces the admin's cut only: ₹100 commission - ₹10 discount = ₹90
+    const adjustedAdminCommission = Math.max(0, parseFloat((grossAdminCommission - totalDiscount).toFixed(2)));
 
-    // Final online = worker's earnings + adjusted platform fee = 80 + 10 = 90
-    const finalOnlineAmount = parseFloat((grandTotal + adjustedPlatformFee).toFixed(2));
+    // Final online = worker's earnings + adjusted commission = 400 + 90 = 490
+    const finalOnlineAmount = parseFloat((grandTotal + adjustedAdminCommission).toFixed(2));
     const finalCashAmount = parseFloat((finalOnlineAmount + cashExtraFee).toFixed(2));
-    
+
     // Worker earning = grand total (their service cut)
     const workerEarning = grandTotal;
 
     bill.vendorTotalEarning = workerEarning;
-    bill.adminCommission = adjustedPlatformFee;
+    bill.adminCommission = adjustedAdminCommission;
+    bill.payoutConfig = bill.payoutConfig || {};
+    bill.payoutConfig.commissionPercentage = commissionPercentage;
     bill.cashCollectionFee = cashExtraFee;
     bill.finalOnlineAmount = finalOnlineAmount;
     bill.finalCashAmount = finalCashAmount;
@@ -880,6 +892,44 @@ const createBill = async (req, res) => {
 };
 
 /**
+ * Verify the customer's OTP to confirm they've seen & approved the extra
+ * items/parts a worker has added to the bill so far (createBill must have
+ * already run to generate/refresh this OTP and notify the customer).
+ *
+ * Deliberately does NOT touch booking status or complete the job — this is
+ * only a checkpoint gate before the worker is allowed to move on to Review.
+ * The same OTP is reused again later, unchanged, to actually close out the
+ * job (collectCash / confirmManualOnlineCollection).
+ */
+const verifyItemsOtp = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { otp } = req.body;
+    const workerId = req.user.id;
+
+    const booking = await HomeServiceBooking.findOne({ _id: id }).select('+paymentOtp');
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    const workerIdStr = String(booking.workerId?._id || booking.workerId || '');
+    const vendorIdStr = String(booking.vendorId?._id || booking.vendorId || '');
+    if (workerIdStr !== String(workerId) && vendorIdStr !== String(workerId)) {
+      return res.status(403).json({ success: false, message: 'Unauthorized action' });
+    }
+
+    if (!booking.paymentOtp || String(booking.paymentOtp) !== String(otp)) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    res.status(200).json({ success: true, message: 'Extra items verified by customer' });
+  } catch (error) {
+    console.error('Verify items OTP error:', error);
+    res.status(500).json({ success: false, message: 'Failed to verify OTP' });
+  }
+};
+
+/**
  * Collect Cash & Complete Booking
  * Uses VendorBill as the single source of truth for earnings.
  */
@@ -907,16 +957,19 @@ const collectCash = async (req, res) => {
       return res.status(200).json({ success: true, message: 'Payment already collected' });
     }
 
-    // AWAITING_PAYMENT is the state a booking sits in between the worker asking
-    // for payment and it actually being settled, so it must be collectable.
-    const allowedStatuses = [
-      BOOKING_STATUS.AWAITING_PAYMENT,
-      BOOKING_STATUS.WORK_DONE,
-      BOOKING_STATUS.VISITED,
-      BOOKING_STATUS.IN_PROGRESS
-    ];
+    // Only AWAITING_PAYMENT may be closed out here. createBill generates
+    // paymentOtp/customerConfirmationOTP as soon as the bill exists — while
+    // the booking is still WORK_DONE — purely so the customer can confirm
+    // extra items (see verifyItemsOtp). Allowing that same OTP to close the
+    // job straight from WORK_DONE/VISITED/IN_PROGRESS meant a worker could
+    // mark a booking paid & completed using an OTP the customer only ever
+    // gave to approve line items — no payment (cash or online) had to occur
+    // at all. The worker must explicitly request payment first
+    // (initiateCashCollection / initiateOnlineCollection), which is what
+    // actually moves the booking into AWAITING_PAYMENT.
+    const allowedStatuses = [BOOKING_STATUS.AWAITING_PAYMENT];
     if (!allowedStatuses.includes(booking.status)) {
-      return res.status(400).json({ success: false, message: `Cannot collect payment with status: ${booking.status}` });
+      return res.status(400).json({ success: false, message: `Payment hasn't been requested yet for this booking (status: ${booking.status})` });
     }
 
     if (String(booking.paymentOtp) !== String(otp)) {
@@ -1396,8 +1449,11 @@ const confirmManualOnlineCollection = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Unauthorized action' });
     }
 
-    if (![BOOKING_STATUS.WORK_DONE, BOOKING_STATUS.AWAITING_PAYMENT].includes(booking.status)) {
-      return res.status(400).json({ success: false, message: 'Work is not marked as done yet' });
+    // Same reasoning as collectCash above — don't accept WORK_DONE here.
+    // Payment must have actually been requested (status = AWAITING_PAYMENT)
+    // before this OTP is allowed to close the job.
+    if (booking.status !== BOOKING_STATUS.AWAITING_PAYMENT) {
+      return res.status(400).json({ success: false, message: `Payment hasn't been requested yet for this booking (status: ${booking.status})` });
     }
 
     if (booking.paymentOtp !== otp) {
@@ -1487,9 +1543,13 @@ const generateEstimate = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Estimate can only be generated when status is visited or in_progress' });
     }
 
-    // Token logic: 30% of total estimate
+    // Token logic: 30% of total estimate is collected upfront; admin's cut of
+    // that token now follows the same admin-configured commission rate as a
+    // regular booking (was hardcoded to 20% here, independent of Settings).
+    const platformSettings = await PlatformSettings.getSettings();
+    const commissionPercentage = platformSettings?.defaultCommission ?? 10;
     const tokenAmount = Math.round(Number(estimatedAmount) * 0.3);
-    const adminCommission = Math.round(Number(estimatedAmount) * 0.2); // 20% of total
+    const adminCommission = Math.round((Number(estimatedAmount) * commissionPercentage) / 100);
     const workerAdvance = tokenAmount - adminCommission;
 
     booking.estimate = {
@@ -1659,6 +1719,7 @@ export {
   respondToJob,
   getBill,
   createBill,
+  verifyItemsOtp,
   initiateOnlineCollection,
   verifyOnlineCollection,
   initiateCashCollection,

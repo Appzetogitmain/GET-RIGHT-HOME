@@ -116,10 +116,14 @@ const vendorBillSchema = new mongoose.Schema({
 
   /** Config snapshot — frozen at bill-generation time */
   payoutConfig: {
-    serviceSplitPercentage: { type: Number, default: 70 },  // vendor gets 70%
-    partsSplitPercentage: { type: Number, default: 10 },  // vendor gets 10%
+    serviceSplitPercentage: { type: Number, default: 70 },  // vendor gets 70% (legacy vendor-model bookings only)
+    partsSplitPercentage: { type: Number, default: 10 },  // vendor gets 10% (legacy vendor-model bookings only)
     serviceGstPercentage: { type: Number, default: 18 },
-    partsGstPercentage: { type: Number, default: 18 }
+    partsGstPercentage: { type: Number, default: 18 },
+    // The admin commission rate actually applied to THIS bill, frozen at
+    // generation time — PlatformSettings.defaultCommission can change later
+    // without silently rewriting what a worker was already billed.
+    commissionPercentage: { type: Number, default: 0 },
   },
 
   /** Vendor earnings (calculated on BASE prices, never on GST) */

@@ -13,6 +13,7 @@ import emailService from '../services/emailService.js';
 import notificationService from '../services/notificationService.js';
 import referralService from '../services/referralService.js';
 import User from '../models/User.js';
+import Admin from '../models/Admin.js';
 
 // Helper: Trigger Notifications
 const triggerBookingNotifications = async (booking) => {
@@ -356,11 +357,13 @@ export const createBooking = async (req, res) => {
 
           // If no admin wallet exists, we might need to find an admin user to create one
           if (!adminWallet) {
-            const AdminUser = mongoose.model('User');
+            // Admin accounts live in the Admin collection, not User.
+            const AdminUser = Admin;
             const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
             if (adminUser) {
               adminWallet = await Wallet.create({
                 partnerId: adminUser._id,
+                modelType: 'Admin',
                 role: 'admin',
                 balance: 0
               });
@@ -463,11 +466,13 @@ export const createBooking = async (req, res) => {
           // 2. Credit Admin
           let adminWallet = await Wallet.findOne({ role: 'admin' });
           if (!adminWallet) {
-            const AdminUser = mongoose.model('User');
+            // Admin accounts live in the Admin collection, not User.
+            const AdminUser = Admin;
             const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
             if (adminUser) {
               adminWallet = await Wallet.create({
                 partnerId: adminUser._id,
+                modelType: 'Admin',
                 role: 'admin',
                 balance: 0
               });
@@ -903,11 +908,13 @@ export const markBookingNoShow = async (req, res) => {
         // Ensure Admin Wallet
         let adminWallet = await Wallet.findOne({ role: 'admin' });
         if (!adminWallet) {
-          const AdminUser = mongoose.model('User');
+          // Admin accounts live in the Admin collection, not User.
+            const AdminUser = Admin;
           const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
           if (adminUser) {
             adminWallet = await Wallet.create({
               partnerId: adminUser._id,
+              modelType: 'Admin',
               role: 'admin',
               balance: 0
             });
