@@ -12,7 +12,7 @@ import MobileTopNav from './components/ui/MobileTopNav';
 import BottomNavbar from './components/ui/BottomNavbar';
 import FloatingSupportButton from './components/support/FloatingSupportButton';
 import PartnerBottomNavbar from './app/partner/components/PartnerBottomNavbar';
-import useScrollRestoration from './hooks/useScrollRestoration';
+import ScrollToTop from './components/ui/ScrollToTop';
 
 // Hooks & Services
 import { useLenis } from './app/shared/hooks/useLenis';
@@ -185,11 +185,6 @@ const PartnerSubscriptions = React.lazy(() => import('./app/partner/pages/Partne
 // Lazy Imports - Layouts
 const HotelLayout = React.lazy(() => import('./layouts/HotelLayout'));
 const AdminLayout = React.lazy(() => import('./app/admin/layouts/AdminLayout'));
-
-const ScrollHandler = () => {
-  useScrollRestoration();
-  return null;
-};
 
 // Loading Fallback Component
 const PageLoader = () => (
@@ -457,7 +452,7 @@ function App() {
       <CartProvider>
         <AuthProvider>
           <Router>
-            <ScrollHandler />
+            <ScrollToTop />
             <Toaster position="top-center" reverseOrder={false} />
             <SocketProvider>
               <EnquiryModalProvider>
