@@ -74,9 +74,34 @@ const getAssignedJobs = async (req, res) => {
     // Get total count
     const total = await HomeServiceBooking.countDocuments(query);
 
+    // This list showed the raw booking `finalAmount` — the customer's full
+    // bill — as if it were what the worker earns, which overstates it by
+    // the platform's commission cut. Every other worker-facing screen
+    // (job-alert preview, pending-requests list, createBill) already shows
+    // the commission-adjusted amount; this was the one place still showing
+    // the customer's number instead of the worker's own.
+    const platformSettings = await PlatformSettings.getSettings();
+    const commissionPercentage = platformSettings?.defaultCommission ?? 10;
+    const bookingIds = bookings.map(b => b._id);
+    const bills = await VendorBill.find({ bookingId: { $in: bookingIds } }).select('bookingId vendorTotalEarning').lean();
+    const billByBookingId = new Map(bills.map(b => [String(b.bookingId), b]));
+
+    const bookingsWithWorkerAmount = bookings.map(b => {
+      const obj = b.toObject();
+      const bill = billByBookingId.get(String(b._id));
+      // A finalized bill (job billed/completed) is the real, authoritative
+      // earning — parts/extra items can make it differ from the plain
+      // percentage estimate. Otherwise fall back to the same estimate the
+      // worker already saw before accepting.
+      obj.workerAmount = bill
+        ? bill.vendorTotalEarning
+        : Math.max(0, parseFloat((((b.basePrice || b.finalAmount || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
+      return obj;
+    });
+
     res.status(200).json({
       success: true,
-      data: bookings,
+      data: bookingsWithWorkerAmount,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -222,9 +247,25 @@ const getJobById = async (req, res) => {
       });
     }
 
+    // Same fix as getAssignedJobs: the raw booking amount is what the
+    // CUSTOMER pays, not what the worker actually earns after the
+    // platform's commission cut. Add the commission-adjusted figure
+    // alongside it rather than replacing finalAmount, since the customer's
+    // total is still legitimately useful for the worker to see (e.g. when
+    // collecting payment) — it's just not their own earning.
+    const bookingObj = booking.toObject();
+    const bill = await VendorBill.findOne({ bookingId: booking._id }).select('vendorTotalEarning').lean();
+    if (bill) {
+      bookingObj.workerAmount = bill.vendorTotalEarning;
+    } else {
+      const platformSettings = await PlatformSettings.getSettings();
+      const commissionPercentage = platformSettings?.defaultCommission ?? 10;
+      bookingObj.workerAmount = Math.max(0, parseFloat((((booking.basePrice || booking.finalAmount || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
+    }
+
     res.status(200).json({
       success: true,
-      data: booking
+      data: bookingObj
     });
   } catch (error) {
     console.error('Get job error:', error);
