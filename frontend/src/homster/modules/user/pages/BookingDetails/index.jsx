@@ -196,6 +196,24 @@ const BookingDetails = () => {
     };
   }, [socket, id]);
 
+  // The "Finalizing Bill" card below depends entirely on the socket event
+  // above arriving — a dropped connection, background tab, or reconnect at
+  // the exact moment the worker creates the bill left the customer stuck on
+  // this screen indefinitely with no way to recover short of a manual
+  // refresh. Poll as a fallback, but only while actually waiting on a bill
+  // (same condition the card itself uses), so this doesn't run for the rest
+  // of the page's lifetime.
+  useEffect(() => {
+    const isWaitingOnBill = booking?.status?.toLowerCase() === 'work_done' && !booking?.customerConfirmationOTP;
+    if (!isWaitingOnBill) return;
+
+    const interval = setInterval(() => {
+      loadBooking();
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [booking?.status, booking?.customerConfirmationOTP, id]);
+
   // Auto-show rating modal ONLY when booking is fully completed AND paid
   useEffect(() => {
     if (booking) {
