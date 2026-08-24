@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBriefcase, FiClock, FiCheckCircle, FiXCircle, FiMapPin, FiChevronRight, FiUser, FiSearch } from 'react-icons/fi';
+import { FiArrowLeft, FiBriefcase, FiClock, FiCheckCircle, FiXCircle, FiMapPin, FiChevronRight, FiUser, FiSearch } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
-import Header from '../../components/layout/Header';
 import workerService from '../../../../services/workerService';
 import { SkeletonList } from '../../../../components/common/SkeletonLoaders';
 
@@ -13,6 +12,7 @@ const AssignedJobs = () => {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all'); // all, confirmed, in_progress, completed
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef(null);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -140,7 +140,16 @@ const AssignedJobs = () => {
 
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
-      <Header title="My Jobs" showSearch={true} />
+      {/* Header — matches the Referrals/Wallet page style */}
+      <div className="bg-white px-4 py-4 sticky top-0 z-50 shadow-sm flex items-center gap-4">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-800">
+          <FiArrowLeft className="w-6 h-6" />
+        </button>
+        <h1 className="text-xl font-bold text-gray-800 flex-1">My Jobs</h1>
+        <button onClick={() => searchInputRef.current?.focus()} className="p-2 -mr-2 text-gray-800">
+          <FiSearch className="w-6 h-6" />
+        </button>
+      </div>
 
       <main className="px-4 py-6">
         {/* Search Bar */}
@@ -148,6 +157,7 @@ const AssignedJobs = () => {
           <div className="relative">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Search jobs..."
               value={searchQuery}

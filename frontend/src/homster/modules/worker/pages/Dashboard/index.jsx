@@ -565,17 +565,34 @@ const Dashboard = () => {
           )}
 
         {/* Emergency SOS */}
-        <div className="px-4 py-2">
+        <div className="px-4 pt-3 pb-2">
           <button
             onClick={() => setShowEmergencyModal(true)}
-            className="w-full bg-red-50 border border-red-100 rounded-2xl p-3 shadow-sm flex items-center gap-3 active:scale-[0.98] transition-all"
+            className="w-full relative overflow-hidden rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-all"
+            style={{
+              background: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)',
+              boxShadow: '0 8px 20px -4px rgba(220, 38, 38, 0.4)',
+            }}
           >
-            <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-              <FiAlertTriangle className="w-4 h-4 text-red-600" />
+            {/* Ambient glow */}
+            <div className="absolute top-0 right-0 w-28 h-28 bg-white/10 rounded-full -translate-y-12 translate-x-12 blur-2xl pointer-events-none"></div>
+
+            {/* Pulsing icon badge */}
+            <div className="relative w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0 border border-white/25">
+              <span className="absolute inset-0 rounded-full bg-white/40 animate-ping"></span>
+              <FiAlertTriangle className="w-5 h-5 text-white relative z-10" />
             </div>
-            <div className="text-left">
-              <p className="text-xs font-black text-red-700">Emergency SOS</p>
-              <p className="text-[10px] text-red-500 font-medium">Silently alert admin if you need help</p>
+
+            <div className="text-left flex-1 relative z-10 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-black text-white tracking-tight">Emergency SOS</p>
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+              </div>
+              <p className="text-[11px] text-red-100 font-medium truncate">Silently alert admin if you need help</p>
+            </div>
+
+            <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center shrink-0 relative z-10">
+              <FiChevronRight className="w-4 h-4 text-white" />
             </div>
           </button>
         </div>

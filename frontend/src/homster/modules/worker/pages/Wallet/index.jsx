@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { FiDollarSign, FiArrowUp, FiArrowDown, FiBell, FiX, FiImage, FiFileText, FiCreditCard, FiCalendar, FiInfo, FiChevronRight } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiArrowLeft, FiDollarSign, FiArrowUp, FiArrowDown, FiBell, FiX, FiImage, FiFileText, FiCreditCard, FiCalendar, FiInfo, FiChevronRight } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import { workerTheme as themeColors } from '../../../../theme';
-import Header from '../../components/layout/Header';
 import workerWalletService from '../../../../services/workerWalletService';
 import { toast } from 'react-hot-toast';
 import LogoLoader from '../../../../components/common/LogoLoader';
 
 const Wallet = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [wallet, setWallet] = useState({
@@ -262,7 +263,13 @@ const Wallet = () => {
 
   return (
     <div className="min-h-screen pb-24" style={{ background: themeColors.backgroundGradient }}>
-      <Header title="My Wallet" />
+      {/* Header — matches the Referrals page style */}
+      <div className="bg-white px-4 py-4 sticky top-0 z-50 shadow-sm flex items-center gap-4">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-800">
+          <FiArrowLeft className="w-6 h-6" />
+        </button>
+        <h1 className="text-xl font-bold text-gray-800">My Wallet</h1>
+      </div>
 
       <main className="px-4 py-6">
         {/* Balance Card */}
