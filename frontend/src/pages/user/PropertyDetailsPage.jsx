@@ -2327,9 +2327,127 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
 
       </div> {/* End of Left Column */}
 
-      {/* Right Column Sidebar (Desktop) / Sticky Bottom Actions Bar (Mobile) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 p-2.5 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.15)] z-50 max-w-xl mx-auto lg:static lg:col-span-4 lg:sticky lg:top-44 lg:border lg:border-slate-100 lg:rounded-2xl lg:p-5 lg:shadow-xl lg:max-w-none lg:bg-white lg:z-10">
-        {/* Booking row — only for bookable stays (has inventory, not a Buy/Plot listing) */}
+      {/* Right Column Sidebar — restyled to match the project detail page's
+          "Enquire About This Project" card (same white card, verified-contact
+          reveal row, solid primary CTA, light secondary actions, trust
+          footer). Mobile keeps its own compact fixed bar below instead of
+          cramming the full card into a bottom sheet, same split the project
+          page itself uses (a lean always-visible bar + a separate sidebar
+          card, not one block reshaped by breakpoint). */}
+      <div className="hidden lg:block lg:static lg:col-span-4 lg:sticky lg:top-44">
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xl space-y-6">
+
+          {/* Booking row — only for bookable stays (has inventory, not a Buy/Plot listing) */}
+          {hasInventory && !isBuyGroup && (
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <div className="flex-1 min-w-0">
+                {(() => {
+                  const bd = getPriceBreakdown();
+                  if (bd?.grandTotal) {
+                    return (
+                      <>
+                        <div className="text-[15px] font-black text-gray-900 leading-none">
+                          ₹{bd.grandTotal.toLocaleString('en-IN')}
+                        </div>
+                        <div className="text-[10px] text-gray-500 font-medium mt-0.5">
+                          incl. taxes {bd.nights > 0 ? `· ${bd.nights} night${bd.nights > 1 ? 's' : ''}` : ''}
+                        </div>
+                      </>
+                    );
+                  }
+                  return (
+                    <div className="text-[11px] text-gray-500 font-medium leading-tight">
+                      Select {selectedRoom ? 'dates' : 'a room'} to see the total
+                    </div>
+                  );
+                })()}
+              </div>
+              <button
+                onClick={handleBookNow}
+                disabled={checkingAvailability}
+                className="py-3 px-5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all"
+              >
+                {checkingAvailability ? <Loader2 size={14} className="animate-spin" /> : null}
+                {checkingAvailability ? 'Checking…' : 'Book Now'}
+              </button>
+            </div>
+          )}
+
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Enquire About This Property</h3>
+            <p className="text-xs text-slate-500 mt-1">Get-Right-home verified agent response within 15 minutes</p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Verified Phone Contact reveal row */}
+            <div className="p-4 bg-slate-100/40 border border-slate-300/30 rounded-2xl flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-semibold">Verified Phone Contact</span>
+                <span className="text-sm font-bold text-slate-900 block mt-0.5">{displayPhone}</span>
+              </div>
+              <button
+                onClick={() => handleEnquiryButtonClick('view_number')}
+                disabled={revealLoading}
+                className="py-2 px-4 bg-orange-600/20 hover:bg-orange-600/35 border border-slate-300/30 text-xs font-bold text-orange-700 rounded-xl transition-all flex items-center gap-1"
+              >
+                {revealLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                Reveal
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Primary CTA — call once revealed, otherwise starts the reveal/enquiry flow */}
+              <button
+                onClick={() => {
+                  if (revealedNumber) window.location.href = `tel:${revealedNumber}`;
+                  else handleEnquiryButtonClick('call');
+                }}
+                className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-sm font-bold text-white rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-600/30 active:scale-95"
+              >
+                <Phone className="w-4 h-4" /> {revealedNumber ? `Call ${revealedNumber}` : 'View Number / Enquire'}
+              </button>
+
+              {/* WhatsApp */}
+              <button
+                onClick={() => {
+                  if (revealedNumber) {
+                    const msg = encodeURIComponent(`Hi, I am interested in property "${property?.name || property?.propertyName || 'this property'}" listed on Get Right Home.`);
+                    window.open(`https://wa.me/${revealedNumber}?text=${msg}`, '_blank');
+                  } else {
+                    handleEnquiryButtonClick('whatsapp');
+                  }
+                }}
+                className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-sm font-semibold text-slate-800 rounded-2xl transition-all flex items-center justify-center gap-2 active:scale-95"
+              >
+                <MessageSquare className="w-4 h-4 text-slate-500" /> WhatsApp Direct Chat
+              </button>
+
+              {/* Schedule a Visit */}
+              <button
+                onClick={() => setShowVisitModal(true)}
+                className="w-full py-3.5 bg-white hover:bg-slate-50 border border-slate-300 text-sm font-semibold text-slate-800 rounded-2xl transition-all flex items-center justify-center gap-2 active:scale-95"
+              >
+                <Calendar className="w-4 h-4 text-slate-500" /> Schedule a Visit
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-200/80 text-[11px] text-slate-500 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-slate-500 flex-shrink-0" />
+              <span>Get-Right-home zero-brokerage guarantee.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-slate-500 flex-shrink-0" />
+              <span>Verified contact details — no spam calls.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile — compact fixed bottom bar, same pattern the project page
+          uses for small screens: a couple of pill actions, not the full card. */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 p-2.5 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.15)] z-50 max-w-xl mx-auto">
         {hasInventory && !isBuyGroup && (
           <div className="flex items-center gap-2 mb-2">
             <div className="flex-1 min-w-0 pl-1">
@@ -2365,9 +2483,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
           </div>
         )}
 
-        <div className="flex flex-row lg:flex-col items-center lg:items-stretch gap-2 lg:gap-3">
-
-          {/* WhatsApp Support */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
               if (revealedNumber) {
@@ -2377,58 +2493,27 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
                 handleEnquiryButtonClick('whatsapp');
               }
             }}
-            className="flex-1 lg:flex-none lg:w-full py-3 lg:h-[46px] lg:py-0 bg-white hover:bg-slate-50 text-emerald-600 border border-emerald-500 rounded-full lg:rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all text-center"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-slate-200 bg-slate-50 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors"
           >
-            💬 WhatsApp
+            <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
           </button>
-
-          {/* Solid blue core action button */}
-          <button
-            onClick={() => {
-              if (revealedNumber) {
-                window.location.href = `tel:${revealedNumber}`;
-              } else {
-                handleEnquiryButtonClick('call');
-              }
-            }}
-            className="flex-[2] lg:flex-none lg:w-full py-3.5 lg:h-[46px] lg:py-0 bg-[#0061df] hover:bg-blue-700 text-white rounded-full lg:rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-lg active:scale-95 transition-all"
-          >
-            <span>{revealedNumber ? `📞 ${revealedNumber}` : 'View Number / Enquire'}</span>
-          </button>
-
-          {/* Call icon */}
-          {revealedNumber ? (
-            <a
-              href={`tel:${revealedNumber}`}
-              className="w-11 h-11 lg:w-full lg:h-[46px] lg:px-4 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-600 rounded-full lg:rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-all"
-            >
-              <Phone size={16} className="fill-current" />
-              <span className="hidden lg:inline font-bold text-xs ml-2">Quick Call</span>
-            </a>
-          ) : (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                handleEnquiryButtonClick('call');
-              }}
-              disabled={revealLoading}
-              className="w-11 h-11 lg:w-full lg:h-[46px] lg:px-4 bg-blue-50 border border-blue-100 hover:bg-blue-100 text-[#0061df] rounded-full lg:rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-all"
-            >
-              {revealLoading ? <Loader2 size={14} className="animate-spin" /> : <Phone size={16} className="fill-current" />}
-              <span className="hidden lg:inline font-bold text-xs ml-2">Quick Call</span>
-            </button>
-          )}
-
-          {/* Schedule a Visit */}
           <button
             onClick={() => setShowVisitModal(true)}
-            title="Schedule a Visit"
-            className="w-11 h-11 lg:w-full lg:h-[46px] lg:px-4 bg-purple-50 border border-purple-100 hover:bg-purple-100 text-purple-600 rounded-full lg:rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-all"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full border border-slate-200 bg-slate-50 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors"
           >
-            <Calendar size={16} />
-            <span className="hidden lg:inline font-bold text-xs ml-2">Schedule a Visit</span>
+            <Calendar className="w-3.5 h-3.5" /> Visit
           </button>
-
+          <button
+            onClick={() => {
+              if (revealedNumber) window.location.href = `tel:${revealedNumber}`;
+              else handleEnquiryButtonClick('call');
+            }}
+            disabled={revealLoading}
+            className="flex-[1.5] flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-orange-600 text-white font-bold text-xs shadow-md shadow-slate-600/30 hover:bg-orange-700 transition-colors disabled:opacity-60"
+          >
+            {revealLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Phone className="w-3.5 h-3.5" />}
+            {revealedNumber ? 'Call' : 'View Number'}
+          </button>
         </div>
       </div>
       </div> {/* End of Main Grid Container */}

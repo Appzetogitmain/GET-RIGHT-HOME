@@ -126,41 +126,27 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
 
             toast.dismiss(toastId);
 
-            const isBangalore =
-                detectedCity.toLowerCase().includes('bangalore') ||
-                detectedCity.toLowerCase().includes('bengaluru') ||
-                state.toLowerCase().includes('karnataka');
+            // Listings now exist across many cities (Indore, Pune, Bhopal,
+            // Noida, ...), not just Bengaluru — see admin-cities. Detecting a
+            // city outside Bengaluru used to refuse to set it and show a
+            // "coming soon" message instead, hiding real inventory from
+            // anyone not physically in Bengaluru. Accept whatever was
+            // detected; only fall back to Bengaluru when nothing usable
+            // came back from the reverse-geocode.
+            const cityToSet = detectedCity || state;
 
-            if (isBangalore) {
-                setSelectedCity('Bengaluru');
+            if (cityToSet) {
+                setSelectedCity(cityToSet);
                 setSelectedDistrict(null);
+                setPreferredCity(cityToSet);
                 if (onSearch) {
-                    onSearch('Bengaluru');
+                    onSearch(cityToSet);
                     const section = document.getElementById('admin-properties-section');
                     if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
-                toast.success("Location set to Bengaluru!");
+                toast.success(`Location set to ${cityToSet}!`);
             } else {
-                const cityToShow = detectedCity || state || 'your city';
-                toast(
-                    (t) => (
-                        <div className="flex flex-col gap-1.5 p-1">
-                            <span className="font-bold text-gray-900 text-sm flex items-center gap-1">
-                                📍 Detected: {cityToShow}
-                            </span>
-                            <span className="text-xs text-gray-600 leading-normal">
-                                Currently, Get-Right-Home services are only live in <strong>Bengaluru (Karnataka)</strong>. 🌆
-                            </span>
-                            <span className="text-[11px] text-emerald-600 font-bold leading-normal">
-                                We are expanding rapidly and will launch in your city soon! Stay tuned! 🚀
-                            </span>
-                        </div>
-                    ),
-                    {
-                        duration: 6000,
-                        icon: '🗺️',
-                    }
-                );
+                toast.error("Couldn't determine your city. Please select it manually.");
             }
         } catch (err) {
             console.error("Geolocation error:", err);

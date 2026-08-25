@@ -363,12 +363,6 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
 
             if (matched) {
                 selectCity(matched.city);
-                if (matched.city !== 'Bengaluru') {
-                    toast(`Currently, Get-Right-Home services are only live in Bengaluru. Launching in ${matched.city} soon! 🚀`, {
-                        duration: 5000,
-                        icon: 'ℹ️'
-                    });
-                }
             } else if (cities.length > 0) {
                 // Fallback to first available city
                 selectCity(cities[0].city);
@@ -429,19 +423,11 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
 
             if (matched) {
                 selectCity(matched.city);
-                if (matched.city !== 'Bengaluru') {
-                    toast(`Currently, Get-Right-Home services are only live in Bengaluru. Launching in ${matched.city} soon! 🚀`, {
-                        duration: 5000,
-                        icon: 'ℹ️'
-                    });
-                }
             } else {
-                // City not in admin list — fetch anyway
+                // City not in the featured-cities list yet — fetch its
+                // listings directly rather than refusing to show them.
                 setSelectedCity(detectedCity);
-                toast(`Currently, Get-Right-Home services are only live in Bengaluru. Launching in ${detectedCity} soon! 🚀`, {
-                    duration: 5000,
-                    icon: 'ℹ️'
-                });
+                toast.success(`Location set to ${detectedCity}!`);
                 setLoading(true);
                 try {
                     const res = await propertyService.getAdminPropertiesByLocation({ city: detectedCity });
@@ -634,11 +620,11 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
                         <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
                             <Building2 size={26} className="text-gray-300" />
                         </div>
-                        {selectedCity !== 'Bengaluru' && !localQuery ? (
+                        {selectedCity && !localQuery ? (
                             <>
-                                <h3 className="font-black text-gray-700 mb-1">Coming Soon to {selectedCity}! 🚀</h3>
+                                <h3 className="font-black text-gray-700 mb-1">No listings in {selectedCity} yet</h3>
                                 <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
-                                    Currently, Get-Right-Home services are only live in <strong>Bengaluru</strong>. We will be launching in {selectedCity} soon!
+                                    We don't have any featured properties in {selectedCity} right now — check back soon, or browse another city.
                                 </p>
                             </>
                         ) : localQuery ? (
