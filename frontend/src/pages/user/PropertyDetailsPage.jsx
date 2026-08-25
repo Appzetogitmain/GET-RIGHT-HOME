@@ -11,7 +11,7 @@ import {
   Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare, Tag, X, Gift,
   CheckCircle, Shield, Info, Clock, Wifi, Coffee, Car, Phone, Scan, Maximize2, Compass, Move, Grid, Landmark, LayoutTemplate,
   Wind, Droplets, Zap, Thermometer, Shirt, Sparkles, Camera, Dumbbell, Box, Flame, ArrowUpCircle, Tv, Utensils, User,
-  Lock, Award, Check, ChevronDown, Percent
+  Lock, Award, Check, ChevronDown, Percent, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useEnquiryModal } from '../../context/EnquiryModalContext';

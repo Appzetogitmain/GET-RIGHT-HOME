@@ -60,6 +60,12 @@ export const bookingService = {
   approveEstimate: async (id) => {
     const response = await api.post(`/hs-bookings/${id}/approve-estimate`);
     return response.data;
+  },
+
+  // Add/update an optional tip on the final bill, before paying
+  setTip: async (id, tipAmount) => {
+    const response = await api.put(`/hs-bookings/${id}/tip`, { tipAmount });
+    return response.data;
   }
 };
 

@@ -25,7 +25,8 @@ import {
   FiChevronRight,
   FiSearch,
   FiHome,
-  FiAlertCircle
+  FiAlertCircle,
+  FiHeart
 } from 'react-icons/fi';
 import { bookingService } from '../../../../services/bookingService';
 import { paymentService } from '../../../../services/paymentService';
@@ -66,6 +67,8 @@ const BookingDetails = () => {
   });
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [tipInput, setTipInput] = useState('');
+  const [savingTip, setSavingTip] = useState(false);
 
   const [supportInfo, setSupportInfo] = useState({
     email: 'support@Truliq.com',
@@ -366,6 +369,28 @@ const BookingDetails = () => {
       toast.error('Failed to cancel booking. Please try again.');
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleSetTip = async (amount) => {
+    if (savingTip) return;
+    setSavingTip(true);
+    try {
+      const response = await bookingService.setTip(booking._id || booking.id, amount);
+      if (response.success) {
+        // Merge the new amounts in place rather than a full reload — the
+        // customer is mid-flow on the payment screen and shouldn't lose their
+        // place while the numbers update.
+        setBooking((prev) => ({ ...prev, ...response.data }));
+        setTipInput('');
+        toast.success(amount > 0 ? `₹${amount} tip added` : 'Tip removed');
+      } else {
+        toast.error(response.message || 'Could not update tip');
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Could not update tip');
+    } finally {
+      setSavingTip(false);
     }
   };
 
@@ -1288,7 +1313,13 @@ const BookingDetails = () => {
                           // Extract values
                           const mainServiceTitle = booking.serviceName || booking.serviceCategory || 'Service';
                           const isEstimate = booking.isEstimateBased;
-                          const platformFlatFee = isEstimate ? 0 : (bill?.adminCommission ?? 20);
+                          // This used to fall back to a hardcoded ₹20 whenever
+                          // no bill existed yet (every booking, before the
+                          // worker finalizes it) — so a fee with nothing to do
+                          // with the real commission showed on every single
+                          // booking. `adminCommission` is only meaningful once
+                          // the worker's bill actually computes it.
+                          const platformFlatFee = isEstimate ? 0 : (bill?.adminCommission || 0);
                           const tokenPaid = isEstimate ? (booking.estimate?.tokenAmount || 0) : 0;
                           
                           // Use bill.originalServiceBase (correct field) or fallback to booking.basePrice
@@ -1323,7 +1354,13 @@ const BookingDetails = () => {
                               ? billGrandTotal
                               : (bookingFinalOnline || bookingFinalAmount || manualTotal || 0);
                           
-                          const totalOnline = isEstimate ? Math.max(0, baseTotalOnline - tokenPaid) : baseTotalOnline;
+                          // `bill` above is the pure service invoice and never
+                          // carries a tip — it lives only on the booking — so it
+                          // has to be added on top explicitly rather than
+                          // through the bill/booking fallback chain, which
+                          // would silently drop it whenever a bill exists.
+                          const tipAmount = Number(booking.tipAmount) || 0;
+                          const totalOnline = (isEstimate ? Math.max(0, baseTotalOnline - tokenPaid) : baseTotalOnline) + tipAmount;
 
                           return (
                             <>
@@ -1390,6 +1427,67 @@ const BookingDetails = () => {
                                     </span>
                                   </div>
                                   <span>-₹{tokenPaid.toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              {tipAmount > 0 && (
+                                <div className="flex justify-between text-pink-600 text-sm font-medium mt-2 pt-2 border-t border-gray-100">
+                                  <span className="flex items-center gap-1"><FiHeart className="w-3.5 h-3.5" /> Tip for professional</span>
+                                  <span>+₹{tipAmount.toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              {/* Add a tip — only while the bill is still payable, not after */}
+                              {!isPaidStatus && isPaymentStage && (
+                                <div className="mt-3 pt-3 border-t border-dashed border-gray-100">
+                                  <p className="text-xs font-bold text-gray-600 flex items-center gap-1.5 mb-2">
+                                    <FiHeart className="w-3.5 h-3.5 text-pink-500" /> Add a tip for your professional
+                                  </p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {[10, 20, 50].map((preset) => (
+                                      <button
+                                        key={preset}
+                                        type="button"
+                                        disabled={savingTip}
+                                        onClick={() => handleSetTip(tipAmount === preset ? 0 : preset)}
+                                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors disabled:opacity-50 ${
+                                          tipAmount === preset
+                                            ? 'bg-pink-600 text-white border-pink-600'
+                                            : 'bg-white text-gray-700 border-gray-200 hover:border-pink-300'
+                                        }`}
+                                      >
+                                        ₹{preset}
+                                      </button>
+                                    ))}
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      inputMode="numeric"
+                                      value={tipInput}
+                                      onChange={(e) => setTipInput(e.target.value)}
+                                      placeholder="Custom"
+                                      className="w-20 px-2.5 py-1.5 rounded-full text-xs font-semibold border border-gray-200 focus:outline-none focus:border-pink-400 text-center"
+                                    />
+                                    <button
+                                      type="button"
+                                      disabled={savingTip || tipInput === '' || Number(tipInput) < 0}
+                                      onClick={() => handleSetTip(Number(tipInput))}
+                                      className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-gray-900 text-white disabled:opacity-40"
+                                    >
+                                      {savingTip ? '…' : 'Apply'}
+                                    </button>
+                                    {tipAmount > 0 && (
+                                      <button
+                                        type="button"
+                                        disabled={savingTip}
+                                        onClick={() => handleSetTip(0)}
+                                        className="px-2 py-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               )}
 
