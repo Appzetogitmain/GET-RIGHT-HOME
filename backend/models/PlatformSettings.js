@@ -90,8 +90,8 @@ const platformSettingsSchema = new mongoose.Schema(
     }],
     supportContact: {
       phone: { type: String, default: '+1234567890' },
-      email: { type: String, default: 'support@hoomzo.com' },
-      address: { type: String, default: 'Hoomzo Office, Address' }
+      email: { type: String, default: 'support@getrighthome.com' },
+      address: { type: String, default: 'Get Right Home Office, Address' }
     },
     privacyPolicy: {
       type: String,

@@ -4,7 +4,7 @@ const contactMessageSchema = new mongoose.Schema(
   {
     audience: {
       type: String,
-      enum: ['user', 'partner'],
+      enum: ['user', 'partner', 'worker'],
       required: true
     },
     name: {

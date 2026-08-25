@@ -30,25 +30,60 @@ const app = express();
 const server = createServer(app); // Create HTTP server
 const PORT = process.env.PORT || 5000;
 
+// Single allowlist shared by the REST CORS middleware AND the Socket.IO CORS
+// config below. These used to be defined twice: the REST list (a real
+// multi-origin allowlist) and the Socket.IO list, which fell back to
+// `process.env.FRONTEND_URL` — a single hardcoded origin — whenever that env
+// var was set. Since FRONTEND_URL is set in .env, Socket.IO's fallback array
+// was never actually reached; every dev frontend NOT running on that exact
+// origin (e.g. port 5174 instead of 5173) got real-time features silently
+// broken by a CORS rejection, while ordinary REST calls kept working fine
+// because they went through the separate, correct allowlist. One function
+// now backs both, so they cannot drift apart again.
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // mobile apps, curl, server-to-server
+
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://126.0.0.1:5173',
+    'https://rukkoo.in',
+    'https://www.rukkoo.in',
+    'https://rukkoo-project.vercel.app',
+    'https://homezoo.vercel.app',
+    'https://homezoo.onrender.com',
+    'https://get-right-home.vercel.app',
+    'https://get-right-home.onrender.com',
+    'https://getrighthome.com',
+    'https://www.getrighthome.com'
+  ];
+
+  const isLocalNetwork =
+    origin.startsWith('http://192.168.') ||
+    origin.startsWith('http://10.') ||
+    origin.startsWith('http://172.');
+
+  return (
+    allowedOrigins.indexOf(origin) !== -1 ||
+    isLocalNetwork ||
+    origin.includes('get-right-home.vercel.app') ||
+    origin.includes('get-right-home.onrender.com') ||
+    origin.includes('getrighthome.com')
+  );
+};
+
 import { initIO } from './sockets.js';
 
 // Initialize Socket.io
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || [
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'http://localhost:5174',
-      'http://localhost:5175',
-      'https://homezoo.vercel.app',
-      'homezoo.vercel.app',
-      'https://get-right-home.vercel.app',
-      'get-right-home.vercel.app',
-      'https://getrighthome.com',
-      'https://www.getrighthome.com',
-      'getrighthome.com',
-      'www.getrighthome.com'
-    ],
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) return callback(null, true);
+      console.log('Blocked by Socket.IO CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
   }
@@ -77,38 +112,9 @@ app.use('/uploads', express.static(join(__dirname, 'uploads')));
 // Dynamic CORS to allow local network IPs (192.168.x.x) and localhost
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-
-    // Check if origin is localhost or local network IP
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'http://localhost:5174',
-      'http://localhost:5175',
-      'http://126.0.0.1:5173',
-      'https://rukkoo.in',
-      'https://www.rukkoo.in',
-      'https://rukkoo-project.vercel.app',
-      'https://homezoo.vercel.app',
-      'https://homezoo.onrender.com',
-      'https://get-right-home.vercel.app',
-      'https://get-right-home.onrender.com',
-      'https://getrighthome.com',
-      'https://www.getrighthome.com'
-    ];
-    // Add 172.16-31 range (often used by hotspots) and 10.x
-    const isLocalNetwork =
-      origin.startsWith('http://192.168.') ||
-      origin.startsWith('http://10.') ||
-      origin.startsWith('http://172.');
-
-    if (allowedOrigins.indexOf(origin) !== -1 || isLocalNetwork || (origin && origin.includes('get-right-home.vercel.app')) || (origin && origin.includes('get-right-home.onrender.com')) || (origin && origin.includes('getrighthome.com'))) {
-      callback(null, true);
-    } else {
-      console.log('Blocked by CORS:', origin); // Log blocked origin for debugging
-      callback(new Error('Not allowed by CORS'));
-    }
+    if (isOriginAllowed(origin)) return callback(null, true);
+    console.log('Blocked by CORS:', origin); // Log blocked origin for debugging
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Added OPTIONS

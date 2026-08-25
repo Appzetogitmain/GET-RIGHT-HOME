@@ -10,7 +10,7 @@ export const createContactMessage = async (req, res) => {
     const { audience } = req.params;
     const { name, email, phone, subject, message } = req.body;
 
-    if (!['user', 'partner'].includes(audience)) {
+    if (!['user', 'partner', 'worker'].includes(audience)) {
       return res.status(400).json({ success: false, message: 'Invalid audience' });
     }
 
@@ -54,8 +54,11 @@ export const createContactMessage = async (req, res) => {
           isRead: false
         });
 
-        // 3. Trigger Push Notification
-        notificationService.sendToUser(adminUser._id, {
+        // 3. Trigger Push Notification only — the canonical Notification doc
+        // was already created above, so sendToUser here would write a second,
+        // duplicate record with a degraded title/type. sendPushOnly sends the
+        // FCM push without touching the DB.
+        notificationService.sendPushOnly(adminUser._id, {
           title: `New Support Message: ${subject}`,
           body: `From: ${name} (${audience}).`
         }, { type: 'support_message', messageId: doc._id }, 'admin').catch(e => console.error('Push failed:', e));
