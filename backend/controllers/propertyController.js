@@ -2760,11 +2760,18 @@ export const getAdminPropertiesByLocation = async (req, res) => {
 export const getAdminPropertyCities = async (req, res) => {
   try {
     // Step 1: Aggregate both collections to get cities with count
+    //
+    // This used to also require `featuredDetails.isFeatured: true`, which
+    // has nothing to do with "which cities have live listings" — that flag
+    // is for the separate Featured Showcases carousel. With only 2 of the
+    // ~20 approved+live properties ever marked featured, the city picker
+    // (AdminPropertiesSection) had almost nothing to show and always fell
+    // back to its hardcoded Bengaluru default, hiding real inventory in
+    // Indore, Pune, Bhopal, Noida and others.
     const matchStage = {
       status: 'approved',
       isLive: true,
-      'address.city': { $exists: true, $ne: '' },
-      'featuredDetails.isFeatured': true
+      'address.city': { $exists: true, $ne: '' }
     };
 
     const [projectCities, propertyCities] = await Promise.all([

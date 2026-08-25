@@ -236,6 +236,15 @@ const bookingSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Optional customer tip, set on the final-bill screen before paying.
+  // Added on top of finalAmount/finalOnlineAmount/finalCashAmount (see
+  // hsBookingController.setTip) and credited to the worker 100% — no
+  // platform commission is taken on it, unlike the base service fee.
+  tipAmount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   // Amount specifically payable by the user (might differ from finalAmount in plan cases)
   userPayableAmount: {
     type: Number,

@@ -224,6 +224,10 @@ export const settleBookingPayment = async (razorpayOrderId, paymentId, prefetche
         if (booking.isEstimateBased && booking.estimate?.tokenAmount) {
           payout = Math.max(0, payout - booking.estimate.tokenAmount);
         }
+        // Tip goes 100% to the worker — no commission is taken on it,
+        // unlike the base service fee above.
+        const tipAmount = Number(booking.tipAmount) || 0;
+        payout += tipAmount;
         const workerId = booking.workerId;
 
         if (payout > 0 && workerId) {
@@ -252,7 +256,9 @@ export const settleBookingPayment = async (razorpayOrderId, paymentId, prefetche
               category: 'booking_payment',
               balanceAfter: workerDoc.wallet.balance,
               status: 'completed',
-              description: `Online Payment received for Booking #${booking.bookingNumber}`,
+              description: tipAmount > 0
+                ? `Online Payment received for Booking #${booking.bookingNumber} (incl. ₹${tipAmount} tip)`
+                : `Online Payment received for Booking #${booking.bookingNumber}`,
               reference: booking.bookingNumber,
             });
           }

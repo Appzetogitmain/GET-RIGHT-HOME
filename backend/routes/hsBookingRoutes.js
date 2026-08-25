@@ -7,7 +7,8 @@ import {
   rescheduleBooking,
   approveEstimate,
   addReview,
-  getUserRatings
+  getUserRatings,
+  setTip
 } from '../controllers/hsBookingController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { body } from 'express-validator';
@@ -68,5 +69,6 @@ router.post('/:id/cancel', cancelBooking);
 router.put('/:id/reschedule', rescheduleBooking);
 router.post('/:id/approve-estimate', approveEstimate);
 router.post('/:id/review', addReview);
+router.put('/:id/tip', setTip);
 
 export default router;

@@ -1369,7 +1369,9 @@ const confirmManualOnlineCollection = async (req, res) => {
     }
 
     const grandTotal = Number(bill.grandTotal) || 0;
-    const vendorEarning = Number(bill.vendorTotalEarning) || 0;
+    // Tip goes 100% to the worker on top of their commissioned earning —
+    // matches the Razorpay path's crediting in paymentController.
+    const vendorEarning = (Number(bill.vendorTotalEarning) || 0) + (Number(booking.tipAmount) || 0);
 
     // The customer may already have paid in-app (paymentController credits the
     // worker at that point). Crediting again here would pay the job out twice,

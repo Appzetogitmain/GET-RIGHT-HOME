@@ -1465,6 +1465,81 @@ const approveEstimate = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Add or change an optional tip on the final bill, before paying.
+ *
+ * Always recomputes from the VendorBill's own amounts (not the booking's
+ * current finalAmount, which may already carry a previous tip) — otherwise
+ * calling this twice would compound instead of replace.
+ *
+ * The tip is added on top of finalAmount/finalOnlineAmount/finalCashAmount
+ * so the existing payment paths (Razorpay checkout, the worker's UPI-QR
+ * flow) charge the right total without any change to them — both already
+ * read these fields fresh at the moment payment is actually requested.
+ * Worker crediting (100%, no commission) is handled where those paths
+ * settle: paymentController's Razorpay wallet credit, and
+ * confirmManualOnlineCollection.
+ *
+ * @route   PUT /api/hs-bookings/:id/tip
+ * @access  Private (User)
+ */
+const setTip = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const rawAmount = req.body.tipAmount;
+    const tipAmount = Number(rawAmount);
+
+    if (!Number.isFinite(tipAmount) || tipAmount < 0) {
+      return res.status(400).json({ success: false, message: 'Enter a valid tip amount' });
+    }
+    // A sanity cap — not a real business limit, just guards against a typo
+    // or bad input turning into an enormous charge.
+    if (tipAmount > 5000) {
+      return res.status(400).json({ success: false, message: 'Tip amount is too high' });
+    }
+
+    const booking = await HomeServiceBooking.findOne({ _id: id, userId: req.user.id });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.isWorkerPaid === true || booking.paymentStatus === PAYMENT_STATUS.PAID) {
+      return res.status(400).json({ success: false, message: 'This booking is already paid — a tip can no longer be added' });
+    }
+
+    const payableStatuses = [BOOKING_STATUS.WORK_DONE, BOOKING_STATUS.AWAITING_PAYMENT];
+    if (!payableStatuses.includes(booking.status)) {
+      return res.status(400).json({ success: false, message: 'The final bill is not ready yet' });
+    }
+
+    const bill = await VendorBill.findOne({ bookingId: booking._id });
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Bill not found for this booking' });
+    }
+
+    booking.tipAmount = tipAmount;
+    booking.finalOnlineAmount = Number((bill.finalOnlineAmount || 0) + tipAmount);
+    booking.finalCashAmount = Number((bill.finalCashAmount || 0) + tipAmount);
+    // Default to online, same convention createBill uses.
+    booking.finalAmount = booking.finalOnlineAmount;
+    await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: tipAmount > 0 ? 'Tip added' : 'Tip removed',
+      data: {
+        tipAmount: booking.tipAmount,
+        finalAmount: booking.finalAmount,
+        finalOnlineAmount: booking.finalOnlineAmount,
+        finalCashAmount: booking.finalCashAmount
+      }
+    });
+  } catch (error) {
+    console.error('Set tip error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update tip' });
+  }
+};
+
 export {
   createBooking,
   getUserBookings,
@@ -1473,6 +1548,7 @@ export {
   rescheduleBooking,
   addReview,
   getUserRatings,
-  approveEstimate
+  approveEstimate,
+  setTip
 };
 
