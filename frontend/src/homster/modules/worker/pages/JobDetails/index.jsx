@@ -16,6 +16,10 @@ import { toast } from 'react-hot-toast';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import { useLocationTracking } from '../../../../hooks/useLocationTracking';
 
+// Hidden per request — UI only, none of the underlying data/computation
+// (job.workerAmount etc.) was touched. Flip to true to restore the card.
+const SHOW_PAYMENT_SUMMARY_CARD = false;
+
 const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -574,7 +578,7 @@ const JobDetails = () => {
         )}
 
         {/* Payment Details - Professional Card (Matched with Vendor) */}
-        {(!job?.isEstimateBased || job?.estimate?.status === 'APPROVED') && (
+        {SHOW_PAYMENT_SUMMARY_CARD && (!job?.isEstimateBased || job?.estimate?.status === 'APPROVED') && (
         <div
           className="bg-white rounded-xl p-5 mb-6 shadow-sm border border-gray-100"
           style={{
