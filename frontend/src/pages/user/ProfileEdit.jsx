@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video, Briefcase, MapPin, ShieldCheck, IdCard, Image } from 'lucide-react';
+import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video, Briefcase, MapPin, ShieldCheck, IdCard, Image, MessageCircle } from 'lucide-react';
 import { authService } from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -615,6 +615,7 @@ const ProfileEdit = () => {
     { label: 'Search Properties', desc: 'Explore residential and commercial listings', icon: Search, iconBg: 'bg-orange-50 text-orange-500', to: '/search' },
     { label: 'My Properties', desc: 'Manage your active listings', icon: Building2, iconBg: 'bg-emerald-50 text-emerald-500', to: '/my-properties' },
     { label: 'My Reels', desc: 'Manage your property videos', icon: Video, iconBg: 'bg-purple-50 text-purple-500', to: '/reels/my' },
+    { label: 'Help & Support', desc: 'Chat with our support team', icon: MessageCircle, iconBg: 'bg-teal-50 text-teal-500', to: '/support/chat' },
   ];
 
   const approvalStyles = {

@@ -134,7 +134,7 @@ const HotelSignup = () => {
                 alert(response.message || 'Registration successful! Your account is pending admin approval. You can login once approved.');
 
                 // Redirect to login
-                navigate('/hotel/login');
+                navigate('/login');
             } catch (err) {
                 setLoading(false);
                 console.error("Registration Error:", err);
@@ -173,7 +173,7 @@ const HotelSignup = () => {
                     <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Step {currentStep} of {steps.length}</span>
                     <span className="text-xs md:text-sm font-bold text-[#003836] truncate">{steps[currentStepIndex]?.title}</span>
                 </div>
-                <button onClick={() => navigate('/hotel/login')} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                <button onClick={() => navigate('/login')} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <X size={20} className="text-[#003836]" />
                 </button>
 
@@ -204,7 +204,7 @@ const HotelSignup = () => {
                                 <p className="text-gray-500 text-sm">
                                     Already have a partner account?{' '}
                                     <button
-                                        onClick={() => navigate('/hotel/login')}
+                                        onClick={() => navigate('/login')}
                                         className="text-[#004F4D] font-bold hover:underline"
                                     >
                                         Login Here

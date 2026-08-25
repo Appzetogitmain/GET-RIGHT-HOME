@@ -146,7 +146,6 @@ const ManagerProtectedRoute = React.lazy(() => import('./app/manager/ManagerProt
 
 
 // Lazy Imports - Partner Pages
-const HotelLogin = React.lazy(() => import('./pages/auth/HotelLoginPage'));
 const HotelSignup = React.lazy(() => import('./pages/auth/HotelSignupPage'));
 const PartnerHome = React.lazy(() => import('./app/partner/pages/PartnerHome'));
 const AddVillaWizard = React.lazy(() => import('./app/partner/pages/AddVillaWizard'));
@@ -260,7 +259,7 @@ const Layout = ({ children }) => {
   // Partner Bottom Nav should show in Partner App (authenticated pages)
   const showPartnerBottomNav = isPartnerApp && location.pathname !== '/hotel';
 
-  const isAuthRoute = ['/login', '/signup', '/hotel/login', '/hotel/register'].some(route =>
+  const isAuthRoute = ['/login', '/signup', '/hotel/register'].some(route =>
     location.pathname.startsWith(route)
   );
 
@@ -330,14 +329,14 @@ const PartnerProtectedRoute = ({ children }) => {
   const location = useLocation();
 
   // Allow access to login/register/join
-  const publicPartnerPaths = ['/hotel/login', '/hotel/register'];
+  const publicPartnerPaths = ['/hotel/register'];
   if (publicPartnerPaths.some(p => location.pathname.startsWith(p))) {
     return children ? children : <Outlet />;
   }
 
   // Allow both Partners and Users
   if (!user || (user.role !== 'partner' && user.role !== 'user')) {
-    return <Navigate to="/hotel/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // Partner-specific approval logic
@@ -391,7 +390,7 @@ const PublicRoute = ({ children }) => {
   const { isLoggedIn } = useAuth();
   const location = useLocation();
   if (isLoggedIn) {
-    // Agree with UserLogin/HotelLoginPage's own post-login redirect on where
+    // Agree with UserLoginPage's own post-login redirect on where
     // to land, so whichever of the two redirects actually wins the render
     // race still sends the user back to the page they originally wanted.
     const redirectParam = new URLSearchParams(location.search).get('redirect');
@@ -536,10 +535,9 @@ function App() {
                     <Route path="/list-property/join-homestay/:id?" element={<AddHomestayWizard />} />
 
                     {/* Hotel/Partner Module Routes */}
-                    <Route path="/hotel/login" element={<HotelLogin />} />
                     <Route path="/hotel/register" element={<HotelSignup />} />
                     <Route path="/hotel" element={<HotelLayout />}>
-                      <Route index element={<Navigate to="/hotel/login" replace />} />
+                      <Route index element={<Navigate to="/login" replace />} />
                       <Route path="partner" element={<Navigate to="/hotel" replace />} />
                       {/* Wizard Route */}
                       <Route element={<PartnerProtectedRoute />}>

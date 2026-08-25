@@ -5,8 +5,33 @@
 
 import { messaging, getToken, onMessage } from '../firebase';
 import { toast } from 'react-hot-toast';
+import { FiCheckCircle, FiBriefcase, FiDollarSign, FiBell, FiAlertTriangle } from 'react-icons/fi';
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+
+/**
+ * Picks an icon + color scheme for the foreground toast based on
+ * notification type — replaces relying on an external logo image (which
+ * could fail to load or just look flat/generic) with a crisp, always-
+ * rendering icon that also signals what kind of update this is at a
+ * glance.
+ */
+const getToastVisuals = (type = '') => {
+  const t = (type || '').toLowerCase();
+  if (t.includes('emergency')) {
+    return { Icon: FiAlertTriangle, gradient: 'from-red-500 to-red-700', accent: 'border-red-600', badge: 'text-red-600 bg-red-50 border-red-100' };
+  }
+  if (t.includes('job')) {
+    return { Icon: FiBriefcase, gradient: 'from-blue-500 to-indigo-600', accent: 'border-blue-500', badge: 'text-blue-600 bg-blue-50 border-blue-100' };
+  }
+  if (t.includes('payment') || t.includes('wallet') || t.includes('withdraw') || t.includes('commission')) {
+    return { Icon: FiDollarSign, gradient: 'from-emerald-500 to-teal-600', accent: 'border-emerald-500', badge: 'text-emerald-600 bg-emerald-50 border-emerald-100' };
+  }
+  if (t.includes('booking')) {
+    return { Icon: FiCheckCircle, gradient: 'from-orange-400 to-red-500', accent: 'border-orange-500', badge: 'text-orange-600 bg-orange-50 border-orange-100' };
+  }
+  return { Icon: FiBell, gradient: 'from-gray-400 to-gray-600', accent: 'border-gray-400', badge: 'text-gray-600 bg-gray-50 border-gray-100' };
+};
 
 /**
  * Check if running inside Flutter WebView
@@ -276,8 +301,6 @@ function setupForegroundNotificationHandler(handler) {
       setTimeout(() => shownNotifications.delete(notificationId), 60000);
     }
 
-    const icon = notification.icon || data.icon || '/truliq-logo.png';
-
     // 1. Play Sound based on type
     try {
       const { playNotificationSound, playAlertRing } = await import('../utils/notificationSound');
@@ -302,52 +325,42 @@ function setupForegroundNotificationHandler(handler) {
     try {
       console.log('[FCM] 🎨 Rendering custom toast...');
       const isEmergency = type.includes('emergency');
+      const visuals = getToastVisuals(type);
+      const ToastIcon = visuals.Icon;
       toast.custom((t) => (
         <div
-          className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white/95 backdrop-blur-sm shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 overflow-hidden cursor-pointer border-l-4 ${isEmergency ? 'border-red-600' : 'border-orange-500'}`}
+          className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white shadow-[0_10px_40px_-8px_rgba(0,0,0,0.25)] rounded-2xl pointer-events-auto flex ring-1 ring-black/5 overflow-hidden cursor-pointer border-l-4 ${visuals.accent}`}
           onClick={() => {
             toast.dismiss(t.id);
             if (data.link) window.location.href = data.link;
           }}
         >
           <div className="flex-1 w-0 p-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 pt-0.5">
-                <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white shadow-lg ${isEmergency ? 'bg-red-600' : 'bg-gradient-to-br from-orange-400 to-red-500'}`}>
-                  {isEmergency ? (
-                    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
-                      <line x1="12" y1="9" x2="12" y2="13" />
-                      <line x1="12" y1="17" x2="12.01" y2="17" />
-                    </svg>
-                  ) : (
-                    <img className="h-10 w-10 rounded-full border-2 border-white/50" src={icon} alt="" onError={(e) => e.target.src = '/truliq-logo.png'} />
-                  )}
-                </div>
+            <div className="flex items-start gap-3">
+              <div className={`h-11 w-11 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0 bg-gradient-to-br ${visuals.gradient} ${isEmergency ? 'animate-pulse' : ''}`}>
+                <ToastIcon className="h-5 w-5" />
               </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-bold text-gray-900 leading-tight">{title}</p>
-                <p className="mt-1 text-xs text-gray-600 font-medium line-clamp-2">{body}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900 leading-snug">{title}</p>
+                <p className="mt-0.5 text-xs text-gray-500 leading-relaxed line-clamp-2">{body}</p>
                 <div className="mt-2 flex items-center gap-2">
-                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${isEmergency ? 'text-red-600 bg-red-50 border-red-100' : 'text-orange-600 bg-orange-50 border-orange-100'}`}>
+                   <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider border ${visuals.badge}`}>
                      {type.replace(/_/g, ' ')}
                    </span>
-                   <span className="text-[10px] font-bold text-gray-400">Just now</span>
+                   <span className="text-[9px] text-gray-400 font-semibold">Just now</span>
                 </div>
               </div>
             </div>
           </div>
-          <div className="flex border-l border-gray-100">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toast.dismiss(t.id);
-              }}
-              className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-bold text-gray-400 hover:text-gray-600 focus:outline-none bg-gray-50/50"
-            >
-              ✕
-            </button>
-          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toast.dismiss(t.id);
+            }}
+            className="shrink-0 self-stretch w-11 flex items-center justify-center text-gray-300 hover:text-gray-500 hover:bg-gray-50 transition-colors focus:outline-none border-l border-gray-100"
+          >
+            <span className="text-base leading-none">✕</span>
+          </button>
         </div>
       ), {
         // Fixed id — multiple FCM messages arriving close together (e.g. a
@@ -412,7 +425,6 @@ async function initializePushNotifications() {
       const title = payload.title || 'New Notification';
       const body = payload.body || '';
       const notifType = payload.type || 'default';
-      const icon = payload.icon || '/truliq-logo.png';
 
       // 1. Play sound
       try {
@@ -430,49 +442,39 @@ async function initializePushNotifications() {
       try {
         const { toast } = await import('react-hot-toast');
         const isEmergency = notifType.includes('emergency');
+        const visuals = getToastVisuals(notifType);
+        const ToastIcon = visuals.Icon;
         toast.custom((t) => (
           <div
-            className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white/95 backdrop-blur-sm shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 overflow-hidden cursor-pointer border-l-4 ${isEmergency ? 'border-red-600' : 'border-orange-500'}`}
+            className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white shadow-[0_10px_40px_-8px_rgba(0,0,0,0.25)] rounded-2xl pointer-events-auto flex ring-1 ring-black/5 overflow-hidden cursor-pointer border-l-4 ${visuals.accent}`}
             onClick={() => {
               toast.dismiss(t.id);
               if (payload.link) window.location.href = payload.link;
             }}
           >
             <div className="flex-1 w-0 p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 pt-0.5">
-                  <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white shadow-lg ${isEmergency ? 'bg-red-600' : 'bg-gradient-to-br from-orange-400 to-red-500'}`}>
-                    {isEmergency ? (
-                      <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
-                        <line x1="12" y1="9" x2="12" y2="13" />
-                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                      </svg>
-                    ) : (
-                      <img className="h-10 w-10 rounded-full border-2 border-white/50" src={icon} alt="" onError={(e) => e.target.src = '/truliq-logo.png'} />
-                    )}
-                  </div>
+              <div className="flex items-start gap-3">
+                <div className={`h-11 w-11 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0 bg-gradient-to-br ${visuals.gradient} ${isEmergency ? 'animate-pulse' : ''}`}>
+                  <ToastIcon className="h-5 w-5" />
                 </div>
-                <div className="ml-3 flex-1">
-                  <p className="text-sm font-bold text-gray-900 leading-tight">{title}</p>
-                  <p className="mt-1 text-xs text-gray-600 font-medium line-clamp-2">{body}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900 leading-snug">{title}</p>
+                  <p className="mt-0.5 text-xs text-gray-500 leading-relaxed line-clamp-2">{body}</p>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${isEmergency ? 'text-red-600 bg-red-50 border-red-100' : 'text-orange-600 bg-orange-50 border-orange-100'}`}>
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider border ${visuals.badge}`}>
                       {notifType.replace(/_/g, ' ')}
                     </span>
-                    <span className="text-[10px] font-bold text-gray-400">Just now</span>
+                    <span className="text-[9px] text-gray-400 font-semibold">Just now</span>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="flex border-l border-gray-100">
-              <button
-                onClick={(e) => { e.stopPropagation(); toast.dismiss(t.id); }}
-                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-bold text-gray-400 hover:text-gray-600 focus:outline-none bg-gray-50/50"
-              >
-                ✕
-              </button>
-            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); toast.dismiss(t.id); }}
+              className="shrink-0 self-stretch w-11 flex items-center justify-center text-gray-300 hover:text-gray-500 hover:bg-gray-50 transition-colors focus:outline-none border-l border-gray-100"
+            >
+              <span className="text-base leading-none">✕</span>
+            </button>
           </div>
         ), {
           // Same fixed id as the other foreground-toast path — several

@@ -54,7 +54,7 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
         localStorage.clear();
         usePartnerStore.getState().resetForm();
         onClose();
-        navigate('/hotel/login');
+        navigate('/login');
     };
 
     const MenuItem = ({ icon: Icon, label, path, badge }) => (

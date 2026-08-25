@@ -92,7 +92,7 @@ const UserLoginPage = () => {
                 <div className="flex justify-center mb-6">
                     <div className="flex flex-col items-center">
                         <span className="text-4xl font-black tracking-tighter text-[#111827] flex items-center gap-1">
-                            HOOM<span className="text-amber-600">ZO</span>
+                            GET RIGHT<span className="text-amber-600">HOME</span>
                         </span>
                         <div className="h-1 w-8 bg-amber-600 rounded-full -mt-1 shadow-sm shadow-amber-500/20"></div>
                     </div>

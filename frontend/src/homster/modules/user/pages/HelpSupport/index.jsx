@@ -22,13 +22,13 @@ const HelpSupport = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await api.get('/public/config');
-        if (response.data?.success && response.data?.settings) {
-          const { supportEmail, supportPhone, supportWhatsapp } = response.data.settings;
+        const response = await api.get('/info/contact');
+        if (response.data?.success) {
+          const { email, phone, whatsapp } = response.data;
           setSupportInfo({
-            email: supportEmail || 'support@Truliq.com',
-            phone: supportPhone || '',
-            whatsapp: supportWhatsapp || ''
+            email: email || 'support@Truliq.com',
+            phone: phone || '',
+            whatsapp: whatsapp || ''
           });
         }
       } catch (error) {
@@ -151,7 +151,9 @@ const HelpSupport = () => {
     },
   ];
 
-  const handleContactSubmit = (e) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleContactSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.name || !formData.email || !formData.subject || !formData.message) {
@@ -159,10 +161,18 @@ const HelpSupport = () => {
       return;
     }
 
-    // TODO: Send to backend
-    toast.success('Your message has been sent! We\'ll get back to you soon.');
-    setShowContactForm(false);
-    setFormData({ name: '', email: '', subject: '', message: '' });
+    setSubmitting(true);
+    try {
+      await api.post('/contact/user', formData);
+      toast.success('Your message has been sent! We\'ll get back to you soon.');
+      setShowContactForm(false);
+      setFormData({ name: '', email: '', subject: '', message: '' });
+    } catch (error) {
+      console.error('Failed to submit support request:', error);
+      toast.error(error.response?.data?.message || 'Failed to send message. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredQuestions = categories.flatMap(cat =>
@@ -403,10 +413,11 @@ const HelpSupport = () => {
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-4 font-semibold shadow-lg hover:shadow-xl transition-all active:scale-98 flex items-center justify-center gap-2"
+                disabled={submitting}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-4 font-semibold shadow-lg hover:shadow-xl transition-all active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <FiSend className="w-5 h-5" />
-                Submit Request
+                {submitting ? 'Sending...' : 'Submit Request'}
               </button>
             </form>
           </div>

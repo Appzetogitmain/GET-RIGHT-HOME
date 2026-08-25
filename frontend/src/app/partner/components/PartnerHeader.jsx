@@ -52,8 +52,8 @@ const PartnerHeader = ({ title, subtitle }) => {
 
                 <div className="flex flex-col items-start pt-1 ml-4">
                     <div className="font-black tracking-tighter flex items-center text-xl">
-                        <span className="text-slate-900">HOOM</span>
-                        <span className="text-amber-600">ZO</span>
+                        <span className="text-slate-900">GET RIGHT</span>
+                        <span className="text-amber-600">HOME</span>
                     </div>
                     <div className="w-6 h-1 bg-amber-600 rounded-full -mt-0.5 ml-0.5"></div>
                 </div>

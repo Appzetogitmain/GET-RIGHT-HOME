@@ -64,7 +64,7 @@ const PartnerLandingPage = () => {
                     </button>
 
                     <p className="text-center text-xs text-white/50 mt-4">
-                        Already a partner? <button onClick={() => navigate('/hotel/login')} className="text-white font-bold underline">Login here</button>
+                        Already a partner? <button onClick={() => navigate('/login')} className="text-white font-bold underline">Login here</button>
                     </p>
                 </div>
             </main>

@@ -154,11 +154,10 @@ api.interceptors.response.use(
         const isUserHotelDetail = /^\/hotel\/[0-9a-fA-F]{24}(\/(amenities|reviews|offers))?$/.test(window.location.pathname);
         const isPartnerPath = window.location.pathname.startsWith('/hotel/') && !isUserHotelDetail;
         const redirectParam = `redirect=${encodeURIComponent(path)}`;
-        if (isPartnerPath) {
-          window.location.href = `/hotel/login?${redirectParam}`;
-        } else {
-          window.location.href = `/login?${redirectParam}`;
-        }
+        // Partner-panel session expiry used to bounce to /hotel/login (now
+        // removed); both paths land on the general login page.
+        void isPartnerPath;
+        window.location.href = `/login?${redirectParam}`;
       }
     }
     return Promise.reject(error);
