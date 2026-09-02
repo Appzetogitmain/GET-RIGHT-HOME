@@ -317,6 +317,11 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
         // before anything appears in the catalogue.
         const { seedSubscriptionCatalogue } = await import('./utils/subscriptionSeeder.js');
         await seedSubscriptionCatalogue();
+
+        // One-time-per-listing generation of the SEO-friendly detail-page
+        // slug for any property/project that predates the field.
+        const { backfillSeoSlugs } = await import('./utils/seoSlugBackfill.js');
+        await backfillSeoSlugs();
       } catch (tierErr) {
         console.error('❌ Auto-seeding tiers failed on startup:', tierErr.message);
       }

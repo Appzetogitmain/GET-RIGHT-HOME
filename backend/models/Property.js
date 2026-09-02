@@ -1,5 +1,6 @@
 // models/Property.js
 import mongoose from "mongoose";
+import { attachSlugHook } from "../utils/seoSlug.js";
 
 const nearbyPlaceSchema = new mongoose.Schema({
   name: String,
@@ -482,5 +483,9 @@ propertySchema.index({ status: 1, isLive: 1, 'promotion.isActive': 1, 'promotion
 propertySchema.index({ 'promotion.isActive': 1, 'promotion.expiryDate': 1 });
 // Admin Properties screen: filter by mode + subscribed/expired/never + tier.
 propertySchema.index({ 'promotion.mode': 1, 'promotion.isActive': 1, 'promotion.planTier': 1 });
+
+// SEO-friendly detail-page URL, e.g. "sujay-global-elara-hyderabad-npxid-1a2b3c4d".
+// Generated once on first save; never overwritten afterwards.
+attachSlugHook(propertySchema);
 
 export default mongoose.model("Property", propertySchema);

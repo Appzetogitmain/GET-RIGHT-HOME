@@ -2165,7 +2165,9 @@ export const getMyProperties = async (req, res) => {
 export const getSimilarProperties = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 8, 20);
-    const source = await Property.findById(req.params.id).lean();
+    // The page this is called from may be on a slug URL now, not just /id.
+    const lookup = mongoose.isValidObjectId(req.params.id) ? { _id: req.params.id } : { slug: req.params.id };
+    const source = await Property.findOne(lookup).lean();
     if (!source) return res.status(404).json({ success: false, message: 'Property not found' });
 
     const city = source.address?.city;
@@ -2446,16 +2448,21 @@ export const submitPropertyForApproval = async (req, res) => {
 export const getPropertyDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    let property = await Property.findByIdAndUpdate(
-      id,
+    // Accepts either the raw Mongo _id (old links, still honoured forever so
+    // nothing that was ever shared or bookmarked breaks) or the SEO slug
+    // (sujay-global-elara-hyderabad-npxid-1a2b3c4d) new links now use.
+    const lookup = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+
+    let property = await Property.findOneAndUpdate(
+      lookup,
       { $inc: { views: 1 } },
       { new: true }
     ).populate('userId').populate('builderProjectDetails');
 
     // Fallback to Project collection if not found in Property
     if (!property) {
-      property = await Project.findByIdAndUpdate(
-        id,
+      property = await Project.findOneAndUpdate(
+        lookup,
         { $inc: { views: 1 } },
         { new: true }
       ).populate('userId');
@@ -2476,8 +2483,14 @@ export const getPropertyDetails = async (req, res) => {
     }
 
     if (!property) return res.status(404).json({ message: 'Property/Project not found' });
-    const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
-    const documents = await PropertyDocument.findOne({ propertyId: id });
+
+    // roomTypes/documents are keyed by the document's real _id — a slug was
+    // never valid there, and now that `id` might BE a slug, resolving it via
+    // the property we just found (rather than the raw param) is what makes
+    // this still work.
+    const realId = property._id;
+    const roomTypes = await RoomType.find({ propertyId: realId, isActive: true });
+    const documents = await PropertyDocument.findOne({ propertyId: realId });
     res.json({ success: true, property, roomTypes, documents });
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -2524,7 +2537,10 @@ export const deleteProperty = async (req, res) => {
 export const revealContact = async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await Property.findById(id);
+    // Same slug-or-id resolution as getPropertyDetails — this is called from
+    // the same detail page, which may now be on a slug URL.
+    const lookup = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+    const property = await Property.findOne(lookup);
 
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
@@ -2592,7 +2608,7 @@ export const revealContact = async (req, res) => {
     }
 
     // Increment property enquiryCount for action-based lead tracking
-    await Property.findByIdAndUpdate(id, { $inc: { enquiryCount: 1 } });
+    await Property.findByIdAndUpdate(property._id, { $inc: { enquiryCount: 1 } });
 
     res.json({
       success: true,

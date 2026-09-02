@@ -4,7 +4,16 @@ import mongoose from 'mongoose';
 
 export const getPropertyReviews = async (req, res) => {
   try {
-    const { propertyId } = req.params;
+    let { propertyId } = req.params;
+    // The detail page now lives at an SEO slug, not always the raw _id —
+    // this route is called straight off that param, so it needs the same
+    // slug-or-id resolution as getPropertyDetails/revealContact/similar.
+    if (!mongoose.isValidObjectId(propertyId)) {
+      const property = await Property.findOne({ slug: propertyId }).select('_id');
+      if (!property) return res.json([]); // unknown slug — no reviews, not an error
+      propertyId = property._id;
+    }
+
     const reviews = await Review.find({ propertyId, status: 'approved' })
       .populate('userId', 'name') // Assuming User model has 'name' field
       .sort({ createdAt: -1 });

@@ -1,5 +1,6 @@
 // models/Project.js
 import mongoose from "mongoose";
+import { attachSlugHook } from "../utils/seoSlug.js";
 
 const nearbyPlaceSchema = new mongoose.Schema({
   name: String,
@@ -10,6 +11,8 @@ const nearbyPlaceSchema = new mongoose.Schema({
 const projectSchema = new mongoose.Schema({
   // BASIC INFO
   propertyName: { type: String, required: true },
+  // SEO-friendly detail-page URL, mirrors Property's own slug field.
+  slug: { type: String, unique: true, sparse: true, index: true },
   contactNumber: { type: String },
   propertyType: { type: String, required: true },
   transactionType: { type: String },
@@ -175,5 +178,7 @@ const projectSchema = new mongoose.Schema({
 });
 
 projectSchema.index({ location: "2dsphere" });
+
+attachSlugHook(projectSchema);
 
 export default mongoose.model("Project", projectSchema);
