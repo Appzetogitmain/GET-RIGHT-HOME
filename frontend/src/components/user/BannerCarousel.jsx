@@ -52,7 +52,7 @@ const BannerCarousel = () => {
 
     const handleBannerClick = (banner) => {
         if (banner.linkedItem && banner.linkedItem._id) {
-            navigate(`/property/${banner.linkedItem._id}`);
+            navigate(`/property/${banner.linkedItem.slug || banner.linkedItem._id}`);
         } else if (banner.link) {
             if (banner.link.startsWith('http')) {
                 window.open(banner.link, '_blank');

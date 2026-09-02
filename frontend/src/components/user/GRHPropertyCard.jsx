@@ -41,6 +41,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
 
   const {
     _id,
+    slug,
     name,
     address,
     images,
@@ -149,7 +150,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
 
   const handleShare = (e) => {
     e.stopPropagation();
-    const shareUrl = `${window.location.origin}/property/${_id}`;
+    const shareUrl = `${window.location.origin}/property/${slug || _id}`;
     if (navigator.share) {
       navigator.share({
         title: displayName,
@@ -221,7 +222,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
 
   const handleCardClick = () => {
-    navigate(`/property/${_id}`);
+    navigate(`/property/${slug || _id}`);
   };
 
   const handleCloseOverlay = (e) => {
@@ -420,7 +421,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/property/${_id}`);
+                navigate(`/property/${slug || _id}`);
               }}
               className="bg-[#10B981] hover:bg-emerald-700 text-white text-[10px] font-black py-2 px-3 rounded-[10px] flex items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
             >
@@ -707,7 +708,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/property/${_id}`);
+                    navigate(`/property/${slug || _id}`);
                   }}
                   className="bg-orange-600 hover:bg-orange-700 text-white text-[9px] font-black uppercase py-2 px-3.5 rounded-lg active:scale-95 transition-all shadow-sm"
                 >
@@ -906,7 +907,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/property/${_id}`);
+                    navigate(`/property/${slug || _id}`);
                   }}
                   className="flex-1 flex items-center justify-center gap-1 py-2 px-3 bg-violet-600 hover:bg-violet-700 text-white rounded-full text-[10px] font-black active:scale-95 transition-all shadow-md shadow-violet-600/10 hover:shadow-violet-600/20"
                 >
@@ -1017,7 +1018,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
             <button
               onClick={() => {
                 setShowOverlay(false);
-                navigate(`/property/${_id}`);
+                navigate(`/property/${slug || _id}`);
               }}
               className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold active:scale-95 transition-all text-center border border-slate-700"
             >

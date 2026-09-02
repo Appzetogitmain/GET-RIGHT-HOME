@@ -105,7 +105,7 @@ const AdminPropertyCard = ({ property, index, theme }) => {
         }
 
         // Force navigate to project since these are featured builder projects
-        navigate(`/project/${property._id || property.id}`);
+        navigate(`/project/${property.slug || property._id || property.id}`);
     };
 
     return (

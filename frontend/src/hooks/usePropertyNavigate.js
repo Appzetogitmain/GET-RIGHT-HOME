@@ -11,11 +11,14 @@ export const usePropertyNavigate = () => {
     if (!property) return '/';
     const id = property._id || property.id;
     if (!id) return '/';
+    // The SEO slug, when the listing has one — falls back to the raw id
+    // for anything not yet backfilled, so this never breaks.
+    const slugOrId = property.slug || id;
 
     // 1. If it's a Builder Project (identified by builderName, builderProjectDetails, or builder role)
     const isProject = property.builderProjectDetails || property.builderName || property.userId?.role === 'builder';
     if (isProject) {
-      return `/handpicked/${id}`;
+      return `/handpicked/${slugOrId}`;
     }
 
     // 2. Determine prefix based on property type (hotel vs property)
@@ -23,7 +26,7 @@ export const usePropertyNavigate = () => {
     const hotelTypes = ['hotel', 'resort', 'homestay'];
     const isHotelType = hotelTypes.includes(propertyType.toLowerCase());
 
-    return isHotelType ? `/hotel/${id}` : `/property/${id}`;
+    return isHotelType ? `/hotel/${slugOrId}` : `/property/${slugOrId}`;
   };
 
   const navigateToProperty = (property, options = {}) => {

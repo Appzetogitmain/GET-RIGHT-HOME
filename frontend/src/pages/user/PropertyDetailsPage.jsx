@@ -719,7 +719,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
     setSubmitReviewLoading(true);
     try {
       await reviewService.createReview({
-        propertyId: id,
+        propertyId: property._id,
         ...reviewData
       });
       toast.success('Review submitted!');
@@ -751,7 +751,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
     setCheckingAvailability(true);
     try {
       const response = await availabilityService.check({
-        propertyId: id,
+        propertyId: property._id,
         roomTypeId: selectedRoom._id,
         checkIn: checkIn,
         checkOut: checkOut,
@@ -1106,7 +1106,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
     try {
       let messageBody = `[Inquiry from Detail Page]\nName: ${leadName}\nPhone: ${leadPhone}\nEmail: ${leadEmail}\nAgent Status: ${isAgent ? 'Real Estate Agent' : 'Individual/Buyer'}\nMessage: Interested in this property.`;
       const response = await enquiryService.create({
-        propertyId: id,
+        propertyId: property._id,
         enquiryType: 'callback',
         name: leadName,
         phone: leadPhone,
@@ -1135,7 +1135,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
     setVisitSubmitting(true);
     try {
       const response = await enquiryService.create({
-        propertyId: id,
+        propertyId: property._id,
         enquiryType: 'visit',
         name: leadName,
         phone: leadPhone,
@@ -1206,7 +1206,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
       if (isLoggedIn) {
         let messageBody = `[Inquiry from Detail Page]\nName: ${leadName}\nPhone: ${leadPhone}\nEmail: ${leadEmail}\nAgent Status: ${isAgent ? 'Real Estate Agent' : 'Individual/Buyer'}\nMessage: ${enquiryForm.message || 'Interested in this property.'}`;
         response = await enquiryService.create({
-          propertyId: id,
+          propertyId: property._id,
           enquiryType: 'callback',
           name: leadName,
           phone: leadPhone,
@@ -1223,7 +1223,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
           phone: enquiryForm.phone,
           otp: enquiryForm.otp,
           message: enquiryForm.message,
-          propertyId: id
+          propertyId: property._id
         });
       }
 

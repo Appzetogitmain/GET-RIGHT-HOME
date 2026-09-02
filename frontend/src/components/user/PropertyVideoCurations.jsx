@@ -114,7 +114,7 @@ const PropertyVideoCurations = ({ pageType, theme }) => {
                                         if (youtubeId) {
                                             setPlayingVideoIdx(idx);
                                         } else if (item.propertyId) {
-                                            navigate(`/property/${item.propertyId._id || item.propertyId}`);
+                                            navigate(`/property/${item.propertyId?.slug || item.propertyId._id || item.propertyId}`);
                                         }
                                     }}
                                 >

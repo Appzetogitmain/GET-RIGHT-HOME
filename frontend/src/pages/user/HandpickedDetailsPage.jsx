@@ -240,7 +240,7 @@ const HandpickedDetailsPage = () => {
           name: res.property.propertyName || 'Untitled Property',
           image: res.property.coverImage || res.property.propertyImages?.[0] || '',
           city: res.property.address?.city || '',
-          url: `/project/${res.property._id}`
+          url: `/project/${res.property.slug || res.property._id}`
         });
 
         // Fetch locality details based on property address
@@ -439,7 +439,7 @@ const HandpickedDetailsPage = () => {
     try {
       setEnquirySubmitting(true);
       await enquiryService.create({
-        propertyId: id,
+        propertyId: property._id,
         name: enquiryForm.name,
         email: enquiryForm.email,
         phone: enquiryForm.phone,
@@ -1997,7 +1997,7 @@ const HandpickedDetailsPage = () => {
                         const simPrice = info.rawP ? formatPriceLakhCrore(info.rawP) : 'Contact for Price';
 
                         return (
-                          <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[200px] shrink-0 shadow-sm hover:border-slate-300 transition-colors cursor-pointer">
+                          <div key={i} onClick={() => navigate(`/property/${simItem.slug || simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[200px] shrink-0 shadow-sm hover:border-slate-300 transition-colors cursor-pointer">
                             <img src={info.cover} className="w-full h-24 object-cover rounded-lg mb-3" alt={info.name} />
                             <h5 className="text-sm font-bold text-gray-800 line-clamp-1">{info.name}</h5>
                             <p className="text-[11px] text-slate-500 font-bold mb-1 line-clamp-1">{info.locality}</p>
@@ -2027,7 +2027,7 @@ const HandpickedDetailsPage = () => {
                       const simPrice = info.rawP ? formatPriceLakhCrore(info.rawP) : 'Contact for Price';
 
                       return (
-                        <div key={i} onClick={() => navigate(`/property/${simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[160px] shrink-0 shadow-sm hover:border-slate-300 transition-colors cursor-pointer">
+                        <div key={i} onClick={() => navigate(`/property/${simItem.slug || simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-[160px] shrink-0 shadow-sm hover:border-slate-300 transition-colors cursor-pointer">
                           <img src={info.cover} className="w-full h-20 object-cover rounded-lg mb-2" alt={info.name} />
                           <h5 className="text-[11px] font-bold text-gray-800 line-clamp-1">{info.name}</h5>
                           <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{info.locality}</p>
@@ -2279,7 +2279,7 @@ const HandpickedDetailsPage = () => {
                       return (
                         <div
                           key={idx}
-                          onClick={() => navigate(`/project/${sim._id}`)}
+                          onClick={() => navigate(`/project/${sim.slug || sim._id}`)}
                           className="flex gap-3 p-2 bg-white/80 border border-slate-200 rounded-xl hover:border-slate-500/30 transition-all cursor-pointer"
                         >
                           <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">

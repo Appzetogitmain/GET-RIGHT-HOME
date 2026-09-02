@@ -400,7 +400,7 @@ const AdminProjects = () => {
                                                                 <Eye size={14} /> View Details
                                                             </Link>
                                                             <a
-                                                                href={`/project/${project._id}`}
+                                                                href={`/project/${project.slug || project._id}`}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="flex items-center gap-2 px-4 py-2 hover:bg-purple-50 text-[10px] font-bold uppercase text-purple-700"

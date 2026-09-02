@@ -286,7 +286,7 @@ const LocalityDetail = () => {
                             
                             <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 snap-x snap-mandatory">
                                 {(automated.popularProjects[projectTab] || []).map((proj, i) => (
-                                    <div key={i} onClick={() => navigate(`/handpicked/${proj._id}`)} className="min-w-[260px] sm:min-w-[280px] snap-center shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group overflow-hidden">
+                                    <div key={i} onClick={() => navigate(`/handpicked/${proj.slug || proj._id}`)} className="min-w-[260px] sm:min-w-[280px] snap-center shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group overflow-hidden">
                                         <div className="relative h-44 w-full overflow-hidden bg-slate-100">
                                             <img src={proj.coverImage || coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={proj.propertyName} />
                                             {/* Top badges */}

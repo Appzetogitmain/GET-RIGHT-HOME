@@ -39,7 +39,7 @@ const PropertyDetailsDispatcher = () => {
             setIsHandpicked(true);
             setLoading(false);
             // Route all Projects to the premium Handpicked/Project Details UI
-            navigate(`/project/${p._id || id}`, { replace: true });
+            navigate(`/project/${p.slug || p._id || id}`, { replace: true });
           } else {
             setIsHandpicked(false);
             setPrefetchedDetails({ id, response });
