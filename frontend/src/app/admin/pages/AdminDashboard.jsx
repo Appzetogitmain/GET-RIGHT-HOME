@@ -88,16 +88,18 @@ const AdminDashboard = () => {
     const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#6366F1'];
 
     useEffect(() => {
-        fetchDashboardData();
-        fetchHomeServiceStats();
+        Promise.allSettled([
+            fetchDashboardData(),
+            fetchHomeServiceStats()
+        ]);
     }, []);
 
     const fetchDashboardData = async () => {
         try {
             setLoading(true);
             const data = await adminService.getDashboardStats();
-            if (data.success) {
-                setStats(data.stats);
+            if (data && data.success) {
+                setStats(data.stats || {});
                 setCharts(data.charts || { revenue: [], status: [] });
                 setRecentBookings(data.recentBookings || []);
                 setRecentRequests(data.recentPropertyRequests || []);
@@ -105,19 +107,17 @@ const AdminDashboard = () => {
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
-            // toast.error('Failed to update dashboard');
         } finally {
             setLoading(false);
         }
     };
 
-    // All-time Home Services numbers (no startDate/endDate = unfiltered) so
-    // they combine cleanly with the property side's all-time totals below.
+    // All-time Home Services numbers (no startDate/endDate = unfiltered)
     const fetchHomeServiceStats = async () => {
         try {
             setHsLoading(true);
             const data = await getHomeServiceStats();
-            if (data.success) {
+            if (data && data.success && data.stats) {
                 setHsStats({
                     totalRevenue: data.stats.totalRevenue || 0,
                     totalWorkers: data.stats.totalWorkers || 0,

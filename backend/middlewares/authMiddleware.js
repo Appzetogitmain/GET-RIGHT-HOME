@@ -34,42 +34,40 @@ export const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('🛡️ Auth Middleware - Decoded Payload:', decoded);
-
-    // 1. Check User Collection
-    let user = await User.findById(decoded.id);
-
-    // 2. Check Partner Collection
-    if (!user) {
-      user = await Partner.findById(decoded.id);
+    
+    // Direct role-based lookup in 1 query instead of 5 sequential waterfalls
+    let user = null;
+    const { id, role } = decoded;
+    if (role === 'admin' || role === 'superadmin') {
+      user = await Admin.findById(id);
+    } else if (role === 'partner') {
+      user = await Partner.findById(id);
+    } else if (role === 'worker') {
+      user = await Worker.findById(id);
+    } else if (role === 'manager') {
+      user = await Manager.findById(id);
+    } else {
+      user = await User.findById(id);
     }
 
-    // 3. Check Worker Collection
+    // Fallback in parallel only if role-specific query did not find the document
     if (!user) {
-      user = await Worker.findById(decoded.id);
-    }
-
-    // 4. Check Admin Collection
-    if (!user) {
-      console.log('🛡️ Auth Middleware - User/Partner/Worker not found, checking Admin collection for ID:', decoded.id);
-      user = await Admin.findById(decoded.id);
-    }
-
-    // 5. Check Manager Collection
-    if (!user) {
-      user = await Manager.findById(decoded.id);
+      const candidates = await Promise.all([
+        User.findById(id),
+        Partner.findById(id),
+        Worker.findById(id),
+        Admin.findById(id),
+        Manager.findById(id)
+      ]);
+      user = candidates.find(c => c !== null);
     }
 
     if (!user) {
-      console.warn('🛡️ Auth Middleware - No User/Partner/Admin found for ID:', decoded.id);
       return res.status(401).json({ message: 'The user belonging to this token no longer exists.' });
     }
 
-    console.log(`🛡️ Auth Middleware - Authorized: ${user.name} (${user.role})`);
-
-    // 4. Check Blocked Status
+    // Check Blocked Status
     if (user.isBlocked) {
-      console.warn(`🛡️ Auth Middleware - User ${user.name} is BLOCKED`);
       return res.status(403).json({
         message: 'Your account has been blocked by admin. Please contact support.',
         isBlocked: true
@@ -80,11 +78,9 @@ export const protect = async (req, res, next) => {
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
-      console.error('🛡️ Auth Middleware - Invalid Token:', error.message);
       return res.status(401).json({ message: 'Invalid token' });
     }
     if (error.name === 'TokenExpiredError') {
-      console.error('🛡️ Auth Middleware - Token Expired');
       return res.status(401).json({ message: 'Token expired' });
     }
     console.error('🛡️ Auth Middleware Error:', error);
@@ -127,11 +123,19 @@ export const optionalProtect = async (req, res, next) => {
     }
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      let user = await User.findById(decoded.id);
-      if (!user) user = await Partner.findById(decoded.id);
-      if (!user) user = await Worker.findById(decoded.id);
-      if (!user) user = await Admin.findById(decoded.id);
-      if (!user) user = await Manager.findById(decoded.id);
+      let user = null;
+      const { id, role } = decoded;
+      if (role === 'admin' || role === 'superadmin') {
+        user = await Admin.findById(id);
+      } else if (role === 'partner') {
+        user = await Partner.findById(id);
+      } else if (role === 'worker') {
+        user = await Worker.findById(id);
+      } else if (role === 'manager') {
+        user = await Manager.findById(id);
+      } else {
+        user = await User.findById(id);
+      }
 
       if (user && !user.isBlocked) {
         req.user = user;
@@ -139,7 +143,6 @@ export const optionalProtect = async (req, res, next) => {
     }
     next();
   } catch (error) {
-    // Continue even if token is invalid, but don't set req.user
     next();
   }
 };

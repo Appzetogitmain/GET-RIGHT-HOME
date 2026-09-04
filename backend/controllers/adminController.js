@@ -29,102 +29,31 @@ import { syncBuilderProjectDetails } from './propertyController.js';
 
 
 
+let cachedDashboardStats = null;
+let lastDashboardStatsFetch = 0;
+const DASHBOARD_CACHE_TTL = 30 * 1000; // 30s cache for blazing fast loads
+
 export const getDashboardStats = async (req, res) => {
   try {
+    const now = Date.now();
+    if (cachedDashboardStats && (now - lastDashboardStatsFetch < DASHBOARD_CACHE_TTL) && !req.query.fresh) {
+      return res.status(200).json(cachedDashboardStats);
+    }
+
     const today = new Date();
     const startOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
 
-    // Helper for percentage change
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+
     const calculateGrowth = (current, previous) => {
       if (previous === 0) return current > 0 ? 100 : 0;
       return ((current - previous) / previous) * 100;
     };
 
-    // 1. KPI Counts & Trends
-    const [
-      totalUsers, usersLastMonth,
-      totalPartners,
-      totalHotels,
-      pendingHotels,
-      totalBookings, bookingsLastMonth,
-      currentRevenueData, lastMonthRevenueData,
-      totalWorkers
-    ] = await Promise.all([
-      User.countDocuments({}),
-      User.countDocuments({ createdAt: { $lt: startOfThisMonth } }), // Approximation for trend base
-      Partner.countDocuments({}),
-      Property.countDocuments({}),
-      Property.countDocuments({ status: 'pending' }),
-      Enquiry.countDocuments({}),
-      Enquiry.countDocuments({ createdAt: { $lt: startOfThisMonth } }), // trend base
-      Booking.aggregate([
-        { $match: { bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, paymentStatus: 'paid' } },
-        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-      ]),
-      Booking.aggregate([ // Revenue before this month
-        {
-          $match: {
-            bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
-            paymentStatus: 'paid',
-            createdAt: { $lt: startOfThisMonth }
-          }
-        },
-        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-      ]),
-      Worker.countDocuments({})
-    ]);
-
-    const totalRevenue = currentRevenueData[0]?.total || 0;
-    const prevRevenue = lastMonthRevenueData[0]?.total || 0;
-
-    // Calculate trends (Simple approx based on total vs total-this-month isn't perfect for "vs last month", 
-    // but better: Calculate created in THIS month vs created in LAST month)
-
-    const usersNewThisMonth = await User.countDocuments({ createdAt: { $gte: startOfThisMonth } });
-    const usersNewLastMonth = await User.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } });
-
-    const bookingsThisMonth = await Enquiry.countDocuments({ createdAt: { $gte: startOfThisMonth } });
-    const bookingsLastMonthCount = await Enquiry.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } });
-
-    // Revenue This Month vs Last Month
-    const revThisMonthAgg = await Booking.aggregate([
-      {
-        $match: {
-          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
-          paymentStatus: 'paid',
-          createdAt: { $gte: startOfThisMonth }
-        }
-      },
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-    const revLastMonthAgg = await Booking.aggregate([
-      {
-        $match: {
-          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
-          paymentStatus: 'paid',
-          createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
-        }
-      },
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-
-    const incomeThisMonth = revThisMonthAgg[0]?.total || 0;
-    const incomeLastMonth = revLastMonthAgg[0]?.total || 0;
-
-    const trends = {
-      users: calculateGrowth(usersNewThisMonth, usersNewLastMonth),
-      bookings: calculateGrowth(bookingsThisMonth, bookingsLastMonthCount),
-      revenue: calculateGrowth(incomeThisMonth, incomeLastMonth)
-    };
-
-    // --- SUBSCRIPTION REVENUE TRACKING ---
-    // F-10: this used to aggregate over Partner only. Owner and broker
-    // accounts hold the identical embedded `subscription` shape but live in
-    // the User collection, so two of every three active subscribers were
-    // silently missing from the figure admin saw. Run the same pipeline over
-    // both collections and merge by plan.
     const subscriptionRevenuePipeline = [
       {
         $match: {
@@ -154,10 +83,105 @@ export const getDashboardStats = async (req, res) => {
       }
     ];
 
-    const [partnerStats, userStats] = await Promise.all([
+    // Execute ALL dashboard metrics concurrently in one round-trip batch
+    const [
+      totalUsers,
+      totalPartners,
+      totalHotels,
+      pendingHotels,
+      totalBookings,
+      totalWorkers,
+      currentRevenueData,
+      usersNewThisMonth,
+      usersNewLastMonth,
+      bookingsThisMonth,
+      bookingsLastMonthCount,
+      revThisMonthAgg,
+      revLastMonthAgg,
+      partnerStats,
+      userStats,
+      monthlyRevenue,
+      bookingStatusStats,
+      recentBookings,
+      recentPropertyRequests
+    ] = await Promise.all([
+      User.countDocuments({}),
+      Partner.countDocuments({}),
+      Property.countDocuments({}),
+      Property.countDocuments({ status: 'pending' }),
+      Enquiry.countDocuments({}),
+      Worker.countDocuments({}),
+      Booking.aggregate([
+        { $match: { bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, paymentStatus: 'paid' } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]),
+      User.countDocuments({ createdAt: { $gte: startOfThisMonth } }),
+      User.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } }),
+      Enquiry.countDocuments({ createdAt: { $gte: startOfThisMonth } }),
+      Enquiry.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } }),
+      Booking.aggregate([
+        {
+          $match: {
+            bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
+            paymentStatus: 'paid',
+            createdAt: { $gte: startOfThisMonth }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]),
+      Booking.aggregate([
+        {
+          $match: {
+            bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
+            paymentStatus: 'paid',
+            createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]),
       Partner.aggregate(subscriptionRevenuePipeline),
       User.aggregate(subscriptionRevenuePipeline),
+      Booking.aggregate([
+        {
+          $match: {
+            bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
+            paymentStatus: 'paid',
+            createdAt: { $gte: sixMonthsAgo }
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+            amount: { $sum: "$totalAmount" }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+      Enquiry.aggregate([
+        { $group: { _id: "$status", count: { $sum: 1 } } }
+      ]),
+      Enquiry.find()
+        .populate('userId', 'name email')
+        .populate('propertyId', 'propertyName address')
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
+      Property.find({ status: 'pending' })
+        .populate('userId', 'name email')
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean()
     ]);
+
+    const totalRevenue = currentRevenueData[0]?.total || 0;
+    const incomeThisMonth = revThisMonthAgg[0]?.total || 0;
+    const incomeLastMonth = revLastMonthAgg[0]?.total || 0;
+
+    const trends = {
+      users: calculateGrowth(usersNewThisMonth, usersNewLastMonth),
+      bookings: calculateGrowth(bookingsThisMonth, bookingsLastMonthCount),
+      revenue: calculateGrowth(incomeThisMonth, incomeLastMonth)
+    };
 
     const mergedByPlan = new Map();
     for (const stat of [...partnerStats, ...userStats]) {
@@ -175,36 +199,6 @@ export const getDashboardStats = async (req, res) => {
     const totalSubscriptionRevenue = subscriptionStats.reduce((sum, stat) => sum + stat.totalRevenue, 0);
     const totalActiveSubscribers = subscriptionStats.reduce((sum, stat) => sum + stat.subscriberCount, 0);
 
-    // 2. Charts Data
-
-    // Revenue Chart (Last 6 Months)
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-    sixMonthsAgo.setDate(1);
-
-    const monthlyRevenue = await Booking.aggregate([
-      {
-        $match: {
-          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
-          paymentStatus: 'paid',
-          createdAt: { $gte: sixMonthsAgo }
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
-          amount: { $sum: "$totalAmount" }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
-
-    // Enquiry Status Distribution
-    const bookingStatusStats = await Enquiry.aggregate([
-      { $group: { _id: "$status", count: { $sum: 1 } } }
-    ]);
-
-    // Format for frontend
     const revenueChart = monthlyRevenue.map(item => {
       const [year, month] = item._id.split('-');
       const date = new Date(year, month - 1);
@@ -219,20 +213,7 @@ export const getDashboardStats = async (req, res) => {
       value: item.count
     }));
 
-    // 3. Lists
-    const recentBookings = await Enquiry.find()
-      .populate('userId', 'name email')
-      .populate('propertyId', 'propertyName address')
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    const recentPropertyRequests = await Property.find({ status: 'pending' })
-
-      .populate('userId', 'name email')
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    res.status(200).json({
+    const responsePayload = {
       success: true,
       stats: {
         totalUsers,
@@ -258,7 +239,12 @@ export const getDashboardStats = async (req, res) => {
       },
       recentBookings,
       recentPropertyRequests
-    });
+    };
+
+    cachedDashboardStats = responsePayload;
+    lastDashboardStatsFetch = Date.now();
+
+    res.status(200).json(responsePayload);
   } catch (error) {
     console.error('Get Admin Dashboard Stats Error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching dashboard stats' });

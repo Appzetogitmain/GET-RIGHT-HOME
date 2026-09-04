@@ -4,6 +4,7 @@ import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import Transaction from '../models/Transaction.js';
 import Withdrawal from '../models/Withdrawal.js';
 import User from '../models/User.js';
+import VendorBill from '../models/VendorBill.js';
 import { createNotification } from './notificationControllers/notificationController.js';
 import { BOOKING_STATUS } from '../utils/constants.js';
 import { safeRegex } from '../utils/escapeRegex.js';
@@ -356,9 +357,20 @@ export const payWorker = async (req, res) => {
   }
 };
 
+let cachedWorkerAnalytics = null;
+let lastWorkerAnalyticsFetch = 0;
+const WORKER_ANALYTICS_CACHE_TTL = 30 * 1000;
+
 export const getWorkerAnalytics = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
+    const now = Date.now();
+    const hasDateFilter = !!(startDate && endDate);
+
+    if (!hasDateFilter && cachedWorkerAnalytics && (now - lastWorkerAnalyticsFetch < WORKER_ANALYTICS_CACHE_TTL) && !req.query.fresh) {
+      return res.json(cachedWorkerAnalytics);
+    }
+
     let dateFilter = {};
     if (startDate && endDate) {
       dateFilter.createdAt = {
@@ -367,70 +379,69 @@ export const getWorkerAnalytics = async (req, res) => {
       };
     }
 
-    const totalWorkers = await Worker.countDocuments(dateFilter);
-    const pendingWorkers = await Worker.countDocuments({ ...dateFilter, approvalStatus: 'pending' });
-    const approvedWorkers = await Worker.countDocuments({ ...dateFilter, approvalStatus: 'approved' });
-
-    // Status can be multiple depending on definition of active/pending
-    const activeJobs = await HomeServiceBooking.countDocuments({ ...dateFilter, status: { $in: ['pending', 'confirmed', 'in_progress', 'assigned'] } });
-    const completedJobs = await HomeServiceBooking.countDocuments({ ...dateFilter, status: 'completed' });
-
-    // Top 5 workers by completed jobs (using dateFilter for completion date if possible, but createdAt is fine)
-    const topWorkers = await HomeServiceBooking.aggregate([
-      { $match: { ...dateFilter, status: 'completed', workerId: { $exists: true, $ne: null } } },
-      { $group: { _id: '$workerId', completedJobs: { $sum: 1 } } },
-      { $sort: { completedJobs: -1 } },
-      { $limit: 5 },
-      {
-        $lookup: {
-          from: 'workers',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'workerInfo'
+    const [
+      totalWorkers,
+      pendingWorkers,
+      approvedWorkers,
+      activeJobs,
+      completedJobs,
+      topWorkers,
+      availabilityDistribution,
+      revenueAgg,
+      recentBookings
+    ] = await Promise.all([
+      Worker.countDocuments(dateFilter),
+      Worker.countDocuments({ ...dateFilter, approvalStatus: 'pending' }),
+      Worker.countDocuments({ ...dateFilter, approvalStatus: 'approved' }),
+      HomeServiceBooking.countDocuments({ ...dateFilter, status: { $in: ['pending', 'confirmed', 'in_progress', 'assigned'] } }),
+      HomeServiceBooking.countDocuments({ ...dateFilter, status: 'completed' }),
+      HomeServiceBooking.aggregate([
+        { $match: { ...dateFilter, status: 'completed', workerId: { $exists: true, $ne: null } } },
+        { $group: { _id: '$workerId', completedJobs: { $sum: 1 } } },
+        { $sort: { completedJobs: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: {
+            from: 'workers',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'workerInfo'
+          }
+        },
+        { $unwind: '$workerInfo' },
+        {
+          $project: {
+            name: '$workerInfo.name',
+            completedJobs: 1
+          }
         }
-      },
-      { $unwind: '$workerInfo' },
-      {
-        $project: {
-          name: '$workerInfo.name',
-          completedJobs: 1
-        }
-      }
+      ]),
+      Worker.aggregate([
+        { $match: { approvalStatus: 'approved' } },
+        { $group: { _id: '$isOnline', count: { $sum: 1 } } }
+      ]),
+      VendorBill.aggregate([
+        { $match: { ...dateFilter, status: 'paid' } },
+        { $group: { _id: null, companyRevenue: { $sum: '$companyRevenue' }, adminCommission: { $sum: '$adminCommission' } } }
+      ]),
+      HomeServiceBooking.find(dateFilter)
+        .select('serviceName status createdAt totalAmount address bookingNumber')
+        .populate('userId', 'name email phone')
+        .populate('workerId', 'name phone')
+        .populate('vendorId', 'businessName')
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean()
     ]);
 
-    // Worker availability distribution
-    const availabilityDistribution = await Worker.aggregate([
-      { $match: { approvalStatus: 'approved' } },
-      { $group: { _id: '$isOnline', count: { $sum: 1 } } }
-    ]);
+    const totalRevenue = revenueAgg.length > 0 ? ((revenueAgg[0].companyRevenue || 0) + (revenueAgg[0].adminCommission || 0)) : 0;
 
-    // Import VendorBill at top implicitly or explicitly, assume it's available or we can use mongoose.model
-    const mongoose = await import('mongoose');
-    const VendorBill = mongoose.model('VendorBill');
-
-    const revenueAgg = await VendorBill.aggregate([
-      { $match: { ...dateFilter, status: 'paid' } },
-      { $group: { _id: null, companyRevenue: { $sum: '$companyRevenue' }, adminCommission: { $sum: '$adminCommission' } } }
-    ]);
-
-    // total revenue is the sum of companyRevenue (vendors) and adminCommission (workers)
-    const totalRevenue = revenueAgg.length > 0 ? (revenueAgg[0].companyRevenue + revenueAgg[0].adminCommission) : 0;
-
-    // Fetch recent bookings for the charts (limit to 100 to prevent large payloads)
-    const recentBookings = await HomeServiceBooking.find(dateFilter)
-      .populate('userId', 'name email phone')
-      .populate('workerId', 'name phone')
-      .populate('vendorId', 'businessName')
-      .sort({ createdAt: -1 })
-      .limit(100);
-
-    // Some charts expect serviceType instead of serviceName, let's map it safely on the fly or let the frontend handle it if it matches
     const mappedBookings = recentBookings.map(b => ({
-      ...b.toObject(),
-      serviceType: b.serviceName // Map serviceName to serviceType for TopServices compatibility
+      ...b,
+      serviceType: b.serviceName
     }));
 
-    res.json({
+    const responsePayload = {
       success: true,
       data: {
         totalWorkers,
@@ -443,9 +454,17 @@ export const getWorkerAnalytics = async (req, res) => {
         totalRevenue,
         recentBookings: mappedBookings
       }
-    });
+    };
+
+    if (!hasDateFilter) {
+      cachedWorkerAnalytics = responsePayload;
+      lastWorkerAnalyticsFetch = Date.now();
+    }
+
+    res.json(responsePayload);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.stack });
+    console.error('Get Worker Analytics Error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
