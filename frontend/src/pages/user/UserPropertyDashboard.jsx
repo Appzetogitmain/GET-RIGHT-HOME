@@ -173,12 +173,14 @@ const UserPropertyDashboard = () => {
                     <ArrowLeft size={18} />
                 </button>
 
-                <button
-                    onClick={handleEdit}
-                    className="absolute top-4 right-4 flex items-center gap-1.5 bg-white text-gray-900 text-xs font-bold px-3 py-2 rounded-xl shadow-md"
-                >
-                    <Edit3 size={13} /> Edit
-                </button>
+                {property.status === 'draft' && (
+                    <button
+                        onClick={handleEdit}
+                        className="absolute top-4 right-4 flex items-center gap-1.5 bg-white text-gray-900 text-xs font-bold px-3 py-2 rounded-xl shadow-md"
+                    >
+                        <Edit3 size={13} /> Edit
+                    </button>
+                )}
 
                 <div className="absolute bottom-4 left-4 right-4">
                     <div className="flex items-center gap-2 mb-1">

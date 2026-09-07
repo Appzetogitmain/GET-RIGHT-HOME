@@ -276,15 +276,19 @@ const MyProperties = () => {
 
                   <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleEditProperty(property)}
-                        className="p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl transition-all"
-                      >
-                        <Pencil size={16} />
-                      </button>
+                      {property.status === 'draft' && (
+                        <button 
+                          onClick={() => handleEditProperty(property)}
+                          className="p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl transition-all"
+                          title="Edit Draft"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                      )}
                       <button 
                         onClick={() => setPropertyToDelete(property)}
                         className="p-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-all"
+                        title="Delete Property"
                       >
                         <Trash2 size={16} />
                       </button>

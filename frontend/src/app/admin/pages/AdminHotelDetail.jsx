@@ -271,7 +271,7 @@ const OverviewTab = ({ hotel, isProject }) => {
                         <div className="flex items-center gap-2 mb-2">
                             <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 text-[9px] font-bold rounded-full uppercase">AI Summary</span>
                         </div>
-                        <p className="text-xs font-bold text-gray-700 leading-relaxed uppercase tracking-tight">
+                        <p className="text-xs font-bold text-gray-700 leading-relaxed uppercase tracking-tight break-words [overflow-wrap:anywhere]">
                             {hotel.builderProjectDetails.ratings.aiSummary}
                         </p>
                     </div>
@@ -280,18 +280,18 @@ const OverviewTab = ({ hotel, isProject }) => {
         )}
 
 
-        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 overflow-hidden">
             <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-3">About Property</h3>
             {hotel.shortDescription && (
                 <div className="mb-4">
                     <h4 className="text-[10px] font-bold uppercase text-gray-400 mb-1">Short Description</h4>
-                    <p className="text-sm font-bold text-gray-700 uppercase tracking-tight italic">
+                    <p className="text-sm font-bold text-gray-700 uppercase tracking-tight italic break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
                         {hotel.shortDescription}
                     </p>
                 </div>
             )}
             <h4 className="text-[10px] font-bold uppercase text-gray-400 mb-1">Detailed Description</h4>
-            <p className="text-sm font-bold text-gray-600 leading-relaxed uppercase tracking-tight">
+            <p className="text-sm font-bold text-gray-600 leading-relaxed uppercase tracking-tight break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
                 {hotel.description || 'No description provided for this property.'}
             </p>
         </div>
@@ -1253,6 +1253,48 @@ const AdminHotelDetail = () => {
         });
     };
 
+    const handleApproveProperty = () => {
+        setModalConfig({
+            isOpen: true,
+            title: 'Approve Property?',
+            message: `Are you sure you want to approve "${hotel.propertyName}"? It will become live and visible on the platform.`,
+            type: 'success',
+            confirmText: 'Approve & Go Live',
+            onConfirm: async () => {
+                try {
+                    const res = await adminService.updateHotelStatus(hotel._id, 'approved');
+                    if (res.success) {
+                        toast.success('Property approved and published live!');
+                        fetchHotelDetails();
+                    }
+                } catch {
+                    toast.error('Failed to approve property');
+                }
+            }
+        });
+    };
+
+    const handleRejectProperty = () => {
+        setModalConfig({
+            isOpen: true,
+            title: 'Reject Property?',
+            message: `Are you sure you want to reject "${hotel.propertyName}"?`,
+            type: 'danger',
+            confirmText: 'Reject Property',
+            onConfirm: async () => {
+                try {
+                    const res = await adminService.updateHotelStatus(hotel._id, 'rejected');
+                    if (res.success) {
+                        toast.success('Property marked as rejected');
+                        fetchHotelDetails();
+                    }
+                } catch {
+                    toast.error('Failed to reject property');
+                }
+            }
+        });
+    };
+
     const handleStatusToggle = async () => {
         const isSuspended = hotel.status === 'suspended';
         const newStatus = isSuspended ? 'approved' : 'suspended';
@@ -1334,7 +1376,7 @@ const AdminHotelDetail = () => {
                                     <Ban size={10} className="mr-1" /> SUSPENDED
                                 </span>
                             ) : (
-                                <span className={`px-2.5 py-0.5 border text-[10px] font-bold rounded-full flex items-center uppercase ${hotel.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                <span className={`px-2.5 py-0.5 border text-[10px] font-bold rounded-full flex items-center uppercase ${hotel.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
                                     {hotel.status === 'approved' ? <CheckCircle size={10} className="mr-1" /> : <Clock size={10} className="mr-1" />}
                                     {hotel.status}
                                 </span>
@@ -1348,17 +1390,53 @@ const AdminHotelDetail = () => {
                     </div>
                 </div>
 
-                <div className="flex gap-3 w-full md:w-auto">
-                    <button
-                        onClick={handleStatusToggle}
-                        className={`flex-1 md:flex-none px-4 py-2 border rounded-lg text-[10px] font-bold uppercase transition-colors ${hotel.status === 'suspended'
-                            ? 'bg-green-600 text-white border-green-600 hover:bg-green-700'
-                            : 'bg-white text-red-600 border-red-200 hover:bg-red-50'
-                            }`}
-                    >
-                        {hotel.status === 'suspended' ? 'Activate' : 'Suspend'}
-                    </button>
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    {(hotel.status === 'pending' || hotel.status === 'draft') && (
+                        <>
+                            <button
+                                onClick={handleApproveProperty}
+                                className="flex-1 md:flex-none px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                            >
+                                <CheckCircle size={14} />
+                                Approve Property
+                            </button>
+                            <button
+                                onClick={handleRejectProperty}
+                                className="flex-1 md:flex-none px-4 py-2.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                            >
+                                <XCircle size={14} />
+                                Reject
+                            </button>
+                        </>
+                    )}
 
+                    {hotel.status === 'rejected' && (
+                        <button
+                            onClick={handleApproveProperty}
+                            className="flex-1 md:flex-none px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        >
+                            <CheckCircle size={14} />
+                            Re-Approve Property
+                        </button>
+                    )}
+
+                    {hotel.status === 'approved' && (
+                        <button
+                            onClick={handleStatusToggle}
+                            className="flex-1 md:flex-none px-4 py-2 border border-red-200 bg-white text-red-600 hover:bg-red-50 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-sm cursor-pointer"
+                        >
+                            Suspend Property
+                        </button>
+                    )}
+
+                    {hotel.status === 'suspended' && (
+                        <button
+                            onClick={handleStatusToggle}
+                            className="flex-1 md:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-sm cursor-pointer"
+                        >
+                            Activate Property
+                        </button>
+                    )}
                 </div>
             </div>
 

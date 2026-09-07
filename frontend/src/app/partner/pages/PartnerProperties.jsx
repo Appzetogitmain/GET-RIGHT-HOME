@@ -264,12 +264,14 @@ const PartnerProperties = () => {
                           >
                             <Eye size={11} /> Details
                           </button>
-                          <button
-                            onClick={() => handleEditProperty(property)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-teal-50 text-teal-700 text-[10px] font-bold uppercase border border-teal-100"
-                          >
-                            <Pencil size={11} /> Edit
-                          </button>
+                          {property.status === 'draft' && (
+                            <button
+                              onClick={() => handleEditProperty(property)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-teal-50 text-teal-700 text-[10px] font-bold uppercase border border-teal-100"
+                            >
+                              <Pencil size={11} /> Edit
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setPropertyToDelete(property)}

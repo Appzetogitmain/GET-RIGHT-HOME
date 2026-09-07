@@ -1213,7 +1213,7 @@ const HandpickedDetailsPage = () => {
                 {/* Description Text */}
                 <div className="pt-4 border-t border-slate-200/80 space-y-3">
                   <h3 className="text-base font-bold text-slate-800">Detailed Project Description</h3>
-                  <p className="text-slate-700 text-sm leading-relaxed">
+                  <p className="text-slate-700 text-sm leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-line">
                     {(() => {
                       const desc = property?.description || "No detailed description provided for this project.";
                       if (desc.length <= 220) return desc;
