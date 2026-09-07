@@ -136,7 +136,7 @@ export const assertPurchasable = async (user, plan, propertyIds = []) => {
         if (!SUBSCRIBABLE_PROPERTY_STATUS.includes(String(property.status || '').toLowerCase())) {
             return {
                 ok: false,
-                reason: `"${property.propertyName || 'This listing'}" is not approved yet — only approved listings can be subscribed`,
+                reason: `"${property.propertyName || 'This listing'}" cannot be subscribed in its current status (${property.status || 'unknown'})`,
             };
         }
 

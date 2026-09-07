@@ -145,7 +145,7 @@ export const resolveMode = (transactionType) => {
 };
 
 /** Property statuses that may be subscribed against. */
-export const SUBSCRIBABLE_PROPERTY_STATUS = ['approved'];
+export const SUBSCRIBABLE_PROPERTY_STATUS = ['approved', 'pending', 'draft', 'under_review'];
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
