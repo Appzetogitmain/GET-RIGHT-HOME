@@ -44,8 +44,23 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, searchCity, theme
         }
         const [data, savedRes] = await Promise.all(promises);
 
-        grhCache[cacheKey] = data || [];
-        setProperties(data || []);
+        let filteredData = data || [];
+        if (searchCity && searchCity !== 'All') {
+          const sc = searchCity.trim().toLowerCase();
+          filteredData = filteredData.filter(p => {
+            const city = (
+              p.address?.city ||
+              p.city ||
+              p.dynamicData?.city ||
+              p.address?.district ||
+              ''
+            ).trim().toLowerCase();
+            return city === sc || city.includes(sc) || sc.includes(city);
+          });
+        }
+
+        grhCache[cacheKey] = filteredData;
+        setProperties(filteredData);
 
         if (savedRes) {
           const list = [
@@ -64,8 +79,17 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, searchCity, theme
     fetchProperties();
   }, [availabilityFilter, searchCity, title, cacheKey]);
 
+  // Hide the entire section if there are 0 properties for the selected location
+  if (properties.length === 0) {
+    return null;
+  }
+
   const handleViewMore = () => {
-    navigate(`/search?availability=${encodeURIComponent(availabilityFilter)}`);
+    let url = `/search?availability=${encodeURIComponent(availabilityFilter)}`;
+    if (searchCity && searchCity !== 'All') {
+      url += `&city=${encodeURIComponent(searchCity)}`;
+    }
+    navigate(url);
   };
 
   return (
@@ -89,48 +113,24 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, searchCity, theme
         )}
       </div>
 
-      {/* Section Content (Horizontal Carousel or Empty State) */}
-      {loading ? (
-        <div className="flex justify-center items-center h-56">
-          <Loader2 className={`animate-spin ${theme?.text || 'text-emerald-600'}`} size={32} />
-        </div>
-      ) : properties.length === 0 ? (
-        <div className="py-10 px-5 border border-dashed border-gray-200 rounded-2xl w-full text-center bg-gray-50/30 flex flex-col items-center justify-center">
-          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-lg mb-3">
-            🏢
-          </div>
-          <h4 className="text-sm font-bold text-gray-800 mb-1">No Properties Found</h4>
-          <p className="text-xs text-gray-400 max-w-xs mb-3">
-            {searchCity
-              ? `There are currently no "${title.toLowerCase()}" listed in "${searchCity}". Be the first to list yours!`
-              : `There are currently no "${title.toLowerCase()}" listed on Get Right Home. Be the first to list yours!`}
-          </p>
-          <button
-            onClick={() => navigate('/list-property')}
-            className="px-4 py-1.5 bg-[#0f172a] hover:bg-slate-800 active:scale-95 text-white text-xs font-bold rounded-lg transition-all shadow-sm animate-in fade-in"
-          >
-            + List Property
-          </button>
-        </div>
-      ) : (
-        <div
-          ref={carouselRef}
-          onScroll={handleScroll}
-          className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-fit max-w-full"
-        >
-          {properties.slice(0, 8).map((property) => (
-            <GRHPropertyCard
-              key={property._id}
-              data={property}
-              theme={theme}
-              cardType="property"
-              initialIsSaved={savedIds.includes(property._id)}
-            />
-          ))}
-          {/* Spacer for right padding */}
-          <div className="w-2 shrink-0" />
-        </div>
-      )}
+      {/* Section Content (Horizontal Carousel) */}
+      <div
+        ref={carouselRef}
+        onScroll={handleScroll}
+        className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-fit max-w-full"
+      >
+        {properties.slice(0, 8).map((property) => (
+          <GRHPropertyCard
+            key={property._id}
+            data={property}
+            theme={theme}
+            cardType="property"
+            initialIsSaved={savedIds.includes(property._id)}
+          />
+        ))}
+        {/* Spacer for right padding */}
+        <div className="w-2 shrink-0" />
+      </div>
     </div>
   );
 };

@@ -4,7 +4,7 @@ import PropertyCard from './PropertyCard';
 import GRHPropertyCard from './GRHPropertyCard';
 import { Loader2 } from 'lucide-react';
 
-const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, extraFilters = {} }) => {
+const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, extraFilters = {}, hideIfEmpty = false }) => {
   const [properties, setProperties] = useState([]);
   const [savedHotelIds, setSavedHotelIds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,9 +68,19 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
           setSavedHotelIds(list.map(h => (typeof h === 'object' ? (h._id || h.id) : h)));
         }
 
-        let filteredData = data;
+        let filteredData = data || [];
         if (selectedCity && selectedCity !== 'All') {
-          filteredData = filteredData.filter(p => p.address?.city?.toLowerCase() === selectedCity.toLowerCase());
+          const sc = selectedCity.trim().toLowerCase();
+          filteredData = filteredData.filter(p => {
+            const city = (
+              p.address?.city ||
+              p.city ||
+              p.dynamicData?.city ||
+              p.address?.district ||
+              ''
+            ).trim().toLowerCase();
+            return city === sc || city.includes(sc) || sc.includes(city);
+          });
         }
 
         if (extraFilters.excludePropertyType) {
@@ -121,6 +131,7 @@ const PropertyFeed = ({ selectedType, selectedCity, viewMode = 'grid', limit, ex
   }
 
   if (properties.length === 0) {
+    if (hideIfEmpty) return null;
     return (
       <div className="text-center py-20 text-gray-500">
         <p>{selectedCity ? `No properties found in "${selectedCity}".` : 'No properties found in this category.'}</p>

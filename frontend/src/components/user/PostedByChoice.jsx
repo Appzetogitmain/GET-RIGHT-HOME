@@ -4,10 +4,11 @@ import { motion } from 'framer-motion';
 import { Users } from 'lucide-react';
 import { propertyService } from '../../services/propertyService';
 
-const PostedByChoice = ({ transactionType = 'buy', theme }) => {
+const PostedByChoice = ({ transactionType = 'buy', city, theme }) => {
     const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
     const [titleOpacity, setTitleOpacity] = useState(1);
+    const [loading, setLoading] = useState(true);
     const [postedByCounts, setPostedByCounts] = useState({
         'builder': 0,
         'owner': 0,
@@ -26,10 +27,9 @@ const PostedByChoice = ({ transactionType = 'buy', theme }) => {
     // Fetch dynamic counts
     useEffect(() => {
         const fetchCounts = async () => {
+            setLoading(true);
             try {
                 const res = await propertyService.getPublicProperties({ limit: 1000 });
-                // /properties responds with a bare array; older code checked res.success
-                // (which is never present on an array) and silently discarded every result.
                 const properties = Array.isArray(res) ? res : (res?.properties || []);
                 if (properties.length) {
                     const counts = { 'builder': 0, 'owner': 0, 'broker': 0 };
@@ -38,6 +38,21 @@ const PostedByChoice = ({ transactionType = 'buy', theme }) => {
                         // Filter to transaction type if required
                         if (transactionType && (p.transactionType || '').toLowerCase() !== transactionType.toLowerCase() && !p.dynamicCategory?.name?.toLowerCase().includes(transactionType.toLowerCase())) {
                             return;
+                        }
+
+                        // Filter to selected city if required
+                        if (city && city !== 'All') {
+                            const sc = city.trim().toLowerCase();
+                            const propCity = (
+                                p.address?.city ||
+                                p.city ||
+                                p.dynamicData?.city ||
+                                p.address?.district ||
+                                ''
+                            ).trim().toLowerCase();
+                            if (propCity !== sc && !propCity.includes(sc) && !sc.includes(propCity)) {
+                                return;
+                            }
                         }
 
                         // Determine posted by
@@ -59,12 +74,19 @@ const PostedByChoice = ({ transactionType = 'buy', theme }) => {
                 }
             } catch (err) {
                 console.error("Failed to fetch properties for Posted By counts", err);
+            } finally {
+                setLoading(false);
             }
         };
         fetchCounts();
-    }, [transactionType]);
+    }, [transactionType, city]);
 
+    const totalCount = Object.values(postedByCounts).reduce((a, b) => a + b, 0);
 
+    // Hide the section completely if there are 0 properties matching
+    if (!loading && totalCount === 0) {
+        return null;
+    }
 
     const options = [
         { label: 'Builder', countKey: 'builder', filters: ['Builder'], image: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=500&q=80' },
@@ -79,6 +101,9 @@ const PostedByChoice = ({ transactionType = 'buy', theme }) => {
         const params = new URLSearchParams();
         if (transactionType) {
             params.set('transactionType', transactionType.toLowerCase());
+        }
+        if (city && city !== 'All') {
+            params.set('city', city);
         }
         params.set('postedBy', filters.join(','));
         navigate(`/search?${params.toString()}`);

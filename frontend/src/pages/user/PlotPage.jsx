@@ -6,12 +6,13 @@ import ReelSection from '../../components/user/ReelSection';
 import PopularBuilders from '../../components/user/PopularBuilders';
 import SupportSection from '../../components/user/SupportSection';
 import { categoryService } from '../../services/categoryService';
+import PropertyCard from '../../components/user/PropertyCard';
+import { propertyService, userService } from '../../services/apiService';
 import PostedByChoice from '../../components/user/PostedByChoice';
 import RecommendInsights from '../../components/user/RecommendInsights';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
 import DemandInCitySection from '../../components/user/DemandInCitySection';
 import PopularToolsSection from '../../components/user/PopularToolsSection';
-import PropertyFeed from '../../components/user/PropertyFeed';
 import { ArrowRight } from 'lucide-react';
 import { getPreferredCity } from '../../utils/locationPreference';
 
@@ -27,39 +28,157 @@ const THEME = {
     bgLight: 'bg-amber-500/10'
 };
 
-const PlotSection = ({ title, subtitle, extraFilters, plotCategoryId }) => {
+const plotSectionCache = {};
+
+const PlotSection = ({ title, subtitle, extraFilters = {}, plotCategoryId, selectedCity }) => {
     const navigate = useNavigate();
+    const cacheKey = `${plotCategoryId}::${selectedCity || 'all'}::${JSON.stringify(extraFilters)}`;
+    const [properties, setProperties] = useState(plotSectionCache[cacheKey] || []);
+    const [savedIds, setSavedIds] = useState([]);
+    const [loading, setLoading] = useState(!plotSectionCache[cacheKey]);
+    const carouselRef = React.useRef(null);
+
+    React.useLayoutEffect(() => {
+        if (!loading && carouselRef.current) {
+            const savedScroll = sessionStorage.getItem(`scroll-left-plotsection-${cacheKey}`);
+            if (savedScroll) {
+                carouselRef.current.scrollLeft = parseInt(savedScroll, 10);
+            }
+        }
+    }, [loading, cacheKey]);
+
+    const handleScroll = () => {
+        if (carouselRef.current) {
+            sessionStorage.setItem(`scroll-left-plotsection-${cacheKey}`, carouselRef.current.scrollLeft.toString());
+        }
+    };
+
+    useEffect(() => {
+        const fetchProperties = async () => {
+            if (!plotCategoryId) return;
+            if (!plotSectionCache[cacheKey]) setLoading(true);
+            try {
+                const filters = { type: plotCategoryId };
+                Object.keys(extraFilters).forEach(key => {
+                    if (extraFilters[key] !== undefined && extraFilters[key] !== null) {
+                        filters[key] = extraFilters[key];
+                    }
+                });
+
+                const promises = [propertyService.getPublic(filters)];
+                if (localStorage.getItem('user')) {
+                    promises.push(userService.getSavedPlaces());
+                }
+
+                const [data, savedRes] = await Promise.all(promises);
+
+                let filteredData = data || [];
+                if (selectedCity && selectedCity !== 'All') {
+                    const sc = selectedCity.trim().toLowerCase();
+                    filteredData = filteredData.filter(p => {
+                        const city = (
+                            p.address?.city ||
+                            p.city ||
+                            p.dynamicData?.city ||
+                            p.address?.district ||
+                            ''
+                        ).trim().toLowerCase();
+                        return city === sc || city.includes(sc) || sc.includes(city);
+                    });
+                }
+
+                // Apply maxPrice filter if present
+                if (extraFilters.maxPrice) {
+                    const maxP = Number(extraFilters.maxPrice);
+                    filteredData = filteredData.filter(p => {
+                        const price = p.plotDetails?.expectedPrice || p.expectedPrice || p.price || p.buyDetails?.expectedPrice || 0;
+                        return Number(price) > 0 && Number(price) <= maxP;
+                    });
+                }
+
+                // Apply propertyCategory filter if present
+                if (extraFilters.propertyCategory) {
+                    const targetCategory = extraFilters.propertyCategory.toLowerCase();
+                    filteredData = filteredData.filter(p => {
+                        const cat = (p.propertyCategory || p.plotDetails?.propertyCategory || p.dynamicData?.propertyCategory || p.propertyType || '').toLowerCase();
+                        return cat.includes(targetCategory);
+                    });
+                }
+
+                plotSectionCache[cacheKey] = filteredData;
+                setProperties(filteredData);
+
+                if (savedRes) {
+                    const list = [
+                        ...(savedRes.savedProperties || []),
+                        ...(savedRes.savedProjects || []),
+                        ...(savedRes.savedHotels || [])
+                    ];
+                    setSavedIds(list.map(h => (typeof h === 'object' ? (h._id || h.id) : h)));
+                }
+            } catch (err) {
+                console.error(`Failed to fetch properties for section ${title}:`, err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProperties();
+    }, [plotCategoryId, selectedCity, JSON.stringify(extraFilters), title, cacheKey]);
+
+    // If 0 properties match for the selected location, hide the entire category/section
+    if (properties.length === 0) {
+        return null;
+    }
+
+    const displayedProperties = properties.slice(0, 8);
     
     return (
-    <div id={`plot-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
-        <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
-            <div className="flex-1 min-w-0 pr-2">
-                <div className="flex items-start gap-1.5 md:gap-2 mb-0.5">
-                    <div className="w-1 h-4 md:h-5 bg-amber-500 rounded-full mt-1 md:mt-0 shrink-0" />
-                    <h2 className="text-[17px] md:text-[22px] font-black text-gray-900 leading-tight">{title}</h2>
+        <div id={`plot-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
+            <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
+                <div className="flex-1 min-w-0 pr-2">
+                    <div className="flex items-start gap-1.5 md:gap-2 mb-0.5">
+                        <div className="w-1 h-4 md:h-5 bg-amber-500 rounded-full mt-1 md:mt-0 shrink-0" />
+                        <h2 className="text-[17px] md:text-[22px] font-black text-gray-900 leading-tight">{title}</h2>
+                    </div>
+                    {subtitle && <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 truncate">{subtitle}</p>}
                 </div>
-                {subtitle && <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 truncate">{subtitle}</p>}
+                <button
+                    onClick={() => {
+                        const params = new URLSearchParams();
+                        params.set('transactionType', 'plot');
+                        if (selectedCity && selectedCity !== 'All') {
+                            params.set('city', selectedCity);
+                        }
+                        if (extraFilters) {
+                            Object.entries(extraFilters).forEach(([key, value]) => {
+                                params.set(key, value);
+                            });
+                        }
+                        navigate(`/search?${params.toString()}`);
+                        window.scrollTo(0, 0);
+                    }}
+                    className="text-[12px] md:text-[14px] font-bold text-amber-600 hover:text-amber-700 hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0"
+                >
+                    View All
+                </button>
             </div>
-            <button
-                onClick={() => {
-                    const params = new URLSearchParams();
-                    params.set('transactionType', 'plot');
-                    if (extraFilters) {
-                        Object.entries(extraFilters).forEach(([key, value]) => {
-                            params.set(key, value);
-                        });
-                    }
-                    navigate(`/search?${params.toString()}`);
-                    window.scrollTo(0, 0);
-                }}
-                className="text-[12px] md:text-[14px] font-bold text-amber-600 hover:text-amber-700 hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0"
+            <div
+                ref={carouselRef}
+                onScroll={handleScroll}
+                className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full"
             >
-                View All
-            </button>
-        </div>
-            {plotCategoryId && (
-                <PropertyFeed selectedType={plotCategoryId} viewMode="carousel" limit={8} extraFilters={extraFilters} />
-            )}
+                {displayedProperties.map(property => (
+                    <PropertyCard
+                        key={property._id}
+                        data={property}
+                        isSaved={savedIds.includes(property._id)}
+                        className="min-w-[280px] max-w-[280px] flex-shrink-0"
+                    />
+                ))}
+                {/* Spacer for right padding */}
+                <div className="w-2 shrink-0" />
+            </div>
         </div>
     );
 };
@@ -142,6 +261,7 @@ const PlotPage = () => {
                     subtitle="Exclusive and high-end plots in prime locations"
                     extraFilters={{ propertyCategory: 'Premium' }}
                     plotCategoryId={plotCategoryId}
+                    selectedCity={searchCity}
                 />
 
                 <PlotSection
@@ -149,6 +269,7 @@ const PlotPage = () => {
                     subtitle="Budget-friendly investment options"
                     extraFilters={{ maxPrice: '5000000' }}
                     plotCategoryId={plotCategoryId}
+                    selectedCity={searchCity}
                 />
 
                 <PlotSection
@@ -156,6 +277,7 @@ const PlotPage = () => {
                     subtitle="Mid-range residential and commercial plots"
                     extraFilters={{ maxPrice: '10000000' }}
                     plotCategoryId={plotCategoryId}
+                    selectedCity={searchCity}
                 />
 
                 <PlotSection
@@ -163,6 +285,7 @@ const PlotPage = () => {
                     subtitle="Build your dream home"
                     extraFilters={{ propertyCategory: 'Residential' }}
                     plotCategoryId={plotCategoryId}
+                    selectedCity={searchCity}
                 />
 
                 <PlotSection
@@ -170,6 +293,7 @@ const PlotPage = () => {
                     subtitle="Strategic locations for your business"
                     extraFilters={{ propertyCategory: 'Commercial' }}
                     plotCategoryId={plotCategoryId}
+                    selectedCity={searchCity}
                 />
 
                 {/* 4. Reels (Plot Context) */}
@@ -184,7 +308,7 @@ const PlotPage = () => {
 
                 {/* 6. Posted By */}
                 <div id="posted-by-section">
-                    <PostedByChoice transactionType="Plot" />
+                    <PostedByChoice transactionType="Plot" city={searchCity} />
                 </div>
 
                 {/* 7. Popular Builders */}

@@ -490,9 +490,9 @@ const AdminPropertiesSection = ({ searchCity, transactionType, title, subtitle, 
 
     const displayProperties = filteredProperties;
 
-
-    // If no cities at all, don't render the section
+    // If no cities or 0 properties for the selected location, don't render the section
     if (!citiesLoading && availableCities.length === 0) return null;
+    if (displayProperties.length === 0) return null;
 
     const defaultTitle = "Handpicked Projects";
     const defaultSubtitle = `Featured projects in ${selectedCity || 'your city'}`;

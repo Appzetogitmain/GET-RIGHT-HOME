@@ -122,15 +122,15 @@ const BuyPage = () => {
 
                 {/* 7. BHK Choice */}
                 <div id="bhk-choice-section">
-                    <BHKChoice transactionType="Buy" />
+                    <BHKChoice transactionType="Buy" city={searchCity} />
                 </div>
                 <div id="posted-by-section">
-                    <PostedByChoice transactionType="Buy" />
+                    <PostedByChoice transactionType="Buy" city={searchCity} />
                 </div>
 
                 {/* 8. Move In Timeline */}
                 <div id="timeline-section">
-                    <MoveInTimelineSection transactionType="Buy" />
+                    <MoveInTimelineSection transactionType="Buy" city={searchCity} />
                 </div>
 
                 {/* 10. Future Dealers Placeholder */}

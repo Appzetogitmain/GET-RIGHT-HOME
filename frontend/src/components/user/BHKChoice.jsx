@@ -4,10 +4,11 @@ import { motion } from 'framer-motion';
 import { Building2 } from 'lucide-react';
 import { propertyService } from '../../services/propertyService';
 
-const BHKChoice = ({ transactionType = 'buy', theme }) => {
+const BHKChoice = ({ transactionType = 'buy', city, theme }) => {
     const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
     const [titleOpacity, setTitleOpacity] = useState(1);
+    const [loading, setLoading] = useState(true);
     const [bhkCounts, setBhkCounts] = useState({
         '1bhk': 0,
         '2bhk': 0,
@@ -28,11 +29,10 @@ const BHKChoice = ({ transactionType = 'buy', theme }) => {
     // Fetch dynamic counts
     useEffect(() => {
         const fetchCounts = async () => {
+            setLoading(true);
             try {
                 // Fetch active properties to count (can optimize by adding a backend count endpoint later)
                 const res = await propertyService.getPublicProperties({ limit: 1000 });
-                // /properties responds with a bare array; older code checked res.success
-                // (which is never present on an array) and silently discarded every result.
                 const properties = Array.isArray(res) ? res : (res?.properties || []);
                 if (properties.length) {
                     const counts = { '1bhk': 0, '2bhk': 0, '3bhk': 0, '4bhk': 0, '4plus': 0 };
@@ -41,6 +41,21 @@ const BHKChoice = ({ transactionType = 'buy', theme }) => {
                         // Filter to buy transaction if required
                         if (transactionType && (p.transactionType || '').toLowerCase() !== transactionType.toLowerCase() && !p.dynamicCategory?.name?.toLowerCase().includes(transactionType.toLowerCase())) {
                             return;
+                        }
+
+                        // Filter to selected city if required
+                        if (city && city !== 'All') {
+                            const sc = city.trim().toLowerCase();
+                            const propCity = (
+                                p.address?.city ||
+                                p.city ||
+                                p.dynamicData?.city ||
+                                p.address?.district ||
+                                ''
+                            ).trim().toLowerCase();
+                            if (propCity !== sc && !propCity.includes(sc) && !sc.includes(propCity)) {
+                                return;
+                            }
                         }
 
                         const bhkStr = (p.bhk || p.dynamicData?.bedrooms || p.dynamicData?.bhk || p.buyDetails?.type || '').toString().toLowerCase();
@@ -56,12 +71,19 @@ const BHKChoice = ({ transactionType = 'buy', theme }) => {
                 }
             } catch (err) {
                 console.error("Failed to fetch properties for BHK counts", err);
+            } finally {
+                setLoading(false);
             }
         };
         fetchCounts();
-    }, [transactionType]);
+    }, [transactionType, city]);
 
+    const totalCount = Object.values(bhkCounts).reduce((a, b) => a + b, 0);
 
+    // Hide the section completely if there are 0 properties matching
+    if (!loading && totalCount === 0) {
+        return null;
+    }
 
     const options = [
         { label: '1 RK/1 BHK', countKey: '1bhk', filters: ['1BHK'], image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&q=80' },
@@ -75,6 +97,9 @@ const BHKChoice = ({ transactionType = 'buy', theme }) => {
         const params = new URLSearchParams();
         if (transactionType) {
             params.set('transactionType', transactionType.toLowerCase());
+        }
+        if (city && city !== 'All') {
+            params.set('city', city);
         }
         params.set('bhkType', filters.join(','));
         navigate(`/search?${params.toString()}`);

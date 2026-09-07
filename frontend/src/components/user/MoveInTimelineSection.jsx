@@ -4,10 +4,11 @@ import { motion } from 'framer-motion';
 import { CalendarDays } from 'lucide-react';
 import { propertyService } from '../../services/propertyService';
 
-const MoveInTimelineSection = ({ transactionType = 'buy', theme }) => {
+const MoveInTimelineSection = ({ transactionType = 'buy', city, theme }) => {
     const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
     const [titleOpacity, setTitleOpacity] = useState(1);
+    const [loading, setLoading] = useState(true);
     const [timelineCounts, setTimelineCounts] = useState({
         'ready': 0,
         '2026': 0,
@@ -30,11 +31,10 @@ const MoveInTimelineSection = ({ transactionType = 'buy', theme }) => {
     // Fetch dynamic counts
     useEffect(() => {
         const fetchCounts = async () => {
+            setLoading(true);
             try {
                 // Fetch active properties to count
                 const res = await propertyService.getPublicProperties({ limit: 1000 });
-                // /properties responds with a bare array; older code checked res.success
-                // (which is never present on an array) and silently discarded every result.
                 const properties = Array.isArray(res) ? res : (res?.properties || []);
                 if (properties.length) {
                     const counts = { 'ready': 0, '2026': 0, '2027': 0, '2028': 0, '2029': 0, '2030': 0, '2030plus': 0 };
@@ -43,6 +43,21 @@ const MoveInTimelineSection = ({ transactionType = 'buy', theme }) => {
                         // Filter to transaction type if required
                         if (transactionType && (p.transactionType || '').toLowerCase() !== transactionType.toLowerCase() && !p.dynamicCategory?.name?.toLowerCase().includes(transactionType.toLowerCase())) {
                             return;
+                        }
+
+                        // Filter to selected city if required
+                        if (city && city !== 'All') {
+                            const sc = city.trim().toLowerCase();
+                            const propCity = (
+                                p.address?.city ||
+                                p.city ||
+                                p.dynamicData?.city ||
+                                p.address?.district ||
+                                ''
+                            ).trim().toLowerCase();
+                            if (propCity !== sc && !propCity.includes(sc) && !sc.includes(propCity)) {
+                                return;
+                            }
                         }
 
                         const status = (p.dynamicData?.availability || p.dynamicData?.availabilityStatus || '').toLowerCase();
@@ -66,10 +81,19 @@ const MoveInTimelineSection = ({ transactionType = 'buy', theme }) => {
                 }
             } catch (err) {
                 console.error("Failed to fetch properties for Timeline counts", err);
+            } finally {
+                setLoading(false);
             }
         };
         fetchCounts();
-    }, [transactionType]);
+    }, [transactionType, city]);
+
+    const totalCount = Object.values(timelineCounts).reduce((a, b) => a + b, 0);
+
+    // Hide the section completely if there are 0 properties matching
+    if (!loading && totalCount === 0) {
+        return null;
+    }
 
     const options = [
         { label: 'Ready to move', countKey: 'ready', filters: { availability: 'Ready to Move' }, image: 'https://images.pexels.com/photos/1732414/pexels-photo-1732414.jpeg?auto=compress&cs=tinysrgb&w=400' },
@@ -85,6 +109,9 @@ const MoveInTimelineSection = ({ transactionType = 'buy', theme }) => {
         const params = new URLSearchParams();
         if (transactionType) {
             params.set('transactionType', transactionType.toLowerCase());
+        }
+        if (city && city !== 'All') {
+            params.set('city', city);
         }
         if (filters.availability) params.set('availability', filters.availability);
         if (filters.possessionYear) params.set('possessionYear', filters.possessionYear);

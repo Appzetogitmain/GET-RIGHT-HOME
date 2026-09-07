@@ -7,8 +7,10 @@ import ReelSection from '../../components/user/ReelSection';
 import PopularBuilders from '../../components/user/PopularBuilders';
 import SupportSection from '../../components/user/SupportSection';
 import { categoryService } from '../../services/categoryService';
-import PropertyFeed from '../../components/user/PropertyFeed';
+import PropertyCard from '../../components/user/PropertyCard';
+import { propertyService, userService } from '../../services/apiService';
 import PropertyVideoCurations from '../../components/user/PropertyVideoCurations';
+import { getPreferredCity } from '../../utils/locationPreference';
 
 // Theme for Rent Page
 const THEME = {
@@ -22,32 +24,151 @@ const THEME = {
     bgLight: 'bg-violet-500/10'
 };
 
-const RentPGSection = ({ title, typeId, subtitle, extraFilters, onTypeSelect, typeLabel }) => (
-    <div id={`rent-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
-        <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
-            <div className="flex-1 min-w-0 pr-2">
-                <div className="flex items-start gap-1.5 md:gap-2 mb-0.5">
-                    <div className="w-1 h-4 md:h-5 bg-violet-500 rounded-full mt-1 md:mt-0 shrink-0" />
-                    <h2 className="text-[17px] md:text-[22px] font-black text-gray-900 leading-tight">{title}</h2>
+const rentSectionCache = {};
+
+const RentPGSection = ({ title, typeId, subtitle, extraFilters = {}, onTypeSelect, typeLabel, selectedCity }) => {
+    const cacheKey = `${typeId}::${selectedCity || 'all'}::${JSON.stringify(extraFilters)}`;
+    const [properties, setProperties] = useState(rentSectionCache[cacheKey] || []);
+    const [savedIds, setSavedIds] = useState([]);
+    const [loading, setLoading] = useState(!rentSectionCache[cacheKey]);
+    const carouselRef = React.useRef(null);
+
+    React.useLayoutEffect(() => {
+        if (!loading && carouselRef.current) {
+            const savedScroll = sessionStorage.getItem(`scroll-left-rentsection-${cacheKey}`);
+            if (savedScroll) {
+                carouselRef.current.scrollLeft = parseInt(savedScroll, 10);
+            }
+        }
+    }, [loading, cacheKey]);
+
+    const handleScroll = () => {
+        if (carouselRef.current) {
+            sessionStorage.setItem(`scroll-left-rentsection-${cacheKey}`, carouselRef.current.scrollLeft.toString());
+        }
+    };
+
+    useEffect(() => {
+        const fetchProperties = async () => {
+            if (!typeId) return;
+            if (!rentSectionCache[cacheKey]) setLoading(true);
+            try {
+                const filters = { type: typeId };
+                Object.keys(extraFilters).forEach(key => {
+                    if (extraFilters[key] !== undefined && extraFilters[key] !== null) {
+                        filters[key] = extraFilters[key];
+                    }
+                });
+
+                const promises = [propertyService.getPublic(filters)];
+                if (localStorage.getItem('user')) {
+                    promises.push(userService.getSavedPlaces());
+                }
+
+                const [data, savedRes] = await Promise.all(promises);
+
+                let filteredData = data || [];
+                if (selectedCity && selectedCity !== 'All') {
+                    const sc = selectedCity.trim().toLowerCase();
+                    filteredData = filteredData.filter(p => {
+                        const city = (
+                            p.address?.city ||
+                            p.city ||
+                            p.dynamicData?.city ||
+                            p.address?.district ||
+                            ''
+                        ).trim().toLowerCase();
+                        return city === sc || city.includes(sc) || sc.includes(city);
+                    });
+                }
+
+                if (extraFilters.excludePropertyType) {
+                    const excludeTypes = extraFilters.excludePropertyType.toLowerCase().split(',').map(s => s.trim());
+                    filteredData = filteredData.filter(p => {
+                        const pType = (p.propertyType || p.dynamicCategory?.name || p.propertyCategory || '').toLowerCase();
+                        return !excludeTypes.some(t => pType.includes(t));
+                    });
+                }
+
+                if (extraFilters.gender) {
+                    const targetGender = extraFilters.gender.toLowerCase();
+                    filteredData = filteredData.filter(p => {
+                        const g = (p.pgDetails?.preferredGender || p.dynamicData?.gender || p.dynamicData?.occupancyType || '').toLowerCase();
+                        return g.includes(targetGender) || g.includes('anyone') || g.includes('all');
+                    });
+                }
+
+                rentSectionCache[cacheKey] = filteredData;
+                setProperties(filteredData);
+
+                if (savedRes) {
+                    const list = [
+                        ...(savedRes.savedProperties || []),
+                        ...(savedRes.savedProjects || []),
+                        ...(savedRes.savedHotels || [])
+                    ];
+                    setSavedIds(list.map(h => (typeof h === 'object' ? (h._id || h.id) : h)));
+                }
+            } catch (err) {
+                console.error(`Failed to fetch properties for section ${title}:`, err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProperties();
+    }, [typeId, selectedCity, JSON.stringify(extraFilters), title, cacheKey]);
+
+    // If 0 properties match for the selected location, hide the entire category/section
+    if (properties.length === 0) {
+        return null;
+    }
+
+    const displayedProperties = properties.slice(0, 8);
+
+    return (
+        <div id={`rent-section-${title.replace(/[^a-zA-Z0-9]/g, '-')}`} className="py-4 border-b border-gray-100 last:border-0 relative">
+            <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
+                <div className="flex-1 min-w-0 pr-2">
+                    <div className="flex items-start gap-1.5 md:gap-2 mb-0.5">
+                        <div className="w-1 h-4 md:h-5 bg-violet-500 rounded-full mt-1 md:mt-0 shrink-0" />
+                        <h2 className="text-[17px] md:text-[22px] font-black text-gray-900 leading-tight">{title}</h2>
+                    </div>
+                    {subtitle && <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 truncate">{subtitle}</p>}
                 </div>
-                {subtitle && <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 truncate">{subtitle}</p>}
+                <button
+                    onClick={() => {
+                        onTypeSelect(typeId, typeLabel, extraFilters);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="text-[12px] md:text-[14px] font-bold text-violet-600 hover:text-violet-700 hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0"
+                >
+                    View All
+                </button>
             </div>
-            <button
-                onClick={() => {
-                    onTypeSelect(typeId, typeLabel, extraFilters);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="text-[12px] md:text-[14px] font-bold text-violet-600 hover:text-violet-700 hover:underline shrink-0 whitespace-nowrap mt-1 md:mt-0"
+            <div
+                ref={carouselRef}
+                onScroll={handleScroll}
+                className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full"
             >
-                View All
-            </button>
+                {displayedProperties.map(property => (
+                    <PropertyCard
+                        key={property._id}
+                        data={property}
+                        isSaved={savedIds.includes(property._id)}
+                        className="min-w-[280px] max-w-[280px] flex-shrink-0"
+                    />
+                ))}
+                {/* Spacer for right padding */}
+                <div className="w-2 shrink-0" />
+            </div>
         </div>
-        <PropertyFeed selectedType={typeId} viewMode="carousel" limit={8} extraFilters={extraFilters} />
-    </div>
-);
+    );
+};
 
 const RentPage = () => {
     const navigate = useNavigate();
+    const [searchCity, setSearchCity] = useState(getPreferredCity());
     const [sectionIds, setSectionIds] = useState({ rent: null, pg: null });
 
     const selectedType = { id: sectionIds.rent, label: 'Rent/PG' };
@@ -94,6 +215,10 @@ const RentPage = () => {
             queryParams.append('transactionType', 'Rent');
         }
 
+        if (searchCity && searchCity !== 'All') {
+            queryParams.append('city', searchCity);
+        }
+
         const queryString = queryParams.toString();
         
         navigate(`/search${queryString ? `?${queryString}` : ''}`);
@@ -118,6 +243,7 @@ const RentPage = () => {
                     <HeroSection
                         theme={THEME}
                         selectedType={selectedType}
+                        onSearch={(city) => setSearchCity(city)}
                     />
 
                     <div className="pt-2 pb-6 border-b border-gray-100">
@@ -148,6 +274,7 @@ const RentPage = () => {
                         typeId={sectionIds.pg}
                         typeLabel="PG/Co-Living"
                         onTypeSelect={handleTypeSelect}
+                        selectedCity={searchCity}
                     />
                 )}
 
@@ -159,6 +286,7 @@ const RentPage = () => {
                         extraFilters={{ excludeAvailability: 'Pre Launch,Under construction', excludePropertyType: 'plot,land' }}
                         typeLabel="Rent"
                         onTypeSelect={handleTypeSelect}
+                        selectedCity={searchCity}
                     />
                 )}
 
@@ -170,6 +298,7 @@ const RentPage = () => {
                         extraFilters={{ gender: 'Boys' }}
                         typeLabel="PG/Co-Living"
                         onTypeSelect={handleTypeSelect}
+                        selectedCity={searchCity}
                     />
                 )}
 
@@ -181,6 +310,7 @@ const RentPage = () => {
                         extraFilters={{ gender: 'Girls' }}
                         typeLabel="PG/Co-Living"
                         onTypeSelect={handleTypeSelect}
+                        selectedCity={searchCity}
                     />
                 )}
 
