@@ -1086,7 +1086,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       <div className="absolute top-2.5 left-2.5 md:top-4 md:left-4 flex flex-col items-start gap-1.5 z-20">
         <div className="flex items-center gap-1">
           {typeLabel && (
-            <span className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded text-[8px] md:text-[10px] font-black uppercase tracking-wide shadow-md flex items-center gap-1 ${getTypeColor(badgeTypeKey)}`}>
+            <span className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded text-[9px] md:text-[10px] font-bold uppercase tracking-wider shadow-md flex items-center gap-1 ${getTypeColor(badgeTypeKey)}`}>
               {typeLabel}
             </span>
           )}
@@ -1098,7 +1098,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
           )}
         </div>
         {(item.rankingWeight > 0 || item.isFeatured) && (
-          <span className="bg-[#FFD700] text-black px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black uppercase tracking-wider shadow-md border border-white/20 flex items-center gap-1">
+          <span className="bg-[#FFD700] text-black px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-bold uppercase tracking-wider shadow-md border border-white/20 flex items-center gap-1">
             <Star size={8} className="fill-black" />
             PREMIUM
           </span>
@@ -1121,16 +1121,16 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
 
         {isPG ? (
           <div className="text-left w-full">
-            <h3 className="font-black text-xs md:text-sm text-gray-900 line-clamp-1 group-hover:text-blue-500 transition-colors">
+            <h3 className="font-bold text-[14px] md:text-[15px] text-gray-900 tracking-tight leading-snug line-clamp-1 group-hover:text-blue-500 transition-colors">
               {displayName}
             </h3>
-            <div className="mt-1 flex items-center justify-between text-[8px] md:text-[10px] text-gray-500 font-semibold gap-1">
+            <div className="mt-1 flex items-center justify-between text-[11px] md:text-xs text-gray-500 font-medium gap-1">
               <div className="flex items-center gap-0.5 min-w-0 flex-1">
                 <MapPin size={11} className="text-blue-400 shrink-0" />
                 <span className="truncate">{locationText}</span>
               </div>
               {pgRoomDetails && (
-                <div className="bg-blue-50 text-blue-500 px-2.5 py-1 rounded-full text-[8px] md:text-[9px] font-black tracking-wide shrink-0 ml-1.5 uppercase border border-blue-100">
+                <div className="bg-blue-50 text-blue-500 px-2.5 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold tracking-wide shrink-0 ml-1.5 uppercase border border-blue-100">
                   {pgRoomDetails}
                 </div>
               )}
@@ -1138,10 +1138,10 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
           </div>
         ) : (
           <div className="text-center">
-            <h3 className="font-black text-xs md:text-sm text-gray-900 line-clamp-1 group-hover:text-emerald-700 transition-colors">
+            <h3 className="font-bold text-[14px] md:text-[15px] text-gray-900 tracking-tight leading-snug line-clamp-1 group-hover:text-emerald-700 transition-colors">
               {displayName}
             </h3>
-            <p className="text-[8px] md:text-[10px] text-gray-500 mt-0.5 font-medium line-clamp-1">
+            <p className="text-[11px] md:text-xs text-gray-500 mt-0.5 font-medium line-clamp-1">
               {address?.area || address?.locality || item.locality || ''}{address?.area || address?.locality || item.locality ? ', ' : ''}{address?.city || item.city || ''}
             </p>
           </div>
@@ -1150,19 +1150,19 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
         <div className="mt-2 pt-2 md:mt-3 md:pt-3 border-t border-gray-100 flex items-center justify-between">
           <div className="flex flex-col items-start">
             {isPG ? (
-              <span className="text-xs md:text-base font-extrabold text-blue-500 flex items-baseline gap-0.5">
+              <span className="text-[15px] md:text-[17px] font-extrabold text-blue-500 tracking-tight flex items-baseline gap-0.5">
                 ₹ {formattedPrice}
                 {displayPrice && (
-                  <span className="text-[8px] md:text-[10px] text-gray-500 font-semibold ml-0.5">
+                  <span className="text-[10px] md:text-[11px] text-gray-400 font-medium ml-0.5">
                     {priceSuffix}
                   </span>
                 )}
               </span>
             ) : (
-              <span className="text-[11px] md:text-sm font-black text-gray-900 flex items-center gap-0.5">
+              <span className="text-[15px] md:text-[17px] font-extrabold text-gray-900 tracking-tight flex items-baseline gap-0.5">
                 ₹ {formattedPrice}
                 {displayPrice && (
-                  <span className="text-[8px] md:text-[9px] text-gray-500 font-medium ml-0.5 mt-0.5">
+                  <span className="text-[10px] md:text-[11px] text-gray-400 font-medium ml-0.5">
                     {priceSuffix}
                   </span>
                 )}
@@ -1183,7 +1183,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
                   </a>
                 )}
-                <button className="text-[9px] md:text-[10px] font-black text-white bg-blue-500 hover:bg-blue-600 px-3 md:px-4 py-2 md:py-2.5 rounded-full transition-all duration-300 flex items-center gap-1 shadow-md shadow-blue-500/10 hover:shadow-blue-500/20 active:scale-95">
+                <button className="text-[11px] md:text-xs font-bold text-white bg-blue-500 hover:bg-blue-600 px-3 md:px-4 py-1.5 md:py-2 rounded-full transition-all duration-300 flex items-center gap-1 shadow-md shadow-blue-500/10 hover:shadow-blue-500/20 active:scale-95">
                   View
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[9px] h-[9px] md:w-[11px] md:h-[11px]"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
                 </button>
@@ -1200,7 +1200,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
                   </a>
                 )}
-                <button className="text-[8px] md:text-[10px] font-bold text-white bg-gray-900 px-2 md:px-3 py-1.5 md:py-2 rounded-lg hover:bg-black transition-colors flex items-center gap-1 shadow-sm">
+                <button className="text-[11px] md:text-xs font-bold text-white bg-gray-900 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg hover:bg-black transition-colors flex items-center gap-1 shadow-sm">
                   View
                   <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[10px] h-[10px] md:w-[12px] md:h-[12px]"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
                 </button>

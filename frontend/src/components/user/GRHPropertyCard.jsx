@@ -114,10 +114,10 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
     if (bhkValue) {
       // If bhkValue is just a number, append 'BHK'
       const suffix = /^\d+$/.test(bhkValue.toString().trim()) ? ' BHK' : '';
-      return <span className="text-sm font-semibold text-gray-500">{bhkValue}{suffix}</span>;
+      return <span className="text-[11px] md:text-xs font-semibold text-gray-600">{bhkValue}{suffix}</span>;
     }
     if (areaValue) {
-      return <span className="text-sm font-semibold text-gray-500">• {areaValue} {areaUnit}</span>;
+      return <span className="text-[11px] md:text-xs font-semibold text-gray-600">• {areaValue} {areaUnit}</span>;
     }
     return null;
   };
@@ -510,7 +510,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
             </button>
 
             {/* Floating Transaction Badge */}
-            <span className="absolute bottom-3 right-3 bg-indigo-600 text-white text-[9px] font-black px-2.5 py-0.5 rounded shadow-sm uppercase tracking-wider z-20">
+            <span className="absolute bottom-3 right-3 bg-indigo-600 text-white text-[9px] md:text-[10px] font-bold px-2.5 py-0.5 rounded shadow-sm uppercase tracking-wider z-20">
               {displayTypeBadge}
             </span>
           </div>
@@ -520,11 +520,11 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
             <div>
               {/* Title with sleek typography */}
               <div className="flex flex-col">
-                <h3 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                <h3 className="text-[14px] md:text-[15px] font-bold text-slate-800 tracking-tight leading-snug line-clamp-1 group-hover:text-indigo-600 transition-colors">
                   {displayName}
                 </h3>
                 {builderName && (
-                  <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-tight line-clamp-1">
+                  <span className="text-[10px] md:text-[11px] text-gray-500 font-medium uppercase tracking-tight line-clamp-1 mt-0.5">
                     By {builderName}
                   </span>
                 )}
@@ -535,23 +535,23 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
 
               {/* Price and info row */}
               <div className="flex items-center justify-between mt-1">
-                <div className="text-base font-black text-indigo-600 tracking-tight">
+                <div className="text-[16px] md:text-[18px] font-extrabold text-indigo-600 tracking-tight">
                   {displayPrice}
                 </div>
 
                 {areaValue ? (
-                  <div className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                  <div className="text-[11px] md:text-xs font-semibold text-slate-600 uppercase tracking-wider">
                     {areaValue} {areaUnit}
                   </div>
                 ) : bhkValue ? (
-                  <div className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                  <div className="text-[11px] md:text-xs font-semibold text-slate-600 uppercase tracking-wider">
                     {bhkValue} BHK
                   </div>
                 ) : null}
               </div>
 
               {/* Location */}
-              <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-2">
+              <div className="flex items-center gap-1 text-[11px] md:text-xs text-slate-500 font-medium mt-2">
                 <MapPin size={11} className="text-slate-400 shrink-0" />
                 <span className="truncate">{locationText}</span>
               </div>
@@ -564,7 +564,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
                 {/* Enquire button as primary action */}
                 <button
                   onClick={handleEnquireClick}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase py-2 px-3.5 rounded-lg active:scale-95 transition-all shadow-sm"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] md:text-xs font-bold uppercase py-2 px-3.5 rounded-lg active:scale-95 transition-all shadow-sm"
                 >
                   Enquire Now
                 </button>
@@ -809,7 +809,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
           </button>
 
           {/* Floating Transaction Badge */}
-          <span className={`absolute bottom-3 right-3 text-white text-[10px] font-black px-2.5 py-0.5 rounded shadow-sm uppercase tracking-wider z-20 ${isPG ? 'bg-violet-600' : 'bg-blue-600'}`}>
+          <span className={`absolute bottom-3 right-3 text-white text-[9px] md:text-[10px] font-bold px-2.5 py-0.5 rounded shadow-sm uppercase tracking-wider z-20 ${isPG ? 'bg-violet-600' : 'bg-blue-600'}`}>
             {displayTypeBadge}
           </span>
         </div>
@@ -818,32 +818,32 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
         <div className="p-3.5 flex flex-col flex-1 justify-between gap-1">
           <div>
             {/* Price */}
-            <div className={`text-xl font-extrabold tracking-tight flex items-baseline gap-0.5 ${isPG ? 'text-violet-600' : 'text-[#0d6efd]'}`}>
+            <div className={`text-[16px] md:text-[18px] font-extrabold tracking-tight flex items-baseline gap-0.5 ${isPG ? 'text-violet-600' : 'text-[#0d6efd]'}`}>
               {displayPrice}
-              {isPG && <span className="text-[10px] text-gray-500 font-semibold">/month</span>}
+              {isPG && <span className="text-[10px] md:text-[11px] text-gray-400 font-medium ml-0.5">/month</span>}
             </div>
 
             {isPG ? (
               <>
                 {/* Title */}
                 <div className="flex flex-col mt-1.5">
-                  <h3 className={`text-sm font-medium text-gray-900 line-clamp-1 transition-colors ${theme?.groupHoverText || 'group-hover:text-emerald-600'}`}>
+                  <h3 className={`text-[14px] md:text-[15px] font-bold text-gray-900 tracking-tight leading-snug line-clamp-1 transition-colors ${theme?.groupHoverText || 'group-hover:text-emerald-600'}`}>
                     {displayName}
                   </h3>
                   {builderName && (
-                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-tight line-clamp-1 mt-0.5">
+                    <span className="text-[10px] md:text-[11px] text-gray-500 font-medium uppercase tracking-tight line-clamp-1 mt-0.5">
                       By {builderName}
                     </span>
                   )}
                 </div>
                 {/* Location left, Room details right */}
-                <div className="mt-2 flex items-center justify-between text-xs text-gray-500 font-semibold gap-1">
+                <div className="mt-2 flex items-center justify-between text-[11px] md:text-xs text-gray-500 font-medium gap-1">
                   <div className="flex items-center gap-0.5 min-w-0 flex-1">
                     <MapPin size={12} className="text-violet-500 shrink-0" />
                     <span className="truncate">{locationText}</span>
                   </div>
                   {pgRoomDetails && (
-                    <div className="bg-violet-50 text-violet-600 px-2.5 py-1 rounded-full text-[9px] font-black tracking-wide shrink-0 ml-1.5 uppercase border border-violet-100">
+                    <div className="bg-violet-50 text-violet-600 px-2.5 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold tracking-wide shrink-0 ml-1.5 uppercase border border-violet-100">
                       {pgRoomDetails}
                     </div>
                   )}
@@ -858,18 +858,18 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
 
                 {/* Title */}
                 <div className="flex flex-col mt-0.5">
-                  <h3 className={`text-sm font-medium text-gray-700 line-clamp-1 transition-colors ${theme?.groupHoverText || 'group-hover:text-emerald-600'}`}>
+                  <h3 className={`text-[14px] md:text-[15px] font-bold text-gray-900 tracking-tight leading-snug line-clamp-1 transition-colors ${theme?.groupHoverText || 'group-hover:text-emerald-600'}`}>
                     {displayName}
                   </h3>
                   {builderName && (
-                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-tight line-clamp-1 mt-0.5">
+                    <span className="text-[10px] md:text-[11px] text-gray-500 font-medium uppercase tracking-tight line-clamp-1 mt-0.5">
                       By {builderName}
                     </span>
                   )}
                 </div>
 
                 {/* Location */}
-                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                <div className="flex items-center gap-1 text-[11px] md:text-xs text-gray-500 font-medium mt-1">
                   <MapPin size={12} className="text-gray-400 shrink-0" />
                   <span className="line-clamp-1">{locationText}</span>
                 </div>
@@ -884,7 +884,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
                 {/* Call Button */}
                 <button
                   onClick={handleCall}
-                  className="flex-1 flex items-center justify-center gap-1 py-2 px-3 border border-violet-200 bg-violet-50 rounded-full text-[10px] font-black text-violet-600 hover:bg-violet-100 active:scale-95 transition-all shadow-sm"
+                  className="flex-1 flex items-center justify-center gap-1 py-1.5 md:py-2 px-3 border border-violet-200 bg-violet-50 rounded-full text-[11px] md:text-xs font-bold text-violet-600 hover:bg-violet-100 active:scale-95 transition-all shadow-sm"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-violet-600 shrink-0">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -909,7 +909,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
                     e.stopPropagation();
                     navigate(`/property/${slug || _id}`);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1 py-2 px-3 bg-violet-600 hover:bg-violet-700 text-white rounded-full text-[10px] font-black active:scale-95 transition-all shadow-md shadow-violet-600/10 hover:shadow-violet-600/20"
+                  className="flex-1 flex items-center justify-center gap-1 py-1.5 md:py-2 px-3 bg-violet-600 hover:bg-violet-700 text-white rounded-full text-[11px] md:text-xs font-bold active:scale-95 transition-all shadow-md shadow-violet-600/10 hover:shadow-violet-600/20"
                 >
                   <span>View Details</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white shrink-0"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
@@ -920,7 +920,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
                 {/* Call Button */}
                 <button
                   onClick={handleCall}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 border border-gray-200 rounded-full text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 md:py-2 px-3 border border-gray-200 rounded-full text-[11px] md:text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-rose-500 shrink-0">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -931,7 +931,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
                 {/* WhatsApp Button */}
                 <button
                   onClick={handleWhatsApp}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 border border-gray-200 rounded-full text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 md:py-2 px-3 border border-gray-200 rounded-full text-[11px] md:text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" className="text-emerald-500 shrink-0" viewBox="0 0 16 16">
                     <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.949h.004c4.368 0 7.927-3.558 7.93-7.93a7.9 7.9 0 0 0-2.327-5.592M7.997 14.518a6.5 6.5 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.69-4.98c-.202-.101-1.194-.588-1.378-.653-.185-.069-.32-.101-.454.101-.133.2-.517.653-.634.786-.118.133-.235.148-.437.047a5.1 5.1 0 0 1-1.625-1.002 5.6 5.6 0 0 1-1.12-1.394c-.118-.2-.013-.309.088-.41a5.6 5.6 0 0 0 .248-.344.41.41 0 0 0-.02-.412c-.067-.133-.517-1.244-.708-1.705-.186-.447-.372-.387-.512-.394-.13-.005-.28-.006-.43-.006a.85.85 0 0 0-.616.287C3.55 5.61 3 6.14 3 7.22s.792 2.115.9 2.26c.11.149 1.558 2.379 3.774 3.337.527.228.939.363 1.261.465a3.6 3.6 0 0 0 1.637.1c.366-.053 1.194-.487 1.362-1.057.17-.57.17-1.057.12-1.158-.05-.1-.186-.15-.387-.252"/>

@@ -148,7 +148,7 @@ const AdminPropertyCard = ({ property, index, theme }) => {
                     {/* Featured Badge (Top Left) */}
                     {property.featuredDetails?.isFeatured && (
                         <div className="absolute top-4 left-4 z-10">
-                            <span className="bg-amber-500/95 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-md">
+                            <span className="bg-amber-500/95 backdrop-blur-md text-white px-2.5 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-wider shadow-md">
                                 Featured
                             </span>
                         </div>
@@ -189,17 +189,17 @@ const AdminPropertyCard = ({ property, index, theme }) => {
                         </div>
 
                         {/* Title */}
-                        <h3 className={`font-black text-sm text-gray-900 text-center line-clamp-1 mb-1 transition-colors duration-300 ${theme?.groupHoverText || 'group-hover:text-emerald-700'}`}>
+                        <h3 className={`font-bold text-[14px] md:text-[15px] text-gray-900 text-center tracking-tight leading-snug line-clamp-1 mb-1 transition-colors duration-300 ${theme?.groupHoverText || 'group-hover:text-emerald-700'}`}>
                             {displayName}
                         </h3>
 
                         {/* BHK & Area Details */}
-                        <span className="text-[10px] text-gray-400 text-center truncate mb-2 max-w-full">
+                        <span className="text-[11px] md:text-xs text-gray-500 font-medium text-center truncate mb-2 max-w-full">
                             {detailsText}
                         </span>
 
                         {/* Price */}
-                        <span className="font-black text-gray-900 text-sm text-center">
+                        <span className="font-extrabold text-gray-900 text-[15px] md:text-[17px] tracking-tight text-center">
                             {priceText}{property.propertyType === 'rent' ? '/mo' : ''}
                         </span>
                     </div>
