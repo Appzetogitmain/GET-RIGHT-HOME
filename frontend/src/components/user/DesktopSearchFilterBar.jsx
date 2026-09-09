@@ -5,6 +5,7 @@ import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import { addRecentSearch } from '../../utils/recentActivity';
 import { parseSearchQuery } from '../../utils/searchQueryParser';
 import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
+import GuidedSearchFlowModal from './GuidedSearchFlowModal';
 
 const TABS = [
     { key: 'buy', label: 'Buy' },
@@ -195,52 +196,10 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
         }, () => setDetecting(false), { timeout: 6000 });
     };
 
+    const [isGuidedModalOpen, setIsGuidedModalOpen] = useState(false);
+
     const handleSearch = () => {
-        const params = new URLSearchParams();
-
-        // "2bhk room in indore" should actually filter to 2-BHK listings in
-        // Indore, not just text-match the literal sentence — pull out
-        // whatever structured signal is in there (BHK, type, transaction,
-        // a price ceiling, location) before falling back to a plain search.
-        const parsed = parseSearchQuery(searchText);
-        const hasStructuredSignal = !!(parsed.bhk || parsed.subType || parsed.maxPrice || parsed.transactionType || parsed.gender || parsed.propertyCategory);
-
-        if (hasStructuredSignal) {
-            const location = parsed.location || selectedCity;
-            if (location) params.set('areas', location);
-        } else if (searchText.trim()) {
-            // Typed/picked a specific place or project — that's a deliberate
-            // choice, let it stand on its own rather than also constraining
-            // to whatever city the pill above happens to be set to.
-            params.set('search', searchText.trim());
-        } else if (selectedCity) {
-            // Nothing typed — fall back to the location pill so results
-            // still stay scoped to it instead of searching everywhere.
-            params.set('areas', selectedCity);
-        }
-
-        // An explicit signal in the query ("rent", "pg", "for sale") wins
-        // over whichever tab happens to be active.
-        params.set('transactionType', parsed.transactionType || transactionTypeForTab(activeTab));
-        if (parsed.propertyCategory) params.set('propertyCategory', parsed.propertyCategory);
-        else if (propertyCategory === 'Commercial') params.set('propertyCategory', 'Commercial');
-
-        if (minPrice) params.set('minPrice', minPrice);
-        const effectiveMaxPrice = maxPrice || (parsed.maxPrice ? String(parsed.maxPrice) : '');
-        if (effectiveMaxPrice) params.set('maxPrice', effectiveMaxPrice);
-
-        const effectiveBedrooms = (parsed.bhk && !bedrooms.includes(parsed.bhk)) ? [...bedrooms, parsed.bhk] : bedrooms;
-        if (effectiveBedrooms.length) params.set('bhkType', effectiveBedrooms.join(','));
-
-        if (parsed.subType) params.set('subType', parsed.subType);
-        if (parsed.gender) params.set('gender', parsed.gender);
-        if (constructionStatus.length) params.set('availability', constructionStatus.join(','));
-        if (postedBy.length) params.set('postedBy', postedBy.join(','));
-        setOpenFilter(null);
-        const url = `/search?${params.toString()}`;
-        const tabLabel = TABS.find(t => t.key === activeTab)?.label || 'Search';
-        addRecentSearch({ label: searchText.trim() || `${tabLabel} in ${selectedCity || 'your city'}`, url });
-        navigate(url);
+        setIsGuidedModalOpen(true);
     };
 
     const budgetLabel = (minPrice || maxPrice)
@@ -248,6 +207,7 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
         : 'Budget';
 
     return (
+        <>
         <div ref={wrapperRef} className="hidden lg:block w-[92%] max-w-5xl bg-white rounded-[1.5rem] shadow-2xl shadow-gray-900/10 border border-gray-100 overflow-visible">
             {/* Row 1: Category Tabs */}
             <div className="flex items-center justify-between px-6 border-b border-gray-100">
@@ -298,38 +258,19 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
                     )}
                 </div>
 
-                <div className="flex-1 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-gray-200 focus-within:border-gray-400 transition-colors">
+                <div 
+                    onClick={() => setIsGuidedModalOpen(true)}
+                    className="flex-1 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-gray-200 focus-within:border-gray-400 transition-colors cursor-pointer hover:border-gray-300"
+                >
                     <Search size={17} className="text-gray-400 shrink-0" />
-                    {placesLoaded ? (
-                        <Autocomplete
-                            onLoad={setAutocomplete}
-                            onPlaceChanged={handlePlaceChanged}
-                            options={{
-                                componentRestrictions: { country: 'in' },
-                                fields: ['name', 'formatted_address']
-                            }}
-                            className="flex-1"
-                        >
-                            <input
-                                type="text"
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                placeholder='Search "City, Locality or Project"'
-                                className="w-full text-[14px] text-gray-800 outline-none bg-transparent placeholder:text-gray-400"
-                            />
-                        </Autocomplete>
-                    ) : (
-                        <input
-                            type="text"
-                            value={searchText}
-                            onChange={(e) => setSearchText(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            placeholder='Search "City, Locality or Project"'
-                            className="flex-1 text-[14px] text-gray-800 outline-none bg-transparent placeholder:text-gray-400"
-                        />
-                    )}
-                    <button onClick={handleDetectLocation} title="Detect my location">
+                    <input
+                        type="text"
+                        readOnly
+                        value={searchText}
+                        placeholder='Search "City, Locality or Project"'
+                        className="flex-1 text-[14px] text-gray-800 outline-none bg-transparent placeholder:text-gray-400 cursor-pointer"
+                    />
+                    <button onClick={(e) => { e.stopPropagation(); handleDetectLocation(); }} title="Detect my location">
                         <MapPin size={17} className={`text-gray-400 hover:text-gray-600 transition-colors shrink-0 ${detecting ? 'animate-bounce text-blue-500' : ''}`} />
                     </button>
                     <Mic size={17} className="text-gray-300 shrink-0" />
@@ -419,6 +360,19 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
                 </FilterPill>
             </div>
         </div>
+
+        <GuidedSearchFlowModal
+            isOpen={isGuidedModalOpen}
+            onClose={() => setIsGuidedModalOpen(false)}
+            initialCity={selectedCity}
+            initialTab={activeTab}
+            initialMinPrice={minPrice}
+            initialMaxPrice={maxPrice}
+            initialBedrooms={bedrooms}
+            initialConstructionStatus={constructionStatus}
+            initialPostedBy={postedBy}
+        />
+        </>
     );
 };
 

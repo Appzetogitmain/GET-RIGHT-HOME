@@ -32,22 +32,63 @@ const referralTrackingSchema = new mongoose.Schema({
         enum: ['pending', 'completed', 'cancelled', 'rejected'],
         default: 'pending'
     },
+    rewardType: {
+        type: String,
+        enum: ['flat', 'percentage'],
+        default: 'flat'
+    },
+    rewardValue: {
+        type: Number,
+        default: 200
+    },
     rewardAmount: {
         type: Number,
-        required: true
+        default: 200
     },
-    // When 'first_booking' is the trigger
+    // Triggered Home Service Booking
+    triggerHomeServiceBookingId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'HomeServiceBooking',
+        default: null
+    },
+    // Legacy property/hotel booking reference (for backward compatibility)
     triggerBookingId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Booking'
+        ref: 'Booking',
+        default: null
     },
-    completedAt: Date,
-    ipAddress: String, // For fraud detection
-    deviceInfo: String
+    // Vouchers issued on completion
+    referrerVoucherId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'HomeServiceVoucher',
+        default: null
+    },
+    refereeVoucherId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'HomeServiceVoucher',
+        default: null
+    },
+    voucherCode: {
+        type: String,
+        default: ''
+    },
+    completedAt: {
+        type: Date,
+        default: null
+    },
+    ipAddress: {
+        type: String,
+        default: ''
+    },
+    deviceInfo: {
+        type: String,
+        default: ''
+    }
 }, { timestamps: true });
 
-// Index for quick stats lookup
+// Indexes for quick stats and lookup
 referralTrackingSchema.index({ referrerId: 1, status: 1 });
+referralTrackingSchema.index({ referredUserId: 1 });
 
 const ReferralTracking = mongoose.model('ReferralTracking', referralTrackingSchema);
 export default ReferralTracking;

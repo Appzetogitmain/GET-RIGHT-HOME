@@ -68,6 +68,7 @@ const ReelItem = ({ reel, navigate, theme }) => {
 
     return (
         <div
+            id={`reel-${reel._id}`}
             onClick={() => navigate(`/reels?reel=${reel._id}`)}
             className="group flex-shrink-0 w-[125px] md:w-[150px] cursor-pointer snap-start"
         >
@@ -206,7 +207,7 @@ const ReelSection = ({ category, theme }) => {
     if (reels.length === 0) return null;
 
     return (
-        <div className="py-6 border-b border-gray-100 bg-gray-50/30">
+        <div id="home-reels-section" className="py-6 border-b border-gray-100 bg-gray-50/30">
             <div className="px-3 md:px-2 mb-4 flex items-start md:items-center justify-between">
                 <div className="flex-1 min-w-0 pr-2">
                     <h2 className="text-[17px] md:text-[22px] font-bold text-gray-900 flex items-center gap-2 leading-tight">

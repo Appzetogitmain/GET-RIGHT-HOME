@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { FiArrowLeft, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiPhone, FiHome, FiClock, FiEdit2, FiCheckCircle, FiInfo } from 'react-icons/fi';
+import { FiArrowLeft, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiPhone, FiHome, FiClock, FiEdit2, FiCheckCircle, FiInfo, FiTag } from 'react-icons/fi';
 import { MdStar } from 'react-icons/md';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
@@ -14,6 +14,7 @@ import { cartService } from '../../../../services/cartService';
 import { configService } from '../../../../services/configService';
 import { getPlans } from '../../services/planService';
 import { userAuthService } from '../../../../services/authService';
+import { referralService } from '../../../../../services/apiService';
 import { useCart } from '../../../../context/CartContext';
 import LiveBookingCard from '../../components/booking/LiveBookingCard';
 
@@ -89,6 +90,22 @@ const Checkout = () => {
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState('');
+  const [availableVouchers, setAvailableVouchers] = useState([]);
+
+  // Fetch user's active vouchers
+  useEffect(() => {
+    const fetchUserVouchers = async () => {
+      try {
+        const res = await referralService.getMyVouchers();
+        if (res?.success && Array.isArray(res.data)) {
+          setAvailableVouchers(res.data.filter(v => v.status === 'active'));
+        }
+      } catch (err) {
+        console.warn('Failed to load user vouchers for checkout', err);
+      }
+    };
+    fetchUserVouchers();
+  }, []);
 
   // Check if Razorpay is loaded (defer to avoid blocking initial render)
   useEffect(() => {
@@ -378,30 +395,6 @@ const Checkout = () => {
 
   const getAddressComponent = (type) => {
     return addressDetails?.components?.find(c => c.types.includes(type))?.long_name || '';
-  };
-
-  const handleApplyPromo = async () => {
-    if (!promoCodeInput.trim()) return;
-    setPromoLoading(true);
-    setPromoError('');
-    try {
-      const response = await userAuthService.validatePromo(promoCodeInput.trim(), addressDetails?.city);
-      if (response.success) {
-        setAppliedPromo(response);
-        toast.success(response.message || 'Promo code applied!');
-      } else {
-        setPromoError(response.message || 'Invalid promo code');
-      }
-    } catch (err) {
-      setPromoError(err.response?.data?.message || 'Failed to validate promo code');
-    } finally {
-      setPromoLoading(false);
-    }
-  };
-
-  const handleRemovePromo = () => {
-    setAppliedPromo(null);
-    setPromoCodeInput('');
   };
 
   const handleProceed = async () => {
@@ -1382,9 +1375,62 @@ const Checkout = () => {
   const finalVisitedFee = 0;
 
   let promoDiscountAmount = 0;
-  if (appliedPromo && appliedPromo.discountPercentage) {
-    promoDiscountAmount = Math.round(totalOriginalPrice * (appliedPromo.discountPercentage / 100));
+  if (appliedPromo) {
+    if (appliedPromo.discountAmount !== undefined && appliedPromo.discountAmount > 0) {
+      promoDiscountAmount = Math.min(appliedPromo.discountAmount, itemTotal);
+    } else if (appliedPromo.discountType === 'percentage' || appliedPromo.discountPercentage) {
+      const pct = appliedPromo.discountValue || appliedPromo.discountPercentage || 0;
+      const calculated = Math.round((itemTotal * pct) / 100);
+      const cap = appliedPromo.maxDiscount || itemTotal;
+      promoDiscountAmount = Math.min(calculated, cap, itemTotal);
+    } else if (appliedPromo.discountValue) {
+      promoDiscountAmount = Math.min(appliedPromo.discountValue, itemTotal);
+    }
   }
+
+  const handleApplyPromo = async (overrideCode = null) => {
+    const code = typeof overrideCode === 'string' ? overrideCode.trim().toUpperCase() : promoCodeInput.trim().toUpperCase();
+    if (!code) {
+      setPromoError('Please enter a coupon code');
+      return;
+    }
+
+    try {
+      setPromoLoading(true);
+      setPromoError('');
+      const res = await referralService.validateVoucher(code, itemTotal);
+      if (res?.success && res.voucher) {
+        setAppliedPromo({
+          code: res.voucher.code,
+          title: res.voucher.title,
+          discountType: res.voucher.discountType,
+          discountValue: res.voucher.discountValue,
+          discountAmount: res.voucher.discountAmount,
+          minOrderAmount: res.voucher.minOrderAmount,
+          maxDiscount: res.voucher.maxDiscount,
+          message: res.message
+        });
+        setPromoCodeInput(res.voucher.code);
+        toast.success(res.message || 'Coupon applied successfully!');
+      } else {
+        setPromoError(res?.message || 'Invalid coupon code');
+        toast.error(res?.message || 'Invalid coupon code');
+      }
+    } catch (err) {
+      const msg = err?.message || err?.response?.data?.message || 'Failed to validate coupon';
+      setPromoError(msg);
+      toast.error(msg);
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoCodeInput('');
+    setPromoError('');
+    toast.success('Coupon removed');
+  };
 
   const totalAmount = Math.max(0, itemTotal - promoDiscountAmount);
   const amountToPay = totalAmount;
@@ -1659,40 +1705,95 @@ const Checkout = () => {
           </div>
         </div>
 
-        {/* Promo Code Section */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+        {/* Promo Code / Voucher Section */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-4 shadow-sm">
           <div className="flex flex-col gap-3">
-            <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <FiCheckCircle className="w-4 h-4 text-green-600" /> Apply Promo Code
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <FiTag className="w-4 h-4 text-amber-600" /> Apply Coupon / Voucher
+              </h4>
+              {availableVouchers.length > 0 && !appliedPromo && (
+                <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  {availableVouchers.length} Available
+                </span>
+              )}
+            </div>
+
             {!appliedPromo ? (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={promoCodeInput}
-                  onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
-                  placeholder="Enter code (e.g. NEWCLEAN10)"
-                  className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-[13px] font-medium focus:outline-none focus:border-indigo-500 placeholder:normal-case placeholder:font-normal"
-                />
-                <button
-                  onClick={handleApplyPromo}
-                  disabled={promoLoading || !promoCodeInput.trim()}
-                  className="text-white px-4 py-2 rounded-lg text-[13px] font-bold disabled:opacity-50 shrink-0"
-                  style={{ background: themeColors.button }}
-                >
-                  {promoLoading ? 'Applying...' : 'Apply'}
-                </button>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={promoCodeInput}
+                    onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                    placeholder="Enter coupon code (e.g. HSREF-ABC)"
+                    className="flex-1 min-w-0 border border-gray-300 rounded-xl px-3 py-2 text-[13px] font-mono uppercase font-bold focus:outline-none focus:border-amber-500 placeholder:normal-case placeholder:font-normal"
+                  />
+                  <button
+                    onClick={() => handleApplyPromo()}
+                    disabled={promoLoading || !promoCodeInput.trim()}
+                    className="text-white px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50 shrink-0 shadow-sm"
+                    style={{ background: themeColors.button }}
+                  >
+                    {promoLoading ? 'Applying...' : 'Apply'}
+                  </button>
+                </div>
+
+                {/* Available Vouchers Quick Selector */}
+                {availableVouchers.length > 0 && (
+                  <div className="pt-2 border-t border-gray-100">
+                    <p className="text-[11px] font-semibold text-gray-500 mb-2">Your Home Services Vouchers:</p>
+                    <div className="flex flex-col gap-2">
+                      {availableVouchers.map((v) => (
+                        <div
+                          key={v.id || v.code}
+                          className="flex items-center justify-between p-2.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-black text-xs text-amber-900 tracking-wider bg-white px-2 py-0.5 rounded border border-amber-200">
+                                {v.code}
+                              </span>
+                              <span className="text-[11px] font-bold text-amber-700">
+                                {v.discountType === 'percentage' ? `${v.discountValue}% OFF` : `₹${v.discountValue} OFF`}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-amber-800/80 mt-1 truncate">
+                              Single-use voucher{v.minOrderAmount > 0 ? ` • Min order ₹${v.minOrderAmount}` : ''}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleApplyPromo(v.code)}
+                            disabled={promoLoading}
+                            className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shrink-0 shadow-sm transition-colors"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <FiCheckCircle className="text-green-600 w-5 h-5" />
+              <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                    <FiCheckCircle className="w-5 h-5" />
+                  </div>
                   <div>
-                    <span className="font-bold text-green-700">{appliedPromo.code}</span>
-                    <p className="text-xs text-green-600">{appliedPromo.message}</p>
+                    <span className="font-mono font-bold text-sm text-emerald-800">{appliedPromo.code}</span>
+                    <p className="text-xs text-emerald-600 font-medium">
+                      {promoDiscountAmount > 0
+                        ? `₹${promoDiscountAmount} discount applied`
+                        : appliedPromo.message || 'Coupon applied successfully'}
+                    </p>
                   </div>
                 </div>
-                <button onClick={handleRemovePromo} className="text-red-500 text-xs font-bold hover:underline">
+                <button
+                  onClick={handleRemovePromo}
+                  className="text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1 rounded-lg text-xs font-bold transition-colors"
+                >
                   REMOVE
                 </button>
               </div>

@@ -4,12 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import PropertyQuickViewModal from './PropertyQuickViewModal';
 import { userService } from '../../services/apiService';
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
+import { useLeadCapture } from '../../hooks/useLeadCapture';
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
 
 const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onToggleSave, cardType = 'project' }) => {
   const navigate = useNavigate();
+  const { navigateToProperty } = usePropertyNavigate();
+  const { captureLeadAndExecute } = useLeadCapture();
   const item = property || data;
   const [isSaved, setIsSaved] = useState(initialIsSaved);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -139,13 +143,31 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
 
   const handleCall = (e) => {
     e.stopPropagation();
-    window.location.href = `tel:${phoneNum}`;
+    captureLeadAndExecute({
+      targetId: _id,
+      targetType: 'property',
+      actionType: 'call',
+      sourceContext: 'property_card',
+      propertyData: item,
+      onExecute: () => {
+        window.location.href = `tel:${phoneNum}`;
+      }
+    });
   };
 
   const handleWhatsApp = (e) => {
     e.stopPropagation();
-    const message = encodeURIComponent(`Hi, I am interested in your property "${displayName}" listed on Get Right Home.`);
-    window.open(`https://wa.me/${phoneNum}?text=${message}`, '_blank');
+    captureLeadAndExecute({
+      targetId: _id,
+      targetType: 'property',
+      actionType: 'whatsapp',
+      sourceContext: 'property_card',
+      propertyData: item,
+      onExecute: () => {
+        const message = encodeURIComponent(`Hi, I am interested in your property "${displayName}" listed on Get Right Home.`);
+        window.open(`https://wa.me/${phoneNum}?text=${message}`, '_blank');
+      }
+    });
   };
 
   const handleShare = (e) => {
@@ -222,7 +244,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
 
   const handleCardClick = () => {
-    navigate(`/property/${slug || _id}`);
+    navigateToProperty(item);
   };
 
   const handleCloseOverlay = (e) => {
@@ -310,6 +332,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
     return (
       <>
         <div
+          id={`property-${_id || item.id}`}
           onClick={handleCardClick}
           className={`flex-shrink-0 w-[280px] h-[360px] rounded-[1.25rem] overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group relative bg-[#F4F5F7] shadow-sm hover:shadow-md`}
         >
@@ -471,6 +494,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
     return (
       <>
         <div
+          id={`property-${_id || item.id}`}
           onClick={handleCardClick}
           className={`flex-shrink-0 w-[280px] h-[360px] rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-500 flex flex-col group relative bg-white border border-gray-100 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(79,70,229,0.12)] hover:border-indigo-500/30`}
         >
@@ -612,6 +636,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
     return (
       <>
         <div
+          id={`property-${_id || item.id}`}
           onClick={handleCardClick}
           className={`flex-shrink-0 w-[280px] h-[360px] rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-500 flex flex-col group relative bg-white border border-gray-150 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(249,115,22,0.12)] hover:border-orange-500/30`}
         >
@@ -708,9 +733,9 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/property/${slug || _id}`);
+                    navigateToProperty(item);
                   }}
-                  className="bg-orange-600 hover:bg-orange-700 text-white text-[9px] font-black uppercase py-2 px-3.5 rounded-lg active:scale-95 transition-all shadow-sm"
+                  className="bg-orange-600 hover:bg-orange-700 text-white text-[9px] font-black uppercase py-2 px-3.5 rounded-lg active:scale-95 transition-all shadow-sm cursor-pointer"
                 >
                   View Project
                 </button>
@@ -758,6 +783,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
   return (
     <>
       <div
+        id={`property-${_id || item.id}`}
         onClick={handleCardClick}
         className={`flex-shrink-0 w-[280px] h-[360px] rounded-[1.25rem] overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group relative bg-white border border-gray-100 shadow-sm hover:shadow-md`}
       >

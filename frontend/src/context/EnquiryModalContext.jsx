@@ -9,16 +9,34 @@ export const EnquiryModalProvider = ({ children }) => {
   
   const [modalPayload, setModalPayload] = useState({
     targetId: null,
-    targetType: 'Property',
+    targetType: 'property',
     actionType: 'call',
+    sourceContext: 'detail_page',
+    requirement: null,
+    propertyData: null,
+    brokerData: null,
+    builderData: null,
+    message: '',
+    preferredDate: null,
+    timeSlot: '',
+    budget: 0,
     onSuccess: null,
   });
 
   const openEnquiryModal = (payload) => {
     setModalPayload({
       targetId: payload.targetId || null,
-      targetType: payload.targetType || 'Property',
+      targetType: (payload.targetType || 'property').toLowerCase(),
       actionType: payload.actionType || 'call',
+      sourceContext: payload.sourceContext || 'detail_page',
+      requirement: payload.requirement || null,
+      propertyData: payload.propertyData || null,
+      brokerData: payload.brokerData || null,
+      builderData: payload.builderData || null,
+      message: payload.message || '',
+      preferredDate: payload.preferredDate || null,
+      timeSlot: payload.timeSlot || '',
+      budget: payload.budget || 0,
       onSuccess: payload.onSuccess || null
     });
     setIsOpen(true);

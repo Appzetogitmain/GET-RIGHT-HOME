@@ -28,37 +28,43 @@ export const getActiveOffers = async (req, res) => {
         { endDate: { $exists: false } },
         { endDate: { $gte: new Date() } }
       ]
-    }).sort({ createdAt: -1 });
+    }).sort({ priority: -1, createdAt: -1 });
 
     // Seed default if empty
     if (offers.length === 0) {
       // ... same seed logic ...
       const seedOffers = [
         {
-          title: "New User Special",
-          subtitle: "Flat ₹100 Off on your first booking",
-          description: "Applicable on all hotels for new users.",
-          code: "NEWRUKKO",
+          title: "Home Cleaning Special",
+          subtitle: "Flat ₹100 Off on your first Home Service booking",
+          description: "Applicable on all home services for new & existing users.",
+          code: "NEWHOME100",
           discountType: "flat",
           discountValue: 100,
-          minBookingAmount: 500,
-          image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600&q=80",
+          minBookingAmount: 399,
+          destinationUrl: "/home-services",
+          targetType: "home_services",
+          priority: 10,
+          image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80",
           bg: "bg-[#004F4D]",
-          btnText: "Apply Now",
+          btnText: "Book Now",
           userLimit: 1
         },
         {
-          title: "Winter Wonderland",
-          subtitle: "Get 15% Off up to ₹500",
-          description: "Special winter discount for premium stays.",
-          code: "WINTER15",
+          title: "Service Festival",
+          subtitle: "Get 15% Off up to ₹500 on all repairs & services",
+          description: "Special seasonal discount for verified home services.",
+          code: "HOMESTAR15",
           discountType: "percentage",
           discountValue: 15,
           maxDiscount: 500,
-          minBookingAmount: 1000,
+          minBookingAmount: 699,
+          destinationUrl: "/home-services",
+          targetType: "home_services",
+          priority: 5,
           image: "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600&q=80",
           bg: "bg-[#1A1A1A]",
-          btnText: "Grab Deal",
+          btnText: "Book Now",
           userLimit: 2
         }
       ];
@@ -70,7 +76,7 @@ export const getActiveOffers = async (req, res) => {
         }
       }
 
-      const freshOffers = await Offer.find({ isActive: true });
+      const freshOffers = await Offer.find({ isActive: true }).sort({ priority: -1, createdAt: -1 });
       return res.json(freshOffers.map(o => formatOfferImage(o, req)));
     }
 
@@ -202,7 +208,7 @@ export const createOffer = async (req, res) => {
  */
 export const getAllOffers = async (req, res) => {
   try {
-    const offers = await Offer.find().sort({ createdAt: -1 });
+    const offers = await Offer.find().sort({ priority: -1, createdAt: -1 });
     res.json(offers.map(o => formatOfferImage(o, req)));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching offers' });

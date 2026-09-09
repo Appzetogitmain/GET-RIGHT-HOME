@@ -8,6 +8,7 @@ import BannerCarousel from './BannerCarousel';
 import CityDropdown from './CityDropdown';
 import toast from 'react-hot-toast';
 import DesktopSearchFilterBar from './DesktopSearchFilterBar';
+import GuidedSearchFlowModal from './GuidedSearchFlowModal';
 import { getPreferredCity, setPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
 import { addRecentSearch } from '../../utils/recentActivity';
 
@@ -18,6 +19,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     const bgLightClass = theme?.bgLight || 'bg-emerald-500/10';
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCity, setSelectedCity] = useState(getPreferredCity());
@@ -68,16 +70,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
 
 
     const handleSearch = () => {
-        const queryParams = new URLSearchParams();
-        if (selectedType?.label) queryParams.set('categoryTab', selectedType.label);
-        queryParams.set('propertyCategory', 'Residential');
-        if (selectedCity) queryParams.set('areas', selectedCity);
-        const url = `/search?${queryParams.toString()}`;
-        const label = selectedType?.label
-            ? `${selectedType.label} in ${selectedCity || 'your city'}`
-            : `Search in ${selectedCity || 'your city'}`;
-        addRecentSearch({ label, url });
-        navigate(url);
+        setIsSearchModalOpen(true);
     };
 
     const handleCitySelect = ({ city, district }) => {
@@ -252,6 +245,12 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             )}
 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+            <GuidedSearchFlowModal
+                isOpen={isSearchModalOpen}
+                onClose={() => setIsSearchModalOpen(false)}
+                initialCity={selectedCity}
+                initialTab={selectedType?.label?.toLowerCase() || 'buy'}
+            />
         </motion.section>
     );
 };

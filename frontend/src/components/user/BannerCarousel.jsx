@@ -4,6 +4,8 @@ import axios from 'axios';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
+
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 let cachedBanners = null;
@@ -13,6 +15,7 @@ const BannerCarousel = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(!cachedBanners);
     const navigate = useNavigate();
+    const { navigateToProperty } = usePropertyNavigate();
 
     useEffect(() => {
         if (cachedBanners && cachedBanners.length > 0) {
@@ -51,8 +54,8 @@ const BannerCarousel = () => {
     };
 
     const handleBannerClick = (banner) => {
-        if (banner.linkedItem && banner.linkedItem._id) {
-            navigate(`/property/${banner.linkedItem.slug || banner.linkedItem._id}`);
+        if (banner.linkedItem && (banner.linkedItem._id || banner.linkedItem.id)) {
+            navigateToProperty(banner.linkedItem);
         } else if (banner.link) {
             if (banner.link.startsWith('http')) {
                 window.open(banner.link, '_blank');

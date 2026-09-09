@@ -2,6 +2,8 @@ import express from 'express';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import {
     getMyReferral,
+    getMyVouchers,
+    validateVoucher,
     createReferralProgram,
     getActiveProgram,
     generateCustomCode,
@@ -13,8 +15,10 @@ import {
 
 const router = express.Router();
 
-// Public / User Routes
+// User Routes
 router.get('/my-stats', protect, getMyReferral);
+router.get('/my-vouchers', protect, getMyVouchers);
+router.post('/voucher/validate', validateVoucher);
 router.get('/program/active', getActiveProgram);
 
 // Admin Routes

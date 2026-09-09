@@ -227,22 +227,41 @@ const HomeSection = ({ title, typeId, subtitle, extraFilters = {}, sectionIds, o
     );
 };
 
+const DEFAULT_LAYOUT = [
+    { id: 'video_curations', isVisible: true },
+    { id: 'admin_curated', isVisible: true },
+    { id: 'pg_stays', isVisible: true },
+    { id: 'recommended_brokers', isVisible: true },
+    { id: 'popular_builders', isVisible: true },
+    { id: 'reels', isVisible: true },
+    { id: 'rent_properties', isVisible: true },
+    { id: 'buy_properties', isVisible: true },
+    { id: 'plot_properties', isVisible: true },
+    { id: 'under_construction', isVisible: true },
+    { id: 'pre_launch', isVisible: true },
+    { id: 'ready_to_move', isVisible: true }
+];
+
+let cachedLayoutOrder = null;
+let cachedSectionIds = null;
+
 const Home = () => {
     const navigate = useNavigate();
     const [selectedType, setSelectedType] = useState({ id: null, label: 'All' });
     const [pgFilters, setPgFilters] = useState({ gender: undefined, occupancy: undefined, foodIncluded: undefined });
-    const [sectionIds, setSectionIds] = useState({ pg: null, rent: null, buy: null, plot: null });
+    const [sectionIds, setSectionIds] = useState(cachedSectionIds || { pg: 'pg', rent: 'rent', buy: 'buy', plot: 'plot' });
     // See BuyPage for why this seeds from the globally selected city rather
     // than "".
     const [homeSearchCity, setHomeSearchCity] = useState(getPreferredCity());
-    const [layoutOrder, setLayoutOrder] = useState([]);
+    const [layoutOrder, setLayoutOrder] = useState(cachedLayoutOrder || DEFAULT_LAYOUT);
 
     // Fetch Dynamic Layout
     useEffect(() => {
         const fetchLayout = async () => {
             try {
-                const response = await api.get('/public/homepage-layout'); // Make sure this route is publicly accessible or we have a public version
-                if (response.data.success && response.data.sections) {
+                const response = await api.get('/public/homepage-layout');
+                if (response.data.success && response.data.sections && response.data.sections.length > 0) {
+                    cachedLayoutOrder = response.data.sections;
                     setLayoutOrder(response.data.sections);
                 }
             } catch (error) {
@@ -268,12 +287,14 @@ const Home = () => {
                     return found.map(c => c._id).length > 0 ? found.map(c => c._id).join(',') : null;
                 };
 
-                setSectionIds({
-                    pg: findCategoryIds(['hostel', 'pg', 'pg/co-living', 'co-living', 'pg/co-livinig', 'paying guest']),
-                    rent: findCategoryIds('Rent'),
-                    buy: findCategoryIds('Buy'),
-                    plot: findCategoryIds(['Plot', 'Plots'])
-                });
+                const ids = {
+                    pg: findCategoryIds(['hostel', 'pg', 'pg/co-living', 'co-living', 'pg/co-livinig', 'paying guest']) || 'pg',
+                    rent: findCategoryIds('Rent') || 'rent',
+                    buy: findCategoryIds('Buy') || 'buy',
+                    plot: findCategoryIds(['Plot', 'Plots']) || 'plot'
+                };
+                cachedSectionIds = ids;
+                setSectionIds(ids);
             } catch (err) {
                 console.error("Failed to fetch section IDs", err);
             }

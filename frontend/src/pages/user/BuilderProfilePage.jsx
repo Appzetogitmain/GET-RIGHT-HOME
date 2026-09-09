@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import apiService from '../../services/apiService';
 import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
+import { useLeadCapture } from '../../hooks/useLeadCapture';
 
 const InitialsAvatar = ({ name, size = 'lg' }) => {
   const initials = (name || 'B').slice(0, 2).toUpperCase();
@@ -24,6 +25,7 @@ const BuilderProfilePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { navigateToProperty } = usePropertyNavigate();
+  const { captureLeadAndExecute } = useLeadCapture();
 
   const [builderData, setBuilderData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -636,12 +638,24 @@ const BuilderProfilePage = () => {
                 {builderData.phone || '+91 8884976767'}
               </p>
             </div>
-            <a 
-              href={`tel:${builderData.phone || '+918884976767'}`}
-              className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-xs hover:bg-blue-700 transition-colors shadow-md block text-center"
+            <button 
+              type="button"
+              onClick={() => {
+                captureLeadAndExecute({
+                  targetId: builderData._id || id,
+                  targetType: 'builder',
+                  actionType: 'call',
+                  sourceContext: 'builder_profile',
+                  builderData: builderData,
+                  onExecute: () => {
+                    window.location.href = `tel:${builderData.phone || '+918884976767'}`;
+                  }
+                });
+              }}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-xs hover:bg-blue-700 transition-colors shadow-md block text-center cursor-pointer"
             >
               Call Now
-            </a>
+            </button>
           </div>
         </div>
       )}
@@ -653,8 +667,19 @@ const BuilderProfilePage = () => {
             Don't miss out on {builderData.companyName || builderData.name}!
           </p>
           <button 
-            onClick={() => setShowPhoneModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-5 py-2.5 text-xs font-bold flex items-center gap-1.5 shadow-sm whitespace-nowrap"
+            onClick={() => {
+              captureLeadAndExecute({
+                targetId: builderData._id || id,
+                targetType: 'builder',
+                actionType: 'view_number',
+                sourceContext: 'builder_profile',
+                builderData: builderData,
+                onExecute: () => {
+                  setShowPhoneModal(true);
+                }
+              });
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-5 py-2.5 text-xs font-bold flex items-center gap-1.5 shadow-sm whitespace-nowrap cursor-pointer"
           >
             <Phone size={12} /> View Number
           </button>

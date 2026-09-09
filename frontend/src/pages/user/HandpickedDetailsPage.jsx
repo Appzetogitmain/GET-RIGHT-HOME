@@ -23,6 +23,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import SupportSection from '../../components/user/SupportSection';
 import { downloadBrochurePDF } from '../../utils/brochurePdfGenerator';
+import { useLeadCapture } from '../../hooks/useLeadCapture';
 
 const getAmenityIcon = (name) => {
   if (!name || typeof name !== 'string') return <Sparkles className="w-4 h-4 text-slate-500" />;
@@ -52,6 +53,7 @@ const HandpickedDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { captureLeadAndExecute } = useLeadCapture();
 
   // Core State
   const [property, setProperty] = useState(null);
@@ -612,9 +614,18 @@ const HandpickedDetailsPage = () => {
   const youtubeId = getYoutubeEmbedId(allVideoUrls[0] || rawVideoUrl);
 
   const handleBrochureDownload = () => {
-    const projTitle = property?.propertyName || property?.name || "Project";
-    const tagsObj = property?.brochureTags || property?.propertyImages_tags || property?.dynamicData?.propertyImages_tags || property?.imageTags || {};
-    downloadBrochurePDF(rawBrochureData, projTitle, tagsObj);
+    captureLeadAndExecute({
+      targetId: id || property?._id,
+      targetType: 'property',
+      actionType: 'brochure_download',
+      sourceContext: 'detail_page',
+      propertyData: property,
+      onExecute: () => {
+        const projTitle = property?.propertyName || property?.name || "Project";
+        const tagsObj = property?.brochureTags || property?.propertyImages_tags || property?.dynamicData?.propertyImages_tags || property?.imageTags || {};
+        downloadBrochurePDF(rawBrochureData, projTitle, tagsObj);
+      }
+    });
   };
 
   // Highlights & Amenities lists
@@ -3109,12 +3120,16 @@ const HandpickedDetailsPage = () => {
         </button>
         <button
           onClick={() => {
-            if (!user) {
-              toast.error("Please login to view contact details");
-              navigate('/login');
-            } else {
-              setShowEnquiryModal(true);
-            }
+            captureLeadAndExecute({
+              targetId: id || property?._id,
+              targetType: 'property',
+              actionType: 'view_number',
+              sourceContext: 'detail_page',
+              propertyData: property,
+              onExecute: () => {
+                setShowEnquiryModal(true);
+              }
+            });
           }}
           className="flex-[1.5] flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-orange-600 text-white font-bold text-xs shadow-md shadow-slate-600/30 hover:bg-orange-700 transition-colors"
         >
