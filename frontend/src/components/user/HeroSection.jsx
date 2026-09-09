@@ -70,7 +70,20 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
 
 
     const handleSearch = () => {
-        setIsSearchModalOpen(true);
+        const queryParams = new URLSearchParams();
+        if (selectedType?.label) queryParams.set('categoryTab', selectedType.label);
+        queryParams.set('propertyCategory', 'Residential');
+        if (searchQuery.trim()) {
+            queryParams.set('search', searchQuery.trim());
+        } else if (selectedCity) {
+            queryParams.set('areas', selectedCity);
+        }
+        const url = `/search?${queryParams.toString()}`;
+        const label = searchQuery.trim() || (selectedType?.label
+            ? `${selectedType.label} in ${selectedCity || 'your city'}`
+            : `Search in ${selectedCity || 'your city'}`);
+        addRecentSearch({ label, url });
+        navigate(url);
     };
 
     const handleCitySelect = ({ city, district }) => {
@@ -188,13 +201,14 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                         <Search size={19} strokeWidth={2} className="text-gray-400 shrink-0" />
 
                         {/* Animated placeholder / real input */}
-                        <div className="flex-1 relative h-6 overflow-hidden cursor-text" onClick={handleSearch}>
+                        <div className="flex-1 relative h-6 overflow-hidden cursor-text">
                             <input
                                 ref={searchInputRef}
                                 type="text"
-                                readOnly
-                                value=""
-                                className="absolute inset-0 w-full text-[14px] text-gray-800 outline-none bg-transparent z-10 cursor-pointer"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                className="absolute inset-0 w-full text-[14px] text-gray-800 outline-none bg-transparent z-10"
                                 style={{ caretColor: accentColor }}
                             />
                             {/* Animated placeholder — hidden when typing */}
@@ -220,7 +234,22 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                             onClick={handleLiveLocationDetect}
                             title="Detect live location"
                         />
-                        <LucideIcons.Mic size={19} className="text-[#005B9F] shrink-0" />
+                        <button
+                            type="button"
+                            onClick={() => setIsSearchModalOpen(true)}
+                            className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors shrink-0"
+                            title="Guided Search Flow"
+                        >
+                            <LucideIcons.Sparkles size={17} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSearch}
+                            className="px-3 py-1 rounded-lg text-white font-semibold text-xs transition-transform active:scale-95 shrink-0"
+                            style={{ backgroundColor: accentColor }}
+                        >
+                            Search
+                        </button>
                     </div>
                 </div>
             </div>

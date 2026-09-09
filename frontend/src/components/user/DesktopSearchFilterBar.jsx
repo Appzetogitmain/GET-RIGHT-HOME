@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, Mic, ChevronDown, Check } from 'lucide-react';
-import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
+import { Search, MapPin, Mic, ChevronDown, Check, Sparkles } from 'lucide-react';
 import { addRecentSearch } from '../../utils/recentActivity';
 import { parseSearchQuery } from '../../utils/searchQueryParser';
-import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
+import SearchSuggestions from './SearchSuggestions';
 import GuidedSearchFlowModal from './GuidedSearchFlowModal';
 
 const TABS = [
@@ -127,37 +126,20 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
     const [postedBy, setPostedBy] = useState([]);
 
     const [openFilter, setOpenFilter] = useState(null); // 'category' | 'budget' | 'bedroom' | 'construction' | 'postedBy' | null
+    const [suggestionsOpen, setSuggestionsOpen] = useState(false);
     const wrapperRef = useRef(null);
-    const [autocomplete, setAutocomplete] = useState(null);
-
-    const { isLoaded: placesLoaded } = useJsApiLoader({
-        id: GOOGLE_MAPS_SCRIPT_ID,
-        googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-        libraries: GOOGLE_MAPS_LIBRARIES
-    });
 
     // Close any open dropdown on outside click
     useEffect(() => {
         const handleClick = (e) => {
-            // Google's Places suggestion list (.pac-container) is appended
-            // directly to <body>, outside this bar's own DOM — a click on a
-            // suggestion would otherwise look like an "outside click" and
-            // close everything before the place selection could register.
-            if (e.target.closest('.pac-container')) return;
             if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
                 setOpenFilter(null);
+                setSuggestionsOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClick);
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
-
-    const handlePlaceChanged = () => {
-        if (!autocomplete) return;
-        const place = autocomplete.getPlace();
-        const name = place?.name || place?.formatted_address;
-        if (name) setSearchText(name);
-    };
 
     const toggleFilter = (key) => setOpenFilter(prev => (prev === key ? null : key));
 
@@ -169,6 +151,7 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
 
     const goToTab = (tabKey) => {
         setOpenFilter(null);
+        setSuggestionsOpen(false);
         switch (tabKey) {
             case 'buy': navigate('/buy'); break;
             case 'rent': navigate('/rent-pg'); break;
@@ -198,8 +181,73 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
 
     const [isGuidedModalOpen, setIsGuidedModalOpen] = useState(false);
 
-    const handleSearch = () => {
-        setIsGuidedModalOpen(true);
+    const handleSearch = (overrideQuery) => {
+        const rawText = (overrideQuery !== undefined ? overrideQuery : searchText).trim();
+        const params = new URLSearchParams();
+
+        if (rawText) {
+            const parsed = parseSearchQuery(rawText);
+            const hasStructuredSignal = !!(parsed.bhk || parsed.subType || parsed.maxPrice || parsed.transactionType || parsed.gender || parsed.propertyCategory);
+
+            // 1. BHK / Bedrooms
+            const effectiveBedrooms = [...bedrooms];
+            if (parsed.bhk && !effectiveBedrooms.includes(parsed.bhk)) {
+                effectiveBedrooms.push(parsed.bhk);
+            }
+            if (effectiveBedrooms.length) {
+                params.set('bhkType', effectiveBedrooms.join(','));
+            }
+
+            // 2. Location
+            if (parsed.location) {
+                params.set('areas', parsed.location);
+            } else if (selectedCity) {
+                params.set('areas', selectedCity);
+            }
+
+            // 3. Search keyword (for property names, projects, or non-signal free text)
+            if (!hasStructuredSignal) {
+                params.set('search', rawText);
+            }
+
+            // 4. Transaction type
+            if (parsed.transactionType) {
+                params.set('transactionType', parsed.transactionType);
+            } else if (activeTab === 'rent') {
+                params.set('transactionType', 'rent');
+            } else if (activeTab === 'buy' && !parsed.bhk) {
+                // If it's a general BHK search like "2bhk", don't restrict to buy only so all 2BHK listings show
+                params.set('transactionType', 'buy');
+            }
+
+            // 5. Property category & subType
+            if (parsed.propertyCategory) params.set('propertyCategory', parsed.propertyCategory);
+            else if (propertyCategory === 'Commercial') params.set('propertyCategory', 'Commercial');
+
+            if (parsed.subType) params.set('subType', parsed.subType);
+            if (parsed.gender) params.set('gender', parsed.gender);
+            if (parsed.maxPrice) params.set('maxPrice', String(parsed.maxPrice));
+        } else {
+            if (selectedCity) params.set('areas', selectedCity);
+            params.set('transactionType', transactionTypeForTab(activeTab));
+            if (propertyCategory === 'Commercial') params.set('propertyCategory', 'Commercial');
+            if (bedrooms.length) params.set('bhkType', bedrooms.join(','));
+        }
+
+        if (minPrice) params.set('minPrice', minPrice);
+        const effectiveMaxPrice = maxPrice || '';
+        if (effectiveMaxPrice && !params.has('maxPrice')) params.set('maxPrice', effectiveMaxPrice);
+
+        if (constructionStatus.length) params.set('availability', constructionStatus.join(','));
+        if (postedBy.length) params.set('postedBy', postedBy.join(','));
+
+        setOpenFilter(null);
+        setSuggestionsOpen(false);
+
+        const url = `/search?${params.toString()}`;
+        const tabLabel = TABS.find(t => t.key === activeTab)?.label || 'Search';
+        addRecentSearch({ label: rawText || `${tabLabel} in ${selectedCity || 'your city'}`, url });
+        navigate(url);
     };
 
     const budgetLabel = (minPrice || maxPrice)
@@ -258,27 +306,58 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
                     )}
                 </div>
 
-                <div 
-                    onClick={() => setIsGuidedModalOpen(true)}
-                    className="flex-1 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-gray-200 focus-within:border-gray-400 transition-colors cursor-pointer hover:border-gray-300"
-                >
-                    <Search size={17} className="text-gray-400 shrink-0" />
-                    <input
-                        type="text"
-                        readOnly
-                        value={searchText}
-                        placeholder='Search "City, Locality or Project"'
-                        className="flex-1 text-[14px] text-gray-800 outline-none bg-transparent placeholder:text-gray-400 cursor-pointer"
+                <div className="relative flex-1">
+                    <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-gray-200 focus-within:border-gray-400 transition-colors bg-white">
+                        <Search size={17} className="text-gray-400 shrink-0" />
+                        <input
+                            type="text"
+                            value={searchText}
+                            onChange={(e) => {
+                                setSearchText(e.target.value);
+                                setSuggestionsOpen(true);
+                            }}
+                            onFocus={() => setSuggestionsOpen(true)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    setSuggestionsOpen(false);
+                                    handleSearch();
+                                }
+                            }}
+                            placeholder='Search "City, Locality, 2BHK, Villa or Project"'
+                            className="flex-1 text-[14px] text-gray-800 outline-none bg-transparent placeholder:text-gray-400"
+                        />
+                        <button type="button" onClick={handleDetectLocation} title="Detect my location">
+                            <MapPin size={17} className={`text-gray-400 hover:text-gray-600 transition-colors shrink-0 ${detecting ? 'animate-bounce text-blue-500' : ''}`} />
+                        </button>
+                        <Mic size={17} className="text-gray-300 shrink-0" />
+                    </div>
+
+                    <SearchSuggestions
+                        query={searchText}
+                        open={suggestionsOpen}
+                        onClose={() => setSuggestionsOpen(false)}
+                        onSelect={(item) => {
+                            setSuggestionsOpen(false);
+                            setSearchText(item.label);
+                            if (item.url) navigate(item.url);
+                            else handleSearch(item.label);
+                        }}
                     />
-                    <button onClick={(e) => { e.stopPropagation(); handleDetectLocation(); }} title="Detect my location">
-                        <MapPin size={17} className={`text-gray-400 hover:text-gray-600 transition-colors shrink-0 ${detecting ? 'animate-bounce text-blue-500' : ''}`} />
-                    </button>
-                    <Mic size={17} className="text-gray-300 shrink-0" />
                 </div>
 
                 <button
+                    type="button"
+                    onClick={() => setIsGuidedModalOpen(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-800 text-[13px] font-semibold transition-all shrink-0 cursor-pointer shadow-sm"
+                    title="Open guided multi-step search"
+                >
+                    <Sparkles size={15} className="text-emerald-600" />
+                    <span className="hidden xl:inline">Guided Flow</span>
+                </button>
+
+                <button
                     onClick={handleSearch}
-                    className="px-7 py-2.5 rounded-xl text-white font-bold text-[14px] shadow-md active:scale-[0.98] transition-all shrink-0"
+                    className="px-7 py-2.5 rounded-xl text-white font-bold text-[14px] shadow-md active:scale-[0.98] transition-all shrink-0 cursor-pointer"
                     style={{ backgroundColor: accentColor }}
                 >
                     Search
