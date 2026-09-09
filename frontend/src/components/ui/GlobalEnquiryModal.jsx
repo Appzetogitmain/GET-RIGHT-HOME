@@ -116,6 +116,35 @@ const GlobalEnquiryModal = () => {
           window.dispatchEvent(new Event('storage'));
         }
         
+        // Centralized Lead Creation on OTP Verification
+        const leadPayload = {
+          targetId: modalPayload.targetId,
+          targetType: (modalPayload.targetType || 'property').toLowerCase(),
+          actionType: modalPayload.actionType || 'callback',
+          sourceContext: modalPayload.sourceContext || 'detail_page',
+          sourceUrl: window.location.href,
+          requirement: modalPayload.requirement,
+          message: modalPayload.message || '',
+          preferredDate: modalPayload.preferredDate,
+          timeSlot: modalPayload.timeSlot || '',
+          budget: modalPayload.budget || 0,
+          name: enquiryForm.name,
+          email: enquiryForm.email,
+          phone: enquiryForm.phone
+        };
+
+        if (modalPayload.targetType?.toLowerCase() === 'broker') {
+          leadPayload.brokerId = modalPayload.targetId;
+        } else if (modalPayload.targetType?.toLowerCase() === 'builder') {
+          leadPayload.builderId = modalPayload.targetId;
+        } else if (modalPayload.targetId) {
+          leadPayload.propertyId = modalPayload.targetId;
+        }
+
+        api.post('/enquiries', leadPayload).catch(err => {
+          console.warn('Post-OTP lead creation warning:', err);
+        });
+
         closeEnquiryModal();
         setOtpSent(false);
         setEnquiryForm({ name: '', email: '', phone: '', otp: '' });

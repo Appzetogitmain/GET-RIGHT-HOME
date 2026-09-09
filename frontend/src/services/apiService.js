@@ -1081,7 +1081,7 @@ export const reviewService = {
 };
 
 export const referralService = {
-  // Reward amount shown here always comes from the admin's active Refer &
+  // Reward details shown here always come from the admin's active Refer &
   // Earn program (see AdminReferEarn) — there is no user-side control over it.
   getMyStats: async () => {
     try {
@@ -1094,6 +1094,22 @@ export const referralService = {
   getActiveProgram: async () => {
     try {
       const response = await api.get('/referrals/program/active');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getMyVouchers: async () => {
+    try {
+      const response = await api.get('/referrals/my-vouchers');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  validateVoucher: async (code, orderAmount = 0) => {
+    try {
+      const response = await api.post('/referrals/voucher/validate', { code, orderAmount });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

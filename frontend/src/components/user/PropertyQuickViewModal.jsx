@@ -4,6 +4,7 @@ import { X, Phone, MessageCircle, Share2, Heart, Mail, Eye, Calendar, ArrowLeft,
 import toast from 'react-hot-toast';
 import { enquiryService } from '../../services/apiService';
 import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
+import { useLeadCapture } from '../../hooks/useLeadCapture';
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
@@ -11,6 +12,7 @@ const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.
 const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry = false }) => {
   const navigate = useNavigate();
   const { navigateToProperty, getPropertyPath } = usePropertyNavigate();
+  const { captureLeadAndExecute } = useLeadCapture();
   const [showEnquiry, setShowEnquiry] = useState(initialShowEnquiry);
   const [isSaved, setIsSaved] = useState(false);
   const [enquiryLoading, setEnquiryLoading] = useState(false);
@@ -141,13 +143,31 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
 
   const handleCall = (e) => {
     e.stopPropagation();
-    window.location.href = `tel:${phoneNum}`;
+    captureLeadAndExecute({
+      targetId: _id,
+      targetType: 'property',
+      actionType: 'call',
+      sourceContext: 'quick_view',
+      propertyData: property,
+      onExecute: () => {
+        window.location.href = `tel:${phoneNum}`;
+      }
+    });
   };
 
   const handleWhatsApp = (e) => {
     e.stopPropagation();
-    const msg = encodeURIComponent(`Hi, I am interested in your property "${displayName}" listed on Get Right Home.`);
-    window.open(`https://wa.me/${phoneNum}?text=${msg}`, '_blank');
+    captureLeadAndExecute({
+      targetId: _id,
+      targetType: 'property',
+      actionType: 'whatsapp',
+      sourceContext: 'quick_view',
+      propertyData: property,
+      onExecute: () => {
+        const msg = encodeURIComponent(`Hi, I am interested in your property "${displayName}" listed on Get Right Home.`);
+        window.open(`https://wa.me/${phoneNum}?text=${msg}`, '_blank');
+      }
+    });
   };
 
   const handleShare = (e) => {

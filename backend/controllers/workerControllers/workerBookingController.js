@@ -14,6 +14,7 @@ import PlatformSettings from '../../models/PlatformSettings.js';
 import Settings from '../../models/Settings.js';
 import VendorBill from '../../models/VendorBill.js';
 import { checkAndAwardTargetBonus } from '../../utils/targetBonusUtil.js';
+import referralService from '../../services/referralService.js';
 
 /**
  * Records how one worker responded to a booking offer.
@@ -377,6 +378,11 @@ const updateJobStatus = async (req, res) => {
 
     if (status === BOOKING_STATUS.WORK_DONE || status === BOOKING_STATUS.COMPLETED) {
       checkAndAwardTargetBonus(booking.workerId).catch(err => console.error('[Target Bonus] error in updateJobStatus:', err));
+    }
+
+    if (status === BOOKING_STATUS.COMPLETED) {
+      referralService.processHomeServiceBookingCompletion(booking.userId, booking._id)
+        .catch(err => console.error('[Referral Completion] error in updateJobStatus:', err));
     }
 
     res.status(200).json({
@@ -1027,6 +1033,13 @@ const collectCash = async (req, res) => {
       booking.customerConfirmationOTP = null;
       await booking.save();
 
+      // Trigger Referral completion if this was referee's first Home Service booking
+      try {
+        await referralService.processHomeServiceBookingCompletion(booking.userId, booking._id);
+      } catch (refErr) {
+        console.warn('[Referral Hook Error]:', refErr.message);
+      }
+
       const ioPaid = req.app.get('io');
       if (ioPaid) {
         ioPaid.to(`user_${String(booking.userId?._id || booking.userId)}`).emit('booking_updated', {
@@ -1386,6 +1399,13 @@ const confirmManualOnlineCollection = async (req, res) => {
     booking.customerConfirmationOTP = null;
     booking.isWorkerPaid = true;
     await booking.save();
+
+    // Trigger Referral completion if this was referee's first Home Service booking
+    try {
+      await referralService.processHomeServiceBookingCompletion(booking.userId, booking._id);
+    } catch (refErr) {
+      console.warn('[Referral Hook Error]:', refErr.message);
+    }
 
     bill.status = 'paid';
     bill.paidAt = new Date();

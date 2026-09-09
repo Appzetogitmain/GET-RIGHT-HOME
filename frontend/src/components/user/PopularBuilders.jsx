@@ -270,6 +270,7 @@ const PopularBuilders = ({ locality, themeColor = 'emerald' }) => {
 
     return (
         <section 
+            id="home-popular-builders-section"
             className="py-4 border-b border-gray-100 last:border-0 relative"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -296,6 +297,7 @@ const PopularBuilders = ({ locality, themeColor = 'emerald' }) => {
                     {builders.map((builder) => (
                         <div
                             key={builder._id || builder.id}
+                            id={`builder-${builder._id || builder.id}`}
                             onClick={() => navigate(`/builder/${builder._id || builder.id}`)}
                             className="flex-shrink-0 w-[160px] flex flex-col items-center text-center cursor-pointer group snap-center"
                         >

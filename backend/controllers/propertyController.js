@@ -2264,31 +2264,197 @@ export const getSearchAnalyticsReport = async (req, res) => {
 };
 
 /**
- * Cities we actually have listings in, most inventory first.
+ * Cities GetRightHome is currently operating in, ranked by live inventory and operating hubs.
  *
  * @route GET /api/properties/popular-cities
- *
- * Driven by live inventory rather than the admin-curated Location master,
- * because that list is optional and can be empty — offering a city chip that
- * returns nothing is worse than offering no chip.
  */
 export const getPopularCities = async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 8, 24);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 12, 30);
 
     const rows = await Property.aggregate([
       { $match: { status: 'approved', isLive: true } },
       { $project: { city: { $trim: { input: { $ifNull: ['$address.city', ''] } } } } },
       { $match: { city: { $ne: '' } } },
-      // Group case-insensitively: "Indore", "INDORE " and "indore" are one city.
+      // Group case-insensitively
       { $group: { _id: { $toLower: '$city' }, city: { $first: '$city' }, count: { $sum: 1 } } },
-      { $sort: { count: -1, _id: 1 } },
-      { $limit: limit }
+      { $sort: { count: -1, _id: 1 } }
     ]);
+
+    const liveCityMap = new Map();
+    rows.forEach((r) => {
+      const formatted = titleCaseCity(r.city);
+      liveCityMap.set(formatted.toLowerCase(), { city: formatted, count: r.count });
+    });
+
+    const operatingCities = [
+      { city: 'Noida', state: 'Uttar Pradesh', isPopular: true },
+      { city: 'Delhi', state: 'Delhi', isPopular: true },
+      { city: 'Indore', state: 'Madhya Pradesh', isPopular: true },
+      { city: 'Mumbai', state: 'Maharashtra', isPopular: true },
+      { city: 'Hyderabad', state: 'Telangana', isPopular: true },
+      { city: 'Bengaluru', state: 'Karnataka', isPopular: true },
+      { city: 'Pune', state: 'Maharashtra', isPopular: true },
+      { city: 'Gurgaon', state: 'Haryana', isPopular: true },
+      { city: 'Delhi NCR', state: 'Delhi NCR', isPopular: true },
+      { city: 'Ahmedabad', state: 'Gujarat', isPopular: true },
+      { city: 'Kolkata', state: 'West Bengal', isPopular: true },
+      { city: 'Chennai', state: 'Tamil Nadu', isPopular: true },
+      { city: 'Jaipur', state: 'Rajasthan', isPopular: true },
+      { city: 'Lucknow', state: 'Uttar Pradesh', isPopular: true },
+      { city: 'Chandigarh', state: 'Punjab', isPopular: true },
+      { city: 'Bhopal', state: 'Madhya Pradesh', isPopular: true },
+      { city: 'Surat', state: 'Gujarat', isPopular: true },
+      { city: 'Patna', state: 'Bihar', isPopular: true },
+      { city: 'Nagpur', state: 'Maharashtra', isPopular: true },
+      { city: 'Goa', state: 'Goa', isPopular: true },
+      { city: 'Kochi', state: 'Kerala', isPopular: true },
+      { city: 'Visakhapatnam', state: 'Andhra Pradesh', isPopular: true },
+      { city: 'Coimbatore', state: 'Tamil Nadu', isPopular: true },
+      { city: 'Anantapur', state: 'Andhra Pradesh', isPopular: true }
+    ];
+
+    const resultCities = [];
+    const seen = new Set();
+
+    // 1. First add cities with active listings
+    for (const [key, val] of liveCityMap.entries()) {
+      const matchHub = operatingCities.find((c) => c.city.toLowerCase() === key || key.includes(c.city.toLowerCase()));
+      resultCities.push({
+        city: val.city,
+        state: matchHub?.state || '',
+        count: val.count,
+        isActive: true,
+        isPopular: true
+      });
+      seen.add(val.city.toLowerCase());
+    }
+
+    // 2. Add other operating hubs
+    for (const hub of operatingCities) {
+      if (!seen.has(hub.city.toLowerCase())) {
+        resultCities.push({
+          city: hub.city,
+          state: hub.state,
+          count: 0,
+          isActive: true,
+          isPopular: hub.isPopular
+        });
+        seen.add(hub.city.toLowerCase());
+      }
+    }
 
     res.json({
       success: true,
-      cities: rows.map((r) => ({ city: titleCaseCity(r.city), count: r.count }))
+      cities: resultCities.slice(0, limit)
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+/**
+ * Popular areas in a selected city, dynamically generated from live inventory & curated localities.
+ *
+ * @route GET /api/properties/popular-areas?city=Bengaluru
+ */
+export const getPopularAreas = async (req, res) => {
+  try {
+    const rawCity = String(req.query.city || '').trim();
+    if (!rawCity) {
+      return res.status(400).json({ success: false, message: 'City parameter is required' });
+    }
+
+    const cityRegex = safeRegex(rawCity, { exact: false });
+
+    // 1. Fetch distinct areas from active properties in this city
+    const propertyAreas = await Property.aggregate([
+      {
+        $match: {
+          status: 'approved',
+          isLive: true,
+          $or: [
+            { 'address.city': cityRegex },
+            { 'address.district': cityRegex },
+            { 'address.fullAddress': cityRegex }
+          ]
+        }
+      },
+      {
+        $project: {
+          area: {
+            $trim: {
+              input: {
+                $ifNull: ['$address.area', { $ifNull: ['$address.locality', { $ifNull: ['$dynamicData.locality', ''] }] }]
+              }
+            }
+          }
+        }
+      },
+      { $match: { area: { $ne: '' } } },
+      { $group: { _id: { $toLower: '$area' }, area: { $first: '$area' }, count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    const areaMap = new Map();
+    propertyAreas.forEach((pa) => {
+      const cleanName = titleCaseCity(pa.area);
+      areaMap.set(cleanName.toLowerCase(), { name: cleanName, count: pa.count });
+    });
+
+    // 2. Curated Popular Localities dictionary for top Indian cities
+    const CURATED_CITY_AREAS = {
+      bengaluru: ['Whitefield', 'Marathahalli', 'HSR Layout', 'Electronic City', 'Indiranagar', 'Koramangala', 'Bellandur', 'Sarjapur Road', 'Hebbal', 'Yelahanka', 'BTM Layout', 'Bannerghatta Road', 'Jayanagar', 'Rajajinagar', 'Devanahalli', 'Thanisandra', 'Varthur', 'Kanakapura Road'],
+      bangalore: ['Whitefield', 'Marathahalli', 'HSR Layout', 'Electronic City', 'Indiranagar', 'Koramangala', 'Bellandur', 'Sarjapur Road', 'Hebbal', 'Yelahanka', 'BTM Layout', 'Bannerghatta Road', 'Jayanagar', 'Rajajinagar', 'Devanahalli', 'Thanisandra', 'Varthur', 'Kanakapura Road'],
+      hyderabad: ['Gachibowli', 'Hitec City', 'Madhapur', 'Kondapur', 'Kukatpally', 'Banjara Hills', 'Jubilee Hills', 'Manikonda', 'Miyapur', 'Nallagandla', 'Tellapur', 'Kokapet', 'Financial District', 'Begumpet', 'Ameerpet', 'Secunderabad'],
+      mumbai: ['Andheri West', 'Andheri East', 'Bandra West', 'Powai', 'Thane West', 'Navi Mumbai', 'Borivali West', 'Goregaon West', 'Worli', 'Malad West', 'Kandivali West', 'Juhu', 'Dadar', 'Chembur', 'Ghatkopar'],
+      pune: ['Hinjewadi', 'Wakad', 'Baner', 'Kharadi', 'Viman Nagar', 'Kothrud', 'Aundh', 'Hadapsar', 'Bavdhan', 'Pimple Saudagar', 'Magarpatta', 'Ravet', 'Kalyani Nagar', 'Balewadi'],
+      'delhi ncr': ['Gurgaon Sector 56', 'Golf Course Road', 'Cyber City', 'Noida Sector 62', 'Noida Sector 150', 'Greater Noida West', 'Dwarka', 'South Delhi', 'Vasant Kunj', 'Saket', 'Rohini', 'Indirapuram'],
+      delhi: ['Dwarka', 'South Delhi', 'Vasant Kunj', 'Saket', 'Rohini', 'Hauz Khas', 'Janakpuri', 'Pitampura', 'Lajpat Nagar', 'Connaught Place'],
+      gurgaon: ['Golf Course Road', 'Cyber City', 'Sector 56', 'Sohna Road', 'DLF Phase 5', 'Golf Course Extension', 'Sector 57', 'Sector 82'],
+      noida: ['Sector 62', 'Sector 150', 'Sector 137', 'Greater Noida West', 'Sector 75', 'Sector 18', 'Sector 76'],
+      chennai: ['OMR', 'Velachery', 'Anna Nagar', 'Adyar', 'T Nagar', 'Porur', 'Guindy', 'Medavakkam', 'Perungudi', 'Thoraipakkam', 'Sholinganallur'],
+      kolkata: ['New Town', 'Salt Lake', 'Rajarhat', 'Ballygunge', 'Alipore', 'Garia', 'EM Bypass', 'Dum Dum', 'Behala', 'Tollygunge'],
+      ahmedabad: ['SG Highway', 'Bopal', 'Satellite', 'Prahlad Nagar', 'Vastrapur', 'Bodakdev', 'Gota', 'Thaltej', 'Shela', 'Chandkheda'],
+      anantapur: ['Court Road', 'Kovur Nagar', 'Sai Nagar', 'Rudrampeta', 'RTC Bus Stand', 'Housing Board Colony', 'Somnath Nagar', 'Tarakarama Nagar', 'Shirdi Sai Nagar', 'Collector Office Road', 'Subhash Road', 'Gooty Road'],
+      indore: ['Vijay Nagar', 'Super Corridor', 'AB Road', 'Palasia', 'Bicholi Mardana', 'Rau', 'Nipania', 'Mahalaxmi Nagar', 'Scheme 78'],
+      jaipur: ['Vaishali Nagar', 'Mansarovar', 'Jagatpura', 'Malviya Nagar', 'Tonk Road', 'C Scheme', 'Ajmer Road', 'Raja Park'],
+      kochi: ['Kakkanad', 'Edappally', 'Marine Drive', 'Kaloor', 'Palarivattom', 'Vyttila', 'Aluva', 'Panampilly Nagar', 'Tripunithura'],
+      chandigarh: ['Sector 17', 'Sector 35', 'Sector 22', 'Zirakpur', 'Mohali Sector 70', 'Panchkula Sector 20', 'New Chandigarh']
+    };
+
+    const normCity = rawCity.toLowerCase().trim();
+    const curatedList = CURATED_CITY_AREAS[normCity] || [];
+
+    const finalAreas = [];
+    const seenAreas = new Set();
+
+    // Add areas with listings first
+    for (const [key, val] of areaMap.entries()) {
+      finalAreas.push({
+        name: val.name,
+        count: val.count,
+        isPopular: true
+      });
+      seenAreas.add(key);
+    }
+
+    // Add curated popular localities for this city
+    for (const area of curatedList) {
+      if (!seenAreas.has(area.toLowerCase())) {
+        finalAreas.push({
+          name: area,
+          count: 0,
+          isPopular: true
+        });
+        seenAreas.add(area.toLowerCase());
+      }
+    }
+
+    res.json({
+      success: true,
+      city: titleCaseCity(rawCity),
+      areas: finalAreas
     });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });

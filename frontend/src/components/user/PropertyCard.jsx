@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Star, Heart, BadgeCheck, Phone, MessageCircle, ChevronRight, Share2, ChevronLeft, X, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
+import { useLeadCapture } from '../../hooks/useLeadCapture';
 import { userService, propertyService, authService } from '../../services/apiService';
 import { useEnquiryModal } from '../../context/EnquiryModalContext';
 import toast from 'react-hot-toast';
@@ -15,6 +16,7 @@ const LOGO_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/
 const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved, isSearchPage = false, onToggleSave }) => {
   const navigate = useNavigate();
   const { navigateToProperty, getPropertyPath } = usePropertyNavigate();
+  const { captureLeadAndExecute } = useLeadCapture();
   const { openEnquiryModal } = useEnquiryModal();
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -226,9 +228,9 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
   const [localEnquiryCount, setLocalEnquiryCount] = useState(item.enquiryCount || 0);
 
   const trackLead = async (actionType) => {
-    let targetType = 'Owner';
+    let targetType = 'owner';
     if (item.partnerId) {
-      targetType = item.partnerId.role === 'builder' ? 'Builder' : 'Broker';
+      targetType = item.partnerId.role === 'builder' ? 'builder' : 'broker';
     }
 
     const executeAction = async () => {
@@ -255,16 +257,14 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       }
     };
 
-    if (!localStorage.getItem('user')) {
-      openEnquiryModal({
-        targetId: _id,
-        targetType,
-        actionType,
-        onSuccess: executeAction
-      });
-    } else {
-      executeAction();
-    }
+    captureLeadAndExecute({
+      targetId: _id,
+      targetType,
+      actionType,
+      sourceContext: isSearchPage ? 'search_card' : 'property_card',
+      propertyData: item,
+      onExecute: executeAction
+    });
   };
 
   const handleShare = (e) => {
@@ -455,6 +455,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       <>
         <div
           ref={containerRef}
+          id={`property-${_id || item.id}`}
           onClick={() => navigateToProperty(item)}
           className={`w-full bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md overflow-hidden transition-all duration-300 flex flex-col sm:flex-row cursor-pointer relative ${className}`}
         >
@@ -628,18 +629,22 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!localStorage.getItem('user')) {
-                        toast.error("Please login to download brochure");
-                        navigate('/login');
-                        return;
-                      }
-                      const brochure = item.brochureUrl || item.dynamicData?.brochureUrl || item.projectDetails?.brochureUrl;
-                      if (brochure) {
-                        toast.success('Brochure downloading...');
-                        window.open(brochure, "_blank");
-                      } else {
-                        toast.error("Brochure not available.");
-                      }
+                      captureLeadAndExecute({
+                        targetId: _id,
+                        targetType: 'property',
+                        actionType: 'brochure_download',
+                        sourceContext: isSearchPage ? 'search_card' : 'property_card',
+                        propertyData: item,
+                        onExecute: () => {
+                          const brochure = item.brochureUrl || item.dynamicData?.brochureUrl || item.projectDetails?.brochureUrl;
+                          if (brochure) {
+                            toast.success('Brochure downloading...');
+                            window.open(brochure, "_blank");
+                          } else {
+                            toast.error("Brochure not available.");
+                          }
+                        }
+                      });
                     }}
                     className="px-3 py-1.5 bg-[#E0EFFF] text-[#0056B8] hover:bg-[#cde4ff] text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
                   >
@@ -700,6 +705,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
           className={`flex-shrink-0 w-[280px] h-[360px] relative ${className}`}
         >
           <div
+            id={`property-${_id || item.id}`}
             onClick={() => navigateToProperty(item)}
             className={`w-full h-full bg-[#F4F5F7] rounded-[1.5rem] border border-gray-200/50 shadow-sm hover:shadow-md overflow-hidden cursor-pointer transition-all duration-300 flex flex-col group relative`}
           >
@@ -818,6 +824,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     return (
       <>
         <div
+          id={`property-${_id || item.id}`}
           onClick={() => navigateToProperty(item)}
           className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-white to-amber-50/10' : 'border border-gray-150 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.12)] hover:border-emerald-500/30'} transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
         >
@@ -951,6 +958,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     return (
       <>
         <div
+          id={`property-${_id || item.id}`}
           onClick={() => navigateToProperty(item)}
           className={`flex-shrink-0 w-[280px] bg-white rounded-[1.5rem] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-white to-amber-50/10' : 'border border-gray-150 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(217,119,6,0.15)] hover:border-amber-500/30'} transition-all duration-500 flex flex-col group relative h-[360px] ${className}`}
         >
@@ -1068,6 +1076,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
   // ─── DEFAULT CARD ─────────────────────────────────────────────────
   return (
     <div
+      id={`property-${_id || item.id}`}
       onClick={() => navigateToProperty(item)}
       className={`relative h-[270px] md:h-[340px] w-full bg-gray-100 rounded-[1.25rem] md:rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-slate-100 to-amber-50/10' : 'border border-gray-100 hover:-translate-y-1'} group ${className}`}
     >

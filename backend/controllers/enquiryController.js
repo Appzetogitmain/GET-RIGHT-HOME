@@ -75,21 +75,41 @@ const attachStartingPricesToEnquiries = async (enquiries) => {
 // Handles all enquiry operations — completely separate from bookings
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
-// USER: Submit a new enquiry for a property
+// USER: Submit a new enquiry / lead for a property, broker, or builder
 // POST /api/enquiries
 // ─────────────────────────────────────────────────────────────────────────────
 export const createEnquiry = async (req, res) => {
     try {
-        const { propertyId, enquiryType, message, preferredDate, timeSlot, budget } = req.body;
+        const {
+            propertyId,
+            brokerId,
+            builderId,
+            targetId,
+            targetType = 'property',
+            actionType = 'callback',
+            enquiryType,
+            sourceContext = 'detail_page',
+            sourceUrl = '',
+            requirement = {},
+            message,
+            preferredDate,
+            timeSlot,
+            budget
+        } = req.body;
 
-        if (!propertyId) {
-            return res.status(400).json({ success: false, message: 'propertyId is required' });
+        // Resolve effective target IDs
+        let resolvedPropertyId = propertyId || (targetType === 'property' || targetType === 'owner' ? targetId : null);
+        let resolvedBrokerId = brokerId || (targetType === 'broker' ? targetId : null);
+        let resolvedBuilderId = builderId || (targetType === 'builder' ? targetId : null);
+
+        // At least one target must be provided or it's a general enquiry
+        if (!resolvedPropertyId && !resolvedBrokerId && !resolvedBuilderId && !targetId) {
+            return res.status(400).json({ success: false, message: 'At least one target (propertyId, brokerId, or builderId) is required' });
         }
 
-        const property = await Property.findById(propertyId);
-        if (!property) {
-            return res.status(404).json({ success: false, message: 'Property not found' });
+        let property = null;
+        if (resolvedPropertyId) {
+            property = await Property.findById(resolvedPropertyId);
         }
 
         let userId = null;
@@ -99,24 +119,25 @@ export const createEnquiry = async (req, res) => {
 
         if (req.user) {
             userId = req.user._id;
-            customerName = req.user.name;
-            customerPhone = req.user.phone;
+            customerName = req.user.name || 'User';
+            customerPhone = req.user.phone || '';
             customerEmail = req.user.email || '';
         } else {
-            // Guest User Form Submission
+            // Guest User Submission
             const { name, email, phone } = req.body;
-            if (!name || !phone || !email) {
-                return res.status(400).json({ success: false, message: 'Name, email, and phone are required for guest enquiries' });
+            if (!phone) {
+                return res.status(400).json({ success: false, message: 'Phone number is required' });
             }
 
-            customerName = name.trim();
-            customerPhone = phone.trim();
-            customerEmail = email.trim().toLowerCase();
+            customerPhone = String(phone).trim();
+            customerName = (name || 'Customer').trim();
+            customerEmail = (email || '').trim().toLowerCase();
 
-            // Look up if user exists by phone or email in either User or Partner collection
-            let existingUser = await User.findOne({
-                $or: [{ phone: customerPhone }, { email: customerEmail }]
-            });
+            // Look up if user exists by phone or email
+            const orConditions = [{ phone: customerPhone }];
+            if (customerEmail) orConditions.push({ email: customerEmail });
+
+            let existingUser = await User.findOne({ $or: orConditions });
 
             if (existingUser) {
                 userId = existingUser._id;
@@ -124,7 +145,7 @@ export const createEnquiry = async (req, res) => {
                 customerPhone = existingUser.phone || customerPhone;
                 customerEmail = existingUser.email || customerEmail;
             } else {
-                // Auto-register guest as user/customer
+                // Auto-register guest as user
                 const newUser = new User({
                     name: customerName,
                     phone: customerPhone,
@@ -136,36 +157,92 @@ export const createEnquiry = async (req, res) => {
             }
         }
 
+        const effectiveActionType = actionType || enquiryType || 'callback';
+
+        // ── DE-DUPLICATION CHECK (15-Minute Window) ──────────────────────────
+        // Prevent duplicate spam from repeated clicks in the same session
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+        const dedupeQuery = {
+            $or: [{ userId }, { phone: customerPhone }],
+            actionType: effectiveActionType,
+            createdAt: { $gte: fifteenMinutesAgo }
+        };
+
+        if (resolvedPropertyId) dedupeQuery.propertyId = resolvedPropertyId;
+        else if (resolvedBrokerId) dedupeQuery.brokerId = resolvedBrokerId;
+        else if (resolvedBuilderId) dedupeQuery.builderId = resolvedBuilderId;
+
+        const existingRecentLead = await Enquiry.findOne(dedupeQuery).sort({ createdAt: -1 });
+        if (existingRecentLead) {
+            return res.status(200).json({
+                success: true,
+                message: 'Lead already recorded (deduplicated)',
+                enquiry: existingRecentLead,
+                deduplicated: true
+            });
+        }
+
         const enquiryId = `ENQ-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
+
+        // Resolve financial budget fallback
+        let effectiveBudget = budget || 0;
+        if (!effectiveBudget && property) {
+            effectiveBudget = property.buyDetails?.expectedPrice || 
+                              property.plotDetails?.expectedPrice || 
+                              property.rentDetails?.monthlyRent || 
+                              property.price || 0;
+        }
+
+        // Format structured requirement snapshot
+        const structuredRequirement = {
+            text: requirement.text || requirement.requirement || (property ? `${property.propertyType || 'Property'} in ${property.address?.city || 'India'}` : ''),
+            bhk: requirement.bhk || (property?.buyDetails?.bhk || property?.rentDetails?.bhk || ''),
+            propertyType: requirement.propertyType || requirement.property_type || (property?.propertyType || ''),
+            budgetMax: Number(requirement.budgetMax || requirement.budget_max || effectiveBudget || 0),
+            budgetMin: Number(requirement.budgetMin || requirement.budget_min || 0),
+            location: requirement.location || (property?.address?.locality || property?.address?.area || ''),
+            city: requirement.city || (property?.address?.city || ''),
+            purpose: requirement.purpose || (property?.transactionType || '')
+        };
 
         const enquiry = new Enquiry({
             enquiryId,
             userId,
-            propertyId,
+            propertyId: resolvedPropertyId || undefined,
+            brokerId: resolvedBrokerId || undefined,
+            builderId: resolvedBuilderId || undefined,
+            targetType: targetType || 'property',
             name: customerName,
             phone: customerPhone,
             email: customerEmail,
-            enquiryType: enquiryType || 'callback',
+            actionType: effectiveActionType,
+            enquiryType: effectiveActionType,
+            sourceContext: sourceContext || 'detail_page',
+            sourceUrl: sourceUrl || '',
+            requirement: structuredRequirement,
             message: message || '',
             preferredDate: preferredDate ? new Date(preferredDate) : null,
             timeSlot: timeSlot || '',
-            budget: budget || 0,
-            // A visit request already carries the date/time the buyer picked, so it
-            // starts life as "scheduled" rather than "new" — matching what the owner/
-            // admin views show ("Visit Scheduled") and what the confirmation to the
-            // buyer says.
-            status: (enquiryType === 'visit' && preferredDate) ? 'scheduled' : 'new'
+            budget: effectiveBudget,
+            status: (effectiveActionType === 'visit' && preferredDate) ? 'scheduled' : 'new'
         });
 
         await enquiry.save();
 
-        // --- ACTION-BASED LEAD TRACKING ---
-        // Increment the property's enquiry count (used in UI for social proof)
-        await Property.findByIdAndUpdate(propertyId, { $inc: { enquiryCount: 1 } });
-
-        // Increment the partner/owner's leadsUsedThisMonth (for subscription lead capping)
-        if (property.userId) {
-            await User.findByIdAndUpdate(property.userId, {
+        // ── ACTION-BASED LEAD COUNTER UPDATES ────────────────────────────────
+        if (resolvedPropertyId && property) {
+            await Property.findByIdAndUpdate(resolvedPropertyId, { $inc: { enquiryCount: 1 } });
+            if (property.userId) {
+                await User.findByIdAndUpdate(property.userId, {
+                    $inc: { 'subscription.leadsUsedThisMonth': 1 }
+                });
+            }
+        } else if (resolvedBrokerId) {
+            await User.findByIdAndUpdate(resolvedBrokerId, {
+                $inc: { 'subscription.leadsUsedThisMonth': 1 }
+            });
+        } else if (resolvedBuilderId) {
+            await User.findByIdAndUpdate(resolvedBuilderId, {
                 $inc: { 'subscription.leadsUsedThisMonth': 1 }
             });
         }
@@ -229,7 +306,8 @@ export const getMyEnquiries = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// OWNER: Get enquiries received on their properties
+// ─────────────────────────────────────────────────────────────────────────────
+// OWNER / BROKER / BUILDER: Get enquiries received on properties or profiles
 // GET /api/enquiries/received
 // ─────────────────────────────────────────────────────────────────────────────
 export const getReceivedEnquiries = async (req, res) => {
@@ -237,21 +315,20 @@ export const getReceivedEnquiries = async (req, res) => {
         const { propertyId, status } = req.query;
 
         // Find all properties owned by this user
-        const ownerQuery = {
-            $or: [
-                { userId: req.user._id }
-            ]
-        };
+        const ownerQuery = { userId: req.user._id };
         if (propertyId) ownerQuery._id = propertyId;
 
         const properties = await Property.find(ownerQuery).select('_id');
         const propertyIds = properties.map(p => p._id);
 
-        if (propertyIds.length === 0) {
-            return res.json({ success: true, isPremium: false, enquiries: [] });
+        const orConditions = [];
+        if (propertyIds.length > 0) {
+            orConditions.push({ propertyId: { $in: propertyIds } });
         }
+        orConditions.push({ brokerId: req.user._id });
+        orConditions.push({ builderId: req.user._id });
 
-        const query = { propertyId: { $in: propertyIds } };
+        const query = { $or: orConditions };
         if (status && status !== 'all') {
             query.status = status;
         }
@@ -264,6 +341,8 @@ export const getReceivedEnquiries = async (req, res) => {
 
         const enquiries = await Enquiry.find(query)
             .populate('userId', 'name phone email avatar')
+            .populate('brokerId', 'name phone email avatar address')
+            .populate('builderId', 'name phone email avatar address')
             .populate('propertyId', 'propertyName coverImage address propertyType transactionType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice userId')
             .sort({ createdAt: -1 });
 
@@ -311,7 +390,8 @@ export const updateEnquiryStatus = async (req, res) => {
         const prop = enquiry.propertyId;
         const isOwner =
             String(prop?.userId) === String(req.user._id) ||
-            String(prop?.userId) === String(req.user._id);
+            String(enquiry.brokerId) === String(req.user._id) ||
+            String(enquiry.builderId) === String(req.user._id);
 
         // Allow admin/superadmin to update any enquiry
         const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
@@ -331,7 +411,7 @@ export const updateEnquiryStatus = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN: Get all enquiries with pagination + search + status filter
+// ADMIN: Get all enquiries with pagination + search + status/actionType filters
 // GET /api/admin/enquiries
 // ─────────────────────────────────────────────────────────────────────────────
 export const adminGetAllEnquiries = async (req, res) => {
@@ -339,15 +419,40 @@ export const adminGetAllEnquiries = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
-        const { status, search, propertyId, startDate, endDate, category, ownerBroker } = req.query;
+        const {
+            status,
+            actionType,
+            targetType,
+            sourceContext,
+            search,
+            propertyId,
+            brokerId,
+            builderId,
+            startDate,
+            endDate,
+            category,
+            ownerBroker
+        } = req.query;
 
         const query = {};
-        if (propertyId) {
-            query.propertyId = propertyId;
-        }
+        if (propertyId) query.propertyId = propertyId;
+        if (brokerId) query.brokerId = brokerId;
+        if (builderId) query.builderId = builderId;
 
         if (status && status !== 'all') {
             query.status = status;
+        }
+
+        if (actionType && actionType !== 'all') {
+            query.actionType = actionType;
+        }
+
+        if (targetType && targetType !== 'all') {
+            query.targetType = targetType;
+        }
+
+        if (sourceContext && sourceContext !== 'all') {
+            query.sourceContext = sourceContext;
         }
 
         // Date filters
@@ -380,26 +485,21 @@ export const adminGetAllEnquiries = async (req, res) => {
             const matchingProperties = await Property.find(propertyQuery).select('_id');
             const matchingPropertyIds = matchingProperties.map(p => p._id);
 
-            // If query filters returned no matching properties, result is immediately empty
-            if (matchingPropertyIds.length === 0) {
+            if (matchingPropertyIds.length === 0 && !query.brokerId && !query.builderId) {
                 return res.status(200).json({ success: true, enquiries: [], total: 0, page, limit });
             }
 
             if (query.propertyId) {
-                if (matchingPropertyIds.map(id => id.toString()).includes(query.propertyId.toString())) {
-                    // stays as is
-                } else {
+                if (!matchingPropertyIds.map(id => id.toString()).includes(query.propertyId.toString())) {
                     return res.status(200).json({ success: true, enquiries: [], total: 0, page, limit });
                 }
-            } else {
+            } else if (matchingPropertyIds.length > 0) {
                 query.propertyId = { $in: matchingPropertyIds };
             }
         }
 
         if (search) {
             const searchRegex = safeRegex(search);
-            // We need to search by user name/email/phone or property name
-            // Fetch matching users and properties first
             const User = (await import('../models/User.js')).default;
             const users = await User.find({
                 $or: [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }]
@@ -409,7 +509,13 @@ export const adminGetAllEnquiries = async (req, res) => {
 
             query.$or = [
                 { enquiryId: searchRegex },
+                { name: searchRegex },
+                { phone: searchRegex },
+                { email: searchRegex },
+                { 'requirement.text': searchRegex },
                 { userId: { $in: users.map(u => u._id) } },
+                { brokerId: { $in: users.map(u => u._id) } },
+                { builderId: { $in: users.map(u => u._id) } },
                 { propertyId: { $in: properties.map(p => p._id) } }
             ];
         }
@@ -417,12 +523,13 @@ export const adminGetAllEnquiries = async (req, res) => {
         const total = await Enquiry.countDocuments(query);
         const enquiries = await Enquiry.find(query)
             .populate('userId', 'name email phone avatar')
+            .populate('brokerId', 'name email phone avatar address role')
+            .populate('builderId', 'name email phone avatar address role builderProfile')
             .populate({
                 path: 'propertyId',
                 select: 'propertyName coverImage address buyDetails rentDetails plotDetails pgDetails propertyType transactionType userId dynamicData price startingPrice',
                 populate: [
-                    
-                    { path: 'userId', select: 'name phone email' }
+                    { path: 'userId', select: 'name phone email role' }
                 ]
             })
             .sort({ createdAt: -1 })

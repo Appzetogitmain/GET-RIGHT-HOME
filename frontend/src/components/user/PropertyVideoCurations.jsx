@@ -50,7 +50,7 @@ const PropertyVideoCurations = ({ pageType, theme }) => {
     }
 
     return (
-        <section className="pt-4 pb-2 border-b border-gray-100 last:border-0 relative">
+        <section id="home-video-curations-section" className="pt-4 pb-2 border-b border-gray-100 last:border-0 relative">
             <div className="flex flex-col mb-4 px-1.5 md:px-0">
                 <div className="flex items-center gap-2 mb-0.5">
                     <div className={`w-1 h-5 ${theme?.bg || 'bg-emerald-500'} rounded-full`} />
@@ -82,6 +82,7 @@ const PropertyVideoCurations = ({ pageType, theme }) => {
                     return (
                         <div
                             key={item._id || idx}
+                            id={`video-${item._id || idx}`}
                             className="w-[85vw] md:w-[450px] h-[220px] md:h-[280px] flex-shrink-0 snap-center rounded-[2rem] relative overflow-hidden shadow-xl shadow-gray-200/40 bg-black group"
                         >
                             {isPlaying && youtubeId ? (

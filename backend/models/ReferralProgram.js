@@ -6,15 +6,50 @@ const referralProgramSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
-    rewardAmount: {
+    // Voucher configuration for Referrer
+    rewardType: {
+        type: String,
+        enum: ['flat', 'percentage'],
+        default: 'flat'
+    },
+    rewardValue: {
         type: Number,
         required: true,
         default: 200
     },
+    // Backward compatibility alias for rewardValue
+    rewardAmount: {
+        type: Number,
+        default: 200
+    },
+    minOrderAmount: {
+        type: Number,
+        default: 0
+    },
+    maxDiscount: {
+        type: Number,
+        default: 500
+    },
+    validityDays: {
+        type: Number,
+        default: 30
+    },
+
+    // Optional Welcome Voucher configuration for Referee (Referred User)
+    refereeRewardType: {
+        type: String,
+        enum: ['flat', 'percentage'],
+        default: 'flat'
+    },
+    refereeRewardValue: {
+        type: Number,
+        default: 100
+    },
+
     triggerType: {
         type: String,
-        enum: ['first_booking', 'signup'],
-        default: 'first_booking'
+        enum: ['first_home_service_booking', 'first_booking', 'signup'],
+        default: 'first_home_service_booking'
     },
     eligibleRoles: [{
         type: String,
@@ -36,7 +71,10 @@ const referralProgramSchema = new mongoose.Schema({
         type: Number,
         default: 100
     },
-    description: String
+    description: {
+        type: String,
+        default: ''
+    }
 }, { timestamps: true });
 
 const ReferralProgram = mongoose.model('ReferralProgram', referralProgramSchema);

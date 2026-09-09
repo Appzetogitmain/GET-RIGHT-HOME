@@ -14,6 +14,7 @@ import {
   submitPropertyForApproval,
   getSearchSuggestions,
   getPopularCities,
+  getPopularAreas,
   getSimilarProperties,
   trackSearchOutcome,
   getSearchAnalyticsReport,
@@ -36,6 +37,7 @@ router.get('/', getPublicProperties);
 // Public autocomplete. Above '/:id' so "suggestions" isn't read as an id.
 router.get('/suggestions', getSearchSuggestions);
 router.get('/popular-cities', getPopularCities);
+router.get('/popular-areas', getPopularAreas);
 router.get('/admin/search-analytics', protect, authorizedRoles('admin', 'superadmin', 'manager'), getSearchAnalyticsReport);
 router.get('/debug-data', debugProperties); // TEMP - remove after debugging
 router.get('/recommended-sellers', getRecommendedSellers);

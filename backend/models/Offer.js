@@ -50,6 +50,20 @@ const offerSchema = new mongoose.Schema({
     type: String,
     default: "Book now"
   },
+  destinationUrl: {
+    type: String,
+    default: "/home-services",
+    trim: true
+  },
+  targetType: {
+    type: String,
+    enum: ['home_services', 'category', 'custom', 'external'],
+    default: 'home_services'
+  },
+  priority: {
+    type: Number,
+    default: 0
+  },
   bg: {
     type: String,
     default: "bg-[#1A1A1A]"

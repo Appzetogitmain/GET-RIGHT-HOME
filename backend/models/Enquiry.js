@@ -23,7 +23,25 @@ const enquirySchema = new mongoose.Schema({
     propertyId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Property',
-        required: true
+        required: false
+    },
+
+    brokerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false
+    },
+
+    builderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false
+    },
+
+    targetType: {
+        type: String,
+        enum: ['property', 'broker', 'builder', 'owner', 'general'],
+        default: 'property'
     },
 
     // ── Customer Details (Stored directly in lead) ───────────────────────────
@@ -39,14 +57,44 @@ const enquirySchema = new mongoose.Schema({
 
     email: {
         type: String,
-        required: true
+        required: false,
+        default: ''
     },
 
-    // ── Enquiry Type ──────────────────────────────────────────────────────────
+    // ── Enquiry & Action Details ──────────────────────────────────────────────
+    actionType: {
+        type: String,
+        enum: ['call', 'whatsapp', 'view_number', 'brochure_download', 'download_brochure', 'visit', 'schedule_visit', 'callback', 'document_view', 'profile_view', 'chat', 'request_photos', 'general'],
+        default: 'callback'
+    },
+
     enquiryType: {
         type: String,
-        enum: ['call', 'whatsapp', 'callback', 'visit'],
+        enum: ['call', 'whatsapp', 'view_number', 'brochure_download', 'download_brochure', 'visit', 'schedule_visit', 'callback', 'document_view', 'profile_view', 'chat', 'request_photos', 'general'],
         default: 'callback'
+    },
+
+    sourceContext: {
+        type: String,
+        enum: ['card', 'property_card', 'detail_page', 'details_page', 'broker_profile', 'builder_profile', 'profile_page', 'quick_view', 'search_card', 'home_section', 'general'],
+        default: 'detail_page'
+    },
+
+    sourceUrl: {
+        type: String,
+        default: ''
+    },
+
+    // ── Captured Customer Requirement Snapshot ──────────────────────────────
+    requirement: {
+        text: { type: String, default: '' },
+        bhk: { type: String, default: '' },
+        propertyType: { type: String, default: '' },
+        budgetMax: { type: Number, default: 0 },
+        budgetMin: { type: Number, default: 0 },
+        location: { type: String, default: '' },
+        city: { type: String, default: '' },
+        purpose: { type: String, default: '' }
     },
 
     // ── Content ───────────────────────────────────────────────────────────────
@@ -86,8 +134,11 @@ const enquirySchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// Index for fast lookup by property and user
+// Indexes for fast lookups and deduplication
 enquirySchema.index({ propertyId: 1, createdAt: -1 });
+enquirySchema.index({ brokerId: 1, createdAt: -1 });
+enquirySchema.index({ builderId: 1, createdAt: -1 });
 enquirySchema.index({ userId: 1, createdAt: -1 });
+enquirySchema.index({ phone: 1, propertyId: 1, actionType: 1, createdAt: -1 });
 
 export default mongoose.model('Enquiry', enquirySchema);

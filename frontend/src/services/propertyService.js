@@ -37,6 +37,24 @@ export const propertyService = {
     }
   },
 
+  getPopularCities: async (params = {}) => {
+    try {
+      const response = await api.get('/properties/popular-cities', { params });
+      return handleResponse(response);
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  getPopularAreas: async (city) => {
+    try {
+      const response = await api.get('/properties/popular-areas', { params: { city } });
+      return handleResponse(response);
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
   // Helper to get location
   getCurrentLocation: () => {
     return new Promise((resolve, reject) => {

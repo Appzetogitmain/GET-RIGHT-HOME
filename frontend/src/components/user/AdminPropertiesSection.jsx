@@ -115,7 +115,11 @@ const AdminPropertyCard = ({ property, index, theme }) => {
             transition={{ delay: index * 0.05, duration: 0.35, ease: 'easeOut' }}
             className="min-w-[280px] md:min-w-[320px] max-w-[320px] snap-center shrink-0"
         >
-            <div onClick={handleCardClick} className="block group cursor-pointer relative">
+            <div 
+                id={`property-${property._id || property.id}`}
+                onClick={handleCardClick} 
+                className="block group cursor-pointer relative"
+            >
                 <div className="relative rounded-3xl overflow-hidden bg-white border border-gray-100 shadow-md hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 h-[340px] w-full flex flex-col">
                     {/* Full Card Background Image */}
                     <div className="absolute inset-0 w-full h-full overflow-hidden bg-gray-50">

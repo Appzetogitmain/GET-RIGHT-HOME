@@ -135,6 +135,29 @@ body:has(#hotel-root) {
    clashes with the app-wide Inter font used everywhere else. */
 .pac-container {
   font-family: "Inter", sans-serif !important;
+  z-index: 1000000 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+  border: 1px solid #f3f4f6 !important;
+  margin-top: 6px !important;
+  overflow: hidden !important;
+}
+
+.pac-item {
+  padding: 10px 14px !important;
+  font-size: 13.5px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.pac-item:hover, .pac-item-selected {
+  background-color: #fff7ed !important;
+}
+
+.pac-icon {
+  margin-top: 0 !important;
 }
 
 @media print {

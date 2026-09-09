@@ -26,6 +26,7 @@ import Zone from '../models/Zone.js';
 import { getIO } from '../sockets.js';
 import { sendBookingEmails } from '../services/emailService.js';
 import { computeBookingPricing, pricingMatchesClient } from '../utils/bookingPricing.js';
+import referralService from '../services/referralService.js';
 
 /**
  * Create a new booking
@@ -438,6 +439,15 @@ const createBooking = async (req, res) => {
       paymentStatus: bookingPaymentStatus
       // notifiedVendors will be set after wave sorting
     });
+
+    // Mark referral voucher as redeemed if used
+    if (reqPromoCode) {
+      try {
+        await referralService.redeemVoucher(reqPromoCode, userId, booking._id);
+      } catch (voucherErr) {
+        console.error('[CreateBooking] Error redeeming voucher:', voucherErr);
+      }
+    }
 
     // --- IMMEDIATE RESPONSE ---
     // Send immediate response to the client. All subsequent operations will run in the background.

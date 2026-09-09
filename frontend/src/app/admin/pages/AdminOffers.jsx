@@ -4,7 +4,8 @@ import {
   Tag, Plus, Trash2, Edit3, Search,
   Filter, ChevronRight, Calendar, Users,
   CheckCircle, XCircle, Clock, Sparkles,
-  TicketPercent, Image as ImageIcon, LayoutGrid, List
+  TicketPercent, Image as ImageIcon, LayoutGrid, List,
+  Link as LinkIcon, ExternalLink, ArrowUpRight, ArrowDownUp
 } from 'lucide-react';
 import { axiosInstance } from '../store/adminStore';
 import toast from 'react-hot-toast';
@@ -28,6 +29,10 @@ const AdminOffers = () => {
     minBookingAmount: '',
     maxDiscount: '',
     description: '',
+    btnText: 'Book Now',
+    destinationUrl: '/home-services',
+    targetType: 'home_services',
+    priority: '0',
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
     usageLimit: '1000',
@@ -73,6 +78,10 @@ const AdminOffers = () => {
       minBookingAmount: offer.minBookingAmount || '',
       maxDiscount: offer.maxDiscount || '',
       description: offer.description || '',
+      btnText: offer.btnText || 'Book Now',
+      destinationUrl: offer.destinationUrl || offer.link || '/home-services',
+      targetType: offer.targetType || 'home_services',
+      priority: offer.priority !== undefined ? String(offer.priority) : '0',
       startDate: offer.startDate ? new Date(offer.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       endDate: offer.endDate ? new Date(offer.endDate).toISOString().split('T')[0] : '',
       image: offer.image || '',
@@ -169,9 +178,9 @@ const AdminOffers = () => {
         <div>
           <h1 className="text-2xl font-black text-surface flex items-center gap-2">
             <Tag className="text-accent" />
-            Offer Management
+            Offer & Promotion Management
           </h1>
-          <p className="text-sm text-gray-500 font-medium">Create and manage promo codes for users</p>
+          <p className="text-sm text-gray-500 font-medium">Manage promotional banners, coupons and destination redirection</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -196,7 +205,9 @@ const AdminOffers = () => {
               setFormData({
                 title: '', subtitle: '', code: '', discountType: 'percentage',
                 discountValue: '', minBookingAmount: '', maxDiscount: '',
-                description: '', startDate: new Date().toISOString().split('T')[0],
+                description: '', btnText: 'Book Now', destinationUrl: '/home-services',
+                targetType: 'home_services', priority: '0',
+                startDate: new Date().toISOString().split('T')[0],
                 endDate: '', image: '', usageLimit: '1000', userLimit: '1', isActive: true
               });
               setImagePreview('');
@@ -269,13 +280,27 @@ const AdminOffers = () => {
                     </div>
                   </div>
                 </div>
+                <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-black text-white flex items-center gap-1">
+                  <ArrowDownUp size={11} className="text-accent" /> Priority {offer.priority || 0}
+                </div>
                 <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${offer.isActive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                   {offer.isActive ? 'Active' : 'Paused'}
                 </div>
               </div>
 
               <div className="p-5">
-                <p className="text-xs text-gray-500 font-medium line-clamp-2 mb-4">{offer.subtitle}</p>
+                <p className="text-xs text-gray-500 font-medium line-clamp-2 mb-3">{offer.subtitle}</p>
+
+                {/* Destination & CTA Bar */}
+                <div className="flex items-center justify-between gap-2 text-[11px] font-bold text-gray-500 bg-gray-50 p-2.5 rounded-xl border border-gray-100 mb-4">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <LinkIcon size={13} className="text-accent shrink-0" />
+                    <span className="truncate">{offer.destinationUrl || '/home-services'}</span>
+                  </div>
+                  <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-gray-200 text-surface font-black shrink-0">
+                    CTA: {offer.btnText || 'Book Now'}
+                  </span>
+                </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-5">
                   <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
@@ -323,6 +348,8 @@ const AdminOffers = () => {
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Offer Detail</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Code</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Discount</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Redirection & CTA</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Priority</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Usage</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
@@ -351,6 +378,20 @@ const AdminOffers = () => {
                     <p className="text-sm font-black text-surface">
                       {offer.discountValue}{offer.discountType === 'percentage' ? '%' : ' FLAT'}
                     </p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                        <LinkIcon size={12} className="text-accent shrink-0" />
+                        {offer.destinationUrl || '/home-services'}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-medium">CTA: {offer.btnText || 'Book Now'}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-black bg-gray-100 text-surface">
+                      {offer.priority || 0}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1 w-24">
@@ -397,12 +438,12 @@ const AdminOffers = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-2xl rounded-[32px] overflow-hidden shadow-2xl relative z-10 flex flex-col max-h-[90vh]"
+              className="bg-white w-full max-w-3xl rounded-[32px] overflow-hidden shadow-2xl relative z-10 flex flex-col max-h-[90vh]"
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <div>
                   <h3 className="text-xl font-black text-surface">{isEditing ? 'Edit Offer' : 'Create New Offer'}</h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">{isEditing ? 'Update Promotion Details' : 'Promotion Details'}</p>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">{isEditing ? 'Update Promotion Details & Redirection' : 'Promotion Details & Redirection'}</p>
                 </div>
                 <button
                   onClick={() => {
@@ -415,7 +456,7 @@ const AdminOffers = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-8 overflow-y-auto">
+              <form onSubmit={handleSubmit} className="p-8 overflow-y-auto space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div className="group">
@@ -561,28 +602,102 @@ const AdminOffers = () => {
                         </div>
                       </div>
                     </div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Offer Image</label>
-                    <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 bg-gray-100 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border-2 border-dashed border-gray-200 group-hover:border-accent transition-colors">
-                        {imagePreview || formData.image ? (
-                          <img src={imagePreview || formData.image} className="w-full h-full object-cover" />
-                        ) : (
-                          <ImageIcon className="text-gray-300" size={24} />
-                        )}
+                  </div>
+                </div>
+
+                {/* Redirection, CTA & Priority Block */}
+                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200/80 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <LinkIcon className="text-accent" size={18} />
+                    <h4 className="text-xs font-black text-surface uppercase tracking-wider">Redirection, Action & Display Priority</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">
+                        Destination URL / Target Link <span className="text-accent">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. /home-services, /home-services/instant, https://..."
+                        className="w-full bg-white border-2 border-transparent focus:border-accent rounded-2xl px-4 py-3 text-sm font-bold text-surface transition-all outline-none shadow-sm"
+                        value={formData.destinationUrl}
+                        onChange={(e) => setFormData({ ...formData, destinationUrl: e.target.value })}
+                      />
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {[
+                          { label: 'Home Services', path: '/home-services' },
+                          { label: 'Instant Services', path: '/home-services/instant' },
+                          { label: 'Sub Categories', path: '/home-services/sub-category' },
+                          { label: 'Rent / PG Page', path: '/rent-pg' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.path}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, destinationUrl: preset.path })}
+                            className={`text-[10px] px-2.5 py-1 rounded-lg font-bold transition-all border ${
+                              formData.destinationUrl === preset.path 
+                                ? 'bg-accent text-white border-accent shadow-sm' 
+                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
                       </div>
-                      <div className="flex-1">
-                        <label className="cursor-pointer bg-gray-50 border-2 border-transparent hover:border-accent hover:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all flex items-center justify-center gap-2">
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                          />
-                          <Sparkles size={16} className="text-accent" />
-                          {imageFile ? imageFile.name : 'Upload Offer Image'}
-                        </label>
-                        <p className="text-[9px] text-gray-400 mt-2 ml-1">PNG, JPG or WEBP (Max 5MB)</p>
-                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Button CTA Text</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Book Now, Claim Offer"
+                        className="w-full bg-white border-2 border-transparent focus:border-accent rounded-2xl px-4 py-3 text-sm font-bold text-surface transition-all outline-none shadow-sm"
+                        value={formData.btnText}
+                        onChange={(e) => setFormData({ ...formData, btnText: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Display Priority (Order)</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        className="w-full bg-white border-2 border-transparent focus:border-accent rounded-2xl px-4 py-3 text-sm font-bold text-surface transition-all outline-none shadow-sm"
+                        value={formData.priority}
+                        onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                      />
+                      <p className="text-[9px] text-gray-400 mt-1 ml-1">Higher number appears first (e.g. 10 appears before 0).</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Offer Image Block */}
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Offer Image</label>
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 bg-gray-100 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border-2 border-dashed border-gray-200 group-hover:border-accent transition-colors shrink-0">
+                      {imagePreview || formData.image ? (
+                        <img src={imagePreview || formData.image} className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon className="text-gray-300" size={24} />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <label className="cursor-pointer bg-gray-50 border-2 border-transparent hover:border-accent hover:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all flex items-center justify-center gap-2">
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                        />
+                        <Sparkles size={16} className="text-accent" />
+                        {imageFile ? imageFile.name : 'Upload Offer Image'}
+                      </label>
+                      <p className="text-[9px] text-gray-400 mt-2 ml-1">PNG, JPG or WEBP (Max 5MB)</p>
                     </div>
                   </div>
                 </div>

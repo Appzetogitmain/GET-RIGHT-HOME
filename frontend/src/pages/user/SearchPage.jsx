@@ -153,42 +153,45 @@ const SearchPage = () => {
     // Filters State
     // Initialize filters from URL
     const getInitialFilters = () => {
-        const amsFromUrl = searchParams.get('amenities')?.split(',') || [];
-        const bhksFromUrl = searchParams.get('bhkType')?.split(',') || [];
-        const furnishFromUrl = searchParams.get('furnishing')?.split(',') || [];
-        const genderFromUrl = searchParams.get('gender')?.split(',') || [];
-        const occupancyFromUrl = searchParams.get('occupancy')?.split(',') || [];
-        const landTypeFromUrl = searchParams.get('landType')?.split(',') || [];
-        const subTypeFromUrl = searchParams.get('subType')?.split(',') || [];
-        const availabilityFromUrl = searchParams.get('availability')?.split(',') || [];
+        const amsFromUrl = searchParams.get('amenities')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const bhksFromUrl = searchParams.get('bhkType')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const furnishFromUrl = searchParams.get('furnishing')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const genderFromUrl = searchParams.get('gender')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const occupancyFromUrl = searchParams.get('occupancy')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const landTypeFromUrl = searchParams.get('landType')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const subTypeFromUrl = (searchParams.get('subType') || searchParams.get('propertyType'))?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const availabilityFromUrl = searchParams.get('availability')?.split(',').map(s => s.trim()).filter(Boolean) || [];
         const possessionYearFromUrl = searchParams.get('possessionYear') || '';
         const foodFromUrl = searchParams.get('foodIncluded') === 'true';
 
         if (foodFromUrl) amsFromUrl.push('Food');
 
-        const floorFromUrl = searchParams.get('floor')?.split(',') || [];
-        const facingFromUrl = searchParams.get('facing')?.split(',') || [];
-        const projectAreaFromUrl = searchParams.get('projectArea')?.split(',') || [];
-        const projectDensityFromUrl = searchParams.get('projectDensity')?.split(',') || [];
-        const bathroomsFromUrl = searchParams.get('bathrooms')?.split(',') || [];
-        const projectsFromUrl = searchParams.get('projects')?.split(',') || [];
+        const floorFromUrl = searchParams.get('floor')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const facingFromUrl = searchParams.get('facing')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const projectAreaFromUrl = searchParams.get('projectArea')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const projectDensityFromUrl = searchParams.get('projectDensity')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const bathroomsFromUrl = searchParams.get('bathrooms')?.split(',').map(s => s.trim()).filter(Boolean) || [];
+        const projectsFromUrl = searchParams.get('projects')?.split(',').map(s => s.trim()).filter(Boolean) || [];
 
         // Map back to UI labels
         const bhkTypeList = [];
         bhksFromUrl.forEach(v => {
-            if (v === '1BHK') bhkTypeList.push('1 RK/1 BHK');
-            else if (v === '2BHK') bhkTypeList.push('2 BHK');
-            else if (v === '3BHK') bhkTypeList.push('3 BHK');
-            else if (v === '4BHK') bhkTypeList.push('4 BHK');
-            else if (v === '4+BHK') bhkTypeList.push('4+ BHK');
-            else if (v === 'Villa') bhkTypeList.push('Villa');
-            else if (v === 'Studio') bhkTypeList.push('Studio');
+            const raw = v.trim();
+            if (raw === '1BHK' || raw === '1 RK/1 BHK' || raw === '1 BHK' || raw === '1 RK') bhkTypeList.push('1 RK/1 BHK');
+            else if (raw === '2BHK' || raw === '2 BHK') bhkTypeList.push('2 BHK');
+            else if (raw === '3BHK' || raw === '3 BHK') bhkTypeList.push('3 BHK');
+            else if (raw === '4BHK' || raw === '4 BHK') bhkTypeList.push('4 BHK');
+            else if (raw === '4+BHK' || raw === '4+ BHK' || raw === '> 4 BHK') bhkTypeList.push('4+ BHK');
+            else if (raw.toLowerCase() === 'villa') bhkTypeList.push('Villa');
+            else if (raw.toLowerCase() === 'studio') bhkTypeList.push('Studio');
+            else bhkTypeList.push(raw);
         });
 
         furnishFromUrl.forEach(v => {
-            if (v === 'Fully') amsFromUrl.push('Fully Furnished');
-            else if (v === 'Semi') amsFromUrl.push('Semi Furnished');
-            else if (v === 'Unfurnished') amsFromUrl.push('Unfurnished');
+            const raw = v.trim().toLowerCase();
+            if (raw.includes('full')) amsFromUrl.push('Fully Furnished');
+            else if (raw.includes('semi')) amsFromUrl.push('Semi Furnished');
+            else if (raw.includes('un')) amsFromUrl.push('Unfurnished');
         });
 
         const genderList = [];
@@ -211,7 +214,11 @@ const SearchPage = () => {
             const matched = [
                 'Apartment', 'Independent House / Villa', 'Builder Floor', '1 RK / Studio Apartment', 
                 'Serviced Apartment', 'Farmhouse', 'Plot / Land', 'Office', 'Retail', 
-                'Industry', 'Storage', 'Hospitality', 'Other'
+                'Industry', 'Storage', 'Hospitality', 'Other',
+                'Hostel', 'PG / Co-Living', 'Single Room', 'Shared Room', 'Studio Apartment',
+                'Residential Plot', 'Commercial Land', 'Agricultural / Farm Land', 'Industrial Plot',
+                'Office Space', 'Bare Shell Office', 'Co-working Office', 'Commercial Shop', 'Showroom', 'Warehouse / Storage',
+                'New Launch Apartments', 'Luxury Villas', 'Gated Community Plots', 'Townships', 'Commercial Complex'
             ].find(opt => opt.toLowerCase() === v.toLowerCase());
             if (matched) {
                 initialPropertyTypes.push(matched);

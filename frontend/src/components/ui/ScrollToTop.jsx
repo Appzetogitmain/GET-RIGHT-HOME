@@ -4,158 +4,124 @@ import { useLocation, useNavigationType } from 'react-router-dom';
 const ScrollToTop = () => {
   const { pathname, search } = useLocation();
   const action = useNavigationType();
-
-  // Scroll state is keyed on the FULL url, not just the path.
-  //
-  // Searching and filtering only change the query string — /search?areas=Indore
-  // to /search?areas=Pune is the same pathname. Keying on pathname alone meant
-  // the effect never re-ran for a new search, so the page kept the old scroll
-  // offset and a fresh result list opened halfway down (or at the very bottom
-  // on mobile, where lists are much taller). It also made every query on a
-  // route share one saved position, so "back" could restore an offset that
-  // belonged to a completely different result set.
   const locationKey = `${pathname}${search}`;
-
-  // `performance.getEntriesByType('navigation')[0].type` describes how the
-  // DOCUMENT loaded and keeps saying "reload" for the rest of the session.
-  // Checking it on every POP meant that after a single refresh, back-button
-  // restoration stayed broken until a full re-navigation. Only the first run
-  // after mount can be a reload.
   const isFirstRunRef = useRef(true);
 
-  // We use useLayoutEffect to aggressively hijack the scroll before the browser paints
   useLayoutEffect(() => {
-    // 1. Tell browser we are handling our own scroll
+    // 1. Tell browser we are handling manual scroll restoration
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
 
     if (action === 'PUSH' || action === 'REPLACE') {
-      // FORWARD NAVIGATION: Start at top exactly
-      
+      // Forward Navigation: Scroll to top immediately
       const goToTop = () => {
         window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         if (window.lenis) {
-            window.lenis.scrollTo(0, { immediate: true });
+          window.lenis.scrollTo(0, { immediate: true });
         }
       };
-      
       goToTop();
-      setTimeout(goToTop, 50);
-
+      setTimeout(goToTop, 30);
+      setTimeout(goToTop, 100);
     } else if (action === 'POP') {
+      // Back Navigation: Restore previous scroll position or target element
+      const lastElementId = sessionStorage.getItem(`last-clicked-id-${locationKey}`);
       const lastSectionId = sessionStorage.getItem(`last-clicked-section-${locationKey}`);
       const savedPosition = sessionStorage.getItem(`scrollPos-${locationKey}`);
-
-      // Instantly wipe memory so a refresh never triggers this twice
-      if (lastSectionId) sessionStorage.removeItem(`last-clicked-section-${locationKey}`);
 
       const isReload =
         isFirstRunRef.current &&
         performance.getEntriesByType('navigation')[0]?.type === 'reload';
 
-      if (lastSectionId) {
-        // --- ELEMENT ANCHOR LOGIC ---
-        let attempts = 0;
-        let success = false;
+      if (!isReload && (lastElementId || lastSectionId || savedPosition)) {
+        let userInteracted = false;
+        let restorationFinished = false;
 
-        const tryScrollToElement = () => {
-          if (success) return;
-          const el = document.getElementById(lastSectionId);
-          if (el) {
-            if (Math.abs(el.getBoundingClientRect().top - 80) > 5) {
-                if (window.lenis) {
-                    window.lenis.scrollTo(el, { offset: -80, immediate: true });
-                } else {
-                    const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 80);
-                    window.scrollTo({ top: y, left: 0, behavior: 'instant' });
-                }
-            }
-            success = true; // We found it and scrolled!
-          }
+        const abortLock = () => {
+          userInteracted = true;
+          if (observer) observer.disconnect();
         };
 
-        tryScrollToElement();
-        [50, 150, 300, 600].forEach(time => setTimeout(tryScrollToElement, time));
-
-        let userInteracted = false;
-        const abortLock = () => { userInteracted = true; observer.disconnect(); };
         window.addEventListener('wheel', abortLock, { passive: true, once: true });
         window.addEventListener('touchstart', abortLock, { passive: true, once: true });
-        window.addEventListener('click', abortLock, { passive: true, once: true });
+        window.addEventListener('pointerdown', abortLock, { passive: true, once: true });
+        window.addEventListener('keydown', abortLock, { passive: true, once: true });
 
-        // Use ResizeObserver to keep the camera locked on the section while skeletons load
-        const observer = new ResizeObserver(() => {
-          if (userInteracted) return;
-          if (attempts < 50) {
-            attempts++;
-            const el = document.getElementById(lastSectionId);
+        const performRestoration = () => {
+          if (userInteracted || restorationFinished) return;
+
+          // Priority 1: Specific clicked card element
+          if (lastElementId) {
+            const el = document.getElementById(lastElementId);
             if (el) {
-                if (Math.abs(el.getBoundingClientRect().top - 80) > 5) {
-                    if (window.lenis) {
-                        window.lenis.scrollTo(el, { offset: -80, immediate: true });
-                    } else {
-                        const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 80);
-                        window.scrollTo({ top: y, left: 0, behavior: 'instant' });
-                    }
-                }
+              const rect = el.getBoundingClientRect();
+              const offsetTop = rect.top + window.scrollY - 90;
+              window.scrollTo({ top: Math.max(0, offsetTop), left: 0, behavior: 'instant' });
+              if (window.lenis) window.lenis.scrollTo(Math.max(0, offsetTop), { immediate: true });
+              restorationFinished = true;
+              return;
             }
           }
-        });
-        
-        observer.observe(document.body);
-        setTimeout(() => {
-            observer.disconnect();
-            window.removeEventListener('wheel', abortLock);
-            window.removeEventListener('touchstart', abortLock);
-            window.removeEventListener('click', abortLock);
-        }, 8000);
 
-      } else if (savedPosition && !isReload) {
-        // --- FALLBACK PIXEL LOGIC (Only for back-button, not refresh) ---
-        const targetPos = parseInt(savedPosition, 10);
-        let attempts = 0;
-        let success = false;
-
-        let userInteracted = false;
-        const abortLock = () => { userInteracted = true; observer.disconnect(); };
-        window.addEventListener('wheel', abortLock, { passive: true, once: true });
-        window.addEventListener('touchstart', abortLock, { passive: true, once: true });
-        window.addEventListener('click', abortLock, { passive: true, once: true });
-
-        const tryRestore = () => {
-          if (success) return;
-          const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-          const posToScroll = Math.min(targetPos, maxScroll);
-          
-          const currentPos = window.lenis ? window.lenis.scroll : window.scrollY;
-          if (Math.abs(currentPos - posToScroll) > 5) {
-              window.scrollTo({ top: posToScroll, left: 0, behavior: 'instant' });
-              if (window.lenis) {
-                window.lenis.scrollTo(posToScroll, { immediate: true });
-              }
+          // Priority 2: Containing section
+          if (lastSectionId) {
+            const sec = document.getElementById(lastSectionId);
+            if (sec) {
+              const rect = sec.getBoundingClientRect();
+              const offsetTop = rect.top + window.scrollY - 70;
+              window.scrollTo({ top: Math.max(0, offsetTop), left: 0, behavior: 'instant' });
+              if (window.lenis) window.lenis.scrollTo(Math.max(0, offsetTop), { immediate: true });
+              restorationFinished = true;
+              return;
+            }
           }
 
-          if (maxScroll >= targetPos - 10) success = true;
+          // Priority 3: Pixel Scroll Position
+          if (savedPosition) {
+            const targetPos = parseInt(savedPosition, 10);
+            if (!isNaN(targetPos) && targetPos > 0) {
+              const maxScroll = Math.max(
+                0,
+                document.documentElement.scrollHeight - window.innerHeight
+              );
+
+              if (maxScroll >= targetPos - 50) {
+                window.scrollTo({ top: targetPos, left: 0, behavior: 'instant' });
+                if (window.lenis) window.lenis.scrollTo(targetPos, { immediate: true });
+                restorationFinished = true;
+                return;
+              } else if (maxScroll > 0) {
+                // Scroll as far down as currently rendered content allows while waiting for more data
+                window.scrollTo({ top: Math.min(targetPos, maxScroll), left: 0, behavior: 'instant' });
+                if (window.lenis) window.lenis.scrollTo(Math.min(targetPos, maxScroll), { immediate: true });
+              }
+            }
+          }
         };
 
-        tryRestore();
-        [50, 150, 300, 600].forEach(time => setTimeout(tryRestore, time));
+        // Run immediately and across key render intervals
+        performRestoration();
+        const intervals = [30, 80, 150, 300, 500, 800, 1200, 1800, 2500];
+        intervals.forEach(t => setTimeout(performRestoration, t));
 
+        // Use ResizeObserver to restore as dynamic content/sections render
         const observer = new ResizeObserver(() => {
-          if (userInteracted) return;
-          if (!success && attempts < 50) {
-            attempts++;
-            tryRestore();
+          if (!userInteracted && !restorationFinished) {
+            performRestoration();
           }
         });
+
         observer.observe(document.body);
+        if (document.documentElement) observer.observe(document.documentElement);
+
         setTimeout(() => {
-            observer.disconnect();
-            window.removeEventListener('wheel', abortLock);
-            window.removeEventListener('touchstart', abortLock);
-            window.removeEventListener('click', abortLock);
-        }, 8000);
+          observer.disconnect();
+          window.removeEventListener('wheel', abortLock);
+          window.removeEventListener('touchstart', abortLock);
+          window.removeEventListener('pointerdown', abortLock);
+          window.removeEventListener('keydown', abortLock);
+        }, 10000);
       }
     }
 
@@ -163,42 +129,51 @@ const ScrollToTop = () => {
   }, [locationKey, action]);
 
   useEffect(() => {
-    // Prevent saving scroll state during the chaotic first second of mount/restoration
     let isRestoring = true;
-    setTimeout(() => isRestoring = false, 1000);
+    setTimeout(() => { isRestoring = false; }, 600);
 
-    // 1. Vertical Scroll tracker
-    const handleScroll = () => {
+    const saveCurrentScroll = () => {
       if (isRestoring) return;
       const currentPos = window.lenis ? window.lenis.scroll : window.scrollY;
-      sessionStorage.setItem(`scrollPos-${locationKey}`, (currentPos || 0).toString());
+      sessionStorage.setItem(`scrollPos-${locationKey}`, Math.round(currentPos || 0).toString());
     };
 
     let scrollTimeout;
     const onScrollHandler = () => {
       clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(handleScroll, 100);
+      scrollTimeout = setTimeout(saveCurrentScroll, 50);
     };
 
     if (window.lenis) window.lenis.on('scroll', onScrollHandler);
     window.addEventListener('scroll', onScrollHandler, { passive: true });
 
-    // 2. Global Click Tracker to save section ID
+    // Global Click Tracker to save clicked element ID, section ID, and current scroll immediately
     const clickTracker = (e) => {
-        // Find the closest parent that has an ID containing 'section'
-        const section = e.target.closest('[id*="section"]');
-        if (section && section.id) {
-            // Save it specific to the current URL so back nav knows where to go
-            sessionStorage.setItem(`last-clicked-section-${locationKey}`, section.id);
-        }
+      const currentPos = window.lenis ? window.lenis.scroll : window.scrollY;
+      sessionStorage.setItem(`scrollPos-${locationKey}`, Math.round(currentPos || 0).toString());
+
+      // Check for card item ID
+      const itemEl = e.target.closest('[id^="property-"], [id^="broker-"], [id^="builder-"], [id^="reel-"], [id^="video-"]');
+      if (itemEl && itemEl.id) {
+        sessionStorage.setItem(`last-clicked-id-${locationKey}`, itemEl.id);
+      }
+
+      // Check for section container ID
+      const section = e.target.closest('[id*="section"]');
+      if (section && section.id) {
+        sessionStorage.setItem(`last-clicked-section-${locationKey}`, section.id);
+      }
     };
-    window.addEventListener('click', clickTracker, true); // use capture phase
+
+    window.addEventListener('click', clickTracker, true);
+    window.addEventListener('beforeunload', saveCurrentScroll);
 
     return () => {
       clearTimeout(scrollTimeout);
       if (window.lenis) window.lenis.off('scroll', onScrollHandler);
       window.removeEventListener('scroll', onScrollHandler);
       window.removeEventListener('click', clickTracker, true);
+      window.removeEventListener('beforeunload', saveCurrentScroll);
     };
   }, [locationKey]);
 

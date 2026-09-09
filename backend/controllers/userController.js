@@ -650,6 +650,32 @@ export const getRecommendedBrokers = async (req, res) => {
               }
             }
           },
+          expertCities: {
+            $reduce: {
+              input: '$listings.address.city',
+              initialValue: [],
+              in: {
+                $cond: [
+                  { $and: [ { $ne: ['$$this', null] }, { $not: { $in: ['$$this', '$$value'] } } ] },
+                  { $concatArrays: ['$$value', ['$$this']] },
+                  '$$value'
+                ]
+              }
+            }
+          },
+          propertyCategories: {
+            $reduce: {
+              input: '$listings.propertyCategory',
+              initialValue: [],
+              in: {
+                $cond: [
+                  { $and: [ { $ne: ['$$this', null] }, { $not: { $in: ['$$this', '$$value'] } } ] },
+                  { $concatArrays: ['$$value', ['$$this']] },
+                  '$$value'
+                ]
+              }
+            }
+          },
           // Format join date for "Member Since"
           memberSince: '$createdAt'
         }
@@ -659,13 +685,21 @@ export const getRecommendedBrokers = async (req, res) => {
       {
         $project: {
           name: 1,
+          phone: 1,
+          email: 1,
+          address: 1,
+          isVerified: 1,
           profileImage: 1,
           rankingWeight: 1,
           planName: 1,
           totalListings: 1,
           verifiedListings: 1,
           expertLocalities: 1,
+          expertCities: 1,
+          propertyCategories: 1,
           memberSince: 1,
+          partnerSince: 1,
+          createdAt: 1,
           recommendedBrokerOrder: 1
         }
       },
@@ -759,6 +793,32 @@ export const getBrokerProfile = async (req, res) => {
               }
             }
           },
+          expertCities: {
+            $reduce: {
+              input: '$listings.address.city',
+              initialValue: [],
+              in: {
+                $cond: [
+                  { $and: [ { $ne: ['$$this', null] }, { $not: { $in: ['$$this', '$$value'] } } ] },
+                  { $concatArrays: ['$$value', ['$$this']] },
+                  '$$value'
+                ]
+              }
+            }
+          },
+          propertyCategories: {
+            $reduce: {
+              input: '$listings.propertyCategory',
+              initialValue: [],
+              in: {
+                $cond: [
+                  { $and: [ { $ne: ['$$this', null] }, { $not: { $in: ['$$this', '$$value'] } } ] },
+                  { $concatArrays: ['$$value', ['$$this']] },
+                  '$$value'
+                ]
+              }
+            }
+          },
           memberSince: '$createdAt'
         }
       },
@@ -766,12 +826,25 @@ export const getBrokerProfile = async (req, res) => {
         $project: {
           name: 1,
           phone: 1, // Will be protected in frontend for logged out users
+          email: 1,
+          address: 1,
+          bio: 1,
+          description: 1,
+          languages: 1,
+          isVerified: 1,
           profileImage: 1,
           planName: 1,
           totalListings: 1,
           verifiedListings: 1,
           expertLocalities: 1,
+          expertCities: 1,
+          propertyCategories: 1,
           memberSince: 1,
+          createdAt: 1,
+          rating: 1,
+          reviewCount: 1,
+          dealsClosed: 1,
+          responseRate: 1,
           activeSubscription: 1
         }
       }

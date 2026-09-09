@@ -102,10 +102,18 @@ const OffersPage = () => {
                                             <CheckCircle size={12} /> Verified Offer
                                         </span>
                                         <button
-                                            onClick={() => { copyCode(offer.code); navigate('/listings'); }}
-                                            className="text-xs font-bold text-accent"
+                                            onClick={() => {
+                                                copyCode(offer.code);
+                                                const target = offer.destinationUrl || offer.link || '/home-services';
+                                                if (target.startsWith('http://') || target.startsWith('https://')) {
+                                                    window.open(target, '_blank', 'noopener,noreferrer');
+                                                } else {
+                                                    navigate(target);
+                                                }
+                                            }}
+                                            className="text-xs font-bold text-accent hover:underline"
                                         >
-                                            Apply & Book
+                                            {offer.btnText || "Apply & Book"}
                                         </button>
                                     </div>
                                 </div>
