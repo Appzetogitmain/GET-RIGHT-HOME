@@ -11,7 +11,6 @@ import { getPreferredCity, onPreferredCityChange } from '../../utils/locationPre
 // actually opens the picker, not on every page load (TopNavbar renders
 // everywhere, eagerly).
 const CityExploreModal = lazy(() => import('../user/CityExploreModal'));
-const GuidedSearchFlowModal = lazy(() => import('../user/GuidedSearchFlowModal'));
 
 const ROLE_LINKS = [
     { label: 'For Buyers', to: '/buy' },
@@ -35,7 +34,6 @@ const TopNavbar = () => {
     const location = useLocation();
     const [city, setCity] = useState(getPreferredCity());
     const [isCityModalOpen, setIsCityModalOpen] = useState(false);
-    const [isGuidedSearchOpen, setIsGuidedSearchOpen] = useState(false);
     const roleLinks = (user && LISTER_ROLES.includes(user.role)) ? LISTER_LINKS : ROLE_LINKS;
 
     // Stay in sync with the city picker on the home page, even without a reload
@@ -115,13 +113,9 @@ const TopNavbar = () => {
                     </Link>
                 ))}
                 <span className="h-4 w-px bg-gray-200" />
-                <button
-                    type="button"
-                    onClick={() => setIsGuidedSearchOpen(true)}
-                    className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}
-                >
+                <Link to="/search" className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}>
                     Search
-                </button>
+                </Link>
                 <Link to="/reels" className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}>
                     Reels
                 </Link>
@@ -185,16 +179,6 @@ const TopNavbar = () => {
         {isCityModalOpen && (
             <Suspense fallback={null}>
                 <CityExploreModal isOpen={isCityModalOpen} onClose={() => setIsCityModalOpen(false)} />
-            </Suspense>
-        )}
-
-        {isGuidedSearchOpen && (
-            <Suspense fallback={null}>
-                <GuidedSearchFlowModal
-                    isOpen={isGuidedSearchOpen}
-                    onClose={() => setIsGuidedSearchOpen(false)}
-                    initialCity={city}
-                />
             </Suspense>
         )}
         </>

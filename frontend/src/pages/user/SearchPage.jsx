@@ -692,13 +692,14 @@ const SearchPage = () => {
 
         const targetBhks = Array.isArray(targetFilters.bhkType) ? targetFilters.bhkType : [];
         targetBhks.forEach(am => {
-            if (am === '1 RK/1 BHK' || am === '1 BHK' || am === '1 RK') bhks.push('1BHK');
-            else if (am === '2 BHK') bhks.push('2BHK');
-            else if (am === '3 BHK') bhks.push('3BHK');
-            else if (am === '4 BHK') bhks.push('4BHK');
-            else if (am === '4+ BHK' || am === '> 4 BHK') bhks.push('4+BHK');
+            if (am === '1 RK/1 BHK' || am === '1 BHK' || am === '1 RK' || am === '1BHK') bhks.push('1BHK');
+            else if (am === '2 BHK' || am === '2BHK') bhks.push('2BHK');
+            else if (am === '3 BHK' || am === '3BHK') bhks.push('3BHK');
+            else if (am === '4 BHK' || am === '4BHK') bhks.push('4BHK');
+            else if (am === '4+ BHK' || am === '> 4 BHK' || am === '4+BHK') bhks.push('4+BHK');
             else if (am === 'Villa') bhks.push('Villa');
             else if (am === 'Studio') bhks.push('Studio');
+            else if (am) bhks.push(am);
         });
 
         const targetGenders = Array.isArray(targetFilters.gender) ? targetFilters.gender : [];
