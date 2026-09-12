@@ -63,6 +63,7 @@ const Profile = () => {
             totalJobs: workerData.totalJobs || 0,
             completedJobs: workerData.completedJobs || 0,
             serviceCategories: workerData.serviceCategories || (workerData.serviceCategory ? [workerData.serviceCategory] : []),
+            pendingServiceCategories: workerData.pendingServiceCategories || [],
             photo: workerData.profilePhoto || null,
             isPhoneVerified: workerData.isPhoneVerified || false,
             isEmailVerified: workerData.isEmailVerified || false
@@ -83,6 +84,7 @@ const Profile = () => {
               totalJobs: localWorkerData.totalJobs || 0,
               completedJobs: localWorkerData.completedJobs || 0,
               serviceCategories: localWorkerData.serviceCategories || (localWorkerData.serviceCategory ? [localWorkerData.serviceCategory] : []),
+              pendingServiceCategories: localWorkerData.pendingServiceCategories || [],
               photo: localWorkerData.profilePhoto || null
             });
             toast('Loaded profile from local storage (API failed)');
@@ -104,6 +106,7 @@ const Profile = () => {
             totalJobs: localWorkerData.totalJobs || 0,
             completedJobs: localWorkerData.completedJobs || 0,
             serviceCategories: localWorkerData.serviceCategories || (localWorkerData.serviceCategory ? [localWorkerData.serviceCategory] : []),
+            pendingServiceCategories: localWorkerData.pendingServiceCategories || [],
             photo: localWorkerData.profilePhoto || null
           });
           toast('Loaded profile from local storage (API failed)');
@@ -241,11 +244,18 @@ const Profile = () => {
           )}
 
           {/* Categories & Location */}
-          <p className="text-white text-xs font-semibold mb-1">
-            {profile.serviceCategories && profile.serviceCategories.length > 0
-              ? profile.serviceCategories.join(' • ')
-              : 'Services not set'}
-          </p>
+          <div className="flex flex-col items-center gap-1 mb-2">
+            <p className="text-white text-xs font-semibold">
+              {profile.serviceCategories && profile.serviceCategories.length > 0
+                ? profile.serviceCategories.join(' • ')
+                : 'Services not set'}
+            </p>
+            {profile.pendingServiceCategories && profile.pendingServiceCategories.length > 0 && (
+              <span className="bg-amber-400/25 text-amber-100 border border-amber-300/40 text-[10px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                ⏳ Pending Verification: {profile.pendingServiceCategories.join(', ')}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-1 text-white text-xs opacity-90">
             <FiMapPin className="w-3 h-3" /> {profile.address ? profile.address.split(' ')[0] : 'Location not set'}
           </div>
