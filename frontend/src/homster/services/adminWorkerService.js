@@ -143,6 +143,30 @@ const adminWorkerService = {
   updateComplaintStatus: async (id, data) => {
     const response = await api.patch(`/admin/workers/complaints/${id}/status`, data);
     return response.data;
+  },
+
+  /**
+   * Approve worker pending skill(s)
+   */
+  approveWorkerSkill: async (id, category) => {
+    const response = await api.post(`/admin/workers/${id}/skills/approve`, { category });
+    return response.data;
+  },
+
+  /**
+   * Reject worker pending skill(s)
+   */
+  rejectWorkerSkill: async (id, category, reason) => {
+    const response = await api.post(`/admin/workers/${id}/skills/reject`, { category, reason });
+    return response.data;
+  },
+
+  /**
+   * Remove verified worker skill
+   */
+  removeWorkerSkill: async (id, category) => {
+    const response = await api.delete(`/admin/workers/${id}/skills`, { data: { category } });
+    return response.data;
   }
 };
 

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Gift, Copy, Share2, Users, ChevronRight,
-    Ticket, Clock, CheckCircle, TrendingUp, Sparkles,
+    Ticket, Clock, CheckCircle, TrendingUp,
     MessageCircle, Twitter, Facebook, Mail, ExternalLink,
     AlertCircle, Tag, ShieldCheck
 } from 'lucide-react';
@@ -204,7 +204,7 @@ const ReferAndEarnPage = () => {
                     </button>
                     <div className="text-center">
                         <h1 className="text-lg font-bold text-white flex items-center gap-2 justify-center">
-                            Refer & Earn <Sparkles size={16} className="text-amber-400" />
+                            Refer & Earn
                         </h1>
                         <p className="text-[11px] text-amber-300 font-medium">Home Services Voucher Rewards</p>
                     </div>

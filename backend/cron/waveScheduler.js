@@ -96,7 +96,11 @@ const handleInitialSearchRetry = async (booking, io) => {
     if (bookingLocation.lat && bookingLocation.lng) {
       const globalSettings = await Settings.findOne({ type: 'global' }).select('searchRadius').lean();
       const searchRadius = globalSettings?.searchRadius || 10;
-      const filters = { service: booking.serviceCategory };
+      const filters = {
+        service: booking.serviceCategory,
+        serviceName: booking.serviceName,
+        categoryId: booking.categoryId
+      };
 
       partners = await findNearbyWorkers(bookingLocation, searchRadius, filters);
 
