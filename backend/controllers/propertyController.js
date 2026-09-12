@@ -1126,7 +1126,8 @@ export const getPublicProperties = async (req, res) => {
           { 'dynamicData.bhk': { $in: bhkRegexList } },
           { 'rentDetails.type': { $in: bhkRegexList } },
           { 'buyDetails.bhkType': { $in: bhkRegexList } },
-          { 'buyDetails.type': { $in: bhkRegexList } }
+          { 'buyDetails.type': { $in: bhkRegexList } },
+          { propertyName: { $in: bhkRegexList } }
         ]
       };
 
