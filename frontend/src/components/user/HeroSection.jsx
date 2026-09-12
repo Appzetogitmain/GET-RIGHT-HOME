@@ -234,14 +234,14 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                             onClick={handleLiveLocationDetect}
                             title="Detect live location"
                         />
-                        <button
+                        {/* <button
                             type="button"
                             onClick={() => setIsSearchModalOpen(true)}
                             className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors shrink-0"
                             title="Guided Search Flow"
                         >
                             <LucideIcons.Sparkles size={17} />
-                        </button>
+                        </button> */}
                         <button
                             type="button"
                             onClick={handleSearch}
@@ -274,12 +274,12 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             )}
 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-            <GuidedSearchFlowModal
+            {/* <GuidedSearchFlowModal
                 isOpen={isSearchModalOpen}
                 onClose={() => setIsSearchModalOpen(false)}
                 initialCity={selectedCity}
                 initialTab={selectedType?.label?.toLowerCase() || 'buy'}
-            />
+            /> */}
         </motion.section>
     );
 };

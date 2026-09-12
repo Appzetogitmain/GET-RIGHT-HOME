@@ -74,6 +74,28 @@ const workerSchema = new mongoose.Schema({
   serviceCategories: [{
     type: String
   }],
+  pendingServiceCategories: [{
+    type: String
+  }],
+  rejectedServiceCategories: [{
+    category: { type: String },
+    reason: { type: String, default: 'Not approved by admin' },
+    rejectedAt: { type: Date, default: Date.now }
+  }],
+  skillRequests: [{
+    category: { type: String, required: true },
+    experienceYears: { type: Number, default: 0 },
+    experienceLetter: { type: String, default: null }, // URL of uploaded certificate/document
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    requestedAt: { type: Date, default: Date.now },
+    reviewedAt: { type: Date }
+  }],
+  verifiedSkillsDetails: [{
+    category: { type: String, required: true },
+    experienceYears: { type: Number, default: 0 },
+    experienceLetter: { type: String, default: null },
+    approvedAt: { type: Date, default: Date.now }
+  }],
   status: {
     type: String,
     enum: Object.values(WORKER_STATUS),
@@ -246,6 +268,7 @@ const workerSchema = new mongoose.Schema({
 // Indexes for faster queries
 workerSchema.index({ status: 1 });
 workerSchema.index({ serviceCategories: 1 });
+workerSchema.index({ pendingServiceCategories: 1 });
 workerSchema.index({ vendorId: 1 });
 workerSchema.index({ geoLocation: '2dsphere' }); // Fast geo queries
 workerSchema.index({ isOnline: 1, approvalStatus: 1 }); 

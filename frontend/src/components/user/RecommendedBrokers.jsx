@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/apiService';
-import { Sparkles, Building2, Eye, Phone, MapPin, Check, ChevronRight, Loader2, X, MessageCircle } from 'lucide-react';
+import { Briefcase, Building2, Eye, Phone, MapPin, Check, ChevronRight, Loader2, X, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLeadCapture } from '../../hooks/useLeadCapture';
 
@@ -125,7 +125,7 @@ export const BrokerCard = ({ broker, index = 0, onContact }) => {
                     {/* Experience */}
                     <div className="flex items-center gap-2 pr-1">
                         <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100/80 flex items-center justify-center text-emerald-600 shrink-0">
-                            <Sparkles size={16} strokeWidth={2.2} />
+                            <Briefcase size={16} strokeWidth={2.2} />
                         </div>
                         <div className="flex flex-col min-w-0">
                             <span className="text-[14px] font-black text-gray-900 leading-tight">

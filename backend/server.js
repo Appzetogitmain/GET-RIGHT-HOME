@@ -164,6 +164,8 @@ import adminInsightRoutes from './routes/adminInsightRoutes.js';
 import propertyVideoRoutes from './routes/propertyVideoRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import adminSupportRoutes from './routes/adminSupportRoutes.js';
+import loanLeadRoutes from './routes/loanLeadRoutes.js';
+import adminLoanLeadRoutes from './routes/adminLoanLeadRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
 import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
@@ -242,6 +244,10 @@ app.use('/api/property-videos', propertyVideoRoutes);
 // Support Chat (user <-> admin)
 app.use('/api/support', supportRoutes);
 app.use('/api/admin/support', adminSupportRoutes);
+
+// Loan Leads (user submission & admin management)
+app.use('/api/loan-leads', loanLeadRoutes);
+app.use('/api/admin/loan-leads', adminLoanLeadRoutes);
 
 // Basic API Check Route
 app.get('/api/check', (req, res) => {

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiSave, FiUser, FiPhone, FiMail,
   FiMapPin, FiBriefcase, FiCamera, FiCheck,
-  FiChevronDown, FiX
+  FiChevronDown, FiX, FiClock, FiAlertCircle,
+  FiTrash2, FiUploadCloud, FiFileText
 } from 'react-icons/fi';
 import Header from '../../components/layout/Header';
 import BottomNav from '../../components/layout/BottomNav';
@@ -39,6 +40,9 @@ const EditProfile = () => {
   const [categories, setCategories] = useState([]);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
+  const [verifiedCategories, setVerifiedCategories] = useState([]);
+  const [pendingCategories, setPendingCategories] = useState([]);
+  const [skillsData, setSkillsData] = useState({});
 
   const [formData, setFormData] = useState({
     name: '',
@@ -79,6 +83,37 @@ const EditProfile = () => {
 
         if (profileRes.success) {
           const w = profileRes.worker;
+          const verified = w.serviceCategories || (w.serviceCategory ? [w.serviceCategory] : []);
+          const pending = w.pendingServiceCategories || [];
+          setVerifiedCategories(verified);
+          setPendingCategories(pending);
+
+          const initialCategories = Array.from(new Set([...verified, ...pending]));
+
+          // Initialize skillsData with experience and certificates
+          const initialSkillsData = {};
+          (w.verifiedSkillsDetails || []).forEach(v => {
+            if (v.category) {
+              initialSkillsData[v.category] = {
+                experienceYears: v.experienceYears || 0,
+                experienceLetter: v.experienceLetter || null,
+                experienceLetterPreview: v.experienceLetter || null,
+                letterFile: null
+              };
+            }
+          });
+          (w.skillRequests || []).forEach(r => {
+            if (r.category) {
+              initialSkillsData[r.category] = {
+                experienceYears: r.experienceYears || 0,
+                experienceLetter: r.experienceLetter || null,
+                experienceLetterPreview: r.experienceLetter || null,
+                letterFile: null
+              };
+            }
+          });
+          setSkillsData(initialSkillsData);
+
           setFormData({
             name: w.name || '',
             phone: w.phone || '',
@@ -89,7 +124,7 @@ const EditProfile = () => {
               state: w.address?.state || '',
               pincode: w.address?.pincode || '',
             },
-            serviceCategories: w.serviceCategories || (w.serviceCategory ? [w.serviceCategory] : []),
+            serviceCategories: initialCategories,
             profilePhoto: w.profilePhoto || null,
             status: w.status || 'offline'
           });
@@ -170,6 +205,46 @@ const EditProfile = () => {
   };
 
 
+  const handleExperienceYearsChange = (category, years) => {
+    const val = years === '' ? '' : Math.max(0, parseInt(years, 10) || 0);
+    setSkillsData(prev => ({
+      ...prev,
+      [category]: {
+        ...(prev[category] || {}),
+        experienceYears: val
+      }
+    }));
+  };
+
+  const handleExperienceLetterChange = (category, file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size should be less than 5MB');
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setSkillsData(prev => ({
+      ...prev,
+      [category]: {
+        ...(prev[category] || {}),
+        letterFile: file,
+        experienceLetterPreview: previewUrl
+      }
+    }));
+  };
+
+  const handleRemoveExperienceLetter = (category) => {
+    setSkillsData(prev => ({
+      ...prev,
+      [category]: {
+        ...(prev[category] || {}),
+        letterFile: null,
+        experienceLetter: null,
+        experienceLetterPreview: null
+      }
+    }));
+  };
+
   const handleAddressSave = (houseNumber, location) => {
     // Extract components from Google Maps location
     let city = '';
@@ -241,14 +316,40 @@ const EditProfile = () => {
         }
       }
 
-      await workerService.updateProfile(payload);
-      toast.success('Profile updated successfully');
+      // Process experience years & experience letter upload for each category
+      const skillsMetadata = {};
+      for (const cat of formData.serviceCategories) {
+        const item = skillsData[cat] || {};
+        let letterUrl = item.experienceLetter || null;
+
+        if (item.letterFile) {
+          try {
+            letterUrl = await uploadFile(item.letterFile);
+          } catch (uploadErr) {
+            console.error(`Experience letter upload failed for ${cat}:`, uploadErr);
+            toast.error(`Failed to upload experience document for ${cat}`);
+            setSaving(false);
+            return;
+          }
+        }
+
+        skillsMetadata[cat] = {
+          category: cat,
+          experienceYears: Number(item.experienceYears) || 0,
+          experienceLetter: letterUrl
+        };
+      }
+      payload.skillsMetadata = skillsMetadata;
+
+      const updateRes = await workerService.updateProfile(payload);
+      toast.success(updateRes.message || 'Profile updated successfully');
 
       // Update local storage to keep session in sync if needed
       const currentWorker = JSON.parse(localStorage.getItem('workerData') || '{}');
       localStorage.setItem('workerData', JSON.stringify({
         ...currentWorker,
         ...payload,
+        ...(updateRes.worker || {}),
         profilePhoto: payload.profilePhoto || currentWorker.profilePhoto
       }));
 
@@ -437,18 +538,45 @@ const EditProfile = () => {
                 onClick={() => setIsCategoryOpen(!isCategoryOpen)}
                 className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between cursor-pointer"
               >
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {formData.serviceCategories && formData.serviceCategories.length > 0 ? (
-                    formData.serviceCategories.map((cat, idx) => (
-                      <span key={idx} className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">
-                        {cat}
-                      </span>
-                    ))
+                    formData.serviceCategories.map((cat, idx) => {
+                      const isVerified = verifiedCategories.includes(cat);
+                      const isPending = pendingCategories.includes(cat);
+                      return (
+                        <span
+                          key={idx}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 border ${
+                            isVerified
+                              ? 'bg-green-50 text-green-800 border-green-200'
+                              : isPending
+                                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                : 'bg-blue-50 text-blue-800 border-blue-200'
+                          }`}
+                        >
+                          {isVerified && <FiCheck className="w-3 h-3 text-green-600 shrink-0" />}
+                          {isPending && <FiClock className="w-3 h-3 text-amber-600 shrink-0" />}
+                          {!isVerified && !isPending && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>}
+                          <span>{cat}</span>
+                          <span
+                            className={`text-[9px] px-1 py-0.2 rounded font-bold uppercase ${
+                              isVerified
+                                ? 'bg-green-200/70 text-green-900'
+                                : isPending
+                                  ? 'bg-amber-200/70 text-amber-900'
+                                  : 'bg-blue-200/70 text-blue-900'
+                            }`}
+                          >
+                            {isVerified ? 'Verified' : isPending ? 'Pending' : 'New'}
+                          </span>
+                        </span>
+                      );
+                    })
                   ) : (
                     <span className="text-gray-400">Select Categories</span>
                   )}
                 </div>
-                <FiChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
+                <FiChevronDown className={`w-5 h-5 text-gray-400 transition-transform shrink-0 ml-2 ${isCategoryOpen ? 'rotate-180' : ''}`} />
               </div>
 
               {isCategoryOpen && (
@@ -458,6 +586,8 @@ const EditProfile = () => {
                 >
                   {categories.map((cat, index) => {
                     const isSelected = formData.serviceCategories.includes(cat.title);
+                    const isVerified = verifiedCategories.includes(cat.title);
+                    const isPending = pendingCategories.includes(cat.title);
                     return (
                       <div
                         key={cat._id || index}
@@ -465,10 +595,27 @@ const EditProfile = () => {
                           handleCategoryChange(cat.title);
                         }}
                         className={`px-4 py-3 cursor-pointer border-b border-gray-50 last:border-0 font-medium flex justify-between items-center transition-colors ${
-                          isSelected ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'
+                          isSelected ? 'bg-blue-50/60 text-blue-800' : 'hover:bg-gray-50 text-gray-700'
                         }`}
                       >
-                        <span>{cat.title}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{cat.title}</span>
+                          {isVerified && (
+                            <span className="text-[10px] bg-green-100 text-green-800 font-bold px-1.5 py-0.5 rounded border border-green-200">
+                              Verified
+                            </span>
+                          )}
+                          {isPending && (
+                            <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded border border-amber-200">
+                              Pending Review
+                            </span>
+                          )}
+                          {isSelected && !isVerified && !isPending && (
+                            <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded border border-blue-200">
+                              New (Pending on Save)
+                            </span>
+                          )}
+                        </div>
                         {isSelected && <FiCheck className="text-blue-600 w-4 h-4" />}
                       </div>
                     );
@@ -476,7 +623,161 @@ const EditProfile = () => {
                 </div>
               )}
             </div>
+
+            {/* Verification Info Note */}
+            <div className="mt-3 p-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-start gap-2.5 text-xs text-blue-800">
+              <FiAlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">Skill Verification Notice:</span>
+                <p className="mt-0.5 text-blue-700 leading-relaxed text-[11px]">
+                  Newly added categories require admin review and verification before you can receive job requests for them. Your existing verified categories will continue receiving job requests without interruption.
+                </p>
+              </div>
+            </div>
+
             {errors.serviceCategories && <p className="text-red-500 text-[10px] mt-1">{errors.serviceCategories}</p>}
+
+            {/* Experience & Optional Certificate for New / Pending Skills */}
+            {(() => {
+              const unverifiedCategories = (formData.serviceCategories || []).filter(c => !verifiedCategories.includes(c));
+              if (unverifiedCategories.length === 0) return null;
+
+              return (
+                <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                      <FiBriefcase className="w-3.5 h-3.5 text-blue-600" />
+                      New Skill Details & Verification
+                    </h3>
+                    <span className="text-[10px] text-gray-400 font-medium">Letter is Optional</span>
+                  </div>
+
+                  <p className="text-[11px] text-gray-500">
+                    Provide your years of experience and optionally upload an experience letter or certificate for faster approval.
+                  </p>
+
+                  <div className="space-y-3">
+                    {unverifiedCategories.map((cat) => {
+                      const isPending = pendingCategories.includes(cat);
+                      const data = skillsData[cat] || {};
+                      const expYears = data.experienceYears !== undefined && data.experienceYears !== null ? data.experienceYears : '';
+                      const preview = data.experienceLetterPreview || data.experienceLetter;
+
+                      return (
+                        <div
+                          key={cat}
+                          className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/70 space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-gray-800">{cat}</span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                isPending
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+                              }`}
+                            >
+                              {isPending ? 'Pending Admin Review' : 'New Skill'}
+                            </span>
+                          </div>
+
+                          {/* Experience Years */}
+                          <div>
+                            <label className="block text-[11px] font-semibold text-gray-600 mb-1">
+                              Experience in this Skill (Years)
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="0"
+                                max="50"
+                                step="1"
+                                value={expYears}
+                                onChange={(e) => handleExperienceYearsChange(cat, e.target.value)}
+                                placeholder="e.g. 2"
+                                className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-100"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold pointer-events-none">
+                                Years
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Experience Letter / Photo (Optional) */}
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[11px] font-semibold text-gray-600">
+                                Experience Letter / Certificate Photo
+                              </label>
+                              <span className="text-[10px] text-gray-400 font-normal">Optional</span>
+                            </div>
+
+                            {preview ? (
+                              <div className="p-2.5 bg-white rounded-xl border border-gray-200 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 overflow-hidden">
+                                  <img
+                                    src={preview}
+                                    alt="Certificate"
+                                    className="w-12 h-12 object-cover rounded-lg border border-gray-100 shrink-0 bg-gray-50 cursor-pointer"
+                                    onClick={() => window.open(preview, '_blank')}
+                                    title="Click to view full image"
+                                  />
+                                  <div className="overflow-hidden">
+                                    <p className="text-xs font-bold text-gray-800 truncate">
+                                      {data.letterFile?.name || 'Experience Document'}
+                                    </p>
+                                    <a
+                                      href={preview}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-[10px] text-blue-600 font-semibold hover:underline"
+                                    >
+                                      View Photo ↗
+                                    </a>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveExperienceLetter(cat)}
+                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                                  title="Remove Photo"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div>
+                                <input
+                                  type="file"
+                                  id={`exp-letter-${cat.replace(/\s+/g, '-')}`}
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files?.[0]) {
+                                      handleExperienceLetterChange(cat, e.target.files[0]);
+                                    }
+                                  }}
+                                />
+                                <label
+                                  htmlFor={`exp-letter-${cat.replace(/\s+/g, '-')}`}
+                                  className="flex items-center justify-center gap-2 py-2.5 px-3 bg-white border border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-all text-xs text-gray-600 font-semibold"
+                                >
+                                  <FiUploadCloud className="w-4 h-4 text-blue-500" />
+                                  <span>Upload Experience Letter (Photo - Optional)</span>
+                                </label>
+                                <p className="text-[10px] text-gray-400 mt-1 ml-1">
+                                  Optional photo of certificate, letter or past work (JPG, PNG)
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
         </div>

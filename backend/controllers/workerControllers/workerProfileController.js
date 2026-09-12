@@ -1,6 +1,7 @@
 import Worker from '../../models/Worker.js';
-import {  validationResult  } from 'express-validator';
+import { validationResult } from 'express-validator';
 import cloudinaryService from '../../services/cloudinaryService.js';
+import { createNotification } from '../notificationControllers/notificationController.js';
 
 /**
  * Get worker profile
@@ -25,7 +26,12 @@ const getProfile = async (req, res) => {
         name: worker.name,
         email: worker.email,
         phone: worker.phone,
+        approvalStatus: worker.approvalStatus,
         serviceCategories: worker.serviceCategories || [],
+        pendingServiceCategories: worker.pendingServiceCategories || [],
+        rejectedServiceCategories: worker.rejectedServiceCategories || [],
+        skillRequests: worker.skillRequests || [],
+        verifiedSkillsDetails: worker.verifiedSkillsDetails || [],
         serviceCategory: worker.serviceCategories?.[0] || '', // Legacy support
         skills: worker.skills || [],
         address: worker.address || null,
@@ -70,7 +76,7 @@ const updateProfile = async (req, res) => {
     }
 
     const workerId = req.user.id;
-    const { name, serviceCategories, serviceCategory, skills, address, status, profilePhoto, digitalIdCard, aadharFront, aadharBack, panCard, drivingLicense } = req.body;
+    const { name, serviceCategories, serviceCategory, skills, address, status, profilePhoto, digitalIdCard, aadharFront, aadharBack, panCard, drivingLicense, skillRequests, skillsMetadata } = req.body;
 
     const worker = await Worker.findById(workerId);
 
@@ -84,11 +90,112 @@ const updateProfile = async (req, res) => {
     // Update fields
     if (name) worker.name = name.trim();
 
-    // Handle categories: prefer array, fallback to single legacy string
-    if (serviceCategories && Array.isArray(serviceCategories)) {
-      worker.serviceCategories = serviceCategories;
-    } else if (serviceCategory) {
-      worker.serviceCategories = [serviceCategory.trim()];
+    let newPendingSkillsAdded = [];
+    let customSuccessMessage = 'Profile updated successfully';
+
+    // Handle categories with verification flow
+    if (serviceCategories !== undefined || serviceCategory !== undefined) {
+      const incoming = (serviceCategories && Array.isArray(serviceCategories))
+        ? serviceCategories.map(c => typeof c === 'string' ? c.trim() : '').filter(Boolean)
+        : (serviceCategory ? [serviceCategory.trim()] : []);
+
+      // If worker is already approved by admin, apply verification workflow
+      if (worker.approvalStatus === 'approved') {
+        const existingApproved = worker.serviceCategories || [];
+        // Only keep categories that were already approved and still selected
+        const retainedApproved = incoming.filter(c =>
+          existingApproved.some(e => e.toLowerCase() === c.toLowerCase())
+        );
+
+        // New categories that need verification
+        const newlyAdded = incoming.filter(c =>
+          !existingApproved.some(e => e.toLowerCase() === c.toLowerCase())
+        );
+
+        worker.serviceCategories = retainedApproved;
+
+        // Current pending categories
+        const currentPending = worker.pendingServiceCategories || [];
+        // If worker unselected something that was previously pending, remove it; add newly added
+        const updatedPending = Array.from(new Set([
+          ...currentPending.filter(c => incoming.some(inc => inc.toLowerCase() === c.toLowerCase())),
+          ...newlyAdded
+        ]));
+
+        worker.pendingServiceCategories = updatedPending;
+        newPendingSkillsAdded = newlyAdded;
+
+        if (newlyAdded.length > 0) {
+          customSuccessMessage = `Profile updated. New skill(s) [${newlyAdded.join(', ')}] submitted for admin verification. Your existing verified skills remain active.`;
+
+          // Notify Admin
+          try {
+            await createNotification({
+              type: 'worker_skill_pending',
+              title: 'New Skill Verification Requested 🛠️',
+              message: `Worker ${worker.name} (${worker.phone}) requested verification for new skill(s): ${newlyAdded.join(', ')}.`,
+              relatedId: worker._id,
+              relatedType: 'worker',
+              priority: 'normal',
+              adminOnly: true
+            });
+          } catch (notifErr) {
+            console.error('Failed to send admin notification for new worker skill:', notifErr);
+          }
+        }
+      } else {
+        // Worker is still pending initial account approval
+        worker.serviceCategories = incoming;
+        worker.pendingServiceCategories = [];
+      }
+    }
+
+    // Handle skills metadata (experienceYears, experienceLetter)
+    const incomingSkillMeta = skillRequests || skillsMetadata;
+    if (incomingSkillMeta) {
+      const metaList = Array.isArray(incomingSkillMeta)
+        ? incomingSkillMeta
+        : Object.entries(incomingSkillMeta).map(([category, data]) => ({ category, ...(typeof data === 'object' ? data : {}) }));
+
+      if (!Array.isArray(worker.skillRequests)) worker.skillRequests = [];
+
+      for (const item of metaList) {
+        if (!item.category) continue;
+        const catName = typeof item.category === 'string' ? item.category.trim() : '';
+        if (!catName) continue;
+
+        let letterUrl = item.experienceLetter || null;
+        if (letterUrl && typeof letterUrl === 'string' && letterUrl.startsWith('data:')) {
+          try {
+            const upRes = await cloudinaryService.uploadFile(letterUrl, { folder: 'workers/documents' });
+            if (upRes.success) letterUrl = upRes.url;
+          } catch (e) {
+            console.error('Failed to upload experience letter:', e);
+          }
+        }
+
+        const expYears = Number(item.experienceYears) || 0;
+        const existingIdx = worker.skillRequests.findIndex(
+          r => r.category && r.category.toLowerCase() === catName.toLowerCase()
+        );
+
+        if (existingIdx >= 0) {
+          worker.skillRequests[existingIdx].experienceYears = expYears;
+          if (letterUrl !== undefined) {
+            worker.skillRequests[existingIdx].experienceLetter = letterUrl;
+          }
+          worker.skillRequests[existingIdx].status = 'pending';
+          worker.skillRequests[existingIdx].requestedAt = new Date();
+        } else {
+          worker.skillRequests.push({
+            category: catName,
+            experienceYears: expYears,
+            experienceLetter: letterUrl,
+            status: 'pending',
+            requestedAt: new Date()
+          });
+        }
+      }
     }
 
     if (skills && Array.isArray(skills)) worker.skills = skills;
@@ -195,13 +302,20 @@ const updateProfile = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Profile updated successfully',
+      message: customSuccessMessage,
+      newSkillsPending: newPendingSkillsAdded.length > 0,
+      newlyAddedSkills: newPendingSkillsAdded,
       worker: {
         id: worker._id,
         name: worker.name,
         email: worker.email,
         phone: worker.phone,
+        approvalStatus: worker.approvalStatus,
         serviceCategories: worker.serviceCategories,
+        pendingServiceCategories: worker.pendingServiceCategories || [],
+        rejectedServiceCategories: worker.rejectedServiceCategories || [],
+        skillRequests: worker.skillRequests || [],
+        verifiedSkillsDetails: worker.verifiedSkillsDetails || [],
         serviceCategory: worker.serviceCategories?.[0] || '',
         skills: worker.skills,
         address: worker.address,

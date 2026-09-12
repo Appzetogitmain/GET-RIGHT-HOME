@@ -12,7 +12,10 @@ import {
   getWorkerEarnings,
   payWorker,
   getWorkerPayments,
-  assignWorkerToBooking
+  assignWorkerToBooking,
+  approveWorkerSkill,
+  rejectWorkerSkill,
+  removeWorkerSkill
 } from '../controllers/adminWorkerController.js';
 import {
   getAllComplaints,
@@ -43,5 +46,10 @@ router.delete('/:id', deleteWorker);
 router.get('/:id/jobs', getWorkerJobs);
 router.get('/:id/earnings', getWorkerEarnings);
 router.post('/:id/pay', payWorker);
+
+// Skill Verification Routes
+router.post('/:id/skills/approve', approveWorkerSkill);
+router.post('/:id/skills/reject', rejectWorkerSkill);
+router.delete('/:id/skills', removeWorkerSkill);
 
 export default router;

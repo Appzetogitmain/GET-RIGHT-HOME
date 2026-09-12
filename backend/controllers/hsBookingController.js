@@ -199,7 +199,12 @@ const createBooking = async (req, res) => {
     let nearbyPartners = await findNearbyWorkers(
       bookingLocation,
       searchRadius,
-      { service: category?.title || (service ? service.category : 'General') }
+      {
+        service: category?.title || reqServiceCategory || (service ? service.category : 'General'),
+        serviceName: service?.title,
+        categoryId: category?._id || categoryId,
+        slug: category?.slug
+      }
     );
 
     // Deduplicate nearbyPartners by _id to prevent duplicate notifications

@@ -11,7 +11,7 @@ import {
     Share2, 
     ArrowLeft,
     Loader2,
-    Sparkles,
+    Briefcase,
     Building2,
     Handshake,
     ThumbsUp,
@@ -273,7 +273,7 @@ const BrokerProfilePage = () => {
                         {/* 1. Experience */}
                         <div className="flex items-center gap-3 md:px-4">
                             <div className="w-11 h-11 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                                <Sparkles size={18} strokeWidth={2.2} />
+                                <Briefcase size={18} strokeWidth={2.2} />
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-base sm:text-lg font-black text-gray-900 leading-tight">

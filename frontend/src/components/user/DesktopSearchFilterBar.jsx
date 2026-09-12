@@ -345,7 +345,7 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
                     />
                 </div>
 
-                <button
+                {/* <button
                     type="button"
                     onClick={() => setIsGuidedModalOpen(true)}
                     className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-800 text-[13px] font-semibold transition-all shrink-0 cursor-pointer shadow-sm"
@@ -353,7 +353,7 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
                 >
                     <Sparkles size={15} className="text-emerald-600" />
                     <span className="hidden xl:inline">Guided Flow</span>
-                </button>
+                </button> */}
 
                 <button
                     onClick={handleSearch}
@@ -440,7 +440,7 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
             </div>
         </div>
 
-        <GuidedSearchFlowModal
+        {/* <GuidedSearchFlowModal
             isOpen={isGuidedModalOpen}
             onClose={() => setIsGuidedModalOpen(false)}
             initialCity={selectedCity}
@@ -450,7 +450,7 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
             initialBedrooms={bedrooms}
             initialConstructionStatus={constructionStatus}
             initialPostedBy={postedBy}
-        />
+        /> */}
         </>
     );
 };

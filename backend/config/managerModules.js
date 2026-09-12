@@ -89,6 +89,12 @@ export const MANAGER_MODULES = [
     actions: ['view', 'edit', 'delete', 'export'],
   },
   {
+    key: 'loan_leads',
+    label: 'Loan Leads',
+    group: 'MANAGEMENT',
+    actions: ['view', 'edit', 'delete', 'export'],
+  },
+  {
     key: 'reviews',
     label: 'Reviews',
     group: 'MANAGEMENT',

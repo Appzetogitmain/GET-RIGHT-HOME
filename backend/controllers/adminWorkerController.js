@@ -45,7 +45,11 @@ export const getAllWorkers = async (req, res) => {
     }
 
     if (approvalStatus && approvalStatus !== 'all') {
-      query.approvalStatus = approvalStatus;
+      if (approvalStatus === 'pending_skills') {
+        query['pendingServiceCategories.0'] = { $exists: true };
+      } else {
+        query.approvalStatus = approvalStatus;
+      }
     }
 
     const workers = await Worker.find(query).sort({ createdAt: -1 });
@@ -67,12 +71,17 @@ export const getWorkerDetails = async (req, res) => {
 
 export const approveWorker = async (req, res) => {
   try {
-    const worker = await Worker.findByIdAndUpdate(
-      req.params.id,
-      { approvalStatus: 'approved' },
-      { new: true }
-    );
+    const worker = await Worker.findById(req.params.id);
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
+
+    worker.approvalStatus = 'approved';
+    // If worker had pending categories during initial registration, approve them now
+    if (worker.pendingServiceCategories && worker.pendingServiceCategories.length > 0) {
+      const existing = worker.serviceCategories || [];
+      worker.serviceCategories = Array.from(new Set([...existing, ...worker.pendingServiceCategories]));
+      worker.pendingServiceCategories = [];
+    }
+    await worker.save();
 
     // Process Referral Bonus
     if (worker.referredBy && !worker.referralBonusCredited) {
@@ -702,3 +711,210 @@ export const assignWorkerToBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * Approve worker pending skill(s)
+ */
+export const approveWorkerSkill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { category } = req.body;
+
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'Category is required' });
+    }
+
+    const worker = await Worker.findById(id);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    const categoriesToApprove = Array.isArray(category) ? category : [category];
+
+    if (!Array.isArray(worker.serviceCategories)) worker.serviceCategories = [];
+    if (!Array.isArray(worker.pendingServiceCategories)) worker.pendingServiceCategories = [];
+
+    const approvedList = [];
+    for (const cat of categoriesToApprove) {
+      const trimmed = typeof cat === 'string' ? cat.trim() : '';
+      if (!trimmed) continue;
+
+      // Remove from pending
+      worker.pendingServiceCategories = worker.pendingServiceCategories.filter(
+        c => c.trim().toLowerCase() !== trimmed.toLowerCase()
+      );
+
+      // Add to verified if not already present
+      const alreadyHas = worker.serviceCategories.some(
+        c => c.trim().toLowerCase() === trimmed.toLowerCase()
+      );
+      if (!alreadyHas) {
+        worker.serviceCategories.push(trimmed);
+        approvedList.push(trimmed);
+      }
+
+      // Update skillRequests & verifiedSkillsDetails metadata
+      if (Array.isArray(worker.skillRequests)) {
+        const reqItem = worker.skillRequests.find(
+          r => r.category && r.category.trim().toLowerCase() === trimmed.toLowerCase()
+        );
+        if (reqItem) {
+          reqItem.status = 'approved';
+          reqItem.reviewedAt = new Date();
+
+          if (!Array.isArray(worker.verifiedSkillsDetails)) worker.verifiedSkillsDetails = [];
+          const vIdx = worker.verifiedSkillsDetails.findIndex(
+            v => v.category && v.category.trim().toLowerCase() === trimmed.toLowerCase()
+          );
+          if (vIdx >= 0) {
+            worker.verifiedSkillsDetails[vIdx].experienceYears = reqItem.experienceYears || 0;
+            worker.verifiedSkillsDetails[vIdx].experienceLetter = reqItem.experienceLetter || null;
+            worker.verifiedSkillsDetails[vIdx].approvedAt = new Date();
+          } else {
+            worker.verifiedSkillsDetails.push({
+              category: trimmed,
+              experienceYears: reqItem.experienceYears || 0,
+              experienceLetter: reqItem.experienceLetter || null,
+              approvedAt: new Date()
+            });
+          }
+        }
+      }
+    }
+
+    await worker.save();
+
+    // Notify Worker
+    if (approvedList.length > 0) {
+      await createNotification({
+        userId: worker._id,
+        workerId: worker._id,
+        type: 'skill_approved',
+        title: 'Skill Verified! 🎉',
+        message: `Your skill(s) "${approvedList.join(', ')}" have been verified by admin. You can now receive job requests for these categories!`,
+        relatedId: worker._id,
+        relatedType: 'worker',
+        priority: 'high',
+        pushData: { type: 'skill_approved', link: '/worker/profile' }
+      }).catch(e => console.error('Skill approved notification error:', e));
+    }
+
+    res.json({
+      success: true,
+      message: `Skill(s) "${categoriesToApprove.join(', ')}" approved successfully`,
+      worker
+    });
+  } catch (error) {
+    console.error('Approve worker skill error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Reject worker pending skill(s)
+ */
+export const rejectWorkerSkill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { category, reason } = req.body;
+
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'Category is required' });
+    }
+
+    const worker = await Worker.findById(id);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    const categoriesToReject = Array.isArray(category) ? category : [category];
+
+    if (!Array.isArray(worker.pendingServiceCategories)) worker.pendingServiceCategories = [];
+    if (!Array.isArray(worker.rejectedServiceCategories)) worker.rejectedServiceCategories = [];
+
+    for (const cat of categoriesToReject) {
+      const trimmed = typeof cat === 'string' ? cat.trim() : '';
+      if (!trimmed) continue;
+
+      worker.pendingServiceCategories = worker.pendingServiceCategories.filter(
+        c => c.trim().toLowerCase() !== trimmed.toLowerCase()
+      );
+
+      worker.rejectedServiceCategories.push({
+        category: trimmed,
+        reason: reason || 'Not approved by admin',
+        rejectedAt: new Date()
+      });
+
+      if (Array.isArray(worker.skillRequests)) {
+        const reqItem = worker.skillRequests.find(
+          r => r.category && r.category.trim().toLowerCase() === trimmed.toLowerCase()
+        );
+        if (reqItem) {
+          reqItem.status = 'rejected';
+          reqItem.reviewedAt = new Date();
+        }
+      }
+    }
+
+    await worker.save();
+
+    // Notify Worker
+    await createNotification({
+      userId: worker._id,
+      workerId: worker._id,
+      type: 'skill_rejected',
+      title: 'Skill Verification Update',
+      message: `Your request for skill "${categoriesToReject.join(', ')}" was rejected${reason ? `: ${reason}` : '.'}`,
+      relatedId: worker._id,
+      relatedType: 'worker',
+      priority: 'normal',
+      pushData: { type: 'skill_rejected', link: '/worker/profile' }
+    }).catch(e => console.error('Skill rejected notification error:', e));
+
+    res.json({
+      success: true,
+      message: `Skill(s) "${categoriesToReject.join(', ')}" rejected`,
+      worker
+    });
+  } catch (error) {
+    console.error('Reject worker skill error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Remove an existing verified skill from worker
+ */
+export const removeWorkerSkill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { category } = req.body;
+
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'Category is required' });
+    }
+
+    const worker = await Worker.findById(id);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    const trimmed = typeof category === 'string' ? category.trim() : '';
+    worker.serviceCategories = (worker.serviceCategories || []).filter(
+      c => c.trim().toLowerCase() !== trimmed.toLowerCase()
+    );
+
+    await worker.save();
+
+    res.json({
+      success: true,
+      message: `Skill "${trimmed}" removed successfully`,
+      worker
+    });
+  } catch (error) {
+    console.error('Remove worker skill error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
