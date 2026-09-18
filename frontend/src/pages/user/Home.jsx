@@ -18,7 +18,7 @@ import PropertyVideoCurations from '../../components/user/PropertyVideoCurations
 import { api } from '../../services/apiService';
 import PropertyCard from '../../components/user/PropertyCard';
 import { propertyService, userService } from '../../services/apiService';
-import { getPreferredCity } from '../../utils/locationPreference';
+import { getPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
 // Category Theme Map - Professional light palettes inspired by modern premium designs
 const THEME_MAP = {
     Hotel: {
@@ -255,6 +255,13 @@ const Home = () => {
     const [homeSearchCity, setHomeSearchCity] = useState(getPreferredCity());
     const [layoutOrder, setLayoutOrder] = useState(cachedLayoutOrder || DEFAULT_LAYOUT);
 
+    // Sync with navbar city picker
+    useEffect(() => {
+        return onPreferredCityChange((city) => {
+            setHomeSearchCity(city);
+        });
+    }, []);
+
     // Fetch Dynamic Layout
     useEffect(() => {
         const fetchLayout = async () => {
@@ -392,7 +399,7 @@ const Home = () => {
                                     case 'recommended_brokers':
                                         return <RecommendedBrokers key={section.id} />;
                                     case 'popular_builders':
-                                        return <PopularBuilders key={section.id} />;
+                                        return <PopularBuilders key={section.id} locality={homeSearchCity} />;
                                     case 'reels':
                                         return <ReelSection key={section.id} category={selectedType.label} theme={activeTheme} />;
                                     case 'rent_properties':

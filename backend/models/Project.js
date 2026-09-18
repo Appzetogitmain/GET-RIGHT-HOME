@@ -124,13 +124,13 @@ const projectSchema = new mongoose.Schema({
   // EMBEDDED BUILDER PROJECT DETAILS (Merged from old BuilderProjectDetails)
   possessionStatus: {
     type: String,
-    enum: ['Ongoing', 'Ready To Move', 'New Launch']
+    enum: ['Ongoing', 'Ready To Move', 'New Launch', '', null]
   },
   possessionYear: {
     type: Number
   },
   ratings: {
-    constructionQuality: { type: Number, min: 1, max: 5 },
+    constructionQuality: { type: Number, min: 0, max: 5 },
     aiSummary: { type: String }
   },
   priceHistory: {

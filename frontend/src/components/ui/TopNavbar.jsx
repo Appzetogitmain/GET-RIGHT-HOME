@@ -36,7 +36,8 @@ const TopNavbar = () => {
     const [city, setCity] = useState(getPreferredCity());
     const [isCityModalOpen, setIsCityModalOpen] = useState(false);
     const [isGuidedSearchOpen, setIsGuidedSearchOpen] = useState(false);
-    const roleLinks = (user && LISTER_ROLES.includes(user.role)) ? LISTER_LINKS : ROLE_LINKS;
+    const isLister = user && (LISTER_ROLES.includes(user.role) || user.role === 'admin');
+    const roleLinks = isLister ? [...ROLE_LINKS, ...LISTER_LINKS] : ROLE_LINKS;
 
     // Stay in sync with the city picker on the home page, even without a reload
     useEffect(() => onPreferredCityChange(setCity), []);
@@ -104,7 +105,7 @@ const TopNavbar = () => {
             </div>
 
             {/* Center: Role-based links (99acres-style) + core utility pages */}
-            <div className="flex items-center gap-6 px-4 shrink-0">
+            <div className="flex items-center gap-4 xl:gap-6 px-4 shrink-0">
                 {roleLinks.map((link) => (
                     <Link
                         key={link.to}

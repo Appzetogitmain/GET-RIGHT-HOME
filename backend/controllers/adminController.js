@@ -729,10 +729,40 @@ export const getProjectDetails = async (req, res) => {
 
 export const createAdminProject = async (req, res) => {
   try {
-    const projectData = req.body;
+    const projectData = { ...req.body };
     projectData.isAddedByAdmin = true;
     projectData.status = 'approved';
     projectData.isLive = true;
+
+    if (!projectData.propertyName || !projectData.propertyType) {
+      return res.status(400).json({ success: false, message: 'Project name and type are required' });
+    }
+
+    // Ensure location has coordinates for MongoDB 2dsphere index
+    if (!projectData.location || !Array.isArray(projectData.location.coordinates) || projectData.location.coordinates.length < 2) {
+      projectData.location = {
+        type: 'Point',
+        coordinates: [0, 0]
+      };
+    }
+
+    // Map builderProjectDetails if provided in nested structure
+    if (projectData.builderProjectDetails) {
+      const bpd = projectData.builderProjectDetails;
+      if (bpd.possessionStatus) projectData.possessionStatus = bpd.possessionStatus;
+      if (bpd.possessionYear) projectData.possessionYear = bpd.possessionYear;
+      if (bpd.ratings) {
+        projectData.ratings = {
+          constructionQuality: (bpd.ratings.constructionQuality >= 0 && bpd.ratings.constructionQuality <= 5) ? bpd.ratings.constructionQuality : undefined,
+          aiSummary: bpd.ratings.aiSummary || ''
+        };
+      }
+      if (bpd.priceHistory) projectData.priceHistory = bpd.priceHistory;
+    }
+
+    if (projectData.possessionStatus && !['Ongoing', 'Ready To Move', 'New Launch'].includes(projectData.possessionStatus)) {
+      delete projectData.possessionStatus;
+    }
 
     const newProject = new Project(projectData);
     await newProject.save();
@@ -740,16 +770,47 @@ export const createAdminProject = async (req, res) => {
     res.status(201).json({ success: true, message: 'Project created successfully', project: newProject });
   } catch (error) {
     console.error('Error creating admin project:', error);
-    res.status(500).json({ success: false, message: 'Failed to create project', error: error.message });
+    res.status(500).json({ success: false, message: error.message || 'Failed to create project', error: error.message });
   }
 };
 
 export const updateAdminProject = async (req, res) => {
   try {
     const { id } = req.params;
-    const projectData = req.body;
+    const projectData = { ...req.body };
 
-    const updatedProject = await Project.findByIdAndUpdate(id, projectData, { new: true });
+    if (!projectData.propertyName || !projectData.propertyType) {
+      return res.status(400).json({ success: false, message: 'Project name and type are required' });
+    }
+
+    if (!projectData.location || !Array.isArray(projectData.location.coordinates) || projectData.location.coordinates.length < 2) {
+      projectData.location = {
+        type: 'Point',
+        coordinates: [0, 0]
+      };
+    }
+
+    if (projectData.builderProjectDetails) {
+      const bpd = projectData.builderProjectDetails;
+      if (bpd.possessionStatus) projectData.possessionStatus = bpd.possessionStatus;
+      if (bpd.possessionYear) projectData.possessionYear = bpd.possessionYear;
+      if (bpd.ratings) {
+        projectData.ratings = {
+          constructionQuality: (bpd.ratings.constructionQuality >= 0 && bpd.ratings.constructionQuality <= 5) ? bpd.ratings.constructionQuality : undefined,
+          aiSummary: bpd.ratings.aiSummary || ''
+        };
+      }
+      if (bpd.priceHistory) projectData.priceHistory = bpd.priceHistory;
+    }
+
+    if (projectData.possessionStatus && !['Ongoing', 'Ready To Move', 'New Launch'].includes(projectData.possessionStatus)) {
+      delete projectData.possessionStatus;
+    }
+
+    let updatedProject = await Project.findByIdAndUpdate(id, projectData, { new: true });
+    if (!updatedProject) {
+      updatedProject = await Property.findByIdAndUpdate(id, projectData, { new: true });
+    }
     
     if (!updatedProject) {
       return res.status(404).json({ success: false, message: 'Project not found' });
@@ -758,7 +819,7 @@ export const updateAdminProject = async (req, res) => {
     res.status(200).json({ success: true, message: 'Project updated successfully', project: updatedProject });
   } catch (error) {
     console.error('Error updating admin project:', error);
-    res.status(500).json({ success: false, message: 'Failed to update project', error: error.message });
+    res.status(500).json({ success: false, message: error.message || 'Failed to update project', error: error.message });
   }
 };
 

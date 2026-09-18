@@ -553,7 +553,7 @@ const AdminAddProperty = () => {
         navigate(isBuilderProject ? `${basePath}/projects` : `${basePath}/properties`);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Publishing failed');
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'Publishing failed');
     } finally {
       setLoading(false);
     }
