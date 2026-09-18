@@ -4,170 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Award, Briefcase, Calendar, Star, Phone, Globe, MapPin } from 'lucide-react';
 import api from '../../services/apiService';
 
-const BUILDERS_DATA = [
-    {
-        id: 1,
-        name: 'Prestige Group',
-        logoText: 'Prestige',
-        logoBg: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-        logoColor: '#d4af37',
-        logoFont: 'serif font-bold italic',
-        totalProjects: 181,
-        cityProjects: 54,
-        est: 1986,
-        rating: 4.8,
-        founder: 'Razack Sattar',
-        headquarters: 'Bengaluru, Karnataka',
-        description: 'Prestige Group is one of India\'s leading real estate developers with over three decades of experience in constructing premium residential estates, commercial offices, retail malls, and luxury hospitality projects.',
-        notableProjects: ['Prestige Shantiniketan', 'Prestige Lakeside Habitat', 'Prestige Golfshire']
-    },
-    {
-        id: 2,
-        name: 'Sobha Limited',
-        logoText: 'SOBHA',
-        logoBg: '#ffffff',
-        logoColor: '#000000',
-        logoFont: 'font-serif tracking-widest font-black',
-        totalProjects: 183,
-        cityProjects: 42,
-        est: 1995,
-        rating: 4.7,
-        founder: 'P.N.C. Menon',
-        headquarters: 'Bengaluru, Karnataka',
-        description: 'Sobha Limited is synonymous with quality construction and prompt delivery. As one of the only backward-integrated developers in India, Sobha manufactures its own concrete, glazing, and wooden fittings to maintain flawless quality standards.',
-        notableProjects: ['Sobha Dream Acres', 'Sobha City', 'Sobha Indraprastha']
-    },
-    {
-        id: 3,
-        name: 'Godrej Properties',
-        logoText: 'Godrej',
-        logoBg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-        logoColor: '#ffffff',
-        logoFont: 'font-sans italic font-bold tracking-wide',
-        totalProjects: 197,
-        cityProjects: 13,
-        est: 1990,
-        rating: 4.6,
-        founder: 'Adi Godrej',
-        headquarters: 'Mumbai, Maharashtra',
-        description: 'Godrej Properties brings the Godrej Group philosophy of innovation, sustainability, and trust to the real estate sector. Every development combines a legacy of excellence with contemporary designs and eco-friendly features.',
-        notableProjects: ['Godrej Eternity', 'Godrej Woods', 'Godrej Ananda']
-    },
-    {
-        id: 4,
-        name: 'Brigade Group',
-        logoText: 'BRIGADE',
-        logoBg: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-        logoColor: '#ffffff',
-        logoFont: 'font-sans font-black tracking-widest',
-        totalProjects: 154,
-        cityProjects: 38,
-        est: 1986,
-        rating: 4.7,
-        founder: 'M.R. Jaishankar',
-        headquarters: 'Bengaluru, Karnataka',
-        description: 'Brigade Group is a leading property developer in South India, having developed massive integrated townships, premium high-rises, commercial retail complexes, and state-of-the-art tech parks.',
-        notableProjects: ['Brigade Gateway', 'Brigade Meadows', 'Brigade Golden Triangle']
-    },
-    {
-        id: 5,
-        name: 'Puravankara Limited',
-        logoText: 'PURAVANKARA',
-        logoBg: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
-        logoColor: '#f1f5f9',
-        logoFont: 'font-mono text-[10px] tracking-wider font-extrabold',
-        totalProjects: 120,
-        cityProjects: 29,
-        est: 1975,
-        rating: 4.5,
-        founder: 'Ravi Puravankara',
-        headquarters: 'Bengaluru, Karnataka',
-        description: 'Puravankara is one of India\'s oldest and most trusted developers, offering high-quality homes across luxury and theme-based residential projects under the Puravankara and Provident housing brands.',
-        notableProjects: ['Purva Palm Beach', 'Provident Welworth City', 'Purva Whitehall']
-    },
-    {
-        id: 6,
-        name: 'DLF Limited',
-        logoText: 'DLF',
-        logoBg: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-        logoColor: '#ffffff',
-        logoFont: 'font-sans font-black tracking-wider italic',
-        totalProjects: 210,
-        cityProjects: 8,
-        est: 1946,
-        rating: 4.6,
-        founder: 'Chaudhary Raghvendra Singh',
-        headquarters: 'New Delhi, Delhi',
-        description: 'DLF is India\'s largest listed real estate company with a 75-year track record of building premium residential properties, world-class business centers, and luxury retail malls, most notably transforming the Gurugram skyline.',
-        notableProjects: ['DLF The Aralias', 'DLF CyberCity', 'DLF Emporio Mall']
-    },
-    {
-        id: 7,
-        name: 'Salarpuria Sattva',
-        logoText: 'SATTVA',
-        logoBg: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-        logoColor: '#ffffff',
-        logoFont: 'font-sans font-extrabold tracking-widest',
-        totalProjects: 95,
-        cityProjects: 31,
-        est: 1993,
-        rating: 4.5,
-        founder: 'Bijay Agarwal',
-        headquarters: 'Bengaluru, Karnataka',
-        description: 'Salarpuria Sattva Group has grown into one of the country\'s most trusted developers. It has built futuristic corporate workspaces, high-end residential towers, and robust IT parks across major cities.',
-        notableProjects: ['Sattva Magnificia', 'Sattva Greenage', 'Sattva Image']
-    },
-    {
-        id: 8,
-        name: 'Tata Housing',
-        logoText: 'TATA',
-        logoBg: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-        logoColor: '#ffffff',
-        logoFont: 'font-sans font-black tracking-wider',
-        totalProjects: 84,
-        cityProjects: 12,
-        est: 1984,
-        rating: 4.7,
-        founder: 'J.R.D. Tata',
-        headquarters: 'Mumbai, Maharashtra',
-        description: 'Tata Housing Development Company is a subsidiary of Tata Sons. It focuses on residential property development across diverse segments, emphasizing eco-friendly building practices and trust.',
-        notableProjects: ['Tata Promont', 'Tata Aquila Heights', 'Tata Sherwood']
-    },
-    {
-        id: 9,
-        name: 'L&T Realty',
-        logoText: 'L&T',
-        logoBg: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-        logoColor: '#1e293b',
-        logoFont: 'font-sans font-black text-2xl tracking-tight',
-        totalProjects: 62,
-        cityProjects: 9,
-        est: 2011,
-        rating: 4.8,
-        founder: 'Larsen & Toubro',
-        headquarters: 'Mumbai, Maharashtra',
-        description: 'L&T Realty leverages L&T\'s legendary engineering, construction, and planning capabilities to deliver futuristic residential, commercial, and retail developments defined by transparency.',
-        notableProjects: ['L&T RainTree Boulevard', 'L&T Emerald Isle', 'L&T Seawoods Residences']
-    },
-    {
-        id: 10,
-        name: 'Mahindra Lifespaces',
-        logoText: 'Mahindra',
-        logoBg: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-        logoColor: '#ffffff',
-        logoFont: 'font-sans font-bold tracking-tight',
-        totalProjects: 78,
-        cityProjects: 7,
-        est: 1994,
-        rating: 4.6,
-        founder: 'Mahindra Group',
-        headquarters: 'Mumbai, Maharashtra',
-        description: 'Mahindra Lifespace Developers is the real estate arm of the Mahindra Group. The company is committed to sustainable urbanization through green homes and integrated industrial cities.',
-        notableProjects: ['Mahindra Windchimes', 'Mahindra Aura', 'Mahindra Bloomdale']
-    }
-];
-
-
 const PopularBuilders = ({ locality, themeColor = 'emerald' }) => {
     const navigate = useNavigate();
     const scrollContainerRef = useRef(null);
@@ -184,26 +20,31 @@ const PopularBuilders = ({ locality, themeColor = 'emerald' }) => {
     const [builders, setBuilders] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Fetch popular builders dynamically from API
+    // Fetch popular builders dynamically from API with real data
     useEffect(() => {
+        let isMounted = true;
         const fetchBuilders = async () => {
             try {
-                const queryParam = locality ? `?locality=${encodeURIComponent(locality)}` : '';
+                setLoading(true);
+                const queryParam = (locality && locality !== 'All') ? `?locality=${encodeURIComponent(locality)}` : '';
                 const res = await api.get(`/public/builders${queryParam}`);
-                if (res.data.success && res.data.builders && res.data.builders.length > 0) {
-                    setBuilders(res.data.builders);
-                } else {
-                    setBuilders(BUILDERS_DATA);
+                if (isMounted) {
+                    if (res.data.success && res.data.builders) {
+                        setBuilders(res.data.builders);
+                    } else {
+                        setBuilders([]);
+                    }
                 }
             } catch (err) {
                 console.error("Error fetching popular builders:", err);
-                setBuilders(BUILDERS_DATA);
+                if (isMounted) setBuilders([]);
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         };
         fetchBuilders();
-    }, []);
+        return () => { isMounted = false; };
+    }, [locality]);
 
     // Auto-scroll loop
     useEffect(() => {
@@ -268,6 +109,10 @@ const PopularBuilders = ({ locality, themeColor = 'emerald' }) => {
         );
     }
 
+    if (!loading && builders.length === 0) {
+        return null;
+    }
+
     return (
         <section 
             id="home-popular-builders-section"
@@ -283,7 +128,7 @@ const PopularBuilders = ({ locality, themeColor = 'emerald' }) => {
                     </h2>
                 </div>
                 <p className="text-sm text-gray-500 mt-1 ml-3 normal-case tracking-normal font-normal">
-                    {locality ? `In ${locality}` : 'In Bangalore East & major hubs'}
+                    {locality && locality !== 'All' ? `In ${locality} & major hubs` : 'In major hubs'}
                 </p>
             </div>
 
@@ -330,15 +175,15 @@ const PopularBuilders = ({ locality, themeColor = 'emerald' }) => {
 
                             {/* Details */}
                             <h3 className="font-extrabold text-[13px] text-gray-900 group-hover:text-indigo-600 transition-colors mb-1 truncate w-full">
-                                {builder.name}
+                                {builder.companyName || builder.name}
                             </h3>
                             <p className="text-[11px] text-gray-400 font-bold leading-tight">
-                                {builder.stats?.totalProjects !== undefined ? builder.stats.totalProjects : builder.totalProjects} Total Projects
+                                {builder.stats?.totalProjects ?? builder.totalProjects ?? 0} {(builder.stats?.totalProjects ?? builder.totalProjects) === 1 ? 'Total Project' : 'Total Projects'}
                             </p>
                             <p className="text-[10px] text-indigo-500 font-black mt-0.5 uppercase tracking-wide">
                                 {builder.stats?.cities !== undefined 
-                                    ? `${builder.stats.cities} Cities` 
-                                    : `${builder.cityProjects} in this city`
+                                    ? `${builder.stats.cities} ${builder.stats.cities === 1 ? 'City' : 'Cities'}` 
+                                    : `${builder.cityProjects || 0} in this city`
                                 }
                             </p>
                         </div>

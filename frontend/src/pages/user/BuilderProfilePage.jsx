@@ -115,11 +115,12 @@ const BuilderProfilePage = () => {
   const stats = builderData.stats || {};
   const cityList = stats.cityList || [];
   const allCities = ['All', ...cityList];
-  const cityCount = stats.totalCities || cityList.length || 1;
+  const cityCount = stats.totalCities !== undefined ? stats.totalCities : cityList.length;
 
-  const ongoingProjectsCount = stats.ongoingProjects || 0;
-  const readyToMoveProjectsCount = stats.readyToMoveProjects || 0;
-  const totalProjectsCount = stats.totalProjects || projects.length;
+  // Filter counts strictly based on listed projects so clicking filter cards matches the list
+  const ongoingProjectsCount = projects.filter(p => (p.status || '').toLowerCase() === 'ongoing').length;
+  const readyToMoveProjectsCount = projects.filter(p => (p.status || '').toLowerCase() === 'ready to move').length;
+  const totalProjectsCount = projects.length;
 
   const industryExperience = builderData.experienceYears || 8;
 
@@ -197,7 +198,9 @@ const BuilderProfilePage = () => {
             </div>
             <div>
               <p className="text-base font-black text-slate-900">{totalProjectsCount} projects</p>
-              <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Across {cityCount} {cityCount === 1 ? 'city' : 'cities'}</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
+                {cityCount > 0 ? `Across ${cityCount} ${cityCount === 1 ? 'city' : 'cities'}` : (builderData.officeAddress ? `Based in ${builderData.officeAddress}` : 'Across cities')}
+              </p>
             </div>
           </div>
 
@@ -233,10 +236,10 @@ const BuilderProfilePage = () => {
             <div className="bg-slate-50 rounded-2xl p-4 space-y-2 border border-slate-100">
               <p className="text-xs font-black text-slate-800">Developer Summary</p>
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 font-medium">
-                <div>Total Projects: <span className="font-bold text-slate-900">{totalProjectsCount}</span></div>
-                <div>Ready To Move: <span className="font-bold text-slate-900">{readyToMoveProjectsCount}</span></div>
-                <div>Ongoing Projects: <span className="font-bold text-slate-900">{ongoingProjectsCount}</span></div>
-                <div>Cities: <span className="font-bold text-slate-900">{cityCount}</span></div>
+                <div>Projects on Portal: <span className="font-bold text-slate-900">{projects.length}</span></div>
+                <div>Total Portfolio: <span className="font-bold text-slate-900">{stats.profileTotal || totalProjectsCount}</span></div>
+                <div>Completed (Career): <span className="font-bold text-slate-900">{stats.profileCompleted ?? builderData.builderProfile?.completedProjects ?? 0}</span></div>
+                <div>Active (Career): <span className="font-bold text-slate-900">{stats.profileActive ?? builderData.builderProfile?.activeProjects ?? 0}</span></div>
               </div>
             </div>
             <button 
@@ -347,35 +350,43 @@ const BuilderProfilePage = () => {
             </section>
 
             {/* Horizontal Projects Carousel */}
-            <div className="flex gap-4 overflow-x-auto px-4 pb-4 scrollbar-hide snap-x bg-white">
-              {overviewProjects.map((p, i) => (
-                <div 
-                  key={p._id || i}
-                  onClick={() => navigateToProperty(p)}
-                  className="flex-shrink-0 w-[280px] bg-white border border-slate-100 rounded-2xl p-3 flex gap-3 shadow-sm snap-start cursor-pointer hover:border-blue-100 transition-colors"
-                >
-                  <img 
-                    src={p.coverImage} 
-                    alt={p.propertyName}
-                    className="w-16 h-16 rounded-xl object-cover bg-slate-50 shrink-0"
-                  />
-                  <div className="min-w-0 flex-1 flex flex-col justify-between">
-                    <div>
-                      <h4 className="font-bold text-xs text-slate-900 truncate flex items-center justify-between gap-1">
-                        {p.propertyName} <ChevronRight size={12} className="text-slate-400 shrink-0" />
-                      </h4>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{[p.area, p.city].filter(Boolean).join(', ')}</p>
-                    </div>
-                    <div className="mt-1">
-                      <p className="text-[11px] text-slate-700 font-medium truncate">
-                        <span className="font-bold text-blue-600">{p.priceRangeText}</span> | {p.bhkText}
-                      </p>
-                      <p className="text-[9px] text-slate-400 font-medium mt-0.5">{p.possessionText}</p>
+            {overviewProjects.length > 0 ? (
+              <div className="flex gap-4 overflow-x-auto px-4 pb-4 scrollbar-hide snap-x bg-white">
+                {overviewProjects.map((p, i) => (
+                  <div 
+                    key={p._id || i}
+                    onClick={() => navigateToProperty(p)}
+                    className="flex-shrink-0 w-[280px] bg-white border border-slate-100 rounded-2xl p-3 flex gap-3 shadow-sm snap-start cursor-pointer hover:border-blue-100 transition-colors"
+                  >
+                    <img 
+                      src={p.coverImage} 
+                      alt={p.propertyName}
+                      className="w-16 h-16 rounded-xl object-cover bg-slate-50 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-bold text-xs text-slate-900 truncate flex items-center justify-between gap-1">
+                          {p.propertyName} <ChevronRight size={12} className="text-slate-400 shrink-0" />
+                        </h4>
+                        <p className="text-[10px] text-slate-400 truncate mt-0.5">{[p.area, p.city].filter(Boolean).join(', ')}</p>
+                      </div>
+                      <div className="mt-1">
+                        <p className="text-[11px] text-slate-700 font-medium truncate">
+                          <span className="font-bold text-blue-600">{p.priceRangeText}</span> | {p.bhkText}
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-medium mt-0.5">{p.possessionText}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="px-4 py-8 text-center bg-white border-t border-slate-50">
+                <Building2 size={36} className="mx-auto mb-2 text-slate-300" strokeWidth={1.5} />
+                <p className="text-xs font-bold text-slate-600">No projects currently listed on the portal</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Projects posted by this builder will appear here</p>
+              </div>
+            )}
           </div>
         )}
 
