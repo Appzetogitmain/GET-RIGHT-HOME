@@ -208,6 +208,15 @@ export const SocketProvider = ({ children }) => {
       }
     });
 
+    // Also re-verify room subscription whenever pathname or user data is refreshed
+    if (userType === 'worker') {
+      const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+      const workerId = workerData.id || workerData._id;
+      if (workerId && newSocket.connected) {
+        newSocket.emit('join_worker_room', workerId);
+      }
+    }
+
     newSocket.on('disconnect', (reason) => {
       console.log(`❌ [Socket] ${userType?.toUpperCase()} disconnected → reason: ${reason}`);
     });
@@ -437,7 +446,9 @@ export const SocketProvider = ({ children }) => {
           location: {
             address: data.address?.addressLine1 || 'Location shared',
           },
-          price: data.price,
+          price: data.totalAmount || data.finalAmount || data.price,
+          totalAmount: data.totalAmount || data.finalAmount || data.price,
+          workerAmount: data.workerAmount,
           scheduledDate: data.scheduledDate,
           scheduledTime: data.scheduledTime,
           timeSlot: {
@@ -482,7 +493,9 @@ export const SocketProvider = ({ children }) => {
             address: data.address?.addressLine1 || 'Location shared',
             distance: data.distance ? `${data.distance.toFixed(1)} km` : 'Near you'
           },
-          price: data.price,
+          price: data.totalAmount || data.finalAmount || data.price,
+          totalAmount: data.totalAmount || data.finalAmount || data.price,
+          workerAmount: data.workerAmount,
           serviceCategory: data.serviceCategory,
           brandName: data.brandName,
           brandIcon: data.brandIcon,
@@ -609,7 +622,28 @@ export const SocketProvider = ({ children }) => {
     return () => {
       newSocket.disconnect();
     };
-  }, [userType]); // Only re-run if userType changes. Navigate is stable.
+  }, [userType]);
+
+  // Keep socket room joined even across navigations within the same userType (e.g. after login)
+  useEffect(() => {
+    if (!socket || !socket.connected) return;
+    if (userType === 'worker') {
+      const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+      const workerId = workerData.id || workerData._id;
+      if (workerId) {
+        socket.emit('join_worker_room', workerId);
+      }
+    } else if (userType === 'user') {
+      const storedUserData = localStorage.getItem('userData') || localStorage.getItem('user') || '{}';
+      const userData = JSON.parse(storedUserData);
+      const userId = userData.id || userData._id;
+      if (userId) {
+        socket.emit('join_user_room', userId);
+      }
+    } else if (userType === 'admin') {
+      socket.emit('join_admin_room');
+    }
+  }, [socket, location.pathname, userType]);
 
   return (
     <SocketContext.Provider value={socket}>

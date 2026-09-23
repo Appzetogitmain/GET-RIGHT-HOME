@@ -510,8 +510,22 @@ const createBooking = async (req, res) => {
         }
 
         // Partners already found above
-        // WAVE-BASED ALERTING: Sort by distance and only notify first wave
-        const sortedPartners = foundPartners.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+        // WAVE-BASED ALERTING: Prioritize actively connected workers (app/dashboard open), then sort by distance
+        const io = getIO();
+        const isWorkerActiveOnSocket = (id) => {
+          if (!io) return false;
+          const room = io.sockets.adapter.rooms.get(`worker_${id}`);
+          return room ? room.size > 0 : false;
+        };
+
+        const sortedPartners = foundPartners.sort((a, b) => {
+          const aActive = isWorkerActiveOnSocket(a._id) ? 1 : 0;
+          const bActive = isWorkerActiveOnSocket(b._id) ? 1 : 0;
+          if (aActive !== bActive) {
+            return bActive - aActive; // Actively connected workers get priority in Wave 1
+          }
+          return (a.distance || 0) - (b.distance || 0);
+        });
 
         // Wave 1: First 3 partners
         const WAVE_1_COUNT = 3;
@@ -526,6 +540,7 @@ const createBooking = async (req, res) => {
         bookingForBackground.currentWave = 1;
         bookingForBackground.waveStartedAt = new Date();
         bookingForBackground.notifiedPartners = wave1Partners.map(v => v._id);
+        bookingForBackground.notifiedWorkers = wave1Partners.map(v => v._id);
         bookingForBackground.assignmentStatus = 'searching';
 
         // Log wave 1 the same way the scheduler logs later waves, so the
@@ -648,8 +663,6 @@ const createBooking = async (req, res) => {
         }
 
         // Send notifications to Wave 1 partners
-        const io = getIO();
-
         if (io) {
           console.log(`[CreateBooking] Emitting Socket.IO events to ${wave1Partners.length} ${bookingModel}s in Wave 1...`);
           wave1Partners.forEach(async (partner) => {
@@ -661,7 +674,10 @@ const createBooking = async (req, res) => {
               customerPhone: userForBackground.phone,
               scheduledDate: scheduledDate,
               scheduledTime: scheduledTime,
-              price: workerAmount,
+              price: bookingForBackground.finalAmount || bookingForBackground.basePrice || workerAmount,
+              workerAmount: workerAmount,
+              workerEarnings: workerAmount,
+              totalAmount: bookingForBackground.finalAmount || bookingForBackground.basePrice,
               address: address,
               distance: partner.distance,
               serviceCategory: bookingForBackground.serviceCategory,
@@ -707,7 +723,9 @@ const createBooking = async (req, res) => {
                 scheduledDate: scheduledDate,
                 scheduledTime: scheduledTime,
                 location: address,
-                price: workerAmount,
+                price: bookingForBackground.finalAmount || bookingForBackground.basePrice || workerAmount,
+                workerAmount: workerAmount,
+                totalAmount: bookingForBackground.finalAmount || bookingForBackground.basePrice,
                 distance: partner.distance
               },
               pushData: {
