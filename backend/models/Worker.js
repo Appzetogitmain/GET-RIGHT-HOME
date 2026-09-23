@@ -230,6 +230,21 @@ const workerSchema = new mongoose.Schema({
     default: false,
     index: true
   },
+  // Approved offline schedule managed by admin
+  currentOfflineSchedule: {
+    requestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'WorkerOfflineRequest',
+      default: null
+    },
+    startDateTime: { type: Date, default: null },
+    endDateTime: { type: Date, default: null },
+    dateStr: { type: String, default: null },
+    startSlot: { type: String, default: null },
+    endSlot: { type: String, default: null },
+    reason: { type: String, default: null },
+    isActive: { type: Boolean, default: false }
+  },
   lastSeenAt: {
     type: Date,
     default: null

@@ -100,6 +100,10 @@ startWaveScheduler(io);
 import { startSubscriptionScheduler } from './cron/subscriptionScheduler.js';
 startSubscriptionScheduler();
 
+// Checks and enforces worker offline schedules
+import { startOfflineScheduleScheduler } from './cron/offlineScheduleScheduler.js';
+startOfflineScheduleScheduler();
+
 // Middleware
 app.use(morgan('dev'));
 // Middleware to log request start is handled by morgan
@@ -215,6 +219,33 @@ app.get('/api/public/builders/:id', getPublicBuilderDetails);
 
 import { getHomePageConfig } from './controllers/homePageConfigController.js';
 app.get('/api/public/homepage-layout', getHomePageConfig);
+
+// Public operating hours & slots endpoint
+import { getPlatformOperatingHours } from './controllers/workerControllers/workerOfflineController.js';
+app.get('/api/public/operating-hours', getPlatformOperatingHours);
+app.get('/api/public/config', async (req, res) => {
+  try {
+    const PlatformSettings = (await import('./models/PlatformSettings.js')).default;
+    const Settings = (await import('./models/Settings.js')).default;
+    const [platformSettings, hsSettings] = await Promise.all([
+      PlatformSettings.getSettings(),
+      Settings.getSettings()
+    ]);
+    res.json({
+      success: true,
+      settings: {
+        platformOpen: platformSettings.platformOpen,
+        operatingHours: platformSettings.operatingHours,
+        visitedCharges: hsSettings.visitedCharges,
+        serviceGstPercentage: hsSettings.serviceGstPercentage,
+        partsGstPercentage: hsSettings.partsGstPercentage,
+        isOnlinePaymentEnabled: hsSettings.isOnlinePaymentEnabled
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // Plans public endpoint (returns empty list if no plans configured)
 app.get('/api/public/plans', (req, res) => {

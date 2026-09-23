@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader, FiDollarSign, FiPower, FiTrash2, FiClock, FiAlertCircle, FiShield, FiFileText } from 'react-icons/fi';
+import { FiCheck, FiX, FiEye, FiSearch, FiFilter, FiDownload, FiLoader, FiDollarSign, FiPower, FiTrash2, FiClock, FiAlertCircle, FiShield, FiFileText, FiChevronRight } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
@@ -55,6 +56,8 @@ const AllWorkers = () => {
           },
           createdAt: worker.createdAt,
           isActive: worker.isActive,
+          isOnline: worker.isOnline || false,
+          currentOfflineSchedule: worker.currentOfflineSchedule || null,
           subscription: worker.subscription || { isActive: false }
         }));
         setWorkers(transformedWorkers);
@@ -262,6 +265,26 @@ const AllWorkers = () => {
     }
   };
 
+  const handleForceOnline = async (workerId, workerName) => {
+    if (!window.confirm(`Set ${workerName || 'this worker'} ONLINE immediately? This overrides any offline schedule.`)) {
+      return;
+    }
+    try {
+      const res = await adminWorkerService.forceWorkerOnline(workerId);
+      if (res.success) {
+        toast.success(`${workerName || 'Worker'} is now Online!`);
+        setWorkers(prev => prev.map(w => w.id === workerId ? { ...w, isOnline: true } : w));
+        if (selectedWorker && selectedWorker.id === workerId) {
+          setSelectedWorker(prev => ({ ...prev, isOnline: true }));
+        }
+      } else {
+        toast.error(res.message || 'Failed to set worker online');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to set worker online');
+    }
+  };
+
   const handleDelete = async (workerId) => {
     if (!window.confirm('Are you sure you want to delete this worker? This action cannot be undone.')) {
       return;
@@ -346,7 +369,7 @@ const AllWorkers = () => {
         subtitle="Manage and verify platform workers"
       >
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
             <div className="text-[10px] font-bold text-yellow-700 uppercase tracking-wider mb-1">Pending Workers</div>
             <div className="text-xl font-bold text-yellow-900">{pendingCount}</div>
@@ -369,6 +392,21 @@ const AllWorkers = () => {
             </div>
             <div className="text-xl font-bold text-amber-900">{pendingSkillsCount}</div>
           </div>
+          <Link
+            to="/admin/home-service/workers/offline-requests"
+            className="bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200 rounded-xl p-3 transition-all flex flex-col justify-between group cursor-pointer shadow-2xs"
+          >
+            <div className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <FiClock className="w-3 h-3" />
+                Offline Requests
+              </span>
+              <FiChevronRight className="w-3.5 h-3.5 text-indigo-500 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+            <div className="text-xs font-semibold text-indigo-900 mt-1">
+              Review Leave Requests &rarr;
+            </div>
+          </Link>
         </div>
 
         {/* Search and Filter */}
@@ -469,12 +507,30 @@ const AllWorkers = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${worker.approvalStatus === 'approved' ? 'bg-green-50 text-green-700 border-green-100' :
-                          worker.approvalStatus === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' :
-                            'bg-yellow-50 text-yellow-700 border-yellow-100'
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${worker.approvalStatus === 'approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                            worker.approvalStatus === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' :
+                              'bg-yellow-50 text-yellow-700 border-yellow-100'
+                            }`}>
+                            {worker.approvalStatus}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1 border ${
+                            worker.isOnline
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : worker.currentOfflineSchedule?.isActive
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-gray-100 text-gray-500 border-gray-200'
                           }`}>
-                          {worker.approvalStatus}
-                        </span>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              worker.isOnline ? 'bg-emerald-500' : worker.currentOfflineSchedule?.isActive ? 'bg-amber-500' : 'bg-gray-400'
+                            }`} />
+                            {worker.isOnline
+                              ? 'Online'
+                              : worker.currentOfflineSchedule?.isActive
+                              ? 'On Leave'
+                              : 'Offline'}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
@@ -495,6 +551,17 @@ const AllWorkers = () => {
                           >
                             <FiPower className={`w-3.5 h-3.5 ${worker.isActive ? 'fill-current' : ''}`} />
                           </button>
+
+                          {/* Force Worker Online Now */}
+                          {!worker.isOnline && worker.approvalStatus === 'approved' && (
+                            <button
+                              onClick={() => handleForceOnline(worker.id, worker.name)}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              title="Set Online Now (Override Offline Status)"
+                            >
+                              <FiCheck className="w-3.5 h-3.5 text-emerald-600 font-bold" />
+                            </button>
+                          )}
 
 
 

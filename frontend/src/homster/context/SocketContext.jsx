@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { playNotificationSound, isSoundEnabled, playAlertRing, stopAlertRing } from '../utils/notificationSound';
+import { playNotificationSound, isSoundEnabled, playAlertRing, stopAlertRing, playApprovalSuccessSound, playRejectionSound, playAdminOfflineAlertSound } from '../utils/notificationSound';
 import { registerFCMToken, setupForegroundNotificationHandler } from '../services/pushNotificationService';
 
 const SwipeableNotification = ({ t, data, onClick }) => {
@@ -91,25 +91,21 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    let tokenKey = 'accessToken';
-    switch (userType) {
-      case 'worker':
-        tokenKey = 'workerAccessToken';
-        break;
-      case 'admin':
-        tokenKey = 'adminAccessToken';
-        break;
-      case 'user':
-      default:
-        tokenKey = 'accessToken';
-        break;
+    let token = null;
+    if (userType === 'worker') {
+      token = localStorage.getItem('workerAccessToken') || localStorage.getItem('workerToken');
+    } else if (userType === 'admin') {
+      token = localStorage.getItem('adminAccessToken') || localStorage.getItem('adminToken') || sessionStorage.getItem('adminAccessToken') || sessionStorage.getItem('adminToken');
+    } else {
+      token = localStorage.getItem('accessToken') || localStorage.getItem('token');
     }
 
-    const token = localStorage.getItem(tokenKey);
-    const hasUserAuth = userType === 'user' && (localStorage.getItem('user') || localStorage.getItem('userData'));
-    
-    // If no token and no user auth, we don't connect
-    if (!token && !hasUserAuth) {
+    const hasAdminAuth = userType === 'admin' && (token || localStorage.getItem('adminData') || localStorage.getItem('adminUser') || sessionStorage.getItem('adminData'));
+    const hasWorkerAuth = userType === 'worker' && (token || localStorage.getItem('workerData'));
+    const hasUserAuth = userType === 'user' && (token || localStorage.getItem('user') || localStorage.getItem('userData'));
+
+    // If no token and no auth for this role, we don't connect
+    if (!token && !hasUserAuth && !hasAdminAuth && !hasWorkerAuth) {
       if (socket) {
         socket.disconnect();
         setSocket(null);
@@ -364,6 +360,48 @@ export const SocketProvider = ({ children }) => {
         }
         window.dispatchEvent(new CustomEvent('adminSupportMessage', { detail: data }));
       });
+
+      // Real-time alert when a worker requests offline leave
+      newSocket.on('worker_offline_request', (data) => {
+        console.log('[Socket] ⏰ ADMIN received WORKER_OFFLINE_REQUEST:', data);
+        if (isSoundEnabled('admin')) {
+          playAdminOfflineAlertSound();
+        }
+
+        toast.custom(
+          (t) => (
+            <div
+              onClick={() => {
+                toast.dismiss(t.id);
+                navigate('/admin/home-service/workers/offline-requests');
+              }}
+              className="bg-white border-2 border-indigo-500 rounded-2xl p-4 shadow-2xl cursor-pointer max-w-sm flex items-start gap-3 transition-transform hover:scale-102 ring-4 ring-indigo-50"
+            >
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 text-xl shadow-xs">
+                ⏰
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-sm text-gray-900 leading-tight">
+                  New Offline Leave Request
+                </div>
+                <div className="text-xs text-gray-600 mt-1">
+                  {data.message || `${data.workerName || 'A worker'} requested leave.`}
+                </div>
+                <div className="text-[11px] font-bold text-indigo-600 mt-2 flex items-center gap-1">
+                  Click to Review &amp; Approve &rarr;
+                </div>
+              </div>
+            </div>
+          ),
+          { duration: 8000, position: 'top-right' }
+        );
+
+        window.dispatchEvent(new CustomEvent('workerOfflineRequestReceived', { detail: data }));
+      });
+
+      newSocket.on('offline_request_updated', (data) => {
+        window.dispatchEvent(new CustomEvent('workerOfflineRequestReceived', { detail: data }));
+      });
     }
 
     // Listen for special Worker Job Assignments
@@ -487,6 +525,84 @@ export const SocketProvider = ({ children }) => {
           } 
         });
         window.dispatchEvent(event);
+      });
+
+      // Real-time listener: Admin approves worker offline request
+      newSocket.on('worker_offline_approved', (data) => {
+        console.log('[Socket] 🎉 WORKER received OFFLINE_REQUEST_APPROVED:', data);
+        if (isSoundEnabled('worker')) {
+          playApprovalSuccessSound();
+        }
+
+        toast.success(
+          <div className="flex flex-col gap-1">
+            <span className="font-bold text-sm">Offline Leave Approved! 🎉</span>
+            <span className="text-xs opacity-90">
+              {data.message || 'Admin has approved your offline leave request.'}
+            </span>
+          </div>,
+          { duration: 8000, position: 'top-center' }
+        );
+
+        window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
+      });
+
+      // Real-time listener: Admin rejects worker offline request
+      newSocket.on('worker_offline_rejected', (data) => {
+        console.log('[Socket] ❌ WORKER received OFFLINE_REQUEST_REJECTED:', data);
+        if (isSoundEnabled('worker')) {
+          playRejectionSound();
+        }
+
+        toast.error(
+          <div className="flex flex-col gap-1">
+            <span className="font-bold text-sm">Offline Request Rejected</span>
+            <span className="text-xs opacity-90">
+              {data.message || (data.reason ? `Reason: ${data.reason}` : 'Admin declined your offline leave request.')}
+            </span>
+          </div>,
+          { duration: 8000, position: 'top-center' }
+        );
+
+        window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
+      });
+
+      // Real-time listener: Admin adjusts offline request time
+      newSocket.on('worker_offline_adjusted', (data) => {
+        console.log('[Socket] ⏰ WORKER received OFFLINE_REQUEST_ADJUSTED:', data);
+        if (isSoundEnabled('worker')) {
+          playApprovalSuccessSound();
+        }
+
+        toast(
+          <div className="flex flex-col gap-1">
+            <span className="font-bold text-sm">Offline Leave Time Adjusted ⏰</span>
+            <span className="text-xs opacity-90">
+              {data.message || 'Admin updated your offline leave schedule.'}
+            </span>
+          </div>,
+          { duration: 8000, position: 'top-center', icon: '⏰' }
+        );
+
+        window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
+      });
+
+      // Real-time listener: Admin forces worker online
+      newSocket.on('worker_forced_online', (data) => {
+        console.log('[Socket] 🟢 WORKER received FORCED_ONLINE:', data);
+        if (isSoundEnabled('worker')) {
+          playApprovalSuccessSound();
+        }
+
+        toast.success(
+          <div className="flex flex-col gap-1">
+            <span className="font-bold text-sm">Status Changed: Online 🟢</span>
+            <span className="text-xs opacity-90">Admin has set your status to Online.</span>
+          </div>,
+          { duration: 6000, position: 'top-center' }
+        );
+
+        window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
       });
     }
 

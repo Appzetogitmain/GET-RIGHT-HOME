@@ -21,6 +21,13 @@ import {
   getAllComplaints,
   updateComplaintStatus
 } from '../controllers/workerComplaintController.js';
+import {
+  getAllOfflineRequests,
+  approveOfflineRequest,
+  rejectOfflineRequest,
+  adjustOfflineRequestTime,
+  forceWorkerOnline
+} from '../controllers/workerControllers/workerOfflineController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -35,8 +42,16 @@ router.get('/payments', getWorkerPayments);
 router.get('/complaints', getAllComplaints);
 router.patch('/complaints/:id/status', updateComplaintStatus);
 
+// Worker Offline Request Management
+router.get('/offline-requests', getAllOfflineRequests);
+router.post('/offline-requests/:id/approve', approveOfflineRequest);
+router.post('/offline-requests/:id/reject', rejectOfflineRequest);
+router.patch('/offline-requests/:id/adjust-time', adjustOfflineRequestTime);
+router.put('/offline-requests/:id/adjust-time', adjustOfflineRequestTime);
+
 // CRUD / Specific Worker details
 router.get('/', getAllWorkers);
+router.post('/:id/force-online', forceWorkerOnline);
 router.get('/:id', getWorkerDetails);
 router.post('/:id/approve', approveWorker);
 router.post('/:id/reject', rejectWorker);

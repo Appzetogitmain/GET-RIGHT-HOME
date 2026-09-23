@@ -176,7 +176,16 @@ const AdminLayout = () => {
                         { label: 'Blocked Users', path: '/admin/home-service/users?status=blocked' },
                     ]
                 },
-                { icon: UserCog, label: 'Workers', path: '/admin/home-service/workers' },
+                {
+                    icon: UserCog, label: 'Workers', children: [
+                        { label: 'All Workers', path: '/admin/home-service/workers/all' },
+                        { label: 'Offline Requests', path: '/admin/home-service/workers/offline-requests' },
+                        { label: 'Worker Jobs', path: '/admin/home-service/workers/jobs' },
+                        { label: 'Withdrawals', path: '/admin/home-service/workers/withdrawals' },
+                        { label: 'Complaints', path: '/admin/home-service/workers/complaints' },
+                        { label: 'Worker Analytics', path: '/admin/home-service/workers/analytics' },
+                    ]
+                },
                 { icon: ShoppingBag, label: 'Service Bookings', path: '/admin/home-service/bookings' },
                 { icon: Layers, label: 'Service Catalog', path: '/admin/home-service/user-categories' },
                 { icon: Wallet, label: 'Service Payments', path: '/admin/home-service/payments' },

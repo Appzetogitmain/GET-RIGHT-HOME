@@ -145,6 +145,77 @@ export const payWorker = async (id, data) => {
   }
 };
 
+/**
+ * Get all worker offline requests with filters
+ */
+export const getOfflineRequests = async (params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.status && params.status !== 'all') queryParams.append('status', params.status);
+    if (params.search) queryParams.append('search', params.search);
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+
+    const response = await api.get(`/admin/workers/offline-requests?${queryParams.toString()}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching offline requests:', error);
+    throw error;
+  }
+};
+
+/**
+ * Approve offline request (with optional adjusted slots)
+ */
+export const approveOfflineRequest = async (id, data = {}) => {
+  try {
+    const response = await api.post(`/admin/workers/offline-requests/${id}/approve`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error approving offline request:', error);
+    throw error;
+  }
+};
+
+/**
+ * Reject offline request
+ */
+export const rejectOfflineRequest = async (id, reason) => {
+  try {
+    const response = await api.post(`/admin/workers/offline-requests/${id}/reject`, { reason });
+    return response.data;
+  } catch (error) {
+    console.error('Error rejecting offline request:', error);
+    throw error;
+  }
+};
+
+/**
+ * Adjust offline request time
+ */
+export const adjustOfflineRequestTime = async (id, data) => {
+  try {
+    const response = await api.patch(`/admin/workers/offline-requests/${id}/adjust-time`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error adjusting offline request time:', error);
+    throw error;
+  }
+};
+
+/**
+ * Force worker online immediately
+ */
+export const forceWorkerOnline = async (workerId) => {
+  try {
+    const response = await api.post(`/admin/workers/${workerId}/force-online`);
+    return response.data;
+  } catch (error) {
+    console.error('Error forcing worker online:', error);
+    throw error;
+  }
+};
+
 export default {
   getAllWorkers,
   getWorkerDetails,
@@ -153,6 +224,11 @@ export default {
   suspendWorker,
   getWorkerJobs,
   getWorkerEarnings,
-  payWorker
+  payWorker,
+  getOfflineRequests,
+  approveOfflineRequest,
+  rejectOfflineRequest,
+  adjustOfflineRequestTime,
+  forceWorkerOnline
 };
 

@@ -84,6 +84,22 @@ const Checkout = () => {
   const [visitedFee, setVisitedFee] = useState(29);
   const [gstPercentage, setGstPercentage] = useState(18);
   const [bookingType, setBookingType] = useState('scheduled'); // Default to 'scheduled' for regular slot bookings
+  const [platformSlots, setPlatformSlots] = useState([]);
+
+  // Fetch dynamic platform slots from admin operating hours
+  useEffect(() => {
+    const fetchPlatformSlots = async () => {
+      try {
+        const res = await configService.getOperatingHours();
+        if (res?.slots && Array.isArray(res.slots) && res.slots.length > 0) {
+          setPlatformSlots(res.slots);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch platform operating hours:', err);
+      }
+    };
+    fetchPlatformSlots();
+  }, []);
 
   // Promo Code States
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -1453,7 +1469,7 @@ const Checkout = () => {
   };
 
   const getTimeSlots = () => {
-    const allSlots = [
+    const defaultSlots = [
       { value: '09:00', end: '10:00', display: '9:00 AM' },
       { value: '10:00', end: '11:00', display: '10:00 AM' },
       { value: '11:00', end: '12:00', display: '11:00 AM' },
@@ -1467,6 +1483,8 @@ const Checkout = () => {
       { value: '19:00', end: '20:00', display: '7:00 PM' },
       { value: '20:00', end: '21:00', display: '8:00 PM' },
     ];
+
+    const allSlots = platformSlots && platformSlots.length > 0 ? platformSlots : defaultSlots;
 
     // If today is selected, filter out past time slots
     const now = new Date();

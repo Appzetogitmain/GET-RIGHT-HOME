@@ -17,6 +17,7 @@
     ],
     "children": [
       "All Workers",
+      "Offline Requests",
       "Worker Jobs",
       "Worker Analytics",
       "Withdrawals",

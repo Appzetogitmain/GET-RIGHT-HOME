@@ -167,6 +167,14 @@ const adminWorkerService = {
   removeWorkerSkill: async (id, category) => {
     const response = await api.delete(`/admin/workers/${id}/skills`, { data: { category } });
     return response.data;
+  },
+
+  /**
+   * Force worker online immediately
+   */
+  forceWorkerOnline: async (id) => {
+    const response = await api.post(`/admin/workers/${id}/force-online`);
+    return response.data;
   }
 };
 

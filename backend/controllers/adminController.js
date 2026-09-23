@@ -1519,6 +1519,7 @@ export const updatePlatformSettings = async (req, res) => {
   try {
     const {
       platformOpen,
+      operatingHours,
       maintenanceMode,
       bookingDisabledMessage,
       maintenanceTitle,
@@ -1554,6 +1555,13 @@ export const updatePlatformSettings = async (req, res) => {
     const settings = await PlatformSettings.getSettings();
 
     if (typeof platformOpen === 'boolean') settings.platformOpen = platformOpen;
+    if (operatingHours && typeof operatingHours === 'object') {
+      if (!settings.operatingHours) settings.operatingHours = {};
+      if (typeof operatingHours.isOpen === 'boolean') settings.operatingHours.isOpen = operatingHours.isOpen;
+      if (typeof operatingHours.openingTime === 'string') settings.operatingHours.openingTime = operatingHours.openingTime;
+      if (typeof operatingHours.closingTime === 'string') settings.operatingHours.closingTime = operatingHours.closingTime;
+      if (operatingHours.slotDuration !== undefined) settings.operatingHours.slotDuration = Number(operatingHours.slotDuration);
+    }
     if (typeof maintenanceMode === 'boolean') settings.maintenanceMode = maintenanceMode;
     if (typeof bookingDisabledMessage === 'string') settings.bookingDisabledMessage = bookingDisabledMessage;
     if (typeof maintenanceTitle === 'string') settings.maintenanceTitle = maintenanceTitle;

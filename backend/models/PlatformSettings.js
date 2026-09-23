@@ -6,6 +6,24 @@ const platformSettingsSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
+    operatingHours: {
+      isOpen: {
+        type: Boolean,
+        default: true
+      },
+      openingTime: {
+        type: String,
+        default: '09:00'
+      },
+      closingTime: {
+        type: String,
+        default: '21:00'
+      },
+      slotDuration: {
+        type: Number,
+        default: 60 // In minutes
+      }
+    },
     maintenanceMode: {
       type: Boolean,
       default: false

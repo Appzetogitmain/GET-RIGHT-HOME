@@ -383,6 +383,37 @@ const toggleOnline = async (req, res) => {
     const workerId = req.user.id;
     const { isOnline, lat, lng } = req.body;
 
+    const worker = await Worker.findById(workerId);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    if (isOnline) {
+      // 1. Enforce verified/approved status
+      if (worker.approvalStatus !== 'approved') {
+        return res.status(403).json({
+          success: false,
+          message: 'Account verification pending. You can only go online after admin approval.'
+        });
+      }
+
+      // 2. Check active offline schedule
+      const now = new Date();
+      if (
+        worker.currentOfflineSchedule?.isActive &&
+        worker.currentOfflineSchedule.startDateTime &&
+        worker.currentOfflineSchedule.endDateTime &&
+        now >= new Date(worker.currentOfflineSchedule.startDateTime) &&
+        now <= new Date(worker.currentOfflineSchedule.endDateTime)
+      ) {
+        const endDisplay = worker.currentOfflineSchedule.endSlot || 'the scheduled end time';
+        return res.status(400).json({
+          success: false,
+          message: `You are on approved offline leave until ${endDisplay}. Admin approval is required to go online early.`
+        });
+      }
+    }
+
     const updateData = {
       isOnline: !!isOnline,
       lastSeenAt: new Date()
@@ -397,23 +428,26 @@ const toggleOnline = async (req, res) => {
       };
     }
 
-
-
-
-
-    const worker = await Worker.findByIdAndUpdate(workerId, updateData, { new: true })
-      .select('isOnline geoLocation location');
-
-    if (!worker) {
-      return res.status(404).json({ success: false, message: 'Worker not found' });
+    // If going online and offline schedule expired, deactivate schedule
+    if (isOnline && worker.currentOfflineSchedule?.isActive) {
+      const now = new Date();
+      if (worker.currentOfflineSchedule.endDateTime && now > new Date(worker.currentOfflineSchedule.endDateTime)) {
+        updateData['currentOfflineSchedule.isActive'] = false;
+      }
     }
+
+    const updatedWorker = await Worker.findByIdAndUpdate(workerId, updateData, { new: true })
+      .select('isOnline geoLocation location approvalStatus currentOfflineSchedule');
 
     console.log(`[Worker] ${workerId} is now ${isOnline ? '🟢 ONLINE' : '🔴 OFFLINE'}${isOnline ? ` at [${lat}, ${lng}]` : ''}`);
 
     res.status(200).json({
       success: true,
       message: isOnline ? 'You are now online! You will receive job alerts.' : 'You are now offline.',
-      data: { isOnline: worker.isOnline }
+      data: {
+        isOnline: updatedWorker.isOnline,
+        currentOfflineSchedule: updatedWorker.currentOfflineSchedule
+      }
     });
   } catch (error) {
     console.error('Toggle online error:', error);
