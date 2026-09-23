@@ -9,14 +9,24 @@ import {
   deleteWorker,
   getWorkerJobs,
   getAllJobs,
+  getJobById,
   getWorkerEarnings,
   payWorker,
   getWorkerPayments,
   assignWorkerToBooking,
   approveWorkerSkill,
   rejectWorkerSkill,
-  removeWorkerSkill
+  removeWorkerSkill,
+  updateWorker,
+  assignWorkerPlan,
+  createWorkerByAdmin
 } from '../controllers/adminWorkerController.js';
+import {
+  getWorkerPlans
+} from '../controllers/adminWorkerPlanController.js';
+import {
+  getZones
+} from '../controllers/zoneController.js';
 import {
   getAllComplaints,
   updateComplaintStatus
@@ -37,6 +47,7 @@ router.use(authorizedRoles('admin', 'superadmin'));
 
 // Specific collection-level list endpoints (MUST be defined before /:id)
 router.get('/jobs', getAllJobs);
+router.get('/jobs/:id', getJobById);
 router.post('/jobs/:id/assign', assignWorkerToBooking);
 router.get('/payments', getWorkerPayments);
 router.get('/complaints', getAllComplaints);
@@ -49,10 +60,19 @@ router.post('/offline-requests/:id/reject', rejectOfflineRequest);
 router.patch('/offline-requests/:id/adjust-time', adjustOfflineRequestTime);
 router.put('/offline-requests/:id/adjust-time', adjustOfflineRequestTime);
 
+// Reference Data for Dropdowns
+router.get('/zones', getZones);
+router.get('/plans', getWorkerPlans);
+
 // CRUD / Specific Worker details
 router.get('/', getAllWorkers);
+router.post('/', createWorkerByAdmin);
 router.post('/:id/force-online', forceWorkerOnline);
 router.get('/:id', getWorkerDetails);
+router.put('/:id', updateWorker);
+router.patch('/:id', updateWorker);
+router.post('/:id/subscription', assignWorkerPlan);
+router.post('/:id/plan', assignWorkerPlan);
 router.post('/:id/approve', approveWorker);
 router.post('/:id/reject', rejectWorker);
 router.post('/:id/suspend', suspendWorker);

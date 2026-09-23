@@ -36,6 +36,10 @@ const workerSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
+    nameOnAadhar: {
+      type: String,
+      trim: true
+    },
     document: {
       type: String, // Cloudinary URL (Front)
     },
@@ -60,6 +64,20 @@ const workerSchema = new mongoose.Schema({
     document: {
       type: String, // Cloudinary URL
     }
+  },
+  otherDocuments: [{
+    type: String // Cloudinary URLs
+  }],
+  vendorType: {
+    type: String,
+    enum: ['Registered', 'Unregistered'],
+    default: 'Unregistered'
+  },
+  gstin: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    default: null
   },
   vendorId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -275,6 +293,29 @@ const workerSchema = new mongoose.Schema({
       type: String,
       default: null
     }
+  },
+  // Assigned Service Zones
+  zoneIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Zone'
+  }],
+  zones: [{
+    type: String,
+    trim: true
+  }],
+  // Business / Shop Details
+  businessName: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  mcqLevel: {
+    type: String,
+    default: 'Not Certified'
+  },
+  experienceYears: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

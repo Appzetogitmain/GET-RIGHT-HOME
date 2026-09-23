@@ -85,9 +85,20 @@ const AssignWorkerModal = ({ isOpen, onClose, booking, onSuccess }) => {
             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
               <div>
                 <h2 className="text-sm font-bold text-gray-900">Assign Worker manually</h2>
-                <p className="text-[10px] text-gray-500 mt-0.5">
-                  Booking #{booking?.bookingNumber || booking?._id?.slice(-6).toUpperCase()} • <span className="font-semibold text-blue-600">{booking?.serviceCategory}</span>
-                </p>
+                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                  <p className="text-[10px] text-gray-500">
+                    Booking #{booking?.bookingNumber || booking?._id?.slice(-6).toUpperCase()} • <span className="font-semibold text-blue-600">{booking?.serviceCategory}</span>
+                  </p>
+                  {booking?.bookingType === 'instant' ? (
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-amber-500 text-white">
+                      ⚡ Instant (ASAP)
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-indigo-100 text-indigo-700">
+                      📅 {booking?.scheduledTime || 'Slot'}
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={onClose}

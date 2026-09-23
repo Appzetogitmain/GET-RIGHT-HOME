@@ -175,6 +175,46 @@ const adminWorkerService = {
   forceWorkerOnline: async (id) => {
     const response = await api.post(`/admin/workers/${id}/force-online`);
     return response.data;
+  },
+
+  /**
+   * Update worker details (admin edit)
+   */
+  updateWorker: async (id, data) => {
+    const response = await api.put(`/admin/workers/${id}`, data);
+    return response.data;
+  },
+
+  /**
+   * Assign or extend subscription plan for a worker
+   */
+  assignPlan: async (id, planData) => {
+    const response = await api.post(`/admin/workers/${id}/subscription`, planData);
+    return response.data;
+  },
+
+  /**
+   * Create worker directly by admin
+   */
+  createWorker: async (data) => {
+    const response = await api.post('/admin/workers', data);
+    return response.data;
+  },
+
+  /**
+   * Get all zones
+   */
+  getZones: async () => {
+    const response = await api.get('/admin/workers/zones');
+    return response.data;
+  },
+
+  /**
+   * Get all worker subscription plans
+   */
+  getWorkerPlans: async () => {
+    const response = await api.get('/admin/workers/plans');
+    return response.data;
   }
 };
 

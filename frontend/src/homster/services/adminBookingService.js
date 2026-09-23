@@ -14,7 +14,7 @@ export const adminBookingService = {
   // Get booking details by ID
   getBookingById: async (id) => {
     try {
-      const response = await api.get(`/admin/bookings/${id}`);
+      const response = await api.get(`/admin/workers/jobs/${id}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch booking details' };

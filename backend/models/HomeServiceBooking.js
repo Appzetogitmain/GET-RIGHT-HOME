@@ -386,6 +386,7 @@ const bookingSchema = new mongoose.Schema({
   },
   // Timestamps
   acceptedAt: { type: Date, default: null },
+  workerAcceptedAt: { type: Date, default: null },
   assignedAt: { type: Date, default: null },
   startedAt: { type: Date, default: null },
   journeyStartedAt: { type: Date, default: null },
