@@ -34,9 +34,21 @@ export const CartProvider = ({ children }) => {
       setIsLoading(true);
       const localCart = localStorage.getItem('cartItems');
       if (localCart) {
-        const items = JSON.parse(localCart) || [];
+        let items = JSON.parse(localCart) || [];
+        // Ensure every item has normalized unitPrice and correct line price
+        items = items.map(item => {
+          const count = Math.max(1, Number(item.serviceCount) || 1);
+          const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+          return {
+            ...item,
+            serviceCount: count,
+            unitPrice: unitPrice,
+            price: unitPrice * count
+          };
+        });
         setCartItems(items);
         setCartCount(items.length);
+        localStorage.setItem('cartItems', JSON.stringify(items));
         
         // Auto-sync existing cart to backend on load
         if (items.length > 0) {
@@ -65,18 +77,35 @@ export const CartProvider = ({ children }) => {
   const addToCart = useCallback(async (itemData) => {
     try {
       const itemId = itemData._id || itemData.id || `cart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newItem = { ...itemData, _id: itemId, id: itemId };
+      const unitPrice = Number(itemData.unitPrice) || Number(itemData.price) || 0;
+      const initialCount = Math.max(1, Number(itemData.serviceCount) || 1);
+      const newItem = {
+        ...itemData,
+        _id: itemId,
+        id: itemId,
+        unitPrice,
+        serviceCount: initialCount,
+        price: unitPrice * initialCount
+      };
 
       setCartItems(prev => {
         // Prevent duplicate addition of the same serviceId
-        const exists = prev.some(item => item.serviceId === itemData.serviceId);
+        const exists = prev.some(item => (item.serviceId && item.serviceId === itemData.serviceId) || item._id === itemId || item.id === itemId);
         let updated;
         if (exists) {
-          updated = prev.map(item =>
-            item.serviceId === itemData.serviceId
-              ? { ...item, serviceCount: (item.serviceCount || 1) + 1 }
-              : item
-          );
+          updated = prev.map(item => {
+            if ((item.serviceId && item.serviceId === itemData.serviceId) || item._id === itemId || item.id === itemId) {
+              const newCount = (Number(item.serviceCount) || 1) + initialCount;
+              const uPrice = Number(item.unitPrice) || unitPrice || (item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+              return {
+                ...item,
+                serviceCount: newCount,
+                unitPrice: uPrice,
+                price: uPrice * newCount
+              };
+            }
+            return item;
+          });
         } else {
           updated = [...prev, newItem];
         }
@@ -98,12 +127,14 @@ export const CartProvider = ({ children }) => {
     try {
       setCartItems(prev => {
         const updated = prev.map(item => {
-          if (item._id === itemId || item.id === itemId) {
-            const unitPrice = item.unitPrice || (item.serviceCount ? item.price / item.serviceCount : item.price);
+          if (item._id === itemId || item.id === itemId || (item.serviceId && item.serviceId === itemId)) {
+            const count = Math.max(1, Number(serviceCount) || 1);
+            const unitPrice = Number(item.unitPrice) || (item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
             return {
               ...item,
-              serviceCount,
-              price: unitPrice * serviceCount
+              unitPrice: unitPrice,
+              serviceCount: count,
+              price: unitPrice * count
             };
           }
           return item;
@@ -123,7 +154,7 @@ export const CartProvider = ({ children }) => {
   const removeItem = useCallback(async (itemId) => {
     try {
       setCartItems(prev => {
-        const updated = prev.filter(item => item._id !== itemId && item.id !== itemId);
+        const updated = prev.filter(item => item._id !== itemId && item.id !== itemId && item.serviceId !== itemId);
         localStorage.setItem('cartItems', JSON.stringify(updated));
         setCartCount(updated.length);
         syncToBackend(updated);

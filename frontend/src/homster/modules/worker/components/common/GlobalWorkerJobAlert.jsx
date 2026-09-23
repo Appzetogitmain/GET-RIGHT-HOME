@@ -152,7 +152,7 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft }) => {
                   Total Price
                 </span>
                 <span className={`text-[13px] font-black ${booking.isEstimateBased ? 'text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100' : 'text-green-600'}`}>
-                  {booking.isEstimateBased ? 'Estimate Based' : `₹${booking.price || 'N/A'}`}
+                  {booking.isEstimateBased ? 'Estimate Based' : `₹${booking.totalAmount || booking.finalAmount || booking.price || 'N/A'}`}
                 </span>
               </div>
             </div>
@@ -208,7 +208,9 @@ const mapPendingRequestToJob = (data) => ({
     address: data.address?.addressLine1 || 'Location shared',
     distance: data.distance ? `${data.distance.toFixed(1)} km` : 'Near you'
   },
-  price: data.price,
+  price: data.totalAmount || data.finalAmount || data.price,
+  totalAmount: data.totalAmount || data.finalAmount || data.price,
+  workerAmount: data.workerAmount,
   serviceCategory: data.serviceCategory,
   brandName: data.brandName,
   brandIcon: data.brandIcon,
@@ -243,27 +245,41 @@ export default function GlobalWorkerJobAlert() {
     const fetchPending = async () => {
       try {
         const res = await workerService.getPendingRequests();
-        if (!res?.success || !res.data?.length) return;
+        if (!res?.success) return;
+
+        const currentActiveRequests = res.data || [];
+        const activeRequestIds = new Set(currentActiveRequests.map(b => String(b.bookingId || b.id || b._id)));
+
         setActiveAlerts((prev) => {
-          const known = new Set(prev.map((b) => String(b.id || b._id)));
-          const missed = res.data
+          // Filter out alerts that have been cancelled, expired or taken by others
+          const validPrev = prev.filter(b => activeRequestIds.has(String(b.id || b._id)));
+
+          const known = new Set(validPrev.map((b) => String(b.id || b._id)));
+          const missed = currentActiveRequests
             .map(mapPendingRequestToJob)
             .filter((job) => !known.has(String(job.id)));
-          if (missed.length === 0) return prev;
-          playAlertRing(true);
-          return [...missed, ...prev];
+
+          if (missed.length > 0) {
+            playAlertRing(true);
+            return [...missed, ...validPrev];
+          }
+          return validPrev;
         });
       } catch {
-        // Silent — this is a best-effort catch-up, not the primary delivery path
+        // Silent — fallback sync
       }
     };
 
     fetchPending();
+    const interval = setInterval(fetchPending, 4000); // 4-second fail-safe background sync
     window.addEventListener('focus', fetchPending);
     window.addEventListener('online', fetchPending);
+    window.addEventListener('workerJobsUpdated', fetchPending);
     return () => {
+      clearInterval(interval);
       window.removeEventListener('focus', fetchPending);
       window.removeEventListener('online', fetchPending);
+      window.removeEventListener('workerJobsUpdated', fetchPending);
     };
   }, []);
 
