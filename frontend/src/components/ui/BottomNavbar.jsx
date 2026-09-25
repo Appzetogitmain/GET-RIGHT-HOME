@@ -3,14 +3,11 @@ import { Home, Briefcase, Search, User, Video, MessageSquare, Building, Key, Map
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import MobileSearchOverlay from '../user/MobileSearchOverlay';
-import GuidedSearchFlowModal from '../user/GuidedSearchFlowModal';
-import { getPreferredCity } from '../../utils/locationPreference';
 
 const BottomNavbar = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [searchOpen, setSearchOpen] = useState(false);
-    const preferredCity = getPreferredCity();
 
     let firstItem = { name: 'Home', icon: Home, route: '/' };
     let themeActiveText = 'text-surface';
@@ -67,10 +64,9 @@ const BottomNavbar = () => {
 
     return (
         <>
-        <GuidedSearchFlowModal 
-            isOpen={searchOpen} 
-            onClose={() => setSearchOpen(false)} 
-            initialCity={preferredCity}
+        <MobileSearchOverlay
+            open={searchOpen}
+            onClose={() => setSearchOpen(false)}
         />
         <div id="global-bottom-navbar" className="md:hidden fixed bottom-0 left-0 right-0 z-[100] print:hidden">
             <div className="

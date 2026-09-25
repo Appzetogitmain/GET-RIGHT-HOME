@@ -8,7 +8,6 @@ import BannerCarousel from './BannerCarousel';
 import CityDropdown from './CityDropdown';
 import toast from 'react-hot-toast';
 import DesktopSearchFilterBar from './DesktopSearchFilterBar';
-import GuidedSearchFlowModal from './GuidedSearchFlowModal';
 import { getPreferredCity, setPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
 import { addRecentSearch } from '../../utils/recentActivity';
 
@@ -19,7 +18,6 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     const bgLightClass = theme?.bgLight || 'bg-emerald-500/10';
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCity, setSelectedCity] = useState(getPreferredCity());
@@ -236,14 +234,6 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                         />
                         <button
                             type="button"
-                            onClick={() => setIsSearchModalOpen(true)}
-                            className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors shrink-0"
-                            title="Guided Search Flow"
-                        >
-                            <LucideIcons.Sparkles size={17} />
-                        </button>
-                        <button
-                            type="button"
                             onClick={handleSearch}
                             className="px-3 py-1 rounded-lg text-white font-semibold text-xs transition-transform active:scale-95 shrink-0"
                             style={{ backgroundColor: accentColor }}
@@ -274,12 +264,6 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             )}
 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-            <GuidedSearchFlowModal
-                isOpen={isSearchModalOpen}
-                onClose={() => setIsSearchModalOpen(false)}
-                initialCity={selectedCity}
-                initialTab={selectedType?.label?.toLowerCase() || 'buy'}
-            />
         </motion.section>
     );
 };

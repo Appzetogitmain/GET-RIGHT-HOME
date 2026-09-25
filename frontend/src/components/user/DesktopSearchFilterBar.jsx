@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, Mic, ChevronDown, Check, Sparkles } from 'lucide-react';
+import { Search, MapPin, Mic, ChevronDown, Check } from 'lucide-react';
 import { addRecentSearch } from '../../utils/recentActivity';
 import { parseSearchQuery } from '../../utils/searchQueryParser';
 import SearchSuggestions from './SearchSuggestions';
-import GuidedSearchFlowModal from './GuidedSearchFlowModal';
 
 const TABS = [
     { key: 'buy', label: 'Buy' },
@@ -179,7 +178,6 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
         }, () => setDetecting(false), { timeout: 6000 });
     };
 
-    const [isGuidedModalOpen, setIsGuidedModalOpen] = useState(false);
 
     const handleSearch = (overrideQuery) => {
         const rawText = (overrideQuery !== undefined ? overrideQuery : searchText).trim();
@@ -346,16 +344,6 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
                 </div>
 
                 <button
-                    type="button"
-                    onClick={() => setIsGuidedModalOpen(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-800 text-[13px] font-semibold transition-all shrink-0 cursor-pointer shadow-sm"
-                    title="Open guided multi-step search"
-                >
-                    <Sparkles size={15} className="text-emerald-600" />
-                    <span className="hidden xl:inline">Guided Flow</span>
-                </button>
-
-                <button
                     onClick={handleSearch}
                     className="px-7 py-2.5 rounded-xl text-white font-bold text-[14px] shadow-md active:scale-[0.98] transition-all shrink-0 cursor-pointer"
                     style={{ backgroundColor: accentColor }}
@@ -440,17 +428,6 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
             </div>
         </div>
 
-        <GuidedSearchFlowModal
-            isOpen={isGuidedModalOpen}
-            onClose={() => setIsGuidedModalOpen(false)}
-            initialCity={selectedCity}
-            initialTab={activeTab}
-            initialMinPrice={minPrice}
-            initialMaxPrice={maxPrice}
-            initialBedrooms={bedrooms}
-            initialConstructionStatus={constructionStatus}
-            initialPostedBy={postedBy}
-        />
         </>
     );
 };
