@@ -1,0 +1,6 @@
+# Shell scripts must keep LF endings. With CRLF the shebang reads as
+# "/bin/sh\r" and the script dies with "bad interpreter" on macOS and Linux —
+# which would silently disable the pre-commit hook on exactly the machines it
+# needs to run on.
+*.sh text eol=lf
+.githooks/pre-commit text eol=lf
