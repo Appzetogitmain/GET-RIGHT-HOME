@@ -15,12 +15,14 @@ import WorkerSupportSettings from './WorkerSupportSettings';
 import WorkerTrainingSettings from './WorkerTrainingSettings';
 import WorkerComplaints from './WorkerComplaints';
 import WorkerPrivacyPolicy from './WorkerPrivacyPolicy';
+import WorkerOfflineRequests from './WorkerOfflineRequests';
 
 const Workers = () => {
   const location = useLocation();
 
   const navTabs = [
     { name: 'All Workers', path: '/admin/home-service/workers/all', icon: FiUsers },
+    { name: 'Offline Requests', path: '/admin/home-service/workers/offline-requests', icon: FiClock },
     { name: 'Worker Jobs', path: '/admin/home-service/workers/jobs', icon: FiClock },
     { name: 'Withdrawals', path: '/admin/home-service/workers/withdrawals', icon: FiDollarSign },
     { name: 'Monthly Target', path: '/admin/home-service/workers/monthly-target', icon: FiActivity },
@@ -38,17 +40,40 @@ const Workers = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Top Worker Section Navigation Tabs */}
+      <div className="bg-white rounded-xl p-1.5 border border-gray-200 shadow-2xs flex items-center gap-1 overflow-x-auto no-scrollbar">
+        {navTabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = location.pathname.startsWith(tab.path) || (tab.path.endsWith('/all') && location.pathname.endsWith('/workers'));
+          return (
+            <Link
+              key={tab.name}
+              to={tab.path}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                isActive
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.name}</span>
+            </Link>
+          );
+        })}
+      </div>
+
       {/* Content Area */}
       <motion.div
         key={location.pathname}
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.2 }}
       >
         <Routes>
           <Route path="/" element={<Navigate to="all" replace />} />
           <Route path="all" element={<AllWorkers />} />
+          <Route path="offline-requests" element={<WorkerOfflineRequests />} />
           <Route path="jobs" element={<WorkerJobs />} />
           <Route path="withdrawals" element={<WorkerWithdrawals />} />
           <Route path="monthly-target" element={<MonthlyTarget />} />

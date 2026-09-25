@@ -8,6 +8,7 @@ import profileRoutes from './worker-routes/profile.routes.js';
 import subscriptionRoutes from './worker-routes/subscription.routes.js';
 import walletRoutes from './worker-routes/wallet.routes.js';
 import complaintRoutes from './worker-routes/complaint.routes.js';
+import offlineRoutes from './worker-routes/offline.routes.js';
 
 const router = express.Router();
 
@@ -19,6 +20,7 @@ router.use('/', profileRoutes);          // exposes /api/workers/profile
 router.use('/subscription', subscriptionRoutes); // exposes /api/workers/subscription/status
 router.use('/wallet', walletRoutes);
 router.use('/complaints', complaintRoutes);
+router.use('/offline-requests', offlineRoutes); // exposes /api/workers/offline-requests
 
 // DEBUG ROUTE (for testing worker status)
 router.get('/debug', async (req, res) => {

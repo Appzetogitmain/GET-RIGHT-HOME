@@ -82,6 +82,18 @@ body:has(#hotel-root) {
   scrollbar-width: none;
 }
 
+/* scrollbar-hide alias */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
 /* Alias used across several pages (property galleries, wizard steps) —
    same rules as .no-scrollbar. Was referenced in 8 files but never defined,
    so those containers fell back to the native scrollbar. */

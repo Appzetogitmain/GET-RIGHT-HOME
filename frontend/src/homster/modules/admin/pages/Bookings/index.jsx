@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   FiSearch, FiCalendar, FiDownload, FiMoreVertical,
-  FiClock, FiBox, FiTruck, FiXCircle, FiShoppingBag, FiBell
+  FiClock, FiBox, FiTruck, FiXCircle, FiShoppingBag, FiBell,
+  FiZap, FiEye, FiCheckCircle, FiUserCheck, FiPhone
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { adminBookingService } from '../../../../services/adminBookingService';
 import AssignWorkerModal from './components/AssignWorkerModal';
+import BookingDetailsModal from './components/BookingDetailsModal';
 
 const BookingStatsCard = ({ title, count, icon: Icon, colorClass, bgClass }) => (
   <div className={`p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between ${bgClass}`}>
@@ -52,6 +54,7 @@ const Bookings = () => {
   // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const [bookingTypeFilter, setBookingTypeFilter] = useState('All Types');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -59,8 +62,9 @@ const Bookings = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Assign Worker Modal
+  // Modals
   const [selectedAssignBooking, setSelectedAssignBooking] = useState(null);
+  const [selectedDetailBooking, setSelectedDetailBooking] = useState(null);
 
   // Stats
   const [stats, setStats] = useState({
@@ -69,6 +73,8 @@ const Bookings = () => {
     inProgress: 0,
     completed: 0,
     cancelled: 0,
+    instant: 0,
+    scheduled: 0,
     total: 0
   });
 
@@ -95,6 +101,9 @@ const Bookings = () => {
       if (statusFilter !== 'All Status') {
         params.status = statusFilter;
       }
+      if (bookingTypeFilter !== 'All Types') {
+        params.bookingType = bookingTypeFilter;
+      }
 
       const res = await adminBookingService.getAllBookings(params);
       if (res.success) {
@@ -108,8 +117,7 @@ const Bookings = () => {
           setTotalPages(1);
         }
 
-        // getAllJobs returns booking-specific stats directly — no need for the
-        // unrelated hotel-booking/enquiry dashboard stats.
+        // getAllJobs returns booking-specific stats directly
         if (res.stats) {
           setStats({
             pending: res.stats.pending || 0,
@@ -117,6 +125,8 @@ const Bookings = () => {
             inProgress: res.stats.inProgress || 0,
             completed: res.stats.completed || 0,
             cancelled: res.stats.cancelled || 0,
+            instant: res.stats.instant || 0,
+            scheduled: res.stats.scheduled || 0,
             total: res.stats.total || 0
           });
         }
@@ -131,14 +141,17 @@ const Bookings = () => {
 
   useEffect(() => {
     fetchData();
-  }, [page, debouncedSearch, statusFilter, startDate, endDate]);
+  }, [page, debouncedSearch, statusFilter, bookingTypeFilter, startDate, endDate]);
 
   const handleExport = () => {
-    const headers = ['Order ID', 'Customer', 'Service', 'Total', 'Status', 'Date'];
+    const headers = ['Order ID', 'Type', 'Customer', 'Service', 'Slot / Time', 'Assigned Vendor', 'Total', 'Status', 'Date'];
     const rows = bookings.map(b => [
-      b.bookingNumber,
+      b.bookingNumber || b._id,
+      b.bookingType || 'scheduled',
       b.userId?.name || 'Unknown',
-      b.serviceId?.title || 'Service',
+      b.serviceName || b.serviceId?.title || 'Service',
+      b.bookingType === 'instant' ? 'Instant (ASAP)' : (b.scheduledTime || 'N/A'),
+      b.workerId?.name || b.vendorId?.name || 'Unassigned',
       b.finalAmount,
       b.status,
       new Date(b.createdAt).toLocaleDateString()
@@ -151,21 +164,24 @@ const Bookings = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "bookings.csv");
+    link.setAttribute("download", `bookings_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+        <BookingStatsCard title="⚡ Instant" count={stats.instant} icon={FiZap} bgClass="bg-amber-50" colorClass="text-amber-600" />
+        <BookingStatsCard title="📅 Slot" count={stats.scheduled} icon={FiCalendar} bgClass="bg-indigo-50" colorClass="text-indigo-600" />
         <BookingStatsCard title="Awaiting" count={stats.pending} icon={FiClock} bgClass="bg-yellow-50" colorClass="text-yellow-600" />
-        <BookingStatsCard title="Manual Assignment Required" count={stats.manualAssignmentRequired} icon={FiBell} bgClass="bg-amber-50" colorClass="text-amber-600" />
+        <BookingStatsCard title="Manual Assign" count={stats.manualAssignmentRequired} icon={FiBell} bgClass="bg-orange-50" colorClass="text-orange-600" />
         <BookingStatsCard title="In Progress" count={stats.inProgress} icon={FiBox} bgClass="bg-purple-50" colorClass="text-purple-600" />
         <BookingStatsCard title="Completed" count={stats.completed} icon={FiTruck} bgClass="bg-green-50" colorClass="text-green-600" />
         <BookingStatsCard title="Cancelled" count={stats.cancelled} icon={FiXCircle} bgClass="bg-red-50" colorClass="text-red-600" />
-        <BookingStatsCard title="Total Orders" count={stats.total} icon={FiShoppingBag} bgClass="bg-gray-50" colorClass="text-gray-600" />
+        <BookingStatsCard title="Total" count={stats.total} icon={FiShoppingBag} bgClass="bg-gray-50" colorClass="text-gray-600" />
       </div>
 
       {/* Filter Bar */}
@@ -174,7 +190,7 @@ const Bookings = () => {
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
-            placeholder="Search bookings..."
+            placeholder="Search bookings, customer, or vendor..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-xs"
@@ -182,9 +198,27 @@ const Bookings = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          {/* Booking Type Filter */}
+          <select
+            value={bookingTypeFilter}
+            onChange={(e) => {
+              setBookingTypeFilter(e.target.value);
+              setPage(1);
+            }}
+            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 focus:outline-none focus:border-green-500 cursor-pointer"
+          >
+            <option value="All Types">All Types (Instant & Slot)</option>
+            <option value="instant">⚡ Instant Orders Only</option>
+            <option value="scheduled">📅 Slot Orders Only</option>
+          </select>
+
+          {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
             className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 focus:outline-none focus:border-green-500 cursor-pointer"
           >
             <option>All Status</option>
@@ -229,95 +263,226 @@ const Bookings = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Order ID</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Customer</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Items</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Total (₹)</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Payment</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Order Date</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+              <tr className="border-b border-gray-100 bg-gray-50/70">
+                <th className="px-3.5 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Order & Service</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Slot / Timing</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Accepted Vendor / Worker</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Customer</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Total (₹)</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-3.5 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-8 text-center text-xs text-gray-500">Loading bookings...</td>
+                  <td colSpan="8" className="px-4 py-12 text-center text-xs text-gray-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Loading bookings...</span>
+                    </div>
+                  </td>
                 </tr>
               ) : bookings.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-8 text-center text-xs text-gray-500">No bookings found</td>
+                  <td colSpan="8" className="px-4 py-12 text-center text-xs text-gray-500">
+                    No bookings found matching the selected filters.
+                  </td>
                 </tr>
               ) : (
-                bookings.map((booking) => (
-                  <tr key={booking._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <span className="font-bold text-gray-900 text-xs">#{booking.bookingNumber || booking._id.slice(-6).toUpperCase()}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div>
-                        <p className="font-bold text-gray-900 text-xs">{booking.userId?.name || 'Guest'}</p>
-                        <p className="text-[10px] text-gray-400">{booking.userId?.phone || booking.customerPhone}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-blue-600 text-[11px] font-bold">
-                        {booking.items?.length || 1} items
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-bold text-gray-900 text-xs">₹{booking.finalAmount?.toLocaleString()}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {booking.workerResponse === 'ADMIN_ASSIGNED' && booking.status === 'ASSIGNED' ? (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700">
-                          ADMIN ASSIGNED
-                        </span>
-                      ) : (
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${getStatusColor(booking.status)}`}>
+                bookings.map((booking) => {
+                  const isInstant = booking.bookingType?.toLowerCase() === 'instant';
+                  const provider = booking.workerId || booking.vendorId;
+                  const acceptedTime = booking.acceptedAt || booking.workerAcceptedAt;
+                  const isAccepted = !!acceptedTime || ['assigned', 'accepted', 'in_progress', 'completed'].includes(booking.status?.toLowerCase());
+                  const duration = booking.bookedItems?.[0]?.card?.duration || booking.serviceId?.duration;
+
+                  return (
+                    <tr
+                      key={booking._id}
+                      onClick={() => setSelectedDetailBooking(booking)}
+                      className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
+                    >
+                      {/* 1. Order & Service */}
+                      <td className="px-3.5 py-3">
+                        <div>
+                          <span className="font-bold text-gray-900 text-xs group-hover:text-blue-600 transition-colors">
+                            #{booking.bookingNumber || booking._id.slice(-6).toUpperCase()}
+                          </span>
+                          <p className="font-medium text-gray-800 text-xs mt-0.5 max-w-[150px] truncate" title={booking.serviceName}>
+                            {booking.serviceName || 'General Service'}
+                          </p>
+                          <span className="text-[10px] text-gray-400">
+                            {booking.items?.length || booking.bookedItems?.length || 1} items
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* 2. Type (Instant vs Slot) */}
+                      <td className="px-3 py-3">
+                        {isInstant ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs">
+                            <FiZap className="w-3 h-3" /> Instant
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 border border-indigo-200 text-indigo-700">
+                            <FiCalendar className="w-3 h-3" /> Slot
+                          </span>
+                        )}
+                      </td>
+
+                      {/* 3. Slot / Timing ("kitne time ki hai") */}
+                      <td className="px-3 py-3">
+                        {isInstant ? (
+                          <div>
+                            <span className="font-bold text-amber-700 text-xs flex items-center gap-1">
+                              <FiZap className="w-3 h-3 text-amber-500 shrink-0" /> ASAP (Immediate)
+                            </span>
+                            <span className="text-[10px] text-gray-400 block mt-0.5">
+                              Booked: {new Date(booking.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="font-bold text-gray-900 text-xs block">
+                              {booking.scheduledDate
+                                ? new Date(booking.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                                : new Date(booking.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            </span>
+                            <span className="text-[11px] font-semibold text-indigo-700 block">
+                              {booking.scheduledTime || (booking.timeSlot ? `${booking.timeSlot.start} - ${booking.timeSlot.end}` : 'Slot N/A')}
+                            </span>
+                            {duration && (
+                              <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                                <FiClock className="w-2.5 h-2.5" /> ~{duration}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* 4. Accepted Vendor ("kon sa vendor ne accept ki hai") */}
+                      <td className="px-3 py-3">
+                        {provider ? (
+                          <div className="flex items-center gap-2">
+                            {provider.profilePhoto ? (
+                              <img
+                                src={provider.profilePhoto}
+                                alt={provider.name}
+                                className="w-7 h-7 rounded-full object-cover border border-teal-400 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-[10px] shrink-0">
+                                {provider.name?.charAt(0)?.toUpperCase() || 'W'}
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-bold text-gray-900 text-xs leading-tight">
+                                {provider.name || provider.businessName || 'Assigned'}
+                              </p>
+                              {provider.phone && (
+                                <a
+                                  href={`tel:${provider.phone}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-[10px] text-blue-600 hover:underline flex items-center gap-1 font-medium mt-0.5"
+                                >
+                                  <FiPhone className="w-2.5 h-2.5" /> {provider.phone}
+                                </a>
+                              )}
+                              {acceptedTime ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100 mt-0.5">
+                                  <FiCheckCircle className="w-2.5 h-2.5" /> Accepted {new Date(acceptedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              ) : booking.workerResponse === 'ADMIN_ASSIGNED' ? (
+                                <span className="inline-block text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100 mt-0.5">
+                                  Admin Assigned
+                                </span>
+                              ) : (
+                                <span className="inline-block text-[9px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded mt-0.5">
+                                  Awaiting Provider
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200 inline-block">
+                              {booking.status?.toLowerCase() === 'searching' ? 'Searching...' : 'Unassigned'}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAssignBooking(booking);
+                              }}
+                              className="block mt-1 text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline"
+                            >
+                              + Assign Provider
+                            </button>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* 5. Customer */}
+                      <td className="px-3 py-3">
+                        <div>
+                          <p className="font-bold text-gray-900 text-xs">{booking.userId?.name || 'Guest'}</p>
+                          <p className="text-[10px] text-gray-500">{booking.userId?.phone || booking.customerPhone}</p>
+                          {booking.address?.city && (
+                            <p className="text-[9px] text-gray-400 truncate max-w-[100px]">{booking.address.city}</p>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 6. Total Amount */}
+                      <td className="px-3 py-3">
+                        <div>
+                          <span className="font-bold text-gray-900 text-xs">₹{booking.finalAmount?.toLocaleString()}</span>
+                          <span className="text-[10px] text-gray-400 block capitalize">
+                            {booking.paymentMethod?.replace('_', ' ') || 'COD'}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* 7. Status */}
+                      <td className="px-3 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${getStatusColor(booking.status)}`}>
                           {getStatusLabel(booking.status)}
                         </span>
-                      )}
-                      {/* The customer's cancellation reason was already being
-                          saved (CancelBookingModal → cancellationReason on the
-                          booking) but had no screen anywhere in admin that
-                          showed it — this is that screen. */}
-                      {booking.status?.toLowerCase() === 'cancelled' && booking.cancellationReason && (
-                        <p
-                          className="mt-1 text-[10px] text-red-500 font-medium max-w-[180px] truncate"
-                          title={booking.cancellationReason}
-                        >
-                          "{booking.cancellationReason}"
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-[11px] text-gray-600 capitalize font-medium">{booking.paymentMethod?.replace('_', ' ')}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-[10px] text-gray-600 font-medium">
-                        {new Date(booking.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                        })}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {['SEARCHING', 'NO_WORKERS', 'NO_VENDORS', 'MANUAL_ASSIGNMENT_REQUIRED', 'PENDING'].includes(booking.status?.toUpperCase()) ? (
-                        <button
-                          onClick={() => setSelectedAssignBooking(booking)}
-                          className="px-2 py-1 bg-blue-50 border border-blue-100 text-blue-600 rounded text-[10px] font-bold hover:bg-blue-100 transition-colors"
-                        >
-                          Assign Worker
-                        </button>
-                      ) : (
-                        <button className="p-1.5 text-gray-400 hover:bg-gray-50 rounded-lg transition-colors">
-                          <FiMoreVertical className="w-4 h-4" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                        {booking.status?.toLowerCase() === 'cancelled' && booking.cancellationReason && (
+                          <p
+                            className="mt-1 text-[10px] text-red-500 font-medium max-w-[140px] truncate"
+                            title={booking.cancellationReason}
+                          >
+                            "{booking.cancellationReason}"
+                          </p>
+                        )}
+                      </td>
+
+                      {/* 8. Actions */}
+                      <td className="px-3.5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => setSelectedDetailBooking(booking)}
+                            className="px-2.5 py-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-md text-[10px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
+                            title="View Full Booking Details"
+                          >
+                            <FiEye className="w-3 h-3 text-blue-600" /> Details
+                          </button>
+
+                          {['SEARCHING', 'NO_WORKERS', 'NO_VENDORS', 'MANUAL_ASSIGNMENT_REQUIRED', 'PENDING'].includes(booking.status?.toUpperCase()) && (
+                            <button
+                              onClick={() => setSelectedAssignBooking(booking)}
+                              className="px-2 py-1 bg-blue-50 border border-blue-100 text-blue-600 rounded-md text-[10px] font-bold hover:bg-blue-100 transition-colors"
+                            >
+                              Assign
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -347,7 +512,7 @@ const Bookings = () => {
         )}
       </div>
 
-      {/* Modals */}
+      {/* Assign Worker Modal */}
       <AssignWorkerModal
         isOpen={!!selectedAssignBooking}
         onClose={() => setSelectedAssignBooking(null)}
@@ -356,9 +521,20 @@ const Bookings = () => {
           fetchData();
         }}
       />
+
+      {/* Booking Details Modal */}
+      <BookingDetailsModal
+        isOpen={!!selectedDetailBooking}
+        onClose={() => setSelectedDetailBooking(null)}
+        booking={selectedDetailBooking}
+        onAssignWorker={(bookingToAssign) => {
+          setSelectedAssignBooking(bookingToAssign);
+        }}
+      />
     </motion.div>
   );
 };
 
 export default Bookings;
+
 

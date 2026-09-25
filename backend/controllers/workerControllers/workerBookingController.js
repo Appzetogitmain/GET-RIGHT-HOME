@@ -190,8 +190,9 @@ const getPendingRequests = async (req, res) => {
           customerName: booking.userId?.name || 'Customer',
           customerPhone: booking.userId?.phone,
           scheduledDate: booking.scheduledDate,
-          scheduledTime: booking.scheduledTime,
-          price: workerAmount || booking.finalAmount,
+          price: booking.finalAmount || booking.basePrice || workerAmount,
+          workerAmount: workerAmount,
+          totalAmount: booking.finalAmount || booking.basePrice,
           address: booking.address,
           distance: r.distance,
           serviceCategory: booking.serviceCategory,
@@ -1167,6 +1168,8 @@ const respondToJob = async (req, res) => {
       booking.workerId = workerId; // Assign the worker
       booking.bookingModel = 'worker'; // Ensure model is set
       booking.workerAcceptedAt = new Date();
+      booking.acceptedAt = new Date();
+      booking.assignedAt = booking.assignedAt || new Date();
       booking.workerResponse = 'ACCEPTED';
       // Assignment lifecycle is tracked separately from the booking lifecycle;
       // without this a job accepted out of the manual queue stayed flagged as

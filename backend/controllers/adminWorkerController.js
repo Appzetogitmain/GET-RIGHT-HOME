@@ -9,6 +9,9 @@ import { createNotification } from './notificationControllers/notificationContro
 import { BOOKING_STATUS } from '../utils/constants.js';
 import { safeRegex } from '../utils/escapeRegex.js';
 
+import Zone from '../models/Zone.js';
+import WorkerSubscriptionPlan from '../models/WorkerSubscriptionPlan.js';
+
 // Buckets the raw BOOKING_STATUS values into the groups the admin dashboard
 // cards show. "Manual Assignment Required" is the status this dashboard exists
 // to surface — bookings where no worker auto-accepted and admin must step in.
@@ -33,24 +36,326 @@ const JOB_STATUS_BUCKETS = {
 
 export const getAllWorkers = async (req, res) => {
   try {
-    const { search, approvalStatus } = req.query;
+    const { search, approvalStatus, zoneId, zone } = req.query;
     const query = {};
 
     if (search) {
+      const regex = { $regex: search, $options: 'i' };
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+        { name: regex },
+        { phone: regex },
+        { email: regex },
+        { businessName: regex },
+        { serviceCategories: regex }
       ];
     }
 
     if (approvalStatus && approvalStatus !== 'all') {
-      query.approvalStatus = approvalStatus;
+      if (approvalStatus === 'pending_skills') {
+        query['pendingServiceCategories.0'] = { $exists: true };
+      } else if (approvalStatus === 'signup_only') {
+        query.approvalStatus = 'pending';
+      } else {
+        query.approvalStatus = approvalStatus;
+      }
     }
 
-    const workers = await Worker.find(query).sort({ createdAt: -1 });
-    res.json({ success: true, data: workers });
+    if (zoneId && zoneId !== 'all') {
+      query.zoneIds = zoneId;
+    } else if (zone && zone !== 'all') {
+      query.zones = { $regex: zone, $options: 'i' };
+    }
+
+    const [workers, allZones, totalCount, pendingCount, approvedCount, rejectedCount, pendingSkillsCount] = await Promise.all([
+      Worker.find(query)
+        .populate('zoneIds', 'name status')
+        .populate('subscription.planId', 'title price durationDays features')
+        .sort({ createdAt: -1 })
+        .lean(),
+      Zone.find().select('_id name status').sort({ name: 1 }).lean(),
+      Worker.countDocuments(),
+      Worker.countDocuments({ approvalStatus: 'pending' }),
+      Worker.countDocuments({ approvalStatus: 'approved' }),
+      Worker.countDocuments({ approvalStatus: 'rejected' }),
+      Worker.countDocuments({ 'pendingServiceCategories.0': { $exists: true } })
+    ]);
+
+    // Build Zone summary counts
+    const allWorkersForZoneCount = await Worker.find().select('zoneIds zones').lean();
+    const zonesSummary = [
+      { id: 'all', name: 'All Zones', count: totalCount },
+      ...allZones.map(z => {
+        const c = allWorkersForZoneCount.filter(w => {
+          const hasId = w.zoneIds && w.zoneIds.some(zid => String(zid) === String(z._id));
+          const hasName = w.zones && w.zones.some(zName => zName && zName.toLowerCase() === z.name.toLowerCase());
+          return hasId || hasName;
+        }).length;
+        return {
+          id: String(z._id),
+          name: z.name,
+          count: c
+        };
+      })
+    ];
+
+    // Compute formatted subscription details and days left
+    const now = new Date();
+    const formattedWorkers = workers.map(w => {
+      let daysLeft = 0;
+      let planTitle = 'NO PLAN';
+      let isPlanActive = false;
+
+      if (w.subscription) {
+        if (w.subscription.planId && w.subscription.planId.title) {
+          planTitle = w.subscription.planId.title;
+        } else if (w.subscription.planTitle) {
+          planTitle = w.subscription.planTitle;
+        }
+        if (w.subscription.expiryDate) {
+          const diffMs = new Date(w.subscription.expiryDate).getTime() - now.getTime();
+          daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+          isPlanActive = diffMs > 0 && w.subscription.isActive !== false;
+        }
+      }
+
+      return {
+        ...w,
+        subscription: {
+          ...w.subscription,
+          planTitle,
+          daysLeft,
+          isActive: isPlanActive
+        }
+      };
+    });
+
+    res.json({
+      success: true,
+      data: formattedWorkers,
+      counts: {
+        total: totalCount,
+        pending: pendingCount,
+        signupOnly: pendingCount,
+        approved: approvedCount,
+        rejected: rejectedCount,
+        pendingSkills: pendingSkillsCount
+      },
+      zonesSummary,
+      zones: allZones
+    });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateWorker = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      phone,
+      email,
+      businessName,
+      serviceCategories,
+      zoneIds,
+      zones,
+      approvalStatus,
+      isActive,
+      isOnline,
+      mcqLevel,
+      experienceYears,
+      vendorType,
+      gstin,
+      profilePhoto,
+      nameOnAadhar,
+      aadharNumber,
+      panNumber,
+      documents,
+      otherDocuments
+    } = req.body;
+
+    const worker = await Worker.findById(id);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    if (name !== undefined) worker.name = name;
+    if (phone !== undefined) worker.phone = phone;
+    if (email !== undefined) worker.email = email || null;
+    if (businessName !== undefined) worker.businessName = businessName;
+    if (mcqLevel !== undefined) worker.mcqLevel = mcqLevel;
+    if (experienceYears !== undefined) worker.experienceYears = Number(experienceYears) || 0;
+    if (isActive !== undefined) worker.isActive = Boolean(isActive);
+    if (isOnline !== undefined) worker.isOnline = Boolean(isOnline);
+    if (vendorType !== undefined) worker.vendorType = vendorType;
+    if (gstin !== undefined) worker.gstin = gstin;
+    if (profilePhoto !== undefined) worker.profilePhoto = profilePhoto;
+
+    // Aadhar Card
+    if (!worker.aadhar) worker.aadhar = {};
+    if (nameOnAadhar !== undefined) worker.aadhar.nameOnAadhar = nameOnAadhar;
+    if (aadharNumber !== undefined) worker.aadhar.number = aadharNumber;
+    if (documents?.aadhar !== undefined) worker.aadhar.document = documents.aadhar;
+    if (documents?.aadharBack !== undefined) worker.aadhar.backDocument = documents.aadharBack;
+
+    // PAN Card
+    if (!worker.panCard) worker.panCard = {};
+    if (panNumber !== undefined) worker.panCard.number = panNumber;
+    if (documents?.pan !== undefined) worker.panCard.document = documents.pan;
+
+    // Driving License
+    if (!worker.drivingLicense) worker.drivingLicense = {};
+    if (documents?.drivingLicense !== undefined) worker.drivingLicense.document = documents.drivingLicense;
+
+    // Other documents
+    if (Array.isArray(otherDocuments)) {
+      worker.otherDocuments = otherDocuments;
+    } else if (documents?.other1 !== undefined || documents?.other2 !== undefined) {
+      const others = [documents?.other1, documents?.other2].filter(Boolean);
+      if (others.length > 0) worker.otherDocuments = others;
+    }
+
+    if (Array.isArray(serviceCategories)) {
+      worker.serviceCategories = serviceCategories;
+    }
+
+    // Handle zones
+    if (Array.isArray(zoneIds)) {
+      worker.zoneIds = zoneIds;
+      const foundZones = await Zone.find({ _id: { $in: zoneIds } }).select('name');
+      worker.zones = foundZones.map(z => z.name);
+    } else if (Array.isArray(zones)) {
+      worker.zones = zones;
+    }
+
+    if (approvalStatus && ['pending', 'approved', 'rejected', 'suspended'].includes(approvalStatus)) {
+      worker.approvalStatus = approvalStatus;
+      if (approvalStatus === 'approved' && worker.pendingServiceCategories?.length > 0) {
+        worker.serviceCategories = Array.from(new Set([...(worker.serviceCategories || []), ...worker.pendingServiceCategories]));
+        worker.pendingServiceCategories = [];
+      }
+    }
+
+    await worker.save();
+
+    const updatedWorker = await Worker.findById(id)
+      .populate('zoneIds', 'name status')
+      .populate('subscription.planId', 'title price durationDays features');
+
+    res.json({
+      success: true,
+      message: 'Worker updated successfully',
+      data: updatedWorker
+    });
+  } catch (error) {
+    console.error('Update worker error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const assignWorkerPlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { planId, durationDays = 30, customPlanTitle } = req.body;
+
+    const worker = await Worker.findById(id);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    let plan = null;
+    let daysToAdd = Number(durationDays) || 30;
+
+    if (planId) {
+      plan = await WorkerSubscriptionPlan.findById(planId);
+      if (plan && plan.durationDays) {
+        daysToAdd = Number(durationDays) || plan.durationDays;
+      }
+    }
+
+    const now = new Date();
+    // If worker already has an active subscription, extend from existing expiry date
+    const currentExpiry = (worker.subscription?.expiryDate && new Date(worker.subscription.expiryDate) > now)
+      ? new Date(worker.subscription.expiryDate)
+      : now;
+
+    const newExpiry = new Date(currentExpiry.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+
+    worker.subscription = {
+      isActive: true,
+      planId: plan ? plan._id : (worker.subscription?.planId || null),
+      startDate: worker.subscription?.startDate || now,
+      expiryDate: newExpiry,
+      transactionId: `ADMIN_${Date.now()}`
+    };
+
+    await worker.save();
+
+    const updated = await Worker.findById(id)
+      .populate('zoneIds', 'name status')
+      .populate('subscription.planId', 'title price durationDays features');
+
+    res.json({
+      success: true,
+      message: `Subscription plan ${plan?.title || customPlanTitle || ''} updated successfully until ${newExpiry.toLocaleDateString()}`,
+      data: updated
+    });
+  } catch (error) {
+    console.error('Assign plan error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const createWorkerByAdmin = async (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      email,
+      businessName,
+      password = 'Worker@123',
+      serviceCategories = [],
+      zoneIds = [],
+      approvalStatus = 'approved'
+    } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, message: 'Name and phone are required' });
+    }
+
+    const existing = await Worker.findOne({ phone });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'A worker with this phone number already exists' });
+    }
+
+    // Lookup zones
+    let zoneNames = [];
+    if (zoneIds && zoneIds.length > 0) {
+      const foundZones = await Zone.find({ _id: { $in: zoneIds } }).select('name');
+      zoneNames = foundZones.map(z => z.name);
+    }
+
+    const newWorker = await Worker.create({
+      name,
+      phone,
+      email: email || null,
+      businessName: businessName || name,
+      password,
+      serviceCategories,
+      zoneIds,
+      zones: zoneNames,
+      approvalStatus,
+      isActive: true,
+      isOnline: false
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Worker registered successfully by Admin',
+      data: newWorker
+    });
+  } catch (error) {
+    console.error('Create worker error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -67,12 +372,17 @@ export const getWorkerDetails = async (req, res) => {
 
 export const approveWorker = async (req, res) => {
   try {
-    const worker = await Worker.findByIdAndUpdate(
-      req.params.id,
-      { approvalStatus: 'approved' },
-      { new: true }
-    );
+    const worker = await Worker.findById(req.params.id);
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
+
+    worker.approvalStatus = 'approved';
+    // If worker had pending categories during initial registration, approve them now
+    if (worker.pendingServiceCategories && worker.pendingServiceCategories.length > 0) {
+      const existing = worker.serviceCategories || [];
+      worker.serviceCategories = Array.from(new Set([...existing, ...worker.pendingServiceCategories]));
+      worker.pendingServiceCategories = [];
+    }
+    await worker.save();
 
     // Process Referral Bonus
     if (worker.referredBy && !worker.referralBonusCredited) {
@@ -225,9 +535,13 @@ export const getAllJobs = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
-    const { status, search, startDate, endDate } = req.query;
+    const { status, search, startDate, endDate, bookingType } = req.query;
 
     const query = {};
+
+    if (bookingType && bookingType !== 'all') {
+      query.bookingType = bookingType.toLowerCase();
+    }
 
     if (status) {
       // Frontend sends the raw BOOKING_STATUS value (lowercase, e.g. "no_workers").
@@ -263,17 +577,23 @@ export const getAllJobs = async (req, res) => {
         $or: [{ name: searchRegex }, { phone: searchRegex }, { email: searchRegex }]
       }).select('_id');
 
+      const matchingWorkers = await Worker.find({
+        $or: [{ name: searchRegex }, { phone: searchRegex }]
+      }).select('_id');
+
       query.$or = [
         { bookingNumber: searchRegex },
-        { userId: { $in: users.map(u => u._id) } }
+        { userId: { $in: users.map(u => u._id) } },
+        { workerId: { $in: matchingWorkers.map(w => w._id) } }
       ];
     }
 
-    const [total, jobs, statsAgg, escalatedNotYetTerminal] = await Promise.all([
+    const [total, jobs, statsAgg, escalatedNotYetTerminal, instantCount, scheduledCount] = await Promise.all([
       HomeServiceBooking.countDocuments(query),
       HomeServiceBooking.find(query, null, { allowDiskUse: true })
         .populate('userId', 'name email phone')
-        .populate('workerId', 'name email phone')
+        .populate('workerId', 'name email phone profilePhoto rating')
+        .populate('vendorId', 'name businessName phone email profilePhoto')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -287,7 +607,9 @@ export const getAllJobs = async (req, res) => {
       HomeServiceBooking.countDocuments({
         assignmentStatus: 'manual_assignment_required',
         status: { $nin: JOB_STATUS_BUCKETS.manualAssignmentRequired }
-      })
+      }),
+      HomeServiceBooking.countDocuments({ bookingType: 'instant' }),
+      HomeServiceBooking.countDocuments({ bookingType: 'scheduled' })
     ]);
 
     const countByStatus = Object.fromEntries(statsAgg.map(s => [s._id, s.count]));
@@ -298,6 +620,8 @@ export const getAllJobs = async (req, res) => {
       inProgress: bucketCount(JOB_STATUS_BUCKETS.inProgress),
       completed: bucketCount(JOB_STATUS_BUCKETS.completed),
       cancelled: bucketCount(JOB_STATUS_BUCKETS.cancelled),
+      instant: instantCount,
+      scheduled: scheduledCount,
       total: statsAgg.reduce((sum, s) => sum + s.count, 0)
     };
 
@@ -305,6 +629,33 @@ export const getAllJobs = async (req, res) => {
   } catch (error) {
     console.error("GET ALL JOBS ERROR:", error);
     res.status(500).json({ success: false, message: error.message, stack: error.stack });
+  }
+};
+
+export const getJobById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await HomeServiceBooking.findById(id)
+      .populate('userId', 'name phone email')
+      .populate('vendorId', 'name businessName phone email address profilePhoto')
+      .populate('serviceId', 'title description iconUrl images')
+      .populate('categoryId', 'title slug')
+      .populate('workerId', 'name phone rating totalJobs location profilePhoto')
+      .lean();
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const bill = await VendorBill.findOne({ bookingId: booking._id });
+    if (bill) {
+      booking.bill = bill;
+    }
+
+    res.json({ success: true, data: booking });
+  } catch (error) {
+    console.error("GET JOB BY ID ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -655,6 +1006,9 @@ export const assignWorkerToBooking = async (req, res) => {
     booking.status = BOOKING_STATUS.ASSIGNED;
     booking.workerId = worker._id;
     booking.workerAcceptedAt = new Date();
+    booking.acceptedAt = new Date();
+    booking.assignedAt = new Date();
+    booking.assignmentStatus = 'assigned';
     booking.workerResponse = 'ADMIN_ASSIGNED';
     
     await booking.save();
@@ -702,3 +1056,210 @@ export const assignWorkerToBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * Approve worker pending skill(s)
+ */
+export const approveWorkerSkill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { category } = req.body;
+
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'Category is required' });
+    }
+
+    const worker = await Worker.findById(id);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    const categoriesToApprove = Array.isArray(category) ? category : [category];
+
+    if (!Array.isArray(worker.serviceCategories)) worker.serviceCategories = [];
+    if (!Array.isArray(worker.pendingServiceCategories)) worker.pendingServiceCategories = [];
+
+    const approvedList = [];
+    for (const cat of categoriesToApprove) {
+      const trimmed = typeof cat === 'string' ? cat.trim() : '';
+      if (!trimmed) continue;
+
+      // Remove from pending
+      worker.pendingServiceCategories = worker.pendingServiceCategories.filter(
+        c => c.trim().toLowerCase() !== trimmed.toLowerCase()
+      );
+
+      // Add to verified if not already present
+      const alreadyHas = worker.serviceCategories.some(
+        c => c.trim().toLowerCase() === trimmed.toLowerCase()
+      );
+      if (!alreadyHas) {
+        worker.serviceCategories.push(trimmed);
+        approvedList.push(trimmed);
+      }
+
+      // Update skillRequests & verifiedSkillsDetails metadata
+      if (Array.isArray(worker.skillRequests)) {
+        const reqItem = worker.skillRequests.find(
+          r => r.category && r.category.trim().toLowerCase() === trimmed.toLowerCase()
+        );
+        if (reqItem) {
+          reqItem.status = 'approved';
+          reqItem.reviewedAt = new Date();
+
+          if (!Array.isArray(worker.verifiedSkillsDetails)) worker.verifiedSkillsDetails = [];
+          const vIdx = worker.verifiedSkillsDetails.findIndex(
+            v => v.category && v.category.trim().toLowerCase() === trimmed.toLowerCase()
+          );
+          if (vIdx >= 0) {
+            worker.verifiedSkillsDetails[vIdx].experienceYears = reqItem.experienceYears || 0;
+            worker.verifiedSkillsDetails[vIdx].experienceLetter = reqItem.experienceLetter || null;
+            worker.verifiedSkillsDetails[vIdx].approvedAt = new Date();
+          } else {
+            worker.verifiedSkillsDetails.push({
+              category: trimmed,
+              experienceYears: reqItem.experienceYears || 0,
+              experienceLetter: reqItem.experienceLetter || null,
+              approvedAt: new Date()
+            });
+          }
+        }
+      }
+    }
+
+    await worker.save();
+
+    // Notify Worker
+    if (approvedList.length > 0) {
+      await createNotification({
+        userId: worker._id,
+        workerId: worker._id,
+        type: 'skill_approved',
+        title: 'Skill Verified! 🎉',
+        message: `Your skill(s) "${approvedList.join(', ')}" have been verified by admin. You can now receive job requests for these categories!`,
+        relatedId: worker._id,
+        relatedType: 'worker',
+        priority: 'high',
+        pushData: { type: 'skill_approved', link: '/worker/profile' }
+      }).catch(e => console.error('Skill approved notification error:', e));
+    }
+
+    res.json({
+      success: true,
+      message: `Skill(s) "${categoriesToApprove.join(', ')}" approved successfully`,
+      worker
+    });
+  } catch (error) {
+    console.error('Approve worker skill error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Reject worker pending skill(s)
+ */
+export const rejectWorkerSkill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { category, reason } = req.body;
+
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'Category is required' });
+    }
+
+    const worker = await Worker.findById(id);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    const categoriesToReject = Array.isArray(category) ? category : [category];
+
+    if (!Array.isArray(worker.pendingServiceCategories)) worker.pendingServiceCategories = [];
+    if (!Array.isArray(worker.rejectedServiceCategories)) worker.rejectedServiceCategories = [];
+
+    for (const cat of categoriesToReject) {
+      const trimmed = typeof cat === 'string' ? cat.trim() : '';
+      if (!trimmed) continue;
+
+      worker.pendingServiceCategories = worker.pendingServiceCategories.filter(
+        c => c.trim().toLowerCase() !== trimmed.toLowerCase()
+      );
+
+      worker.rejectedServiceCategories.push({
+        category: trimmed,
+        reason: reason || 'Not approved by admin',
+        rejectedAt: new Date()
+      });
+
+      if (Array.isArray(worker.skillRequests)) {
+        const reqItem = worker.skillRequests.find(
+          r => r.category && r.category.trim().toLowerCase() === trimmed.toLowerCase()
+        );
+        if (reqItem) {
+          reqItem.status = 'rejected';
+          reqItem.reviewedAt = new Date();
+        }
+      }
+    }
+
+    await worker.save();
+
+    // Notify Worker
+    await createNotification({
+      userId: worker._id,
+      workerId: worker._id,
+      type: 'skill_rejected',
+      title: 'Skill Verification Update',
+      message: `Your request for skill "${categoriesToReject.join(', ')}" was rejected${reason ? `: ${reason}` : '.'}`,
+      relatedId: worker._id,
+      relatedType: 'worker',
+      priority: 'normal',
+      pushData: { type: 'skill_rejected', link: '/worker/profile' }
+    }).catch(e => console.error('Skill rejected notification error:', e));
+
+    res.json({
+      success: true,
+      message: `Skill(s) "${categoriesToReject.join(', ')}" rejected`,
+      worker
+    });
+  } catch (error) {
+    console.error('Reject worker skill error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Remove an existing verified skill from worker
+ */
+export const removeWorkerSkill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { category } = req.body;
+
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'Category is required' });
+    }
+
+    const worker = await Worker.findById(id);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    const trimmed = typeof category === 'string' ? category.trim() : '';
+    worker.serviceCategories = (worker.serviceCategories || []).filter(
+      c => c.trim().toLowerCase() !== trimmed.toLowerCase()
+    );
+
+    await worker.save();
+
+    res.json({
+      success: true,
+      message: `Skill "${trimmed}" removed successfully`,
+      worker
+    });
+  } catch (error) {
+    console.error('Remove worker skill error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

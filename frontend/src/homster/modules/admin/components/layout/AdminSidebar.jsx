@@ -53,6 +53,7 @@ const getChildRoute = (parentRoute, childName) => {
     },
     "/admin/home-service/workers": {
       "All Workers": "/admin/home-service/workers/all",
+      "Offline Requests": "/admin/home-service/workers/offline-requests",
       "Worker Jobs": "/admin/home-service/workers/jobs",
       "Worker Analytics": "/admin/home-service/workers/analytics",
       "Worker Payments": "/admin/home-service/workers/payments",

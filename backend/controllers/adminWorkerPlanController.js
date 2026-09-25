@@ -24,6 +24,8 @@ export const getWorkerPlans = async (req, res) => {
   }
 };
 
+export const getAllWorkerPlans = getWorkerPlans;
+
 /**
  * @desc    Create a worker plan
  * @route   POST /api/admin/worker-plans

@@ -143,6 +143,78 @@ const adminWorkerService = {
   updateComplaintStatus: async (id, data) => {
     const response = await api.patch(`/admin/workers/complaints/${id}/status`, data);
     return response.data;
+  },
+
+  /**
+   * Approve worker pending skill(s)
+   */
+  approveWorkerSkill: async (id, category) => {
+    const response = await api.post(`/admin/workers/${id}/skills/approve`, { category });
+    return response.data;
+  },
+
+  /**
+   * Reject worker pending skill(s)
+   */
+  rejectWorkerSkill: async (id, category, reason) => {
+    const response = await api.post(`/admin/workers/${id}/skills/reject`, { category, reason });
+    return response.data;
+  },
+
+  /**
+   * Remove verified worker skill
+   */
+  removeWorkerSkill: async (id, category) => {
+    const response = await api.delete(`/admin/workers/${id}/skills`, { data: { category } });
+    return response.data;
+  },
+
+  /**
+   * Force worker online immediately
+   */
+  forceWorkerOnline: async (id) => {
+    const response = await api.post(`/admin/workers/${id}/force-online`);
+    return response.data;
+  },
+
+  /**
+   * Update worker details (admin edit)
+   */
+  updateWorker: async (id, data) => {
+    const response = await api.put(`/admin/workers/${id}`, data);
+    return response.data;
+  },
+
+  /**
+   * Assign or extend subscription plan for a worker
+   */
+  assignPlan: async (id, planData) => {
+    const response = await api.post(`/admin/workers/${id}/subscription`, planData);
+    return response.data;
+  },
+
+  /**
+   * Create worker directly by admin
+   */
+  createWorker: async (data) => {
+    const response = await api.post('/admin/workers', data);
+    return response.data;
+  },
+
+  /**
+   * Get all zones
+   */
+  getZones: async () => {
+    const response = await api.get('/admin/workers/zones');
+    return response.data;
+  },
+
+  /**
+   * Get all worker subscription plans
+   */
+  getWorkerPlans: async () => {
+    const response = await api.get('/admin/workers/plans');
+    return response.data;
   }
 };
 

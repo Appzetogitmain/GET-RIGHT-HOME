@@ -84,6 +84,22 @@ const Checkout = () => {
   const [visitedFee, setVisitedFee] = useState(29);
   const [gstPercentage, setGstPercentage] = useState(18);
   const [bookingType, setBookingType] = useState('scheduled'); // Default to 'scheduled' for regular slot bookings
+  const [platformSlots, setPlatformSlots] = useState([]);
+
+  // Fetch dynamic platform slots from admin operating hours
+  useEffect(() => {
+    const fetchPlatformSlots = async () => {
+      try {
+        const res = await configService.getOperatingHours();
+        if (res?.slots && Array.isArray(res.slots) && res.slots.length > 0) {
+          setPlatformSlots(res.slots);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch platform operating hours:', err);
+      }
+    };
+    fetchPlatformSlots();
+  }, []);
 
   // Promo Code States
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -357,16 +373,17 @@ const Checkout = () => {
 
   const handleQuantityChange = async (itemId, change) => {
     try {
-      const item = cartItems.find(i => (i._id || i.id) === itemId);
+      const item = cartItems.find(i => (i._id || i.id || i.serviceId) === itemId);
       if (!item) return;
 
-      const newCount = (item.serviceCount || 1) + change;
+      const newCount = (Number(item.serviceCount) || 1) + change;
 
       if (newCount <= 0) {
         return handleRemoveItem(itemId);
       }
 
-      const response = await updateItemGlobal(itemId, newCount);
+      const targetId = item._id || item.id || item.serviceId;
+      const response = await updateItemGlobal(targetId, newCount);
 
       if (response.success) {
         fetchCartGlobal();
@@ -380,7 +397,9 @@ const Checkout = () => {
 
   const handleRemoveItem = async (itemId) => {
     try {
-      const response = await removeItemGlobal(itemId);
+      const item = cartItems.find(i => (i._id || i.id || i.serviceId) === itemId);
+      const targetId = item?._id || item?.id || item?.serviceId || itemId;
+      const response = await removeItemGlobal(targetId);
       if (response.success) {
         fetchCartGlobal();
       } else {
@@ -425,21 +444,25 @@ const Checkout = () => {
         ? firstItem.serviceId._id || firstItem.serviceId.id
         : firstItem.serviceId;
 
-      const bookedItemsData = cartItems.map(item => ({
-        brandName: item.sectionTitle || item.brand || '',
-        brandIcon: item.sectionIcon || null,
-        card: {
-          title: item.card?.title || item.title,
-          subtitle: item.card?.subtitle || item.description || '',
-          price: item.card?.price || item.price || 0,
-          originalPrice: item.card?.originalPrice || item.originalPrice || null,
-          duration: item.card?.duration || item.duration || '',
-          description: item.card?.description || item.description || '',
-          imageUrl: item.card?.imageUrl || item.icon || '',
-          features: item.card?.features || []
-        },
-        quantity: item.serviceCount || 1
-      }));
+      const bookedItemsData = cartItems.map(item => {
+        const count = Math.max(1, Number(item.serviceCount) || 1);
+        const unitPrice = item.card?.price || Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+        return {
+          brandName: item.sectionTitle || item.brand || '',
+          brandIcon: item.sectionIcon || null,
+          card: {
+            title: item.card?.title || item.title,
+            subtitle: item.card?.subtitle || item.description || '',
+            price: unitPrice,
+            originalPrice: item.card?.originalPrice || item.originalPrice || null,
+            duration: item.card?.duration || item.duration || '',
+            description: item.card?.description || item.description || '',
+            imageUrl: item.card?.imageUrl || item.icon || '',
+            features: item.card?.features || []
+          },
+          quantity: count
+        };
+      });
 
       // Calculate Scheduled Data for Instant
       let finalDate = selectedDate;
@@ -767,21 +790,25 @@ const Checkout = () => {
 
       // Prepare bookedItems array matching Service catalog structure
       // Prepare bookedItems array matching Service catalog structure
-      const bookedItemsData = cartItems.map(item => ({
-        brandName: item.sectionTitle || item.brand || '',
-        brandIcon: item.sectionIcon || null,
-        card: {
-          title: item.card?.title || item.title || 'Unknown Service',
-          subtitle: item.card?.subtitle || item.description || '',
-          price: item.card?.price || item.price || 0,
-          originalPrice: item.card?.originalPrice || item.originalPrice || null,
-          duration: item.card?.duration || item.duration || '',
-          description: item.card?.description || item.description || '',
-          imageUrl: item.card?.imageUrl || item.icon || '',
-          features: item.card?.features || []
-        },
-        quantity: item.serviceCount || 1
-      }));
+      const bookedItemsData = cartItems.map(item => {
+        const count = Math.max(1, Number(item.serviceCount) || 1);
+        const unitPrice = item.card?.price || Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+        return {
+          brandName: item.sectionTitle || item.brand || '',
+          brandIcon: item.sectionIcon || null,
+          card: {
+            title: item.card?.title || item.title || 'Unknown Service',
+            subtitle: item.card?.subtitle || item.description || '',
+            price: unitPrice,
+            originalPrice: item.card?.originalPrice || item.originalPrice || null,
+            duration: item.card?.duration || item.duration || '',
+            description: item.card?.description || item.description || '',
+            imageUrl: item.card?.imageUrl || item.icon || '',
+            features: item.card?.features || []
+          },
+          quantity: count
+        };
+      });
 
 
 
@@ -1321,7 +1348,8 @@ const Checkout = () => {
 
   // Calculate totals with Plan Benefits + VIP Discount
   const calculateItemPrice = (item) => {
-    if (plan) return item.price || 0; // Plan purchase
+    const count = Math.max(1, Number(item.serviceCount) || 1);
+    if (plan) return (item.price || 0); // Plan purchase
 
     const itemCatId = normalizeId(item.categoryId);
     const itemBrandId = normalizeId(item.brandId || item.sectionId);
@@ -1334,7 +1362,8 @@ const Checkout = () => {
 
     if (isFreeCategory || isFreeBrand || isFreeService) return 0;
 
-    const basePrice = item.price || 0;
+    const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+    const basePrice = unitPrice * count;
 
     // Apply VIP discount if user is VIP member
     if (userIsVip && itemCatId && vipCards.length > 0) {
@@ -1358,19 +1387,23 @@ const Checkout = () => {
         if (!itemCatId) return sum;
         const matchedCard = vipCards.find(c => normalizeId(c.targetCategoryId) === itemCatId);
         if (!matchedCard || matchedCard.discount <= 0) return sum;
-        return sum + Math.round((item.price || 0) * matchedCard.discount / 100);
+        const count = Math.max(1, Number(item.serviceCount) || 1);
+        const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+        const lineBase = unitPrice * count;
+        return sum + Math.round(lineBase * matchedCard.discount / 100);
       }, 0)
     : 0;
 
   const itemTotal = cartItems.reduce((sum, item) => sum + calculateItemPrice(item), 0);
   // Calculate savings including Plan Savings + VIP Discount
   const totalOriginalPrice = cartItems.reduce((sum, item) => {
-    const basePrice = item.price || 0;
-    const original = (item.originalPrice || item.unitPrice || (basePrice / (item.serviceCount || 1))) * (item.serviceCount || 1);
-    return sum + original;
+    const count = Math.max(1, Number(item.serviceCount) || 1);
+    const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+    const unitOriginalPrice = Number(item.originalPrice) || unitPrice;
+    return sum + (unitOriginalPrice * count);
   }, 0);
 
-  const savings = totalOriginalPrice - itemTotal;
+  const savings = Math.max(0, totalOriginalPrice - itemTotal);
   const taxesAndFee = 0;
   const finalVisitedFee = 0;
 
@@ -1453,7 +1486,7 @@ const Checkout = () => {
   };
 
   const getTimeSlots = () => {
-    const allSlots = [
+    const defaultSlots = [
       { value: '09:00', end: '10:00', display: '9:00 AM' },
       { value: '10:00', end: '11:00', display: '10:00 AM' },
       { value: '11:00', end: '12:00', display: '11:00 AM' },
@@ -1467,6 +1500,8 @@ const Checkout = () => {
       { value: '19:00', end: '20:00', display: '7:00 PM' },
       { value: '20:00', end: '21:00', display: '8:00 PM' },
     ];
+
+    const allSlots = platformSlots && platformSlots.length > 0 ? platformSlots : defaultSlots;
 
     // If today is selected, filter out past time slots
     const now = new Date();
@@ -1626,14 +1661,14 @@ const Checkout = () => {
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-0.5">
                         <button
-                          onClick={() => handleQuantityChange(item._id, -1)}
+                          onClick={() => handleQuantityChange(item._id || item.id || item.serviceId, -1)}
                           className="p-1.5 hover:bg-white rounded-md transition-all shadow-sm"
                         >
                           <FiMinus className="w-3.5 h-3.5 text-gray-600" />
                         </button>
                         <span className="w-6 text-center text-sm font-bold text-gray-900">{item.serviceCount || 1}</span>
                         <button
-                          onClick={() => handleQuantityChange(item._id, 1)}
+                          onClick={() => handleQuantityChange(item._id || item.id || item.serviceId, 1)}
                           className="p-1.5 hover:bg-white rounded-md transition-all shadow-sm"
                         >
                           <FiPlus className="w-3.5 h-3.5 text-gray-900" />
@@ -1643,7 +1678,7 @@ const Checkout = () => {
                   )}
                   {!item.isPlan && (
                     <button
-                      onClick={() => handleRemoveItem(item._id)}
+                      onClick={() => handleRemoveItem(item._id || item.id || item.serviceId)}
                       className="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                     >
                       <FiTrash2 className="w-4 h-4" />
@@ -1655,7 +1690,7 @@ const Checkout = () => {
                     {calculateItemPrice(item) === 0 ? (
                       <span className="text-green-600">Free</span>
                     ) : (
-                      `₹${(item.price || 0).toLocaleString('en-IN')}`
+                      `₹${calculateItemPrice(item).toLocaleString('en-IN')}`
                     )}
                   </span>
                   {calculateItemPrice(item) === 0 && (
@@ -1664,10 +1699,11 @@ const Checkout = () => {
                     </span>
                   )}
                   {calculateItemPrice(item) > 0 && (() => {
-                    const unitPrice = item.unitPrice || (item.price / (item.serviceCount || 1));
-                    const unitOriginalPrice = item.originalPrice || unitPrice;
-                    const currentTotal = item.price;
-                    const originalTotal = unitOriginalPrice * (item.serviceCount || 1);
+                    const count = Math.max(1, Number(item.serviceCount) || 1);
+                    const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+                    const unitOriginalPrice = Number(item.originalPrice) || unitPrice;
+                    const currentTotal = calculateItemPrice(item);
+                    const originalTotal = unitOriginalPrice * count;
                     if (originalTotal > currentTotal) {
                       return (
                         <span className="text-sm text-gray-400 line-through">

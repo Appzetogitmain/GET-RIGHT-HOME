@@ -10,6 +10,7 @@ import { SkeletonProfileHeader, SkeletonDashboardStats, SkeletonList } from '../
 import OptimizedImage from '../../../../components/common/OptimizedImage';
 import { useSocket } from '../../../../context/SocketContext';
 import WorkerJobAlertModal from '../../components/bookings/WorkerJobAlertModal';
+import WorkerOfflineModal from './components/WorkerOfflineModal';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import workerWalletService from '../../../../services/workerWalletService';
 
@@ -73,6 +74,7 @@ const Dashboard = () => {
     photo: null,
     categories: [],
     address: null,
+    approvalStatus: 'pending'
   });
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [emergencyJobs, setEmergencyJobs] = useState([]);
@@ -105,6 +107,12 @@ const Dashboard = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [togglingOnline, setTogglingOnline] = useState(false);
   const [locationWatchId, setLocationWatchId] = useState(null);
+
+  // Offline Leave Request states
+  const [offlineModalOpen, setOfflineModalOpen] = useState(false);
+  const [submittingOffline, setSubmittingOffline] = useState(false);
+  const [pendingOfflineRequest, setPendingOfflineRequest] = useState(null);
+  const [activeOfflineSchedule, setActiveOfflineSchedule] = useState(null);
 
   // Emergency SOS — silent alert to admin, never places a call
   const DEFAULT_EMERGENCY_MESSAGE = 'I need urgent help — please contact me immediately.';
@@ -163,26 +171,54 @@ const Dashboard = () => {
     });
   };
 
-  // Toggle online/offline with GPS
+  // Toggle online/offline with GPS & Approval Check
   const handleToggleOnline = async () => {
+    // If currently online, worker wants to toggle OFFLINE:
+    if (isOnline) {
+      // Per business rules: opening offline request modal for admin approval
+      setOfflineModalOpen(true);
+      return;
+    }
+
+    // Worker wants to toggle ONLINE:
+    // 1. Enforce verified/approved status check
+    if (workerProfile.approvalStatus !== 'approved') {
+      const { toast } = await import('react-hot-toast');
+      toast.error('Account verification pending. You can only go online after admin approval.');
+      return;
+    }
+
+    // 2. Check if currently inside active approved offline schedule
+    if (activeOfflineSchedule?.isActive) {
+      const now = new Date();
+      if (
+        activeOfflineSchedule.startDateTime &&
+        activeOfflineSchedule.endDateTime &&
+        now >= new Date(activeOfflineSchedule.startDateTime) &&
+        now <= new Date(activeOfflineSchedule.endDateTime)
+      ) {
+        const { toast } = await import('react-hot-toast');
+        toast.error(`You are on approved offline leave until ${activeOfflineSchedule.endSlot || 'the scheduled end time'}. Contact admin to go online early.`);
+        return;
+      }
+    }
+
     setTogglingOnline(true);
-    const goingOnline = !isOnline;
+    const goingOnline = true;
 
     try {
       let lat, lng;
-      if (goingOnline) {
-        // Get GPS location before going online
-        try {
-          const pos = await getCurrentPosition();
-          lat = pos.lat;
-          lng = pos.lng;
-        } catch (geoErr) {
-          console.error('GPS error:', geoErr);
-          const { toast } = await import('react-hot-toast');
-          toast.error('Location permission required to go online. Please enable GPS.');
-          setTogglingOnline(false);
-          return;
-        }
+      // Get GPS location before going online
+      try {
+        const pos = await getCurrentPosition();
+        lat = pos.lat;
+        lng = pos.lng;
+      } catch (geoErr) {
+        console.error('GPS error:', geoErr);
+        const { toast } = await import('react-hot-toast');
+        toast.error('Location permission required to go online. Please enable GPS.');
+        setTogglingOnline(false);
+        return;
       }
 
       const res = await workerService.toggleOnline(goingOnline, lat, lng);
@@ -192,18 +228,51 @@ const Dashboard = () => {
         toast.success(res.message);
 
         // Start periodic location updates when online
-        if (goingOnline) {
-          startLocationTracking();
-        } else {
-          stopLocationTracking();
-        }
+        startLocationTracking();
       }
     } catch (error) {
       console.error('Toggle online error:', error);
       const { toast } = await import('react-hot-toast');
-      toast.error('Failed to update status');
+      toast.error(error.response?.data?.message || 'Failed to update status');
     } finally {
       setTogglingOnline(false);
+    }
+  };
+
+  // Submit Offline Leave Request
+  const handleSubmitOfflineRequest = async (requestData) => {
+    setSubmittingOffline(true);
+    try {
+      const res = await workerService.requestOffline(requestData);
+      if (res.success) {
+        const { toast } = await import('react-hot-toast');
+        toast.success(res.message || 'Offline request submitted. Awaiting admin approval.');
+        setPendingOfflineRequest(res.data);
+        setOfflineModalOpen(false);
+      }
+    } catch (err) {
+      const { toast } = await import('react-hot-toast');
+      toast.error(err.response?.data?.message || 'Failed to submit offline request');
+    } finally {
+      setSubmittingOffline(false);
+    }
+  };
+
+  // Cancel Pending Offline Leave Request
+  const handleCancelPendingOffline = async () => {
+    if (!pendingOfflineRequest?._id) return;
+    if (!window.confirm('Are you sure you want to cancel your pending offline request?')) return;
+
+    try {
+      const res = await workerService.cancelOfflineRequest(pendingOfflineRequest._id);
+      if (res.success) {
+        const { toast } = await import('react-hot-toast');
+        toast.success('Offline request cancelled');
+        setPendingOfflineRequest(null);
+      }
+    } catch (err) {
+      const { toast } = await import('react-hot-toast');
+      toast.error(err.response?.data?.message || 'Failed to cancel offline request');
     }
   };
 
@@ -238,12 +307,13 @@ const Dashboard = () => {
     try {
       setLoading(true);
 
-      // Fetch Profile, Stats and Recent Jobs in parallel (Stats also includes recent jobs but let's be robust)
-      const [profileRes, statsRes, subRes, walletRes] = await Promise.all([
+      // Fetch Profile, Stats, Recent Jobs and Offline Requests in parallel
+      const [profileRes, statsRes, subRes, walletRes, offlineRes] = await Promise.all([
         workerService.getProfile(),
         workerService.getDashboardStats(),
         workerService.getSubscriptionStatus(),
-        workerWalletService.getWallet().catch(() => null)
+        workerWalletService.getWallet().catch(() => null),
+        workerService.getActiveOfflineRequest().catch(() => null)
       ]);
 
       if (profileRes.success) {
@@ -254,9 +324,19 @@ const Dashboard = () => {
           photo: profile.profilePhoto || null,
           categories: profile.serviceCategories || (profile.serviceCategory ? [profile.serviceCategory] : []),
           address: profile.address,
+          approvalStatus: profile.approvalStatus || 'pending'
         });
         // Sync online status from DB
         setIsOnline(profile.isOnline || false);
+      }
+
+      // Sync offline request and active leave schedule
+      if (offlineRes?.success) {
+        setPendingOfflineRequest(offlineRes.pendingRequest || null);
+        setActiveOfflineSchedule(offlineRes.activeSchedule || null);
+        if (offlineRes.isOnline !== undefined) {
+          setIsOnline(offlineRes.isOnline);
+        }
       }
 
       if (statsRes.success) {
@@ -358,9 +438,11 @@ const Dashboard = () => {
       fetchDashboardData();
     };
     window.addEventListener('workerJobsUpdated', handleUpdate);
+    window.addEventListener('workerOfflineStatusUpdated', handleUpdate);
 
     return () => {
       window.removeEventListener('workerJobsUpdated', handleUpdate);
+      window.removeEventListener('workerOfflineStatusUpdated', handleUpdate);
     };
 
   }, []);
@@ -537,6 +619,69 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Pending Offline Request Banner */}
+        {pendingOfflineRequest && (
+          <div className="px-5 mt-14 -mb-2">
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0 mt-0.5">
+                    <FiClock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-amber-900 text-xs">Offline Request Pending Approval</h4>
+                      <span className="px-1.5 py-0.5 bg-amber-200/70 text-amber-800 text-[10px] font-bold rounded">
+                        Awaiting Admin
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-800 mt-1 font-medium">
+                      Date: <strong>{pendingOfflineRequest.dateStr}</strong> • Slots: <strong>{pendingOfflineRequest.startSlot?.display} - {pendingOfflineRequest.endSlot?.display}</strong>
+                    </p>
+                    <p className="text-[11px] text-amber-600 mt-0.5">
+                      You will remain Online until Admin reviews your request.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCancelPendingOffline}
+                  className="px-2.5 py-1 bg-white hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold shadow-xs transition-colors shrink-0"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Active Approved Offline Leave Banner */}
+        {!pendingOfflineRequest && activeOfflineSchedule?.isActive && (
+          <div className="px-5 mt-14 -mb-2">
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 shrink-0 mt-0.5">
+                  <FiClock className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-blue-900 text-xs">Scheduled Offline Leave</h4>
+                    <span className="px-1.5 py-0.5 bg-blue-200/70 text-blue-800 text-[10px] font-bold rounded">
+                      Approved
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-800 mt-1 font-medium">
+                    Date: <strong>{activeOfflineSchedule.dateStr}</strong> • Slots: <strong>{activeOfflineSchedule.startSlot} - {activeOfflineSchedule.endSlot}</strong>
+                  </p>
+                  <p className="text-[11px] text-blue-600 mt-0.5">
+                    Your status will automatically stay Offline during this approved window.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Incomplete Profile Prompt */}
         {((!workerProfile.categories || workerProfile.categories.length === 0) ||
@@ -1254,6 +1399,14 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Worker Offline Leave Request Modal */}
+      <WorkerOfflineModal
+        isOpen={offlineModalOpen}
+        onClose={() => setOfflineModalOpen(false)}
+        onSubmitRequest={handleSubmitOfflineRequest}
+        submitting={submittingOffline}
+      />
     </div>
   );
 };

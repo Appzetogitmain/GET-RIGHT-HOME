@@ -36,6 +36,10 @@ const workerSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
+    nameOnAadhar: {
+      type: String,
+      trim: true
+    },
     document: {
       type: String, // Cloudinary URL (Front)
     },
@@ -61,6 +65,20 @@ const workerSchema = new mongoose.Schema({
       type: String, // Cloudinary URL
     }
   },
+  otherDocuments: [{
+    type: String // Cloudinary URLs
+  }],
+  vendorType: {
+    type: String,
+    enum: ['Registered', 'Unregistered'],
+    default: 'Unregistered'
+  },
+  gstin: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    default: null
+  },
   vendorId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Vendor',
@@ -73,6 +91,28 @@ const workerSchema = new mongoose.Schema({
   },
   serviceCategories: [{
     type: String
+  }],
+  pendingServiceCategories: [{
+    type: String
+  }],
+  rejectedServiceCategories: [{
+    category: { type: String },
+    reason: { type: String, default: 'Not approved by admin' },
+    rejectedAt: { type: Date, default: Date.now }
+  }],
+  skillRequests: [{
+    category: { type: String, required: true },
+    experienceYears: { type: Number, default: 0 },
+    experienceLetter: { type: String, default: null }, // URL of uploaded certificate/document
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    requestedAt: { type: Date, default: Date.now },
+    reviewedAt: { type: Date }
+  }],
+  verifiedSkillsDetails: [{
+    category: { type: String, required: true },
+    experienceYears: { type: Number, default: 0 },
+    experienceLetter: { type: String, default: null },
+    approvedAt: { type: Date, default: Date.now }
   }],
   status: {
     type: String,
@@ -208,6 +248,21 @@ const workerSchema = new mongoose.Schema({
     default: false,
     index: true
   },
+  // Approved offline schedule managed by admin
+  currentOfflineSchedule: {
+    requestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'WorkerOfflineRequest',
+      default: null
+    },
+    startDateTime: { type: Date, default: null },
+    endDateTime: { type: Date, default: null },
+    dateStr: { type: String, default: null },
+    startSlot: { type: String, default: null },
+    endSlot: { type: String, default: null },
+    reason: { type: String, default: null },
+    isActive: { type: Boolean, default: false }
+  },
   lastSeenAt: {
     type: Date,
     default: null
@@ -238,6 +293,29 @@ const workerSchema = new mongoose.Schema({
       type: String,
       default: null
     }
+  },
+  // Assigned Service Zones
+  zoneIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Zone'
+  }],
+  zones: [{
+    type: String,
+    trim: true
+  }],
+  // Business / Shop Details
+  businessName: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  mcqLevel: {
+    type: String,
+    default: 'Not Certified'
+  },
+  experienceYears: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true
@@ -246,6 +324,7 @@ const workerSchema = new mongoose.Schema({
 // Indexes for faster queries
 workerSchema.index({ status: 1 });
 workerSchema.index({ serviceCategories: 1 });
+workerSchema.index({ pendingServiceCategories: 1 });
 workerSchema.index({ vendorId: 1 });
 workerSchema.index({ geoLocation: '2dsphere' }); // Fast geo queries
 workerSchema.index({ isOnline: 1, approvalStatus: 1 }); 

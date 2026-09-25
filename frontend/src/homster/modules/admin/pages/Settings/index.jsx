@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone, FiHeadphones, FiMessageCircle, FiEdit, FiLock, FiUnlock, FiX } from 'react-icons/fi';
+import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone, FiHeadphones, FiMessageCircle, FiEdit, FiLock, FiUnlock, FiX, FiClock } from 'react-icons/fi';
 import { getSettings, updateSettings, updateAdminProfile, getAdminProfile, getAllAdmins, createAdmin, deleteAdmin, updateAdminDetails, toggleAdminStatus } from '../../services/settingsService';
 import { cityService } from '../../services/cityService';
 import CityManagement from '../Cities';
@@ -9,6 +9,13 @@ import { toast } from 'react-hot-toast';
 const AdminSettings = () => {
   const [settings, setSettings] = useState({
     workerAutoAssignment: true,
+  });
+
+  const [operatingHours, setOperatingHours] = useState({
+    isOpen: true,
+    openingTime: '09:00',
+    closingTime: '21:00',
+    slotDuration: 60
   });
 
   const [financialSettings, setFinancialSettings] = useState({
@@ -148,6 +155,17 @@ const AdminSettings = () => {
             supportPhone: res.settings.supportPhone || '',
             supportWhatsapp: res.settings.supportWhatsapp || ''
           });
+          // Load operating hours settings
+          if (res.settings.operatingHours) {
+            setOperatingHours({
+              isOpen: res.settings.operatingHours.isOpen !== undefined ? res.settings.operatingHours.isOpen : (res.settings.platformOpen !== undefined ? res.settings.platformOpen : true),
+              openingTime: res.settings.operatingHours.openingTime || '09:00',
+              closingTime: res.settings.operatingHours.closingTime || '21:00',
+              slotDuration: res.settings.operatingHours.slotDuration || 60
+            });
+          } else if (res.settings.platformOpen !== undefined) {
+            setOperatingHours(prev => ({ ...prev, isOpen: res.settings.platformOpen }));
+          }
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -223,6 +241,49 @@ const AdminSettings = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOperatingHoursSave = async (e) => {
+    e?.preventDefault();
+    setLoading(true);
+    try {
+      await updateSettings({
+        operatingHours,
+        platformOpen: operatingHours.isOpen
+      });
+      toast.success('Platform operating hours & slots updated successfully!');
+    } catch (error) {
+      toast.error('Failed to update operating hours');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper to generate preview slots based on configured hours
+  const getPreviewSlots = () => {
+    const slots = [];
+    const [openH, openM] = (operatingHours.openingTime || '09:00').split(':').map(Number);
+    const [closeH, closeM] = (operatingHours.closingTime || '21:00').split(':').map(Number);
+    let cur = openH * 60 + openM;
+    const end = closeH * 60 + closeM;
+    const dur = operatingHours.slotDuration || 60;
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const format = (h, m) => {
+      const p = h >= 12 ? 'PM' : 'AM';
+      const dh = h % 12 === 0 ? 12 : h % 12;
+      return m === 0 ? `${dh}:00 ${p}` : `${dh}:${pad(m)} ${p}`;
+    };
+
+    while (cur + dur <= end) {
+      const sh = Math.floor(cur / 60);
+      const sm = cur % 60;
+      slots.push({
+        display: format(sh, sm)
+      });
+      cur += dur;
+    }
+    return slots;
   };
 
   // Handle billing settings change
@@ -445,6 +506,21 @@ const AdminSettings = () => {
         </div>
         <h3 className="text-lg font-bold text-gray-800 mb-2">Fees & Taxes</h3>
         <p className="text-sm text-gray-500">Configure GST, platform fees, and cash collection charges</p>
+      </div>
+
+      {/* Platform Operating Hours & Slots */}
+      <div onClick={() => setActiveView('operatingHours')}
+        className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group">
+        <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-emerald-100 transition-colors">
+          <FiClock className="w-6 h-6 text-emerald-600" />
+        </div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-bold text-gray-800">Platform Operating Hours</h3>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${operatingHours.isOpen ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {operatingHours.isOpen ? 'Open' : 'Closed'}
+          </span>
+        </div>
+        <p className="text-sm text-gray-500">Configure opening/closing times, dynamic slots, and availability</p>
       </div>
 
       {/* System Settings Card - Super Admin Only */}
@@ -1034,6 +1110,152 @@ const AdminSettings = () => {
             </motion.div>
           )
         }
+
+        {/* Operating Hours View */}
+        {activeView === 'operatingHours' && (
+          <motion.div
+            key="operatingHours"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
+            className="max-w-4xl mx-auto space-y-6"
+          >
+            {/* Main Config Card */}
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between pb-6 mb-6 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
+                    <FiClock className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800">Platform Operating Hours & Slots</h2>
+                    <p className="text-sm text-gray-500">Configure daily platform open/close hours and booking time slots</p>
+                  </div>
+                </div>
+
+                {/* Platform Open Toggle */}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-gray-700">Platform Active:</span>
+                  <button
+                    type="button"
+                    onClick={() => setOperatingHours(prev => ({ ...prev, isOpen: !prev.isOpen }))}
+                    className={`relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                      operatingHours.isOpen ? 'bg-emerald-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out shadow-sm ${
+                        operatingHours.isOpen ? 'translate-x-7' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                    operatingHours.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {operatingHours.isOpen ? 'OPEN' : 'CLOSED'}
+                  </span>
+                </div>
+              </div>
+
+              <form onSubmit={handleOperatingHoursSave} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Opening Time */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Opening Time (24h)
+                    </label>
+                    <input
+                      type="time"
+                      value={operatingHours.openingTime}
+                      onChange={(e) => setOperatingHours(prev => ({ ...prev, openingTime: e.target.value }))}
+                      required
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">First service slot starts at this time</p>
+                  </div>
+
+                  {/* Closing Time */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Closing Time (24h)
+                    </label>
+                    <input
+                      type="time"
+                      value={operatingHours.closingTime}
+                      onChange={(e) => setOperatingHours(prev => ({ ...prev, closingTime: e.target.value }))}
+                      required
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Platform closes for bookings at this time</p>
+                  </div>
+
+                  {/* Slot Duration */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Slot Duration (Minutes)
+                    </label>
+                    <select
+                      value={operatingHours.slotDuration}
+                      onChange={(e) => setOperatingHours(prev => ({ ...prev, slotDuration: Number(e.target.value) }))}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                    >
+                      <option value={30}>30 Minutes</option>
+                      <option value={45}>45 Minutes</option>
+                      <option value={60}>60 Minutes (1 Hour)</option>
+                      <option value={90}>90 Minutes (1.5 Hours)</option>
+                      <option value={120}>120 Minutes (2 Hours)</option>
+                    </select>
+                    <p className="text-xs text-gray-400 mt-1">Duration of each selectable slot</p>
+                  </div>
+                </div>
+
+                {/* Slots Preview Section */}
+                <div className="pt-6 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                      Live Slots Preview ({getPreviewSlots().length} Total Slots)
+                    </h3>
+                    <span className="text-xs text-gray-500">
+                      These slots appear in User Checkout & Worker Leave Request
+                    </span>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 min-h-[90px] flex flex-wrap gap-2 items-center">
+                    {getPreviewSlots().length === 0 ? (
+                      <p className="text-sm text-gray-400 italic">No slots generated. Please ensure Closing Time is after Opening Time.</p>
+                    ) : (
+                      getPreviewSlots().map((s, idx) => (
+                        <span
+                          key={idx}
+                          className="px-3 py-1.5 bg-white text-gray-700 text-xs font-semibold rounded-lg border border-gray-200 shadow-sm"
+                        >
+                          {s.display}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex justify-end pt-4">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium flex items-center gap-2 disabled:opacity-70 shadow-lg shadow-emerald-200 transition-all cursor-pointer"
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <FiSave className="w-5 h-5" />
+                    )}
+                    Save Operating Hours
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence >
     </motion.div >
   );

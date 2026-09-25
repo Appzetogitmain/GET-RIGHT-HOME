@@ -26,6 +26,30 @@ const workerService = {
     return response.data;
   },
 
+  /**
+   * Submit worker offline leave request
+   */
+  requestOffline: async (data) => {
+    const response = await api.post('/workers/offline-requests', data);
+    return response.data;
+  },
+
+  /**
+   * Get active/pending offline request
+   */
+  getActiveOfflineRequest: async () => {
+    const response = await api.get('/workers/offline-requests/active');
+    return response.data;
+  },
+
+  /**
+   * Cancel pending offline request
+   */
+  cancelOfflineRequest: async (id) => {
+    const response = await api.delete(`/workers/offline-requests/${id}`);
+    return response.data;
+  },
+
   getDashboardStats: async () => {
     const response = await api.get('/workers/stats');
     return response.data;

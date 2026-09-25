@@ -220,22 +220,35 @@ export const getPublicBuilderDetails = async (req, res) => {
       };
     });
 
-    const industryExperience = builder.builderProfile?.experienceYears || builder.builderProfile?.experience || 8;
+    const profileActive = Number(builder.builderProfile?.activeProjects) || 0;
+    const profileCompleted = Number(builder.builderProfile?.completedProjects) || 0;
+    const profileTotal = profileActive + profileCompleted;
+    const totalProjects = formattedProjects.length;
+
+    const currentYear = new Date().getFullYear();
+    const estYear = builder.builderProfile?.establishedYear;
+    const computedExp = estYear && estYear <= currentYear ? currentYear - estYear : 0;
+    const industryExperience = builder.builderProfile?.experienceYears || builder.builderProfile?.experience || computedExp || 5;
 
     res.json({
       success: true,
       builder: {
         _id: builder._id,
-        name: builder.name || builder.companyName || 'Emerald Developers',
-        companyName: builder.companyName || builder.name,
-        phone: builder.phone || builder.builderProfile?.phone || '+91 8884976767',
+        name: builder.name || builder.companyName || 'Builder',
+        companyName: builder.companyName || builder.builderProfile?.companyName || builder.name,
+        phone: builder.phone || builder.builderProfile?.phone || '',
+        officeAddress: builder.builderProfile?.officeAddress || '',
         logo: builder.builderProfile?.logo || builder.builderProfile?.brandLogo || '',
         coverImage: builder.builderProfile?.coverImage || builder.builderProfile?.banner || '',
-        description: builder.builderProfile?.description || builder.builderProfile?.about || 'Leading Real Estate Developer focused on premium projects.',
+        description: builder.builderProfile?.description || builder.builderProfile?.about || '',
         experienceYears: industryExperience,
         kycStatus: builder.builderProfile?.approvalStatus || 'verified',
         stats: {
-          totalProjects: formattedProjects.length,
+          totalProjects: totalProjects,
+          profileTotal: profileTotal,
+          profileActive: profileActive,
+          profileCompleted: profileCompleted,
+          listedProjects: formattedProjects.length,
           ongoingProjects: ongoingCount,
           readyToMoveProjects: readyToMoveCount,
           totalCities: cityList.length,
@@ -255,38 +268,94 @@ export const getPublicBuilderDetails = async (req, res) => {
 // @access  Public
 export const getPublicBuilders = async (req, res) => {
   try {
-    const builders = await User.find({ role: 'builder' }).select('name builderProfile createdAt');
+    const { locality, city } = req.query;
+    const targetLocality = (locality || city || '').trim().toLowerCase();
+
+    // Query non-rejected builders
+    const builders = await User.find({ 
+      role: 'builder',
+      'builderProfile.approvalStatus': { $ne: 'rejected' }
+    }).select('name companyName builderProfile createdAt').lean();
     
     const buildersWithStats = await Promise.all(builders.map(async (builder) => {
-      const builderProperties = await Property.find({ userId: builder._id }).select('_id');
-      const propertyIds = builderProperties.map(p => p._id);
+      // Find all approved properties for this builder (as owner userId or partnerId)
+      const projects = await Property.find({
+        $or: [{ userId: builder._id }, { partnerId: builder._id }],
+        status: 'approved'
+      }).populate('builderProjectDetails').lean();
 
-      const ongoingCount = await BuilderProjectDetails.countDocuments({
-        propertyId: { $in: propertyIds },
-        possessionStatus: 'Ongoing'
-      });
-
-      const readyCount = await BuilderProjectDetails.countDocuments({
-        propertyId: { $in: propertyIds },
-        possessionStatus: 'Ready To Move'
-      });
-      
-      const projects = await Property.find({ userId: builder._id }).select('address.city');
+      // Extract unique cities with approved properties
       const cities = [...new Set(projects.map(p => p.address?.city).filter(Boolean))];
+
+      const profileActive = Number(builder.builderProfile?.activeProjects) || 0;
+      const profileCompleted = Number(builder.builderProfile?.completedProjects) || 0;
+      const profileTotal = profileActive + profileCompleted;
+      const totalProjects = projects.length;
+
+      let ongoingCount = 0;
+      let readyCount = 0;
+
+      projects.forEach(p => {
+        const bpd = p.builderProjectDetails || {};
+        const statusText = String(bpd.possessionStatus || p.dynamicData?.availabilityStatus || p.dynamicData?.possessionStatus || p.possessionStatus || '').toLowerCase();
+        const isReadyToMove = statusText.includes('ready') || statusText.includes('delivered') || statusText.includes('completed');
+        if (isReadyToMove) {
+          readyCount++;
+        } else {
+          ongoingCount++;
+        }
+      });
+
+      // Check if builder has projects in the requested locality / city
+      let localProjectsCount = 0;
+      if (targetLocality && targetLocality !== 'all') {
+        localProjectsCount = projects.filter(p => {
+          const c = (p.address?.city || '').toLowerCase();
+          const a = (p.address?.area || p.address?.district || '').toLowerCase();
+          return c.includes(targetLocality) || targetLocality.includes(c) || a.includes(targetLocality);
+        }).length;
+      }
 
       return {
         _id: builder._id,
         name: builder.name,
+        companyName: builder.companyName || builder.builderProfile?.companyName || builder.name,
         profile: builder.builderProfile,
+        brandLogo: builder.builderProfile?.brandLogo || builder.builderProfile?.logo || '',
         stats: {
           ongoingProjects: ongoingCount,
           readyToMoveProjects: readyCount,
           cities: cities.length,
           cityList: cities,
-          totalProjects: ongoingCount + readyCount
+          totalProjects: totalProjects,
+          localProjectsCount: localProjectsCount
         }
       };
     }));
+
+    // Sort:
+    // 1. If locality filter is provided, builders with projects in that locality first
+    // 2. Builders with live approved properties first
+    // 3. Builders with more total projects first
+    // 4. Approved builders first
+    buildersWithStats.sort((a, b) => {
+      if (targetLocality && targetLocality !== 'all') {
+        if (b.stats.localProjectsCount !== a.stats.localProjectsCount) {
+          return b.stats.localProjectsCount - a.stats.localProjectsCount;
+        }
+      }
+      const aHasProps = a.stats.cityList.length > 0 ? 1 : 0;
+      const bHasProps = b.stats.cityList.length > 0 ? 1 : 0;
+      if (bHasProps !== aHasProps) {
+        return bHasProps - aHasProps;
+      }
+      if (b.stats.totalProjects !== a.stats.totalProjects) {
+        return b.stats.totalProjects - a.stats.totalProjects;
+      }
+      const aApproved = a.profile?.approvalStatus === 'approved' ? 1 : 0;
+      const bApproved = b.profile?.approvalStatus === 'approved' ? 1 : 0;
+      return bApproved - aApproved;
+    });
 
     res.json({ success: true, builders: buildersWithStats });
   } catch (error) {
