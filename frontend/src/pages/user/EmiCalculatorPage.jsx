@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import LoanLeadModal from '../../components/user/LoanLeadModal';
 
 const EmiCalculatorPage = () => {
     const navigate = useNavigate();
@@ -13,6 +14,9 @@ const EmiCalculatorPage = () => {
     const [tenure, setTenure] = useState(20);
     const [rate, setRate] = useState(8.9);
     
+    // Loan Lead Modal State
+    const [showLoanModal, setShowLoanModal] = useState(false);
+
     // FAQ State
     const [openFaq, setOpenFaq] = useState(null);
     const [activeIndex, setActiveIndex] = useState(null);
@@ -343,7 +347,7 @@ const EmiCalculatorPage = () => {
                         </div>
 
                         <button 
-                            onClick={() => navigate('/search?transactionType=buy')}
+                            onClick={() => setShowLoanModal(true)}
                             className="w-full bg-[#3798e4] hover:bg-[#2c7dbf] text-white py-3.5 rounded text-[16px] font-semibold transition-colors"
                         >
                             Get instant loan
@@ -405,6 +409,20 @@ const EmiCalculatorPage = () => {
                 </div>
             </div>
 
+            <LoanLeadModal
+                isOpen={showLoanModal}
+                onClose={() => setShowLoanModal(false)}
+                leadData={{
+                    leadSource: 'emi_calculator',
+                    sourcePage: 'EMI Calculator',
+                    loanAmount: loanAmount,
+                    tenureYears: tenure,
+                    interestRate: rate,
+                    calculatedEmi: Math.round(emi),
+                    totalPayable: Math.round(totalAmount),
+                    totalInterest: Math.round(totalInterest),
+                }}
+            />
         </div>
     );
 };

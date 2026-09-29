@@ -312,42 +312,57 @@ export const getMyEnquiries = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 export const getReceivedEnquiries = async (req, res) => {
     try {
-        const { propertyId, status } = req.query;
+        const { propertyId, status, filter } = req.query;
 
         // Find all properties owned by this user
         const ownerQuery = { userId: req.user._id };
-        if (propertyId) ownerQuery._id = propertyId;
+        const userProperties = await Property.find(ownerQuery).select('_id propertyName propertyType transactionType address buyDetails rentDetails plotDetails pgDetails coverImage price dynamicData');
+        const userPropertyIds = userProperties.map(p => p._id);
 
-        const properties = await Property.find(ownerQuery).select('_id');
-        const propertyIds = properties.map(p => p._id);
+        let scopedPropertyIds = userPropertyIds;
+        if (propertyId && propertyId !== 'All' && propertyId !== 'all') {
+            // Check if property belongs to user or user is authorized
+            const selectedProp = userProperties.find(p => p._id.toString() === propertyId.toString());
+            if (selectedProp || ['admin', 'superadmin'].includes(req.user.role)) {
+                scopedPropertyIds = [propertyId];
+            } else {
+                scopedPropertyIds = [propertyId];
+            }
+        }
 
         const orConditions = [];
-        if (propertyIds.length > 0) {
-            orConditions.push({ propertyId: { $in: propertyIds } });
+        if (scopedPropertyIds.length > 0) {
+            orConditions.push({ propertyId: { $in: scopedPropertyIds } });
         }
-        orConditions.push({ brokerId: req.user._id });
-        orConditions.push({ builderId: req.user._id });
+        
+        // If viewing all properties, also include broker/builder direct enquiries
+        if (!propertyId || propertyId === 'All' || propertyId === 'all') {
+            orConditions.push({ brokerId: req.user._id });
+            orConditions.push({ builderId: req.user._id });
+        }
 
-        const query = { $or: orConditions };
-        if (status && status !== 'all') {
-            query.status = status;
-        }
+        const query = orConditions.length > 0 ? { $or: orConditions } : { _id: null };
 
         // Check if the current user has premium access (admin/superadmin or active subscription)
         const sub = req.user.subscription;
-        const isPremium = sub && sub.status === 'active' && sub.expiryDate && new Date(sub.expiryDate) >= new Date();
-        const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
-        const hasAccess = isPremium || isAdmin;
+        const isPremium = (sub && sub.status === 'active' && sub.expiryDate && new Date(sub.expiryDate) >= new Date()) || ['admin', 'superadmin'].includes(req.user.role);
+        const hasAccess = !!isPremium;
 
-        const enquiries = await Enquiry.find(query)
-            .populate('userId', 'name phone email avatar')
+        const rawEnquiries = await Enquiry.find(query)
+            .populate('userId', 'name phone email avatar role')
             .populate('brokerId', 'name phone email avatar address')
             .populate('builderId', 'name phone email avatar address')
             .populate('propertyId', 'propertyName coverImage address propertyType transactionType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice userId')
             .sort({ createdAt: -1 });
 
-        const processedEnquiries = enquiries.map(e => {
-            const doc = e.toObject();
+        const enrichedEnquiries = await attachStartingPricesToEnquiries(rawEnquiries);
+
+        // Process enquiries with masking according to access tier
+        const processedEnquiries = enrichedEnquiries.map(e => {
+            const doc = e.toObject ? e.toObject() : JSON.parse(JSON.stringify(e));
+            doc.isContactAuthorized = hasAccess;
+            doc.rawPhone = doc.phone;
+            doc.rawEmail = doc.email;
             if (!hasAccess) {
                 doc.phone = maskPhone(doc.phone);
                 doc.email = maskEmail(doc.email);
@@ -359,8 +374,217 @@ export const getReceivedEnquiries = async (req, res) => {
             return doc;
         });
 
-        const enriched = await attachStartingPricesToEnquiries(processedEnquiries);
-        res.json({ success: true, isPremium: hasAccess, enquiries: enriched });
+        // ── 1. GROUP RESPONDENTS (All Respondents View) ─────────────────────
+        const respondentsMap = new Map();
+        for (const enq of processedEnquiries) {
+            const respondentKey = enq.userId?._id?.toString() || enq.rawPhone || enq.phone || enq.email || enq._id.toString();
+            
+            if (!respondentsMap.has(respondentKey)) {
+                respondentsMap.set(respondentKey, {
+                    respondentId: respondentKey,
+                    userId: enq.userId?._id || null,
+                    name: enq.userId?.name || enq.name || 'Enquirer',
+                    phone: enq.phone,
+                    rawPhone: enq.rawPhone,
+                    email: enq.email,
+                    rawEmail: enq.rawEmail,
+                    avatar: enq.userId?.avatar || '',
+                    userType: enq.userId?.role || 'Buyer',
+                    isContactAuthorized: hasAccess,
+                    totalEnquiries: 0,
+                    lastEnquiryDate: enq.createdAt,
+                    propertiesMap: new Map(),
+                    statuses: new Set(),
+                    enquiries: []
+                });
+            }
+
+            const group = respondentsMap.get(respondentKey);
+            group.totalEnquiries += 1;
+            group.enquiries.push(enq);
+            if (new Date(enq.createdAt) > new Date(group.lastEnquiryDate)) {
+                group.lastEnquiryDate = enq.createdAt;
+            }
+            if (enq.status) group.statuses.add(enq.status);
+
+            if (enq.propertyId && enq.propertyId._id) {
+                const propIdStr = enq.propertyId._id.toString();
+                if (!group.propertiesMap.has(propIdStr)) {
+                    group.propertiesMap.set(propIdStr, {
+                        _id: enq.propertyId._id,
+                        propertyName: enq.propertyId.propertyName || 'Property',
+                        coverImage: enq.propertyId.coverImage || '',
+                        propertyType: enq.propertyId.propertyType || '',
+                        startingPrice: enq.propertyId.startingPrice,
+                        price: enq.propertyId.price,
+                        address: enq.propertyId.address
+                    });
+                }
+            }
+        }
+
+        const respondentsList = Array.from(respondentsMap.values()).map(r => ({
+            ...r,
+            properties: Array.from(r.propertiesMap.values()),
+            statuses: Array.from(r.statuses),
+            propertiesMap: undefined
+        })).sort((a, b) => new Date(b.lastEnquiryDate) - new Date(a.lastEnquiryDate));
+
+        // ── 2. MATCHING BUYERS CALCULATION ──────────────────────────────────
+        // Determine properties to match against
+        let targetPropsForMatching = [];
+        if (propertyId && propertyId !== 'All' && propertyId !== 'all') {
+            const single = userProperties.find(p => p._id.toString() === propertyId.toString());
+            if (single) targetPropsForMatching = [single];
+        } else {
+            targetPropsForMatching = userProperties;
+        }
+
+        let matchingBuyersList = [];
+        if (targetPropsForMatching.length > 0) {
+            // Find genuine enquiries across the database with requirements that match
+            const allRequirements = await Enquiry.find({
+                userId: { $ne: req.user._id },
+                $or: [
+                    { 'requirement.text': { $ne: '' } },
+                    { 'requirement.city': { $ne: '' } },
+                    { 'requirement.propertyType': { $ne: '' } },
+                    { 'requirement.budgetMax': { $gt: 0 } }
+                ]
+            })
+            .populate('userId', 'name phone email avatar role')
+            .populate('propertyId', 'propertyName coverImage address propertyType startingPrice price')
+            .sort({ createdAt: -1 })
+            .limit(100);
+
+            const matchedBuyersMap = new Map();
+
+            for (const reqEnq of allRequirements) {
+                const buyerReq = reqEnq.requirement || {};
+                const buyerCity = (buyerReq.city || '').toLowerCase().trim();
+                const buyerType = (buyerReq.propertyType || '').toLowerCase().trim();
+                const buyerBhk = (buyerReq.bhk || '').toLowerCase().trim();
+                const buyerMaxBudget = Number(buyerReq.budgetMax) || 0;
+                const buyerMinBudget = Number(buyerReq.budgetMin) || 0;
+                const buyerPurpose = (buyerReq.purpose || '').toLowerCase().trim();
+
+                for (const prop of targetPropsForMatching) {
+                    const propCity = (prop.address?.city || prop.address?.locality || '').toLowerCase().trim();
+                    const propType = (prop.propertyType || '').toLowerCase().trim();
+                    const propBhk = (prop.buyDetails?.type || prop.buyDetails?.bhk || prop.rentDetails?.type || prop.rentDetails?.bhk || '').toLowerCase().trim();
+                    const propPrice = Number(prop.buyDetails?.expectedPrice || prop.rentDetails?.monthlyRent || prop.plotDetails?.expectedPrice || prop.price || prop.startingPrice || 0);
+                    const propPurpose = (prop.transactionType || '').toLowerCase().trim();
+
+                    const matchReasons = [];
+                    let score = 0;
+
+                    // Match City
+                    if (buyerCity && propCity && (propCity.includes(buyerCity) || buyerCity.includes(propCity))) {
+                        matchReasons.push(`Preferred City: ${prop.address?.city || buyerReq.city}`);
+                        score += 1;
+                    }
+
+                    // Match Property Type
+                    if (buyerType && propType && (propType.includes(buyerType) || buyerType.includes(propType))) {
+                        matchReasons.push(`Property Type: ${prop.propertyType}`);
+                        score += 1;
+                    }
+
+                    // Match BHK
+                    if (buyerBhk && propBhk && (propBhk.includes(buyerBhk) || buyerBhk.includes(propBhk))) {
+                        matchReasons.push(`Configuration: ${buyerBhk.toUpperCase()}`);
+                        score += 1;
+                    }
+
+                    // Match Purpose (Buy / Rent)
+                    if (buyerPurpose && propPurpose && (propPurpose.includes(buyerPurpose) || buyerPurpose.includes(propPurpose))) {
+                        matchReasons.push(`Purpose: ${propPurpose.toUpperCase()}`);
+                        score += 1;
+                    }
+
+                    // Match Budget
+                    if (buyerMaxBudget > 0 && propPrice > 0) {
+                        const min = buyerMinBudget > 0 ? buyerMinBudget * 0.7 : 0;
+                        const max = buyerMaxBudget * 1.3;
+                        if (propPrice >= min && propPrice <= max) {
+                            matchReasons.push('Budget matches listing price');
+                            score += 1;
+                        }
+                    }
+
+                    // A genuine match requires at least 2 matching criteria (or city + type)
+                    if (score >= 2) {
+                        const buyerKey = reqEnq.userId?._id?.toString() || reqEnq.phone || reqEnq._id.toString();
+                        if (!matchedBuyersMap.has(buyerKey)) {
+                            const buyerPhone = hasAccess ? reqEnq.phone : maskPhone(reqEnq.phone);
+                            const buyerEmail = hasAccess ? reqEnq.email : maskEmail(reqEnq.email);
+
+                            matchedBuyersMap.set(buyerKey, {
+                                buyerId: buyerKey,
+                                enquiryId: reqEnq._id,
+                                name: reqEnq.userId?.name || reqEnq.name || 'Matching Buyer',
+                                phone: buyerPhone,
+                                email: buyerEmail,
+                                avatar: reqEnq.userId?.avatar || '',
+                                userType: reqEnq.userId?.role || 'Buyer',
+                                isContactAuthorized: hasAccess,
+                                requirement: buyerReq,
+                                matchReasons,
+                                score,
+                                matchedProperty: {
+                                    _id: prop._id,
+                                    propertyName: prop.propertyName,
+                                    coverImage: prop.coverImage,
+                                    propertyType: prop.propertyType
+                                },
+                                createdAt: reqEnq.createdAt
+                            });
+                        }
+                        break; // matched this requirement to a property
+                    }
+                }
+            }
+
+            matchingBuyersList = Array.from(matchedBuyersMap.values()).sort((a, b) => b.score - a.score || new Date(b.createdAt) - new Date(a.createdAt));
+        }
+
+        // ── 3. DYNAMIC COUNTS CALCULATION ───────────────────────────────────
+        const counts = {
+            all: processedEnquiries.length,
+            contacted: processedEnquiries.filter(e => (e.status || '').toLowerCase() === 'contacted').length,
+            matchingBuyers: matchingBuyersList.length,
+            new: processedEnquiries.filter(e => (e.status || 'new').toLowerCase() === 'new').length,
+            scheduled: processedEnquiries.filter(e => (e.status || '').toLowerCase() === 'scheduled').length,
+            closed: processedEnquiries.filter(e => ['closed', 'sold', 'rented'].includes((e.status || '').toLowerCase())).length,
+            dropped: processedEnquiries.filter(e => (e.status || '').toLowerCase() === 'dropped').length,
+            respondentsCount: respondentsList.length
+        };
+
+        // ── 4. FILTERING RESULT FOR ALL RESPONSES ───────────────────────────
+        let activeFilterName = (filter || status || 'ALL').toUpperCase();
+        let filteredEnquiries = processedEnquiries;
+
+        if (activeFilterName === 'CONTACTED') {
+            filteredEnquiries = processedEnquiries.filter(e => (e.status || '').toLowerCase() === 'contacted');
+        } else if (activeFilterName === 'NEW') {
+            filteredEnquiries = processedEnquiries.filter(e => (e.status || 'new').toLowerCase() === 'new');
+        } else if (activeFilterName === 'SCHEDULED') {
+            filteredEnquiries = processedEnquiries.filter(e => (e.status || '').toLowerCase() === 'scheduled');
+        } else if (activeFilterName === 'CLOSED') {
+            filteredEnquiries = processedEnquiries.filter(e => ['closed', 'sold', 'rented'].includes((e.status || '').toLowerCase()));
+        } else if (activeFilterName === 'DROPPED') {
+            filteredEnquiries = processedEnquiries.filter(e => (e.status || '').toLowerCase() === 'dropped');
+        }
+
+        res.json({
+            success: true,
+            isPremium: hasAccess,
+            enquiries: filteredEnquiries,
+            allEnquiries: processedEnquiries,
+            respondents: respondentsList,
+            matchingBuyers: matchingBuyersList,
+            counts
+        });
     } catch (error) {
         console.error('Get Received Enquiries Error:', error);
         res.status(500).json({ success: false, message: error.message });
@@ -374,15 +598,17 @@ export const getReceivedEnquiries = async (req, res) => {
 export const updateEnquiryStatus = async (req, res) => {
     try {
         const { id } = req.params;
+        const { preferredDate, timeSlot, adminNotes, message } = req.body;
         const rawStatus = req.body.status;
 
         const ALLOWED = ['new', 'contacted', 'scheduled', 'follow-up', 'negotiation', 'closed', 'sold', 'rented', 'dropped'];
-        const status = (rawStatus || '').toLowerCase().trim();
-        if (!ALLOWED.includes(status)) {
+        let status = rawStatus ? (rawStatus || '').toLowerCase().trim() : undefined;
+
+        if (status && !ALLOWED.includes(status)) {
             return res.status(400).json({ success: false, message: `Invalid status "${rawStatus}". Allowed: ${ALLOWED.join(', ')}` });
         }
 
-        const enquiry = await Enquiry.findById(id).populate('propertyId', 'userId');
+        const enquiry = await Enquiry.findById(id).populate('propertyId', 'userId propertyName coverImage startingPrice price');
         if (!enquiry) {
             return res.status(404).json({ success: false, message: 'Enquiry not found' });
         }
@@ -393,17 +619,33 @@ export const updateEnquiryStatus = async (req, res) => {
             String(enquiry.brokerId) === String(req.user._id) ||
             String(enquiry.builderId) === String(req.user._id);
 
-        // Allow admin/superadmin to update any enquiry
         const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
 
         if (!isOwner && !isAdmin) {
             return res.status(403).json({ success: false, message: 'Not authorized' });
         }
 
-        enquiry.status = status;
+        if (status) enquiry.status = status;
+        if (preferredDate) {
+            enquiry.preferredDate = new Date(preferredDate);
+            if (!status) enquiry.status = 'scheduled';
+        }
+        if (timeSlot !== undefined) enquiry.timeSlot = timeSlot;
+        if (adminNotes !== undefined) enquiry.adminNotes = adminNotes;
+        if (message !== undefined) enquiry.message = message;
+
         await enquiry.save();
 
-        res.json({ success: true, message: 'Status updated', enquiry });
+        const updated = await Enquiry.findById(id)
+            .populate('userId', 'name phone email avatar role')
+            .populate('propertyId', 'propertyName coverImage address propertyType transactionType buyDetails rentDetails plotDetails pgDetails dynamicData price startingPrice userId');
+
+        let enriched = updated.toObject();
+        if (enriched.propertyId) {
+            enriched.propertyId = await attachPropertyStartingPrice(enriched.propertyId);
+        }
+
+        res.json({ success: true, message: 'Enquiry updated successfully', enquiry: enriched });
     } catch (error) {
         console.error('Update Enquiry Status Error:', error);
         res.status(500).json({ success: false, message: error.message });

@@ -2240,7 +2240,7 @@ const DynamicFormEngine = () => {
 
       {/* More Pricing Details Popup Modal */}
       {showPricingModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4 transition-all">
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/60 p-4 transition-all">
           <div
             className="absolute inset-0 bg-transparent"
             onClick={() => setShowPricingModal(false)}
@@ -2353,11 +2353,15 @@ const DynamicFormEngine = () => {
           purchase happens for THIS listing without leaving the posting flow
           or re-selecting the property in a separate picker. */}
       {subscriptionGate && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div 
+          data-lenis-prevent="true"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-[120]"
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-slate-100"
+            data-lenis-prevent="true"
+            className="bg-white w-full max-w-md max-h-[90dvh] rounded-3xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col"
           >
             {showPlanPicker ? (
               <InlinePropertySubscribe
@@ -2437,10 +2441,14 @@ const DynamicFormEngine = () => {
       )}
 
       {masterChangeWarning && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div 
+          data-lenis-prevent="true"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[120]"
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
+            data-lenis-prevent="true"
             className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-slate-100 p-6 space-y-4"
           >
             <h3 className="text-base font-bold text-slate-900">
@@ -2482,7 +2490,7 @@ const DynamicFormEngine = () => {
       )}
 
       {customTagModal.open && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[120]">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { FiGrid, FiPlus, FiEdit2, FiTrash2, FiImage } from "react-icons/fi";
+import { FiGrid, FiPlus, FiEdit2, FiTrash2, FiImage, FiSearch, FiFilter, FiX, FiRotateCcw } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
@@ -27,6 +27,12 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
 
   const [editingId, setEditingId] = useState(null);
 
+  // Filters State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("all");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
+  const [selectedBookingModeFilter, setSelectedBookingModeFilter] = useState("all");
+
   // UI State
   const [uploadingSubCategoryIcon, setUploadingSubCategoryIcon] = useState(false);
   const [uploadingSubCategoryBanner, setUploadingSubCategoryBanner] = useState(false);
@@ -47,9 +53,6 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [selectedSubCategoryForServices, setSelectedSubCategoryForServices] = useState(null);
 
-  // Filter subCategories — no category filter, show all
-  const filteredSubCategories = subCategories;
-
   // Helper to extract string ID from various formats
   const getStrId = (item) => {
     if (!item) return null;
@@ -58,6 +61,51 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
     if (item._id) return typeof item._id === 'object' && item._id.$oid ? item._id.$oid.trim() : item._id.toString().trim();
     if (item.id) return item.id.toString().trim();
     return String(item).trim();
+  };
+
+  // Filter subCategories based on search, category, status, and booking mode
+  const filteredSubCategories = useMemo(() => {
+    return subCategories.filter(s => {
+      // Category filter
+      if (selectedCategoryFilter !== "all") {
+        const sCatId = getStrId(s.categoryId);
+        if (sCatId !== selectedCategoryFilter) return false;
+      }
+
+      // Search term filter
+      if (searchTerm.trim()) {
+        const query = searchTerm.toLowerCase().trim();
+        const matchesTitle = (s.title || "").toLowerCase().includes(query);
+        const matchesSlug = (s.slug || "").toLowerCase().includes(query);
+        const matchesCatTitle = (s.categoryTitle || "").toLowerCase().includes(query);
+        const matchesBadge = (s.badge || "").toLowerCase().includes(query);
+        if (!matchesTitle && !matchesSlug && !matchesCatTitle && !matchesBadge) return false;
+      }
+
+      // Status filter
+      if (selectedStatusFilter !== "all") {
+        const isVisible = s.isActive !== false;
+        if (selectedStatusFilter === "visible" && !isVisible) return false;
+        if (selectedStatusFilter === "hidden" && isVisible) return false;
+      }
+
+      // Booking mode filter
+      if (selectedBookingModeFilter !== "all") {
+        const modes = s.bookingModes || ['slot'];
+        if (!modes.includes(selectedBookingModeFilter)) return false;
+      }
+
+      return true;
+    });
+  }, [subCategories, selectedCategoryFilter, searchTerm, selectedStatusFilter, selectedBookingModeFilter]);
+
+  const hasActiveFilters = searchTerm.trim() !== "" || selectedCategoryFilter !== "all" || selectedStatusFilter !== "all" || selectedBookingModeFilter !== "all";
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setSelectedCategoryFilter("all");
+    setSelectedStatusFilter("all");
+    setSelectedBookingModeFilter("all");
   };
 
   // Fetch data function
@@ -285,8 +333,16 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
   return (
     <div className="space-y-6">
       <CardShell icon={FiGrid}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-gray-600">{filteredSubCategories.length} sub-categories in catalog</div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div className="text-sm font-semibold text-gray-600">
+            {hasActiveFilters ? (
+              <span>
+                Showing <strong className="text-gray-900">{filteredSubCategories.length}</strong> of {subCategories.length} sub-categories
+              </span>
+            ) : (
+              <span>{subCategories.length} sub-categories in catalog</span>
+            )}
+          </div>
           <button
             onClick={() => { reset(); setIsModalOpen(true); }}
             className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-sm"
@@ -296,12 +352,101 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           </button>
         </div>
 
+        {/* Filter Controls Toolbar */}
+        <div className="flex flex-wrap items-center gap-3 p-3 mb-4 bg-gray-50 border border-gray-200/80 rounded-xl">
+          {/* Search Box */}
+          <div className="relative flex-1 min-w-[200px]">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search sub-category by name, slug, category..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+              >
+                <FiX className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Category Filter */}
+          <div className="flex items-center gap-1.5 min-w-[170px]">
+            <span className="text-xs font-bold text-gray-500 whitespace-nowrap">Category:</span>
+            <select
+              value={selectedCategoryFilter}
+              onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+              className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+            >
+              <option value="all">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat.id || cat._id} value={getStrId(cat.id || cat._id)}>
+                  {cat.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Booking Type Filter */}
+          <div className="flex items-center gap-1.5 min-w-[150px]">
+            <span className="text-xs font-bold text-gray-500 whitespace-nowrap">Booking:</span>
+            <select
+              value={selectedBookingModeFilter}
+              onChange={(e) => setSelectedBookingModeFilter(e.target.value)}
+              className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+            >
+              <option value="all">All Booking Types</option>
+              <option value="slot">Slot</option>
+              <option value="instant">Instant</option>
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5 min-w-[140px]">
+            <span className="text-xs font-bold text-gray-500 whitespace-nowrap">Status:</span>
+            <select
+              value={selectedStatusFilter}
+              onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+            >
+              <option value="all">All Status</option>
+              <option value="visible">Visible</option>
+              <option value="hidden">Hidden</option>
+            </select>
+          </div>
+
+          {/* Reset Filters */}
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+            >
+              <FiRotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
 
         {fetching ? (
           <div className="text-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div></div>
-        ) : filteredSubCategories.length === 0 ? (
+        ) : subCategories.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
             <p className="text-gray-500">No sub-categories found.</p>
+          </div>
+        ) : filteredSubCategories.length === 0 ? (
+          <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+            <FiSearch className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-gray-600">No sub-categories match your filters</p>
+            <button
+              onClick={resetFilters}
+              className="mt-2 text-xs font-bold text-emerald-600 hover:underline"
+            >
+              Clear filters
+            </button>
           </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">

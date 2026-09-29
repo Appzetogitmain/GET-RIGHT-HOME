@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2, MapPin, CheckCircle, XCircle, FileText,
     ChevronLeft, Star, Bed, Calendar, ShieldCheck, AlertCircle,
-    MoreVertical, Download, Search, Ban, Wifi, Phone, Mail, Tv, Coffee, Wind, Loader2, Clock, Image as ImageIcon, Users, MessageSquare
+    MoreVertical, Download, Search, Ban, Wifi, Phone, Mail, Tv, Coffee, Wind, Loader2, Clock, Image as ImageIcon, Users, MessageSquare, Edit
 } from 'lucide-react';
-import { Link, useParams, useLocation } from 'react-router-dom';
+import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
@@ -1173,6 +1173,7 @@ const EnquiriesTab = ({ enquiries }) => {
 
 const AdminHotelDetail = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
     const { id } = useParams();
     const [hotel, setHotel] = useState(null);
@@ -1391,6 +1392,14 @@ const AdminHotelDetail = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <button
+                        onClick={() => navigate(isProject ? `${basePath}/projects/add` : `${basePath}/properties/add`, { state: { [isProject ? 'existingProject' : 'existingProperty']: hotel } })}
+                        className="flex-1 md:flex-none px-4 py-2.5 bg-black hover:bg-gray-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                        <Edit size={14} />
+                        {isProject ? 'Edit Project' : 'Edit Property'}
+                    </button>
+
                     {(hotel.status === 'pending' || hotel.status === 'draft') && (
                         <>
                             <button

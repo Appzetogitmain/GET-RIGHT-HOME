@@ -168,6 +168,8 @@ const ProfileEdit = () => {
     name: '',
     phone: '',
     email: '',
+    bio: '',
+    languages: '',
     profileImage: '',
     profileImagePublicId: '',
     address: {
@@ -217,6 +219,8 @@ const ProfileEdit = () => {
           name: user.name || '',
           phone: user.phone || '',
           email: user.email || '',
+          bio: user.bio || '',
+          languages: Array.isArray(user.languages) ? user.languages.join(', ') : (user.languages || ''),
           profileImage: user.profileImage || '',
           profileImagePublicId: user.profileImagePublicId || '',
           address: {
@@ -894,6 +898,26 @@ const ProfileEdit = () => {
                 </div>
               </Field>
             </div>
+
+            <Field label="About / Bio (Public Profile Intro)">
+              <textarea
+                rows={3}
+                value={formData.bio}
+                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                className={inputCls}
+                placeholder="Briefly describe your real estate experience, specialization, and services..."
+              />
+            </Field>
+
+            <Field label="Languages Known">
+              <input
+                type="text"
+                value={formData.languages}
+                onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
+                className={inputCls}
+                placeholder="e.g. English, Hindi, Kannada, Marathi"
+              />
+            </Field>
           </SectionCard>
 
           {/* ───────── Section: My Bookings ───────── */}

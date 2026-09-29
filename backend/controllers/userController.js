@@ -834,6 +834,7 @@ export const getBrokerProfile = async (req, res) => {
           bio: 1,
           description: 1,
           languages: 1,
+          specialization: 1,
           isVerified: 1,
           profileImage: 1,
           planName: 1,

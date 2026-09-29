@@ -136,6 +136,7 @@ const AdminBuilders = React.lazy(() => import('./app/admin/pages/AdminBuilders')
 const AdminBuilderVerification = React.lazy(() => import('./app/admin/pages/AdminBuilderVerification'));
 const AdminRecommendedBrokers = React.lazy(() => import('./app/admin/pages/AdminRecommendedBrokers'));
 const AdminManageLocalityInsights = React.lazy(() => import('./app/admin/pages/AdminManageLocalityInsights'));
+const AdminLoanLeads = React.lazy(() => import('./app/admin/pages/AdminLoanLeads'));
 
 // Lazy Imports - Manager Panel
 const ManagerLogin = React.lazy(() => import('./app/manager/pages/ManagerLogin'));
@@ -635,6 +636,7 @@ function App() {
                         <Route path="locations" element={<AdminLocationsPage />} />
                         <Route path="managers" element={<AdminManagers />} />
                         <Route path="locality-insights" element={<AdminManageLocalityInsights />} />
+                        <Route path="loan-leads" element={<AdminLoanLeads />} />
                       </Route>
                     </Route>
 

@@ -2272,7 +2272,7 @@ export const updateAdminPassword = async (req, res) => {
 
 export const createAdminBroker = async (req, res) => {
   try {
-    const { name, email, phone, profileImage } = req.body;
+    const { name, email, phone, profileImage, bio, languages, specialization } = req.body;
 
     if (!name || !phone) {
       return res.status(400).json({ success: false, message: 'Name and phone are required' });
@@ -2297,6 +2297,9 @@ export const createAdminBroker = async (req, res) => {
       email: email || undefined,
       phone,
       role: 'broker',
+      bio: bio || '',
+      languages: Array.isArray(languages) ? languages : (languages ? languages.split(',').map(s => s.trim()) : ['English', 'Hindi']),
+      specialization: Array.isArray(specialization) ? specialization : (specialization ? specialization.split(',').map(s => s.trim()) : ['Residential', 'Commercial']),
       profileImage: profileImage || undefined,
       isVerified: true // Mocking verification for now
     });

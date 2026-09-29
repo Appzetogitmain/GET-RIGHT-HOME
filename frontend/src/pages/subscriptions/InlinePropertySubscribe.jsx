@@ -47,6 +47,13 @@ const InlinePropertySubscribe = ({ propertyId, user, onActivated, onBack }) => {
     const purchaseInFlightRef = useRef(false);
 
     useEffect(() => {
+        if (window.lenis) window.lenis.stop();
+        return () => {
+            if (window.lenis) window.lenis.start();
+        };
+    }, []);
+
+    useEffect(() => {
         (async () => {
             try {
                 const res = await propertySubscriptionService.getCatalog({ propertyId });
@@ -124,35 +131,50 @@ const InlinePropertySubscribe = ({ propertyId, user, onActivated, onBack }) => {
     };
 
     return (
-        <div className="px-6 pt-6 pb-6">
-            <button type="button" onClick={onBack} className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-600 mb-4">
-                <ArrowLeft size={14} /> Back
-            </button>
+        <div data-lenis-prevent="true" className="flex flex-col max-h-[85vh] md:max-h-[80vh] overflow-hidden">
+            {/* Header */}
+            <div className="px-6 pt-5 pb-3.5 shrink-0 border-b border-slate-100 bg-white">
+                <button
+                    type="button"
+                    onClick={onBack}
+                    className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 active:scale-95 transition-all mb-2 cursor-pointer"
+                >
+                    <ArrowLeft size={14} /> Back
+                </button>
 
-            <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Choose a {mode === 'rental' ? 'Rental' : 'Sale'} plan
-            </h3>
-            <p className="text-[13px] text-slate-500 mb-4">Attached to this listing only — it won't affect your other properties.</p>
+                <h3 className="text-lg font-bold text-slate-900 leading-tight">
+                    Choose a {mode === 'rental' ? 'Rental' : 'Sale'} plan
+                </h3>
+                <p className="text-[12px] text-slate-500 mt-0.5">Attached to this listing only — it won't affect your other properties.</p>
+            </div>
 
-            {loading ? (
-                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-slate-300" /></div>
-            ) : plans.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-10">No plans available for this listing right now.</p>
-            ) : (
-                <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
-                    {plans.map((plan) => {
+            {/* Scrollable Plans List */}
+            <div 
+                data-lenis-prevent="true"
+                className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3.5 custom-scrollbar"
+                style={{
+                    WebkitOverflowScrolling: 'touch',
+                    touchAction: 'pan-y'
+                }}
+            >
+                {loading ? (
+                    <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-300" size={32} /></div>
+                ) : plans.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-10">No plans available for this listing right now.</p>
+                ) : (
+                    plans.map((plan) => {
                         const cfg = TIER_CONFIG[plan.planTier] || TIER_CONFIG.basic;
                         const Icon = cfg.icon;
                         const highlights = planHighlights(plan);
                         const isSubmittingThis = submitting === plan._id;
                         return (
-                            <div key={plan._id} className="border border-slate-200 rounded-2xl overflow-hidden">
+                            <div key={plan._id} className="border border-slate-200 hover:border-slate-300 rounded-2xl overflow-hidden shadow-xs transition-all">
                                 <div className={`px-4 py-2.5 bg-gradient-to-r ${cfg.gradient} flex items-center gap-2`}>
-                                    <Icon size={15} className="text-white" />
+                                    <Icon size={15} className="text-white shrink-0" />
                                     <span className="text-white font-bold text-sm">{plan.name}</span>
                                     <span className="ml-auto text-white font-black text-sm">{fmt(plan.price)}</span>
                                 </div>
-                                <div className="px-4 py-3">
+                                <div className="px-4 py-3 bg-white">
                                     <div className="space-y-1.5 mb-3">
                                         {highlights.map((h) => (
                                             <div key={h} className="flex items-center gap-1.5 text-xs text-slate-600">
@@ -164,16 +186,16 @@ const InlinePropertySubscribe = ({ propertyId, user, onActivated, onBack }) => {
                                         type="button"
                                         onClick={() => handlePurchase(plan)}
                                         disabled={!!submitting}
-                                        className="w-full py-2.5 rounded-xl bg-[#005B9F] hover:bg-[#004a83] text-white text-sm font-bold disabled:opacity-50 transition-all"
+                                        className="w-full py-2.5 rounded-xl bg-[#005B9F] hover:bg-[#004a83] active:scale-[0.98] text-white text-xs font-bold disabled:opacity-50 transition-all cursor-pointer shadow-sm"
                                     >
                                         {isSubmittingThis ? 'Processing...' : `Get ${plan.name}`}
                                     </button>
                                 </div>
                             </div>
                         );
-                    })}
-                </div>
-            )}
+                    })
+                )}
+            </div>
         </div>
     );
 };

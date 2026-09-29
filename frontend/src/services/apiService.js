@@ -466,9 +466,10 @@ export const enquiryService = {
     }
   },
   // Update status of an enquiry on my property
-  updateStatus: async (id, status) => {
+  updateStatus: async (id, payload) => {
     try {
-      const response = await api.put(`/enquiries/${id}/status`, { status });
+      const data = typeof payload === 'string' ? { status: payload } : payload;
+      const response = await api.put(`/enquiries/${id}/status`, data);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
