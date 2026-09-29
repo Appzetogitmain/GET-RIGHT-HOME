@@ -168,6 +168,22 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
 
   const existing = await activeLeaves(workerId);
   const existingByDate = new Map(existing.map((l) => [l.dateStr, l]));
+  // A day a worker has already marked (Available or Leave) is final — only the
+  // admin can change it. Workers can still mark days that are not marked yet.
+  if (!byAdmin) {
+    const savedAvailable = (worker.availability?.availableDates || []).filter((d) => d >= today);
+    const lockedAvailable = savedAvailable.filter((d) => !markedAvailable.includes(d));
+    const lockedLeave = requestedLeave ? existing.map((l) => l.dateStr).filter((d) => !requestedLeave.includes(d)) : [];
+    const changed = [...new Set([...lockedAvailable, ...lockedLeave])].sort();
+    if (changed.length) {
+      throw new AvailabilityError(
+        `${changed.join(', ')} ${changed.length === 1 ? 'is' : 'are'} already marked and can't be changed. Contact admin to change a marked day.`,
+        409,
+        { dates: changed }
+      );
+    }
+  }
+
   const toAdd = requestedLeave ? requestedLeave.filter((d) => !existingByDate.has(d)) : [];
   const toRemove = requestedLeave ? existing.filter((l) => !requestedLeave.includes(l.dateStr)) : [];
 

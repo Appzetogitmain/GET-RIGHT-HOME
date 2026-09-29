@@ -1,5 +1,7 @@
 import Worker from '../models/Worker.js';
 import Zone from '../models/Zone.js';
+import Profession from '../models/Profession.js';
+import { safeRegex } from '../utils/escapeRegex.js';
 
 const STOP_WORDS = new Set([
   'and', 'or', 'the', 'for', 'in', 'of', 'to', 'at', 'by', 'with', 'a', 'an',
@@ -94,6 +96,27 @@ export const matchesWorkerCategory = (workerCategories, filters) => {
   });
 };
 
+/**
+ * A worker's serviceCategories may name an admin-defined Profession (e.g.
+ * "Electrician"). Such an entry qualifies the worker ONLY for the categories
+ * the admin bundled under that profession — matched by category id, never
+ * fuzzily. Any other entry keeps the legacy name matching.
+ */
+export const workerServesBooking = (worker, filters, professions = []) => {
+  const byName = new Map(professions.map(p => [normalizeCategoryString(p.name), p]));
+  const held = [];
+  const plain = [];
+  for (const entry of worker.serviceCategories || []) {
+    const profession = byName.get(normalizeCategoryString(entry));
+    if (profession) held.push(profession);
+    else plain.push(entry);
+  }
+  if (filters?.categoryId && held.some(p => (p.categoryIds || []).some(id => String(id) === String(filters.categoryId)))) {
+    return true;
+  }
+  return matchesWorkerCategory(plain, filters);
+};
+
 export const findNearbyWorkers = async (location, radius, filters) => {
   try {
     const lat = parseFloat(location.lat);
@@ -152,16 +175,16 @@ export const findNearbyWorkers = async (location, radius, filters) => {
 
       console.log(`[LocationService] User is in zone: ${activeZone.name}`);
 
-      // Query all online approved active workers who belong to this zone
-      // Either by geolocation inside the zone polygon, or by assigned zoneId, zones array, or address city
-      const zoneRegex = new RegExp(`^${activeZone.name}$`, 'i');
+      // Only workers the admin explicitly assigned to this zone get its
+      // bookings. A worker's own location or address city does not qualify —
+      // otherwise an Indore-zone worker who happens to stand near a zone
+      // border would receive another zone's jobs. (`zones` is the legacy
+      // name-based assignment kept in sync with zoneIds.)
       const zoneWorkersQuery = {
         ...baseQuery,
         $or: [
-          { geoLocation: { $geoWithin: { $geometry: activeZone.area } } },
           { zoneIds: activeZone._id },
-          { zones: { $regex: zoneRegex } },
-          { 'address.city': { $regex: zoneRegex } }
+          { zones: safeRegex(activeZone.name, { exact: true }) }
         ]
       };
 
@@ -213,7 +236,8 @@ export const findNearbyWorkers = async (location, radius, filters) => {
     // Apply strict category filter
     if (filters && (filters.service || filters.serviceName || filters.slug || filters.categoryId)) {
       const categoryFilterName = filters.service || filters.serviceName || filters.slug || 'category';
-      const filtered = formattedWorkers.filter(worker => matchesWorkerCategory(worker.serviceCategories, filters));
+      const professions = await Profession.find({ isActive: true }).select('name categoryIds').lean();
+      const filtered = formattedWorkers.filter(worker => workerServesBooking(worker, filters, professions));
 
       console.log(`[LocationService] Category filter "${categoryFilterName}" matched ${filtered.length} of ${formattedWorkers.length} nearby workers`);
       formattedWorkers = filtered;
@@ -225,6 +249,32 @@ export const findNearbyWorkers = async (location, radius, filters) => {
     console.error('Error finding nearby workers:', error);
     return [];
   }
+};
+
+/**
+ * Can this worker be given this booking at all? Used for admin manual
+ * assignment, which bypasses the automatic search. Returns an error message,
+ * or null when the worker is in the booking's zone and serves its category.
+ */
+export const findWorkerIneligibility = async (worker, booking) => {
+  if (booking.zoneId) {
+    const inZone = (worker.zoneIds || []).some(z => String(z) === String(booking.zoneId));
+    if (!inZone) {
+      const zone = await Zone.findById(booking.zoneId).select('name').lean();
+      const legacy = zone && (worker.zones || []).some(n => normalizeCategoryString(n) === normalizeCategoryString(zone.name));
+      if (!legacy) return `${worker.name} is not assigned to the ${zone?.name || 'booking'} zone.`;
+    }
+  }
+  const filters = {
+    service: booking.serviceCategory,
+    serviceName: booking.serviceName,
+    categoryId: booking.categoryId
+  };
+  const professions = await Profession.find({ isActive: true }).select('name categoryIds').lean();
+  if (!workerServesBooking(worker, filters, professions)) {
+    return `${worker.name}'s profession does not cover ${booking.serviceCategory || 'this'} bookings.`;
+  }
+  return null;
 };
 
 export const geocodeAddress = async (address) => {

@@ -6,7 +6,7 @@ import {
   FiExternalLink, FiUserCheck, FiShield, FiPackage
 } from 'react-icons/fi';
 
-const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker }) => {
+const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCancelBooking }) => {
   if (!isOpen || !booking) return null;
 
   const isInstant = booking.bookingType?.toLowerCase() === 'instant';
@@ -484,6 +484,14 @@ const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker }) => {
             </div>
 
             <div className="flex items-center gap-2">
+              {onCancelBooking && (
+                <button
+                  onClick={() => onCancelBooking(booking)}
+                  className="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors shadow-sm"
+                >
+                  Cancel Booking
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors shadow-sm"

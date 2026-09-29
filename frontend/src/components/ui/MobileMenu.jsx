@@ -176,6 +176,17 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                 </div>
                             </div>
 
+                            {/* Bookings & Orders - only show if logged in */}
+                            {user && (
+                                <div>
+                                    <SectionTitle title="Bookings & Orders" />
+                                    <div className="flex flex-col gap-1">
+                                        <MenuItem icon={CalendarCheck} label="My Service Bookings" path="/user/home-services/bookings" />
+                                        <MenuItem icon={Building} label="Hotel & Stay Bookings" path="/bookings" />
+                                    </div>
+                                </div>
+                            )}
+
                             {/* My Properties - only show if logged in */}
                             {user && (
                                 <div>

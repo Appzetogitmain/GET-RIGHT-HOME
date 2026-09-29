@@ -6,7 +6,8 @@ import Withdrawal from '../models/Withdrawal.js';
 import User from '../models/User.js';
 import VendorBill from '../models/VendorBill.js';
 import { createNotification } from './notificationControllers/notificationController.js';
-import { BOOKING_STATUS } from '../utils/constants.js';
+import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
+import { findWorkerIneligibility } from '../services/locationService.js';
 import { safeRegex } from '../utils/escapeRegex.js';
 import { findWorkerConflict, findWorkerUnavailability, getBufferMinutes, describeConflict } from '../utils/slotAvailability.js';
 import BookingRequest from '../models/HomeServiceBookingRequest.js';
@@ -1029,6 +1030,11 @@ export const assignWorkerToBooking = async (req, res) => {
     const worker = await Worker.findById(workerId);
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
 
+    const ineligible = await findWorkerIneligibility(worker, booking);
+    if (ineligible) {
+      return res.status(409).json({ success: false, code: 'WORKER_NOT_ELIGIBLE', message: ineligible });
+    }
+
     const bookingMode = booking.bookingType === 'instant' ? 'instant' : 'slot';
     if (!supportsBookingMode(worker, bookingMode)) {
       return res.status(409).json({
@@ -1132,6 +1138,114 @@ export const assignWorkerToBooking = async (req, res) => {
     res.json({ success: true, message: 'Worker successfully assigned to booking', data: booking });
   } catch (error) {
     if (claimedWorkerId) await syncWorkerCapacityStatus(claimedWorkerId).catch(() => {});
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Admin cancels a booking on the customer's behalf. Cancelling is the admin's
+ * call, so no cancellation fee is charged; a prepaid (wallet/online) booking is
+ * refunded in full to the customer's wallet.
+ */
+export const adminCancelBooking = async (req, res) => {
+  try {
+    const reason = String(req.body?.reason || '').trim();
+    if (!reason) return res.status(400).json({ success: false, message: 'Please provide a cancellation reason.' });
+
+    const booking = await HomeServiceBooking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    if (booking.status === BOOKING_STATUS.CANCELLED) {
+      return res.status(400).json({ success: false, message: 'Booking is already cancelled' });
+    }
+    if (booking.status === BOOKING_STATUS.COMPLETED) {
+      return res.status(400).json({ success: false, message: 'Cannot cancel a completed booking' });
+    }
+
+    const isPaid = [PAYMENT_STATUS.PAID, PAYMENT_STATUS.PLAN_COVERED].includes(booking.paymentStatus);
+    const isPrepaid = ['wallet', 'razorpay', 'upi', 'card'].includes(booking.paymentMethod);
+    let refundAmount = 0;
+    if (isPaid && isPrepaid && booking.finalAmount > 0) {
+      const user = await User.findById(booking.userId);
+      if (user) {
+        refundAmount = booking.finalAmount;
+        user.wallet.balance = (user.wallet.balance || 0) + refundAmount;
+        await user.save();
+        await Transaction.create({
+          userId: user._id,
+          type: 'refund',
+          amount: refundAmount,
+          status: 'completed',
+          paymentMethod: 'wallet',
+          description: `Refund for booking #${booking.bookingNumber} (cancelled by admin)`,
+          bookingId: booking._id,
+          balanceAfter: user.wallet.balance
+        });
+        booking.paymentStatus = PAYMENT_STATUS.REFUNDED;
+      }
+    }
+
+    const previousWorkerId = booking.workerId;
+    booking.status = BOOKING_STATUS.CANCELLED;
+    booking.cancelledAt = new Date();
+    booking.cancelledBy = 'admin';
+    booking.cancellationReason = reason;
+    booking.waveStartedAt = null;
+    await booking.save();
+
+    const io = getIO();
+    const pending = await BookingRequest.find({ bookingId: booking._id, status: 'PENDING' }).select('workerId').lean();
+    await BookingRequest.updateMany({ bookingId: booking._id, status: 'PENDING' }, { $set: { status: 'CANCELLED' } });
+    for (const request of pending) {
+      io?.to(`worker_${request.workerId}`).emit('job_cancelled', {
+        bookingId: booking._id.toString(),
+        message: 'Booking cancelled by admin'
+      });
+    }
+
+    if (previousWorkerId) {
+      const capacity = await syncWorkerCapacityStatus(previousWorkerId);
+      io?.to(`worker_${previousWorkerId}`).emit('job_cancelled', {
+        bookingId: booking._id.toString(),
+        message: 'Booking cancelled by admin'
+      });
+      io?.to(`worker_${previousWorkerId}`).emit('worker_capacity_changed', {
+        status: capacity?.status,
+        isBusy: capacity?.isBusy || false,
+        reason: 'booking_cancelled'
+      });
+      await createNotification({
+        workerId: previousWorkerId,
+        type: 'booking_cancelled',
+        title: 'Job Cancelled',
+        message: `Booking #${booking.bookingNumber} was cancelled by admin. Reason: ${reason}`,
+        relatedId: booking._id,
+        relatedType: 'booking',
+        priority: 'high'
+      });
+    }
+
+    io?.to(`user_${booking.userId}`).emit('booking_updated', {
+      bookingId: booking._id,
+      status: booking.status,
+      message: 'Your booking was cancelled by the admin.'
+    });
+    await createNotification({
+      userId: booking.userId,
+      type: 'booking_cancelled',
+      title: 'Booking Cancelled',
+      message: `Your booking #${booking.bookingNumber} was cancelled by admin. Reason: ${reason}.${refundAmount > 0 ? ` ₹${refundAmount} has been refunded to your wallet.` : ''}`,
+      relatedId: booking._id,
+      relatedType: 'booking',
+      pushData: { type: 'booking_cancelled', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
+    });
+
+    res.json({
+      success: true,
+      message: refundAmount > 0 ? `Booking cancelled. ₹${refundAmount} refunded to the customer's wallet.` : 'Booking cancelled.',
+      data: booking
+    });
+  } catch (error) {
+    console.error('Admin cancel booking error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

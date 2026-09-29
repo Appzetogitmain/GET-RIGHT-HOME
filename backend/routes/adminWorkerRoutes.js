@@ -15,6 +15,7 @@ import {
   getWorkerPayments,
   assignWorkerToBooking,
   rebroadcastBooking,
+  adminCancelBooking,
   approveWorkerSkill,
   rejectWorkerSkill,
   removeWorkerSkill,
@@ -39,6 +40,12 @@ import {
   adjustOfflineRequestTime,
   forceWorkerOnline
 } from '../controllers/workerControllers/workerOfflineController.js';
+import {
+  getProfessions,
+  createProfession,
+  updateProfession,
+  deleteProfession
+} from '../controllers/professionController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import { getWorkerAvailabilityAdmin, updateWorkerAvailabilityAdmin } from '../controllers/workerControllers/workerAvailabilityController.js';
 
@@ -52,9 +59,16 @@ router.get('/jobs', getAllJobs);
 router.get('/jobs/:id', getJobById);
 router.post('/jobs/:id/assign', assignWorkerToBooking);
 router.post('/jobs/:id/rebroadcast', rebroadcastBooking);
+router.post('/jobs/:id/cancel', adminCancelBooking);
 router.get('/payments', getWorkerPayments);
 router.get('/complaints', getAllComplaints);
 router.patch('/complaints/:id/status', updateComplaintStatus);
+
+// Profession management (profession -> home-service categories)
+router.get('/professions', getProfessions);
+router.post('/professions', createProfession);
+router.put('/professions/:id', updateProfession);
+router.delete('/professions/:id', deleteProfession);
 
 // Worker Offline Request Management
 router.get('/offline-requests', getAllOfflineRequests);

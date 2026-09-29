@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { adminBookingService } from '../../../../services/adminBookingService';
+import adminWorkerService from '../../../../services/adminWorkerService';
 import AssignWorkerModal from './components/AssignWorkerModal';
 import BookingDetailsModal from './components/BookingDetailsModal';
 
@@ -86,6 +87,25 @@ const Bookings = () => {
   }, [search]);
 
   // Load Data
+  const canCancel = (booking) => !['COMPLETED', 'CANCELLED'].includes(booking?.status?.toUpperCase());
+
+  const handleCancelBooking = async (booking) => {
+    const reason = window.prompt(`Cancel booking #${booking.bookingNumber}? Enter a reason (shown to the customer):`);
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error('A cancellation reason is required');
+      return;
+    }
+    try {
+      const res = await adminWorkerService.cancelBooking(booking._id, reason.trim());
+      toast.success(res.message || 'Booking cancelled');
+      setSelectedDetailBooking(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to cancel booking');
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -497,6 +517,16 @@ const Bookings = () => {
                             <FiEye className="w-3 h-3 text-blue-600" /> Details
                           </button>
 
+                          {canCancel(booking) && (
+                            <button
+                              onClick={() => handleCancelBooking(booking)}
+                              className="px-2 py-1 bg-white border border-red-200 hover:bg-red-50 text-red-600 rounded-md text-[10px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
+                              title="Cancel this booking"
+                            >
+                              <FiXCircle className="w-3 h-3" /> Cancel
+                            </button>
+                          )}
+
                           {['ASSIGNED', 'CONFIRMED', 'ACCEPTED', 'MANUAL_ASSIGNMENT_REQUIRED', 'NO_WORKERS', 'NO_VENDORS'].includes(booking.status?.toUpperCase()) && (
                             <button
                               onClick={() => handleRebroadcast(booking)}
@@ -568,6 +598,7 @@ const Bookings = () => {
         isOpen={!!selectedDetailBooking}
         onClose={() => setSelectedDetailBooking(null)}
         booking={selectedDetailBooking}
+        onCancelBooking={canCancel(selectedDetailBooking) ? handleCancelBooking : null}
         onAssignWorker={(bookingToAssign) => {
           setSelectedAssignBooking(bookingToAssign);
         }}

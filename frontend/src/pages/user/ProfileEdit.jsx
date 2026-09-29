@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video, Briefcase, MapPin, ShieldCheck, IdCard, Image, MessageCircle } from 'lucide-react';
-import { authService } from '../../services/apiService';
+import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Building2, ChevronRight, LogOut, CheckCircle2, XCircle, Clock, FileText, Search, Video, Briefcase, MapPin, ShieldCheck, IdCard, Image, MessageCircle, CalendarCheck, Ticket, Sparkles } from 'lucide-react';
+import { authService, hsBookingService, bookingService as stayBookingService } from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { isFlutterApp, openFlutterCamera, uploadBase64Image } from '../../utils/flutterBridge';
@@ -65,6 +65,61 @@ const RoleBadge = ({ role }) => {
   );
 };
 
+const getBookingStatusLabel = (status) => {
+  if (!status) return 'Pending';
+  const s = status.toLowerCase();
+  switch (s) {
+    case 'pending': return 'Pending';
+    case 'searching': return 'Finding Pro';
+    case 'assigned': return 'Assigned';
+    case 'confirmed': return 'Confirmed';
+    case 'accepted': return 'Accepted';
+    case 'journey_started': return 'On The Way';
+    case 'visited': return 'Arrived';
+    case 'in_progress':
+    case 'in-progress': return 'In Progress';
+    case 'work_done': return 'Work Done';
+    case 'completed': return 'Completed';
+    case 'cancelled': return 'Cancelled';
+    case 'rejected': return 'Cancelled';
+    case 'checked_in': return 'Ongoing';
+    default: return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+  }
+};
+
+const getBookingStatusBadgeClass = (status) => {
+  if (!status) return 'bg-slate-50 text-slate-600 border-slate-200';
+  const s = status.toLowerCase();
+  if (['completed'].includes(s)) {
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  }
+  if (['in_progress', 'in-progress', 'journey_started', 'visited', 'work_done', 'checked_in'].includes(s)) {
+    return 'bg-blue-50 text-blue-700 border-blue-200';
+  }
+  if (['confirmed', 'accepted', 'assigned'].includes(s)) {
+    return 'bg-teal-50 text-teal-700 border-teal-200';
+  }
+  if (['cancelled', 'rejected', 'no_show'].includes(s)) {
+    return 'bg-rose-50 text-rose-700 border-rose-200';
+  }
+  return 'bg-amber-50 text-amber-700 border-amber-200';
+};
+
+const formatBookingDate = (dateString) => {
+  if (!dateString) return 'Date not set';
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    return d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  } catch {
+    return dateString;
+  }
+};
+
 // Shared field styling — consistent bordered inputs instead of the old mix
 // of underline fields, used throughout every section below.
 const inputCls = "w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed";
@@ -104,6 +159,11 @@ const ProfileEdit = () => {
   const [docUploading, setDocUploading] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
   
+  const [bookingTab, setBookingTab] = useState('services'); // 'services' | 'stays'
+  const [hsBookings, setHsBookings] = useState([]);
+  const [stayBookings, setStayBookings] = useState([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -193,6 +253,41 @@ const ProfileEdit = () => {
         console.error('Error loading user data:', error);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchAllBookings = async () => {
+      try {
+        setBookingsLoading(true);
+        const [hsRes, stayRes] = await Promise.allSettled([
+          hsBookingService.getMyBookings(),
+          stayBookingService.getMyBookings()
+        ]);
+
+        if (isMounted) {
+          if (hsRes.status === 'fulfilled') {
+            const raw = hsRes.value;
+            const items = raw?.success && Array.isArray(raw?.data)
+              ? raw.data
+              : (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []));
+            setHsBookings(items);
+          }
+          if (stayRes.status === 'fulfilled') {
+            const rawStay = stayRes.value;
+            const itemsStay = Array.isArray(rawStay) ? rawStay : (Array.isArray(rawStay?.data) ? rawStay.data : []);
+            setStayBookings(itemsStay);
+          }
+        }
+      } catch (err) {
+        console.error('[ProfileEdit] Error fetching bookings:', err);
+      } finally {
+        if (isMounted) setBookingsLoading(false);
+      }
+    };
+
+    fetchAllBookings();
+    return () => { isMounted = false; };
   }, []);
 
   const validateField = (field, value) => {
@@ -611,11 +706,27 @@ const ProfileEdit = () => {
   citiesList.sort();
 
   const quickActions = [
+    { 
+      label: 'My Bookings', 
+      desc: 'View & track service bookings', 
+      icon: CalendarCheck, 
+      iconBg: 'bg-emerald-50 text-emerald-600', 
+      to: '/user/home-services/bookings',
+      badge: hsBookings.length > 0 ? hsBookings.length : null
+    },
+    { 
+      label: 'Stay Bookings', 
+      desc: 'Hotel & room reservations', 
+      icon: Ticket, 
+      iconBg: 'bg-amber-50 text-amber-600', 
+      to: '/bookings',
+      badge: stayBookings.length > 0 ? stayBookings.length : null
+    },
     { label: 'Post Property', desc: 'Sell/Rent your property faster', icon: Home, iconBg: 'bg-blue-50 text-blue-500', to: '/list-property' },
     { label: 'Search Properties', desc: 'Explore residential and commercial listings', icon: Search, iconBg: 'bg-orange-50 text-orange-500', to: '/search' },
-    { label: 'My Properties', desc: 'Manage your active listings', icon: Building2, iconBg: 'bg-emerald-50 text-emerald-500', to: '/my-properties' },
+    { label: 'My Properties', desc: 'Manage your active listings', icon: Building2, iconBg: 'bg-teal-50 text-teal-500', to: '/my-properties' },
     { label: 'My Reels', desc: 'Manage your property videos', icon: Video, iconBg: 'bg-purple-50 text-purple-500', to: '/reels/my' },
-    { label: 'Help & Support', desc: 'Chat with our support team', icon: MessageCircle, iconBg: 'bg-teal-50 text-teal-500', to: '/support/chat' },
+    { label: 'Help & Support', desc: 'Chat with our support team', icon: MessageCircle, iconBg: 'bg-sky-50 text-sky-500', to: '/support/chat' },
   ];
 
   const approvalStyles = {
@@ -706,7 +817,14 @@ const ProfileEdit = () => {
                     <Icon size={18} strokeWidth={2} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900">{action.label}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-slate-900">{action.label}</p>
+                      {action.badge && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-black bg-emerald-100 text-emerald-700 rounded-full">
+                          {action.badge}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-slate-400 font-medium truncate">{action.desc}</p>
                   </div>
                   <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" />
@@ -776,6 +894,260 @@ const ProfileEdit = () => {
                 </div>
               </Field>
             </div>
+          </SectionCard>
+
+          {/* ───────── Section: My Bookings ───────── */}
+          <SectionCard
+            icon={CalendarCheck}
+            iconClass="bg-emerald-50 text-emerald-600"
+            title="My Bookings"
+            action={
+              <button
+                type="button"
+                onClick={() => navigate(bookingTab === 'services' ? '/user/home-services/bookings' : '/bookings')}
+                className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+              >
+                <span>View All</span>
+                <ChevronRight size={13} />
+              </button>
+            }
+          >
+            {/* Filter Pill Tabs */}
+            <div className="flex items-center p-1 bg-slate-100/90 rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => setBookingTab('services')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  bookingTab === 'services'
+                    ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span>Home Services</span>
+                {hsBookings.length > 0 && (
+                  <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                    bookingTab === 'services' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {hsBookings.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBookingTab('stays')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  bookingTab === 'stays'
+                    ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span>Stays & Hotels</span>
+                {stayBookings.length > 0 && (
+                  <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                    bookingTab === 'stays' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {stayBookings.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Content: Home Services Tab */}
+            {bookingTab === 'services' && (
+              <div className="space-y-3">
+                {bookingsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="h-20 bg-slate-100/80 rounded-xl animate-pulse" />
+                    ))}
+                  </div>
+                ) : hsBookings.length === 0 ? (
+                  <div className="text-center py-7 px-4 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+                    <div className="w-11 h-11 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-2.5 shadow-sm">
+                      <CalendarCheck size={20} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800">No home service bookings yet</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs mx-auto">
+                      Explore verified professionals for cleaning, repair, painting, and more.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/home-services')}
+                      className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-600/20 active:scale-95 cursor-pointer"
+                    >
+                      Book a Service
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {hsBookings.slice(0, 3).map((b) => {
+                      const bId = b._id || b.id;
+                      const title = b.serviceName || b.serviceId?.title || b.bookedItems?.[0]?.title || 'Home Service';
+                      const bookingNum = b.bookingNumber || (bId ? bId.substring(0, 8).toUpperCase() : '');
+                      const dateStr = formatBookingDate(b.bookingDate || b.scheduledDate || b.createdAt);
+                      const timeStr = b.bookingTime || b.scheduledTimeSlot || '';
+                      const price = b.amount !== undefined ? b.amount : (b.totalAmount !== undefined ? b.totalAmount : 0);
+
+                      return (
+                        <div
+                          key={bId}
+                          onClick={() => navigate(`/user/booking/${bId}`)}
+                          className="p-3.5 sm:p-4 rounded-xl border border-slate-200/90 hover:border-emerald-300 bg-white hover:bg-emerald-50/20 transition-all cursor-pointer group shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                              <Sparkles size={16} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className="text-[10px] font-extrabold text-slate-400 tracking-wider">
+                                  #{bookingNum}
+                                </span>
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${getBookingStatusBadgeClass(b.status)}`}>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                                  {getBookingStatusLabel(b.status)}
+                                </span>
+                              </div>
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
+                                {title}
+                              </h4>
+                              <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1 flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <Clock size={11} className="text-slate-400" />
+                                  {dateStr}
+                                </span>
+                                {timeStr && <span className="text-slate-400">• {timeStr}</span>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 shrink-0">
+                            <div className="text-left sm:text-right">
+                              <p className="text-[9px] uppercase font-bold text-slate-400">Total</p>
+                              <p className="text-xs sm:text-sm font-black text-slate-900">
+                                ₹{price}
+                              </p>
+                            </div>
+                            <div className="p-1.5 rounded-lg text-slate-300 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors">
+                              <ChevronRight size={15} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {hsBookings.length > 3 && (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/user/home-services/bookings')}
+                        className="w-full py-2 text-center text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50/50 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                      >
+                        View all {hsBookings.length} bookings →
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Content: Stays & Hotels Tab */}
+            {bookingTab === 'stays' && (
+              <div className="space-y-3">
+                {bookingsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="h-20 bg-slate-100/80 rounded-xl animate-pulse" />
+                    ))}
+                  </div>
+                ) : stayBookings.length === 0 ? (
+                  <div className="text-center py-7 px-4 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+                    <div className="w-11 h-11 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2.5 shadow-sm">
+                      <Ticket size={20} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800">No stay bookings yet</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs mx-auto">
+                      Explore handpicked apartments, villas, and hotels for your next stay.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/search')}
+                      className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-amber-600/20 active:scale-95 cursor-pointer"
+                    >
+                      Explore Properties
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {stayBookings.slice(0, 3).map((sb) => {
+                      const sbId = sb._id || sb.id || sb.bookingId;
+                      const propName = sb.propertyId?.propertyName || 'Hotel / Property Stay';
+                      const roomName = sb.roomTypeId?.name;
+                      const dateStr = sb.checkInDate ? formatBookingDate(sb.checkInDate) : '';
+                      const price = sb.totalAmount !== undefined ? sb.totalAmount : (sb.amount || 0);
+
+                      return (
+                        <div
+                          key={sbId}
+                          onClick={() => navigate('/bookings')}
+                          className="p-3.5 sm:p-4 rounded-xl border border-slate-200/90 hover:border-amber-300 bg-white hover:bg-amber-50/20 transition-all cursor-pointer group shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                              <Ticket size={16} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${getBookingStatusBadgeClass(sb.bookingStatus || sb.status)}`}>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                                  {getBookingStatusLabel(sb.bookingStatus || sb.status)}
+                                </span>
+                              </div>
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors truncate">
+                                {propName}
+                              </h4>
+                              <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1 flex-wrap">
+                                {roomName && <span className="font-medium text-slate-700">{roomName}</span>}
+                                {dateStr && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock size={11} className="text-slate-400" />
+                                    Check-in: {dateStr}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 shrink-0">
+                            <div className="text-left sm:text-right">
+                              <p className="text-[9px] uppercase font-bold text-slate-400">Total</p>
+                              <p className="text-xs sm:text-sm font-black text-slate-900">
+                                ₹{price}
+                              </p>
+                            </div>
+                            <div className="p-1.5 rounded-lg text-slate-300 group-hover:text-amber-600 group-hover:bg-amber-50 transition-colors">
+                              <ChevronRight size={15} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {stayBookings.length > 3 && (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/bookings')}
+                        className="w-full py-2 text-center text-xs font-bold text-amber-600 hover:text-amber-700 bg-amber-50/50 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
+                      >
+                        View all {stayBookings.length} stay bookings →
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard

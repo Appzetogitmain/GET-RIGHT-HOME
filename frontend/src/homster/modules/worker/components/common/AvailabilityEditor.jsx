@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FiChevronLeft, FiChevronRight, FiCheck } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiCheck, FiLock } from 'react-icons/fi';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAY_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -10,9 +10,12 @@ const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 /**
  * Per-day availability calendar, shared by the worker app (own schedule) and
  * the admin panel (managing a worker). Every date in the booking window is
- * either Available, Leave, or not marked yet; tapping a date cycles
- * not marked -> Available -> Leave -> not marked. When the admin requires
- * daily marking, dates that aren't marked Available receive no bookings.
+ * either Available, Leave, or not marked yet.
+ *  - Worker: ticks Available or Leave for each unmarked day. Once a day is
+ *    saved it is locked — view only.
+ *  - Admin: taps a date to cycle not marked -> Available -> Leave -> not marked.
+ * When the admin requires daily marking, dates that aren't marked Available
+ * receive no bookings.
  */
 export default function AvailabilityEditor({ data, onSave, saving = false, isAdmin = false }) {
   const [availableDays, setAvailableDays] = useState([0, 1, 2, 3, 4, 5, 6]);
@@ -40,6 +43,11 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
     [data]
   );
   const bookedDates = useMemo(() => new Set(data?.bookedDates || []), [data]);
+  // Days already saved by the worker — final for them, only admin can change.
+  const lockedDates = useMemo(() => new Set(isAdmin ? [] : [
+    ...(data?.availableDates || []),
+    ...(data?.leaves || []).map((l) => l.date)
+  ]), [data, isAdmin]);
   const selectedSchedule = useMemo(
     () => (data?.slotSchedule || []).find((day) => day.date === selectedScheduleDate) || null,
     [data, selectedScheduleDate]
@@ -98,6 +106,7 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
 
   // not marked -> Available -> Leave -> not marked
   const cycleDate = (dateStr) => {
+    if (!isAdmin) return;
     if (leaveDates.includes(dateStr)) {
       setLeaveDates((prev) => prev.filter((x) => x !== dateStr));
     } else if (availableDates.includes(dateStr)) {
@@ -106,6 +115,18 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
     } else {
       setAvailableDates((prev) => [...prev, dateStr].sort());
     }
+  };
+
+  // Worker checkboxes: ticking one clears the other; unticking unmarks the day.
+  const setDayMark = (dateStr, mark, checked) => {
+    setAvailableDates((prev) => {
+      const rest = prev.filter((x) => x !== dateStr);
+      return mark === 'available' && checked ? [...rest, dateStr].sort() : rest;
+    });
+    setLeaveDates((prev) => {
+      const rest = prev.filter((x) => x !== dateStr);
+      return mark === 'leave' && checked ? [...rest, dateStr].sort() : rest;
+    });
   };
 
   const markAllAvailable = () => {
@@ -152,7 +173,7 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
         isAvailable,
         isBooked,
         isPending,
-        disabled: outOfRange || (isBooked && !isLeave),
+        disabled: outOfRange || (isBooked && !isLeave) || !isAdmin,
         isToday: key === todayStr
       });
 
@@ -290,7 +311,9 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
       <div>
         <h3 className="text-sm font-bold text-gray-900">Mark each day: Available or Leave</h3>
         <p className="text-[11px] text-gray-500 mb-2">
-          Tap a date to switch: <b>Available</b> → <b>Leave</b> → not marked (next {windowDays} days).{' '}
+          {isAdmin
+            ? <>Tap a date to switch: <b>Available</b> → <b>Leave</b> → not marked (next {windowDays} days).{' '}</>
+            : <>Tick <b>Available</b> or <b>Leave</b> for each day below (next {windowDays} days). <b>A day you have saved can't be changed.</b>{' '}</>}
           {requireDaily && 'You get bookings only on days marked Available.'}{' '}
           {!isAdmin && !data?.leaveAutoApprove && 'New leave days need admin approval.'}
         </p>
@@ -405,7 +428,72 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
           </div>
         </div>
 
-        {markedDates.length > 0 && (
+        {!isAdmin && (
+          <div className="mt-2.5 rounded-xl border border-gray-200 bg-white p-3">
+            <p className="text-xs font-bold text-gray-800 mb-2">Mark your days</p>
+            <div className="space-y-1.5">
+              {windowDates.map((date) => {
+                const parsed = new Date(`${date}T00:00:00`);
+                const label = date === todayStr
+                  ? 'Today'
+                  : parsed.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+                const isLeave = leaveDates.includes(date);
+                const isAvail = availableDates.includes(date);
+                const isBooked = bookedDates.has(date);
+                const locked = lockedDates.has(date) || (isBooked && !isLeave);
+                const isPending = isLeave && pendingDates.has(date);
+                if (locked) {
+                  return (
+                    <div key={date} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-gray-800">{label}</p>
+                        <p className="text-[10px] text-gray-500">{date}</p>
+                      </div>
+                      <span className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        isLeave
+                          ? (isPending ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700')
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        <FiLock className="w-3 h-3" />
+                        {isLeave ? (isPending ? 'Leave pending' : 'Leave') : (isBooked && !isAvail ? 'Booked' : 'Available')}
+                      </span>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={date} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 px-2.5 py-2">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold text-gray-800">{label}</p>
+                      <p className="text-[10px] text-gray-500">{date}</p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-emerald-600"
+                          checked={isAvail}
+                          onChange={(e) => setDayMark(date, 'available', e.target.checked)}
+                        />
+                        Available
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-red-600 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-red-500"
+                          checked={isLeave}
+                          onChange={(e) => setDayMark(date, 'leave', e.target.checked)}
+                        />
+                        Leave
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {isAdmin && markedDates.length > 0 && (
           <div className="mt-2.5 rounded-xl border border-gray-200 bg-gray-50/80 p-3">
             <div className="flex items-center justify-between gap-2 mb-2">
               <p className="text-xs font-bold text-gray-800">Your marked days</p>
@@ -463,7 +551,10 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
       <button
         type="button"
         disabled={saving || !dirty || availableDays.length === 0}
-        onClick={() => onSave({ availableDays, availableDates, leaveDates })}
+        onClick={() => {
+          if (!isAdmin && !window.confirm('Once saved, the days you marked cannot be changed. Save availability?')) return;
+          onSave({ availableDays, availableDates, leaveDates });
+        }}
         className="w-full py-2.5 rounded-xl bg-[#00897B] hover:bg-[#00796B] text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
       >
         {saving ? 'Saving…' : <><FiCheck className="w-4 h-4" /> Save availability</>}

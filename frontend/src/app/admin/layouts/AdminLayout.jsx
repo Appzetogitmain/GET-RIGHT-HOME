@@ -252,6 +252,7 @@ const AdminLayout = () => {
                 {
                     icon: UserCog, label: 'Workers', children: [
                         { label: 'All Workers', path: '/admin/home-service/workers/all' },
+                        { label: 'Professions', path: '/admin/home-service/workers/professions' },
                         { label: 'Offline Requests', path: '/admin/home-service/workers/offline-requests' },
                         { label: 'Worker Jobs', path: '/admin/home-service/workers/jobs' },
                         { label: 'Withdrawals', path: '/admin/home-service/workers/withdrawals' },

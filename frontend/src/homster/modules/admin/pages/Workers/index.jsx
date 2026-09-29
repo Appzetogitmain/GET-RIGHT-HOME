@@ -16,12 +16,14 @@ import WorkerTrainingSettings from './WorkerTrainingSettings';
 import WorkerComplaints from './WorkerComplaints';
 import WorkerPrivacyPolicy from './WorkerPrivacyPolicy';
 import WorkerOfflineRequests from './WorkerOfflineRequests';
+import Professions from './Professions';
 
 const Workers = () => {
   const location = useLocation();
 
   const navTabs = [
     { name: 'All Workers', path: '/admin/home-service/workers/all', icon: FiUsers },
+    { name: 'Professions', path: '/admin/home-service/workers/professions', icon: FiActivity },
     { name: 'Offline Requests', path: '/admin/home-service/workers/offline-requests', icon: FiClock },
     { name: 'Worker Jobs', path: '/admin/home-service/workers/jobs', icon: FiClock },
     { name: 'Withdrawals', path: '/admin/home-service/workers/withdrawals', icon: FiDollarSign },
@@ -73,6 +75,7 @@ const Workers = () => {
         <Routes>
           <Route path="/" element={<Navigate to="all" replace />} />
           <Route path="all" element={<AllWorkers />} />
+          <Route path="professions" element={<Professions />} />
           <Route path="offline-requests" element={<WorkerOfflineRequests />} />
           <Route path="jobs" element={<WorkerJobs />} />
           <Route path="withdrawals" element={<WorkerWithdrawals />} />

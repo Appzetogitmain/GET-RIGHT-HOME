@@ -7,6 +7,12 @@ const workerService = {
     return response.data;
   },
 
+  // Admin-defined professions (e.g. Electrician) a worker can choose from
+  getProfessions: async () => {
+    const response = await api.get('/workers/professions');
+    return response.data;
+  },
+
   getReferrals: async () => {
     const response = await api.get('/workers/referrals');
     return response.data;

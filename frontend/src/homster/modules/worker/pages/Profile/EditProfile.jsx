@@ -76,9 +76,10 @@ const EditProfile = () => {
     const initData = async () => {
       try {
         setLoading(true);
-        const [profileRes, catalogRes] = await Promise.all([
+        const [profileRes, catalogRes, professionsRes] = await Promise.all([
           workerService.getProfile(),
-          publicCatalogService.getCategories()
+          publicCatalogService.getCategories(),
+          workerService.getProfessions().catch(() => ({ success: false }))
         ]);
 
         if (profileRes.success) {
@@ -130,7 +131,12 @@ const EditProfile = () => {
           });
         }
 
-        if (catalogRes.success) {
+        // Workers pick a profession; it decides which categories' bookings they
+        // get. Until the admin defines any, fall back to the raw category list.
+        const professions = professionsRes?.success ? (professionsRes.data || []) : [];
+        if (professions.length > 0) {
+          setCategories(professions.map((p) => ({ _id: p._id, title: p.name })));
+        } else if (catalogRes.success) {
           setCategories(catalogRes.categories || []);
         }
       } catch (error) {
