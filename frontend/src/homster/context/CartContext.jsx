@@ -45,8 +45,11 @@ export const CartProvider = ({ children }) => {
           const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
           return {
             ...item,
+<<<<<<< HEAD
             bookingMode: getCartItemMode(item),
             isInstant: getCartItemMode(item) === 'instant',
+=======
+>>>>>>> e03033a2ca0de1918c24ebd4a25fe6db462fa611
             serviceCount: count,
             unitPrice: unitPrice,
             price: unitPrice * count
@@ -85,13 +88,19 @@ export const CartProvider = ({ children }) => {
       const itemId = itemData._id || itemData.id || `cart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const unitPrice = Number(itemData.unitPrice) || Number(itemData.price) || 0;
       const initialCount = Math.max(1, Number(itemData.serviceCount) || 1);
+<<<<<<< HEAD
       const bookingMode = getCartItemMode(itemData);
+=======
+>>>>>>> e03033a2ca0de1918c24ebd4a25fe6db462fa611
       const newItem = {
         ...itemData,
         _id: itemId,
         id: itemId,
+<<<<<<< HEAD
         bookingMode,
         isInstant: bookingMode === 'instant',
+=======
+>>>>>>> e03033a2ca0de1918c24ebd4a25fe6db462fa611
         unitPrice,
         serviceCount: initialCount,
         price: unitPrice * initialCount
@@ -103,17 +112,27 @@ export const CartProvider = ({ children }) => {
         // stale slot item from silently converting an Instant checkout.
         const sameModeItems = prev.filter((item) => getCartItemMode(item) === bookingMode);
         // Prevent duplicate addition of the same serviceId
+<<<<<<< HEAD
         const exists = sameModeItems.some(item => (item.serviceId && item.serviceId === itemData.serviceId) || item._id === itemId || item.id === itemId);
         let updated;
         if (exists) {
           updated = sameModeItems.map(item => {
+=======
+        const exists = prev.some(item => (item.serviceId && item.serviceId === itemData.serviceId) || item._id === itemId || item.id === itemId);
+        let updated;
+        if (exists) {
+          updated = prev.map(item => {
+>>>>>>> e03033a2ca0de1918c24ebd4a25fe6db462fa611
             if ((item.serviceId && item.serviceId === itemData.serviceId) || item._id === itemId || item.id === itemId) {
               const newCount = (Number(item.serviceCount) || 1) + initialCount;
               const uPrice = Number(item.unitPrice) || unitPrice || (item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
               return {
                 ...item,
+<<<<<<< HEAD
                 bookingMode,
                 isInstant: bookingMode === 'instant',
+=======
+>>>>>>> e03033a2ca0de1918c24ebd4a25fe6db462fa611
                 serviceCount: newCount,
                 unitPrice: uPrice,
                 price: uPrice * newCount
