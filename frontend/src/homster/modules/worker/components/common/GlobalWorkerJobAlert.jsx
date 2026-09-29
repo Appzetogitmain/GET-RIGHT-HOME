@@ -247,7 +247,6 @@ export default function GlobalWorkerJobAlert() {
         const res = await workerService.getPendingRequests();
         if (!res?.success) return;
 
-<<<<<<< HEAD
         localStorage.setItem('workerIsBusy', res.isBusy ? 'true' : 'false');
         if (res.isBusy) {
           localStorage.setItem('workerPendingJobs', '[]');
@@ -255,9 +254,6 @@ export default function GlobalWorkerJobAlert() {
           stopAlertRing();
           return;
         }
-
-=======
->>>>>>> e03033a2ca0de1918c24ebd4a25fe6db462fa611
         const currentActiveRequests = res.data || [];
         const activeRequestIds = new Set(currentActiveRequests.map(b => String(b.bookingId || b.id || b._id)));
 

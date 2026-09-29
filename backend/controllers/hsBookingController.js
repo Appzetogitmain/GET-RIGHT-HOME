@@ -647,19 +647,6 @@ const createBooking = async (req, res) => {
           const room = io.sockets.adapter.rooms.get(`worker_${id}`);
           return room ? room.size > 0 : false;
         };
-<<<<<<< HEAD
-=======
-
-        const sortedPartners = foundPartners.sort((a, b) => {
-          const aActive = isWorkerActiveOnSocket(a._id) ? 1 : 0;
-          const bActive = isWorkerActiveOnSocket(b._id) ? 1 : 0;
-          if (aActive !== bActive) {
-            return bActive - aActive; // Actively connected workers get priority in Wave 1
-          }
-          return (a.distance || 0) - (b.distance || 0);
-        });
->>>>>>> e03033a2ca0de1918c24ebd4a25fe6db462fa611
-
         // Search and notification happen in different ticks. A worker may have
         // accepted another job in between, so re-check global capacity before
         // creating requests or emitting any alert.
@@ -690,13 +677,8 @@ const createBooking = async (req, res) => {
 
         bookingForBackground.currentWave = 1;
         bookingForBackground.waveStartedAt = new Date();
-<<<<<<< HEAD
         bookingForBackground.notifiedPartners = targetPartners.map(v => v._id);
         bookingForBackground.notifiedWorkers = targetPartners.map(v => v._id);
-=======
-        bookingForBackground.notifiedPartners = wave1Partners.map(v => v._id);
-        bookingForBackground.notifiedWorkers = wave1Partners.map(v => v._id);
->>>>>>> e03033a2ca0de1918c24ebd4a25fe6db462fa611
         bookingForBackground.assignmentStatus = 'searching';
 
         // Log attempt history for all notified workers
@@ -807,11 +789,7 @@ const createBooking = async (req, res) => {
           });
         }
 
-<<<<<<< HEAD
         // Send notifications to all target in-zone partners
-=======
-        // Send notifications to Wave 1 partners
->>>>>>> e03033a2ca0de1918c24ebd4a25fe6db462fa611
         if (io) {
           console.log(`[CreateBooking] Emitting Socket.IO events to all ${targetPartners.length} in-zone ${bookingModel}s...`);
           targetPartners.forEach(async (partner) => {
