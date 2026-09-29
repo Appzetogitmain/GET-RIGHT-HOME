@@ -19,12 +19,18 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
   const [availableDates, setAvailableDates] = useState([]);
   const [leaveDates, setLeaveDates] = useState([]);
   const [monthOffset, setMonthOffset] = useState(0);
+  const [selectedScheduleDate, setSelectedScheduleDate] = useState('');
 
   useEffect(() => {
     if (!data) return;
     setAvailableDays(data.availableDays || [0, 1, 2, 3, 4, 5, 6]);
     setAvailableDates(data.availableDates || []);
     setLeaveDates((data.leaves || []).map((l) => l.date));
+    setSelectedScheduleDate((current) => (
+      data.slotSchedule?.some((day) => day.date === current)
+        ? current
+        : data.slotSchedule?.[0]?.date || ''
+    ));
   }, [data]);
 
   const requireDaily = data?.requireDailyAvailability !== false;
@@ -34,6 +40,10 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
     [data]
   );
   const bookedDates = useMemo(() => new Set(data?.bookedDates || []), [data]);
+  const selectedSchedule = useMemo(
+    () => (data?.slotSchedule || []).find((day) => day.date === selectedScheduleDate) || null,
+    [data, selectedScheduleDate]
+  );
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -166,6 +176,89 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
 
   return (
     <div className="space-y-4">
+      {isAdmin && Array.isArray(data?.slotSchedule) && (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+            <div>
+              <h3 className="text-sm font-black text-gray-900">Slot occupancy</h3>
+              <p className="text-[11px] text-gray-500">Live worker schedule from bookings and marked availability.</p>
+            </div>
+            <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${data.workerStatus === 'busy' ? 'bg-red-100 text-red-700' : data.isOnline ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}`}>
+              {data.workerStatus === 'busy' ? 'Currently busy' : data.isOnline ? 'Online' : 'Offline'}
+            </span>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {data.slotSchedule.map((day) => {
+              const selected = day.date === selectedScheduleDate;
+              const parsed = new Date(`${day.date}T00:00:00`);
+              return (
+                <button
+                  key={day.date}
+                  type="button"
+                  onClick={() => setSelectedScheduleDate(day.date)}
+                  className={`shrink-0 rounded-xl border px-3 py-2 text-left transition-all ${selected ? 'border-blue-500 bg-blue-600 text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'}`}
+                >
+                  <span className="block text-[10px] font-bold uppercase opacity-80">{parsed.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
+                  <span className="block text-xs font-black">{parsed.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                  <span className={`block text-[9px] mt-0.5 ${selected ? 'text-blue-100' : 'text-gray-400'}`}>
+                    {day.summary.busy} busy · {day.summary.available} free
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedSchedule && (
+            <>
+              <div className="grid grid-cols-3 gap-2 my-3">
+                <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-center">
+                  <p className="text-lg font-black text-red-700">{selectedSchedule.summary.busy}</p>
+                  <p className="text-[9px] font-bold uppercase text-red-600">Busy</p>
+                </div>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-center">
+                  <p className="text-lg font-black text-emerald-700">{selectedSchedule.summary.available}</p>
+                  <p className="text-[9px] font-bold uppercase text-emerald-600">Available</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-2 text-center">
+                  <p className="text-lg font-black text-gray-700">{selectedSchedule.summary.unavailable}</p>
+                  <p className="text-[9px] font-bold uppercase text-gray-500">Blocked</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+                {selectedSchedule.slots.map((slot) => {
+                  const styles = {
+                    busy: 'border-red-300 bg-red-50 text-red-800',
+                    capacity_blocked: 'border-rose-300 bg-rose-50 text-rose-800',
+                    available: 'border-emerald-300 bg-emerald-50 text-emerald-800',
+                    leave: 'border-orange-200 bg-orange-50 text-orange-800',
+                    elapsed: 'border-gray-200 bg-gray-100 text-gray-400',
+                    unavailable: 'border-gray-200 bg-white text-gray-500'
+                  };
+                  const labels = { busy: 'Booked', capacity_blocked: 'Busy · active job', available: 'Available', leave: 'Leave', elapsed: 'Elapsed', unavailable: 'Not available' };
+                  return (
+                    <div key={`${selectedSchedule.date}-${slot.value}`} className={`rounded-xl border p-2.5 ${styles[slot.status] || styles.unavailable}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-black">{slot.range}</span>
+                        <span className="rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-black uppercase">{labels[slot.status]}</span>
+                      </div>
+                      {slot.booking && (
+                        <div className="mt-2 border-t border-red-200 pt-2 text-[10px] leading-relaxed">
+                          <p className="font-black">#{slot.booking.bookingNumber} · {slot.booking.serviceName}</p>
+                          <p className="opacity-80">{slot.booking.bookingType === 'instant' ? 'Instant' : 'Slot'} · {String(slot.booking.status).replaceAll('_', ' ')}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-[10px] text-gray-500">Booked slots are locked. Reassign or cancel the related booking before marking that day as leave.</p>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Weekly pattern: only used when daily marking is not required */}
       {!requireDaily && (
         <div>

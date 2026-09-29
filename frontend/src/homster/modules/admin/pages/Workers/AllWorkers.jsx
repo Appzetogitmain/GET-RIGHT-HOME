@@ -1207,7 +1207,7 @@ const AllWorkers = () => {
         isOpen={availabilityModal.open}
         onClose={() => setAvailabilityModal((m) => ({ ...m, open: false }))}
         title={`Availability — ${availabilityModal.worker?.name || ''}`}
-        size="sm"
+        size="lg"
       >
         <div className="p-6 overflow-y-auto">
           {availabilityModal.loading || !availabilityModal.data ? (

@@ -1,5 +1,6 @@
 import Worker from '../models/Worker.js';
 import Settings from '../models/Settings.js';
+import PlatformSettings from '../models/PlatformSettings.js';
 import WorkerOfflineRequest from '../models/WorkerOfflineRequest.js';
 import { createNotification } from '../controllers/notificationControllers/notificationController.js';
 import { getIO } from '../sockets.js';
@@ -12,6 +13,9 @@ import {
   getWorkerFutureBookings,
   getAdvanceBookingDays
 } from '../utils/slotAvailability.js';
+import { getBookingWindow } from '../utils/slotAvailability.js';
+import { generateTimeSlots } from '../utils/slotGenerator.js';
+import { findWorkerActiveJob } from './workerCapacityService.js';
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -33,24 +37,90 @@ const activeLeaves = (workerId) => WorkerOfflineRequest.find({
 
 /** What the availability calendar needs to render for a worker. */
 export const getAvailabilityView = async (workerId) => {
-  const [worker, leaves, bookings, advanceBookingDays, hs] = await Promise.all([
-    Worker.findById(workerId).select('name availability').lean(),
+  const [worker, leaves, bookings, advanceBookingDays, hs, platform, activeJob] = await Promise.all([
+    Worker.findById(workerId).select('name status isOnline availability').lean(),
     activeLeaves(workerId),
     getWorkerFutureBookings(workerId),
     getAdvanceBookingDays(),
-    Settings.findOne({ type: 'global' }).select('workerLeaveAutoApprove requireDailyAvailability').lean()
+    Settings.findOne({ type: 'global' }).select('workerLeaveAutoApprove requireDailyAvailability').lean(),
+    PlatformSettings.getSettings(),
+    findWorkerActiveJob(workerId)
   ]);
   if (!worker) throw new AvailabilityError('Worker not found', 404);
 
   const days = worker.availability?.availableDays;
   const todayYmd = istYmd(new Date());
+  const availableDays = Array.isArray(days) && days.length ? days : ALL_WEEKDAYS;
+  const availableDates = (worker.availability?.availableDates || []).filter((d) => d >= todayYmd).sort();
+  const requireDailyAvailability = hs?.requireDailyAvailability !== false;
+  const leaveByDate = new Map(leaves.map((leave) => [leave.dateStr, leave]));
+  const hours = platform?.operatingHours || {};
+  const platformSlots = generateTimeSlots(hours.openingTime, hours.closingTime, hours.slotDuration, hours.slotInterval);
+  const now = new Date();
+
+  const slotSchedule = Array.from({ length: advanceBookingDays }, (_, offset) => {
+    const date = addDaysYmd(todayYmd, offset);
+    const leave = leaveByDate.get(date);
+    const explicitlyAvailable = availableDates.includes(date);
+    const dayAvailable = !leave && (requireDailyAvailability ? explicitlyAvailable : availableDays.includes(weekdayOfYmd(date)));
+    const slots = platformSlots.map((slot) => {
+      const window = getBookingWindow({
+        scheduledDate: istDayStart(date),
+        timeSlot: { start: slot.value, end: slot.end }
+      });
+      const booking = window && bookings.find((item) => item.window.start < window.end && item.window.end > window.start);
+      let status = 'unavailable';
+      if (booking) status = 'busy';
+      else if (activeJob) status = 'capacity_blocked';
+      else if (leave) status = 'leave';
+      else if (window?.end <= now) status = 'elapsed';
+      else if (dayAvailable) status = 'available';
+      return {
+        value: slot.value,
+        end: slot.end,
+        display: slot.display,
+        range: slot.range,
+        status,
+        booking: (booking || activeJob) ? {
+          id: (booking || activeJob)._id,
+          bookingNumber: (booking || activeJob).bookingNumber,
+          serviceName: (booking || activeJob).serviceName,
+          serviceCategory: (booking || activeJob).serviceCategory,
+          bookingType: (booking || activeJob).bookingType,
+          status: (booking || activeJob).status
+        } : null
+      };
+    });
+    return {
+      date,
+      isLeave: !!leave,
+      isAvailable: dayAvailable,
+      summary: {
+        busy: slots.filter((slot) => ['busy', 'capacity_blocked'].includes(slot.status)).length,
+        available: slots.filter((slot) => slot.status === 'available').length,
+        unavailable: slots.filter((slot) => !['busy', 'capacity_blocked', 'available'].includes(slot.status)).length
+      },
+      slots
+    };
+  });
+
   return {
     workerName: worker.name,
-    availableDays: Array.isArray(days) && days.length ? days : ALL_WEEKDAYS,
-    availableDates: (worker.availability?.availableDates || []).filter((d) => d >= todayYmd).sort(),
-    requireDailyAvailability: hs?.requireDailyAvailability !== false,
+    workerStatus: worker.status,
+    isOnline: !!worker.isOnline,
+    activeJob: activeJob ? {
+      id: activeJob._id,
+      bookingNumber: activeJob.bookingNumber,
+      serviceName: activeJob.serviceName,
+      bookingType: activeJob.bookingType,
+      status: activeJob.status
+    } : null,
+    availableDays,
+    availableDates,
+    requireDailyAvailability,
     leaves: leaves.map((l) => ({ id: l._id, date: l.dateStr, status: l.status, reason: l.reason })),
     bookedDates: [...new Set(bookings.map((b) => istYmd(b.window.start)))].sort(),
+    slotSchedule,
     advanceBookingDays,
     leaveAutoApprove: !!hs?.workerLeaveAutoApprove
   };
