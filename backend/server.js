@@ -104,6 +104,10 @@ startSubscriptionScheduler();
 import { startOfflineScheduleScheduler } from './cron/offlineScheduleScheduler.js';
 startOfflineScheduleScheduler();
 
+// Pre-job reminder popups to workers + admin alert when unconfirmed
+import { startJobReminderScheduler } from './cron/jobReminderScheduler.js';
+startJobReminderScheduler(io);
+
 // Middleware
 app.use(morgan('dev'));
 // Middleware to log request start is handled by morgan

@@ -8,6 +8,7 @@ const homeServiceSubCategorySchema = new mongoose.Schema({
   icon: { type: String },
   bannerUrl: { type: String },
   badge: { type: String, default: '' },
+  bookingModes: [{ type: String, enum: ['instant', 'slot'] }],
   isActive: { type: Boolean, default: true },
   cityIds: { type: [String], default: ['default'] },
   page: { type: Object, default: {} }

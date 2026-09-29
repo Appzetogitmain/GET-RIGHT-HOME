@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone, FiHeadphones, FiMessageCircle, FiEdit, FiLock, FiUnlock, FiX, FiClock } from 'react-icons/fi';
+import { FiSettings, FiGrid, FiDollarSign, FiSave, FiUser, FiMail, FiTrash2, FiPlus, FiUsers, FiShield, FiFileText, FiMapPin, FiPhone, FiHeadphones, FiMessageCircle, FiEdit, FiLock, FiUnlock, FiX, FiClock, FiCheck, FiPower } from 'react-icons/fi';
 import { getSettings, updateSettings, updateAdminProfile, getAdminProfile, getAllAdmins, createAdmin, deleteAdmin, updateAdminDetails, toggleAdminStatus } from '../../services/settingsService';
 import { cityService } from '../../services/cityService';
 import CityManagement from '../Cities';
@@ -15,7 +15,9 @@ const AdminSettings = () => {
     isOpen: true,
     openingTime: '09:00',
     closingTime: '21:00',
-    slotDuration: 60
+    slotDuration: 60,
+    slotInterval: 0,
+    sameDayLeadMinutes: 60
   });
 
   const [financialSettings, setFinancialSettings] = useState({
@@ -33,6 +35,12 @@ const AdminSettings = () => {
     maxSearchTime: 5,
     waveDuration: 60,
     searchRadius: 10,
+    bookingBufferMinutes: 120,
+    jobReminderLeadMinutes: 120,
+    jobReminderConfirmMinutes: 15,
+    advanceBookingDays: 7,
+    workerLeaveAutoApprove: false,
+    requireDailyAvailability: true,
     isOnlinePaymentEnabled: true
   });
 
@@ -132,6 +140,12 @@ const AdminSettings = () => {
             cashCollectionFee: res.settings.cashCollectionFee || 20,
             cancellationPenalty: res.settings.cancellationPenalty !== undefined ? res.settings.cancellationPenalty : 49,
             searchRadius: res.settings.searchRadius || 10,
+            bookingBufferMinutes: res.settings.bookingBufferMinutes ?? 120,
+            jobReminderLeadMinutes: res.settings.jobReminderLeadMinutes ?? 120,
+            jobReminderConfirmMinutes: res.settings.jobReminderConfirmMinutes ?? 15,
+            advanceBookingDays: res.settings.advanceBookingDays ?? 7,
+            workerLeaveAutoApprove: !!res.settings.workerLeaveAutoApprove,
+            requireDailyAvailability: res.settings.requireDailyAvailability !== false,
             isOnlinePaymentEnabled: res.settings.isOnlinePaymentEnabled !== undefined ? res.settings.isOnlinePaymentEnabled : true,
             bookingModel: res.settings.bookingModel || 'worker'
           });
@@ -161,7 +175,9 @@ const AdminSettings = () => {
               isOpen: res.settings.operatingHours.isOpen !== undefined ? res.settings.operatingHours.isOpen : (res.settings.platformOpen !== undefined ? res.settings.platformOpen : true),
               openingTime: res.settings.operatingHours.openingTime || '09:00',
               closingTime: res.settings.operatingHours.closingTime || '21:00',
-              slotDuration: res.settings.operatingHours.slotDuration || 60
+              slotDuration: res.settings.operatingHours.slotDuration || 60,
+              slotInterval: res.settings.operatingHours.slotInterval || 0,
+              sameDayLeadMinutes: res.settings.operatingHours.sameDayLeadMinutes ?? 60
             });
           } else if (res.settings.platformOpen !== undefined) {
             setOperatingHours(prev => ({ ...prev, isOpen: res.settings.platformOpen }));
@@ -267,6 +283,7 @@ const AdminSettings = () => {
     let cur = openH * 60 + openM;
     const end = closeH * 60 + closeM;
     const dur = operatingHours.slotDuration || 60;
+    const step = operatingHours.slotInterval > 0 ? operatingHours.slotInterval : dur;
 
     const pad = (n) => String(n).padStart(2, '0');
     const format = (h, m) => {
@@ -278,10 +295,12 @@ const AdminSettings = () => {
     while (cur + dur <= end) {
       const sh = Math.floor(cur / 60);
       const sm = cur % 60;
+      const eh = Math.floor((cur + dur) / 60);
+      const em = (cur + dur) % 60;
       slots.push({
-        display: format(sh, sm)
+        display: `${format(sh, sm)} - ${format(eh, em)}`
       });
-      cur += dur;
+      cur += step;
     }
     return slots;
   };
@@ -724,6 +743,48 @@ const AdminSettings = () => {
                             className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
                           <p className="text-[10px] text-gray-400 mt-1">Default distance to hunt for vendors around booking location</p>
                         </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Booking Buffer Time (Mins)</label>
+                          <input type="number" min="0" max="1440" step="15" name="bookingBufferMinutes" value={financialSettings.bookingBufferMinutes} onChange={handleFinancialChange}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
+                          <p className="text-[10px] text-gray-400 mt-1">Minimum gap a professional needs between two jobs. E.g. 120 = with a 9 AM job, no new job is offered from 7 AM until 2 hours after it ends. 0 = only exact overlaps blocked</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Job Reminder Before Start (Mins)</label>
+                          <input type="number" min="1" max="1440" step="15" name="jobReminderLeadMinutes" value={financialSettings.jobReminderLeadMinutes} onChange={handleFinancialChange}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
+                          <p className="text-[10px] text-gray-400 mt-1">Professional gets a confirm popup this long before an assigned job (e.g. 120 = at 7 AM for a 9 AM job)</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Reminder Confirm Window (Mins)</label>
+                          <input type="number" min="1" max="240" name="jobReminderConfirmMinutes" value={financialSettings.jobReminderConfirmMinutes} onChange={handleFinancialChange}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
+                          <p className="text-[10px] text-gray-400 mt-1">If not confirmed within this time, admin is alerted and can re-broadcast the booking</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Advance Booking Window (Days)</label>
+                          <input type="number" min="1" max="60" name="advanceBookingDays" value={financialSettings.advanceBookingDays} onChange={handleFinancialChange}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
+                          <p className="text-[10px] text-gray-400 mt-1">How many days ahead (incl. today) customers can pick a date. Dates beyond this are greyed out</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Worker Leave Approval</label>
+                          <button type="button"
+                            onClick={() => handleFinancialChange({ target: { name: 'workerLeaveAutoApprove', value: !financialSettings.workerLeaveAutoApprove } })}
+                            className={`px-4 py-2.5 rounded-lg border text-sm font-semibold w-full text-left ${financialSettings.workerLeaveAutoApprove ? 'bg-green-50 border-green-300 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-600'}`}>
+                            {financialSettings.workerLeaveAutoApprove ? 'Auto-approve leave days' : 'Admin must approve leave days'}
+                          </button>
+                          <p className="text-[10px] text-gray-400 mt-1">Leave days a worker marks block their slots only once approved (or immediately if auto-approve is on)</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Daily Availability Marking</label>
+                          <button type="button"
+                            onClick={() => handleFinancialChange({ target: { name: 'requireDailyAvailability', value: !financialSettings.requireDailyAvailability } })}
+                            className={`px-4 py-2.5 rounded-lg border text-sm font-semibold w-full text-left ${financialSettings.requireDailyAvailability ? 'bg-green-50 border-green-300 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-600'}`}>
+                            {financialSettings.requireDailyAvailability ? 'Required: worker must mark every day Available or Leave' : 'Off: weekly days pattern is used'}
+                          </button>
+                          <p className="text-[10px] text-gray-400 mt-1">When required, a day the worker hasn't marked Available (or is on Leave) gets no bookings, and they can't go online until today is marked</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1135,26 +1196,76 @@ const AdminSettings = () => {
                 </div>
 
                 {/* Platform Open Toggle */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-gray-700">Platform Active:</span>
-                  <button
-                    type="button"
-                    onClick={() => setOperatingHours(prev => ({ ...prev, isOpen: !prev.isOpen }))}
-                    className={`relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
-                      operatingHours.isOpen ? 'bg-emerald-500' : 'bg-gray-300'
+                <div
+                  onClick={() => setOperatingHours(prev => ({ ...prev, isOpen: !prev.isOpen }))}
+                  className={`group cursor-pointer select-none flex items-center gap-3.5 px-4 py-2 rounded-2xl border transition-all duration-300 shadow-sm ${
+                    operatingHours.isOpen
+                      ? 'bg-gradient-to-r from-emerald-50/90 via-teal-50/30 to-white border-emerald-200/90 hover:border-emerald-300 hover:shadow-emerald-500/10'
+                      : 'bg-gradient-to-r from-rose-50/80 via-slate-50/50 to-white border-slate-200 hover:border-slate-300 hover:shadow-slate-200/50'
+                  }`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      setOperatingHours(prev => ({ ...prev, isOpen: !prev.isOpen }));
+                    }
+                  }}
+                  title={operatingHours.isOpen ? 'Click to Pause Platform' : 'Click to Activate Platform'}
+                >
+                  {/* Status Indicator & Label */}
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative flex h-3 w-3 items-center justify-center">
+                      {operatingHours.isOpen ? (
+                        <>
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+                        </>
+                      ) : (
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-400"></span>
+                      )}
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 leading-none">
+                        Platform Status
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className={`text-xs font-black tracking-tight ${
+                          operatingHours.isOpen ? 'text-emerald-700' : 'text-rose-700'
+                        }`}>
+                          {operatingHours.isOpen ? 'ONLINE' : 'OFFLINE'}
+                        </span>
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md border tracking-wide uppercase ${
+                          operatingHours.isOpen
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                            : 'bg-rose-100 text-rose-800 border-rose-200'
+                        }`}>
+                          {operatingHours.isOpen ? 'OPEN' : 'CLOSED'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Switch Track */}
+                  <div
+                    className={`relative inline-flex h-7 w-[52px] shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ease-in-out ${
+                      operatingHours.isOpen
+                        ? 'bg-emerald-500 shadow-inner'
+                        : 'bg-slate-300 group-hover:bg-slate-400/80'
                     }`}
                   >
                     <span
-                      className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out shadow-sm ${
-                        operatingHours.isOpen ? 'translate-x-7' : 'translate-x-1'
+                      className={`flex h-6 w-6 transform items-center justify-center rounded-full bg-white shadow-md transition-transform duration-300 ease-in-out ${
+                        operatingHours.isOpen ? 'translate-x-6' : 'translate-x-0'
                       }`}
-                    />
-                  </button>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                    operatingHours.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {operatingHours.isOpen ? 'OPEN' : 'CLOSED'}
-                  </span>
+                    >
+                      {operatingHours.isOpen ? (
+                        <FiCheck className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                      ) : (
+                        <FiPower className="w-3 h-3 text-slate-400" />
+                      )}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1200,13 +1311,55 @@ const AdminSettings = () => {
                       onChange={(e) => setOperatingHours(prev => ({ ...prev, slotDuration: Number(e.target.value) }))}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all font-medium text-gray-800"
                     >
+                      <option value={15}>15 Minutes</option>
                       <option value={30}>30 Minutes</option>
                       <option value={45}>45 Minutes</option>
                       <option value={60}>60 Minutes (1 Hour)</option>
                       <option value={90}>90 Minutes (1.5 Hours)</option>
                       <option value={120}>120 Minutes (2 Hours)</option>
+                      <option value={180}>180 Minutes (3 Hours)</option>
+                      <option value={240}>240 Minutes (4 Hours)</option>
                     </select>
-                    <p className="text-xs text-gray-400 mt-1">Duration of each selectable slot</p>
+                    <p className="text-xs text-gray-400 mt-1">Length of each selectable slot (e.g. 12 PM - 12:30 PM = 30)</p>
+                  </div>
+
+                  {/* Slot Interval */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Slot Start Interval (Minutes)
+                    </label>
+                    <select
+                      value={operatingHours.slotInterval || 0}
+                      onChange={(e) => setOperatingHours(prev => ({ ...prev, slotInterval: Number(e.target.value) }))}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                    >
+                      <option value={0}>Same as slot duration (back-to-back)</option>
+                      <option value={15}>Every 15 Minutes</option>
+                      <option value={30}>Every 30 Minutes</option>
+                      <option value={60}>Every 60 Minutes</option>
+                      <option value={90}>Every 90 Minutes</option>
+                      <option value={120}>Every 120 Minutes</option>
+                    </select>
+                    <p className="text-xs text-gray-400 mt-1">Gap between slot start times. Duration 60 + interval 30 shows 9-10, 9:30-10:30, 10-11 ...</p>
+                  </div>
+
+                  {/* Same-day lead time */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Instant-Only Window (Minutes)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1440"
+                      step="15"
+                      value={operatingHours.sameDayLeadMinutes}
+                      onChange={(e) => setOperatingHours(prev => ({ ...prev, sameDayLeadMinutes: Number(e.target.value) }))}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Scheduled slots start only after this much time from now (e.g. 180 = at 2 PM the earliest slot shown is 5 PM). The gap is served by instant booking.
+                    </p>
                   </div>
                 </div>
 

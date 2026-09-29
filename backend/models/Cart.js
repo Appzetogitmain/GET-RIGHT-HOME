@@ -58,6 +58,15 @@ const cartItemSchema = new mongoose.Schema({
     default: 1,
     min: 1
   },
+  bookingMode: {
+    type: String,
+    enum: ['instant', 'slot'],
+    default: 'slot'
+  },
+  isInstant: {
+    type: Boolean,
+    default: false
+  },
   rating: {
     type: String,
     default: '4.8'

@@ -11,6 +11,7 @@ import OptimizedImage from '../../../../components/common/OptimizedImage';
 import { useSocket } from '../../../../context/SocketContext';
 import WorkerJobAlertModal from '../../components/bookings/WorkerJobAlertModal';
 import WorkerOfflineModal from './components/WorkerOfflineModal';
+import WorkerAvailabilityModal from '../../components/common/WorkerAvailabilityModal';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import workerWalletService from '../../../../services/workerWalletService';
 
@@ -74,11 +75,13 @@ const Dashboard = () => {
     photo: null,
     categories: [],
     address: null,
-    approvalStatus: 'pending'
+    approvalStatus: 'pending',
+    status: 'offline'
   });
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [emergencyJobs, setEmergencyJobs] = useState([]);
   const [recentJobs, setRecentJobs] = useState([]);
+  const isBusy = workerProfile.status === 'busy';
 
   // Set background gradient
   useLayoutEffect(() => {
@@ -110,6 +113,7 @@ const Dashboard = () => {
 
   // Offline Leave Request states
   const [offlineModalOpen, setOfflineModalOpen] = useState(false);
+  const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
   const [submittingOffline, setSubmittingOffline] = useState(false);
   const [pendingOfflineRequest, setPendingOfflineRequest] = useState(null);
   const [activeOfflineSchedule, setActiveOfflineSchedule] = useState(null);
@@ -175,8 +179,8 @@ const Dashboard = () => {
   const handleToggleOnline = async () => {
     // If currently online, worker wants to toggle OFFLINE:
     if (isOnline) {
-      // Per business rules: opening offline request modal for admin approval
-      setOfflineModalOpen(true);
+      // Worker marks which days they work and which they're on leave
+      setAvailabilityModalOpen(true);
       return;
     }
 
@@ -234,6 +238,7 @@ const Dashboard = () => {
       console.error('Toggle online error:', error);
       const { toast } = await import('react-hot-toast');
       toast.error(error.response?.data?.message || 'Failed to update status');
+      if (error.response?.data?.code === 'AVAILABILITY_NOT_MARKED') setAvailabilityModalOpen(true);
     } finally {
       setTogglingOnline(false);
     }
@@ -316,18 +321,25 @@ const Dashboard = () => {
         workerService.getActiveOfflineRequest().catch(() => null)
       ]);
 
-      if (profileRes.success) {
+      if (profileRes?.success && profileRes?.worker) {
         const profile = profileRes.worker;
+        const zoneNames = profile.zoneNames || (profile.zones?.length > 0 ? profile.zones : (profile.address?.city ? [profile.address.city] : []));
+        const primaryZone = profile.primaryZone || zoneNames[0] || profile.address?.city || 'Zone Not Assigned';
+
         setWorkerProfile({
           name: profile.name || 'Worker Name',
           phone: profile.phone || '',
           photo: profile.profilePhoto || null,
           categories: profile.serviceCategories || (profile.serviceCategory ? [profile.serviceCategory] : []),
           address: profile.address,
-          approvalStatus: profile.approvalStatus || 'pending'
+          approvalStatus: profile.approvalStatus || 'pending',
+          status: profile.status || (profile.isOnline ? 'online' : 'offline'),
+          zoneNames,
+          primaryZone
         });
         // Sync online status from DB
         setIsOnline(profile.isOnline || false);
+        localStorage.setItem('workerIsBusy', profile.status === 'busy' ? 'true' : 'false');
       }
 
       // Sync offline request and active leave schedule
@@ -392,6 +404,15 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const handleCapacityChanged = (event) => {
+      const next = event.detail?.status;
+      if (next) setWorkerProfile((prev) => ({ ...prev, status: next }));
+    };
+    window.addEventListener('workerCapacityChanged', handleCapacityChanged);
+    return () => window.removeEventListener('workerCapacityChanged', handleCapacityChanged);
+  }, []);
 
   const handleEmergencyResponse = async (jobId, status) => {
     try {
@@ -482,26 +503,6 @@ const Dashboard = () => {
     };
   }, []);
 
-  // Test Push Notification
-  const handleTestPush = async () => {
-    try {
-      const { toast } = await import('react-hot-toast');
-      const loadingToast = toast.loading('Sending test push...');
-
-      const res = await workerService.testPushNotification();
-
-      toast.dismiss(loadingToast);
-      if (res.success) {
-        toast.success('Test push sent! Check your notification tray.');
-      } else {
-        toast.error(res.error || 'Failed to send test push');
-      }
-    } catch (err) {
-      console.error('Test push error:', err);
-      const { toast } = await import('react-hot-toast');
-      toast.error('Error triggering test push');
-    }
-  };
 
   if (loading) {
     return (
@@ -562,9 +563,14 @@ const Dashboard = () => {
                     <span className="text-[10px]">🛡️</span> {highestAchievement.tier} Partner
                   </div>
                 )}
-                {workerProfile.address?.city && (
-                  <div className="flex items-center gap-1 text-white text-sm font-bold tracking-wide">
-                    <FiMapPin className="w-3.5 h-3.5" />
+                {(workerProfile.zoneNames?.length > 0 || workerProfile.primaryZone || workerProfile.address?.city) && (
+                  <div className="flex items-center gap-1 text-white text-xs font-bold tracking-wide bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur-sm border border-white/20">
+                    <FiMapPin className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Zone: <strong className="capitalize">{workerProfile.zoneNames?.join(', ') || workerProfile.primaryZone || workerProfile.address?.city}</strong></span>
+                  </div>
+                )}
+                {workerProfile.address?.city && (!workerProfile.zoneNames || !workerProfile.zoneNames.includes(workerProfile.address.city)) && (
+                  <div className="flex items-center gap-1 text-white/90 text-xs font-semibold tracking-wide">
                     {workerProfile.address.city}
                   </div>
                 )}
@@ -582,20 +588,27 @@ const Dashboard = () => {
             <div className="bg-white rounded-[20px] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center justify-between border border-gray-50">
               <div>
                 <div className="flex items-center gap-2.5 mb-1.5">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isOnline ? 'bg-[#A7F3D0]/60' : 'bg-gray-100'}`}>
-                    <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-[#00B48A]' : 'bg-gray-400'}`} />
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isBusy ? 'bg-amber-100' : isOnline ? 'bg-[#A7F3D0]/60' : 'bg-gray-100'}`}>
+                    <div className={`w-3 h-3 rounded-full ${isBusy ? 'bg-amber-500' : isOnline ? 'bg-[#00B48A]' : 'bg-gray-400'}`} />
                   </div>
                   <h3 className="text-[#1E3A8A] font-bold text-[17px] tracking-tight">
-                    {isOnline ? 'You are Online' : 'You are Offline'}
+                    {isBusy ? 'You are Busy' : isOnline ? 'You are Online' : 'You are Offline'}
                   </h3>
                 </div>
                 <p className="text-[#64748B] text-[13px] pl-7 mb-2 font-medium">
-                  {isOnline ? 'Receiving nearby job requests' : 'Go online to receive jobs'}
+                  {isBusy ? 'Complete your current work to receive the next booking' : isOnline ? 'Receiving nearby job requests' : 'Go online to receive jobs'}
+                  <button
+                    type="button"
+                    onClick={() => setAvailabilityModalOpen(true)}
+                    className="ml-2 underline text-[#00A699] font-semibold"
+                  >
+                    My availability
+                  </button>
                 </p>
                 <div className="flex items-center gap-3 pl-7 text-[#64748B] text-[11px] font-bold tracking-wide">
                   <div className="flex items-center gap-1">
-                    <svg className={`w-3.5 h-3.5 ${isOnline ? 'text-[#00B48A]' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 22v-4m0-12V2m10 10h-4M6 12H2m4 0a6 6 0 1012 0 6 6 0 00-12 0z" /></svg>
-                    GPS Active
+                    <svg className={`w-3.5 h-3.5 ${isBusy ? 'text-amber-500' : isOnline ? 'text-[#00B48A]' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 22v-4m0-12V2m10 10h-4M6 12H2m4 0a6 6 0 1012 0 6 6 0 00-12 0z" /></svg>
+                    GPS Active • <span className="capitalize font-semibold text-blue-600">{workerProfile.zoneNames?.join(', ') || workerProfile.primaryZone || workerProfile.address?.city || 'Indore'} Zone</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <FiClock className="w-3.5 h-3.5" />
@@ -606,15 +619,27 @@ const Dashboard = () => {
 
               {/* Toggle Switch */}
               <button
+                type="button"
                 onClick={handleToggleOnline}
-                disabled={togglingOnline}
-                className={`w-[34px] h-[14px] rounded-full relative transition-colors duration-300 ease-in-out shrink-0 flex items-center ${isOnline ? 'bg-[#96F2D7]' : 'bg-gray-300'}`}
+                disabled={togglingOnline || isBusy}
+                title={isBusy ? 'Finish the current job before changing availability' : isOnline ? 'Click to go Offline' : 'Click to go Online'}
+                className={`relative inline-flex h-7 w-[48px] shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ease-in-out shadow-inner cursor-pointer ${
+                  isBusy ? 'bg-amber-400 cursor-not-allowed' : isOnline ? 'bg-[#00B48A]' : 'bg-gray-300 hover:bg-gray-400/80'
+                }`}
               >
-                <div className={`absolute top-1/2 -translate-y-1/2 -left-[1px] w-[20px] h-[20px] rounded-full transition-transform duration-300 ease-in-out flex items-center justify-center shadow-md ${isOnline ? 'transform translate-x-[16px] bg-[#00A699]' : 'bg-[#FAFAFA]'}`}>
-                  {togglingOnline && (
-                    <div className={`w-2.5 h-2.5 border-[1.5px] border-current border-t-transparent rounded-full animate-spin ${isOnline ? 'text-white' : 'text-gray-400'}`} />
+                <span
+                  className={`flex h-6 w-6 transform items-center justify-center rounded-full bg-white shadow-md transition-transform duration-300 ease-in-out ${
+                    isOnline ? 'translate-x-[22px]' : 'translate-x-0'
+                  }`}
+                >
+                  {togglingOnline ? (
+                    <div className={`w-3 h-3 border-[2px] border-current border-t-transparent rounded-full animate-spin ${isOnline ? 'text-[#00B48A]' : 'text-gray-400'}`} />
+                  ) : isOnline ? (
+                    <span className="w-2 h-2 rounded-full bg-[#00B48A]" />
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-gray-300" />
                   )}
-                </div>
+                </span>
               </button>
             </div>
           </div>
@@ -1337,21 +1362,6 @@ const Dashboard = () => {
         </div>
       </main>
 
-      {/* Test Push Notification Floating Button */}
-      <div className="fixed bottom-24 right-4 z-40">
-        <button
-          onClick={handleTestPush}
-          className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-all duration-200"
-          style={{
-            background: 'linear-gradient(135deg, #DBEAFE 0%, #3B82F6 100%)',
-            border: '2px solid rgba(255, 255, 255, 0.3)',
-            boxShadow: '0 8px 16px rgba(59, 130, 246, 0.4)',
-          }}
-          title="Test Push Notification"
-        >
-          <FiBell className="w-7 h-7 text-white" />
-        </button>
-      </div>
 
       {/* Emergency SOS Modal — silent alert only, never places a call */}
       {showEmergencyModal && (
@@ -1399,6 +1409,13 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Weekly days + leave calendar (opened from the toggle) */}
+      <WorkerAvailabilityModal
+        isOpen={availabilityModalOpen}
+        onClose={() => setAvailabilityModalOpen(false)}
+        onRequestHourlyLeave={() => setOfflineModalOpen(true)}
+      />
 
       {/* Worker Offline Leave Request Modal */}
       <WorkerOfflineModal

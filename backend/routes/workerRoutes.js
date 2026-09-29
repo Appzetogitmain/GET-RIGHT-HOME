@@ -9,6 +9,7 @@ import subscriptionRoutes from './worker-routes/subscription.routes.js';
 import walletRoutes from './worker-routes/wallet.routes.js';
 import complaintRoutes from './worker-routes/complaint.routes.js';
 import offlineRoutes from './worker-routes/offline.routes.js';
+import availabilityRoutes from './worker-routes/availability.routes.js';
 
 const router = express.Router();
 
@@ -21,6 +22,7 @@ router.use('/subscription', subscriptionRoutes); // exposes /api/workers/subscri
 router.use('/wallet', walletRoutes);
 router.use('/complaints', complaintRoutes);
 router.use('/offline-requests', offlineRoutes); // exposes /api/workers/offline-requests
+router.use('/availability', availabilityRoutes); // exposes /api/workers/availability
 
 // DEBUG ROUTE (for testing worker status)
 router.get('/debug', async (req, res) => {

@@ -15,6 +15,14 @@ import Settings from '../../models/Settings.js';
 import VendorBill from '../../models/VendorBill.js';
 import { checkAndAwardTargetBonus } from '../../utils/targetBonusUtil.js';
 import referralService from '../../services/referralService.js';
+import { findWorkerConflict, findWorkerUnavailability, getBufferMinutes, describeConflict, getBookingWindow } from '../../utils/slotAvailability.js';
+import { REMINDABLE_STATUSES, buildReminderPayload } from '../../cron/jobReminderScheduler.js';
+import {
+  claimWorkerCapacity,
+  findWorkerActiveJob,
+  syncWorkerCapacityStatus
+} from '../../services/workerCapacityService.js';
+import { supportsBookingMode } from '../../utils/bookingModes.js';
 
 /**
  * Records how one worker responded to a booking offer.
@@ -135,6 +143,13 @@ const getPendingRequests = async (req, res) => {
   try {
     const workerId = req.user.id;
 
+    // A worker holding a job must not see any other offer until WORK_DONE.
+    const activeJob = await findWorkerActiveJob(workerId);
+    if (activeJob) {
+      await syncWorkerCapacityStatus(workerId);
+      return res.status(200).json({ success: true, data: [], isBusy: true, activeBookingId: activeJob._id });
+    }
+
     const requests = await BookingRequest.find({
       workerId,
       status: 'PENDING',
@@ -166,7 +181,14 @@ const getPendingRequests = async (req, res) => {
       _id: { $in: bookingIds },
       status: { $in: openForWorkStatuses }
     }).populate('userId', 'name phone').lean();
-    const bookingMap = new Map(bookings.map(b => [String(b._id), b]));
+    // Don't surface offers this worker couldn't accept anyway because they
+    // already hold a job inside the slot buffer.
+    const bufferMinutes = await getBufferMinutes();
+    const offerable = [];
+    for (const b of bookings) {
+      if (!(await findWorkerConflict(workerId, b, { bufferMinutes }))) offerable.push(b);
+    }
+    const bookingMap = new Map(offerable.map(b => [String(b._id), b]));
 
     const platformSettings = await PlatformSettings.getSettings();
     const commissionPercentage = platformSettings.defaultCommission ?? 10;
@@ -376,6 +398,14 @@ const updateJobStatus = async (req, res) => {
     }
 
     await booking.save();
+    if ([BOOKING_STATUS.WORK_DONE, BOOKING_STATUS.COMPLETED].includes(status)) {
+      const capacity = await syncWorkerCapacityStatus(workerId);
+      req.app.get('io')?.to(`worker_${workerId}`).emit('worker_capacity_changed', {
+        status: capacity?.status,
+        isBusy: capacity?.isBusy || false,
+        reason: 'work_done'
+      });
+    }
 
     if (status === BOOKING_STATUS.WORK_DONE || status === BOOKING_STATUS.COMPLETED) {
       checkAndAwardTargetBonus(booking.workerId).catch(err => console.error('[Target Bonus] error in updateJobStatus:', err));
@@ -669,6 +699,12 @@ const completeJob = async (req, res) => {
     }
 
     await booking.save();
+    const capacity = await syncWorkerCapacityStatus(workerId);
+    req.app.get('io')?.to(`worker_${workerId}`).emit('worker_capacity_changed', {
+      status: capacity?.status,
+      isBusy: capacity?.isBusy || false,
+      reason: 'work_done'
+    });
 
     // 1. Notify user that work is completed and billing is being prepared
     await createNotification({
@@ -896,6 +932,12 @@ const createBill = async (req, res) => {
     booking.finalCashAmount = finalCashAmount;
     booking.status = BOOKING_STATUS.WORK_DONE;
     await booking.save();
+    const capacity = await syncWorkerCapacityStatus(workerId);
+    req.app.get('io')?.to(`worker_${workerId}`).emit('worker_capacity_changed', {
+      status: capacity?.status,
+      isBusy: capacity?.isBusy || false,
+      reason: 'work_done'
+    });
 
     // Notify user with Final Bill and OTP
     await createNotification({
@@ -1119,6 +1161,7 @@ const respondToJob = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   const workerId = req.user.id;
+  let capacityClaimed = false;
 
   console.log(`[WorkerAction] respondToJob - ID: ${id}, Status: ${status}, Worker: ${workerId}`);
 
@@ -1130,7 +1173,7 @@ const respondToJob = async (req, res) => {
 
     // Find the booking by ID
     // In Direct Worker Model, workerId might not be set yet on the Booking itself
-    const booking = await HomeServiceBooking.findById(id);
+    let booking = await HomeServiceBooking.findById(id);
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Job not found' });
@@ -1163,7 +1206,107 @@ const respondToJob = async (req, res) => {
       return res.status(200).json({ success: true, message: 'Job already rejected', data: booking });
     }
 
+    if (!booking.workerId && request && (
+      request.status !== 'PENDING' ||
+      (request.expiresAt && new Date(request.expiresAt) <= new Date())
+    )) {
+      return res.status(409).json({
+        success: false,
+        code: 'OFFER_CLOSED',
+        message: 'This booking offer is no longer active.'
+      });
+    }
+
     if (status === 'ACCEPTED') {
+      const acceptingWorker = await Worker.findById(workerId).select('name bookingModes').lean();
+      const bookingMode = booking.bookingType === 'instant' ? 'instant' : 'slot';
+      if (!supportsBookingMode(acceptingWorker, bookingMode)) {
+        return res.status(409).json({
+          success: false,
+          code: 'WORKER_BOOKING_MODE_NOT_ALLOWED',
+          message: `Your profile is not enabled for ${bookingMode === 'instant' ? 'Instant' : 'Slot'} bookings.`
+        });
+      }
+      // Slot buffer: refuse if this worker already holds a job too close to
+      // this one (admin-configured gap). Authoritative check — the offer may
+      // have been sent before the worker accepted their other job.
+      const unavailableMsg = await findWorkerUnavailability(workerId, booking);
+      if (unavailableMsg) {
+        return res.status(409).json({ success: false, code: 'WORKER_UNAVAILABLE', message: unavailableMsg });
+      }
+      const conflict = await findWorkerConflict(workerId, booking);
+      if (conflict) {
+        const bufferMinutes = await getBufferMinutes();
+        return res.status(409).json({
+          success: false,
+          code: 'SLOT_CONFLICT',
+          message: describeConflict(conflict, bufferMinutes).replace('Worker already has', 'You already have')
+        });
+      }
+
+      const capacity = await claimWorkerCapacity(workerId, booking._id);
+      if (!capacity.claimed) {
+        return res.status(409).json({
+          success: false,
+          code: 'WORKER_BUSY',
+          message: capacity.activeJob
+            ? `You are already busy with booking #${capacity.activeJob.bookingNumber}. Mark that work done before accepting another booking.`
+            : 'You are currently busy. Mark your current work done before accepting another booking.'
+        });
+      }
+      capacityClaimed = true;
+
+      // First valid accept wins atomically; two workers can never both claim
+      // the same booking even if their requests arrive together.
+      const claimedBooking = await HomeServiceBooking.findOneAndUpdate(
+        {
+          _id: id,
+          workerId: null,
+          status: {
+            $in: [
+              BOOKING_STATUS.SEARCHING,
+              BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED,
+              BOOKING_STATUS.NO_WORKERS,
+              BOOKING_STATUS.NO_VENDORS
+            ]
+          }
+        },
+        {
+          $set: {
+            workerId,
+            status: BOOKING_STATUS.ASSIGNED,
+            bookingModel: 'worker',
+            workerResponse: 'ACCEPTED',
+            assignmentStatus: 'assigned',
+            workerAcceptedAt: new Date(),
+            acceptedAt: new Date(),
+            assignedAt: new Date(),
+            waveStartedAt: null
+          }
+        },
+        { new: true }
+      );
+      if (!claimedBooking) {
+        await syncWorkerCapacityStatus(workerId);
+        capacityClaimed = false;
+        return res.status(409).json({
+          success: false,
+          code: 'BOOKING_ALREADY_CLAIMED',
+          message: 'This booking has already been accepted by another professional.'
+        });
+      }
+      booking = claimedBooking;
+
+      // A fresh acceptance restarts the reminder cycle. If the job is already
+      // inside the reminder window, accepting it now IS the confirmation.
+      const reminderSettings = await Settings.findOne({ type: 'global' }).select('jobReminderLeadMinutes').lean();
+      const reminderLeadMs = (reminderSettings?.jobReminderLeadMinutes || 120) * 60 * 1000;
+      const slotWindow = getBookingWindow(booking);
+      const insideReminderWindow = slotWindow && Date.now() >= slotWindow.start.getTime() - reminderLeadMs;
+      booking.reminderSentAt = insideReminderWindow ? new Date() : null;
+      booking.reminderConfirmedAt = insideReminderWindow ? new Date() : null;
+      booking.reminderEscalatedAt = null;
+
       booking.status = BOOKING_STATUS.ASSIGNED;
       booking.workerId = workerId; // Assign the worker
       booking.bookingModel = 'worker'; // Ensure model is set
@@ -1171,22 +1314,40 @@ const respondToJob = async (req, res) => {
       booking.acceptedAt = new Date();
       booking.assignedAt = booking.assignedAt || new Date();
       booking.workerResponse = 'ACCEPTED';
-      // Assignment lifecycle is tracked separately from the booking lifecycle;
-      // without this a job accepted out of the manual queue stayed flagged as
-      // "manual assignment required" forever.
       booking.assignmentStatus = 'assigned';
+      booking.waveStartedAt = null;
       recordAssignmentOutcome(booking, workerId, 'accepted');
 
+      // Update this worker's request entry to ACCEPTED
+      await BookingRequest.findOneAndUpdate(
+        { bookingId: id, workerId },
+        { $set: { status: 'ACCEPTED', respondedAt: new Date() } }
+      );
 
-      // Notify Vendor
-      await createNotification({
-        vendorId: booking.vendorId,
-        type: 'job_accepted',
-        title: 'Worker Accepted Job',
-        message: `Worker has accepted job ${booking.bookingNumber}`,
-        relatedId: booking._id,
-        relatedType: 'booking'
-      });
+      // Expire other workers' pending requests for this booking
+      await BookingRequest.updateMany(
+        { bookingId: id, workerId: { $ne: workerId }, status: 'PENDING' },
+        { $set: { status: 'EXPIRED', respondedAt: new Date() } }
+      );
+
+      // This worker is now busy. Withdraw every other open offer so old cards
+      // cannot be accepted from another tab/device while the job is active.
+      await BookingRequest.updateMany(
+        { bookingId: { $ne: id }, workerId, status: 'PENDING' },
+        { $set: { status: 'EXPIRED', respondedAt: new Date() } }
+      );
+
+      // Notify Vendor if applicable
+      if (booking.vendorId) {
+        await createNotification({
+          vendorId: booking.vendorId,
+          type: 'job_accepted',
+          title: 'Worker Accepted Job',
+          message: `Worker has accepted job ${booking.bookingNumber}`,
+          relatedId: booking._id,
+          relatedType: 'booking'
+        });
+      }
 
       // Fetch worker details for personalized notification
       const worker = await Worker.findById(workerId).select('name phone profilePhoto rating');
@@ -1204,18 +1365,27 @@ const respondToJob = async (req, res) => {
       });
 
       // --- SOCKET EMISSION ---
-      // Notify user via socket so the searching modal closes
-      const io = req.app.get('io');
-      if (io && worker) {
-        io.to(`user_${booking.userId}`).emit('booking_accepted', {
+      const io = req.app.get('io') || getIO();
+      if (io) {
+        // 1. Notify customer that booking is accepted
+        if (worker) {
+          io.to(`user_${booking.userId}`).emit('booking_accepted', {
+            bookingId: booking._id,
+            worker: {
+              id: worker._id,
+              name: worker.name,
+              phone: worker.phone,
+              profilePhoto: worker.profilePhoto,
+              rating: worker.rating
+            }
+          });
+        }
+
+        // 2. Broadcast to other in-zone workers that job is taken so their alert closes immediately
+        io.emit('booking_claimed_by_other', {
           bookingId: booking._id,
-          worker: {
-            id: worker._id,
-            name: worker.name,
-            phone: worker.phone,
-            profilePhoto: worker.profilePhoto,
-            rating: worker.rating
-          }
+          bookingNumber: booking.bookingNumber,
+          claimedBy: workerId
         });
       }
 
@@ -1231,38 +1401,89 @@ const respondToJob = async (req, res) => {
         pushData: { type: 'job_accepted', bookingId: booking._id.toString(), link: `/worker/job/${booking._id}` }
       });
 
-
     } else if (status === 'REJECTED') {
       // Find the specific request and mark it REJECTED
       const reqEntry = await BookingRequest.findOne({ bookingId: id, workerId });
       if (reqEntry) {
         reqEntry.status = 'REJECTED';
         reqEntry.respondedAt = new Date();
+        reqEntry.rejectionReason = req.body?.reason || 'Worker rejected the booking request';
         await reqEntry.save();
       }
-      // So ops can see this worker actively declined rather than just not
-      // responding — the two need different follow-up.
-      recordAssignmentOutcome(booking, workerId, 'rejected');
 
-      booking.workerId = null;
-      // Do NOT set to CONFIRMED. Keep it SEARCHING so the Wave Scheduler can pick it up.
-      // The only exception is if ALL waves have exhausted, which the scheduler will handle.
-      booking.status = BOOKING_STATUS.SEARCHING;
+      recordAssignmentOutcome(booking, workerId, 'rejected', req.body?.reason);
 
-      await createNotification({
-        vendorId: booking.vendorId,
-        type: 'job_rejected',
-        title: 'Worker Declined Job',
-        message: `A worker declined job ${booking.bookingNumber}, finding next available.`,
-        relatedId: booking._id,
-        relatedType: 'booking'
+      const rejectingWorker = await Worker.findById(workerId).select('name phone');
+
+      // Check how many other workers still have a PENDING request for this booking
+      const remainingPending = await BookingRequest.countDocuments({
+        bookingId: id,
+        status: 'PENDING',
+        expiresAt: { $gt: new Date() }
       });
+
+      console.log(`[WorkerAction] Job ${id} rejected by ${workerId}. Remaining pending workers: ${remainingPending}`);
+
+      // If no other workers in the zone have a pending offer (or if this was an assigned single worker):
+      // escalate to admin for manual assignment
+      if (remainingPending === 0 || (booking.workerId && String(booking.workerId) === String(workerId))) {
+        booking.workerId = null;
+        booking.status = BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED;
+        booking.assignmentStatus = 'manual_assignment_required';
+        booking.waveStartedAt = null;
+        booking.rejectionReason = req.body?.reason || `Worker ${rejectingWorker?.name || ''} declined`;
+
+        await createNotification({
+          vendorId: booking.vendorId,
+          type: 'worker_rejected_booking',
+          title: 'Booking Requires Manual Assignment',
+          message: `Worker ${rejectingWorker?.name || ''} declined booking #${booking.bookingNumber}. Please manually assign a worker.`,
+          relatedId: booking._id,
+          relatedType: 'booking',
+          priority: 'high',
+          pushData: { type: 'manual_assignment_required', bookingId: booking._id.toString() }
+        });
+
+        const io = req.app.get('io') || getIO();
+        if (io) {
+          io.emit('booking_updated', {
+            bookingId: booking._id,
+            status: BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED,
+            assignmentStatus: 'manual_assignment_required',
+            message: 'All in-zone workers declined or unavailable. Waiting for admin manual assignment.'
+          });
+          io.to('admin_room').emit('booking_rejected_by_worker', {
+            bookingId: booking._id,
+            bookingNumber: booking.bookingNumber,
+            worker: rejectingWorker ? { id: rejectingWorker._id, name: rejectingWorker.name } : null,
+            reason: booking.rejectionReason
+          });
+        }
+      } else {
+        console.log(`[WorkerAction] Booking ${id} remains open for ${remainingPending} other in-zone worker(s).`);
+      }
     }
 
     await booking.save();
+    if (status === 'ACCEPTED') {
+      const io = req.app.get('io') || getIO();
+      io?.to(`worker_${workerId}`).emit('worker_capacity_changed', {
+        status: 'busy',
+        isBusy: true,
+        activeBookingId: booking._id.toString()
+      });
+    } else if (status === 'REJECTED') {
+      const capacity = await syncWorkerCapacityStatus(workerId);
+      (req.app.get('io') || getIO())?.to(`worker_${workerId}`).emit('worker_capacity_changed', {
+        status: capacity?.status,
+        isBusy: capacity?.isBusy || false,
+        reason: 'offer_rejected'
+      });
+    }
     res.status(200).json({ success: true, message: `Job ${status.toLowerCase()}`, data: booking });
 
   } catch (error) {
+    if (capacityClaimed) await syncWorkerCapacityStatus(workerId).catch(() => {});
     console.error('Respond job error:', error);
     res.status(500).json({ success: false, message: 'Failed to respond to job' });
   }
@@ -1530,6 +1751,55 @@ const generateEstimate = async (req, res) => {
 };
 
 /**
+ * Jobs for which this worker has an open pre-job reminder (sent, unconfirmed).
+ * Poll counterpart of the 'job_reminder' socket event, so a worker who opens
+ * the app after it was sent still sees the popup.
+ */
+const getJobReminders = async (req, res) => {
+  try {
+    const workerId = req.user.id;
+    const s = await Settings.findOne({ type: 'global' }).select('jobReminderConfirmMinutes').lean();
+    const confirmMinutes = s?.jobReminderConfirmMinutes || 15;
+
+    const bookings = await HomeServiceBooking.find({
+      workerId,
+      status: { $in: REMINDABLE_STATUSES },
+      reminderSentAt: { $ne: null },
+      reminderConfirmedAt: null
+    }).select('bookingNumber serviceName scheduledDate scheduledTime timeSlot address reminderSentAt').lean();
+
+    // A reminder for a slot that has already begun is moot.
+    const now = Date.now();
+    const data = bookings
+      .filter((b) => { const w = getBookingWindow(b); return !w || now < w.end.getTime(); })
+      .map((b) => buildReminderPayload(b, confirmMinutes));
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('[WorkerAction] getJobReminders error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch reminders' });
+  }
+};
+
+/** Worker confirms they'll make the job. */
+const confirmJobReminder = async (req, res) => {
+  try {
+    const booking = await HomeServiceBooking.findOneAndUpdate(
+      { _id: req.params.id, workerId: req.user.id, status: { $in: REMINDABLE_STATUSES } },
+      { $set: { reminderConfirmedAt: new Date() } },
+      { new: true }
+    ).select('bookingNumber');
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Job not found or no longer assigned to you' });
+    }
+    res.status(200).json({ success: true, message: 'Thanks for confirming!' });
+  } catch (error) {
+    console.error('[WorkerAction] confirmJobReminder error:', error);
+    res.status(500).json({ success: false, message: 'Failed to confirm' });
+  }
+};
+
+/**
  * Worker drops a job they had already accepted.
  *
  * Deliberately does NOT cancel the customer's booking. The booking goes back
@@ -1596,22 +1866,36 @@ const releaseJob = async (req, res) => {
     );
 
     booking.workerId = null;
-    booking.assignmentStatus = 'reassigning';
-    booking.status = BOOKING_STATUS.SEARCHING;
-    // Restart the wave clock so the scheduler picks this up on its next tick.
-    booking.waveStartedAt = new Date();
-    booking.currentWave = 0;
+    booking.assignmentStatus = 'manual_assignment_required';
+    booking.status = BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED;
+    booking.waveStartedAt = null;
+    booking.reminderSentAt = null;
+    booking.reminderConfirmedAt = null;
+    booking.reminderEscalatedAt = null;
 
     await booking.save();
+    const capacity = await syncWorkerCapacityStatus(workerId);
+    getIO()?.to(`worker_${workerId}`).emit('worker_capacity_changed', {
+      status: capacity?.status,
+      isBusy: capacity?.isBusy || false,
+      reason: 'job_released'
+    });
 
     try {
       const io = getIO();
-      io.to(`user_${booking.userId}`).emit('booking_updated', {
-        bookingId: booking._id,
-        status: BOOKING_STATUS.SEARCHING,
-        // Never expose that a worker dropped out.
-        message: 'We are assigning a service professional to your booking.'
-      });
+      if (io) {
+        io.emit('booking_updated', {
+          bookingId: booking._id,
+          status: BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED,
+          assignmentStatus: 'manual_assignment_required',
+          message: 'Job was released by worker. Awaiting admin assignment.'
+        });
+        io.to('admin_room').emit('booking_rejected_by_worker', {
+          bookingId: booking._id,
+          bookingNumber: booking.bookingNumber,
+          reason: reason || 'Worker released job'
+        });
+      }
     } catch { /* socket optional */ }
 
     await createNotification({
@@ -1640,6 +1924,8 @@ export {
   startJob,
   completeJob,
   releaseJob,
+  getJobReminders,
+  confirmJobReminder,
   addWorkerNotes,
   verifyVisit,
   workerReachedLocation,

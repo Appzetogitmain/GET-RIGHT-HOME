@@ -2,10 +2,12 @@
  * Utility to generate time slots based on platform operating hours
  * @param {string} openingTime - e.g. "09:00" (24-hour format)
  * @param {string} closingTime - e.g. "21:00" (24-hour format)
- * @param {number} slotDurationMinutes - duration per slot (default 60)
+ * @param {number} slotDurationMinutes - length of each slot (default 60)
+ * @param {number} slotIntervalMinutes - gap between slot start times; 0/omitted = same as duration
+
  * @returns {Array<{value: string, end: string, display: string}>}
  */
-export const generateTimeSlots = (openingTime = '09:00', closingTime = '21:00', slotDurationMinutes = 60) => {
+export const generateTimeSlots = (openingTime = '09:00', closingTime = '21:00', slotDurationMinutes = 60, slotIntervalMinutes = 0) => {
   const slots = [];
 
   const [openHour, openMin] = (openingTime || '09:00').split(':').map(Number);
@@ -14,6 +16,7 @@ export const generateTimeSlots = (openingTime = '09:00', closingTime = '21:00', 
   let currentMinutes = openHour * 60 + openMin;
   const endMinutes = closeHour * 60 + closeMin;
   const duration = slotDurationMinutes > 0 ? slotDurationMinutes : 60;
+  const step = slotIntervalMinutes > 0 ? slotIntervalMinutes : duration;
 
   const pad = (n) => String(n).padStart(2, '0');
 
@@ -34,10 +37,11 @@ export const generateTimeSlots = (openingTime = '09:00', closingTime = '21:00', 
     slots.push({
       value: `${pad(startH)}:${pad(startM)}`,
       end: `${pad(endH)}:${pad(endM)}`,
-      display: formatDisplay(startH, startM)
+      display: formatDisplay(startH, startM),
+      range: `${formatDisplay(startH, startM)} - ${formatDisplay(endH, endM)}`
     });
 
-    currentMinutes = nextMinutes;
+    currentMinutes += step;
   }
 
   return slots;

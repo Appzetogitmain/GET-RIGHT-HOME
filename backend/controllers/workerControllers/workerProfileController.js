@@ -1,4 +1,8 @@
 import Worker from '../../models/Worker.js';
+import WorkerOfflineRequest from '../../models/WorkerOfflineRequest.js';
+import { findWorkerActiveJob, syncWorkerCapacityStatus } from '../../services/workerCapacityService.js';
+import Settings from '../../models/Settings.js';
+import { istYmd } from '../../utils/slotAvailability.js';
 import { validationResult } from 'express-validator';
 import cloudinaryService from '../../services/cloudinaryService.js';
 import { createNotification } from '../notificationControllers/notificationController.js';
@@ -9,14 +13,31 @@ import { createNotification } from '../notificationControllers/notificationContr
 const getProfile = async (req, res) => {
   try {
     const workerId = req.user.id;
+    await syncWorkerCapacityStatus(workerId);
 
-    const worker = await Worker.findById(workerId).select('-password -__v');
+    const worker = await Worker.findById(workerId)
+      .populate('zoneIds', 'name status')
+      .select('-password -__v');
 
     if (!worker) {
       return res.status(404).json({
         success: false,
         message: 'Worker not found'
       });
+    }
+
+    // Resolve assigned zone names
+    let zoneNames = [];
+    if (Array.isArray(worker.zoneIds) && worker.zoneIds.length > 0) {
+      zoneNames = worker.zoneIds
+        .map(z => (typeof z === 'object' && z?.name ? z.name : z))
+        .filter(Boolean);
+    }
+    if (zoneNames.length === 0 && Array.isArray(worker.zones) && worker.zones.length > 0) {
+      zoneNames = worker.zones.filter(Boolean);
+    }
+    if (zoneNames.length === 0 && worker.address?.city) {
+      zoneNames = [worker.address.city];
     }
 
     res.status(200).json({
@@ -35,6 +56,10 @@ const getProfile = async (req, res) => {
         serviceCategory: worker.serviceCategories?.[0] || '', // Legacy support
         skills: worker.skills || [],
         address: worker.address || null,
+        zoneIds: worker.zoneIds || [],
+        zones: worker.zones || [],
+        zoneNames: zoneNames,
+        primaryZone: zoneNames[0] || worker.address?.city || 'Not Assigned',
         rating: worker.rating || 0,
         totalJobs: worker.totalJobs || 0,
         completedJobs: worker.completedJobs || 0,
@@ -209,7 +234,10 @@ const updateProfile = async (req, res) => {
         landmark: address.landmark || worker.address?.landmark || ''
       };
     }
-    if (status) worker.status = status;
+    if (status) {
+      const activeJob = await findWorkerActiveJob(workerId);
+      worker.status = activeJob ? 'busy' : status;
+    }
     // Update profile photo - upload to Cloudinary if it's a base64 string
     if (profilePhoto !== undefined) {
       if (profilePhoto && profilePhoto.startsWith('data:')) {
@@ -414,8 +442,40 @@ const toggleOnline = async (req, res) => {
       }
     }
 
+    if (isOnline) {
+      const hsCfg = await Settings.findOne({ type: 'global' }).select('requireDailyAvailability').lean();
+      if (hsCfg?.requireDailyAvailability !== false) {
+        const todayYmd = istYmd(new Date());
+        if (!(worker.availability?.availableDates || []).includes(todayYmd)) {
+          return res.status(400).json({
+            success: false,
+            code: 'AVAILABILITY_NOT_MARKED',
+            message: "Mark today as Available in 'My availability' before going online."
+          });
+        }
+      }
+
+      const now = new Date();
+      const activeLeave = await WorkerOfflineRequest.findOne({
+        workerId,
+        status: 'approved',
+        startDateTime: { $lte: now },
+        endDateTime: { $gte: now }
+      }).select('dateStr').lean();
+      if (activeLeave) {
+        return res.status(400).json({
+          success: false,
+          message: `You are on approved leave today (${activeLeave.dateStr}). Contact admin to go online early.`
+        });
+      }
+    }
+
+    const activeJob = await findWorkerActiveJob(workerId);
     const updateData = {
       isOnline: !!isOnline,
+      // Online is a presence toggle; busy is capacity and cannot be cleared by
+      // toggling presence while an accepted job is still active.
+      status: activeJob ? 'busy' : (isOnline ? 'online' : 'offline'),
       lastSeenAt: new Date()
     };
 
@@ -437,7 +497,7 @@ const toggleOnline = async (req, res) => {
     }
 
     const updatedWorker = await Worker.findByIdAndUpdate(workerId, updateData, { new: true })
-      .select('isOnline geoLocation location approvalStatus currentOfflineSchedule');
+      .select('isOnline status geoLocation location approvalStatus currentOfflineSchedule');
 
     console.log(`[Worker] ${workerId} is now ${isOnline ? '🟢 ONLINE' : '🔴 OFFLINE'}${isOnline ? ` at [${lat}, ${lng}]` : ''}`);
 
@@ -446,6 +506,8 @@ const toggleOnline = async (req, res) => {
       message: isOnline ? 'You are now online! You will receive job alerts.' : 'You are now offline.',
       data: {
         isOnline: updatedWorker.isOnline,
+        status: updatedWorker.status,
+        isBusy: updatedWorker.status === 'busy',
         currentOfflineSchedule: updatedWorker.currentOfflineSchedule
       }
     });

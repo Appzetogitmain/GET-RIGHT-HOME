@@ -1,9 +1,11 @@
 import WorkerOfflineRequest from '../../models/WorkerOfflineRequest.js';
 import Worker from '../../models/Worker.js';
 import PlatformSettings from '../../models/PlatformSettings.js';
+import Settings from '../../models/Settings.js';
 import { createNotification } from '../notificationControllers/notificationController.js';
 import { generateTimeSlots } from '../../utils/slotGenerator.js';
 import { getIO } from '../../sockets.js';
+import { istYmd, weekdayOfYmd, ALL_WEEKDAYS } from '../../utils/slotAvailability.js';
 
 /**
  * Worker: Submit an offline request
@@ -298,8 +300,13 @@ export const approveOfflineRequest = async (req, res) => {
     const [startH, startM] = finalStartSlot.value.split(':').map(Number);
     const [endH, endM] = finalEndSlot.value.split(':').map(Number);
 
-    const startDateTime = new Date(`${finalDateStr}T${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}:00`);
-    const endDateTime = new Date(`${finalDateStr}T${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`);
+    // Whole-day leave from the availability calendar keeps its IST day bounds.
+    const startDateTime = request.isFullDay
+      ? request.startDateTime
+      : new Date(`${finalDateStr}T${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}:00`);
+    const endDateTime = request.isFullDay
+      ? request.endDateTime
+      : new Date(`${finalDateStr}T${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`);
 
     if (endDateTime <= startDateTime) {
       return res.status(400).json({
@@ -310,12 +317,14 @@ export const approveOfflineRequest = async (req, res) => {
 
     request.status = 'approved';
     request.adminAdjusted = isAdjusted;
-    request.dateStr = finalDateStr;
-    request.date = new Date(finalDateStr);
-    request.startSlot = finalStartSlot;
-    request.endSlot = finalEndSlot;
-    request.startDateTime = startDateTime;
-    request.endDateTime = endDateTime;
+    if (!request.isFullDay) {
+      request.dateStr = finalDateStr;
+      request.date = new Date(finalDateStr);
+      request.startSlot = finalStartSlot;
+      request.endSlot = finalEndSlot;
+      request.startDateTime = startDateTime;
+      request.endDateTime = endDateTime;
+    }
     request.reviewedBy = adminId;
     request.reviewedAt = new Date();
     if (notes) request.notes = notes;
@@ -328,16 +337,21 @@ export const approveOfflineRequest = async (req, res) => {
       const now = new Date();
       const isCurrentlyOfflineWindow = now >= startDateTime && now <= endDateTime;
 
-      worker.currentOfflineSchedule = {
-        requestId: request._id,
-        startDateTime,
-        endDateTime,
-        dateStr: finalDateStr,
-        startSlot: finalStartSlot.display || finalStartSlot.value,
-        endSlot: finalEndSlot.display || finalEndSlot.value,
-        reason: request.reason,
-        isActive: true
-      };
+      // A worker can hold many whole-day leaves at once; availability reads the
+      // approved requests directly, so only slot-based leave uses this
+      // single-slot field.
+      if (!request.isFullDay) {
+        worker.currentOfflineSchedule = {
+          requestId: request._id,
+          startDateTime,
+          endDateTime,
+          dateStr: finalDateStr,
+          startSlot: finalStartSlot.display || finalStartSlot.value,
+          endSlot: finalEndSlot.display || finalEndSlot.value,
+          reason: request.reason,
+          isActive: true
+        };
+      }
 
       // If current time falls inside the offline window, immediately toggle worker OFF
       if (isCurrentlyOfflineWindow) {
@@ -582,31 +596,92 @@ export const adjustOfflineRequestTime = async (req, res) => {
  */
 export const forceWorkerOnline = async (req, res) => {
   try {
-    const { id } = req.params; // workerId
+    const { id } = req.params; // workerId (or offlineRequestId)
+    let requestId = req.body?.requestId;
 
-    const worker = await Worker.findById(id);
+    let worker = await Worker.findById(id);
+    if (!worker) {
+      // Check if id is an offline request ID
+      const offlineReq = await WorkerOfflineRequest.findById(id);
+      if (offlineReq) {
+        requestId = offlineReq._id;
+        worker = await Worker.findById(offlineReq.workerId);
+      }
+    }
+
     if (!worker) {
       return res.status(404).json({ success: false, message: 'Worker not found' });
     }
 
+    const todayYmd = istYmd(new Date());
+    const todayWeekday = weekdayOfYmd(todayYmd);
+
+    // 1. Force worker online and active
     worker.isOnline = true;
+    worker.status = 'online';
+    worker.lastSeenAt = new Date();
+
+    // 2. Clear current offline schedule
     if (worker.currentOfflineSchedule) {
       worker.currentOfflineSchedule.isActive = false;
+      worker.currentOfflineSchedule.endDateTime = new Date();
     }
-    worker.lastSeenAt = new Date();
+
+    // 3. Ensure today is marked available in worker's availability so customer slot picker sees worker
+    if (!worker.availability || typeof worker.availability !== 'object') {
+      worker.availability = { availableDays: ALL_WEEKDAYS, availableDates: [] };
+    }
+    if (!Array.isArray(worker.availability.availableDates)) {
+      worker.availability.availableDates = [];
+    }
+    if (!worker.availability.availableDates.includes(todayYmd)) {
+      worker.availability.availableDates.push(todayYmd);
+      worker.availability.availableDates.sort();
+    }
+    if (!Array.isArray(worker.availability.availableDays) || !worker.availability.availableDays.length) {
+      worker.availability.availableDays = ALL_WEEKDAYS;
+    } else if (!worker.availability.availableDays.includes(todayWeekday)) {
+      worker.availability.availableDays.push(todayWeekday);
+      worker.availability.availableDays.sort();
+    }
+    worker.availability.updatedAt = new Date();
+
     await worker.save();
 
-    // If there is an active offline request, we can mark it completed/ended
+    // 4. Cancel active / approved / pending offline requests for this worker that affect now or today
+    const now = new Date();
+    const cancelQuery = {
+      workerId: worker._id,
+      status: { $in: ['approved', 'pending'] },
+      $or: [
+        { endDateTime: { $gte: now } },
+        { dateStr: todayYmd }
+      ]
+    };
+    if (requestId) {
+      cancelQuery.$or.push({ _id: requestId });
+    }
+
     await WorkerOfflineRequest.updateMany(
+      cancelQuery,
       {
-        workerId: worker._id,
-        status: 'approved',
-        endDateTime: { $gte: new Date() }
-      },
-      {
-        $set: { notes: 'Ended early by admin (Force Online)' }
+        $set: {
+          status: 'cancelled',
+          endDateTime: now,
+          notes: 'Cancelled early by admin (Force Online)'
+        }
       }
     );
+
+    if (requestId) {
+      await WorkerOfflineRequest.findByIdAndUpdate(requestId, {
+        $set: {
+          status: 'cancelled',
+          endDateTime: now,
+          notes: 'Cancelled early by admin (Force Online)'
+        }
+      });
+    }
 
     // Send notification to worker
     try {
@@ -627,9 +702,18 @@ export const forceWorkerOnline = async (req, res) => {
           message: 'Admin has set your status to Online.',
           isOnline: true
         });
+        io.to(`worker_${worker._id}`).emit('availability_updated', {
+          availableDates: worker.availability?.availableDates || [],
+          availableDays: worker.availability?.availableDays || []
+        });
         io.to('admin_room').emit('worker_status_changed', {
           workerId: worker._id,
           isOnline: true
+        });
+        io.to('admin_room').emit('offline_request_updated', {
+          workerId: worker._id,
+          requestId: requestId || null,
+          status: 'cancelled'
         });
       }
     } catch (notifErr) {
@@ -638,11 +722,12 @@ export const forceWorkerOnline = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `${worker.name} is now set to Online.`,
+      message: `${worker.name} is now set to Online and today is marked available.`,
       data: {
         workerId: worker._id,
         isOnline: worker.isOnline,
-        currentOfflineSchedule: worker.currentOfflineSchedule
+        currentOfflineSchedule: worker.currentOfflineSchedule,
+        availability: worker.availability
       }
     });
   } catch (error) {
@@ -661,19 +746,27 @@ export const getPlatformOperatingHours = async (req, res) => {
       isOpen: true,
       openingTime: '09:00',
       closingTime: '21:00',
-      slotDuration: 60
+      slotDuration: 60,
+      sameDayLeadMinutes: 60
     };
 
     const slots = generateTimeSlots(
       operatingHours.openingTime,
       operatingHours.closingTime,
-      operatingHours.slotDuration
+      operatingHours.slotDuration,
+      operatingHours.slotInterval
     );
 
     res.status(200).json({
       success: true,
       platformOpen: settings.platformOpen,
-      operatingHours,
+      operatingHours: {
+        ...(operatingHours.toObject ? operatingHours.toObject() : operatingHours),
+        sameDayLeadMinutes: operatingHours.sameDayLeadMinutes ?? 60,
+        slotInterval: operatingHours.slotInterval ?? 0
+      },
+      sameDayLeadMinutes: operatingHours.sameDayLeadMinutes ?? 60,
+      advanceBookingDays: (await Settings.findOne({ type: 'global' }).select('advanceBookingDays').lean())?.advanceBookingDays ?? 7,
       slots
     });
   } catch (error) {

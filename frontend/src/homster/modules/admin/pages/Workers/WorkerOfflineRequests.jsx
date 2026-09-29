@@ -187,13 +187,13 @@ const WorkerOfflineRequests = () => {
   };
 
   // Force Worker Online
-  const handleForceOnline = async (workerId, workerName) => {
+  const handleForceOnline = async (workerId, workerName, requestId) => {
     if (!window.confirm(`Are you sure you want to set ${workerName} ONLINE immediately? This overrides any approved offline schedule.`)) {
       return;
     }
 
     try {
-      const res = await forceWorkerOnline(workerId);
+      const res = await forceWorkerOnline(workerId, { requestId });
       if (res.success) {
         toast.success(`${workerName} is now Online!`);
         fetchRequests();
@@ -306,6 +306,8 @@ const WorkerOfflineRequests = () => {
                   const isPending = item.status === 'pending';
                   const isApproved = item.status === 'approved';
                   const isRejected = item.status === 'rejected';
+                  const isCancelled = item.status === 'cancelled';
+                  const isPast = new Date(item.endDateTime) < new Date();
 
                   return (
                     <tr key={item._id} className="hover:bg-gray-50/50 transition-colors">
@@ -380,13 +382,16 @@ const WorkerOfflineRequests = () => {
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                               : isRejected
                               ? 'bg-red-100 text-red-800 border border-red-200'
+                              : isCancelled
+                              ? 'bg-gray-100 text-gray-700 border border-gray-200'
                               : 'bg-gray-100 text-gray-700'
                           }`}
                         >
                           {isPending && <FiAlertCircle className="w-3.5 h-3.5 text-amber-600" />}
                           {isApproved && <FiCheckCircle className="w-3.5 h-3.5 text-emerald-600" />}
                           {isRejected && <FiXCircle className="w-3.5 h-3.5 text-red-600" />}
-                          {item.status.toUpperCase()}
+                          {isCancelled && <FiXCircle className="w-3.5 h-3.5 text-gray-500" />}
+                          {isCancelled ? 'CANCELLED / ONLINE' : item.status.toUpperCase()}
                         </span>
                       </td>
 
@@ -428,27 +433,41 @@ const WorkerOfflineRequests = () => {
                           )}
 
                           {isApproved && (
-                            <>
-                              {/* Modify Active Approved Time */}
-                              <button
-                                onClick={() => openAdjustModal(item, false)}
-                                className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
-                                title="Modify offline slots (extend or shorten)"
-                              >
-                                <FiEdit className="w-3.5 h-3.5" />
-                                Adjust Time
-                              </button>
+                            isPast ? (
+                              <span className="text-xs text-gray-400 font-medium">Completed</span>
+                            ) : (
+                              <>
+                                {/* Modify Active Approved Time */}
+                                <button
+                                  onClick={() => openAdjustModal(item, false)}
+                                  className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
+                                  title="Modify offline slots (extend or shorten)"
+                                >
+                                  <FiEdit className="w-3.5 h-3.5" />
+                                  Adjust Time
+                                </button>
 
-                              {/* Force Worker Online Now */}
-                              <button
-                                onClick={() => handleForceOnline(worker._id, worker.name)}
-                                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
-                                title="Override offline status and set Online now"
-                              >
-                                <FiPower className="w-3.5 h-3.5 text-emerald-600" />
-                                Set Online Now
-                              </button>
-                            </>
+                                {/* Force Worker Online Now */}
+                                <button
+                                  onClick={() => handleForceOnline(worker._id, worker.name, item._id)}
+                                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
+                                  title="Override offline status and set Online now"
+                                >
+                                  <FiPower className="w-3.5 h-3.5 text-emerald-600" />
+                                  Set Online Now
+                                </button>
+                              </>
+                            )
+                          )}
+
+                          {isCancelled && (
+                            <span className="text-xs text-gray-400 font-medium italic">
+                              {item.notes || 'Cancelled / Online'}
+                            </span>
+                          )}
+
+                          {isRejected && (
+                            <span className="text-xs text-gray-400 font-medium">Rejected</span>
                           )}
                         </div>
                       </td>

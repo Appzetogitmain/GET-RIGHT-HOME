@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+  getSlotAvailabilityForUser,
   createBooking,
   getUserBookings,
   getBookingById,
@@ -62,6 +63,7 @@ const createBookingValidators = [
 ];
 
 router.post('/', createBookingValidators, createBooking);
+router.get('/slot-availability', getSlotAvailabilityForUser);
 router.get('/my', getUserBookings);
 router.get('/ratings', getUserRatings);
 router.get('/:id', getBookingById);

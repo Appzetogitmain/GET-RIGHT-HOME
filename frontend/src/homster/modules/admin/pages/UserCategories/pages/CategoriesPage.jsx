@@ -18,6 +18,7 @@ const categorySchema = z.object({
   hasSaleBadge: z.boolean(),
   showOnHome: z.boolean(),
   isEstimateBased: z.boolean().optional().default(false),
+  bookingModes: z.array(z.enum(['instant', 'slot'])).min(1, 'Select Instant, Slot, or both'),
 });
 
 const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = false }) => {
@@ -33,6 +34,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
     hasSaleBadge: false,
     showOnHome: true,
     isEstimateBased: false,
+    bookingModes: ['slot'],
   });
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const [showReorderModal, setShowReorderModal] = useState(false);
@@ -68,6 +70,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             isEstimateBased: cat.isEstimateBased || false,
             homeOrder: cat.homeOrder || 0,
             isDirectService: cat.isDirectService || false,
+            bookingModes: cat.bookingModes?.length ? cat.bookingModes : ['slot'],
           }));
 
           // Update catalog with fetched categories
@@ -96,6 +99,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
         hasSaleBadge: false,
         showOnHome: true,
         isEstimateBased: false,
+        bookingModes: ['slot'],
       });
       return;
     }
@@ -108,6 +112,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       hasSaleBadge: Boolean(safe.hasSaleBadge),
       showOnHome: safe.showOnHome !== false,
       isEstimateBased: Boolean(safe.isEstimateBased),
+      bookingModes: safe.bookingModes?.length ? safe.bookingModes : ['slot'],
     });
   }, [editing]);
 
@@ -123,6 +128,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       hasSaleBadge: false,
       showOnHome: true,
       isEstimateBased: false,
+      bookingModes: ['slot'],
     });
     setIsModalOpen(false);
   };
@@ -138,7 +144,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       homeBadge: form.homeBadge.trim(),
       hasSaleBadge: Boolean(form.hasSaleBadge),
       showOnHome: Boolean(form.showOnHome),
-      isEstimateBased: Boolean(form.isEstimateBased)
+      isEstimateBased: Boolean(form.isEstimateBased),
+      bookingModes: form.bookingModes
     });
 
     if (!validationResult.success) {
@@ -148,7 +155,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       return;
     }
 
-    const { title, slug, homeIconUrl, homeBadge, hasSaleBadge, showOnHome, isEstimateBased } = validationResult.data;
+    const { title, slug, homeIconUrl, homeBadge, hasSaleBadge, showOnHome, isEstimateBased, bookingModes } = validationResult.data;
 
     try {
       setLoading(true);
@@ -177,6 +184,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
         hasSaleBadge,
         showOnHome,
         isEstimateBased,
+        bookingModes,
         homeOrder,
         cityIds: selectedCity ? [selectedCity] : [],
         isDirectService: isDirectFlow,
@@ -214,6 +222,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             isEstimateBased: response.category.isEstimateBased || false,
             homeOrder: response.category.homeOrder || 0,
             isDirectService: response.category.isDirectService || false,
+            bookingModes: response.category.bookingModes?.length ? response.category.bookingModes : ['slot'],
           };
         } else {
           throw new Error(response.message || 'Failed to create category');
@@ -233,6 +242,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             isEstimateBased: response.category.isEstimateBased || false,
             homeOrder: response.category.homeOrder || 0,
             isDirectService: response.category.isDirectService || false,
+            bookingModes: response.category.bookingModes?.length ? response.category.bookingModes : ['slot'],
           };
         } else {
           throw new Error(response.message || 'Failed to update category');
@@ -252,6 +262,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
               isEstimateBased: response.category.isEstimateBased || false,
               homeOrder: response.category.homeOrder || 0,
               isDirectService: response.category.isDirectService || false,
+              bookingModes: response.category.bookingModes?.length ? response.category.bookingModes : ['slot'],
             };
         } else {
           throw new Error(response.message || 'Failed to create category');
@@ -480,6 +491,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
                   <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Name</th>
                   <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Slug</th>
                   <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Badge</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Booking type</th>
                   <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 w-20">
                     Order
                     <button
@@ -519,6 +531,15 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
                       ) : (
                         <span className="text-sm text-gray-400">—</span>
                       )}
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex flex-wrap gap-1">
+                        {(c.bookingModes?.length ? c.bookingModes : ['slot']).map((mode) => (
+                          <span key={mode} className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${mode === 'instant' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'}`}>
+                            {mode}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -671,6 +692,34 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             <label htmlFor="showOnHome" className="text-base font-semibold text-gray-800">
               Show this category on home
             </label>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <label className="block text-base font-bold text-gray-900 mb-1">Booking type</label>
+            <p className="text-xs text-gray-500 mb-3">Choose where this category, its sub-categories and services will appear.</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'instant', label: 'Instant', help: 'ASAP booking' },
+                { value: 'slot', label: 'Slot', help: 'Scheduled booking' }
+              ].map((option) => (
+                <label key={option.value} className={`cursor-pointer rounded-lg border p-3 ${form.bookingModes.includes(option.value) ? 'border-emerald-500 bg-white ring-1 ring-emerald-500' : 'border-gray-200 bg-white'}`}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={form.bookingModes.includes(option.value)}
+                      onChange={(e) => setForm((previous) => ({
+                        ...previous,
+                        bookingModes: e.target.checked
+                          ? [...new Set([...previous.bookingModes, option.value])]
+                          : previous.bookingModes.filter((mode) => mode !== option.value)
+                      }))}
+                    />
+                    <span className="font-bold text-gray-900">{option.label}</span>
+                  </div>
+                  <span className="ml-6 text-xs text-gray-500">{option.help}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-3 pt-2">

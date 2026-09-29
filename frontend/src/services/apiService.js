@@ -104,7 +104,6 @@ api.interceptors.request.use((config) => {
     config.__inFlightKey = fullUrl;
   }
 
-  console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config.data || '');
   return config;
 }, (error) => Promise.reject(error));
 

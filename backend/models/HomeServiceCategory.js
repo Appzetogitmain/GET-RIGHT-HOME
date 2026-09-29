@@ -14,6 +14,7 @@ const homeServiceCategorySchema = new mongoose.Schema({
   showOnHome: { type: Boolean, default: true },
   isDirectService: { type: Boolean, default: false },
   isEstimateBased: { type: Boolean, default: false },
+  bookingModes: [{ type: String, enum: ['instant', 'slot'] }],
   cityIds: { type: [String], default: ['default'] }
 }, { timestamps: true });
 

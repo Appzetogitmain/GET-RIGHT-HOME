@@ -9,6 +9,17 @@ const adminWorkerService = {
     return response.data;
   },
 
+  /** Weekly days + leave calendar of a worker */
+  getWorkerAvailability: async (id) => {
+    const response = await api.get(`/admin/workers/${id}/availability`);
+    return response.data;
+  },
+
+  updateWorkerAvailability: async (id, payload) => {
+    const response = await api.put(`/admin/workers/${id}/availability`, payload);
+    return response.data;
+  },
+
   /**
    * Get specific worker details
    */
@@ -172,8 +183,8 @@ const adminWorkerService = {
   /**
    * Force worker online immediately
    */
-  forceWorkerOnline: async (id) => {
-    const response = await api.post(`/admin/workers/${id}/force-online`);
+  forceWorkerOnline: async (id, data = {}) => {
+    const response = await api.post(`/admin/workers/${id}/force-online`, data);
     return response.data;
   },
 

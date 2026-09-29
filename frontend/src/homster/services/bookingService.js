@@ -13,6 +13,14 @@ export const bookingService = {
     return response.data;
   },
 
+  // Which dates/slots have a free professional for this service + address
+  getSlotAvailability: async ({ serviceId, lat, lng, category }) => {
+    const params = new URLSearchParams({ serviceId, lat, lng });
+    if (category) params.append('category', category);
+    const response = await api.get(`/hs-bookings/slot-availability?${params.toString()}`);
+    return response.data;
+  },
+
   // Get user bookings with filters
   getUserBookings: async (params = {}) => {
     const queryParams = new URLSearchParams();

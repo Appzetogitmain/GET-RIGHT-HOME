@@ -18,6 +18,7 @@ import {
   FiTrash2,
   FiStar,
   FiMap,
+  FiSearch,
 } from "react-icons/fi";
 import adminMenu from "../../config/adminMenu.json";
 import dashboardService from "../../services/dashboardService";
@@ -143,17 +144,47 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     }
   }, [storeAdmin]);
 
-  // Filter menu items by role
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Filter menu items by role and search query
   const filteredMenu = useMemo(() => {
-    console.log('AdminSidebar - adminUser.role:', adminUser.role);
-    const menu = adminMenu.filter(item => {
+    const roleFiltered = adminMenu.filter(item => {
       if (!item.allowedRoles) return true;
       const normalizedRole = adminUser.role === 'superadmin' ? 'super_admin' : adminUser.role;
       return item.allowedRoles.includes(normalizedRole);
     });
-    console.log('AdminSidebar - filteredMenu:', menu);
-    return menu;
-  }, [adminUser.role]);
+
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return roleFiltered;
+
+    return roleFiltered.map(item => {
+      const titleMatches = item.title.toLowerCase().includes(q);
+      const matchingChildren = (item.children || []).filter(c => c.toLowerCase().includes(q));
+
+      if (titleMatches) {
+        return item;
+      } else if (matchingChildren.length > 0) {
+        return {
+          ...item,
+          children: matchingChildren
+        };
+      }
+      return null;
+    }).filter(Boolean);
+  }, [adminUser.role, searchQuery]);
+
+  // Auto-expand items when searching
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const expandMap = {};
+      filteredMenu.forEach(item => {
+        if (item.children && item.children.length > 0) {
+          expandMap[item.title] = true;
+        }
+      });
+      setExpandedItems(expandMap);
+    }
+  }, [searchQuery, filteredMenu]);
 
   // Fetch pending counts for badges
   useEffect(() => {
@@ -386,9 +417,49 @@ const AdminSidebar = ({ isOpen, onClose }) => {
         </div>
       </div>
 
+      {/* Search Input Box */}
+      <div className="px-3 pt-3 pb-2 border-b border-slate-700/60">
+        <div className="relative flex items-center">
+          <FiSearch className="absolute left-3 text-gray-400 text-sm pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setSearchQuery("");
+            }}
+            placeholder="Search menu..."
+            className="w-full pl-9 pr-8 py-2 bg-slate-700/60 hover:bg-slate-700/90 focus:bg-slate-700 border border-slate-600 focus:border-primary-500 rounded-xl text-xs text-white placeholder-gray-400 outline-none transition-all shadow-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 p-1 text-gray-400 hover:text-white"
+              title="Clear search"
+            >
+              <FiX className="text-xs" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Navigation Menu */}
       <nav className="flex-1 overflow-y-auto p-3 scrollbar-admin lg:pb-3">
-        {filteredMenu.map((item) => renderMenuItem(item))}
+        {filteredMenu.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <FiSearch className="mx-auto text-2xl mb-2 opacity-50" />
+            <p className="text-xs font-semibold">No menu items found</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">No results for "{searchQuery}"</p>
+            <button
+              onClick={() => setSearchQuery("")}
+              className="mt-3 px-3 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors font-medium"
+            >
+              Clear search
+            </button>
+          </div>
+        ) : (
+          filteredMenu.map((item) => renderMenuItem(item))
+        )}
       </nav>
     </div>
   );

@@ -206,9 +206,9 @@ export const adjustOfflineRequestTime = async (id, data) => {
 /**
  * Force worker online immediately
  */
-export const forceWorkerOnline = async (workerId) => {
+export const forceWorkerOnline = async (workerId, data = {}) => {
   try {
-    const response = await api.post(`/admin/workers/${workerId}/force-online`);
+    const response = await api.post(`/admin/workers/${workerId}/force-online`, data);
     return response.data;
   } catch (error) {
     console.error('Error forcing worker online:', error);

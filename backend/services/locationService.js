@@ -105,12 +105,30 @@ export const findNearbyWorkers = async (location, radius, filters) => {
     // Base query - only filter by online/active status, NOT by category
     // Category filtering done in JS to allow flexible matching
     const baseQuery = {
-      isOnline: true,
       approvalStatus: 'approved',
-      isActive: true
+      isActive: true,
+      // Accepting a job sets this status atomically. Keep busy workers out of
+      // both instant and scheduled discovery until their work is marked done.
+      status: { $ne: 'busy' }
     };
+    // Scheduled (future-day) bookings can go to workers who are offline right
+    // now — availability is governed by their marked days/leave, not the toggle.
+    if (!filters?.includeOffline) baseQuery.isOnline = true;
+    const requestedMode = filters?.bookingMode === 'instant' ? 'instant' : (filters?.bookingMode ? 'slot' : null);
+    if (requestedMode === 'instant') {
+      baseQuery.bookingModes = 'instant';
+    } else if (requestedMode === 'slot') {
+      baseQuery.$and = [{
+        $or: [
+          { bookingModes: 'slot' },
+          { bookingModes: { $exists: false } },
+          { bookingModes: { $size: 0 } }
+        ]
+      }];
+    }
 
     // ZONE CHECK LOGIC
+    let formattedWorkers = [];
     const totalZones = await Zone.countDocuments({ status: 'active' });
 
     if (totalZones > 0) {
@@ -132,41 +150,65 @@ export const findNearbyWorkers = async (location, radius, filters) => {
         return []; // Reject booking by returning no workers
       }
 
-        console.log(`[LocationService] User is in zone: ${activeZone.name}`);
+      console.log(`[LocationService] User is in zone: ${activeZone.name}`);
 
-        // Restrict workers to ONLY those inside the exact same zone polygon
-        baseQuery.geoLocation = {
-          $geoWithin: {
-            $geometry: activeZone.area
-          }
+      // Query all online approved active workers who belong to this zone
+      // Either by geolocation inside the zone polygon, or by assigned zoneId, zones array, or address city
+      const zoneRegex = new RegExp(`^${activeZone.name}$`, 'i');
+      const zoneWorkersQuery = {
+        ...baseQuery,
+        $or: [
+          { geoLocation: { $geoWithin: { $geometry: activeZone.area } } },
+          { zoneIds: activeZone._id },
+          { zones: { $regex: zoneRegex } },
+          { 'address.city': { $regex: zoneRegex } }
+        ]
+      };
+
+      const workers = await Worker.find(zoneWorkersQuery).lean();
+      console.log(`[LocationService] Found ${workers.length} approved/online workers in zone: ${activeZone.name}`);
+
+      formattedWorkers = workers.map(worker => {
+        let dist = 0;
+        if (worker.geoLocation?.coordinates?.length === 2 &&
+            (worker.geoLocation.coordinates[0] !== 0 || worker.geoLocation.coordinates[1] !== 0)) {
+          const wLng = worker.geoLocation.coordinates[0];
+          const wLat = worker.geoLocation.coordinates[1];
+          const dLat = (wLat - lat) * Math.PI / 180;
+          const dLng = (wLng - lng) * Math.PI / 180;
+          const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat * Math.PI / 180) * Math.cos(wLat * Math.PI / 180) *
+                    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+          dist = parseFloat((6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(2));
+        }
+        return {
+          ...worker,
+          distance: dist
         };
+      });
+
+      // Sort by distance (nearest first)
+      formattedWorkers.sort((a, b) => (a.distance || 0) - (b.distance || 0));
     } else {
       console.log(`[LocationService] No active zones found in DB. Falling back to global radius search.`);
-    }
-
-    console.log(`[LocationService] Executing $geoNear query with baseQuery:`, JSON.stringify(baseQuery));
-    const workers = await Worker.aggregate([
-      {
-        $geoNear: {
-          near: { type: 'Point', coordinates: [lng, lat] },
-          distanceField: 'distance', // returns distance in meters
-          maxDistance: maxDistanceInMeters,
-          query: baseQuery,
-          spherical: true
+      const workers = await Worker.aggregate([
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [lng, lat] },
+            distanceField: 'distance', // returns distance in meters
+            maxDistance: maxDistanceInMeters,
+            query: baseQuery,
+            spherical: true
+          }
         }
-      }
-    ]);
-    console.log(`[LocationService] $geoNear returned ${workers.length} workers.`);
+      ]);
+      console.log(`[LocationService] $geoNear returned ${workers.length} workers.`);
 
-    // Check how many workers exist in DB total (for debugging)
-    const totalOnlineWorkers = await Worker.countDocuments({ isOnline: true });
-    console.log(`[LocationService] For context, there are ${totalOnlineWorkers} total online workers in the database right now.`);
-
-    // Convert distance from meters to km
-    let formattedWorkers = workers.map(worker => ({
-      ...worker,
-      distance: worker.distance / 1000 // Convert to kilometers
-    }));
+      formattedWorkers = workers.map(worker => ({
+        ...worker,
+        distance: (worker.distance || 0) / 1000 // Convert to kilometers
+      }));
+    }
 
     // Apply strict category filter
     if (filters && (filters.service || filters.serviceName || filters.slug || filters.categoryId)) {
@@ -177,7 +219,7 @@ export const findNearbyWorkers = async (location, radius, filters) => {
       formattedWorkers = filtered;
     }
 
-    console.log(`[LocationService] Found ${formattedWorkers.length} workers nearby matching category`);
+    console.log(`[LocationService] Found ${formattedWorkers.length} workers in zone matching category`);
     return formattedWorkers;
   } catch (error) {
     console.error('Error finding nearby workers:', error);

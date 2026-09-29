@@ -11,6 +11,8 @@ import {
   startJob,
   completeJob,
   releaseJob,
+  getJobReminders,
+  confirmJobReminder,
   addWorkerNotes,
   verifyVisit,
   workerReachedLocation,
@@ -42,6 +44,7 @@ router.get('/', authenticate, isWorker, getAssignedJobs);
 // Must come before '/:id' — otherwise Express would match "pending-requests"
 // as an :id param and route it into getJobById instead.
 router.get('/pending-requests', authenticate, isWorker, getPendingRequests);
+router.get('/reminders', authenticate, isWorker, getJobReminders);
 router.get('/:id', authenticate, isWorker, getJobById);
 router.put('/:id/respond', authenticate, isWorker, respondValidation, respondToJob);
 router.put('/:id/status', authenticate, isWorker, updateStatusValidation, updateJobStatus);
@@ -51,6 +54,7 @@ router.post('/:id/visit/verify', authenticate, isWorker, verifyVisit);
 router.post('/:id/complete', authenticate, isWorker, completeJob);
 // Worker drops an accepted job -> booking returns for reassignment (never cancelled).
 router.post('/:id/release', authenticate, isWorker, releaseJob);
+router.post('/:id/confirm-reminder', authenticate, isWorker, confirmJobReminder);
 router.post('/:id/payment/collect', authenticate, isWorker, collectCash);
 router.post('/:id/payment/initiate-cash', authenticate, isWorker, initiateCashCollection);
 router.post('/:id/notes', authenticate, isWorker, addNotesValidation, addWorkerNotes);

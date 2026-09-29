@@ -9,6 +9,10 @@ import { cartService } from '../services/cartService';
 
 const CartContext = createContext(null);
 
+const getCartItemMode = (item) => (
+  item?.bookingMode === 'instant' || item?.isInstant === true ? 'instant' : 'slot'
+);
+
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [cartCount, setCartCount] = useState(0);
@@ -41,6 +45,8 @@ export const CartProvider = ({ children }) => {
           const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
           return {
             ...item,
+            bookingMode: getCartItemMode(item),
+            isInstant: getCartItemMode(item) === 'instant',
             serviceCount: count,
             unitPrice: unitPrice,
             price: unitPrice * count
@@ -79,26 +85,35 @@ export const CartProvider = ({ children }) => {
       const itemId = itemData._id || itemData.id || `cart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const unitPrice = Number(itemData.unitPrice) || Number(itemData.price) || 0;
       const initialCount = Math.max(1, Number(itemData.serviceCount) || 1);
+      const bookingMode = getCartItemMode(itemData);
       const newItem = {
         ...itemData,
         _id: itemId,
         id: itemId,
+        bookingMode,
+        isInstant: bookingMode === 'instant',
         unitPrice,
         serviceCount: initialCount,
         price: unitPrice * initialCount
       };
 
       setCartItems(prev => {
+        // A checkout cannot mix Instant and Slot services. Switching modes
+        // starts a clean cart for the newly selected channel, preventing a
+        // stale slot item from silently converting an Instant checkout.
+        const sameModeItems = prev.filter((item) => getCartItemMode(item) === bookingMode);
         // Prevent duplicate addition of the same serviceId
-        const exists = prev.some(item => (item.serviceId && item.serviceId === itemData.serviceId) || item._id === itemId || item.id === itemId);
+        const exists = sameModeItems.some(item => (item.serviceId && item.serviceId === itemData.serviceId) || item._id === itemId || item.id === itemId);
         let updated;
         if (exists) {
-          updated = prev.map(item => {
+          updated = sameModeItems.map(item => {
             if ((item.serviceId && item.serviceId === itemData.serviceId) || item._id === itemId || item.id === itemId) {
               const newCount = (Number(item.serviceCount) || 1) + initialCount;
               const uPrice = Number(item.unitPrice) || unitPrice || (item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
               return {
                 ...item,
+                bookingMode,
+                isInstant: bookingMode === 'instant',
                 serviceCount: newCount,
                 unitPrice: uPrice,
                 price: uPrice * newCount
@@ -107,7 +122,7 @@ export const CartProvider = ({ children }) => {
             return item;
           });
         } else {
-          updated = [...prev, newItem];
+          updated = [...sameModeItems, newItem];
         }
         localStorage.setItem('cartItems', JSON.stringify(updated));
         setCartCount(updated.length);

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Plus, Layers, Info, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Plus, Minus, Layers, Info, Check, X, ShoppingCart, ChevronRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCart } from '../../homster/context/CartContext';
@@ -16,34 +16,49 @@ const toAssetUrl = (url) => {
 };
 
 /**
- * Full-page replacement for the old CategoryModal bottom-sheet — browsing a
- * category (its sub-categories, or its services directly if it's a "direct
- * service" category with no sub-category step) is its own page now instead
- * of a popup, matching every other browsing step in Home Services
- * (/home-services/sub-category is already a page; this fills the gap one
- * level up).
+ * Full-page browsing of a category (its sub-categories, or its services directly if it's a "direct
+ * service" category with no sub-category step).
  */
 const CategoryPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { categoryId } = useParams();
+    const [searchParams] = useSearchParams();
     const { currentCity } = useCity();
-    const { addToCart } = useCart();
+    const { cartItems, cartCount, addToCart, updateItem, removeItem } = useCart();
     const cityId = currentCity?._id || currentCity?.id;
+    const bookingMode = location.state?.bookingMode === 'instant' || searchParams.get('mode') === 'instant' ? 'instant' : 'slot';
 
-    // Whatever the card that linked here already knew (title, icon, etc.) —
-    // shown immediately so the page isn't blank while the real fetch runs.
     const [category, setCategory] = useState(location.state?.category || null);
     const [subCategories, setSubCategories] = useState([]);
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [isRedirecting, setIsRedirecting] = useState(false);
+    const [selectedSubCategory, setSelectedSubCategory] = useState(null);
+
+    // Floating Cart Bar state
+    const [cartBarDismissed, setCartBarDismissed] = useState(false);
+    const prevCartCountRef = useRef(cartCount);
+    useEffect(() => {
+        if (cartCount > prevCartCountRef.current) {
+            setCartBarDismissed(false);
+        }
+        prevCartCountRef.current = cartCount;
+    }, [cartCount]);
+
+    // Totals
+    const totalCartPrice = useMemo(() => {
+        return (cartItems || []).reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    }, [cartItems]);
+
+    const totalCartItems = useMemo(() => {
+        return (cartItems || []).reduce((sum, item) => sum + (Number(item.serviceCount) || 1), 0);
+    }, [cartItems]);
 
     useEffect(() => {
         window.scrollTo(0, 0);
         const loadCategory = async () => {
             try {
-                const catRes = await publicCatalogService.getCategories(cityId);
+                const catRes = await publicCatalogService.getCategories(cityId, bookingMode);
                 if (catRes?.success) {
                     const allCats = catRes.categories || [];
                     const full = allCats.find((c) => String(c._id || c.id) === String(categoryId));
@@ -54,7 +69,7 @@ const CategoryPage = () => {
             }
         };
         loadCategory();
-    }, [categoryId, cityId]);
+    }, [categoryId, cityId, bookingMode]);
 
     useEffect(() => {
         const isDirect = category?.isDirectService;
@@ -62,10 +77,10 @@ const CategoryPage = () => {
             setLoading(true);
             try {
                 if (isDirect) {
-                    const res = await publicCatalogService.getServices({ categoryId });
+                    const res = await publicCatalogService.getServices({ categoryId, bookingMode });
                     if (res.success) setServices(res.services || []);
                 } else {
-                    const res = await publicCatalogService.getSubCategories({ cityId, categoryId });
+                    const res = await publicCatalogService.getSubCategories({ cityId, categoryId, bookingMode });
                     if (res.success) setSubCategories(res.subCategories || []);
                 }
             } catch (err) {
@@ -74,16 +89,34 @@ const CategoryPage = () => {
                 setLoading(false);
             }
         };
-        // Only once we actually know whether it's direct or not — category
-        // starts as whatever the link handed us, which may not include that
-        // flag, so wait for the real fetch above to settle it first.
         if (category) load();
-    }, [category, categoryId, cityId]);
+    }, [category?.isDirectService, categoryId, cityId, bookingMode]);
 
-    const handleSubCategoryClick = (subCat) => {
-        navigate('/home-services/sub-category', {
-            state: { subCategory: subCat, category, currentCity: { _id: cityId } }
-        });
+    const handleSubCategoryClick = async (subCat) => {
+        setSelectedSubCategory(subCat);
+        setLoading(true);
+        try {
+            const res = await publicCatalogService.getServices({
+                categoryId,
+                subCategoryId: subCat.id || subCat._id,
+                bookingMode
+            });
+            if (res.success) setServices(res.services || []);
+        } catch (error) {
+            console.error('Failed to load services:', error);
+            toast.error('Services could not be loaded');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getCartItem = (serviceId) => {
+        if (!serviceId || !cartItems?.length) return null;
+        return cartItems.find((item) => 
+            String(item.serviceId) === String(serviceId) ||
+            String(item._id) === String(serviceId) ||
+            String(item.id) === String(serviceId)
+        );
     };
 
     const handleServiceClick = async (service) => {
@@ -91,19 +124,22 @@ const CategoryPage = () => {
             const cartItemData = {
                 serviceId: service.id || service._id,
                 categoryId: category?.id || category?._id,
+                subCategoryId: selectedSubCategory?.id || selectedSubCategory?._id || undefined,
                 title: service.title,
                 description: service.description || '',
-                icon: toAssetUrl(service.icon || service.imageUrl || ''),
+                icon: toAssetUrl(service.icon || service.imageUrl || selectedSubCategory?.iconUrl || category?.homeIconUrl || ''),
                 category: category?.title,
-                subCategory: category?.title || '',
+                subCategory: selectedSubCategory?.title || category?.title || '',
                 price: service.discountPrice || service.basePrice || service.price,
                 unitPrice: service.discountPrice || service.basePrice || service.price,
                 serviceCount: 1,
+                isInstant: bookingMode === 'instant',
+                bookingMode,
             };
             const response = await addToCart(cartItemData);
             if (response.success) {
-                setIsRedirecting(true);
-                setTimeout(() => navigate('/user/cart'), 1000);
+                toast.success(`${service.title} added to cart`);
+                setCartBarDismissed(false);
             } else {
                 toast.error(response.message || 'Failed to add to cart');
             }
@@ -112,26 +148,79 @@ const CategoryPage = () => {
         }
     };
 
+    const handleQuantityChange = async (service, change) => {
+        const sId = service.id || service._id;
+        const item = getCartItem(sId);
+        if (!item) {
+            if (change > 0) return handleServiceClick(service);
+            return;
+        }
+
+        const currentCount = Number(item.serviceCount) || 1;
+        const newCount = currentCount + change;
+        const itemId = item._id || item.id || item.serviceId;
+
+        if (newCount <= 0) {
+            const res = await removeItem(itemId);
+            if (res.success) {
+                toast.success(`${service.title} removed from cart`);
+            }
+        } else {
+            await updateItem(itemId, newCount);
+        }
+    };
+
+    const renderCartControl = (service) => {
+        const sId = service.id || service._id;
+        const cartItem = getCartItem(sId);
+
+        if (cartItem && (cartItem.serviceCount || 0) > 0) {
+            return (
+                <div className="flex items-center bg-emerald-50 border-2 border-emerald-500 rounded-xl overflow-hidden shrink-0 shadow-sm">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleQuantityChange(service, -1);
+                        }}
+                        className="w-8 h-8 flex items-center justify-center text-emerald-700 hover:bg-emerald-100 active:scale-90 transition-all font-black"
+                        title="Decrease quantity"
+                    >
+                        <Minus size={14} className="stroke-[3]" />
+                    </button>
+                    <span className="w-6 text-center font-black text-emerald-800 text-sm select-none">
+                        {cartItem.serviceCount || 1}
+                    </span>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleQuantityChange(service, 1);
+                        }}
+                        className="w-8 h-8 flex items-center justify-center text-emerald-700 hover:bg-emerald-100 active:scale-90 transition-all font-black"
+                        title="Increase quantity"
+                    >
+                        <Plus size={14} className="stroke-[3]" />
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    handleServiceClick(service);
+                }}
+                className="px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-500 text-emerald-700 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
+            >
+                <Plus size={14} className="stroke-[3]" /> Add
+            </button>
+        );
+    };
+
     const isDirect = category?.isDirectService;
 
-    if (isRedirecting) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6">
-                <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mb-6 shadow-inner"
-                >
-                    <Check className="w-10 h-10 text-emerald-500" />
-                </motion.div>
-                <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Added to Cart!</h3>
-                <p className="text-gray-500 font-bold">Redirecting to checkout...</p>
-            </div>
-        );
-    }
-
     return (
-        <div className="min-h-screen bg-white pb-16">
+        <div className="min-h-screen bg-white pb-28">
             {/* Header */}
             <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100">
                 <div className="max-w-3xl mx-auto px-5 py-4 flex items-center gap-3">
@@ -146,7 +235,7 @@ const CategoryPage = () => {
                             <img src={toAssetUrl(category.homeIconUrl)} alt="" className="w-full h-full object-contain" />
                         </div>
                     )}
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase truncate">
                             {category?.title || category?.name || 'Services'}
                         </h1>
@@ -154,7 +243,19 @@ const CategoryPage = () => {
                             {isDirect ? 'Select a service to proceed' : 'Select a sub-category'}
                         </p>
                     </div>
-                    {loading && <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin ml-auto shrink-0"></div>}
+                    {loading && <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin shrink-0"></div>}
+                    <button
+                        onClick={() => navigate('/user/cart')}
+                        className="relative w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-gray-100 transition-colors shrink-0 ml-1"
+                        title="View Cart"
+                    >
+                        <ShoppingCart className="w-5 h-5 text-gray-900" />
+                        {totalCartItems > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 bg-emerald-600 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white shadow-md animate-scaleIn">
+                                {totalCartItems}
+                            </span>
+                        )}
+                    </button>
                 </div>
             </div>
 
@@ -212,12 +313,7 @@ const CategoryPage = () => {
                                         )}
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => handleServiceClick(svc)}
-                                    className="px-5 py-2 bg-emerald-500 text-white rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-emerald-600 shadow-lg shadow-emerald-100 transition-all active:scale-95"
-                                >
-                                    <Plus size={14} /> Add
-                                </button>
+                                {renderCartControl(svc)}
                             </motion.div>
                         ))}
 
@@ -239,6 +335,151 @@ const CategoryPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Sub-Category Services Modal */}
+            <AnimatePresence>
+                {selectedSubCategory && (
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
+                        <motion.button
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            aria-label="Close services"
+                            className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer border-none"
+                            onClick={() => setSelectedSubCategory(null)}
+                        />
+                        <motion.div
+                            initial={{ y: 50, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: 50, opacity: 0 }}
+                            className="relative bg-white w-full sm:max-w-xl max-h-[88vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden z-10"
+                        >
+                            <div className="flex items-start justify-between gap-4 p-5 border-b border-gray-100">
+                                <div>
+                                    <h2 className="text-xl font-black text-gray-900">{selectedSubCategory.title}</h2>
+                                    <p className="text-xs text-gray-500 mt-1">Choose services and add them to your cart</p>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedSubCategory(null)}
+                                    className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                            <div className="overflow-y-auto p-4 space-y-3 flex-1">
+                                {loading ? (
+                                    <div className="py-12 text-center text-sm text-gray-500">Loading services...</div>
+                                ) : services.length === 0 ? (
+                                    <div className="py-12 text-center text-sm text-gray-500">No {bookingMode} services available.</div>
+                                ) : services.map((service) => (
+                                    <div key={service.id || service._id} className="flex gap-3 rounded-2xl border border-gray-200 p-3 items-center">
+                                        <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0">
+                                            {(service.imageUrl || service.icon) && (
+                                                <img src={toAssetUrl(service.imageUrl || service.icon)} alt="" className="w-full h-full object-cover" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-extrabold text-gray-900">{service.title}</h3>
+                                            <p className="text-xs text-gray-500 line-clamp-2">{service.subheading || service.description}</p>
+                                            <p className="font-black text-gray-900 mt-1">₹{service.discountPrice || service.basePrice || service.price}</p>
+                                        </div>
+                                        {renderCartControl(service)}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Modal Bottom Cart Bar */}
+                            <div className="p-4 border-t border-gray-100 bg-white shrink-0">
+                                <motion.button
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => navigate('/user/cart')}
+                                    className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 px-4 font-bold flex items-center justify-between shadow-lg shadow-emerald-600/25 transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
+                                            <ShoppingCart size={18} />
+                                        </div>
+                                        <div className="text-left min-w-0">
+                                            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-100 leading-tight">
+                                                {totalCartItems > 0 ? `${totalCartItems} ${totalCartItems > 1 ? 'items' : 'item'} added` : 'Your Cart'}
+                                            </div>
+                                            {totalCartPrice > 0 ? (
+                                                <div className="text-base font-black leading-tight text-white">
+                                                    ₹{totalCartPrice}
+                                                </div>
+                                            ) : (
+                                                <div className="text-xs text-white/90 font-semibold">
+                                                    Proceed to Cart
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-xs font-black uppercase tracking-wider shrink-0 bg-white/15 px-3 py-1.5 rounded-xl">
+                                        <span>View Cart</span>
+                                        <ChevronRight size={14} className="stroke-[3]" />
+                                    </div>
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Floating "View Cart" Bar (visible when modal is closed and cart has items) */}
+            <AnimatePresence>
+                {!cartBarDismissed && cartCount > 0 && !selectedSubCategory && (
+                    <motion.div
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 100, opacity: 0 }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                        className="fixed bottom-4 left-4 right-4 z-40 max-w-md mx-auto"
+                    >
+                        <div className="bg-white rounded-2xl shadow-2xl shadow-black/20 border border-gray-100 flex items-center gap-3 p-2.5 pr-3">
+                            <div className="w-11 h-11 rounded-full overflow-hidden bg-emerald-50 border border-emerald-100 shrink-0 flex items-center justify-center">
+                                {cartItems[cartItems.length - 1]?.icon ? (
+                                    <img
+                                        src={toAssetUrl(cartItems[cartItems.length - 1]?.icon)}
+                                        alt=""
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <ShoppingCart className="text-emerald-700 w-5 h-5" />
+                                )}
+                            </div>
+
+                            <div
+                                className="flex-1 min-w-0 cursor-pointer"
+                                onClick={() => navigate('/user/cart')}
+                            >
+                                <h4 className="text-[13px] font-bold text-gray-900 truncate">
+                                    {cartItems[cartItems.length - 1]?.title || category?.title || 'Service in Cart'}
+                                </h4>
+                                <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-0.5">
+                                    ₹{totalCartPrice} • {totalCartItems} {totalCartItems > 1 ? 'items' : 'item'}
+                                </span>
+                            </div>
+
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => navigate('/user/cart')}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-center shrink-0 transition-colors shadow-md shadow-emerald-600/20"
+                            >
+                                <span className="block text-[13px] font-bold leading-tight">View Cart</span>
+                                <span className="block text-[10px] opacity-90 leading-tight">₹{totalCartPrice}</span>
+                            </motion.button>
+
+                            <button
+                                onClick={() => setCartBarDismissed(true)}
+                                className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center shrink-0 transition-colors"
+                                title="Dismiss"
+                            >
+                                <X size={14} className="text-gray-500" />
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

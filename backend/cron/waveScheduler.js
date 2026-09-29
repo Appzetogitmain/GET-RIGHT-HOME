@@ -5,6 +5,7 @@ import Settings from '../models/Settings.js';
 import { BOOKING_STATUS } from '../utils/constants.js';
 import { createNotification } from '../controllers/notificationControllers/notificationController.js';
 import { findNearbyWorkers } from '../services/locationService.js';
+import { filterAvailableWorkers, isFutureIstDay } from '../utils/slotAvailability.js';
 
 // Fallback wave timeout (60 seconds) used only until Settings.waveDuration is
 // read — Admin configures the real value via Settings (worker response
@@ -99,10 +100,21 @@ const handleInitialSearchRetry = async (booking, io) => {
       const filters = {
         service: booking.serviceCategory,
         serviceName: booking.serviceName,
-        categoryId: booking.categoryId
+        categoryId: booking.categoryId,
+        includeOffline: booking.bookingType !== 'instant' && isFutureIstDay(booking.scheduledDate)
       };
 
       partners = await findNearbyWorkers(bookingLocation, searchRadius, filters);
+      partners = await filterAvailableWorkers(partners, booking, { ignoreBookings: booking.bookingType === 'instant' });
+
+      // Never hand the job straight back to a worker who dropped it or ignored
+      // its pre-job reminder.
+      const excluded = new Set(
+        (booking.assignmentAttempts || [])
+          .filter((a) => ['unconfirmed', 'cancelled_by_worker'].includes(a.outcome))
+          .map((a) => String(a.workerId))
+      );
+      if (excluded.size) partners = partners.filter((p) => !excluded.has(String(p._id)));
 
       // Dedupe by id
       const seen = new Set();
@@ -298,9 +310,13 @@ export const startWaveScheduler = (io) => {
           const notifiedWorkerIds = pastRequests.map(req => String(req.workerId));
 
           // Filter workers who haven't been notified yet
-          const unnotifiedWorkers = potentialWorkers.filter(
+          let unnotifiedWorkers = potentialWorkers.filter(
             pw => !notifiedWorkerIds.includes(String(pw.workerId))
           );
+
+          // A worker may have taken another job since the candidate list was
+          // built; re-check the slot buffer before alerting the next batch.
+          unnotifiedWorkers = await filterAvailableWorkers(unnotifiedWorkers, booking);
 
           if (unnotifiedWorkers.length === 0) {
             // Everyone eligible has been asked and nobody took it. Hand over to

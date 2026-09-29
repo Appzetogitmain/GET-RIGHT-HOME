@@ -130,6 +130,8 @@ export const syncCart = async (req, res) => {
       cleanItem.unitPrice = Number.isFinite(Number(cleanItem.unitPrice)) ? Number(cleanItem.unitPrice) : 0;
       cleanItem.category = cleanItem.category || 'General';
       cleanItem.title = cleanItem.title || 'Service';
+      cleanItem.bookingMode = cleanItem.bookingMode === 'instant' || cleanItem.isInstant === true ? 'instant' : 'slot';
+      cleanItem.isInstant = cleanItem.bookingMode === 'instant';
       return cleanItem;
     });
 

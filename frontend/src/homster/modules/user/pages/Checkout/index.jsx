@@ -17,6 +17,7 @@ import { userAuthService } from '../../../../services/authService';
 import { referralService } from '../../../../../services/apiService';
 import { useCart } from '../../../../context/CartContext';
 import LiveBookingCard from '../../components/booking/LiveBookingCard';
+import BottomNav from '../../components/layout/BottomNav';
 
 const toAssetUrl = (url) => {
   if (!url) return '';
@@ -85,6 +86,15 @@ const Checkout = () => {
   const [gstPercentage, setGstPercentage] = useState(18);
   const [bookingType, setBookingType] = useState('scheduled'); // Default to 'scheduled' for regular slot bookings
   const [platformSlots, setPlatformSlots] = useState([]);
+  // Admin-set minimum notice (minutes) for a scheduled slot; that window is
+  // reserved for instant bookings. Mirrors the server-side check.
+  const [sameDayLeadMinutes, setSameDayLeadMinutes] = useState(60);
+  // Admin-set booking horizon and live per-date availability for this
+  // service + address (null until fetched -> fall back to plain slot list).
+  const [advanceBookingDays, setAdvanceBookingDays] = useState(7);
+  const [slotAvailability, setSlotAvailability] = useState(null);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [notServiceable, setNotServiceable] = useState(false);
 
   // Fetch dynamic platform slots from admin operating hours
   useEffect(() => {
@@ -94,12 +104,61 @@ const Checkout = () => {
         if (res?.slots && Array.isArray(res.slots) && res.slots.length > 0) {
           setPlatformSlots(res.slots);
         }
+        if (Number.isFinite(res?.sameDayLeadMinutes)) {
+          setSameDayLeadMinutes(res.sameDayLeadMinutes);
+        }
+        if (Number.isFinite(res?.advanceBookingDays)) {
+          setAdvanceBookingDays(res.advanceBookingDays);
+        }
       } catch (err) {
         console.warn('Failed to fetch platform operating hours:', err);
       }
     };
     fetchPlatformSlots();
   }, []);
+
+  // Fetch live slot availability whenever the slot picker opens
+  const availabilityServiceId = (() => {
+    const first = cartItems[0];
+    if (!first) return null;
+    return typeof first.serviceId === 'object' ? (first.serviceId?._id || first.serviceId?.id) : first.serviceId;
+  })();
+
+  useEffect(() => {
+    if (!showTimeSlotModal || !availabilityServiceId || !addressDetails?.lat || !addressDetails?.lng) return undefined;
+    let cancelled = false;
+    setAvailabilityLoading(true);
+    bookingService.getSlotAvailability({
+      serviceId: availabilityServiceId,
+      lat: addressDetails.lat,
+      lng: addressDetails.lng,
+      category: cartItems[0]?.serviceCategory || cartItems[0]?.category
+    }).then((res) => {
+      if (cancelled || !res?.success) return;
+      const map = {};
+      (res.dates || []).forEach((d) => { map[d.date] = d; });
+      setSlotAvailability(map);
+      setNotServiceable(res.serviceable === false);
+      if (Number.isFinite(res.advanceBookingDays)) setAdvanceBookingDays(res.advanceBookingDays);
+    }).catch((err) => {
+      console.warn('Failed to load slot availability:', err);
+    }).finally(() => {
+      if (!cancelled) setAvailabilityLoading(false);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTimeSlotModal, availabilityServiceId, addressDetails?.lat, addressDetails?.lng]);
+
+  // Once availability is known, move off a fully-booked date to the first free one
+  useEffect(() => {
+    if (!slotAvailability || selectedTime) return;
+    const firstOpen = getDates().find((d) => slotAvailability[toYmd(d)]?.available);
+    const current = selectedDate && slotAvailability[toYmd(selectedDate)];
+    if (firstOpen && (!selectedDate || (current && !current.available))) {
+      setSelectedDate(firstOpen);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotAvailability]);
 
   // Promo Code States
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -330,7 +389,9 @@ const Checkout = () => {
   // that doesn't make sense for an "arrives in ~45 min" booking. A cart that
   // mixes instant and regular items (or is entirely regular items) keeps the
   // existing toggle so scheduling stays available where it's meaningful.
-  const cartIsInstant = cartItems.length > 0 && cartItems.every(item => item.isInstant);
+  const cartIsInstant = cartItems.length > 0 && cartItems.every(
+    item => item.bookingMode === 'instant' || item.isInstant === true
+  );
 
   useEffect(() => {
     if (cartIsInstant) {
@@ -367,7 +428,11 @@ const Checkout = () => {
     if (currentStep === 'payment') {
       setCurrentStep('details');
     } else {
-      navigate(-1);
+      if (window.history.length > 2) {
+        navigate(-1);
+      } else {
+        navigate('/home-services');
+      }
     }
   };
 
@@ -417,6 +482,14 @@ const Checkout = () => {
   };
 
   const handleProceed = async () => {
+    // Auth check
+    const token = localStorage.getItem('token') || localStorage.getItem('userToken');
+    if (!token) {
+      toast.error('Please login to continue');
+      navigate(`/login?redirect=${encodeURIComponent('/user/cart')}`);
+      return;
+    }
+
     // Validation
     if (bookingType === 'instant') {
       if (!addressDetails) {
@@ -493,7 +566,7 @@ const Checkout = () => {
           lng: addressDetails?.lng
         },
         scheduledDate: finalDate, // Date object
-        scheduledTime: bookingType === 'instant' ? "ASAP" : (getTimeSlots().find(slot => slot.value === finalTime)?.display || finalTime),
+        scheduledTime: bookingType === 'instant' ? "ASAP" : (getTimeSlots().find(slot => slot.value === finalTime)?.range || getTimeSlots().find(slot => slot.value === finalTime)?.display || finalTime),
         timeSlot: finalTimeSlot,
         amount: amountToPay,
 
@@ -777,7 +850,7 @@ const Checkout = () => {
         finalTimeDisplay = "ASAP";
         timeSlotObj = { start: "Now", end: "45 mins" };
       } else {
-        finalTimeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
+        finalTimeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.range || getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
       }
 
       // Create booking request
@@ -1183,18 +1256,28 @@ const Checkout = () => {
     }
   };
 
+  const toYmd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  // True when we know for certain nobody can take this date.
+  const isDateFullyBooked = (date) => {
+    if (notServiceable) return true;
+    const day = slotAvailability?.[toYmd(date)];
+    return day ? !day.available : false;
+  };
+
+  // A slot is bookable only if it starts at least `sameDayLeadMinutes` from now.
+  const isSlotBookable = (date, slotValue) => {
+    const [h, m] = String(slotValue).split(':').map(Number);
+    if (!date || Number.isNaN(h)) return true;
+    const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m || 0, 0, 0);
+    return slotStart.getTime() >= Date.now() + sameDayLeadMinutes * 60 * 1000;
+  };
+
   const handleDateSelect = (date) => {
     setSelectedDate(date);
     if (date && selectedTime) {
-      const now = new Date();
-      const isToday = date.toDateString() === now.toDateString();
-      if (isToday) {
-        const currentHour = now.getHours();
-        const minHour = currentHour + 1;
-        const slotHour = parseInt(selectedTime.split(':')[0], 10);
-        if (slotHour < minHour) {
-          setSelectedTime(null);
-        }
+      if (!isSlotBookable(date, selectedTime)) {
+        setSelectedTime(null);
       }
     }
   };
@@ -1477,7 +1560,7 @@ const Checkout = () => {
   const getDates = () => {
     const dates = [];
     const today = new Date();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < advanceBookingDays; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push(date);
@@ -1503,22 +1586,15 @@ const Checkout = () => {
 
     const allSlots = platformSlots && platformSlots.length > 0 ? platformSlots : defaultSlots;
 
-    // If today is selected, filter out past time slots
-    const now = new Date();
-    const isToday = selectedDate && selectedDate.toDateString() === now.toDateString();
-
-    if (!isToday) {
-      return allSlots;
+    // Live availability (a free, qualified professional exists for the slot)
+    if (selectedDate && slotAvailability) {
+      const day = slotAvailability[toYmd(selectedDate)];
+      if (day) return day.slots.filter(slot => slot.available);
     }
 
-    // Get current hour + 1 (minimum 1 hour buffer for vendors to accept)
-    const currentHour = now.getHours();
-    const minHour = currentHour + 1;
-
-    return allSlots.filter(slot => {
-      const slotHour = parseInt(slot.value.split(':')[0], 10);
-      return slotHour >= minHour;
-    });
+    // Fallback: hide slots that start sooner than the admin-set minimum notice.
+    if (!selectedDate) return allSlots;
+    return allSlots.filter(slot => isSlotBookable(selectedDate, slot.value));
   };
 
   const formatDate = (date) => {
@@ -1562,7 +1638,7 @@ const Checkout = () => {
               >
                 <FiArrowLeft className="w-6 h-6 text-black" />
               </button>
-              <h1 className="text-xl font-bold text-black">Your cart</h1>
+              <h1 className="text-xl font-bold text-black">Your Cart</h1>
             </div>
           </div>
           <div className="border-b border-gray-200"></div>
@@ -1571,9 +1647,17 @@ const Checkout = () => {
           <div className="flex flex-col items-center justify-center py-20">
             <FiShoppingCart className="w-16 h-16 text-gray-300 mb-4" />
             <p className="text-gray-500 text-lg font-medium">Your cart is empty</p>
-            <p className="text-gray-400 text-sm mt-2">Add services to get started</p>
+            <p className="text-gray-400 text-sm mt-2 mb-6">Add services to get started</p>
+            <button
+              onClick={() => navigate('/home-services')}
+              className="px-6 py-2.5 rounded-xl text-white font-bold transition-all shadow-md active:scale-95"
+              style={{ background: themeColors?.brand?.gradient || '#347989' }}
+            >
+              Explore Services
+            </button>
           </div>
         </main>
+        <BottomNav />
       </div>
     );
   }
@@ -1591,7 +1675,7 @@ const Checkout = () => {
               <FiArrowLeft className="w-6 h-6 text-black" />
             </button>
             <h1 className="text-xl font-bold text-black">
-              {category ? `${category} Checkout` : 'Your cart'}
+              {category ? `${category} Checkout` : (plan ? 'Plan Checkout' : 'Your Cart')}
             </h1>
           </div>
         </div>
@@ -2265,6 +2349,9 @@ const Checkout = () => {
         formatDate={formatDate}
         isDateSelected={isDateSelected}
         isTimeSelected={isTimeSelected}
+        isDateFullyBooked={isDateFullyBooked}
+        availabilityLoading={availabilityLoading}
+        notServiceable={notServiceable}
       />
     </div>
   );

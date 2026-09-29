@@ -86,8 +86,7 @@ const HomeLoanEligibilityPage = React.lazy(() => import('./pages/user/HomeLoanEl
 const AreaConverterPage = React.lazy(() => import('./pages/user/AreaConverterPage'));
 const ToolsAndInsightsPage = React.lazy(() => import('./pages/user/ToolsAndInsightsPage'));
 const PopularToolsPage = React.lazy(() => import('./pages/user/PopularToolsPage'));
-const CartPage = React.lazy(() => import('./homster/modules/user/pages/Cart'));
-const HomeServiceCheckoutPage = React.lazy(() => import('./homster/modules/user/pages/Checkout'));
+const CartPage = React.lazy(() => import('./homster/modules/user/pages/Checkout'));
 const HomeServiceBookingsPage = React.lazy(() => import('./homster/modules/user/pages/MyBookings'));
 const HSBookingDetailsPage = React.lazy(() => import('./homster/modules/user/pages/BookingDetails'));
 const HSBookingConfirmationPage = React.lazy(() => import('./homster/modules/user/pages/BookingConfirmation'));
@@ -324,6 +323,11 @@ const UserProtectedRoute = ({ children }) => {
 };
 
 // Partner & User Property Listing Protected Route
+const HomeServiceCheckoutRedirect = () => {
+  const location = useLocation();
+  return <Navigate to="/user/cart" state={location.state} replace />;
+};
+
 const PartnerProtectedRoute = ({ children }) => {
   const { user } = useAuth();
   const location = useLocation();
@@ -477,9 +481,9 @@ function App() {
                     <Route path="/home-services/category/:categoryId" element={<CategoryPage />} />
                     <Route path="/home-services/instant" element={<InstantServicesPage />} />
                     <Route path="/home-service" element={<Navigate to="/home-services" replace />} />
-                    {/* Cart is guest-friendly (localStorage-backed, syncs silently once logged
-                        in) — only the actual checkout step below requires login. */}
+                    {/* Cart is unified at /user/cart (backed by global cart with complete checkout) */}
                     <Route path="/user/cart" element={<CartPage />} />
+                    <Route path="/user/home-services/checkout" element={<HomeServiceCheckoutRedirect />} />
 
                     {/* Public User Routes */}
                     <Route path="/" element={<Home />} />
@@ -706,7 +710,6 @@ function App() {
                       <Route path="/notifications" element={<NotificationsPage />} />
                       <Route path="/settings" element={<SettingsPage />} />
                       <Route path="/user" element={<Navigate to="/home-services" replace />} />
-                      <Route path="/user/home-services/checkout" element={<HomeServiceCheckoutPage />} />
                       <Route path="/user/home-services/bookings" element={<HomeServiceBookingsPage />} />
                       <Route path="/user/booking/:id" element={<HSBookingDetailsPage />} />
                       <Route path="/user/booking-confirmation/:id" element={<HSBookingConfirmationPage />} />

@@ -37,6 +37,12 @@ const workerOfflineRequestSchema = new mongoose.Schema(
       trim: true,
       default: 'Personal Leave'
     },
+    // Whole-day leave marked from the availability calendar (times are IST
+    // day bounds, not slot-based).
+    isFullDay: {
+      type: Boolean,
+      default: false
+    },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected', 'cancelled'],

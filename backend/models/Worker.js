@@ -92,6 +92,9 @@ const workerSchema = new mongoose.Schema({
   serviceCategories: [{
     type: String
   }],
+  // Admin-controlled channels. Legacy workers without this field remain
+  // slot-only until explicitly enabled for Instant or both.
+  bookingModes: [{ type: String, enum: ['instant', 'slot'] }],
   pendingServiceCategories: [{
     type: String
   }],
@@ -247,6 +250,17 @@ const workerSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
     index: true
+  },
+  // Weekly availability the worker marks (0 = Sunday … 6 = Saturday). Only
+  // these weekdays are offered to customers when they pick a slot; specific
+  // days off are WorkerOfflineRequest leave records. Missing → every day.
+  availability: {
+    availableDays: { type: [Number], default: [0, 1, 2, 3, 4, 5, 6] },
+    // Specific dates (IST, YYYY-MM-DD) the worker has explicitly marked
+    // "available". Leave dates are WorkerOfflineRequest records. When the admin
+    // requires daily marking, a date that is in neither list takes no bookings.
+    availableDates: { type: [String], default: [] },
+    updatedAt: { type: Date, default: null }
   },
   // Approved offline schedule managed by admin
   currentOfflineSchedule: {

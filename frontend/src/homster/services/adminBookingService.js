@@ -41,6 +41,16 @@ export const adminBookingService = {
     }
   },
 
+  // Take the booking from its current worker and offer it to everyone else again
+  rebroadcastBooking: async (jobId, reason = '') => {
+    try {
+      const response = await api.post(`/admin/workers/jobs/${jobId}/rebroadcast`, { reason });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to re-broadcast booking' };
+    }
+  },
+
   // Assign worker manually
   assignWorker: async (jobId, workerId) => {
     try {

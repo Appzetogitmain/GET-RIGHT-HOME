@@ -9,6 +9,20 @@
     "children": []
   },
   {
+    "title": "Users",
+    "route": "/admin/home-service/users",
+    "allowedRoles": [
+      "super_admin",
+      "admin"
+    ],
+    "children": [
+      "All Users",
+      "User Bookings",
+      "Transactions",
+      "User Analytics"
+    ]
+  },
+  {
     "title": "Workers",
     "route": "/admin/home-service/workers",
     "allowedRoles": [

@@ -143,6 +143,26 @@ const Bookings = () => {
     fetchData();
   }, [page, debouncedSearch, statusFilter, bookingTypeFilter, startDate, endDate]);
 
+  // Live refresh when a professional ignores a reminder / releases a job.
+  useEffect(() => {
+    const refresh = () => fetchData();
+    window.addEventListener('adminBookingsChanged', refresh);
+    return () => window.removeEventListener('adminBookingsChanged', refresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, debouncedSearch, statusFilter, bookingTypeFilter, startDate, endDate]);
+
+  const handleRebroadcast = async (booking) => {
+    const who = booking.workerId?.name ? ` from ${booking.workerId.name}` : '';
+    if (!window.confirm(`Take booking #${booking.bookingNumber}${who} and offer it to all other professionals?`)) return;
+    try {
+      const res = await adminBookingService.rebroadcastBooking(booking._id);
+      toast.success(res.message || 'Booking re-broadcast');
+      fetchData();
+    } catch (error) {
+      toast.error(error.message || 'Failed to re-broadcast booking');
+    }
+  };
+
   const handleExport = () => {
     const headers = ['Order ID', 'Type', 'Customer', 'Service', 'Slot / Time', 'Assigned Vendor', 'Total', 'Status', 'Date'];
     const rows = bookings.map(b => [
@@ -403,6 +423,13 @@ const Bookings = () => {
                                   Awaiting Provider
                                 </span>
                               )}
+                              {booking.reminderEscalatedAt && !booking.reminderConfirmedAt ? (
+                                <span className="block text-[9px] font-bold text-red-700 bg-red-50 px-1.5 py-0.2 rounded border border-red-100 mt-0.5">
+                                  Not confirmed pre-job reminder
+                                </span>
+                              ) : booking.reminderConfirmedAt ? (
+                                <span className="block text-[9px] font-bold text-emerald-700 mt-0.5">Confirmed for job</span>
+                              ) : null}
                             </div>
                           </div>
                         ) : (
@@ -469,6 +496,20 @@ const Bookings = () => {
                           >
                             <FiEye className="w-3 h-3 text-blue-600" /> Details
                           </button>
+
+                          {['ASSIGNED', 'CONFIRMED', 'ACCEPTED', 'MANUAL_ASSIGNMENT_REQUIRED', 'NO_WORKERS', 'NO_VENDORS'].includes(booking.status?.toUpperCase()) && (
+                            <button
+                              onClick={() => handleRebroadcast(booking)}
+                              className={`px-2 py-1 border rounded-md text-[10px] font-bold transition-colors ${
+                                booking.reminderEscalatedAt && !booking.reminderConfirmedAt
+                                  ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                              }`}
+                              title="Take this booking back and offer it to all other professionals"
+                            >
+                              Re-broadcast
+                            </button>
+                          )}
 
                           {['SEARCHING', 'NO_WORKERS', 'NO_VENDORS', 'MANUAL_ASSIGNMENT_REQUIRED', 'PENDING'].includes(booking.status?.toUpperCase()) && (
                             <button

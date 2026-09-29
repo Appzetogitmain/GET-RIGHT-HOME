@@ -22,6 +22,21 @@ const platformSettingsSchema = new mongoose.Schema(
       slotDuration: {
         type: Number,
         default: 60 // In minutes
+      },
+      // Gap between consecutive slot start times (minutes). 0 = same as
+      // slotDuration (back-to-back slots). E.g. duration 60 + interval 30
+      // gives 9-10, 9:30-10:30, 10-11 ...
+      slotInterval: {
+        type: Number,
+        default: 0,
+        min: 0
+      },
+      // For same-day bookings, only slots starting at least this many minutes
+      // from now are offered (gives the worker time to be assigned and travel).
+      sameDayLeadMinutes: {
+        type: Number,
+        default: 60,
+        min: 0
       }
     },
     maintenanceMode: {

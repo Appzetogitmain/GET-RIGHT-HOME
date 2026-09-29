@@ -67,6 +67,7 @@ const LoadingFallback = () => (
 );
 
 import GlobalWorkerJobAlert from '../components/common/GlobalWorkerJobAlert';
+import JobReminderModal from '../components/common/JobReminderModal';
 
 const WorkerRoutes = () => {
   const location = useLocation();
@@ -128,6 +129,7 @@ const WorkerRoutes = () => {
         {shouldShowBottomNav && <BottomNav />}
 
         <GlobalWorkerJobAlert />
+        <JobReminderModal />
       </ErrorBoundary>
 
   );

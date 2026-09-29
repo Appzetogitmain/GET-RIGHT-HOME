@@ -24,11 +24,13 @@ import {
   FiAward,
   FiBriefcase,
   FiStar,
-  FiUser
+  FiUser,
+  FiCalendar
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import CardShell from '../UserCategories/components/CardShell';
 import Modal from '../UserCategories/components/Modal';
+import AvailabilityEditor from '../../../worker/components/common/AvailabilityEditor';
 import adminWorkerService from '../../../../services/adminWorkerService';
 import { categoryService } from '../../../../services/catalogService';
 import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
@@ -80,6 +82,7 @@ const AllWorkers = () => {
   // Modals
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [availabilityModal, setAvailabilityModal] = useState({ open: false, worker: null, data: null, loading: false, saving: false });
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [payNotes, setPayNotes] = useState('');
@@ -98,6 +101,7 @@ const AllWorkers = () => {
       mcqLevel: 'Not Certified',
       experienceYears: 0,
       serviceCategories: [],
+      bookingModes: ['slot'],
       zoneIds: [],
       approvalStatus: 'approved',
       isActive: true,
@@ -126,6 +130,7 @@ const AllWorkers = () => {
       businessName: '',
       password: '',
       serviceCategories: [],
+      bookingModes: ['slot'],
       zoneIds: [],
       approvalStatus: 'approved'
     },
@@ -408,13 +413,61 @@ const AllWorkers = () => {
   };
 
   // View Details Modal Trigger
-  const handleViewDetails = (worker) => {
+  const openAvailability = async (worker) => {
+    setAvailabilityModal({ open: true, worker, data: null, loading: true, saving: false });
+    try {
+      const res = await adminWorkerService.getWorkerAvailability(worker.id);
+      setAvailabilityModal((m) => ({ ...m, data: res.data, loading: false }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to load availability');
+      setAvailabilityModal((m) => ({ ...m, open: false, loading: false }));
+    }
+  };
+
+  const saveAvailability = async (payload) => {
+    setAvailabilityModal((m) => ({ ...m, saving: true }));
+    try {
+      const res = await adminWorkerService.updateWorkerAvailability(availabilityModal.worker.id, payload);
+      toast.success(res.message || 'Availability updated');
+      setAvailabilityModal((m) => ({ ...m, data: res.data, saving: false }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update availability');
+      setAvailabilityModal((m) => ({ ...m, saving: false }));
+    }
+  };
+
+  const handleViewDetails = async (worker) => {
     setSelectedWorker(worker);
     setIsViewModalOpen(true);
+
+    // Fetch full worker details (including documents) on-demand if not already populated
+    if (!worker.documents?.aadhar && !worker.aadhar?.document) {
+      try {
+        const res = await adminWorkerService.getWorkerDetails(worker.id || worker._id);
+        const full = res?.data || res?.worker;
+        if (full) {
+          const docs = {
+            aadhar: full.documents?.aadhar || full.aadhar?.document || '',
+            aadharBack: full.documents?.aadharBack || full.aadhar?.backDocument || '',
+            pan: full.documents?.pan || full.panCard?.document || '',
+            drivingLicense: full.documents?.drivingLicense || full.drivingLicense?.document || '',
+            other1: full.documents?.other1 || full.otherDocuments?.[0] || '',
+            other2: full.documents?.other2 || full.otherDocuments?.[1] || ''
+          };
+          setSelectedWorker(prev => (prev && (prev.id === worker.id || prev._id === worker._id) ? {
+            ...prev,
+            ...full,
+            documents: docs
+          } : prev));
+        }
+      } catch (err) {
+        console.warn('Failed to load full worker details for view modal:', err);
+      }
+    }
   };
 
   // Open Edit Worker Modal
-  const handleOpenEdit = (worker) => {
+  const handleOpenEdit = async (worker) => {
     const workerZoneIds = (worker.zoneIds || []).map((z) => (typeof z === 'object' ? z._id : z)).filter(Boolean);
     setEditModal({
       isOpen: true,
@@ -429,6 +482,7 @@ const AllWorkers = () => {
         mcqLevel: worker.mcqLevel || 'Level 1 — Premium / Expert (80%+ Rating)',
         experienceYears: worker.experienceYears || 0,
         serviceCategories: [...(worker.serviceCategories || [])],
+        bookingModes: worker.bookingModes?.length ? [...worker.bookingModes] : ['slot'],
         zoneIds: workerZoneIds,
         approvalStatus: worker.approvalStatus || 'approved',
         isActive: worker.isActive !== false,
@@ -448,6 +502,38 @@ const AllWorkers = () => {
       },
       isSubmitting: false
     });
+
+    // Fetch full worker details (including documents) on-demand for edit modal if empty
+    if (!worker.documents?.aadhar && !worker.aadhar?.document) {
+      try {
+        const res = await adminWorkerService.getWorkerDetails(worker.id || worker._id);
+        const full = res?.data || res?.worker;
+        if (full) {
+          setEditModal(prev => {
+            if (!prev.isOpen || (prev.worker?.id !== worker.id && prev.worker?._id !== worker._id)) return prev;
+            return {
+              ...prev,
+              formData: {
+                ...prev.formData,
+                nameOnAadhar: full.aadhar?.nameOnAadhar || prev.formData.nameOnAadhar,
+                aadharNumber: full.aadhar?.number || prev.formData.aadharNumber,
+                panNumber: full.panCard?.number || prev.formData.panNumber,
+                documents: {
+                  aadhar: full.documents?.aadhar || full.aadhar?.document || prev.formData.documents.aadhar,
+                  aadharBack: full.documents?.aadharBack || full.aadhar?.backDocument || prev.formData.documents.aadharBack,
+                  pan: full.documents?.pan || full.panCard?.document || prev.formData.documents.pan,
+                  drivingLicense: full.documents?.drivingLicense || full.drivingLicense?.document || prev.formData.documents.drivingLicense,
+                  other1: full.documents?.other1 || full.otherDocuments?.[0] || prev.formData.documents.other1,
+                  other2: full.documents?.other2 || full.otherDocuments?.[1] || prev.formData.documents.other2
+                }
+              }
+            };
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load full worker details for edit modal:', err);
+      }
+    }
   };
 
   // Upload document directly to Cloudinary
@@ -594,6 +680,7 @@ const AllWorkers = () => {
             businessName: '',
             password: '',
             serviceCategories: [],
+            bookingModes: ['slot'],
             zoneIds: [],
             approvalStatus: 'approved'
           },
@@ -677,92 +764,16 @@ const AllWorkers = () => {
     <div className="space-y-4">
       <CardShell
         icon={FiBriefcase}
-        title="All Vendors / Workers"
-        subtitle="Manage platform vendors, assigned zones, plans, and their activity"
+        title="All Workers"
+        subtitle="Manage platform workers, assigned zones, plans, and their activity"
       >
-        {/* Top Stat Cards matching DoorMeets benchmark */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* SIGNUP ONLY / PENDING */}
-          <div
-            onClick={() => setFilterStatus(filterStatus === 'signup_only' ? 'all' : 'signup_only')}
-            className={`p-4 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-              filterStatus === 'signup_only'
-                ? 'bg-amber-100 border-amber-400 ring-2 ring-amber-300'
-                : 'bg-amber-50/70 border-amber-200 hover:bg-amber-100/60'
-            }`}
-          >
-            <div className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">
-              Signup Only / Pending
-            </div>
-            <div className="text-2xl font-black text-amber-900 mt-1">
-              {counts.signupOnly || counts.pending || 0}
-            </div>
-          </div>
-
-          {/* APPROVED */}
-          <div
-            onClick={() => setFilterStatus(filterStatus === 'approved' ? 'all' : 'approved')}
-            className={`p-4 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-              filterStatus === 'approved'
-                ? 'bg-emerald-100 border-emerald-400 ring-2 ring-emerald-300'
-                : 'bg-emerald-50/70 border-emerald-200 hover:bg-emerald-100/60'
-            }`}
-          >
-            <div className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
-              Approved
-            </div>
-            <div className="text-2xl font-black text-emerald-900 mt-1">
-              {counts.approved || 0}
-            </div>
-          </div>
-
-          {/* REJECTED */}
-          <div
-            onClick={() => setFilterStatus(filterStatus === 'rejected' ? 'all' : 'rejected')}
-            className={`p-4 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-              filterStatus === 'rejected'
-                ? 'bg-rose-100 border-rose-400 ring-2 ring-rose-300'
-                : 'bg-rose-50/70 border-rose-200 hover:bg-rose-100/60'
-            }`}
-          >
-            <div className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">
-              Rejected
-            </div>
-            <div className="text-2xl font-black text-rose-900 mt-1">
-              {counts.rejected || 0}
-            </div>
-          </div>
-
-          {/* OFFLINE REQUESTS */}
-          <Link
-            to="/admin/home-service/workers/offline-requests"
-            className="p-4 rounded-xl border bg-indigo-50/70 border-indigo-200 hover:bg-indigo-100/60 transition-all flex flex-col justify-between group cursor-pointer shadow-2xs"
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
-                <FiClock className="w-3.5 h-3.5 text-indigo-600" />
-                Offline Requests
-              </div>
-              <FiChevronRight className="w-4 h-4 text-indigo-500 group-hover:translate-x-1 transition-transform" />
-            </div>
-            <div className="flex items-baseline justify-between mt-1">
-              <div className="text-2xl font-black text-indigo-900">
-                {counts.offlineRequests || 0}
-              </div>
-              <span className="text-xs font-semibold text-indigo-600 group-hover:underline">
-                Review Leave &rarr;
-              </span>
-            </div>
-          </Link>
-        </div>
-
-        {/* Search, Filter Tabs and + Add Vendor Button */}
+        {/* Search, Filter Tabs and + Add Worker Button */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 pt-1">
           <div className="relative flex-1 w-full">
             <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search vendors by name, phone, email, business..."
+              placeholder="Search workers by name, phone, email, business..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-xs text-gray-800 transition-all"
@@ -801,6 +812,7 @@ const AllWorkers = () => {
                     businessName: '',
                     password: '',
                     serviceCategories: [],
+                    bookingModes: ['slot'],
                     zoneIds: [],
                     approvalStatus: 'approved'
                   },
@@ -810,7 +822,7 @@ const AllWorkers = () => {
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap shrink-0"
             >
               <FiPlus className="w-4 h-4" />
-              <span>Add Vendor</span>
+              <span>Add Worker</span>
             </button>
           </div>
         </div>
@@ -874,7 +886,7 @@ const AllWorkers = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-gray-200/80 bg-gray-50/70 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                  <th className="px-4 py-3 min-w-[200px]">Vendor Details</th>
+                  <th className="px-4 py-3 min-w-[200px]">Worker Details</th>
                   <th className="px-4 py-3 min-w-[190px]">Business Info</th>
                   <th className="px-4 py-3 min-w-[160px]">Subscription</th>
                   <th className="px-4 py-3 min-w-[130px]">MCQ Level</th>
@@ -888,7 +900,7 @@ const AllWorkers = () => {
                     <td colSpan="6" className="px-4 py-12 text-center text-gray-400">
                       <div className="flex items-center justify-center gap-2">
                         <FiLoader className="w-4 h-4 animate-spin text-emerald-600" />
-                        <span className="font-semibold">Loading vendors &amp; subscription data...</span>
+                        <span className="font-semibold">Loading workers &amp; subscription data...</span>
                       </div>
                     </td>
                   </tr>
@@ -897,7 +909,7 @@ const AllWorkers = () => {
                     <td colSpan="6" className="px-4 py-12 text-center text-gray-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <FiBriefcase className="w-8 h-8 text-gray-300" />
-                        <span className="font-medium text-gray-500">No vendors found matching your filters.</span>
+                        <span className="font-medium text-gray-500">No workers found matching your filters.</span>
                       </div>
                     </td>
                   </tr>
@@ -1128,6 +1140,15 @@ const AllWorkers = () => {
                               <FiEye className="w-4 h-4" />
                             </button>
 
+                            {/* Availability (weekly days + leave) */}
+                            <button
+                              onClick={() => openAvailability(worker)}
+                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Manage Availability & Leave"
+                            >
+                              <FiCalendar className="w-4 h-4" />
+                            </button>
+
                             {/* Edit Worker */}
                             <button
                               onClick={() => handleOpenEdit(worker)}
@@ -1181,20 +1202,41 @@ const AllWorkers = () => {
         </div>
       </CardShell>
 
+      {/* Availability: weekly days + leave calendar */}
+      <Modal
+        isOpen={availabilityModal.open}
+        onClose={() => setAvailabilityModal((m) => ({ ...m, open: false }))}
+        title={`Availability — ${availabilityModal.worker?.name || ''}`}
+        size="sm"
+      >
+        <div className="p-6 overflow-y-auto">
+          {availabilityModal.loading || !availabilityModal.data ? (
+            <p className="py-10 text-center text-sm text-gray-400">Loading…</p>
+          ) : (
+            <AvailabilityEditor
+              isAdmin
+              data={availabilityModal.data}
+              saving={availabilityModal.saving}
+              onSave={saveAvailability}
+            />
+          )}
+        </div>
+      </Modal>
+
       {/* ======================================================== */}
       {/* MODAL 1: EDIT WORKER MODAL (Full Admin Edit Capability) */}
       {/* ======================================================== */}
       <Modal
         isOpen={editModal.isOpen}
         onClose={() => setEditModal({ isOpen: false, worker: null, formData: {}, isSubmitting: false })}
-        title="Edit Vendor Settings"
+        title="Edit Worker Settings"
         size="xl"
       >
         <form onSubmit={handleSaveEditWorker} className="space-y-4 text-xs">
-          {/* Row 1: Vendor Name & Phone Number */}
+          {/* Row 1: Worker Name & Phone Number */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Vendor Name</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Worker Name</label>
               <input
                 type="text"
                 required
@@ -1224,7 +1266,7 @@ const AllWorkers = () => {
                 className="w-full px-3 py-2 bg-gray-50/50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                Changing this resets phone verification — vendor re-verifies via OTP on next login.
+                Changing this resets phone verification — worker re-verifies via OTP on next login.
               </p>
             </div>
           </div>
@@ -1263,7 +1305,7 @@ const AllWorkers = () => {
             </div>
           </div>
 
-          {/* Vendor Account Active Checkbox */}
+          {/* Worker Account Active Checkbox */}
           <div className="pt-1">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -1277,17 +1319,17 @@ const AllWorkers = () => {
                 }
                 className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-xs font-semibold text-gray-800">Vendor Account Active</span>
+              <span className="text-xs font-semibold text-gray-800">Worker Account Active</span>
             </label>
             <p className="text-[11px] text-gray-400 mt-0.5 ml-6">
-              If disabled, the vendor will not be able to log in or receive jobs.
+              If disabled, the worker will not be able to log in or receive jobs.
             </p>
           </div>
 
-          {/* Row 3: Vendor Level & Tax Category */}
+          {/* Row 3: Worker Level & Tax Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Vendor Level</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Worker Level</label>
               <select
                 value={editModal.formData.mcqLevel || 'Level 1 — Premium / Expert (80%+ Rating)'}
                 onChange={(e) =>
@@ -1303,11 +1345,11 @@ const AllWorkers = () => {
                 <option value="Level 3 — Basic / Starter">Level 3 — Basic / Starter</option>
                 <option value="Not Certified">Not Certified</option>
               </select>
-              <p className="text-[11px] text-gray-400 mt-1">Directly upgrades/downgrades vendor ranking level manually.</p>
+              <p className="text-[11px] text-gray-400 mt-1">Directly upgrades/downgrades worker ranking level manually.</p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Vendor Type (Tax Category)</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Worker Type (Tax Category)</label>
               <select
                 value={editModal.formData.vendorType || 'Unregistered'}
                 onChange={(e) =>
@@ -1322,7 +1364,7 @@ const AllWorkers = () => {
                 <option value="Registered">Registered</option>
               </select>
               <p className="text-[11px] text-gray-400 mt-1">
-                Overrides the vendor's own registration choice. Determines which GST % (set in Settings) applies to their payouts going forward.
+                Overrides the worker's own registration choice. Determines which GST % (set in Settings) applies to their payouts going forward.
               </p>
             </div>
           </div>
@@ -1342,7 +1384,7 @@ const AllWorkers = () => {
               placeholder="15-CHARACTER GSTIN (OPTIONAL)"
               className="w-full px-3 py-2 bg-gray-50/50 border border-gray-200 rounded-lg text-xs uppercase focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-            <p className="text-[11px] text-gray-400 mt-1">Shown on the vendor's tax invoice. Leave blank to omit it.</p>
+            <p className="text-[11px] text-gray-400 mt-1">Shown on the worker's tax invoice. Leave blank to omit it.</p>
           </div>
 
           {/* Row 5: Assigned Operating Zones */}
@@ -1371,7 +1413,7 @@ const AllWorkers = () => {
                   }}
                   className="w-4 h-4 rounded text-blue-600"
                 />
-                <span>All Zones (Global Vendor)</span>
+                <span>All Zones (Global Worker)</span>
               </label>
               {zones.map((zone) => {
                 const zoneId = String(zone._id);
@@ -1402,10 +1444,41 @@ const AllWorkers = () => {
 
           {/* Row 6: Allowed Categories */}
           <div className="pt-2 border-t border-gray-200">
+            <label className="text-xs font-semibold text-gray-800">Allowed Booking Types</label>
+            <p className="text-[11px] text-gray-400 mb-2">Worker receives only the selected booking channels. You can enable both.</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'instant', label: 'Instant bookings', icon: '⚡' },
+                { value: 'slot', label: 'Slot bookings', icon: '📅' }
+              ].map((option) => {
+                const checked = (editModal.formData.bookingModes || ['slot']).includes(option.value);
+                return (
+                  <label key={option.value} className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer ${checked ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-white'}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => {
+                        const current = editModal.formData.bookingModes || ['slot'];
+                        const bookingModes = event.target.checked
+                          ? [...new Set([...current, option.value])]
+                          : current.filter((mode) => mode !== option.value);
+                        if (bookingModes.length === 0) return toast.error('Select at least one booking type');
+                        setEditModal((previous) => ({ ...previous, formData: { ...previous.formData, bookingModes } }));
+                      }}
+                    />
+                    <span className="text-sm">{option.icon}</span>
+                    <span className="text-xs font-bold text-gray-800">{option.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-gray-200">
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-gray-800">Allowed Categories</label>
               <span className="text-[11px] text-gray-400">
-                Select which categories this vendor is allowed to see and work in.
+                Select which categories this worker is allowed to see and work in.
               </span>
             </div>
 
@@ -1495,7 +1568,7 @@ const AllWorkers = () => {
             <div className="mb-2">
               <label className="text-xs font-semibold text-gray-800">Verification Documents</label>
               <p className="text-[11px] text-gray-400">
-                Locked for the vendor once approved — editable here at any time.
+                Locked for the worker once approved — editable here at any time.
               </p>
             </div>
 
@@ -1581,7 +1654,7 @@ const AllWorkers = () => {
                             onClick={() =>
                               setLightboxDoc({
                                 url: slot.val,
-                                title: `${editModal.formData.name || 'Vendor'} - ${slot.label}`
+                                title: `${editModal.formData.name || 'Worker'} - ${slot.label}`
                               })
                             }
                             className="px-2.5 py-1 bg-white/90 hover:bg-white text-gray-900 rounded text-xs font-bold shadow flex items-center gap-1"
@@ -1759,7 +1832,7 @@ const AllWorkers = () => {
       <Modal
         isOpen={addModal.isOpen}
         onClose={() => setAddModal((prev) => ({ ...prev, isOpen: false }))}
-        title="Add New Vendor / Worker"
+        title="Add New Worker"
         size="lg"
       >
         <form onSubmit={handleSaveAddWorker} className="space-y-4 text-xs">
@@ -1776,7 +1849,7 @@ const AllWorkers = () => {
                     formData: { ...prev.formData, name: e.target.value }
                   }))
                 }
-                placeholder="Vendor Name"
+                placeholder="Worker Name"
                 className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
@@ -1809,7 +1882,7 @@ const AllWorkers = () => {
                     formData: { ...prev.formData, email: e.target.value }
                   }))
                 }
-                placeholder="vendor@example.com"
+                placeholder="worker@example.com"
                 className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
@@ -1917,7 +1990,7 @@ const AllWorkers = () => {
                   Adding...
                 </>
               ) : (
-                'Onboard Vendor'
+                'Onboard Worker'
               )}
             </button>
           </div>
@@ -1933,7 +2006,7 @@ const AllWorkers = () => {
           setIsViewModalOpen(false);
           setSelectedWorker(null);
         }}
-        title={`Vendor Profile: ${selectedWorker?.name || ''}`}
+        title={`Worker Profile: ${selectedWorker?.name || ''}`}
         size="lg"
       >
         {selectedWorker && (
