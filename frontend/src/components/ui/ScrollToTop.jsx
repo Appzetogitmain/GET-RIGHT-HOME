@@ -26,9 +26,9 @@ const ScrollToTop = () => {
       setTimeout(goToTop, 100);
     } else if (action === 'POP') {
       // Back Navigation: Restore previous scroll position or target element
-      const lastElementId = sessionStorage.getItem(`last-clicked-id-${locationKey}`);
-      const lastSectionId = sessionStorage.getItem(`last-clicked-section-${locationKey}`);
-      const savedPosition = sessionStorage.getItem(`scrollPos-${locationKey}`);
+      const lastElementId = sessionStorage.getItem(`last-clicked-id-${locationKey}`) || sessionStorage.getItem('last-clicked-card-id');
+      const lastSectionId = sessionStorage.getItem(`last-clicked-section-${locationKey}`) || sessionStorage.getItem('last-clicked-section-id');
+      const savedPosition = sessionStorage.getItem(`scrollPos-${locationKey}`) || sessionStorage.getItem('last-page-scrollPos');
 
       const isReload =
         isFirstRunRef.current &&
@@ -150,18 +150,23 @@ const ScrollToTop = () => {
     // Global Click Tracker to save clicked element ID, section ID, and current scroll immediately
     const clickTracker = (e) => {
       const currentPos = window.lenis ? window.lenis.scroll : window.scrollY;
-      sessionStorage.setItem(`scrollPos-${locationKey}`, Math.round(currentPos || 0).toString());
+      const scrollVal = Math.round(currentPos || 0).toString();
+      sessionStorage.setItem(`scrollPos-${locationKey}`, scrollVal);
+      sessionStorage.setItem('last-page-scrollPos', scrollVal);
+      sessionStorage.setItem('last-page-locationKey', locationKey);
 
       // Check for card item ID
       const itemEl = e.target.closest('[id^="property-"], [id^="broker-"], [id^="builder-"], [id^="reel-"], [id^="video-"]');
       if (itemEl && itemEl.id) {
         sessionStorage.setItem(`last-clicked-id-${locationKey}`, itemEl.id);
+        sessionStorage.setItem('last-clicked-card-id', itemEl.id);
       }
 
       // Check for section container ID
       const section = e.target.closest('[id*="section"]');
       if (section && section.id) {
         sessionStorage.setItem(`last-clicked-section-${locationKey}`, section.id);
+        sessionStorage.setItem('last-clicked-section-id', section.id);
       }
     };
 

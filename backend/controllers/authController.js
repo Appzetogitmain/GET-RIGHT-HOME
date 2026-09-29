@@ -666,6 +666,10 @@ export const updateProfile = async (req, res) => {
     if (profileImage !== undefined) user.profileImage = profileImage;
     if (profileImagePublicId !== undefined) user.profileImagePublicId = profileImagePublicId;
 
+    if (req.body.bio !== undefined) user.bio = req.body.bio;
+    if (req.body.languages !== undefined) user.languages = Array.isArray(req.body.languages) ? req.body.languages : (req.body.languages ? req.body.languages.split(',').map(s => s.trim()) : []);
+    if (req.body.specialization !== undefined) user.specialization = Array.isArray(req.body.specialization) ? req.body.specialization : (req.body.specialization ? req.body.specialization.split(',').map(s => s.trim()) : []);
+
     if (req.body.isVip !== undefined) user.isVip = req.body.isVip;
     if (req.body.vipExpiry !== undefined) user.vipExpiry = req.body.vipExpiry;
 

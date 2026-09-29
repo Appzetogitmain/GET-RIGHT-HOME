@@ -93,7 +93,7 @@ const GRHHomeSection = ({ title, subtitle, availabilityFilter, searchCity, theme
   };
 
   return (
-    <div id={`grh-section-${cacheKey.replace(/\s+/g, '-')}`} className="pt-2 pb-6 border-b border-gray-100 last:border-0 relative">
+    <div id={`section-${availabilityFilter ? availabilityFilter.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'grh'}`} className="pt-2 pb-6 border-b border-gray-100 last:border-0 relative">
       {/* Section Header */}
       <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
         <div className="flex-1 min-w-0 pr-2">

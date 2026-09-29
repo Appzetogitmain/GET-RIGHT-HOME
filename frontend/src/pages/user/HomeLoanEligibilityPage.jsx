@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
-import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
+import { ChevronDown, ChevronUp, ArrowLeft, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import LoanLeadModal from '../../components/user/LoanLeadModal';
+import { createLoanLead } from '../../services/loanLeadService';
+import toast from 'react-hot-toast';
 
 const HomeLoanEligibilityPage = () => {
     const navigate = useNavigate();
@@ -28,6 +31,15 @@ const HomeLoanEligibilityPage = () => {
     // FAQ State
     const [activeFaqTab, setActiveFaqTab] = useState('Home Loan');
     const [openFaqIndex, setOpenFaqIndex] = useState(null);
+
+    // Loan Lead Modal State
+    const [showLoanModal, setShowLoanModal] = useState(false);
+    const [loanModalData, setLoanModalData] = useState({});
+
+    // Request Callback Form State
+    const [callbackForm, setCallbackForm] = useState({ name: '', email: '', phone: '' });
+    const [callbackSubmitting, setCallbackSubmitting] = useState(false);
+    const [callbackSuccess, setCallbackSuccess] = useState(false);
 
     const formatNumber = (num) => new Intl.NumberFormat('en-IN').format(num);
 
@@ -380,7 +392,29 @@ const HomeLoanEligibilityPage = () => {
                                 </div>
                             </div>
 
-                            <button className="w-full bg-[#1e88e5] hover:bg-[#1565c0] text-white py-3.5 rounded-md font-bold transition-colors">
+                            <button
+                                onClick={() => {
+                                    setLoanModalData({
+                                        leadSource: 'loan_eligibility',
+                                        sourcePage: 'Home Loan Eligibility',
+                                        loanAmount: eligibilityResult.maxLoan,
+                                        tenureYears: tenure,
+                                        interestRate: rate,
+                                        calculatedEmi: eligibilityResult.emi,
+                                        totalPayable: eligibilityResult.payable,
+                                        netMonthlyIncome: netIncome,
+                                        existingMonthlyEmi: existingEmi,
+                                        borrowerType: borrowers,
+                                        applicantAge: age,
+                                        applicantOccupation: occupation,
+                                        coBorrowerIncome: borrowers === 'Two' ? coIncome : 0,
+                                        coBorrowerEmi: borrowers === 'Two' ? coEmi : 0,
+                                        eligibilityMaxLoan: eligibilityResult.maxLoan,
+                                    });
+                                    setShowLoanModal(true);
+                                }}
+                                className="w-full bg-[#1e88e5] hover:bg-[#1565c0] text-white py-3.5 rounded-md font-bold transition-colors"
+                            >
                                 Apply for Loan
                             </button>
                         </div>
@@ -475,7 +509,22 @@ const HomeLoanEligibilityPage = () => {
                                 <span className="text-[13px] text-gray-500 font-medium">Total Payable amount</span>
                                 <div className="text-[20px] font-bold text-gray-800 mt-1">₹ {formatNumber(stdEmiResult.total)}</div>
                             </div>
-                            <button className="w-full bg-[#1e88e5] hover:bg-[#1565c0] text-white py-3.5 rounded-md font-bold transition-colors">
+                            <button
+                                onClick={() => {
+                                    setLoanModalData({
+                                        leadSource: 'instant_loan',
+                                        sourcePage: 'Home Loan Eligibility - EMI Section',
+                                        loanAmount: emiAmount,
+                                        tenureYears: emiTenure,
+                                        interestRate: emiRate,
+                                        calculatedEmi: stdEmiResult.emi,
+                                        totalPayable: stdEmiResult.total,
+                                        totalInterest: stdEmiResult.interest,
+                                    });
+                                    setShowLoanModal(true);
+                                }}
+                                className="w-full bg-[#1e88e5] hover:bg-[#1565c0] text-white py-3.5 rounded-md font-bold transition-colors"
+                            >
                                 Get instant loan
                             </button>
                         </div>
@@ -487,14 +536,50 @@ const HomeLoanEligibilityPage = () => {
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">Can't find any deal matching your criteria?</h2>
                     <p className="text-gray-500 mb-8">Leave your details and our experts will call you back with the best options.</p>
                     
-                    <div className="flex flex-col md:flex-row gap-4 w-full max-w-[800px]">
-                        <input type="text" placeholder="Full Name" className="flex-1 border border-gray-300 p-3 rounded-md outline-none focus:border-[#00a699]" />
-                        <input type="email" placeholder="Your Email Id" className="flex-1 border border-gray-300 p-3 rounded-md outline-none focus:border-[#00a699]" />
-                        <input type="text" placeholder="Mobile Number" className="flex-1 border border-gray-300 p-3 rounded-md outline-none focus:border-[#00a699]" />
-                    </div>
-                    <button className="mt-6 bg-[#1e88e5] hover:bg-[#1565c0] text-white py-3 px-10 rounded-md font-bold transition-colors">
-                        Request Callback
-                    </button>
+                    {callbackSuccess ? (
+                        <div className="text-emerald-600 font-bold text-lg py-4">✓ We've received your request. Our expert will call you shortly!</div>
+                    ) : (
+                        <>
+                            <div className="flex flex-col md:flex-row gap-4 w-full max-w-[800px]">
+                                <input type="text" placeholder="Full Name" value={callbackForm.name} onChange={(e) => setCallbackForm(prev => ({ ...prev, name: e.target.value }))} className="flex-1 border border-gray-300 p-3 rounded-md outline-none focus:border-[#00a699]" />
+                                <input type="email" placeholder="Your Email Id" value={callbackForm.email} onChange={(e) => setCallbackForm(prev => ({ ...prev, email: e.target.value }))} className="flex-1 border border-gray-300 p-3 rounded-md outline-none focus:border-[#00a699]" />
+                                <input type="text" placeholder="Mobile Number" value={callbackForm.phone} onChange={(e) => setCallbackForm(prev => ({ ...prev, phone: e.target.value }))} className="flex-1 border border-gray-300 p-3 rounded-md outline-none focus:border-[#00a699]" />
+                            </div>
+                            <button
+                                disabled={callbackSubmitting}
+                                onClick={async () => {
+                                    if (!callbackForm.phone.trim() || callbackForm.phone.trim().length < 10) {
+                                        toast.error('Please enter a valid mobile number');
+                                        return;
+                                    }
+                                    setCallbackSubmitting(true);
+                                    try {
+                                        const res = await createLoanLead({
+                                            name: callbackForm.name.trim(),
+                                            phone: callbackForm.phone.trim(),
+                                            email: callbackForm.email.trim(),
+                                            leadSource: 'request_callback',
+                                            sourcePage: 'Home Loan Eligibility - Request Callback',
+                                            loanAmount: eligibilityResult.maxLoan,
+                                            eligibilityMaxLoan: eligibilityResult.maxLoan,
+                                        });
+                                        if (res.success) {
+                                            setCallbackSuccess(true);
+                                            toast.success('Callback request submitted!');
+                                        }
+                                    } catch (err) {
+                                        toast.error(err.response?.data?.message || 'Failed to submit');
+                                    } finally {
+                                        setCallbackSubmitting(false);
+                                    }
+                                }}
+                                className="mt-6 bg-[#1e88e5] hover:bg-[#1565c0] disabled:opacity-50 text-white py-3 px-10 rounded-md font-bold transition-colors flex items-center gap-2"
+                            >
+                                {callbackSubmitting && <Loader2 size={16} className="animate-spin" />}
+                                Request Callback
+                            </button>
+                        </>
+                    )}
                 </div>
 
                 {/* 4. FAQs Section */}
@@ -539,6 +624,12 @@ const HomeLoanEligibilityPage = () => {
                 </div>
 
             </div>
+
+            <LoanLeadModal
+                isOpen={showLoanModal}
+                onClose={() => setShowLoanModal(false)}
+                leadData={loanModalData}
+            />
         </div>
     );
 };

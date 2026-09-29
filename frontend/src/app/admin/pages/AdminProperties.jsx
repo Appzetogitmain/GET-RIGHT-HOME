@@ -480,11 +480,9 @@ const AdminProperties = () => {
                                                             >
                                                                 <ExternalLink size={14} /> Preview
                                                             </a>
-                                                            {property.isAddedByAdmin && property.dynamicCategory && (
-                                                                <button onClick={() => navigate(`${basePath}/properties/add`, { state: { existingProperty: property } })} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
-                                                                    <Edit size={14} /> Edit Property
-                                                                </button>
-                                                            )}
+                                                            <button onClick={() => navigate(`${basePath}/properties/add`, { state: { existingProperty: property } })} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
+                                                                <Edit size={14} /> Edit Property
+                                                            </button>
                                                             {property.status === 'pending' && (
                                                                 <>
                                                                     <button onClick={() => handleAction('approve', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-green-50 text-[10px] font-bold uppercase text-green-700">

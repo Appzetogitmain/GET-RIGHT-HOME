@@ -3,22 +3,33 @@ import { Lightbulb, Calculator, Map, Building, IndianRupee, ArrowRight } from 'l
 import { useNavigate, useLocation } from 'react-router-dom';
 import PopularToolsModals from './PopularToolsModals';
 
-const PopularToolsSection = ({ hideViewAll = false }) => {
+const PopularToolsSection = ({ hideViewAll = false, vertical = false }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [activeTool, setActiveTool] = useState(null);
     const scrollRef = useRef(null);
 
-    // Restore horizontal scroll position
+    // Restore horizontal scroll position (only for horizontal mode)
     useEffect(() => {
-        const savedScroll = sessionStorage.getItem(`scroll-left-popular-tools-${location.pathname}`);
-        if (savedScroll && scrollRef.current) {
-            scrollRef.current.scrollLeft = parseInt(savedScroll, 10);
+        if (!vertical) {
+            const savedScroll = sessionStorage.getItem(`scroll-left-popular-tools-${location.pathname}`);
+            if (savedScroll && scrollRef.current) {
+                scrollRef.current.scrollLeft = parseInt(savedScroll, 10);
+            }
         }
-    }, [location.pathname]);
+    }, [location.pathname, vertical]);
 
     const handleScroll = (e) => {
-        sessionStorage.setItem(`scroll-left-popular-tools-${location.pathname}`, e.target.scrollLeft.toString());
+        if (!vertical) {
+            sessionStorage.setItem(`scroll-left-popular-tools-${location.pathname}`, e.target.scrollLeft.toString());
+        }
+    };
+
+    const handleToolClick = (id) => {
+        if (id === 'emi') navigate('/home-loan-emi-calculator');
+        else if (id === 'loan') navigate('/home-loan-eligibility-calculator');
+        else if (id === 'area') navigate('/area-converter');
+        else setActiveTool(id);
     };
 
     const tools = [
@@ -58,8 +69,8 @@ const PopularToolsSection = ({ hideViewAll = false }) => {
 
     return (
         <section id="popular-tools-section" className="mb-6 w-full md:px-0 scroll-mt-20">
-            <div className="bg-[#F4F7F9] md:rounded-3xl py-6 pl-6 border border-slate-100">
-                <div className="flex items-start justify-between mb-6 pr-6">
+            <div className={`bg-[#F4F7F9] md:rounded-3xl py-5 md:py-6 border border-slate-100 ${vertical ? 'px-4 sm:px-6' : 'pl-6'}`}>
+                <div className={`flex items-start justify-between mb-5 ${vertical ? '' : 'pr-6'}`}>
                     <div className="flex items-start gap-3 flex-1 min-w-0 pr-2">
                         <div className="w-10 h-10 bg-[#1A65EB] rounded-[10px] flex items-center justify-center text-white shadow-sm shrink-0">
                             <Lightbulb size={20} strokeWidth={2.5} />
@@ -79,37 +90,62 @@ const PopularToolsSection = ({ hideViewAll = false }) => {
                     )}
                 </div>
 
-                {/* Horizontally scrolling list on mobile, grid on desktop */}
-                <div 
-                    ref={scrollRef}
-                    onScroll={handleScroll}
-                    className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-4 scrollbar-hide pr-6"
-                >
-                    {tools.map(tool => (
-                        <div 
-                            key={tool.id} 
-                        onClick={() => {
-                            if (tool.id === 'emi') navigate('/home-loan-emi-calculator');
-                            else if (tool.id === 'loan') navigate('/home-loan-eligibility-calculator');
-                            else if (tool.id === 'area') navigate('/area-converter');
-                            else setActiveTool(tool.id);
-                        }}
-                            className="shrink-0 snap-center w-[200px] md:w-auto bg-white rounded-2xl p-5 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.1)] border border-slate-100 cursor-pointer hover:shadow-md transition-shadow group flex flex-col items-center text-center"
-                        >
-                            <div className={`w-[85px] h-[85px] rounded-full flex items-center justify-center mb-5 transition-transform group-hover:scale-105 ${tool.bgColor}`}>
-                                <div className={`w-[45px] h-[45px] rounded-2xl flex items-center justify-center ${tool.iconBg}`}>
-                                    {tool.icon}
+                {vertical ? (
+                    /* Vertical Stacked Cards on all viewports */
+                    <div className="flex flex-col gap-3.5">
+                        {tools.map(tool => (
+                            <div 
+                                key={tool.id} 
+                                onClick={() => handleToolClick(tool.id)}
+                                className="w-full bg-white rounded-2xl p-4 sm:p-5 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.06)] border border-slate-100 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all group flex items-center gap-4 active:scale-[0.99]"
+                            >
+                                <div className={`w-13 h-13 sm:w-14 sm:h-14 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${tool.bgColor}`}>
+                                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center">
+                                        {tool.icon}
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-[#0B1A3A] text-[15px] sm:text-[16px] group-hover:text-[#1A65EB] transition-colors flex items-center gap-1.5">
+                                        {tool.title}
+                                    </h3>
+                                    <p className="text-[12px] sm:text-[13px] text-slate-500 leading-relaxed mt-0.5">
+                                        {tool.subtitle}
+                                    </p>
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-[#1A65EB]/10 flex items-center justify-center text-slate-400 group-hover:text-[#1A65EB] shrink-0 transition-colors">
+                                    <ArrowRight size={16} />
                                 </div>
                             </div>
-                            <h3 className="font-bold text-[#0B1A3A] text-[15px] mb-2 flex items-center gap-1 group-hover:text-[#1A65EB] transition-colors">
-                                {tool.title} <ArrowRight size={16} />
-                            </h3>
-                            <p className="text-[12px] text-slate-500 leading-relaxed px-1">
-                                {tool.subtitle}
-                            </p>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                ) : (
+                    /* Horizontally scrolling list on mobile, grid on desktop */
+                    <div 
+                        ref={scrollRef}
+                        onScroll={handleScroll}
+                        className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-4 scrollbar-hide pr-6"
+                    >
+                        {tools.map(tool => (
+                            <div 
+                                key={tool.id} 
+                                onClick={() => handleToolClick(tool.id)}
+                                className="shrink-0 snap-center w-[200px] md:w-auto bg-white rounded-2xl p-5 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.1)] border border-slate-100 cursor-pointer hover:shadow-md transition-shadow group flex flex-col items-center text-center"
+                            >
+                                <div className={`w-[85px] h-[85px] rounded-full flex items-center justify-center mb-5 transition-transform group-hover:scale-105 ${tool.bgColor}`}>
+                                    <div className={`w-[45px] h-[45px] rounded-2xl flex items-center justify-center ${tool.iconBg}`}>
+                                        {tool.icon}
+                                    </div>
+                                </div>
+                                <h3 className="font-bold text-[#0B1A3A] text-[15px] mb-2 flex items-center gap-1 group-hover:text-[#1A65EB] transition-colors">
+                                    {tool.title} <ArrowRight size={16} />
+                                </h3>
+                                <p className="text-[12px] text-slate-500 leading-relaxed px-1">
+                                    {tool.subtitle}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <PopularToolsModals activeTool={activeTool} onClose={() => setActiveTool(null)} />

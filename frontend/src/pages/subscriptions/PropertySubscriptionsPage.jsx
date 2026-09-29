@@ -68,6 +68,7 @@ const PropertyPickerModal = ({ plan, properties, loading, onClose, onConfirm, su
     const toggle = (id) => {
         setSelected((prev) => {
             if (prev.includes(id)) return prev.filter((x) => x !== id);
+            if (limit === 1) return [id];
             if (prev.length >= limit) {
                 toast.error(`This plan covers up to ${limit} ${limit === 1 ? 'listing' : 'listings'}`);
                 return prev;
@@ -77,60 +78,121 @@ const PropertyPickerModal = ({ plan, properties, loading, onClose, onConfirm, su
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
+        <div 
+            className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
+            onClick={(e) => { if (e.target === e.currentTarget && !submitting) onClose(); }}
+        >
             <motion.div
                 initial={{ y: 40, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="bg-white w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl max-h-[85vh] flex flex-col"
+                exit={{ y: 40, opacity: 0 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="bg-white w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
             >
+                {/* Mobile drag handle */}
+                <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
+
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                     <div>
-                        <h3 className="font-black text-gray-900">Choose {limit === 1 ? 'a listing' : 'listings'}</h3>
-                        <p className="text-xs text-gray-400 font-medium">{plan.name} covers up to {limit}</p>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-black text-gray-900 text-base sm:text-lg">
+                                Choose {limit === 1 ? 'a listing' : 'listings'}
+                            </h3>
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {selected.length}/{limit} Selected
+                            </span>
+                        </div>
+                        <p className="text-xs text-gray-400 font-medium mt-0.5">
+                            {plan.name} covers up to {limit} {limit === 1 ? 'property' : 'properties'}
+                        </p>
                     </div>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200">
+                    <button 
+                        type="button"
+                        onClick={onClose} 
+                        disabled={submitting}
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors"
+                    >
                         <X size={16} />
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
                     {loading ? (
-                        <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-300" /></div>
+                        <div className="flex flex-col items-center justify-center py-12 gap-2 text-gray-400">
+                            <Loader2 className="animate-spin text-emerald-600" size={26} />
+                            <span className="text-xs font-medium">Loading your listings...</span>
+                        </div>
                     ) : available.length === 0 ? (
-                        <div className="text-center py-10 text-sm text-gray-400 font-medium">
-                            No eligible listings — every approved listing in this mode already has an active subscription.
+                        <div className="text-center py-12 px-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3 text-gray-400">
+                                <Home size={22} />
+                            </div>
+                            <h4 className="text-sm font-bold text-gray-800 mb-1">No Eligible Listings Found</h4>
+                            <p className="text-xs text-gray-400 font-medium max-w-xs mx-auto">
+                                Every approved listing in this mode already has an active subscription, or you haven't added any listings yet.
+                            </p>
                         </div>
                     ) : (
-                        available.map((p) => (
-                            <button
-                                key={p._id}
-                                onClick={() => toggle(p._id)}
-                                className={`w-full flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition ${selected.includes(p._id) ? 'border-emerald-400 bg-emerald-50' : 'border-gray-100 hover:border-gray-200'}`}
-                            >
-                                <img
-                                    src={p.coverImage || 'https://placehold.co/80x80?text=Property'}
-                                    alt=""
-                                    className="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0"
-                                />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold text-gray-900 truncate">{p.propertyName}</p>
-                                    <p className="text-[11px] text-gray-400 flex items-center gap-1 truncate">
-                                        <MapPin size={10} /> {p.address?.city || p.address?.locality || '—'}
-                                    </p>
-                                </div>
-                                {selected.includes(p._id) && <CheckCircle size={18} className="text-emerald-500 shrink-0" />}
-                            </button>
-                        ))
+                        available.map((p) => {
+                            const isSelected = selected.includes(p._id);
+                            return (
+                                <button
+                                    key={p._id}
+                                    type="button"
+                                    onClick={() => toggle(p._id)}
+                                    className={`w-full flex items-center gap-3.5 p-3 rounded-2xl border-2 text-left transition-all ${
+                                        isSelected 
+                                            ? 'border-emerald-500 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20' 
+                                            : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50/50'
+                                    }`}
+                                >
+                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
+                                        <img
+                                            src={p.coverImage || (p.images && p.images[0]) || 'https://placehold.co/80x80?text=Property'}
+                                            alt={p.propertyName || 'Property'}
+                                            onError={(e) => { e.currentTarget.src = 'https://placehold.co/80x80?text=Property'; }}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-gray-900 truncate">
+                                            {p.propertyName || p.title || 'Untitled Property'}
+                                        </p>
+                                        <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5 truncate">
+                                            <MapPin size={11} className="shrink-0 text-gray-400" />
+                                            <span className="truncate">{p.address?.city || p.address?.locality || p.locality || '—'}</span>
+                                        </p>
+                                    </div>
+                                    <div className="shrink-0">
+                                        {isSelected ? (
+                                            <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
+                                                <CheckCircle size={15} />
+                                            </div>
+                                        ) : (
+                                            <div className="w-6 h-6 rounded-full border-2 border-gray-300 hover:border-gray-400" />
+                                        )}
+                                    </div>
+                                </button>
+                            );
+                        })
                     )}
                 </div>
 
-                <div className="p-4 border-t border-gray-100">
+                <div className="p-4 sm:p-5 border-t border-gray-100 bg-white pb-6 sm:pb-5">
                     <button
+                        type="button"
                         disabled={selected.length === 0 || submitting}
                         onClick={() => onConfirm(selected)}
-                        className="w-full py-3.5 rounded-2xl text-sm font-black bg-gray-900 text-white disabled:opacity-40 hover:bg-black transition"
+                        className="w-full py-3.5 rounded-2xl text-sm font-black bg-gray-900 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-black transition flex items-center justify-center gap-2 shadow-lg shadow-gray-900/10 active:scale-[0.99]"
                     >
-                        {submitting ? 'Processing...' : `Continue with ${selected.length || 0} selected`}
+                        {submitting ? (
+                            <>
+                                <Loader2 size={16} className="animate-spin" />
+                                <span>Processing...</span>
+                            </>
+                        ) : (
+                            <span>Continue with {selected.length || 0} selected</span>
+                        )}
                     </button>
                 </div>
             </motion.div>
@@ -161,8 +223,15 @@ const PropertySubscriptionsPage = () => {
     // to '/' when there's no usable history. Same failure mode already fixed
     // in DynamicFormEngine's goBack; the fix here is the same: go somewhere
     // explicit and stable instead of trusting browser history.
-    const isBuilder = user?.role === 'builder' || user?.role === 'partner';
-    const backTo = isBuilder ? '/hotel/properties' : '/my-properties';
+    const isBuilder = user?.role === 'builder' || user?.userType === 'builder' || user?.role === 'partner' || user?.userType === 'partner';
+    
+    const handleBack = () => {
+        if (window.history.state && window.history.state.idx > 0) {
+            navigate(-1);
+        } else {
+            navigate(isBuilder ? '/hotel/properties' : '/my-properties', { replace: true });
+        }
+    };
 
     useEffect(() => { loadCatalog(mode); }, [mode]);
     useEffect(() => { loadMine(); }, []);
@@ -280,7 +349,7 @@ const PropertySubscriptionsPage = () => {
         <div className="min-h-screen bg-gray-50 pb-28">
             <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
                 <div className="flex items-center gap-4 px-4 py-4">
-                    <button onClick={() => navigate(backTo)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors">
+                    <button onClick={handleBack} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors">
                         <ArrowLeft size={18} className="text-gray-700" />
                     </button>
                     <div className="flex-1">

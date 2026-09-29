@@ -31,19 +31,41 @@ const AdminAddProperty = () => {
   const location = useLocation();
   const basePath = location.pathname.startsWith('/manager') ? '/manager' : '/admin';
   const navigate = useNavigate();
-  const existingProperty = location.state?.existingProperty;
+  const existingProperty = location.state?.existingProperty || location.state?.existingProject;
   const isEditing = !!existingProperty;
 
   const [loading, setLoading] = useState(false);
   const [configs, setConfigs] = useState([]);
   
   // Selection states
-  const [selectedTxn, setSelectedTxn] = useState(() => existingProperty?.transactionType || sessionStorage.getItem('adminPropTxn') || '');
-  const [selectedCat, setSelectedCat] = useState(() => existingProperty?.propertyCategory || sessionStorage.getItem('adminPropCat') || '');
-  const [selectedPropType, setSelectedPropType] = useState(() => existingProperty?.propertyType || sessionStorage.getItem('adminPropType') || '');
+  const [selectedTxn, setSelectedTxn] = useState(() => 
+    existingProperty?.transactionType || 
+    existingProperty?.dynamicData?.transactionType || 
+    existingProperty?.listingType ||
+    sessionStorage.getItem('adminPropTxn') || ''
+  );
+  const [selectedCat, setSelectedCat] = useState(() => 
+    existingProperty?.propertyCategory || 
+    existingProperty?.dynamicCategory?.name || 
+    existingProperty?.dynamicCategory?.displayName || 
+    existingProperty?.dynamicData?.propertyCategory || 
+    existingProperty?.dynamicData?.category ||
+    sessionStorage.getItem('adminPropCat') || ''
+  );
+  const [selectedPropType, setSelectedPropType] = useState(() => 
+    existingProperty?.propertyType || 
+    existingProperty?.dynamicData?.propertyType || 
+    sessionStorage.getItem('adminPropType') || ''
+  );
   
   const [creators, setCreators] = useState([]);
-  const [selectedCreator, setSelectedCreator] = useState(() => existingProperty?.userId || sessionStorage.getItem('adminPropCreator') || '');
+  const [selectedCreator, setSelectedCreator] = useState(() => 
+    existingProperty?.userId?._id || 
+    existingProperty?.userId || 
+    existingProperty?.partnerId?._id || 
+    existingProperty?.partnerId || 
+    sessionStorage.getItem('adminPropCreator') || ''
+  );
   const [creatorSearch, setCreatorSearch] = useState('');
   
   const [template, setTemplate] = useState(null);
@@ -56,9 +78,13 @@ const AdminAddProperty = () => {
   const [formData, setFormData] = useState(() => {
     if (isEditing) {
       const initialForm = {
-        ...existingProperty.dynamicData,
-        ...existingProperty.address,
-        propertyName: existingProperty.propertyName
+        ...(existingProperty.dynamicData || {}),
+        ...(existingProperty.address || {}),
+        propertyName: existingProperty.propertyName || existingProperty.dynamicData?.propertyName || '',
+        description: existingProperty.description || existingProperty.dynamicData?.description || '',
+        propertyImages: existingProperty.propertyImages || existingProperty.images || existingProperty.photos || [],
+        photos: existingProperty.photos || existingProperty.images || existingProperty.propertyImages || [],
+        coverImage: existingProperty.coverImage || ''
       };
       if (existingProperty.builderProjectDetails) {
         initialForm.bpd_possessionStatus = existingProperty.builderProjectDetails.possessionStatus || '';
@@ -71,6 +97,21 @@ const AdminAddProperty = () => {
           initialForm.bpd_currentPricePerSqft = existingProperty.builderProjectDetails.priceHistory.currentPricePerSqft || '';
           initialForm.bpd_appreciationLast3Years = existingProperty.builderProjectDetails.priceHistory.appreciationLast3Years || '';
         }
+      }
+      if (!initialForm.expectedPrice && (existingProperty.buyDetails?.expectedPrice || existingProperty.plotDetails?.expectedPrice || existingProperty.startingPrice || existingProperty.price)) {
+        initialForm.expectedPrice = existingProperty.buyDetails?.expectedPrice || existingProperty.plotDetails?.expectedPrice || existingProperty.startingPrice || existingProperty.price;
+      }
+      if (!initialForm.monthlyRent && (existingProperty.rentDetails?.monthlyRent || existingProperty.pgDetails?.monthlyRent)) {
+        initialForm.monthlyRent = existingProperty.rentDetails?.monthlyRent || existingProperty.pgDetails?.monthlyRent;
+      }
+      if (!initialForm.carpetArea && existingProperty.carpetArea) {
+        initialForm.carpetArea = existingProperty.carpetArea;
+      }
+      if (!initialForm.superArea && existingProperty.superArea) {
+        initialForm.superArea = existingProperty.superArea;
+      }
+      if (!initialForm.plotArea && (existingProperty.plotDetails?.plotArea || existingProperty.plotArea)) {
+        initialForm.plotArea = existingProperty.plotDetails?.plotArea || existingProperty.plotArea;
       }
       return initialForm;
     }
@@ -92,7 +133,8 @@ const AdminAddProperty = () => {
 
   const [isBuilderProject, setIsBuilderProject] = useState(() => {
     const hasDetails = existingProperty?.builderProjectDetails && Object.keys(existingProperty.builderProjectDetails).length > 0;
-    return !!(location.pathname.includes('/projects/add') || existingProperty?.builderProject || hasDetails || sessionStorage.getItem('adminPropIsBuilder') === 'true');
+    const isProjFlag = existingProperty?.isProject === true || existingProperty?.listingType === 'project';
+    return !!(location.pathname.includes('/projects/add') || isProjFlag || existingProperty?.builderProject || hasDetails || sessionStorage.getItem('adminPropIsBuilder') === 'true');
   });
 
   useEffect(() => {
@@ -1269,7 +1311,9 @@ const AdminAddProperty = () => {
         </button>
         <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
           <Layers className="text-[#004F4D]" size={24} />
-          Publish Property (Admin)
+          {isEditing 
+            ? (isBuilderProject ? 'Edit Project (Admin)' : 'Edit Property (Admin)') 
+            : (isBuilderProject ? 'Publish Project (Admin)' : 'Publish Property (Admin)')}
         </h2>
       </div>
 

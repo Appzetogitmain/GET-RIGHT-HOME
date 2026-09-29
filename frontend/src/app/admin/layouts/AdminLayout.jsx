@@ -196,6 +196,7 @@ const AdminLayout = () => {
         {
             title: 'FINANCE & GROWTH',
             items: [
+                { icon: ClipboardCheck, label: 'Loan Leads', path: '/admin/loan-leads' },
                 { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },
                 { icon: Tag, label: 'Offers & Coupons', path: '/admin/offers' },
                 { icon: Gift, label: 'Refer & Earn', path: '/admin/refer-earn' },

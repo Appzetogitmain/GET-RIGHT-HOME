@@ -216,6 +216,26 @@ const AddBrokerModal = ({ isOpen, onClose, onSuccess }) => {
                                 />
                             </div>
                         </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-tight mb-1">About / Bio (Optional)</label>
+                            <textarea
+                                rows={2}
+                                value={formData.bio || ''}
+                                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                                className="w-full px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-xs font-bold focus:bg-white focus:border-black outline-none transition-all resize-none"
+                                placeholder="Specialized in residential & commercial properties..."
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-tight mb-1">Languages (Optional)</label>
+                            <input
+                                type="text"
+                                value={formData.languages || ''}
+                                onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
+                                className="w-full px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-xs font-bold focus:bg-white focus:border-black outline-none transition-all"
+                                placeholder="English, Hindi, Kannada"
+                            />
+                        </div>
                         <div className="pt-4 flex gap-3">
                             <button
                                 type="button"

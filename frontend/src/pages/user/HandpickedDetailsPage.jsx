@@ -769,16 +769,55 @@ const HandpickedDetailsPage = () => {
   // Full Address Extractor
   const addr = property?.address || {};
   const fullAddressParts = [
-    addr.addressLine1 || addr.street || addr.landmark,
+    addr.fullAddress || addr.addressLine1 || addr.street || addr.landmark,
     addr.subLocality || addr.area,
     addr.locality,
+    addr.district,
     addr.city,
     addr.state,
     addr.pincode
   ].filter(Boolean);
-  const fullAddressStr = fullAddressParts.length > 0 
-    ? fullAddressParts.join(', ')
-    : (property?.location || property?.city || 'Location available upon request');
+
+  // Remove duplicate mentions (e.g. if fullAddress already includes Bengaluru)
+  const uniqueAddressParts = [];
+  fullAddressParts.forEach(part => {
+    if (typeof part === 'string' && part.trim() && !uniqueAddressParts.some(p => p.toLowerCase().includes(part.trim().toLowerCase()) || part.trim().toLowerCase().includes(p.toLowerCase()))) {
+      uniqueAddressParts.push(part.trim());
+    }
+  });
+
+  const fullAddressStr = addr.fullAddress 
+    ? addr.fullAddress 
+    : (uniqueAddressParts.length > 0 
+        ? uniqueAddressParts.join(', ')
+        : (property?.location?.fullAddress || property?.location || property?.city || 'Location available upon request'));
+
+  // Exact Coordinates / Search Query for Map
+  const mapCoordinates = (() => {
+    if (addr.lat && addr.lng && Number(addr.lat) !== 0 && Number(addr.lng) !== 0) return `${addr.lat},${addr.lng}`;
+    if (addr.coordinates?.lat && addr.coordinates?.lng && Number(addr.coordinates.lat) !== 0 && Number(addr.coordinates.lng) !== 0) return `${addr.coordinates.lat},${addr.coordinates.lng}`;
+    if (Array.isArray(property?.location?.coordinates) && property.location.coordinates.length === 2) {
+      // GeoJSON [lng, lat]
+      const [lng, lat] = property.location.coordinates;
+      if (lat && lng && Number(lat) !== 0 && Number(lng) !== 0) return `${lat},${lng}`;
+    }
+    return null;
+  })();
+
+  // If we have a full address with city and state, search that exact address to pin the true location accurately.
+  const cityStateStr = [addr.city || property?.city, addr.state].filter(Boolean).join(', ');
+  const mapSearchQuery = mapCoordinates || (
+    addr.fullAddress
+      ? (addr.fullAddress.toLowerCase().includes(cityStateStr.toLowerCase()) ? addr.fullAddress : `${addr.fullAddress}, ${cityStateStr}`)
+      : (fullAddressStr && fullAddressStr !== 'Location available upon request'
+          ? (fullAddressStr.toLowerCase().includes(cityStateStr.toLowerCase()) ? fullAddressStr : `${fullAddressStr}, ${cityStateStr}`)
+          : [property?.propertyName, cityStateStr].filter(Boolean).join(', '))
+  );
+
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAP_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+  const mapEmbedUrl = googleMapsApiKey
+    ? `https://www.google.com/maps/embed/v1/place?key=${googleMapsApiKey}&q=${encodeURIComponent(mapSearchQuery)}`
+    : `https://maps.google.com/maps?q=${encodeURIComponent(mapSearchQuery)}&z=15&output=embed`;
 
   const getCarpetOrPriceString = () => {
     let price = rawPrice;
@@ -1070,8 +1109,7 @@ const HandpickedDetailsPage = () => {
             </div>
             <button
               onClick={() => {
-                const query = encodeURIComponent([property?.propertyName, property?.address?.locality, property?.address?.city].filter(Boolean).join(', '));
-                window.open(`https://maps.google.com/?q=${query}`, '_blank');
+                window.open(`https://maps.google.com/?q=${encodeURIComponent(mapSearchQuery)}`, '_blank');
               }}
               className="w-1/2 flex flex-col items-center justify-center hover:bg-slate-50 transition-colors"
             >
@@ -1755,7 +1793,7 @@ const HandpickedDetailsPage = () => {
                     </div>
 
                     <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((property?.propertyName || '') + ' ' + fullAddressStr)}`}
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapSearchQuery)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-full sm:w-auto py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white text-xs font-extrabold rounded-xl shadow-md shadow-slate-600/20 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-[0.99]"
@@ -1773,7 +1811,7 @@ const HandpickedDetailsPage = () => {
                       style={{ border: 0 }}
                       loading="lazy"
                       allowFullScreen
-                      src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAP_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}&q=${encodeURIComponent((property?.propertyName || '') + ' ' + fullAddressStr)}`}
+                      src={mapEmbedUrl}
                     ></iframe>
                   </div>
                 </div>

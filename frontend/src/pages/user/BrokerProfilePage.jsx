@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { goBackOrHome } from '../../utils/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../services/apiService';
 import { 
     Phone, 
@@ -16,10 +16,17 @@ import {
     Handshake,
     ThumbsUp,
     ShieldCheck,
-    Check
+    Check,
+    User,
+    Clock,
+    Target,
+    Award,
+    Globe,
+    CheckCircle2,
+    Sparkles,
+    ChevronRight
 } from 'lucide-react';
 import PropertyFeed from '../../components/user/PropertyFeed';
-import { useEnquiryModal } from '../../context/EnquiryModalContext';
 import { useLeadCapture } from '../../hooks/useLeadCapture';
 
 const BrokerProfilePage = () => {
@@ -28,6 +35,7 @@ const BrokerProfilePage = () => {
     const [broker, setBroker] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState('about'); // 'about' | 'listings' | 'reviews' | 'areas' | 'activity'
     const { captureLeadAndExecute } = useLeadCapture();
 
     const handleContact = (actionType) => {
@@ -97,6 +105,12 @@ const BrokerProfilePage = () => {
         return diffYears > 0.5 ? diffYears.toFixed(1) : '0.5';
     };
 
+    const getWorkingSinceYear = (dateStr) => {
+        if (!dateStr) return new Date().getFullYear() - 1;
+        const d = new Date(dateStr);
+        return isNaN(d.getFullYear()) ? 2023 : d.getFullYear();
+    };
+
     const getLocationText = (b) => {
         const parts = [];
         if (b.address?.city) parts.push(b.address.city);
@@ -115,6 +129,16 @@ const BrokerProfilePage = () => {
             return b.languages.join(', ');
         }
         return 'English, Hindi, Kannada';
+    };
+
+    const getSpecializationText = (b) => {
+        if (b.specialization && Array.isArray(b.specialization) && b.specialization.length > 0) {
+            return b.specialization.join(', ');
+        }
+        if (b.propertyCategories && Array.isArray(b.propertyCategories) && b.propertyCategories.length > 0) {
+            return b.propertyCategories.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ');
+        }
+        return 'Residential, Commercial, Plots';
     };
 
     const getDealsClosed = (b) => {
@@ -150,32 +174,54 @@ const BrokerProfilePage = () => {
         }
     };
 
+    const tabs = [
+        { id: 'about', label: 'About', icon: User },
+        { id: 'listings', label: `Listings (${broker.totalListings || 0})`, icon: Building2 },
+        { id: 'areas', label: 'Areas', icon: MapPin },
+        { id: 'activity', label: 'Activity', icon: Clock }
+    ];
+
+    const bioText = broker.bio || broker.description || `Specialized in residential & commercial properties. Helping you find the right space with the best deals and smooth transactions across ${getLocationText(broker)}.`;
+
+    // Deduplicated and clean localities list
+    const rawAreas = [
+        ...(broker.expertLocalities || []),
+        ...(broker.address?.area ? [broker.address.area] : []),
+        ...(broker.expertCities || []),
+        ...(broker.address?.city ? [broker.address.city] : [])
+    ].filter(Boolean);
+
+    const expertAreas = Array.from(
+        new Map(rawAreas.map(a => [a.trim().toLowerCase(), a.trim()])).values()
+    );
+
     return (
         <div className="min-h-screen bg-gray-50/60 pb-24 md:pb-16">
-            {/* Top Hero Section with Luxury Dark Backdrop */}
-            <div className="relative bg-stone-900 text-white overflow-hidden">
-                {/* Background Image with Dark Gradient Tint */}
+            {/* Top Hero Section with Luxury Cozy Living Room Backdrop (Full-bleed on Mobile, Rounded on Desktop) */}
+            <div className="w-full sm:max-w-6xl sm:mx-auto sm:mt-4 sm:rounded-3xl overflow-hidden relative bg-stone-900 text-white shadow-xl">
+                {/* Background Living Room Interior Image */}
                 <div 
-                    className="absolute inset-0 bg-cover bg-center opacity-25 scale-105 transform filter blur-[1px]"
+                    className="absolute inset-0 bg-cover bg-center opacity-45 scale-105 transform filter blur-[0.5px]"
                     style={{
-                        backgroundImage: `url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80')`
+                        backgroundImage: `url('https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1600&q=80')`
                     }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-stone-950/95 via-stone-900/85 to-stone-900/80" />
+                {/* Warm Dark Gradient Overlay for optimal text readability */}
+                <div className="absolute inset-0 bg-gradient-to-r from-stone-950/85 via-stone-900/60 to-stone-900/40" />
 
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10 pt-3 sm:pt-4 pb-10 sm:pb-16 md:pb-20">
+                <div className="px-4 sm:px-6 relative z-10 pt-4 pb-14 md:pb-20">
                     {/* Navigation Top Bar */}
-                    <div className="flex justify-between items-center mb-3.5 sm:mb-6">
+                    <div className="flex justify-between items-center mb-3 sm:mb-6">
                         <button 
                             onClick={() => goBackOrHome(navigate)}
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all text-xs sm:text-sm font-semibold cursor-pointer"
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white backdrop-blur-md transition-all text-xs sm:text-sm font-semibold cursor-pointer"
                         >
                             <ArrowLeft size={16} />
                             <span>Back</span>
                         </button>
                         <button 
                             onClick={handleShare}
-                            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all cursor-pointer"
+                            className="p-2 rounded-full bg-white/15 hover:bg-white/25 text-white backdrop-blur-md transition-all cursor-pointer"
                             title="Share Profile"
                         >
                             <Share2 size={18} />
@@ -183,8 +229,8 @@ const BrokerProfilePage = () => {
                     </div>
 
                     {/* Main Profile Info Row */}
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 sm:gap-6">
-                        {/* Left Side: Avatar + Details (Side-by-side on all screens) */}
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3.5 sm:gap-6 mb-2 sm:mb-0">
+                        {/* Left Side: Avatar + Details */}
                         <div className="flex flex-row items-center sm:items-start text-left gap-3.5 sm:gap-6 min-w-0">
                             {/* Avatar with thick white border & Verified Badge */}
                             <div className="relative shrink-0">
@@ -242,21 +288,21 @@ const BrokerProfilePage = () => {
                         </div>
 
                         {/* Verified Broker Card */}
-                        <div className="bg-white text-gray-900 rounded-2xl p-3 sm:p-4 shadow-xl flex items-center justify-between sm:justify-start gap-3.5 border border-gray-100 w-full md:w-auto md:max-w-xs shrink-0 self-center md:self-auto">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-orange-50 border border-orange-100/80 flex items-center justify-center text-orange-500 shrink-0 shadow-xs">
-                                <ShieldCheck size={22} strokeWidth={2.2} className="sm:hidden" />
+                        <div className="bg-white text-gray-900 rounded-2xl p-2.5 sm:p-4 shadow-xl flex items-center justify-between sm:justify-start gap-3 sm:gap-3.5 border border-gray-100 w-full md:w-auto md:max-w-xs shrink-0 self-center md:self-auto">
+                            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-orange-50 border border-orange-100/80 flex items-center justify-center text-orange-500 shrink-0 shadow-xs">
+                                <ShieldCheck size={20} strokeWidth={2.2} className="sm:hidden" />
                                 <ShieldCheck size={26} strokeWidth={2.2} className="hidden sm:block" />
                             </div>
                             <div className="flex flex-col flex-1">
-                                <span className="font-extrabold text-sm sm:text-[15px] text-gray-900 leading-tight">
+                                <span className="font-extrabold text-xs sm:text-[15px] text-gray-900 leading-tight">
                                     Verified Broker
                                 </span>
-                                <div className="flex items-center gap-2 mt-0.5 text-[10px] sm:text-[11px] font-semibold text-gray-500">
+                                <div className="flex items-center gap-2 mt-0.5 text-[9px] sm:text-[11px] font-semibold text-gray-500">
                                     <span className="flex items-center gap-0.5">
-                                        <Check size={11} className="text-emerald-600 shrink-0" /> ID Verified
+                                        <Check size={10} className="text-emerald-600 shrink-0" /> ID Verified
                                     </span>
                                     <span className="flex items-center gap-0.5">
-                                        <Check size={11} className="text-emerald-600 shrink-0" /> Background Verified
+                                        <Check size={10} className="text-emerald-600 shrink-0" /> Background Verified
                                     </span>
                                 </div>
                             </div>
@@ -266,7 +312,7 @@ const BrokerProfilePage = () => {
             </div>
 
             {/* Floating White Stats & Action Card */}
-            <div className="max-w-5xl mx-4 sm:mx-auto relative z-20 -mt-8 sm:-mt-10 md:-mt-12">
+            <div className="max-w-5xl mx-3 sm:mx-auto relative z-20 -mt-6 sm:-mt-8 md:-mt-12">
                 <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-5 sm:p-7 md:p-8">
                     {/* 4 Stat Columns */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0 items-center">
@@ -362,47 +408,240 @@ const BrokerProfilePage = () => {
                 </div>
             </div>
 
-            {/* Localities & Bio Section (if available) */}
-            {broker.expertLocalities && broker.expertLocalities.length > 0 && (
-                <div className="max-w-5xl mx-4 sm:mx-auto mt-6 bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-xs">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 mb-3">
-                        Expert Localities
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                        {broker.expertLocalities.map((loc, idx) => (
-                            <span 
-                                key={idx} 
-                                className="flex items-center gap-1 bg-gray-50 text-gray-700 border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-bold"
+            {/* Navigation Tabs Bar (Exact Figma Mockup Underline Style) */}
+            <div className="max-w-5xl mx-4 sm:mx-auto mt-8 border-b border-gray-200">
+                <div className="flex items-center gap-6 sm:gap-10 overflow-x-auto no-scrollbar">
+                    {tabs.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-2 pb-3.5 text-xs sm:text-sm font-bold transition-all whitespace-nowrap relative cursor-pointer ${
+                                    isActive 
+                                        ? 'text-orange-500' 
+                                        : 'text-gray-500 hover:text-gray-800'
+                                }`}
                             >
-                                <MapPin size={12} className="text-gray-400" /> {loc}
-                            </span>
-                        ))}
-                    </div>
+                                <Icon size={16} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-orange-500' : 'text-gray-400'} />
+                                <span>{tab.label}</span>
+                                {isActive && (
+                                    <motion.div 
+                                        layoutId="activeTabIndicator"
+                                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full" 
+                                    />
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
-            )}
+            </div>
 
-            {/* Properties Feed Section */}
-            <div className="max-w-5xl mx-4 sm:mx-auto mt-8">
-                <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-1.5 h-5 bg-orange-500 rounded-full" />
-                        <h2 className="text-lg sm:text-xl font-black text-gray-900">
-                            Properties by {broker.name?.split(' ')[0] || 'Broker'}
-                        </h2>
-                    </div>
-                    <span className="bg-orange-50 text-orange-700 border border-orange-100 text-xs font-black px-2.5 py-1 rounded-full">
-                        {broker.totalListings || 0} Listings
-                    </span>
-                </div>
-                
-                {/* PropertyFeed filtered by broker._id */}
-                <PropertyFeed 
-                    viewMode="list" 
-                    extraFilters={{ userId: broker._id }} 
-                />
+            {/* Active Tab Content Container */}
+            <div className="max-w-5xl mx-4 sm:mx-auto mt-6">
+                <AnimatePresence mode="wait">
+                    {/* TAB 1: ABOUT (Matching Figma Layout) */}
+                    {activeTab === 'about' && (
+                        <motion.div
+                            key="about"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm"
+                        >
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                                {/* Left Content */}
+                                <div className="md:col-span-7 space-y-4">
+                                    <h3 className="text-xl sm:text-2xl font-black text-gray-900">
+                                        About {broker.name}
+                                    </h3>
+                                    <p className="text-gray-600 text-xs sm:text-sm leading-relaxed font-normal">
+                                        {bioText}
+                                    </p>
+
+                                    {/* Highlights Row with vertical divider */}
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-5 mt-4 border-t border-gray-100">
+                                        {/* Specialization */}
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full border border-gray-200 bg-gray-50/80 text-gray-600 flex items-center justify-center shrink-0 shadow-xs">
+                                                <Target size={18} strokeWidth={2.2} />
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 block leading-tight">
+                                                    Specialization
+                                                </span>
+                                                <span className="text-xs sm:text-sm font-black text-gray-800 leading-tight mt-0.5 block">
+                                                    {getSpecializationText(broker)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Vertical divider */}
+                                        <div className="hidden sm:block h-9 w-[1px] bg-gray-200" />
+
+                                        {/* Working Since */}
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full border border-gray-200 bg-gray-50/80 text-gray-600 flex items-center justify-center shrink-0 shadow-xs">
+                                                <Award size={18} strokeWidth={2.2} />
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 block leading-tight">
+                                                    Working Since
+                                                </span>
+                                                <span className="text-xs sm:text-sm font-black text-gray-800 leading-tight mt-0.5 block">
+                                                    {getWorkingSinceYear(broker.memberSince || broker.createdAt)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right 3D House Visual (Exact Figma Style) */}
+                                <div className="md:col-span-5 flex items-center justify-center">
+                                    <img 
+                                        src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=700&q=80" 
+                                        alt="Property Architecture"
+                                        className="w-full max-w-xs sm:max-w-sm h-48 sm:h-52 object-cover rounded-2xl shadow-md border border-gray-100"
+                                    />
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* TAB 2: LISTINGS */}
+                    {activeTab === 'listings' && (
+                        <motion.div
+                            key="listings"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="space-y-4"
+                        >
+                            <div className="mb-4 flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-1.5 h-5 bg-orange-500 rounded-full" />
+                                    <h2 className="text-lg sm:text-xl font-black text-gray-900">
+                                        Properties by {broker.name}
+                                    </h2>
+                                </div>
+                                <span className="bg-orange-50 text-orange-700 border border-orange-100 text-xs font-black px-3 py-1 rounded-full">
+                                    {broker.totalListings || 0} Listings
+                                </span>
+                            </div>
+
+                            {/* PropertyFeed for this broker */}
+                            <PropertyFeed 
+                                viewMode="list" 
+                                extraFilters={{ userId: broker._id }} 
+                            />
+                        </motion.div>
+                    )}
+
+                    {/* TAB: AREAS */}
+                    {activeTab === 'areas' && (
+                        <motion.div
+                            key="areas"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="space-y-6"
+                        >
+                            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm">
+                                <div className="flex items-center justify-between mb-5">
+                                    <div>
+                                        <h3 className="text-lg sm:text-xl font-black text-gray-900">
+                                            Expert Localities & Operating Areas
+                                        </h3>
+                                        <p className="text-xs text-gray-500 mt-0.5 font-medium">
+                                            Areas where {broker.name} has active listings and property expertise.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {expertAreas.length > 0 ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                        {expertAreas.map((area, idx) => (
+                                            <div 
+                                                key={idx}
+                                                className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-gray-50 hover:bg-orange-50 hover:border-orange-200 border border-gray-200/80 transition-all group"
+                                            >
+                                                <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                                                    <MapPin size={16} />
+                                                </div>
+                                                <span className="text-xs sm:text-sm font-bold text-gray-800 capitalize truncate">
+                                                    {area}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-400">
+                                        <MapPin size={32} className="mx-auto mb-2 text-gray-300" />
+                                        <p className="text-sm font-bold text-gray-600">Operating Region: {getLocationText(broker)}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* TAB 5: ACTIVITY */}
+                    {activeTab === 'activity' && (
+                        <motion.div
+                            key="activity"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="space-y-6"
+                        >
+                            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm">
+                                <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-6">
+                                    Broker Activity & Verified Milestones
+                                </h3>
+
+                                <div className="space-y-4">
+                                    <div className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                        <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                                            <ShieldCheck size={18} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-900">Verified Broker Badge Issued</h4>
+                                            <p className="text-xs text-gray-500 font-medium mt-0.5">Government ID & credentials verified by GetRightHome administration.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                        <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                            <Building2 size={18} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-900">{broker.totalListings || 0} Properties Listed</h4>
+                                            <p className="text-xs text-gray-500 font-medium mt-0.5">Actively managing real estate portfolios across {getLocationText(broker)}.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                        <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                                            <Handshake size={18} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-900">{getDealsClosed(broker)} Client Inquiries & Deals Facilitated</h4>
+                                            <p className="text-xs text-gray-500 font-medium mt-0.5">Maintaining high satisfaction with {broker.responseRate || '98%'} quick response rate.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );
 };
 
 export default BrokerProfilePage;
+

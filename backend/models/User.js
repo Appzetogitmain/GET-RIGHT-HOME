@@ -94,6 +94,19 @@ const userSchema = new mongoose.Schema({
       lng: { type: Number }
     }
   },
+  bio: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  languages: [{
+    type: String,
+    trim: true
+  }],
+  specialization: [{
+    type: String,
+    trim: true
+  }],
   addresses: [{
     type: { type: String, default: 'home' }, // 'home', 'work', 'other'
     addressLine1: { type: String, required: true },
