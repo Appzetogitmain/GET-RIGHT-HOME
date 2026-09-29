@@ -289,6 +289,9 @@ export const ensureIds = (catalog) => {
       homeOrder: Number.isFinite(c.homeOrder) ? c.homeOrder : 0,
       isEstimateBased: Boolean(c.isEstimateBased),
       isDirectService: Boolean(c.isDirectService),
+      bookingModes: Array.isArray(c.bookingModes) && c.bookingModes.length
+        ? c.bookingModes.filter((mode) => mode === 'instant' || mode === 'slot')
+        : ['slot'],
       // Preserve additional fields
       cityIds: c.cityIds || [],
       description: c.description || "",
@@ -310,6 +313,10 @@ export const ensureIds = (catalog) => {
       status: s.status || "active",
       isPopular: Boolean(s.isPopular),
       isFeatured: Boolean(s.isFeatured),
+      bookingModes: Array.isArray(s.bookingModes) && s.bookingModes.length
+        ? s.bookingModes.filter((mode) => mode === 'instant' || mode === 'slot')
+        : ['slot'],
+      isInstant: s.isInstant === true || (Array.isArray(s.bookingModes) && s.bookingModes.includes('instant')),
       routePath: s.slug ? `/user/${s.slug}` : (s.routePath || ""),
       page: {
         banners: Array.isArray(s.page?.banners)

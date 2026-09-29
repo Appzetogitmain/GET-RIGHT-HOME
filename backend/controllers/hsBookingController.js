@@ -20,6 +20,8 @@ import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
 import { createNotification } from './notificationControllers/notificationController.js';
 import { sendNotificationToUser, sendNotificationToWorker } from '../services/firebaseAdmin.js';
 import { findNearbyWorkers, geocodeAddress } from '../services/locationService.js';
+import { filterAvailableWorkers, findWorkerConflict, findWorkerUnavailability, checkSlotLeadTime, checkAdvanceWindow, isFutureIstDay, getSlotAvailability, getAdvanceBookingDays, istYmd, addDaysYmd } from '../utils/slotAvailability.js';
+import { generateTimeSlots } from '../utils/slotGenerator.js';
 
 
 import Zone from '../models/Zone.js';
@@ -27,6 +29,80 @@ import { getIO } from '../sockets.js';
 import { sendBookingEmails } from '../services/emailService.js';
 import { computeBookingPricing, pricingMatchesClient } from '../utils/bookingPricing.js';
 import referralService from '../services/referralService.js';
+import { syncWorkerCapacityStatus } from '../services/workerCapacityService.js';
+import { supportsBookingMode } from '../utils/bookingModes.js';
+
+/**
+ * Which dates/slots can be booked for a service at an address.
+ * A slot is offered only if at least one approved worker who provides this
+ * service in the address's zone is free for it (marked day, no leave, no clash
+ * with another job inside the buffer). Query: serviceId, lat, lng.
+ */
+const getSlotAvailabilityForUser = async (req, res) => {
+  try {
+    const { serviceId } = req.query;
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    if (!serviceId || Number.isNaN(lat) || Number.isNaN(lng)) {
+      return res.status(400).json({ success: false, message: 'serviceId, lat and lng are required' });
+    }
+
+    const [platform, advanceDays, hsSettings] = await Promise.all([
+      PlatformSettings.getSettings(),
+      getAdvanceBookingDays(),
+      Settings.findOne({ type: 'global' }).select('searchRadius').lean()
+    ]);
+    const hours = platform.operatingHours || {};
+    const slots = generateTimeSlots(hours.openingTime, hours.closingTime, hours.slotDuration, hours.slotInterval);
+    const today = istYmd(new Date());
+    const ymds = Array.from({ length: advanceDays }, (_, i) => addDaysYmd(today, i));
+    const base = { success: true, advanceBookingDays: advanceDays };
+
+    // Same zone gate as createBooking.
+    if (await Zone.countDocuments({ status: 'active' }) > 0) {
+      const zone = await Zone.findOne({
+        status: 'active',
+        area: { $geoIntersects: { $geometry: { type: 'Point', coordinates: [lng, lat] } } }
+      }).select('_id').lean();
+      if (!zone) {
+        return res.json({ ...base, serviceable: false, dates: ymds.map((date) => ({ date, available: false, slots: [] })) });
+      }
+    }
+
+    let service = null;
+    if (mongoose.Types.ObjectId.isValid(serviceId)) {
+      service = await Service.findById(serviceId).select('title categoryId categoryIds category').lean();
+    }
+    const categoryId = service?.categoryId || service?.categoryIds?.[0];
+    const category = categoryId ? await HomeServiceCategory.findById(categoryId).select('title slug').lean() : null;
+
+    const candidates = await findNearbyWorkers(
+      { lat, lng },
+      hsSettings?.searchRadius || 10,
+      {
+        service: category?.title || service?.category || req.query.category || 'General',
+        serviceName: service?.title,
+        categoryId: category?._id || categoryId,
+        slug: category?.slug,
+        bookingMode: 'slot',
+        includeOffline: true
+      }
+    );
+    const seen = new Set();
+    const workers = candidates.filter((w) => {
+      const id = String(w._id);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    const dates = await getSlotAvailability({ workers, ymds, slots });
+    res.json({ ...base, serviceable: true, dates });
+  } catch (error) {
+    console.error('[SlotAvailability] error:', error);
+    res.status(500).json({ success: false, message: 'Could not load slot availability' });
+  }
+};
 
 /**
  * Create a new booking
@@ -99,7 +175,7 @@ const createBooking = async (req, res) => {
     let user = await User.findById(userId).select('name phone wallet plans');
 
     if (mongoose.Types.ObjectId.isValid(serviceId)) {
-      service = await Service.findById(serviceId).select('title basePrice discountPrice description images iconUrl categoryId category categoryIds').lean();
+      service = await Service.findById(serviceId).select('title basePrice discountPrice description images iconUrl categoryId category categoryIds bookingModes isInstant').lean();
     } else if (String(serviceId).startsWith('estimate-') || (bookedItems && bookedItems.length > 0)) {
       const item = bookedItems && bookedItems[0] ? bookedItems[0] : {};
       const categoryMatch = await HomeServiceCategory.findOne({ title: reqServiceCategory }).select('_id title icon').lean();
@@ -134,7 +210,18 @@ const createBooking = async (req, res) => {
 
     // 2. Fetch Category if exists
     const categoryId = service.categoryId || service.categoryIds?.[0];
-    const category = categoryId ? await HomeServiceCategory.findById(categoryId).select('title icon image slug isEstimateBased').lean() : null;
+    const category = categoryId ? await HomeServiceCategory.findById(categoryId).select('title icon image slug isEstimateBased bookingModes').lean() : null;
+    const requestedBookingMode = bookingType === 'instant' ? 'instant' : 'slot';
+    const serviceSupportsMode = service.isEstimateBased
+      ? supportsBookingMode(category, requestedBookingMode)
+      : (requestedBookingMode === 'instant' && service.isInstant === true) || supportsBookingMode(service, requestedBookingMode);
+    if (!serviceSupportsMode) {
+      return res.status(400).json({
+        success: false,
+        code: 'BOOKING_MODE_NOT_ALLOWED',
+        message: `This service is not available for ${requestedBookingMode === 'instant' ? 'Instant' : 'Slot'} booking.`
+      });
+    }
 
     // Calculate total value from booked items or fallback to service base price
     if (totalServiceValue === 0) {
@@ -164,6 +251,18 @@ const createBooking = async (req, res) => {
       console.log('Geocoded address for partner search:', bookingLocation);
     }
 
+    // --- SAME-DAY LEAD TIME GATE ---
+    if (bookingType !== 'instant') {
+      const leadError = await checkSlotLeadTime({ scheduledDate, timeSlot });
+      if (leadError) {
+        return res.status(400).json({ success: false, code: 'SLOT_TOO_SOON', message: leadError });
+      }
+      const advanceError = await checkAdvanceWindow({ scheduledDate, timeSlot });
+      if (advanceError) {
+        return res.status(400).json({ success: false, code: 'SLOT_TOO_FAR', message: advanceError });
+      }
+    }
+
     // --- ZONE AVAILABILITY GATE ---
     // If the platform has active service zones configured, the booking
     // address must fall inside one of them. Previously this was only
@@ -172,9 +271,10 @@ const createBooking = async (req, res) => {
     // booking stuck in "searching" for 3 minutes before being told no
     // vendor was available. Reject upfront instead, before anything is
     // created or charged.
+    let matchingZone = null;
     const activeZoneCount = await Zone.countDocuments({ status: 'active' });
     if (activeZoneCount > 0) {
-      const matchingZone = await Zone.findOne({
+      matchingZone = await Zone.findOne({
         status: 'active',
         area: {
           $geoIntersects: {
@@ -203,7 +303,11 @@ const createBooking = async (req, res) => {
         service: category?.title || reqServiceCategory || (service ? service.category : 'General'),
         serviceName: service?.title,
         categoryId: category?._id || categoryId,
-        slug: category?.slug
+        slug: category?.slug,
+        bookingMode: bookingType === 'instant' ? 'instant' : 'slot',
+        // Future-day bookings also reach workers who are offline right now;
+        // their marked days / leave decide availability, not the toggle.
+        includeOffline: bookingType !== 'instant' && isFutureIstDay(scheduledDate)
       }
     );
 
@@ -215,6 +319,30 @@ const createBooking = async (req, res) => {
       uniquePartnerIds.add(idStr);
       return true;
     });
+
+    // --- SLOT BUFFER GATE ---
+    // Drop workers who already hold a job whose slot is within the admin-set
+    // buffer of the requested one. If the zone has workers but every one of
+    // them is tied up, a scheduled booking is rejected now instead of being
+    // accepted and then sitting unassigned.
+    const workersBeforeSlotCheck = nearbyPartners.length;
+    if (workersBeforeSlotCheck > 0 && bookingType !== 'instant') {
+      nearbyPartners = await filterAvailableWorkers(nearbyPartners, { scheduledDate, timeSlot });
+      if (nearbyPartners.length === 0) {
+        return res.status(409).json({
+          success: false,
+          code: 'SLOT_UNAVAILABLE',
+          message: 'Fully booked for this slot due to high demand. Please choose another slot or date.'
+        });
+      }
+    }
+
+    // Instant bookings: online/day-off/leave rules still apply. The shared
+    // capacity gate inside filterAvailableWorkers also removes every worker
+    // holding an accepted job until that work is marked done.
+    if (bookingType === 'instant' && nearbyPartners.length > 0) {
+      nearbyPartners = await filterAvailableWorkers(nearbyPartners, { scheduledDate: new Date(), timeSlot }, { ignoreBookings: true });
+    }
 
     console.log(`[CreateBooking] Found ${nearbyPartners.length} nearby ${bookingModel}s for booking`);
     // Store in a shared variable for background tasks
@@ -441,7 +569,9 @@ const createBooking = async (req, res) => {
       // isPlusAdded: isPlusAdded || false, // Removed
       paymentMethod: paymentMethod || null,
       status: bookingStatus,
-      paymentStatus: bookingPaymentStatus
+      paymentStatus: bookingPaymentStatus,
+      zoneId: matchingZone?._id || null,
+      zoneName: matchingZone?.name || address.city || null
       // notifiedVendors will be set after wave sorting
     });
 
@@ -510,29 +640,50 @@ const createBooking = async (req, res) => {
         }
 
         // Partners already found above
-        // WAVE-BASED ALERTING: Sort by distance and only notify first wave
-        const sortedPartners = foundPartners.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+        // WAVE-BASED ALERTING: Prioritize actively connected workers (app/dashboard open), then sort by distance
+        const io = getIO();
+        const isWorkerActiveOnSocket = (id) => {
+          if (!io) return false;
+          const room = io.sockets.adapter.rooms.get(`worker_${id}`);
+          return room ? room.size > 0 : false;
+        };
+        // Search and notification happen in different ticks. A worker may have
+        // accepted another job in between, so re-check global capacity before
+        // creating requests or emitting any alert.
+        const stillAvailablePartners = await filterAvailableWorkers(
+          foundPartners,
+          bookingForBackground,
+          { ignoreBookings: bookingForBackground.bookingType === 'instant' }
+        );
 
-        // Wave 1: First 3 partners
-        const WAVE_1_COUNT = 3;
-        const wave1Partners = sortedPartners.slice(0, WAVE_1_COUNT);
+        const sortedPartners = stillAvailablePartners.sort((a, b) => {
+          const aActive = isWorkerActiveOnSocket(a._id) ? 1 : 0;
+          const bActive = isWorkerActiveOnSocket(b._id) ? 1 : 0;
+          if (aActive !== bActive) {
+            return bActive - aActive; // Actively connected workers get priority in Wave 1
+          }
+          return (a.distance || 0) - (b.distance || 0);
+        });
+
+        // BROADCAST TO ALL IN-ZONE PARTNERS:
+        // As requested: all matching workers in the same zone receive the booking offer simultaneously
+        const targetPartners = sortedPartners;
 
         // Store potential workers in booking
-        bookingForBackground.potentialWorkers = sortedPartners.map(v => ({
+        bookingForBackground.potentialWorkers = targetPartners.map(v => ({
           workerId: v._id,
           distance: v.distance || 0
         }));
 
         bookingForBackground.currentWave = 1;
         bookingForBackground.waveStartedAt = new Date();
-        bookingForBackground.notifiedPartners = wave1Partners.map(v => v._id);
+        bookingForBackground.notifiedPartners = targetPartners.map(v => v._id);
+        bookingForBackground.notifiedWorkers = targetPartners.map(v => v._id);
         bookingForBackground.assignmentStatus = 'searching';
 
-        // Log wave 1 the same way the scheduler logs later waves, so the
-        // manual-assignment queue shows the FULL attempt history rather than
-        // starting from wave 2.
+        // Log attempt history for all notified workers
         bookingForBackground.assignmentAttempts = bookingForBackground.assignmentAttempts || [];
-        wave1Partners.forEach((p) => {
+        targetPartners.forEach((p) => {
           bookingForBackground.assignmentAttempts.push({
             workerId: p._id,
             waveNumber: 1,
@@ -553,42 +704,36 @@ const createBooking = async (req, res) => {
         const workerAmount = Math.max(0, parseFloat((((bookingForBackground.basePrice || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
         console.log(`[WorkerAmount Calc] basePrice: ${bookingForBackground.basePrice}, commission%: ${commissionPercentage}, workerAmount: ${workerAmount}`);
 
-        // The worker's response window is the admin-configurable
-        // Settings.waveDuration, not a hard-coded 60s — this alert is being
-        // sent right now (wave just started), so the full window is what's
-        // left. getPendingRequests already computes this correctly for the
-        // catch-up/poll path; this live socket push was still hard-coding
-        // 60s, so a worker's countdown showed 60s and auto-rejected the job
-        // long before the server's real (e.g. 5-minute) window actually
-        // expired.
         const waveSettings = await Settings.findOne({ type: 'global' }).select('waveDuration').lean();
         const responseWindowSec = waveSettings?.waveDuration || 300;
 
-        if (wave1Partners.length > 0) {
-          console.log(`[CreateBooking] Wave 1: Alerting ${wave1Partners.length} closest ${bookingModel}s (of ${sortedPartners.length} total)`);
+        if (targetPartners.length > 0) {
+          console.log(`[CreateBooking] Alerting ALL ${targetPartners.length} matching in-zone ${bookingModel}s simultaneously`);
 
-          // Create BookingRequest entries for Wave 1 partners
-          const bookingRequests = wave1Partners.map(partner => ({
+          // Create BookingRequest entries for ALL in-zone partners
+          const bookingRequests = targetPartners.map(partner => ({
             bookingId: bookingForBackground._id,
             workerId: partner._id,
             status: 'PENDING',
             wave: 1,
             distance: partner.distance || null,
             sentAt: new Date(),
-            expiresAt: new Date(Date.now() + 60 * 60 * 1000) // Expires in 1 hour
+            // Instant/same-day offers lapse in 1h; future-day ones stay open
+            // longer so an offline worker still sees them when they're back.
+            expiresAt: new Date(Date.now() + (bookingType !== 'instant' && isFutureIstDay(scheduledDate) ? 12 : 1) * 60 * 60 * 1000)
           }));
 
           try {
             await BookingRequest.insertMany(bookingRequests, { ordered: false });
-            console.log(`[CreateBooking] Created ${bookingRequests.length} BookingRequest entries for ${bookingModel}s`);
+            console.log(`[CreateBooking] Created ${bookingRequests.length} BookingRequest entries for in-zone ${bookingModel}s`);
 
-            // Notify partners about new job
-            for (const partner of wave1Partners) {
+            // Notify all in-zone partners about new job
+            for (const partner of targetPartners) {
               await createNotification({
                 workerId: partner._id,
                 type: 'new_job_available',
-                title: 'New Job Available!',
-                message: `A new ${bookingForBackground.serviceName} job is available near you. Earn ₹${workerAmount}!`,
+                title: 'New Job Available in Your Zone!',
+                message: `A new ${bookingForBackground.serviceName} job is available in your zone. Earn ₹${workerAmount}!`,
                 relatedId: bookingForBackground._id,
                 relatedType: 'booking',
                 priority: 'high',
@@ -620,9 +765,6 @@ const createBooking = async (req, res) => {
         } else {
           console.warn(`[CreateBooking] NO ${bookingModel.toUpperCase()}S FOUND on initial search for booking ${bookingForBackground.bookingNumber}. Will keep retrying for up to 3 minutes before giving up.`);
 
-          // Don't fail the booking immediately. Mark it as "still searching" with
-          // currentWave = 0 so the wave scheduler keeps re-running the nearby search
-          // in the background for up to 3 minutes before declaring "no vendor available".
           bookingForBackground.currentWave = 0;
           bookingForBackground.waveStartedAt = new Date();
           await bookingForBackground.save();
@@ -647,12 +789,10 @@ const createBooking = async (req, res) => {
           });
         }
 
-        // Send notifications to Wave 1 partners
-        const io = getIO();
-
+        // Send notifications to all target in-zone partners
         if (io) {
-          console.log(`[CreateBooking] Emitting Socket.IO events to ${wave1Partners.length} ${bookingModel}s in Wave 1...`);
-          wave1Partners.forEach(async (partner) => {
+          console.log(`[CreateBooking] Emitting Socket.IO events to all ${targetPartners.length} in-zone ${bookingModel}s...`);
+          targetPartners.forEach(async (partner) => {
             const partnerRoom = `${bookingModel}_${partner._id.toString()}`;
             io.to(partnerRoom).emit('new_booking_request', {
               bookingId: bookingForBackground._id,
@@ -661,7 +801,10 @@ const createBooking = async (req, res) => {
               customerPhone: userForBackground.phone,
               scheduledDate: scheduledDate,
               scheduledTime: scheduledTime,
-              price: workerAmount,
+              price: bookingForBackground.finalAmount || bookingForBackground.basePrice || workerAmount,
+              workerAmount: workerAmount,
+              workerEarnings: workerAmount,
+              totalAmount: bookingForBackground.finalAmount || bookingForBackground.basePrice,
               address: address,
               distance: partner.distance,
               serviceCategory: bookingForBackground.serviceCategory,
@@ -677,21 +820,21 @@ const createBooking = async (req, res) => {
               respondBySeconds: responseWindowSec,
               responseWindowSeconds: responseWindowSec,
               playSound: true,
-              message: `New booking request within ${partner.distance?.toFixed(1) || '?'}km!`
+              message: `New booking request in ${bookingForBackground.zoneName || 'your zone'}!`
             });
           });
           
-          // Notify user about Wave 1 searching
+          // Notify user about searching
           io.to(`user_${userId}`).emit('booking_updated', {
             bookingId: bookingForBackground._id,
             status: BOOKING_STATUS.SEARCHING,
-            message: `Searching professionals near you... (Wave 1)`
+            message: `Searching professionals in your zone...`
           });
         }
 
         // 2. Send Firebase/FCM notifications
         try {
-          const partnerNotifications = wave1Partners.map(partner =>
+          const partnerNotifications = targetPartners.map(partner =>
             createNotification({
               workerId: partner._id,
               type: 'booking_request',
@@ -707,7 +850,9 @@ const createBooking = async (req, res) => {
                 scheduledDate: scheduledDate,
                 scheduledTime: scheduledTime,
                 location: address,
-                price: workerAmount,
+                price: bookingForBackground.finalAmount || bookingForBackground.basePrice || workerAmount,
+                workerAmount: workerAmount,
+                totalAmount: bookingForBackground.finalAmount || bookingForBackground.basePrice,
                 distance: partner.distance
               },
               pushData: {
@@ -1085,6 +1230,14 @@ const cancelBooking = async (req, res) => {
     booking.cancellationReason = cancellationReason || 'Cancelled by user';
 
     await booking.save();
+    if (booking.workerId) {
+      const capacity = await syncWorkerCapacityStatus(booking.workerId);
+      getIO()?.to(`worker_${booking.workerId}`).emit('worker_capacity_changed', {
+        status: capacity?.status,
+        isBusy: capacity?.isBusy || false,
+        reason: 'booking_cancelled'
+      });
+    }
 
     // Find all pending booking requests for this booking to notify workers and clean up
     try {
@@ -1215,6 +1368,36 @@ const rescheduleBooking = async (req, res) => {
         success: false,
         message: 'Cannot reschedule cancelled booking'
       });
+    }
+
+    const leadError = await checkSlotLeadTime({ scheduledDate: new Date(scheduledDate), timeSlot });
+    if (leadError) {
+      return res.status(400).json({ success: false, code: 'SLOT_TOO_SOON', message: leadError });
+    }
+    const advanceError = await checkAdvanceWindow({ scheduledDate: new Date(scheduledDate), timeSlot });
+    if (advanceError) {
+      return res.status(400).json({ success: false, code: 'SLOT_TOO_FAR', message: advanceError });
+    }
+
+    // The assigned worker must still be free (with buffer) at the new time.
+    if (booking.workerId) {
+      const conflict = await findWorkerConflict(
+        booking.workerId,
+        { _id: booking._id, scheduledDate: new Date(scheduledDate), timeSlot },
+        { excludeBookingId: booking._id }
+      );
+      const unavailable = conflict || await findWorkerUnavailability(
+        booking.workerId,
+        { _id: booking._id, scheduledDate: new Date(scheduledDate), timeSlot },
+        { excludeBookingId: booking._id }
+      );
+      if (unavailable) {
+        return res.status(409).json({
+          success: false,
+          code: 'SLOT_UNAVAILABLE',
+          message: 'Your professional is not available at that time. Please choose a different time slot.'
+        });
+      }
     }
 
     // Update booking
@@ -1556,6 +1739,7 @@ const setTip = async (req, res) => {
 };
 
 export {
+  getSlotAvailabilityForUser,
   createBooking,
   getUserBookings,
   getBookingById,

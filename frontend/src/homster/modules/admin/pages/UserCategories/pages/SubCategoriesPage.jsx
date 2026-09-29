@@ -90,6 +90,7 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           isActive: svc.isActive !== false,
           isEstimateBased: svc.categoryId?.isEstimateBased || false,
           cityIds: (svc.cityIds || []).map(id => getStrId(id)).filter(Boolean),
+          bookingModes: svc.bookingModes?.length ? svc.bookingModes : (svc.categoryId?.bookingModes?.length ? svc.categoryId.bookingModes : ['slot']),
         }));
       } else {
         console.error('Sub-categories fetch failed:', subCategoriesRes);
@@ -100,7 +101,8 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           id: getStrId(cat.id || cat._id) || "",
           title: cat.title,
           slug: cat.slug,
-          isEstimateBased: cat.isEstimateBased || false
+          isEstimateBased: cat.isEstimateBased || false,
+          bookingModes: cat.bookingModes?.length ? cat.bookingModes : ['slot']
         }));
       } else {
         console.error('Categories fetch failed:', categoriesRes);
@@ -112,7 +114,8 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
               id: getStrId(cat.id || cat._id) || "",
               title: cat.title,
               slug: cat.slug,
-              isEstimateBased: cat.isEstimateBased || false
+              isEstimateBased: cat.isEstimateBased || false,
+              bookingModes: cat.bookingModes?.length ? cat.bookingModes : ['slot']
             }));
           }
         } catch (e) {
@@ -244,7 +247,8 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
         ...validationResult.data, 
         cityIds: form.cityIds, 
         imageUrl: form.iconUrl, 
-        bannerUrl: form.bannerUrl 
+        bannerUrl: form.bannerUrl,
+        bookingModes: categories.find((category) => String(category.id) === String(form.categoryId))?.bookingModes || ['slot']
       };
 
       if (editingId) {

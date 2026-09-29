@@ -36,6 +36,10 @@ const workerSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
+    nameOnAadhar: {
+      type: String,
+      trim: true
+    },
     document: {
       type: String, // Cloudinary URL (Front)
     },
@@ -61,6 +65,20 @@ const workerSchema = new mongoose.Schema({
       type: String, // Cloudinary URL
     }
   },
+  otherDocuments: [{
+    type: String // Cloudinary URLs
+  }],
+  vendorType: {
+    type: String,
+    enum: ['Registered', 'Unregistered'],
+    default: 'Unregistered'
+  },
+  gstin: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    default: null
+  },
   vendorId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Vendor',
@@ -74,6 +92,9 @@ const workerSchema = new mongoose.Schema({
   serviceCategories: [{
     type: String
   }],
+  // Admin-controlled channels. Legacy workers without this field remain
+  // slot-only until explicitly enabled for Instant or both.
+  bookingModes: [{ type: String, enum: ['instant', 'slot'] }],
   pendingServiceCategories: [{
     type: String
   }],
@@ -230,6 +251,32 @@ const workerSchema = new mongoose.Schema({
     default: false,
     index: true
   },
+  // Weekly availability the worker marks (0 = Sunday … 6 = Saturday). Only
+  // these weekdays are offered to customers when they pick a slot; specific
+  // days off are WorkerOfflineRequest leave records. Missing → every day.
+  availability: {
+    availableDays: { type: [Number], default: [0, 1, 2, 3, 4, 5, 6] },
+    // Specific dates (IST, YYYY-MM-DD) the worker has explicitly marked
+    // "available". Leave dates are WorkerOfflineRequest records. When the admin
+    // requires daily marking, a date that is in neither list takes no bookings.
+    availableDates: { type: [String], default: [] },
+    updatedAt: { type: Date, default: null }
+  },
+  // Approved offline schedule managed by admin
+  currentOfflineSchedule: {
+    requestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'WorkerOfflineRequest',
+      default: null
+    },
+    startDateTime: { type: Date, default: null },
+    endDateTime: { type: Date, default: null },
+    dateStr: { type: String, default: null },
+    startSlot: { type: String, default: null },
+    endSlot: { type: String, default: null },
+    reason: { type: String, default: null },
+    isActive: { type: Boolean, default: false }
+  },
   lastSeenAt: {
     type: Date,
     default: null
@@ -260,6 +307,29 @@ const workerSchema = new mongoose.Schema({
       type: String,
       default: null
     }
+  },
+  // Assigned Service Zones
+  zoneIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Zone'
+  }],
+  zones: [{
+    type: String,
+    trim: true
+  }],
+  // Business / Shop Details
+  businessName: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  mcqLevel: {
+    type: String,
+    default: 'Not Certified'
+  },
+  experienceYears: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

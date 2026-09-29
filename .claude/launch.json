@@ -4,15 +4,16 @@
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
-      "port": 5173,
+      "runtimeArgs": ["run", "dev", "--prefix", "frontend", "--", "--port", "5175", "--strictPort"],
+      "port": 5175,
+      "url": "http://localhost:5175",
       "autoPort": false
     },
     {
       "name": "backend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "backend"],
-      "port": 5001,
+      "port": 5056,
       "autoPort": false
     }
   ]

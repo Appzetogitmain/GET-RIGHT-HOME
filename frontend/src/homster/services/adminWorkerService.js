@@ -9,6 +9,17 @@ const adminWorkerService = {
     return response.data;
   },
 
+  /** Weekly days + leave calendar of a worker */
+  getWorkerAvailability: async (id) => {
+    const response = await api.get(`/admin/workers/${id}/availability`);
+    return response.data;
+  },
+
+  updateWorkerAvailability: async (id, payload) => {
+    const response = await api.put(`/admin/workers/${id}/availability`, payload);
+    return response.data;
+  },
+
   /**
    * Get specific worker details
    */
@@ -166,6 +177,54 @@ const adminWorkerService = {
    */
   removeWorkerSkill: async (id, category) => {
     const response = await api.delete(`/admin/workers/${id}/skills`, { data: { category } });
+    return response.data;
+  },
+
+  /**
+   * Force worker online immediately
+   */
+  forceWorkerOnline: async (id, data = {}) => {
+    const response = await api.post(`/admin/workers/${id}/force-online`, data);
+    return response.data;
+  },
+
+  /**
+   * Update worker details (admin edit)
+   */
+  updateWorker: async (id, data) => {
+    const response = await api.put(`/admin/workers/${id}`, data);
+    return response.data;
+  },
+
+  /**
+   * Assign or extend subscription plan for a worker
+   */
+  assignPlan: async (id, planData) => {
+    const response = await api.post(`/admin/workers/${id}/subscription`, planData);
+    return response.data;
+  },
+
+  /**
+   * Create worker directly by admin
+   */
+  createWorker: async (data) => {
+    const response = await api.post('/admin/workers', data);
+    return response.data;
+  },
+
+  /**
+   * Get all zones
+   */
+  getZones: async () => {
+    const response = await api.get('/admin/workers/zones');
+    return response.data;
+  },
+
+  /**
+   * Get all worker subscription plans
+   */
+  getWorkerPlans: async () => {
+    const response = await api.get('/admin/workers/plans');
     return response.data;
   }
 };

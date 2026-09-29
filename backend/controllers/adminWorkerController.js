@@ -8,6 +8,14 @@ import VendorBill from '../models/VendorBill.js';
 import { createNotification } from './notificationControllers/notificationController.js';
 import { BOOKING_STATUS } from '../utils/constants.js';
 import { safeRegex } from '../utils/escapeRegex.js';
+import { findWorkerConflict, findWorkerUnavailability, getBufferMinutes, describeConflict } from '../utils/slotAvailability.js';
+import BookingRequest from '../models/HomeServiceBookingRequest.js';
+import { getIO } from '../sockets.js';
+import { claimWorkerCapacity, syncWorkerCapacityStatus } from '../services/workerCapacityService.js';
+import { normalizeBookingModes, supportsBookingMode } from '../utils/bookingModes.js';
+
+import Zone from '../models/Zone.js';
+import WorkerSubscriptionPlan from '../models/WorkerSubscriptionPlan.js';
 
 // Buckets the raw BOOKING_STATUS values into the groups the admin dashboard
 // cards show. "Manual Assignment Required" is the status this dashboard exists
@@ -33,37 +41,347 @@ const JOB_STATUS_BUCKETS = {
 
 export const getAllWorkers = async (req, res) => {
   try {
-    const { search, approvalStatus } = req.query;
+    const { search, approvalStatus, zoneId, zone } = req.query;
     const query = {};
 
     if (search) {
+      const regex = { $regex: search, $options: 'i' };
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+        { name: regex },
+        { phone: regex },
+        { email: regex },
+        { businessName: regex },
+        { serviceCategories: regex }
       ];
     }
 
     if (approvalStatus && approvalStatus !== 'all') {
       if (approvalStatus === 'pending_skills') {
         query['pendingServiceCategories.0'] = { $exists: true };
+      } else if (approvalStatus === 'signup_only') {
+        query.approvalStatus = 'pending';
       } else {
         query.approvalStatus = approvalStatus;
       }
     }
 
-    const workers = await Worker.find(query).sort({ createdAt: -1 });
-    res.json({ success: true, data: workers });
+    if (zoneId && zoneId !== 'all') {
+      query.zoneIds = zoneId;
+    } else if (zone && zone !== 'all') {
+      query.zones = { $regex: zone, $options: 'i' };
+    }
+
+    const isFiltered = Boolean(search || (approvalStatus && approvalStatus !== 'all') || (zoneId && zoneId !== 'all') || (zone && zone !== 'all'));
+
+    const [workers, allZones, metaWorkers] = await Promise.all([
+      Worker.find(query)
+        .select('-aadhar.document -aadhar.backDocument -panCard.document -drivingLicense.document -documents -otherDocuments')
+        .populate('zoneIds', 'name status')
+        .populate('subscription.planId', 'title price durationDays features')
+        .sort({ createdAt: -1 })
+        .lean(),
+      Zone.find().select('_id name status').sort({ name: 1 }).lean(),
+      isFiltered ? Worker.find().select('approvalStatus pendingServiceCategories zoneIds zones').lean() : Promise.resolve(null)
+    ]);
+
+    // Build counts and zone summary from memory
+    const sourceForCounts = metaWorkers || workers;
+    const totalCount = sourceForCounts.length;
+    const pendingCount = sourceForCounts.filter(w => w.approvalStatus === 'pending').length;
+    const approvedCount = sourceForCounts.filter(w => w.approvalStatus === 'approved').length;
+    const rejectedCount = sourceForCounts.filter(w => w.approvalStatus === 'rejected').length;
+    const pendingSkillsCount = sourceForCounts.filter(w => w.pendingServiceCategories && w.pendingServiceCategories.length > 0).length;
+
+    const zonesSummary = [
+      { id: 'all', name: 'All Zones', count: totalCount },
+      ...allZones.map(z => {
+        const c = sourceForCounts.filter(w => {
+          const hasId = w.zoneIds && w.zoneIds.some(zid => String(zid?._id || zid) === String(z._id));
+          const hasName = w.zones && w.zones.some(zName => zName && zName.toLowerCase() === z.name.toLowerCase());
+          return hasId || hasName;
+        }).length;
+        return {
+          id: String(z._id),
+          name: z.name,
+          count: c
+        };
+      })
+    ];
+
+    // Compute formatted subscription details and days left
+    const now = new Date();
+    const formattedWorkers = workers.map(w => {
+      let daysLeft = 0;
+      let planTitle = 'NO PLAN';
+      let isPlanActive = false;
+
+      if (w.subscription) {
+        if (w.subscription.planId && w.subscription.planId.title) {
+          planTitle = w.subscription.planId.title;
+        } else if (w.subscription.planTitle) {
+          planTitle = w.subscription.planTitle;
+        }
+        if (w.subscription.expiryDate) {
+          const diffMs = new Date(w.subscription.expiryDate).getTime() - now.getTime();
+          daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+          isPlanActive = diffMs > 0 && w.subscription.isActive !== false;
+        }
+      }
+
+      return {
+        ...w,
+        subscription: {
+          ...w.subscription,
+          planTitle,
+          daysLeft,
+          isActive: isPlanActive
+        }
+      };
+    });
+
+    res.json({
+      success: true,
+      data: formattedWorkers,
+      counts: {
+        total: totalCount,
+        pending: pendingCount,
+        signupOnly: pendingCount,
+        approved: approvedCount,
+        rejected: rejectedCount,
+        pendingSkills: pendingSkillsCount
+      },
+      zonesSummary,
+      zones: allZones
+    });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateWorker = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      phone,
+      email,
+      businessName,
+      serviceCategories,
+      bookingModes,
+      zoneIds,
+      zones,
+      approvalStatus,
+      isActive,
+      isOnline,
+      mcqLevel,
+      experienceYears,
+      vendorType,
+      gstin,
+      profilePhoto,
+      nameOnAadhar,
+      aadharNumber,
+      panNumber,
+      documents,
+      otherDocuments
+    } = req.body;
+
+    const worker = await Worker.findById(id);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    if (name !== undefined) worker.name = name;
+    if (phone !== undefined) worker.phone = phone;
+    if (email !== undefined) worker.email = email || null;
+    if (businessName !== undefined) worker.businessName = businessName;
+    if (mcqLevel !== undefined) worker.mcqLevel = mcqLevel;
+    if (experienceYears !== undefined) worker.experienceYears = Number(experienceYears) || 0;
+    if (isActive !== undefined) worker.isActive = Boolean(isActive);
+    if (isOnline !== undefined) worker.isOnline = Boolean(isOnline);
+    if (vendorType !== undefined) worker.vendorType = vendorType;
+    if (gstin !== undefined) worker.gstin = gstin;
+    if (profilePhoto !== undefined) worker.profilePhoto = profilePhoto;
+
+    // Aadhar Card
+    if (!worker.aadhar) worker.aadhar = {};
+    if (nameOnAadhar !== undefined) worker.aadhar.nameOnAadhar = nameOnAadhar;
+    if (aadharNumber !== undefined) worker.aadhar.number = aadharNumber;
+    if (documents?.aadhar !== undefined) worker.aadhar.document = documents.aadhar;
+    if (documents?.aadharBack !== undefined) worker.aadhar.backDocument = documents.aadharBack;
+
+    // PAN Card
+    if (!worker.panCard) worker.panCard = {};
+    if (panNumber !== undefined) worker.panCard.number = panNumber;
+    if (documents?.pan !== undefined) worker.panCard.document = documents.pan;
+
+    // Driving License
+    if (!worker.drivingLicense) worker.drivingLicense = {};
+    if (documents?.drivingLicense !== undefined) worker.drivingLicense.document = documents.drivingLicense;
+
+    // Other documents
+    if (Array.isArray(otherDocuments)) {
+      worker.otherDocuments = otherDocuments;
+    } else if (documents?.other1 !== undefined || documents?.other2 !== undefined) {
+      const others = [documents?.other1, documents?.other2].filter(Boolean);
+      if (others.length > 0) worker.otherDocuments = others;
+    }
+
+    if (Array.isArray(serviceCategories)) {
+      worker.serviceCategories = serviceCategories;
+    }
+    if (bookingModes !== undefined) worker.bookingModes = normalizeBookingModes(bookingModes);
+
+    // Handle zones
+    if (Array.isArray(zoneIds)) {
+      worker.zoneIds = zoneIds;
+      const foundZones = await Zone.find({ _id: { $in: zoneIds } }).select('name');
+      worker.zones = foundZones.map(z => z.name);
+    } else if (Array.isArray(zones)) {
+      worker.zones = zones;
+    }
+
+    if (approvalStatus && ['pending', 'approved', 'rejected', 'suspended'].includes(approvalStatus)) {
+      worker.approvalStatus = approvalStatus;
+      if (approvalStatus === 'approved' && worker.pendingServiceCategories?.length > 0) {
+        worker.serviceCategories = Array.from(new Set([...(worker.serviceCategories || []), ...worker.pendingServiceCategories]));
+        worker.pendingServiceCategories = [];
+      }
+    }
+
+    await worker.save();
+
+    const updatedWorker = await Worker.findById(id)
+      .populate('zoneIds', 'name status')
+      .populate('subscription.planId', 'title price durationDays features');
+
+    res.json({
+      success: true,
+      message: 'Worker updated successfully',
+      data: updatedWorker
+    });
+  } catch (error) {
+    console.error('Update worker error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const assignWorkerPlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { planId, durationDays = 30, customPlanTitle } = req.body;
+
+    const worker = await Worker.findById(id);
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    let plan = null;
+    let daysToAdd = Number(durationDays) || 30;
+
+    if (planId) {
+      plan = await WorkerSubscriptionPlan.findById(planId);
+      if (plan && plan.durationDays) {
+        daysToAdd = Number(durationDays) || plan.durationDays;
+      }
+    }
+
+    const now = new Date();
+    // If worker already has an active subscription, extend from existing expiry date
+    const currentExpiry = (worker.subscription?.expiryDate && new Date(worker.subscription.expiryDate) > now)
+      ? new Date(worker.subscription.expiryDate)
+      : now;
+
+    const newExpiry = new Date(currentExpiry.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+
+    worker.subscription = {
+      isActive: true,
+      planId: plan ? plan._id : (worker.subscription?.planId || null),
+      startDate: worker.subscription?.startDate || now,
+      expiryDate: newExpiry,
+      transactionId: `ADMIN_${Date.now()}`
+    };
+
+    await worker.save();
+
+    const updated = await Worker.findById(id)
+      .populate('zoneIds', 'name status')
+      .populate('subscription.planId', 'title price durationDays features');
+
+    res.json({
+      success: true,
+      message: `Subscription plan ${plan?.title || customPlanTitle || ''} updated successfully until ${newExpiry.toLocaleDateString()}`,
+      data: updated
+    });
+  } catch (error) {
+    console.error('Assign plan error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const createWorkerByAdmin = async (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      email,
+      businessName,
+      password = 'Worker@123',
+      serviceCategories = [],
+      bookingModes = ['slot'],
+      zoneIds = [],
+      approvalStatus = 'approved'
+    } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, message: 'Name and phone are required' });
+    }
+
+    const existing = await Worker.findOne({ phone });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'A worker with this phone number already exists' });
+    }
+
+    // Lookup zones
+    let zoneNames = [];
+    if (zoneIds && zoneIds.length > 0) {
+      const foundZones = await Zone.find({ _id: { $in: zoneIds } }).select('name');
+      zoneNames = foundZones.map(z => z.name);
+    }
+
+    const newWorker = await Worker.create({
+      name,
+      phone,
+      email: email || null,
+      businessName: businessName || name,
+      password,
+      serviceCategories,
+      bookingModes: normalizeBookingModes(bookingModes),
+      zoneIds,
+      zones: zoneNames,
+      approvalStatus,
+      isActive: true,
+      isOnline: false
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Worker registered successfully by Admin',
+      data: newWorker
+    });
+  } catch (error) {
+    console.error('Create worker error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 export const getWorkerDetails = async (req, res) => {
   try {
-    const worker = await Worker.findById(req.params.id);
+    const worker = await Worker.findById(req.params.id)
+      .populate('zoneIds', 'name status')
+      .populate('subscription.planId', 'title price durationDays features')
+      .lean();
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
-    res.json({ success: true, worker });
+    res.json({ success: true, data: worker, worker });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -234,9 +552,13 @@ export const getAllJobs = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
-    const { status, search, startDate, endDate } = req.query;
+    const { status, search, startDate, endDate, bookingType } = req.query;
 
     const query = {};
+
+    if (bookingType && bookingType !== 'all') {
+      query.bookingType = bookingType.toLowerCase();
+    }
 
     if (status) {
       // Frontend sends the raw BOOKING_STATUS value (lowercase, e.g. "no_workers").
@@ -272,17 +594,24 @@ export const getAllJobs = async (req, res) => {
         $or: [{ name: searchRegex }, { phone: searchRegex }, { email: searchRegex }]
       }).select('_id');
 
+      const matchingWorkers = await Worker.find({
+        $or: [{ name: searchRegex }, { phone: searchRegex }]
+      }).select('_id');
+
       query.$or = [
         { bookingNumber: searchRegex },
-        { userId: { $in: users.map(u => u._id) } }
+        { userId: { $in: users.map(u => u._id) } },
+        { workerId: { $in: matchingWorkers.map(w => w._id) } }
       ];
     }
 
-    const [total, jobs, statsAgg, escalatedNotYetTerminal] = await Promise.all([
+    const [total, jobs, statsAgg, escalatedNotYetTerminal, instantCount, scheduledCount] = await Promise.all([
       HomeServiceBooking.countDocuments(query),
       HomeServiceBooking.find(query, null, { allowDiskUse: true })
         .populate('userId', 'name email phone')
-        .populate('workerId', 'name email phone')
+        .populate('workerId', 'name email phone profilePhoto rating')
+        .populate('vendorId', 'name businessName phone email profilePhoto')
+        .populate('zoneId', 'name status')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -296,7 +625,9 @@ export const getAllJobs = async (req, res) => {
       HomeServiceBooking.countDocuments({
         assignmentStatus: 'manual_assignment_required',
         status: { $nin: JOB_STATUS_BUCKETS.manualAssignmentRequired }
-      })
+      }),
+      HomeServiceBooking.countDocuments({ bookingType: 'instant' }),
+      HomeServiceBooking.countDocuments({ bookingType: 'scheduled' })
     ]);
 
     const countByStatus = Object.fromEntries(statsAgg.map(s => [s._id, s.count]));
@@ -307,13 +638,53 @@ export const getAllJobs = async (req, res) => {
       inProgress: bucketCount(JOB_STATUS_BUCKETS.inProgress),
       completed: bucketCount(JOB_STATUS_BUCKETS.completed),
       cancelled: bucketCount(JOB_STATUS_BUCKETS.cancelled),
+      instant: instantCount,
+      scheduled: scheduledCount,
       total: statsAgg.reduce((sum, s) => sum + s.count, 0)
     };
+
+    jobs.forEach(job => {
+      if (!job.zoneName) {
+        job.zoneName = job.zoneId?.name || job.address?.city || null;
+      }
+    });
 
     res.json({ success: true, data: jobs, total, page, limit, stats });
   } catch (error) {
     console.error("GET ALL JOBS ERROR:", error);
     res.status(500).json({ success: false, message: error.message, stack: error.stack });
+  }
+};
+
+export const getJobById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await HomeServiceBooking.findById(id)
+      .populate('userId', 'name phone email')
+      .populate('vendorId', 'name businessName phone email address profilePhoto')
+      .populate('serviceId', 'title description iconUrl images')
+      .populate('categoryId', 'title slug')
+      .populate('workerId', 'name phone rating totalJobs location profilePhoto')
+      .populate('zoneId', 'name status')
+      .lean();
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (!booking.zoneName) {
+      booking.zoneName = booking.zoneId?.name || booking.address?.city || null;
+    }
+
+    const bill = await VendorBill.findOne({ bookingId: booking._id });
+    if (bill) {
+      booking.bill = bill;
+    }
+
+    res.json({ success: true, data: booking });
+  } catch (error) {
+    console.error("GET JOB BY ID ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -647,6 +1018,7 @@ export const rejectWorkerWithdrawal = async (req, res) => {
 };
 
 export const assignWorkerToBooking = async (req, res) => {
+  let claimedWorkerId = null;
   try {
     const { id } = req.params;
     const { workerId } = req.body;
@@ -657,16 +1029,62 @@ export const assignWorkerToBooking = async (req, res) => {
     const worker = await Worker.findById(workerId);
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
 
+    const bookingMode = booking.bookingType === 'instant' ? 'instant' : 'slot';
+    if (!supportsBookingMode(worker, bookingMode)) {
+      return res.status(409).json({
+        success: false,
+        code: 'WORKER_BOOKING_MODE_NOT_ALLOWED',
+        message: `${worker.name} is not enabled for ${bookingMode === 'instant' ? 'Instant' : 'Slot'} bookings.`
+      });
+    }
+
     if (booking.status === BOOKING_STATUS.COMPLETED || booking.status === BOOKING_STATUS.CANCELLED) {
       return res.status(400).json({ success: false, message: `Cannot assign worker, booking is already ${booking.status}` });
     }
 
+    const unavailableMsg = await findWorkerUnavailability(worker._id, booking);
+    if (unavailableMsg) {
+      return res.status(409).json({ success: false, code: 'WORKER_UNAVAILABLE', message: unavailableMsg.replace('you have', 'the worker has').replace('you are', 'the worker is') });
+    }
+    const conflict = await findWorkerConflict(worker._id, booking);
+    if (conflict) {
+      return res.status(409).json({
+        success: false,
+        code: 'SLOT_CONFLICT',
+        message: describeConflict(conflict, await getBufferMinutes())
+      });
+    }
+
+    const capacity = await claimWorkerCapacity(worker._id, booking._id);
+    if (!capacity.claimed) {
+      return res.status(409).json({
+        success: false,
+        code: 'WORKER_BUSY',
+        message: capacity.activeJob
+          ? `${worker.name} is busy with booking #${capacity.activeJob.bookingNumber}.`
+          : `${worker.name} is currently busy.`
+      });
+    }
+    claimedWorkerId = worker._id;
+
+    const previousWorkerId = booking.workerId;
+
     booking.status = BOOKING_STATUS.ASSIGNED;
     booking.workerId = worker._id;
     booking.workerAcceptedAt = new Date();
+    booking.acceptedAt = new Date();
+    booking.assignedAt = new Date();
+    booking.assignmentStatus = 'assigned';
     booking.workerResponse = 'ADMIN_ASSIGNED';
+    // New worker → fresh pre-job reminder cycle.
+    booking.reminderSentAt = null;
+    booking.reminderConfirmedAt = null;
+    booking.reminderEscalatedAt = null;
     
     await booking.save();
+    if (previousWorkerId && String(previousWorkerId) !== String(worker._id)) {
+      await syncWorkerCapacityStatus(previousWorkerId);
+    }
 
     // Notify User
     await createNotification({
@@ -704,10 +1122,124 @@ export const assignWorkerToBooking = async (req, res) => {
         bookingId: booking._id,
         message: 'Admin assigned a new job to you.'
       });
+      io.to(`worker_${worker._id}`).emit('worker_capacity_changed', {
+        status: 'busy',
+        isBusy: true,
+        activeBookingId: booking._id.toString()
+      });
     }
 
     res.json({ success: true, message: 'Worker successfully assigned to booking', data: booking });
   } catch (error) {
+    if (claimedWorkerId) await syncWorkerCapacityStatus(claimedWorkerId).catch(() => {});
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Take a booking away from its current worker (e.g. one who ignored the
+ * pre-job reminder) and offer it to every other eligible worker again.
+ * The search restarts exactly like a brand-new booking, minus the worker being
+ * replaced; if nobody takes it, it falls back to the manual-assignment queue.
+ */
+export const rebroadcastBooking = async (req, res) => {
+  try {
+    const booking = await HomeServiceBooking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+
+    const rebroadcastable = [
+      BOOKING_STATUS.SEARCHING,
+      BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED,
+      BOOKING_STATUS.NO_WORKERS,
+      BOOKING_STATUS.NO_VENDORS,
+      BOOKING_STATUS.ASSIGNED,
+      BOOKING_STATUS.CONFIRMED,
+      BOOKING_STATUS.ACCEPTED
+    ];
+    if (!rebroadcastable.includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot re-broadcast a booking that is ${booking.status}`
+      });
+    }
+
+    const previousWorkerId = booking.workerId;
+    const reason = (req.body?.reason || '').trim() ||
+      (booking.reminderEscalatedAt ? 'Did not confirm the pre-job reminder' : 'Removed by admin');
+
+    if (previousWorkerId) {
+      booking.assignmentAttempts = booking.assignmentAttempts || [];
+      const attempt = booking.assignmentAttempts.find(
+        (a) => String(a.workerId) === String(previousWorkerId) && !['cancelled_by_worker', 'unconfirmed'].includes(a.outcome)
+      );
+      if (attempt) {
+        attempt.outcome = 'unconfirmed';
+        attempt.respondedAt = new Date();
+        attempt.reason = reason;
+      } else {
+        booking.assignmentAttempts.push({
+          workerId: previousWorkerId,
+          notifiedAt: new Date(),
+          respondedAt: new Date(),
+          outcome: 'unconfirmed',
+          reason
+        });
+      }
+    }
+
+    // Old offers (any worker, any wave) are void; the fresh search recreates them.
+    await BookingRequest.deleteMany({ bookingId: booking._id });
+
+    booking.workerId = null;
+    booking.status = BOOKING_STATUS.SEARCHING;
+    booking.assignmentStatus = 'searching';
+    booking.workerResponse = 'PENDING';
+    booking.currentWave = 0; // scheduler re-runs the geo search and starts wave 1
+    booking.waveStartedAt = new Date();
+    booking.potentialWorkers = [];
+    booking.notifiedWorkers = [];
+    booking.notifiedPartners = [];
+    booking.workerAcceptedAt = null;
+    booking.acceptedAt = null;
+    booking.assignedAt = null;
+    booking.reminderSentAt = null;
+    booking.reminderConfirmedAt = null;
+    booking.reminderEscalatedAt = null;
+    await booking.save();
+    if (previousWorkerId) {
+      const capacity = await syncWorkerCapacityStatus(previousWorkerId);
+      getIO()?.to(`worker_${previousWorkerId}`).emit('worker_capacity_changed', {
+        status: capacity?.status,
+        isBusy: capacity?.isBusy || false,
+        reason: 'booking_rebroadcast'
+      });
+    }
+
+    const io = getIO();
+    if (previousWorkerId) {
+      io?.to(`worker_${previousWorkerId}`).emit('job_cancelled', {
+        bookingId: booking._id.toString(),
+        message: `Booking #${booking.bookingNumber} has been reassigned to another professional`
+      });
+      createNotification({
+        workerId: previousWorkerId,
+        type: 'job_reassigned',
+        title: 'Job Reassigned',
+        message: `Booking #${booking.bookingNumber} was taken back because it wasn't confirmed in time.`,
+        relatedId: booking._id,
+        relatedType: 'booking',
+        priority: 'high'
+      }).catch(() => {});
+    }
+    io?.to(`user_${booking.userId}`).emit('booking_updated', {
+      bookingId: booking._id,
+      status: BOOKING_STATUS.SEARCHING,
+      message: 'We are assigning a service professional to your booking.'
+    });
+
+    res.json({ success: true, message: 'Booking re-broadcast to other professionals', data: booking });
+  } catch (error) {
+    console.error('Rebroadcast booking error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

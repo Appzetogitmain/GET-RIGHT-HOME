@@ -1506,7 +1506,13 @@ export const getPlatformSettings = async (req, res) => {
       searchRadius: hsSettings.searchRadius,
       waveDuration: hsSettings.waveDuration,
       maxSearchTime: hsSettings.maxSearchTime,
-      cancellationPenalty: hsSettings.cancellationPenalty
+      cancellationPenalty: hsSettings.cancellationPenalty,
+      bookingBufferMinutes: hsSettings.bookingBufferMinutes ?? 120,
+      jobReminderLeadMinutes: hsSettings.jobReminderLeadMinutes ?? 120,
+      jobReminderConfirmMinutes: hsSettings.jobReminderConfirmMinutes ?? 15,
+      advanceBookingDays: hsSettings.advanceBookingDays ?? 7,
+      workerLeaveAutoApprove: !!hsSettings.workerLeaveAutoApprove,
+      requireDailyAvailability: hsSettings.requireDailyAvailability !== false
     };
 
     res.status(200).json({ success: true, settings: merged });
@@ -1519,6 +1525,7 @@ export const updatePlatformSettings = async (req, res) => {
   try {
     const {
       platformOpen,
+      operatingHours,
       maintenanceMode,
       bookingDisabledMessage,
       maintenanceTitle,
@@ -1548,12 +1555,45 @@ export const updatePlatformSettings = async (req, res) => {
       searchRadius,
       waveDuration,
       maxSearchTime,
-      cancellationPenalty
+      cancellationPenalty,
+      bookingBufferMinutes,
+      jobReminderLeadMinutes,
+      jobReminderConfirmMinutes,
+      advanceBookingDays,
+      workerLeaveAutoApprove,
+      requireDailyAvailability
     } = req.body;
 
     const settings = await PlatformSettings.getSettings();
 
     if (typeof platformOpen === 'boolean') settings.platformOpen = platformOpen;
+    if (operatingHours && typeof operatingHours === 'object') {
+      if (!settings.operatingHours) settings.operatingHours = {};
+      if (typeof operatingHours.isOpen === 'boolean') settings.operatingHours.isOpen = operatingHours.isOpen;
+      if (typeof operatingHours.openingTime === 'string') settings.operatingHours.openingTime = operatingHours.openingTime;
+      if (typeof operatingHours.closingTime === 'string') settings.operatingHours.closingTime = operatingHours.closingTime;
+      if (operatingHours.slotDuration !== undefined) {
+        const duration = Number(operatingHours.slotDuration);
+        if (!Number.isFinite(duration) || duration < 15 || duration > 480) {
+          return res.status(400).json({ success: false, message: 'Slot duration must be between 15 and 480 minutes' });
+        }
+        settings.operatingHours.slotDuration = Math.round(duration);
+      }
+      if (operatingHours.slotInterval !== undefined) {
+        const interval = Number(operatingHours.slotInterval);
+        if (!Number.isFinite(interval) || interval < 0 || interval > 480 || (interval > 0 && interval < 5)) {
+          return res.status(400).json({ success: false, message: 'Slot interval must be 0 (same as duration) or between 5 and 480 minutes' });
+        }
+        settings.operatingHours.slotInterval = Math.round(interval);
+      }
+      if (operatingHours.sameDayLeadMinutes !== undefined) {
+        const leadMin = Number(operatingHours.sameDayLeadMinutes);
+        if (!Number.isFinite(leadMin) || leadMin < 0 || leadMin > 1440) {
+          return res.status(400).json({ success: false, message: 'Same-day lead time must be between 0 and 1440 minutes' });
+        }
+        settings.operatingHours.sameDayLeadMinutes = Math.round(leadMin);
+      }
+    }
     if (typeof maintenanceMode === 'boolean') settings.maintenanceMode = maintenanceMode;
     if (typeof bookingDisabledMessage === 'string') settings.bookingDisabledMessage = bookingDisabledMessage;
     if (typeof maintenanceTitle === 'string') settings.maintenanceTitle = maintenanceTitle;
@@ -1597,6 +1637,36 @@ export const updatePlatformSettings = async (req, res) => {
     if (waveDuration !== undefined) hsSettings.waveDuration = Number(waveDuration);
     if (maxSearchTime !== undefined) hsSettings.maxSearchTime = Number(maxSearchTime);
     if (cancellationPenalty !== undefined) hsSettings.cancellationPenalty = Number(cancellationPenalty);
+    if (bookingBufferMinutes !== undefined) {
+      const buffer = Number(bookingBufferMinutes);
+      if (!Number.isFinite(buffer) || buffer < 0 || buffer > 1440) {
+        return res.status(400).json({ success: false, message: 'Booking buffer must be between 0 and 1440 minutes' });
+      }
+      hsSettings.bookingBufferMinutes = Math.round(buffer);
+    }
+    if (jobReminderLeadMinutes !== undefined) {
+      const lead = Number(jobReminderLeadMinutes);
+      if (!Number.isFinite(lead) || lead < 1 || lead > 1440) {
+        return res.status(400).json({ success: false, message: 'Reminder lead time must be between 1 and 1440 minutes' });
+      }
+      hsSettings.jobReminderLeadMinutes = Math.round(lead);
+    }
+    if (advanceBookingDays !== undefined) {
+      const adv = Number(advanceBookingDays);
+      if (!Number.isFinite(adv) || adv < 1 || adv > 60) {
+        return res.status(400).json({ success: false, message: 'Advance booking window must be between 1 and 60 days' });
+      }
+      hsSettings.advanceBookingDays = Math.round(adv);
+    }
+    if (typeof workerLeaveAutoApprove === 'boolean') hsSettings.workerLeaveAutoApprove = workerLeaveAutoApprove;
+    if (typeof requireDailyAvailability === 'boolean') hsSettings.requireDailyAvailability = requireDailyAvailability;
+    if (jobReminderConfirmMinutes !== undefined) {
+      const confirm = Number(jobReminderConfirmMinutes);
+      if (!Number.isFinite(confirm) || confirm < 1 || confirm > 240) {
+        return res.status(400).json({ success: false, message: 'Reminder confirmation window must be between 1 and 240 minutes' });
+      }
+      hsSettings.jobReminderConfirmMinutes = Math.round(confirm);
+    }
     await hsSettings.save();
 
     const merged = {
@@ -1604,7 +1674,13 @@ export const updatePlatformSettings = async (req, res) => {
       searchRadius: hsSettings.searchRadius,
       waveDuration: hsSettings.waveDuration,
       maxSearchTime: hsSettings.maxSearchTime,
-      cancellationPenalty: hsSettings.cancellationPenalty
+      cancellationPenalty: hsSettings.cancellationPenalty,
+      bookingBufferMinutes: hsSettings.bookingBufferMinutes ?? 120,
+      jobReminderLeadMinutes: hsSettings.jobReminderLeadMinutes ?? 120,
+      jobReminderConfirmMinutes: hsSettings.jobReminderConfirmMinutes ?? 15,
+      advanceBookingDays: hsSettings.advanceBookingDays ?? 7,
+      workerLeaveAutoApprove: !!hsSettings.workerLeaveAutoApprove,
+      requireDailyAvailability: hsSettings.requireDailyAvailability !== false
     };
 
     res.status(200).json({ success: true, settings: merged });

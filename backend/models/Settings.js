@@ -79,6 +79,52 @@ const settingsSchema = new mongoose.Schema({
     default: 180, // 3 minutes
     min: 30
   },
+  // Minimum gap (minutes) a worker needs between two jobs. A worker holding a
+  // slot is not offered / cannot accept another slot that starts within this
+  // many minutes before its start or after its end. 0 disables the buffer
+  // (exact overlaps are still blocked).
+  bookingBufferMinutes: {
+    type: Number,
+    default: 120,
+    min: 0,
+    max: 1440
+  },
+  // How many days ahead (including today) a customer can schedule a service.
+  advanceBookingDays: {
+    type: Number,
+    default: 7,
+    min: 1,
+    max: 60
+  },
+  // When true, a worker's marked leave days take effect immediately; when
+  // false they wait for admin approval (and only approved leave blocks slots).
+  // When true, a worker must explicitly mark each upcoming date as Available
+  // (or Leave). Dates left unmarked receive no bookings. When false, the
+  // weekly-days pattern covers dates they haven't marked.
+  requireDailyAvailability: {
+    type: Boolean,
+    default: true
+  },
+  workerLeaveAutoApprove: {
+    type: Boolean,
+    default: false
+  },
+  // Pre-job reminder: this many minutes before an assigned job starts, the
+  // worker gets a popup asking them to confirm they're on their way.
+  jobReminderLeadMinutes: {
+    type: Number,
+    default: 120,
+    min: 1,
+    max: 1440
+  },
+  // How long the worker has to confirm that reminder before ops is alerted
+  // and can re-broadcast the booking to other workers.
+  jobReminderConfirmMinutes: {
+    type: Number,
+    default: 15,
+    min: 1,
+    max: 240
+  },
   searchRadius: {
     type: Number,
     default: 10, // 10 km default search radius

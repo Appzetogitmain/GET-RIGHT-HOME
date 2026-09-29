@@ -172,7 +172,7 @@ const HomeServicesPage = () => {
                 // 2. Fetch Categories
                 try {
                     const cityId = currentCity?._id || currentCity?.id;
-                    const catRes = await publicCatalogService.getCategories(cityId);
+                    const catRes = await publicCatalogService.getCategories(cityId, 'slot');
                     if (catRes?.success) {
                         const allCats = catRes.categories || [];
                         const stdCats = allCats.filter(c => !c.isDirectService);
@@ -187,7 +187,8 @@ const HomeServicesPage = () => {
                             try {
                                 const res = await publicCatalogService.getSubCategories({
                                     categoryId: cat._id || cat.id,
-                                    cityId
+                                    cityId,
+                                    bookingMode: 'slot'
                                 });
                                 if (res.success) {
                                     subCategoriesMap[cat._id || cat.id] = res.subCategories || [];
@@ -210,7 +211,7 @@ const HomeServicesPage = () => {
                 // 4. Fetch Instant Booking services (admin-flagged via "Show in
                 // Instant Booking" on a service) — replaces the old hardcoded card list.
                 try {
-                    const instantRes = await publicCatalogService.getServices({ instant: true });
+                    const instantRes = await publicCatalogService.getServices({ bookingMode: 'instant' });
                     if (instantRes?.success) {
                         setInstantServices(instantRes.services || []);
                     }

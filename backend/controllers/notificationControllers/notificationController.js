@@ -18,7 +18,18 @@ export const createNotification = async (data) => {
       dbData.userId = dbData.vendorId;
       dbData.userType = 'partner';
       dbData.userModel = 'Partner';
-      
+    } else if (!dbData.userId && (dbData.recipientType === 'admin' || dbData.userType === 'admin')) {
+      try {
+        const Admin = (await import('../../models/Admin.js')).default;
+        const admin = await Admin.findOne();
+        if (admin) {
+          dbData.userId = admin._id;
+          dbData.userType = 'admin';
+          dbData.userModel = 'Admin';
+        }
+      } catch (adminErr) {
+        console.warn('Could not find admin user for notification:', adminErr.message);
+      }
     } else if (!dbData.userType) {
       dbData.userType = 'user';
       dbData.userModel = 'User';

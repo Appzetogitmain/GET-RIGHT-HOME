@@ -17,6 +17,7 @@ import { userAuthService } from '../../../../services/authService';
 import { referralService } from '../../../../../services/apiService';
 import { useCart } from '../../../../context/CartContext';
 import LiveBookingCard from '../../components/booking/LiveBookingCard';
+import BottomNav from '../../components/layout/BottomNav';
 
 const toAssetUrl = (url) => {
   if (!url) return '';
@@ -84,6 +85,80 @@ const Checkout = () => {
   const [visitedFee, setVisitedFee] = useState(29);
   const [gstPercentage, setGstPercentage] = useState(18);
   const [bookingType, setBookingType] = useState('scheduled'); // Default to 'scheduled' for regular slot bookings
+  const [platformSlots, setPlatformSlots] = useState([]);
+  // Admin-set minimum notice (minutes) for a scheduled slot; that window is
+  // reserved for instant bookings. Mirrors the server-side check.
+  const [sameDayLeadMinutes, setSameDayLeadMinutes] = useState(60);
+  // Admin-set booking horizon and live per-date availability for this
+  // service + address (null until fetched -> fall back to plain slot list).
+  const [advanceBookingDays, setAdvanceBookingDays] = useState(7);
+  const [slotAvailability, setSlotAvailability] = useState(null);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [notServiceable, setNotServiceable] = useState(false);
+
+  // Fetch dynamic platform slots from admin operating hours
+  useEffect(() => {
+    const fetchPlatformSlots = async () => {
+      try {
+        const res = await configService.getOperatingHours();
+        if (res?.slots && Array.isArray(res.slots) && res.slots.length > 0) {
+          setPlatformSlots(res.slots);
+        }
+        if (Number.isFinite(res?.sameDayLeadMinutes)) {
+          setSameDayLeadMinutes(res.sameDayLeadMinutes);
+        }
+        if (Number.isFinite(res?.advanceBookingDays)) {
+          setAdvanceBookingDays(res.advanceBookingDays);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch platform operating hours:', err);
+      }
+    };
+    fetchPlatformSlots();
+  }, []);
+
+  // Fetch live slot availability whenever the slot picker opens
+  const availabilityServiceId = (() => {
+    const first = cartItems[0];
+    if (!first) return null;
+    return typeof first.serviceId === 'object' ? (first.serviceId?._id || first.serviceId?.id) : first.serviceId;
+  })();
+
+  useEffect(() => {
+    if (!showTimeSlotModal || !availabilityServiceId || !addressDetails?.lat || !addressDetails?.lng) return undefined;
+    let cancelled = false;
+    setAvailabilityLoading(true);
+    bookingService.getSlotAvailability({
+      serviceId: availabilityServiceId,
+      lat: addressDetails.lat,
+      lng: addressDetails.lng,
+      category: cartItems[0]?.serviceCategory || cartItems[0]?.category
+    }).then((res) => {
+      if (cancelled || !res?.success) return;
+      const map = {};
+      (res.dates || []).forEach((d) => { map[d.date] = d; });
+      setSlotAvailability(map);
+      setNotServiceable(res.serviceable === false);
+      if (Number.isFinite(res.advanceBookingDays)) setAdvanceBookingDays(res.advanceBookingDays);
+    }).catch((err) => {
+      console.warn('Failed to load slot availability:', err);
+    }).finally(() => {
+      if (!cancelled) setAvailabilityLoading(false);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTimeSlotModal, availabilityServiceId, addressDetails?.lat, addressDetails?.lng]);
+
+  // Once availability is known, move off a fully-booked date to the first free one
+  useEffect(() => {
+    if (!slotAvailability || selectedTime) return;
+    const firstOpen = getDates().find((d) => slotAvailability[toYmd(d)]?.available);
+    const current = selectedDate && slotAvailability[toYmd(selectedDate)];
+    if (firstOpen && (!selectedDate || (current && !current.available))) {
+      setSelectedDate(firstOpen);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotAvailability]);
 
   // Promo Code States
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -314,7 +389,9 @@ const Checkout = () => {
   // that doesn't make sense for an "arrives in ~45 min" booking. A cart that
   // mixes instant and regular items (or is entirely regular items) keeps the
   // existing toggle so scheduling stays available where it's meaningful.
-  const cartIsInstant = cartItems.length > 0 && cartItems.every(item => item.isInstant);
+  const cartIsInstant = cartItems.length > 0 && cartItems.every(
+    item => item.bookingMode === 'instant' || item.isInstant === true
+  );
 
   useEffect(() => {
     if (cartIsInstant) {
@@ -351,22 +428,27 @@ const Checkout = () => {
     if (currentStep === 'payment') {
       setCurrentStep('details');
     } else {
-      navigate(-1);
+      if (window.history.length > 2) {
+        navigate(-1);
+      } else {
+        navigate('/home-services');
+      }
     }
   };
 
   const handleQuantityChange = async (itemId, change) => {
     try {
-      const item = cartItems.find(i => (i._id || i.id) === itemId);
+      const item = cartItems.find(i => (i._id || i.id || i.serviceId) === itemId);
       if (!item) return;
 
-      const newCount = (item.serviceCount || 1) + change;
+      const newCount = (Number(item.serviceCount) || 1) + change;
 
       if (newCount <= 0) {
         return handleRemoveItem(itemId);
       }
 
-      const response = await updateItemGlobal(itemId, newCount);
+      const targetId = item._id || item.id || item.serviceId;
+      const response = await updateItemGlobal(targetId, newCount);
 
       if (response.success) {
         fetchCartGlobal();
@@ -380,7 +462,9 @@ const Checkout = () => {
 
   const handleRemoveItem = async (itemId) => {
     try {
-      const response = await removeItemGlobal(itemId);
+      const item = cartItems.find(i => (i._id || i.id || i.serviceId) === itemId);
+      const targetId = item?._id || item?.id || item?.serviceId || itemId;
+      const response = await removeItemGlobal(targetId);
       if (response.success) {
         fetchCartGlobal();
       } else {
@@ -398,6 +482,14 @@ const Checkout = () => {
   };
 
   const handleProceed = async () => {
+    // Auth check
+    const token = localStorage.getItem('token') || localStorage.getItem('userToken');
+    if (!token) {
+      toast.error('Please login to continue');
+      navigate(`/login?redirect=${encodeURIComponent('/user/cart')}`);
+      return;
+    }
+
     // Validation
     if (bookingType === 'instant') {
       if (!addressDetails) {
@@ -425,21 +517,25 @@ const Checkout = () => {
         ? firstItem.serviceId._id || firstItem.serviceId.id
         : firstItem.serviceId;
 
-      const bookedItemsData = cartItems.map(item => ({
-        brandName: item.sectionTitle || item.brand || '',
-        brandIcon: item.sectionIcon || null,
-        card: {
-          title: item.card?.title || item.title,
-          subtitle: item.card?.subtitle || item.description || '',
-          price: item.card?.price || item.price || 0,
-          originalPrice: item.card?.originalPrice || item.originalPrice || null,
-          duration: item.card?.duration || item.duration || '',
-          description: item.card?.description || item.description || '',
-          imageUrl: item.card?.imageUrl || item.icon || '',
-          features: item.card?.features || []
-        },
-        quantity: item.serviceCount || 1
-      }));
+      const bookedItemsData = cartItems.map(item => {
+        const count = Math.max(1, Number(item.serviceCount) || 1);
+        const unitPrice = item.card?.price || Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+        return {
+          brandName: item.sectionTitle || item.brand || '',
+          brandIcon: item.sectionIcon || null,
+          card: {
+            title: item.card?.title || item.title,
+            subtitle: item.card?.subtitle || item.description || '',
+            price: unitPrice,
+            originalPrice: item.card?.originalPrice || item.originalPrice || null,
+            duration: item.card?.duration || item.duration || '',
+            description: item.card?.description || item.description || '',
+            imageUrl: item.card?.imageUrl || item.icon || '',
+            features: item.card?.features || []
+          },
+          quantity: count
+        };
+      });
 
       // Calculate Scheduled Data for Instant
       let finalDate = selectedDate;
@@ -470,7 +566,7 @@ const Checkout = () => {
           lng: addressDetails?.lng
         },
         scheduledDate: finalDate, // Date object
-        scheduledTime: bookingType === 'instant' ? "ASAP" : (getTimeSlots().find(slot => slot.value === finalTime)?.display || finalTime),
+        scheduledTime: bookingType === 'instant' ? "ASAP" : (getTimeSlots().find(slot => slot.value === finalTime)?.range || getTimeSlots().find(slot => slot.value === finalTime)?.display || finalTime),
         timeSlot: finalTimeSlot,
         amount: amountToPay,
 
@@ -754,7 +850,7 @@ const Checkout = () => {
         finalTimeDisplay = "ASAP";
         timeSlotObj = { start: "Now", end: "45 mins" };
       } else {
-        finalTimeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
+        finalTimeDisplay = getTimeSlots().find(slot => slot.value === selectedTime)?.range || getTimeSlots().find(slot => slot.value === selectedTime)?.display || selectedTime;
       }
 
       // Create booking request
@@ -767,21 +863,25 @@ const Checkout = () => {
 
       // Prepare bookedItems array matching Service catalog structure
       // Prepare bookedItems array matching Service catalog structure
-      const bookedItemsData = cartItems.map(item => ({
-        brandName: item.sectionTitle || item.brand || '',
-        brandIcon: item.sectionIcon || null,
-        card: {
-          title: item.card?.title || item.title || 'Unknown Service',
-          subtitle: item.card?.subtitle || item.description || '',
-          price: item.card?.price || item.price || 0,
-          originalPrice: item.card?.originalPrice || item.originalPrice || null,
-          duration: item.card?.duration || item.duration || '',
-          description: item.card?.description || item.description || '',
-          imageUrl: item.card?.imageUrl || item.icon || '',
-          features: item.card?.features || []
-        },
-        quantity: item.serviceCount || 1
-      }));
+      const bookedItemsData = cartItems.map(item => {
+        const count = Math.max(1, Number(item.serviceCount) || 1);
+        const unitPrice = item.card?.price || Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+        return {
+          brandName: item.sectionTitle || item.brand || '',
+          brandIcon: item.sectionIcon || null,
+          card: {
+            title: item.card?.title || item.title || 'Unknown Service',
+            subtitle: item.card?.subtitle || item.description || '',
+            price: unitPrice,
+            originalPrice: item.card?.originalPrice || item.originalPrice || null,
+            duration: item.card?.duration || item.duration || '',
+            description: item.card?.description || item.description || '',
+            imageUrl: item.card?.imageUrl || item.icon || '',
+            features: item.card?.features || []
+          },
+          quantity: count
+        };
+      });
 
 
 
@@ -1156,18 +1256,28 @@ const Checkout = () => {
     }
   };
 
+  const toYmd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  // True when we know for certain nobody can take this date.
+  const isDateFullyBooked = (date) => {
+    if (notServiceable) return true;
+    const day = slotAvailability?.[toYmd(date)];
+    return day ? !day.available : false;
+  };
+
+  // A slot is bookable only if it starts at least `sameDayLeadMinutes` from now.
+  const isSlotBookable = (date, slotValue) => {
+    const [h, m] = String(slotValue).split(':').map(Number);
+    if (!date || Number.isNaN(h)) return true;
+    const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m || 0, 0, 0);
+    return slotStart.getTime() >= Date.now() + sameDayLeadMinutes * 60 * 1000;
+  };
+
   const handleDateSelect = (date) => {
     setSelectedDate(date);
     if (date && selectedTime) {
-      const now = new Date();
-      const isToday = date.toDateString() === now.toDateString();
-      if (isToday) {
-        const currentHour = now.getHours();
-        const minHour = currentHour + 1;
-        const slotHour = parseInt(selectedTime.split(':')[0], 10);
-        if (slotHour < minHour) {
-          setSelectedTime(null);
-        }
+      if (!isSlotBookable(date, selectedTime)) {
+        setSelectedTime(null);
       }
     }
   };
@@ -1321,7 +1431,8 @@ const Checkout = () => {
 
   // Calculate totals with Plan Benefits + VIP Discount
   const calculateItemPrice = (item) => {
-    if (plan) return item.price || 0; // Plan purchase
+    const count = Math.max(1, Number(item.serviceCount) || 1);
+    if (plan) return (item.price || 0); // Plan purchase
 
     const itemCatId = normalizeId(item.categoryId);
     const itemBrandId = normalizeId(item.brandId || item.sectionId);
@@ -1334,7 +1445,8 @@ const Checkout = () => {
 
     if (isFreeCategory || isFreeBrand || isFreeService) return 0;
 
-    const basePrice = item.price || 0;
+    const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+    const basePrice = unitPrice * count;
 
     // Apply VIP discount if user is VIP member
     if (userIsVip && itemCatId && vipCards.length > 0) {
@@ -1358,19 +1470,23 @@ const Checkout = () => {
         if (!itemCatId) return sum;
         const matchedCard = vipCards.find(c => normalizeId(c.targetCategoryId) === itemCatId);
         if (!matchedCard || matchedCard.discount <= 0) return sum;
-        return sum + Math.round((item.price || 0) * matchedCard.discount / 100);
+        const count = Math.max(1, Number(item.serviceCount) || 1);
+        const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+        const lineBase = unitPrice * count;
+        return sum + Math.round(lineBase * matchedCard.discount / 100);
       }, 0)
     : 0;
 
   const itemTotal = cartItems.reduce((sum, item) => sum + calculateItemPrice(item), 0);
   // Calculate savings including Plan Savings + VIP Discount
   const totalOriginalPrice = cartItems.reduce((sum, item) => {
-    const basePrice = item.price || 0;
-    const original = (item.originalPrice || item.unitPrice || (basePrice / (item.serviceCount || 1))) * (item.serviceCount || 1);
-    return sum + original;
+    const count = Math.max(1, Number(item.serviceCount) || 1);
+    const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+    const unitOriginalPrice = Number(item.originalPrice) || unitPrice;
+    return sum + (unitOriginalPrice * count);
   }, 0);
 
-  const savings = totalOriginalPrice - itemTotal;
+  const savings = Math.max(0, totalOriginalPrice - itemTotal);
   const taxesAndFee = 0;
   const finalVisitedFee = 0;
 
@@ -1444,7 +1560,7 @@ const Checkout = () => {
   const getDates = () => {
     const dates = [];
     const today = new Date();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < advanceBookingDays; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push(date);
@@ -1453,7 +1569,7 @@ const Checkout = () => {
   };
 
   const getTimeSlots = () => {
-    const allSlots = [
+    const defaultSlots = [
       { value: '09:00', end: '10:00', display: '9:00 AM' },
       { value: '10:00', end: '11:00', display: '10:00 AM' },
       { value: '11:00', end: '12:00', display: '11:00 AM' },
@@ -1468,22 +1584,17 @@ const Checkout = () => {
       { value: '20:00', end: '21:00', display: '8:00 PM' },
     ];
 
-    // If today is selected, filter out past time slots
-    const now = new Date();
-    const isToday = selectedDate && selectedDate.toDateString() === now.toDateString();
+    const allSlots = platformSlots && platformSlots.length > 0 ? platformSlots : defaultSlots;
 
-    if (!isToday) {
-      return allSlots;
+    // Live availability (a free, qualified professional exists for the slot)
+    if (selectedDate && slotAvailability) {
+      const day = slotAvailability[toYmd(selectedDate)];
+      if (day) return day.slots.filter(slot => slot.available);
     }
 
-    // Get current hour + 1 (minimum 1 hour buffer for vendors to accept)
-    const currentHour = now.getHours();
-    const minHour = currentHour + 1;
-
-    return allSlots.filter(slot => {
-      const slotHour = parseInt(slot.value.split(':')[0], 10);
-      return slotHour >= minHour;
-    });
+    // Fallback: hide slots that start sooner than the admin-set minimum notice.
+    if (!selectedDate) return allSlots;
+    return allSlots.filter(slot => isSlotBookable(selectedDate, slot.value));
   };
 
   const formatDate = (date) => {
@@ -1527,7 +1638,7 @@ const Checkout = () => {
               >
                 <FiArrowLeft className="w-6 h-6 text-black" />
               </button>
-              <h1 className="text-xl font-bold text-black">Your cart</h1>
+              <h1 className="text-xl font-bold text-black">Your Cart</h1>
             </div>
           </div>
           <div className="border-b border-gray-200"></div>
@@ -1536,9 +1647,17 @@ const Checkout = () => {
           <div className="flex flex-col items-center justify-center py-20">
             <FiShoppingCart className="w-16 h-16 text-gray-300 mb-4" />
             <p className="text-gray-500 text-lg font-medium">Your cart is empty</p>
-            <p className="text-gray-400 text-sm mt-2">Add services to get started</p>
+            <p className="text-gray-400 text-sm mt-2 mb-6">Add services to get started</p>
+            <button
+              onClick={() => navigate('/home-services')}
+              className="px-6 py-2.5 rounded-xl text-white font-bold transition-all shadow-md active:scale-95"
+              style={{ background: themeColors?.brand?.gradient || '#347989' }}
+            >
+              Explore Services
+            </button>
           </div>
         </main>
+        <BottomNav />
       </div>
     );
   }
@@ -1556,7 +1675,7 @@ const Checkout = () => {
               <FiArrowLeft className="w-6 h-6 text-black" />
             </button>
             <h1 className="text-xl font-bold text-black">
-              {category ? `${category} Checkout` : 'Your cart'}
+              {category ? `${category} Checkout` : (plan ? 'Plan Checkout' : 'Your Cart')}
             </h1>
           </div>
         </div>
@@ -1626,14 +1745,14 @@ const Checkout = () => {
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-0.5">
                         <button
-                          onClick={() => handleQuantityChange(item._id, -1)}
+                          onClick={() => handleQuantityChange(item._id || item.id || item.serviceId, -1)}
                           className="p-1.5 hover:bg-white rounded-md transition-all shadow-sm"
                         >
                           <FiMinus className="w-3.5 h-3.5 text-gray-600" />
                         </button>
                         <span className="w-6 text-center text-sm font-bold text-gray-900">{item.serviceCount || 1}</span>
                         <button
-                          onClick={() => handleQuantityChange(item._id, 1)}
+                          onClick={() => handleQuantityChange(item._id || item.id || item.serviceId, 1)}
                           className="p-1.5 hover:bg-white rounded-md transition-all shadow-sm"
                         >
                           <FiPlus className="w-3.5 h-3.5 text-gray-900" />
@@ -1643,7 +1762,7 @@ const Checkout = () => {
                   )}
                   {!item.isPlan && (
                     <button
-                      onClick={() => handleRemoveItem(item._id)}
+                      onClick={() => handleRemoveItem(item._id || item.id || item.serviceId)}
                       className="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                     >
                       <FiTrash2 className="w-4 h-4" />
@@ -1655,7 +1774,7 @@ const Checkout = () => {
                     {calculateItemPrice(item) === 0 ? (
                       <span className="text-green-600">Free</span>
                     ) : (
-                      `₹${(item.price || 0).toLocaleString('en-IN')}`
+                      `₹${calculateItemPrice(item).toLocaleString('en-IN')}`
                     )}
                   </span>
                   {calculateItemPrice(item) === 0 && (
@@ -1664,10 +1783,11 @@ const Checkout = () => {
                     </span>
                   )}
                   {calculateItemPrice(item) > 0 && (() => {
-                    const unitPrice = item.unitPrice || (item.price / (item.serviceCount || 1));
-                    const unitOriginalPrice = item.originalPrice || unitPrice;
-                    const currentTotal = item.price;
-                    const originalTotal = unitOriginalPrice * (item.serviceCount || 1);
+                    const count = Math.max(1, Number(item.serviceCount) || 1);
+                    const unitPrice = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+                    const unitOriginalPrice = Number(item.originalPrice) || unitPrice;
+                    const currentTotal = calculateItemPrice(item);
+                    const originalTotal = unitOriginalPrice * count;
                     if (originalTotal > currentTotal) {
                       return (
                         <span className="text-sm text-gray-400 line-through">
@@ -2229,6 +2349,9 @@ const Checkout = () => {
         formatDate={formatDate}
         isDateSelected={isDateSelected}
         isTimeSelected={isTimeSelected}
+        isDateFullyBooked={isDateFullyBooked}
+        availabilityLoading={availabilityLoading}
+        notServiceable={notServiceable}
       />
     </div>
   );

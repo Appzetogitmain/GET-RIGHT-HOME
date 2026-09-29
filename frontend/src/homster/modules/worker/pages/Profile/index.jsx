@@ -54,11 +54,16 @@ const Profile = () => {
             ? `${workerData.address.addressLine1 || ''} ${workerData.address.addressLine2 || ''} ${workerData.address.city || ''} ${workerData.address.state || ''} ${workerData.address.pincode || ''}`.trim() || 'Not set'
             : 'Not set';
 
+          const zoneNames = workerData.zoneNames || (workerData.zones?.length > 0 ? workerData.zones : (workerData.address?.city ? [workerData.address.city] : []));
+          const primaryZone = workerData.primaryZone || zoneNames[0] || workerData.address?.city || 'Zone Not Assigned';
+
           setProfile({
             name: workerData.name || 'Worker Name',
             phone: workerData.phone || '',
             email: workerData.email || '',
             address: addressString,
+            zoneNames,
+            primaryZone,
             rating: workerData.rating || 0,
             totalJobs: workerData.totalJobs || 0,
             completedJobs: workerData.completedJobs || 0,
@@ -68,18 +73,22 @@ const Profile = () => {
             isPhoneVerified: workerData.isPhoneVerified || false,
             isEmailVerified: workerData.isEmailVerified || false
           });
-          localStorage.setItem('workerData', JSON.stringify(workerData));
+          localStorage.setItem('workerData', JSON.stringify({ ...workerData, zoneNames, primaryZone }));
         } else {
           setError(response.message || 'Failed to fetch profile');
           toast.error(response.message || 'Failed to fetch profile');
           // Fallback to local storage if API fails
           const localWorkerData = JSON.parse(localStorage.getItem('workerData') || '{}');
           if (localWorkerData && Object.keys(localWorkerData).length > 0) {
+            const zoneNames = localWorkerData.zoneNames || (localWorkerData.zones?.length > 0 ? localWorkerData.zones : (localWorkerData.address?.city ? [localWorkerData.address.city] : []));
+            const primaryZone = localWorkerData.primaryZone || zoneNames[0] || localWorkerData.address?.city || 'Zone Not Assigned';
             setProfile({
               name: localWorkerData.name || 'Worker Name',
               phone: localWorkerData.phone || '',
               email: localWorkerData.email || '',
               address: 'Not set',
+              zoneNames,
+              primaryZone,
               rating: localWorkerData.rating || 0,
               totalJobs: localWorkerData.totalJobs || 0,
               completedJobs: localWorkerData.completedJobs || 0,
@@ -97,11 +106,15 @@ const Profile = () => {
         // Fallback to local storage if API fails
         const localWorkerData = JSON.parse(localStorage.getItem('workerData') || '{}');
         if (localWorkerData && Object.keys(localWorkerData).length > 0) {
+          const zoneNames = localWorkerData.zoneNames || (localWorkerData.zones?.length > 0 ? localWorkerData.zones : (localWorkerData.address?.city ? [localWorkerData.address.city] : []));
+          const primaryZone = localWorkerData.primaryZone || zoneNames[0] || localWorkerData.address?.city || 'Zone Not Assigned';
           setProfile({
             name: localWorkerData.name || 'Worker Name',
             phone: localWorkerData.phone || '',
             email: localWorkerData.email || '',
             address: 'Not set',
+            zoneNames,
+            primaryZone,
             rating: localWorkerData.rating || 0,
             totalJobs: localWorkerData.totalJobs || 0,
             completedJobs: localWorkerData.completedJobs || 0,
@@ -256,14 +269,22 @@ const Profile = () => {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 text-white text-xs opacity-90">
-            <FiMapPin className="w-3 h-3" /> {profile.address ? profile.address.split(' ')[0] : 'Location not set'}
+          <div className="flex items-center gap-2 text-white text-xs opacity-95 flex-wrap justify-center">
+            <span className="flex items-center gap-1 bg-white/20 px-2.5 py-0.5 rounded-full border border-white/20">
+              <FiMapPin className="w-3.5 h-3.5 text-amber-300" />
+              <span>Zone: <strong className="capitalize">{profile.zoneNames && profile.zoneNames.length > 0 ? profile.zoneNames.join(', ') : (profile.primaryZone || 'Indore')}</strong></span>
+            </span>
+            {profile.address && profile.address !== 'Not set' && (
+              <span className="opacity-80">
+                • {profile.address.split(' ')[0]}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
       {/* Stats Cards - Overlapping the header */}
-      <div className="px-4 -mt-10 relative z-10 mb-6">
+      <div className="px-4 -mt-10 relative z-10 mb-4">
         <div className="flex justify-between gap-3">
           <div className="flex-1 bg-white rounded-2xl p-3 flex flex-col items-center justify-center shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-gray-50">
             <p className="text-xl font-bold text-[#1E3A8A] mb-1">{completedJobs}</p>
@@ -279,6 +300,31 @@ const Profile = () => {
             <p className="text-xl font-bold text-[#1E3A8A] mb-1">{completionPercentage}%</p>
             <p className="text-[10px] font-medium text-gray-500">Completion</p>
           </div>
+        </div>
+      </div>
+
+      {/* Assigned Service Zone Card */}
+      <div className="px-4 mb-5">
+        <div className="bg-white rounded-2xl p-4 shadow-[0_4px_15px_rgba(0,0,0,0.03)] border border-blue-50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+              <FiMapPin className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Your Working Zone</p>
+              <h3 className="text-sm font-extrabold text-[#1E3A8A] capitalize">
+                {profile.zoneNames && profile.zoneNames.length > 0
+                  ? profile.zoneNames.join(', ')
+                  : (profile.primaryZone || 'Indore Zone')}
+              </h3>
+              <p className="text-[10px] text-gray-500 mt-0.5">
+                You receive bookings from this operational service area
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+            Active
+          </span>
         </div>
       </div>
 

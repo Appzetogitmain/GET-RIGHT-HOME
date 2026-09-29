@@ -14,7 +14,7 @@ export const adminBookingService = {
   // Get booking details by ID
   getBookingById: async (id) => {
     try {
-      const response = await api.get(`/admin/bookings/${id}`);
+      const response = await api.get(`/admin/workers/jobs/${id}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch booking details' };
@@ -38,6 +38,16 @@ export const adminBookingService = {
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to cancel booking' };
+    }
+  },
+
+  // Take the booking from its current worker and offer it to everyone else again
+  rebroadcastBooking: async (jobId, reason = '') => {
+    try {
+      const response = await api.post(`/admin/workers/jobs/${jobId}/rebroadcast`, { reason });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to re-broadcast booking' };
     }
   },
 

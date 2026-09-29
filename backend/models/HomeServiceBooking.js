@@ -76,11 +76,17 @@ const bookingSchema = new mongoose.Schema({
     respondedAt: { type: Date, default: null },
     outcome: {
       type: String,
-      enum: ['notified', 'accepted', 'rejected', 'timeout', 'cancelled_by_worker'],
+      enum: ['notified', 'accepted', 'rejected', 'timeout', 'cancelled_by_worker', 'unconfirmed'],
       default: 'notified'
     },
     reason: { type: String, default: '' }
   }],
+
+  // Pre-job reminder handshake (see cron/jobReminderScheduler.js).
+  reminderSentAt: { type: Date, default: null },
+  reminderConfirmedAt: { type: Date, default: null },
+  // Set when the worker ignored the reminder and ops was alerted.
+  reminderEscalatedAt: { type: Date, default: null },
 
   // Set when ops assigns by hand, for accountability.
   manuallyAssignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
@@ -384,8 +390,24 @@ const bookingSchema = new mongoose.Schema({
     enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'ADMIN_ASSIGNED'],
     default: 'PENDING'
   },
+  zoneId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Zone',
+    default: null,
+    index: true
+  },
+  zoneName: {
+    type: String,
+    default: null,
+    index: true
+  },
+  rejectionReason: {
+    type: String,
+    default: null
+  },
   // Timestamps
   acceptedAt: { type: Date, default: null },
+  workerAcceptedAt: { type: Date, default: null },
   assignedAt: { type: Date, default: null },
   startedAt: { type: Date, default: null },
   journeyStartedAt: { type: Date, default: null },

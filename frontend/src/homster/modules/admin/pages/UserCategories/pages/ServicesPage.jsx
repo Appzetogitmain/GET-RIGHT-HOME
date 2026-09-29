@@ -24,6 +24,7 @@ const serviceSchema = z.object({
   workerName: z.string().optional(),
   projectImages: z.array(z.string()).optional(),
   isInstant: z.boolean().optional(),
+  bookingModes: z.array(z.enum(['instant', 'slot'])).min(1),
   instantEtaMinutes: z.number().min(5).max(180).optional()
 });
 
@@ -64,7 +65,8 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
           title: cat.title,
           slug: cat.slug,
           isDirectService: cat.isDirectService || false,
-          isEstimateBased: cat.isEstimateBased || false
+          isEstimateBased: cat.isEstimateBased || false,
+          bookingModes: cat.bookingModes?.length ? cat.bookingModes : ['slot']
         }));
         setCategories(mappedCategories);
       }
@@ -328,6 +330,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       workerName: form.workerName?.trim(),
       projectImages: form.projectImages,
       isInstant: form.isInstant,
+      bookingModes: selectedFormCategory?.bookingModes || ['slot'],
       instantEtaMinutes: form.isInstant ? Number(form.instantEtaMinutes) || 30 : undefined
     };
 
@@ -603,7 +606,11 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
               <label className="block text-sm font-bold text-gray-700 mb-1">Select Parent Category</label>
               <select
                 value={form.categoryId}
-                onChange={e => setForm({ ...form, categoryId: e.target.value, subCategoryId: "" })}
+                onChange={e => {
+                  const category = categories.find((item) => String(item.id) === String(e.target.value));
+                  const modes = category?.bookingModes || ['slot'];
+                  setForm({ ...form, categoryId: e.target.value, subCategoryId: "", isInstant: modes.includes('instant') });
+                }}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 bg-gray-50 text-sm font-bold"
                 required
               >
@@ -700,15 +707,15 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
                 <input
                   type="checkbox"
                   id="isInstant"
-                  checked={form.isInstant}
-                  onChange={e => setForm({ ...form, isInstant: e.target.checked })}
+                  checked={(selectedFormCategory?.bookingModes || []).includes('instant')}
+                  disabled
                   className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
                 />
                 <label htmlFor="isInstant" className="text-sm font-bold text-gray-700">
                   ⚡ Show in Instant Booking <span className="text-xs text-gray-400 font-normal">(Home Services landing page express section)</span>
                 </label>
               </div>
-              {form.isInstant && (
+              {(selectedFormCategory?.bookingModes || []).includes('instant') && (
                 <div className="mt-3 max-w-[220px]">
                   <label className="block text-xs font-bold text-gray-600 mb-1">Express ETA (minutes)</label>
                   <input

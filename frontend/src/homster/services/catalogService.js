@@ -17,6 +17,7 @@ export const categoryService = {
     if (params.showOnHome !== undefined) queryParams.append('showOnHome', params.showOnHome);
     if (params.isPopular !== undefined) queryParams.append('isPopular', params.isPopular);
     if (params.cityId) queryParams.append('cityId', params.cityId);
+    if (params.bookingMode) queryParams.append('bookingMode', params.bookingMode);
 
     const response = await api.get(`/admin/categories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     return response.data;
@@ -63,6 +64,7 @@ export const subCategoryService = {
     if (params.status) queryParams.append('status', params.status);
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
     if (params.cityId) queryParams.append('cityId', params.cityId);
+    if (params.bookingMode) queryParams.append('bookingMode', params.bookingMode);
 
     const response = await api.get(`/admin/sub-categories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     return response.data;
@@ -126,6 +128,8 @@ export const serviceService = {
     const queryParams = new URLSearchParams();
     if (params.status) queryParams.append('status', params.status);
     if (params.subCategoryId) queryParams.append('subCategoryId', params.subCategoryId);
+    if (params.categoryId) queryParams.append('categoryId', params.categoryId);
+    if (params.bookingMode) queryParams.append('bookingMode', params.bookingMode);
 
     const response = await api.get(`/admin/services${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     return response.data;
@@ -203,12 +207,15 @@ export const homeContentService = {
  */
 export const publicCatalogService = {
   // Get all active categories (cached for 5 minutes)
-  getCategories: async (cityId) => {
-    const cacheKey = `public:categories:${cityId || 'default'}`;
+  getCategories: async (cityId, bookingMode) => {
+    const cacheKey = `public:categories:${cityId || 'default'}:${bookingMode || 'all'}`;
     const cached = apiCache.get(cacheKey);
     if (cached) return cached;
 
-    const query = cityId ? `?cityId=${cityId}` : '';
+    const params = new URLSearchParams();
+    if (cityId) params.append('cityId', cityId);
+    if (bookingMode) params.append('bookingMode', bookingMode);
+    const query = params.toString() ? `?${params.toString()}` : '';
     const response = await api.get(`/public/categories${query}`);
     if (response.data.success) {
       apiCache.set(cacheKey, response.data, 30); // 30 seconds for categories
@@ -223,6 +230,7 @@ export const publicCatalogService = {
     if (params.categorySlug) queryParams.append('categorySlug', params.categorySlug);
     if (params.search) queryParams.append('search', params.search);
     if (params.cityId) queryParams.append('cityId', params.cityId);
+    if (params.bookingMode) queryParams.append('bookingMode', params.bookingMode);
 
     const cacheKey = `public:subCategories:${queryParams.toString()}`;
     const cached = apiCache.get(cacheKey);
@@ -243,6 +251,7 @@ export const publicCatalogService = {
     if (params.subCategorySlug) queryParams.append('subCategorySlug', params.subCategorySlug);
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
     if (params.instant) queryParams.append('instant', 'true');
+    if (params.bookingMode) queryParams.append('bookingMode', params.bookingMode);
 
     const cacheKey = `public:services:${queryParams.toString()}`;
     const cached = apiCache.get(cacheKey);

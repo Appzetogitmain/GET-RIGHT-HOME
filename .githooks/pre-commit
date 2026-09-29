@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# Refuses commits that carry the obfuscated payload this repo keeps getting
+# reinfected with. Scans staged content only, so it stays fast.
+#
+# Enable it once per clone:
+#   git config core.hooksPath .githooks
+#
+# Bypass a single commit with --no-verify if you are sure it is a false alarm.
+
+set -u
+
+# Absolute, because we cd into a temp dir below.
+hooks_dir=$(cd "$(dirname "$0")" && pwd)
+scanner="$hooks_dir/detect-injected-code.sh"
+[ -f "$scanner" ] || exit 0
+
+# Added, copied or modified paths. Deletions have nothing left to scan.
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -n "$staged" ] || exit 0
+
+tmp=$(mktemp -d) || exit 0
+trap 'rm -rf "$tmp"' EXIT INT TERM
+
+# Materialise the staged blobs, not the working tree — they differ when a file
+# is only partly staged, and the commit is made from the index.
+printf '%s\n' "$staged" | while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    dest="$tmp/$f"
+    mkdir -p "$(dirname "$dest")" 2>/dev/null || continue
+    git show ":$f" >"$dest" 2>/dev/null || rm -f "$dest"
+done
+
+cd "$tmp" || exit 0
+paths=$(find . -type f | sed 's|^\./||')
+[ -n "$paths" ] || exit 0
+
+# shellcheck disable=SC2086
+sh "$scanner" $paths
+status=$?
+
+[ "$status" -eq 0 ] || echo "
+Commit aborted by .githooks/pre-commit" >&2
+
+exit "$status"

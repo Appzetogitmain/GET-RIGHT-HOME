@@ -5,6 +5,7 @@ import { ArrowLeft, Zap, Clock, ShoppingCart, ChevronRight, X } from 'lucide-rea
 import { toast } from 'react-hot-toast';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCart } from '../../homster/context/CartContext';
+import { useCity } from '../../homster/context/CityContext';
 
 const toAssetUrl = (url) => {
     if (!url) return '';
@@ -25,8 +26,10 @@ const InstantServicesPage = () => {
     const [searchParams] = useSearchParams();
     const categoryId = searchParams.get('category');
     const { addToCart, cartCount, cartItems } = useCart();
+    const { currentCity } = useCity();
 
     const [services, setServices] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [bookingIds, setBookingIds] = useState([]);
     const [cartBarDismissed, setCartBarDismissed] = useState(false);
@@ -37,8 +40,13 @@ const InstantServicesPage = () => {
         const load = async () => {
             setLoading(true);
             try {
-                const res = await publicCatalogService.getServices({ instant: true });
-                if (res?.success) setServices(res.services || []);
+                const cityId = currentCity?._id || currentCity?.id;
+                const [serviceRes, categoryRes] = await Promise.all([
+                    publicCatalogService.getServices({ bookingMode: 'instant' }),
+                    publicCatalogService.getCategories(cityId, 'instant')
+                ]);
+                if (serviceRes?.success) setServices(serviceRes.services || []);
+                if (categoryRes?.success) setCategories(categoryRes.categories || []);
             } catch (err) {
                 console.error('Failed to load instant services:', err);
             } finally {
@@ -46,7 +54,7 @@ const InstantServicesPage = () => {
             }
         };
         load();
-    }, []);
+    }, [currentCity]);
 
     const shownServices = categoryId
         ? services.filter((s) => String(s.categoryId?._id || s.categoryId) === categoryId)
@@ -74,6 +82,7 @@ const InstantServicesPage = () => {
                 unitPrice: service.discountPrice || service.basePrice,
                 serviceCount: 1,
                 isInstant: true,
+                bookingMode: 'instant',
             };
             const response = await addToCart(cartItemData);
             if (response.success) {
@@ -118,16 +127,42 @@ const InstantServicesPage = () => {
 
             {/* Body */}
             <div className="max-w-3xl mx-auto px-5 pt-6 space-y-3">
-                {loading && shownServices.length === 0 ? (
+                {!categoryId && !loading && (
+                    <>
+                        <div className="mb-5">
+                            <h2 className="text-lg font-black text-gray-900">Instant categories</h2>
+                            <p className="text-xs text-gray-500">Select a category, then choose a sub-category and service.</p>
+                        </div>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                            {categories.map((category) => (
+                                <motion.button
+                                    whileTap={{ scale: 0.96 }}
+                                    key={category.id || category._id}
+                                    onClick={() => navigate(`/home-services/category/${category.id || category._id}?mode=instant`, { state: { category, bookingMode: 'instant' } })}
+                                    className="flex flex-col items-center text-center"
+                                >
+                                    <div className="w-full aspect-square rounded-2xl bg-amber-50 border border-amber-100 p-4 overflow-hidden flex items-center justify-center">
+                                        {(category.homeIconUrl || category.icon || category.imageUrl) ? (
+                                            <img src={toAssetUrl(category.homeIconUrl || category.icon || category.imageUrl)} alt="" className="w-full h-full object-contain" />
+                                        ) : <Zap className="text-amber-500" />}
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-800 mt-2 line-clamp-2">{category.title}</span>
+                                </motion.button>
+                            ))}
+                        </div>
+                        {categories.length === 0 && <p className="py-12 text-center text-sm text-gray-500">No Instant categories configured by admin.</p>}
+                    </>
+                )}
+                {categoryId && loading && shownServices.length === 0 ? (
                     [1, 2, 3, 4].map((i) => (
                         <div key={i} className="h-20 bg-gray-50 rounded-2xl animate-pulse border border-gray-100"></div>
                     ))
-                ) : shownServices.length === 0 ? (
+                ) : categoryId && shownServices.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                         <Zap className="w-8 h-8 text-gray-200 mb-2" />
                         <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">No instant services available right now</p>
                     </div>
-                ) : (
+                ) : categoryId ? (
                     shownServices.map((service) => {
                         const serviceId = service.id || service._id;
                         const isBooking = bookingIds.includes(serviceId);
@@ -167,7 +202,7 @@ const InstantServicesPage = () => {
                             </motion.div>
                         );
                     })
-                )}
+                ) : null}
             </div>
 
             {/* Floating "View Cart" Bar */}

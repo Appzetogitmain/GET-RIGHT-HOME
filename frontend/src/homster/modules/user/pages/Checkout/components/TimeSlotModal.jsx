@@ -2,6 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { FiArrowLeft, FiX } from 'react-icons/fi';
 import { themeColors } from '../../../../../theme';
 
+// Morning (before 12) / Afternoon (12-4:30 PM) / Evening (after) like the
+// slot pickers customers already know.
+const groupSlotsByPeriod = (slots) => {
+  const periods = [
+    { label: 'Morning', icon: '\u{1F305}', test: (m) => m < 12 * 60 },
+    { label: 'Afternoon', icon: '\u2600\uFE0F', test: (m) => m < 17 * 60 + 30 },
+    { label: 'Evening', icon: '\u{1F306}', test: () => true }
+  ];
+  const groups = periods.map((p) => ({ ...p, slots: [] }));
+  slots.forEach((slot) => {
+    const [h, m] = String(slot.value).split(':').map(Number);
+    const minutes = h * 60 + (m || 0);
+    groups.find((g) => g.test(minutes)).slots.push(slot);
+  });
+  return groups.filter((g) => g.slots.length > 0);
+};
+
 const TimeSlotModal = ({
   isOpen,
   onClose,
@@ -14,7 +31,10 @@ const TimeSlotModal = ({
   getTimeSlots,
   formatDate,
   isDateSelected,
-  isTimeSelected
+  isTimeSelected,
+  isDateFullyBooked = () => false,
+  availabilityLoading = false,
+  notServiceable = false
 }) => {
   const [isClosing, setIsClosing] = useState(false);
 
@@ -107,6 +127,7 @@ const TimeSlotModal = ({
               {getDates().map((date, index) => {
                 const { day, date: dateNum } = formatDate(date);
                 const isSelected = isDateSelected(date);
+                const fullyBooked = isDateFullyBooked(date);
                 return (
                   <button
                     key={index}
@@ -119,12 +140,14 @@ const TimeSlotModal = ({
                     } : {
                       backgroundColor: 'white',
                       borderColor: '#e5e7eb',
-                      color: '#374151'
+                      color: fullyBooked ? '#9ca3af' : '#374151',
+                      opacity: fullyBooked ? 0.6 : 1
                     }}
                   >
                     <div className="flex flex-col items-center">
                       <span className="text-xs font-medium mb-1">{day}</span>
                       <span className="text-base font-semibold">{dateNum}</span>
+                      {fullyBooked && <span className="text-[9px] font-semibold text-red-400 mt-0.5">Full</span>}
                     </div>
                   </button>
                 );
@@ -142,22 +165,32 @@ const TimeSlotModal = ({
             {/* Time Selection */}
             <div className="mb-4">
               <h3 className="text-base font-semibold text-black mb-3">Select start time of service</h3>
-              {getTimeSlots().length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <p className="text-gray-500 font-medium mb-1">No time slots available</p>
-                  <p className="text-sm text-gray-400">Please select a different date</p>
+              {availabilityLoading && getTimeSlots().length === 0 ? (
+                <div className="text-center py-8 text-sm text-gray-400">Checking available professionals...</div>
+              ) : getTimeSlots().length === 0 ? (
+                <div className="text-center py-8 px-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <p className="text-gray-600 font-medium mb-1">
+                    {notServiceable
+                      ? 'Service is not available in your area yet.'
+                      : 'Fully booked for the day due to high demand. Please choose another date.'}
+                  </p>
+                  {!notServiceable && <p className="text-sm text-gray-400">Thank you!</p>}
                 </div>
               ) : (
                 <div
-                  className="grid grid-cols-3 gap-2 pb-2"
+                  className="pb-2"
                   style={{
-                    maxHeight: '280px',
+                    maxHeight: '320px',
                     overflowY: 'auto',
                     WebkitOverflowScrolling: 'touch',
                     overscrollBehavior: 'contain'
                   }}
                 >
-                  {getTimeSlots().map((slot, index) => {
+                  {groupSlotsByPeriod(getTimeSlots()).map((group) => (
+                    <div key={group.label} className="mb-3">
+                      <p className="text-xs font-semibold text-gray-500 mb-2">{group.icon} {group.label}</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {group.slots.map((slot, index) => {
                     const isSelected = isTimeSelected(slot.value);
                     return (
                       <button
@@ -184,10 +217,13 @@ const TimeSlotModal = ({
                           }
                         }}
                       >
-                        {slot.display}
+                        {slot.range || slot.display}
                       </button>
                     );
                   })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

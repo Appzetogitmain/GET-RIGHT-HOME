@@ -23,6 +23,7 @@ const homeServiceServiceSchema = new mongoose.Schema({
   // a service flagged here shows up as an express card there instead of the
   // section being hardcoded/unmanaged.
   isInstant: { type: Boolean, default: false },
+  bookingModes: [{ type: String, enum: ['instant', 'slot'] }],
   instantEtaMinutes: { type: Number, default: 30 }
 }, { timestamps: true });
 

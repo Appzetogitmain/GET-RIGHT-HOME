@@ -26,6 +26,41 @@ const workerService = {
     return response.data;
   },
 
+  /**
+   * Submit worker offline leave request
+   */
+  // Weekly days + full-day leave calendar
+  getMyAvailability: async () => {
+    const response = await api.get('/workers/availability');
+    return response.data;
+  },
+
+  updateMyAvailability: async (data) => {
+    const response = await api.put('/workers/availability', data);
+    return response.data;
+  },
+
+  requestOffline: async (data) => {
+    const response = await api.post('/workers/offline-requests', data);
+    return response.data;
+  },
+
+  /**
+   * Get active/pending offline request
+   */
+  getActiveOfflineRequest: async () => {
+    const response = await api.get('/workers/offline-requests/active');
+    return response.data;
+  },
+
+  /**
+   * Cancel pending offline request
+   */
+  cancelOfflineRequest: async (id) => {
+    const response = await api.delete(`/workers/offline-requests/${id}`);
+    return response.data;
+  },
+
   getDashboardStats: async () => {
     const response = await api.get('/workers/stats');
     return response.data;
@@ -60,6 +95,22 @@ const workerService = {
   // the app wasn't connected yet when it was sent).
   getPendingRequests: async () => {
     const response = await api.get('/workers/jobs/pending-requests');
+    return response.data;
+  },
+
+  // Pre-job reminder handshake
+  getJobReminders: async () => {
+    const response = await api.get('/workers/jobs/reminders');
+    return response.data;
+  },
+
+  confirmJobReminder: async (id) => {
+    const response = await api.post(`/workers/jobs/${id}/confirm-reminder`);
+    return response.data;
+  },
+
+  releaseJob: async (id, reason = '') => {
+    const response = await api.post(`/workers/jobs/${id}/release`, { reason });
     return response.data;
   },
 

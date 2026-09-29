@@ -89,6 +89,14 @@ const MobileSearchOverlay = ({ open, onClose }) => {
   // already consumed it, so closing via X doesn't pop an entry that's gone.
   const poppedRef = useRef(false);
 
+  // `onClose` is an inline arrow in the parent, so it gets a fresh identity on
+  // every parent render. Holding it in a ref lets the effect below depend on
+  // `open` alone. With `onClose` in the dep array the effect was torn down on
+  // each parent render, and the cleanup's history.back() fired a popstate that
+  // slammed the sheet shut the moment the user tapped an intent tab.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   useEffect(() => {
     if (!open) return;
 
@@ -97,7 +105,7 @@ const MobileSearchOverlay = ({ open, onClose }) => {
 
     const onPop = () => {
       poppedRef.current = true; // the browser consumed our entry
-      onClose?.();
+      onCloseRef.current?.();
     };
 
     window.addEventListener('popstate', onPop);
@@ -107,7 +115,7 @@ const MobileSearchOverlay = ({ open, onClose }) => {
       // entry we added so the user's next back press isn't swallowed.
       if (!poppedRef.current) window.history.back();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
