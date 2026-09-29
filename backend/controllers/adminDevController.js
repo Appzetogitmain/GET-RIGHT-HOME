@@ -7,7 +7,6 @@ import Withdrawal from '../models/Withdrawal.js';
 import Settlement from '../models/Settlement.js';
 import SubscriptionOrder from '../models/SubscriptionOrder.js';
 import Worker from '../models/Worker.js';
-import User from '../models/User.js';
 import { syncWorkerCapacityStatus } from '../services/workerCapacityService.js';
 
 const CONFIRM_PHRASE = 'DELETE';
@@ -26,18 +25,15 @@ const TARGETS = {
   },
   wallets: {
     label: 'Wallet balances',
-    description: 'Resets every worker and user wallet balance, earnings and dues to zero.',
+    description: 'Resets every worker wallet (balance, earnings, cash collected, withdrawn, dues) to zero.',
     models: []
   }
 };
 
 const countTarget = async (key) => {
   if (key === 'wallets') {
-    const [workers, users] = await Promise.all([
-      Worker.countDocuments({ $or: [{ 'wallet.balance': { $ne: 0 } }, { 'wallet.earnings': { $ne: 0 } }, { 'wallet.dues': { $ne: 0 } }] }),
-      User.countDocuments({ $or: [{ 'wallet.balance': { $ne: 0 } }, { 'wallet.penalty': { $gt: 0 } }] })
-    ]);
-    return { workers, users, total: workers + users };
+    const workers = await Worker.countDocuments({ $or: [{ 'wallet.balance': { $ne: 0 } }, { 'wallet.earnings': { $ne: 0 } }, { 'wallet.dues': { $ne: 0 } }] });
+    return { workers, total: workers };
   }
   const counts = {};
   for (const model of TARGETS[key].models) counts[model.modelName] = await model.estimatedDocumentCount();
@@ -76,8 +72,7 @@ export const purgeData = async (req, res) => {
     for (const key of keys) {
       if (key === 'wallets') {
         const workers = await Worker.updateMany({}, { $set: { 'wallet.balance': 0, 'wallet.earnings': 0, 'wallet.totalCashCollected': 0, 'wallet.totalWithdrawn': 0, 'wallet.dues': 0 } });
-        const users = await User.updateMany({}, { $set: { 'wallet.balance': 0, 'wallet.penalty': 0 } });
-        result[key] = { workers: workers.modifiedCount, users: users.modifiedCount };
+        result[key] = { workers: workers.modifiedCount };
         continue;
       }
       result[key] = {};
