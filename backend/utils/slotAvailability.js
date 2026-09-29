@@ -293,7 +293,7 @@ export const getWorkerFutureBookings = async (workerId, fromDate = new Date()) =
     workerId,
     status: { $in: WORKER_COMMITTED_STATUSES },
     scheduledDate: { $gte: new Date(fromDate.getTime() - DAY_MS) }
-  }).select('bookingNumber scheduledDate timeSlot scheduledTime').lean();
+  }).select('bookingNumber serviceName serviceCategory bookingType status scheduledDate timeSlot scheduledTime').lean();
   return rows
     .map((b) => ({ ...b, window: getBookingWindow(b) }))
     .filter((b) => b.window && b.window.end.getTime() > fromDate.getTime());

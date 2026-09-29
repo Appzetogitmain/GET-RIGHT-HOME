@@ -26,7 +26,7 @@ const activeJobQuery = (workerId, excludeBookingId) => {
 
 export const findWorkerActiveJob = (workerId, excludeBookingId = null) =>
   HomeServiceBooking.findOne(activeJobQuery(workerId, excludeBookingId))
-    .select('_id bookingNumber status scheduledDate scheduledTime')
+    .select('_id bookingNumber serviceName serviceCategory bookingType status scheduledDate scheduledTime')
     .lean();
 
 export const filterWorkersWithoutActiveJobs = async (workers, excludeBookingId = null) => {
