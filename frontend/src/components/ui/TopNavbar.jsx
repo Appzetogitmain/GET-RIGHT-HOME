@@ -104,24 +104,23 @@ const TopNavbar = () => {
 
                 {/* Center: Role-based links (99acres-style) + core utility pages */}
                 <div className="flex items-center gap-4 xl:gap-6 px-4 shrink-0">
-                    <div className="flex items-center gap-4 xl:gap-6 px-4 shrink-0">
-                        {roleLinks.map((link) => (
-                            <Link
-                                key={link.to}
-                                to={link.to}
-                                className={`text-gray-500 font-bold text-[13px] hover:${themeText} transition tracking-tight whitespace-nowrap`}
-                            >
-                                {link.label}
-                            </Link>
-                        ))}
-                        <span className="h-4 w-px bg-gray-200" />
-                        <Link to="/search" className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}>
-                            Search
+                    {roleLinks.map((link) => (
+                        <Link
+                            key={link.to}
+                            to={link.to}
+                            className={`text-gray-500 font-bold text-[13px] hover:${themeText} transition tracking-tight whitespace-nowrap`}
+                        >
+                            {link.label}
                         </Link>
-                        <Link to="/reels" className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}>
-                            Reels
-                        </Link>
-                    </div>
+                    ))}
+                    <span className="h-4 w-px bg-gray-200" />
+                    <Link to="/search" className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}>
+                        Search
+                    </Link>
+                    <Link to="/reels" className={`text-gray-500 font-bold text-sm hover:${themeText} transition tracking-tight`}>
+                        Reels
+                    </Link>
+                </div>
 
                     {/* Right side: Post property, Bell, User Actions */}
                     <div className="flex items-center gap-3 shrink-0">

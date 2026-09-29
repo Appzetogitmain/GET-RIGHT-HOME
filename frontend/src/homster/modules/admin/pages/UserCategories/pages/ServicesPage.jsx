@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FiPlus, FiEdit2, FiTrash2, FiPackage, FiSearch, FiFilter, FiImage, FiLayers, FiChevronRight, FiChevronDown } from "react-icons/fi";
+import { FiPlus, FiEdit2, FiTrash2, FiPackage, FiSearch, FiFilter, FiImage, FiLayers, FiChevronRight, FiChevronDown, FiX, FiRotateCcw } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
@@ -36,6 +36,8 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   const [loadingServices, setLoadingServices] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubCategoryFilter, setSelectedSubCategoryFilter] = useState("all");
+  const [selectedBookingModeFilter, setSelectedBookingModeFilter] = useState("all");
+  const [priceSort, setPriceSort] = useState("default");
   const [expandedCategories, setExpandedCategories] = useState({});
   const [sharedServices, setSharedServices] = useState([]);
 
@@ -381,7 +383,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
   };
 
   const displayedServices = useMemo(() => {
-    let filtered = services;
+    let filtered = [...services];
 
     // Filter by subcategory if not "all"
     if (selectedSubCategoryFilter !== "all") {
@@ -391,17 +393,42 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       });
     }
 
+    // Filter by booking mode if not "all"
+    if (selectedBookingModeFilter !== "all") {
+      filtered = filtered.filter(s => {
+        const modes = s.bookingModes || (s.isInstant ? ['instant', 'slot'] : ['slot']);
+        return modes.includes(selectedBookingModeFilter);
+      });
+    }
+
     // Filter by search term
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
+    if (searchTerm.trim()) {
+      const lower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(s =>
-        s.title.toLowerCase().includes(lower) ||
-        (s.subheading && s.subheading.toLowerCase().includes(lower))
+        (s.title && s.title.toLowerCase().includes(lower)) ||
+        (s.subheading && s.subheading.toLowerCase().includes(lower)) ||
+        (s.workerName && s.workerName.toLowerCase().includes(lower))
       );
     }
 
+    // Sort by price
+    if (priceSort === "low-to-high") {
+      filtered.sort((a, b) => (a.basePrice || 0) - (b.basePrice || 0));
+    } else if (priceSort === "high-to-low") {
+      filtered.sort((a, b) => (b.basePrice || 0) - (a.basePrice || 0));
+    }
+
     return filtered;
-  }, [services, searchTerm, selectedSubCategoryFilter]);
+  }, [services, searchTerm, selectedSubCategoryFilter, selectedBookingModeFilter, priceSort]);
+
+  const hasActiveFilters = searchTerm.trim() !== "" || selectedSubCategoryFilter !== "all" || selectedBookingModeFilter !== "all" || priceSort !== "default";
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setSelectedSubCategoryFilter("all");
+    setSelectedBookingModeFilter("all");
+    setPriceSort("default");
+  };
 
   return (
     <div className="space-y-6">
@@ -474,15 +501,71 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
 
         {/* Services Listing Area */}
         <div className="lg:col-span-3 space-y-4">
-          <div className="relative">
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 stroke-[3]" />
-            <input
-              type="text"
-              placeholder="Search services by title or subheading..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
-            />
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            {/* Search Box */}
+            <div className="relative flex-1">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 stroke-[3]" />
+              <input
+                type="text"
+                placeholder="Search services by title, subheading, worker..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-9 py-3 bg-white border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Quick Filters */}
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedBookingModeFilter}
+                onChange={e => setSelectedBookingModeFilter(e.target.value)}
+                className="px-3 py-3 bg-white border border-gray-100 rounded-2xl text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm cursor-pointer"
+              >
+                <option value="all">All Booking</option>
+                <option value="slot">Slot</option>
+                <option value="instant">Instant</option>
+              </select>
+
+              <select
+                value={priceSort}
+                onChange={e => setPriceSort(e.target.value)}
+                className="px-3 py-3 bg-white border border-gray-100 rounded-2xl text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm cursor-pointer"
+              >
+                <option value="default">Sort: Default</option>
+                <option value="low-to-high">Price: Low to High</option>
+                <option value="high-to-low">Price: High to Low</option>
+              </select>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  title="Reset all filters"
+                  className="p-3 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-2xl border border-red-200 transition-colors shadow-sm flex items-center gap-1 text-xs font-bold"
+                >
+                  <FiRotateCcw className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Results Count Bar */}
+          <div className="flex items-center justify-between text-xs font-bold text-gray-500 px-1">
+            <span>
+              Showing <strong className="text-gray-900">{displayedServices.length}</strong> of {services.length} services
+            </span>
+            {selectedSubCategoryFilter !== 'all' && (
+              <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                Filtered: {subCategories.find(sc => String(sc.id) === String(selectedSubCategoryFilter))?.title || 'Sub-category'}
+              </span>
+            )}
           </div>
 
           {loadingServices ? (

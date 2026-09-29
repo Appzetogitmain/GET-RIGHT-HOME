@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FiGrid, FiPlus, FiEdit2, FiTrash2, FiSave, FiChevronUp, FiChevronDown, FiMove, FiX } from "react-icons/fi";
+import { FiGrid, FiPlus, FiEdit2, FiTrash2, FiSave, FiChevronUp, FiChevronDown, FiMove, FiX, FiSearch, FiFilter, FiRotateCcw } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
@@ -26,6 +26,11 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
+  // Filters State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBookingMode, setSelectedBookingMode] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+
   const [form, setForm] = useState({
     title: "",
     slug: "",
@@ -42,6 +47,43 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
 
   const allCategories = (catalog.categories || []).sort((a, b) => (a.homeOrder || 0) - (b.homeOrder || 0));
   const categories = allCategories.filter(c => isDirectFlow ? c.isDirectService : !c.isDirectService);
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter(c => {
+      // Search term filter
+      if (searchTerm.trim()) {
+        const query = searchTerm.toLowerCase().trim();
+        const matchesTitle = (c.title || "").toLowerCase().includes(query);
+        const matchesSlug = (c.slug || "").toLowerCase().includes(query);
+        const matchesBadge = (c.homeBadge || "").toLowerCase().includes(query);
+        if (!matchesTitle && !matchesSlug && !matchesBadge) return false;
+      }
+
+      // Booking mode filter
+      if (selectedBookingMode !== "all") {
+        const modes = c.bookingModes || ['slot'];
+        if (!modes.includes(selectedBookingMode)) return false;
+      }
+
+      // Status filter
+      if (selectedStatus !== "all") {
+        const isVisible = c.showOnHome !== false;
+        if (selectedStatus === "visible" && !isVisible) return false;
+        if (selectedStatus === "hidden" && isVisible) return false;
+      }
+
+      return true;
+    });
+  }, [categories, searchTerm, selectedBookingMode, selectedStatus]);
+
+  const hasActiveFilters = searchTerm.trim() !== "" || selectedBookingMode !== "all" || selectedStatus !== "all";
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setSelectedBookingMode("all");
+    setSelectedStatus("all");
+  };
+
   const editing = useMemo(() => categories.find((c) => c.id === editingId) || null, [categories, editingId]);
 
   // Fetch categories from API on mount or city change
@@ -446,8 +488,16 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
         {fetching && (
           <div className="text-center py-4 text-gray-500">Loading categories...</div>
         )}
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-gray-600">{categories.length} categories</div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div className="text-sm font-semibold text-gray-600">
+            {hasActiveFilters ? (
+              <span>
+                Showing <strong className="text-gray-900">{filteredCategories.length}</strong> of {categories.length} categories
+              </span>
+            ) : (
+              <span>{categories.length} categories</span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowReorderModal(true)}
@@ -479,8 +529,82 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             </button>
           </div>
         </div>
+
+        {/* Filter Controls Toolbar */}
+        <div className="flex flex-wrap items-center gap-3 p-3 mb-4 bg-gray-50 border border-gray-200/80 rounded-xl">
+          {/* Search Box */}
+          <div className="relative flex-1 min-w-[200px]">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search category by name, slug, badge..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+              >
+                <FiX className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Booking Type Filter */}
+          <div className="flex items-center gap-1.5 min-w-[150px]">
+            <span className="text-xs font-bold text-gray-500 whitespace-nowrap">Booking:</span>
+            <select
+              value={selectedBookingMode}
+              onChange={(e) => setSelectedBookingMode(e.target.value)}
+              className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="all">All Booking Types</option>
+              <option value="slot">Slot</option>
+              <option value="instant">Instant</option>
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5 min-w-[140px]">
+            <span className="text-xs font-bold text-gray-500 whitespace-nowrap">Status:</span>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="all">All Status</option>
+              <option value="visible">Visible</option>
+              <option value="hidden">Hidden</option>
+            </select>
+          </div>
+
+          {/* Reset Filters */}
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+            >
+              <FiRotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
+
         {categories.length === 0 ? (
           <div className="text-center py-8 text-gray-500">No categories yet</div>
+        ) : filteredCategories.length === 0 ? (
+          <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+            <FiSearch className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-gray-600">No categories match your filters</p>
+            <button
+              onClick={resetFilters}
+              className="mt-2 text-xs font-bold text-blue-600 hover:underline"
+            >
+              Clear filters
+            </button>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -507,7 +631,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
                 </tr>
               </thead>
               <tbody>
-                {categories.map((c, idx) => (
+                {filteredCategories.map((c, idx) => (
                   <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-4 text-sm font-semibold text-gray-600">{idx + 1}</td>
                     <td className="py-4 px-4">
