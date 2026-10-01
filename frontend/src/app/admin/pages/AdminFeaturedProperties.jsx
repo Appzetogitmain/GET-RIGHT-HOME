@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../../../services/apiService';
+// Admin axios client: always sends the admin token. The shared `api` client
+// prefers a user `token` from localStorage, which made admin calls go out as
+// an owner/user and fail with 403.
+import { axiosInstance as api } from '../store/adminStore';
 import toast from 'react-hot-toast';
 import { Search, Star, Crown, Clock, X, Plus, Edit, Trash2 } from 'lucide-react';
 

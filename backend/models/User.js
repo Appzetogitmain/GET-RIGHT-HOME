@@ -228,5 +228,9 @@ userSchema.index(
   }
 );
 
+// Admin user list: filter by role/blocked, sorted newest first
+userSchema.index({ role: 1, createdAt: -1 });
+userSchema.index({ isBlocked: 1, createdAt: -1 });
+
 const User = mongoose.model('User', userSchema);
 export default User;

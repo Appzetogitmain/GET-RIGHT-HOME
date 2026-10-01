@@ -338,6 +338,19 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
 
       console.log('✅ MongoDB connected successfully');
 
+      // Start listening as soon as the DB is up. Seeding/backfills below can be
+      // slow on a remote DB; blocking on them left the API and Socket.IO
+      // refusing connections after every restart.
+      server.listen(PORT, () => {
+        console.log(`🚀 Server is running on port ${PORT}`);
+        const mapsKey = process.env.GOOGLE_MAP_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+        if (mapsKey && String(mapsKey).trim()) {
+          console.log('✅ Google Maps API key loaded');
+        } else {
+          console.warn('⚠️ GOOGLE_MAP_API_KEY not set – location search will return 500. Add it in backend/.env');
+        }
+      });
+
       // Seed subscription tiers dynamically on startup
       try {
         const SubscriptionTier = (await import('./models/SubscriptionTier.js')).default;
@@ -374,17 +387,6 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
       // Migration scripts can be run via npm run commands from the backend/scripts/ folder.
 
       // Server startup initialized
-
-      // Start server only after successful DB connection
-      server.listen(PORT, () => {
-        console.log(`🚀 Server is running on port ${PORT}`);
-        const mapsKey = process.env.GOOGLE_MAP_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
-        if (mapsKey && String(mapsKey).trim()) {
-          console.log('✅ Google Maps API key loaded');
-        } else {
-          console.warn('⚠️ GOOGLE_MAP_API_KEY not set – location search will return 500. Add it in backend/.env');
-        }
-      });
 
       return; // Exit function on success
     } catch (err) {

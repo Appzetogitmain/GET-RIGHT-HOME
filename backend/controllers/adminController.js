@@ -492,11 +492,17 @@ export const getAllUsers = async (req, res) => {
       query.role = { $ne: 'partner' }; // Default to not showing partner role if unspecified
     }
 
-    const total = await User.countDocuments(query);
-    const users = await User.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    // Run count + page fetch in parallel and return only the columns the
+    // list views need (lean, no password hash / large embedded docs).
+    const [total, users] = await Promise.all([
+      User.countDocuments(query),
+      User.find(query)
+        .select('name email phone role isBlocked createdAt profileImage isRecommendedBroker builderProfile.approvalStatus')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+    ]);
 
     res.status(200).json({ success: true, users, total, page, limit });
   } catch (error) {
