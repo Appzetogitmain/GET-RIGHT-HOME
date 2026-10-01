@@ -142,10 +142,10 @@ export const SocketProvider = ({ children }) => {
       auth: {
         token: token || ''
       },
-      transports: ['polling', 'websocket'], // Try polling first for reliability
+      // Websocket first: long-polling holds one of the browser's ~6 connections
+      // per host open, which starves the page's API calls. Falls back to polling.
+      transports: ['websocket', 'polling'],
       path: '/socket.io/',
-      secure: true,
-      rejectUnauthorized: false,
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,

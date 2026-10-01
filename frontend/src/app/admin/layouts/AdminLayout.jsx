@@ -7,7 +7,6 @@ import {
     Wrench, UserCog, ShoppingBag, Package, ClipboardList, Layers, ChevronDown, FolderCog
 } from 'lucide-react';
 
-
 import logo from '../../../assets/grh-logo.png';
 import useAdminStore from '../store/adminStore';
 import toast from 'react-hot-toast';
@@ -28,42 +27,6 @@ const AdminLayout = () => {
 
     // Support Chat unread badge (sidebar)
     const [supportUnreadCount, setSupportUnreadCount] = useState(0);
-
-    // Admin Panel Mode State ('real_estate' | 'home_services')
-    const [panelMode, setPanelMode] = useState(() => {
-        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin/home-service')) {
-            return 'home_services';
-        }
-        return localStorage.getItem('admin_active_panel') || 'real_estate';
-    });
-
-    // Auto-detect and sync panel mode based on current URL path
-    useEffect(() => {
-        if (location.pathname.startsWith('/admin/home-service')) {
-            if (panelMode !== 'home_services') {
-                setPanelMode('home_services');
-                localStorage.setItem('admin_active_panel', 'home_services');
-            }
-        } else if (location.pathname.startsWith('/admin')) {
-            if (panelMode !== 'real_estate') {
-                setPanelMode('real_estate');
-                localStorage.setItem('admin_active_panel', 'real_estate');
-            }
-        }
-    }, [location.pathname]);
-
-    const handleSwitchPanel = (targetMode) => {
-        if (targetMode === panelMode) return;
-        setPanelMode(targetMode);
-        localStorage.setItem('admin_active_panel', targetMode);
-        setSidebarSearch('');
-
-        if (targetMode === 'home_services') {
-            navigate('/admin/home-service/dashboard');
-        } else {
-            navigate('/admin/dashboard');
-        }
-    };
 
     useEffect(() => {
         loadNotifications();
@@ -120,9 +83,6 @@ const AdminLayout = () => {
 
     const handleViewAll = async () => {
         setIsNotifOpen(false);
-        // Mark all as read when going to view all? The user requirement says "click view all -> redirect to received tab -> status change to read".
-        // We can do marking read on the page itself or here. Let's do it here for smoother UX or let the page handle it.
-        // Requirement: "View all notifications option ho uspr click krne pr recieved notification ki tab pr redirect ho jaye admin and all the unread notifications ka status change hoke read ho jaye"
         try {
             await adminService.markAllNotificationsRead();
             setUnreadCount(0); // Optimistic update
@@ -138,8 +98,7 @@ const AdminLayout = () => {
         navigate('/admin/login');
     };
 
-    // Real Estate Admin Menu Groups
-    const REAL_ESTATE_MENU_GROUPS = useMemo(() => [
+    const MENU_GROUPS = useMemo(() => [
         {
             title: 'OVERVIEW',
             items: [
@@ -200,6 +159,43 @@ const AdminLayout = () => {
             ]
         },
         {
+            title: 'HOME SERVICES',
+            items: [
+                { icon: LayoutDashboard, label: 'Services Dashboard', path: '/admin/home-service/dashboard' },
+                {
+                    icon: Users, label: 'Service Users', children: [
+                        { label: 'All Users', path: '/admin/home-service/users' },
+                        { label: 'Active Users', path: '/admin/home-service/users?status=active' },
+                        { label: 'Blocked Users', path: '/admin/home-service/users?status=blocked' },
+                    ]
+                },
+                {
+                    icon: UserCog, label: 'Workers', children: [
+                        { label: 'All Workers', path: '/admin/home-service/workers/all' },
+                        { label: 'Offline Requests', path: '/admin/home-service/workers/offline-requests' },
+                        { label: 'Worker Jobs', path: '/admin/home-service/workers/jobs' },
+                        { label: 'Withdrawals', path: '/admin/home-service/workers/withdrawals' },
+                        { label: 'Complaints', path: '/admin/home-service/workers/complaints' },
+                        { label: 'Worker Analytics', path: '/admin/home-service/workers/analytics' },
+                    ]
+                },
+                { icon: ShoppingBag, label: 'Service Bookings', path: '/admin/home-service/bookings' },
+                { icon: Layers, label: 'Service Catalog', path: '/admin/home-service/user-categories' },
+                { icon: Wallet, label: 'Service Payments', path: '/admin/home-service/payments' },
+                { icon: ClipboardList, label: 'Service Reports', path: '/admin/home-service/reports' },
+                { icon: Star, label: 'Service Reviews', path: '/admin/home-service/reviews' },
+                { icon: Bell, label: 'Service Notifications', path: '/admin/home-service/notifications' },
+                {
+                    icon: Package, label: 'Plans', children: [
+                        { label: 'User Plans', path: '/admin/home-service/plans' },
+                        { label: 'Worker Plans', path: '/admin/home-service/worker-plans' },
+                    ]
+                },
+                { icon: MapPin, label: 'Zone Setup', path: '/admin/home-service/zones' },
+                { icon: Settings, label: 'Service Settings', path: '/admin/home-service/settings' },
+            ]
+        },
+        {
             title: 'FINANCE & GROWTH',
             items: [
                 { icon: ClipboardCheck, label: 'Loan Leads', path: '/admin/loan-leads' },
@@ -225,99 +221,12 @@ const AdminLayout = () => {
         }
     ], [supportUnreadCount, unreadCount]);
 
-    // Home Services Admin Menu Groups
-    const HOME_SERVICES_MENU_GROUPS = useMemo(() => [
-        {
-            title: 'OVERVIEW',
-            items: [
-                { icon: LayoutDashboard, label: 'Services Dashboard', path: '/admin/home-service/dashboard' },
-            ]
-        },
-        {
-            title: 'OPERATIONS & BOOKINGS',
-            items: [
-                {
-                    icon: ShoppingBag, label: 'Bookings', children: [
-                        { label: 'All Bookings', path: '/admin/home-service/bookings' },
-                        { label: 'Live Tracking', path: '/admin/home-service/bookings/tracking' },
-                        { label: 'Notifications', path: '/admin/home-service/bookings/notifications' },
-                    ]
-                },
-                { icon: ClipboardList, label: 'Service Reports', path: '/admin/home-service/reports' },
-                { icon: Star, label: 'Service Reviews', path: '/admin/home-service/reviews' },
-            ]
-        },
-        {
-            title: 'WORKER MANAGEMENT',
-            items: [
-                {
-                    icon: UserCog, label: 'Workers', children: [
-                        { label: 'All Workers', path: '/admin/home-service/workers/all' },
-                        { label: 'Offline Requests', path: '/admin/home-service/workers/offline-requests' },
-                        { label: 'Worker Jobs', path: '/admin/home-service/workers/jobs' },
-                        { label: 'Withdrawals', path: '/admin/home-service/workers/withdrawals' },
-                        { label: 'Complaints', path: '/admin/home-service/workers/complaints' },
-                        { label: 'Worker Analytics', path: '/admin/home-service/workers/analytics' },
-                    ]
-                },
-                {
-                    icon: Package, label: 'Plans & Membership', children: [
-                        { label: 'User Plans', path: '/admin/home-service/plans' },
-                        { label: 'Worker Plans', path: '/admin/home-service/worker-plans' },
-                    ]
-                },
-            ]
-        },
-        {
-            title: 'USERS & CATALOG',
-            items: [
-                {
-                    icon: Users, label: 'Service Users', children: [
-                        { label: 'All Users', path: '/admin/home-service/users/all' },
-                        { label: 'Active Users', path: '/admin/home-service/users/all?status=active' },
-                        { label: 'Blocked Users', path: '/admin/home-service/users/all?status=blocked' },
-                    ]
-                },
-                {
-                    icon: Layers, label: 'Service Catalog', children: [
-                        { label: 'Catalog Home', path: '/admin/home-service/user-categories' },
-                        { label: 'Categories', path: '/admin/home-service/user-categories/categories' },
-                        { label: 'Sub Categories', path: '/admin/home-service/user-categories/sub-categories' },
-                        { label: 'Services & Rates', path: '/admin/home-service/user-categories/sections' },
-                    ]
-                },
-                { icon: Wallet, label: 'Service Payments', path: '/admin/home-service/payments' },
-            ]
-        },
-        {
-            title: 'ZONES & SETTINGS',
-            items: [
-                { icon: MapPin, label: 'Zone Setup', path: '/admin/home-service/zones' },
-                { icon: Bell, label: 'Service Notifications', path: '/admin/home-service/notifications' },
-                { icon: Settings, label: 'Service Settings', path: '/admin/home-service/settings' },
-            ]
-        },
-        {
-            title: 'SYSTEM',
-            items: [
-                { icon: MessageSquare, label: 'Support Chat', path: '/admin/support-chat', badge: supportUnreadCount > 0 },
-                { icon: Bell, label: 'Notifications', path: '/admin/notifications', badge: unreadCount > 0 },
-                { icon: Settings, label: 'Settings', path: '/admin/settings' },
-            ]
-        }
-    ], [supportUnreadCount, unreadCount]);
-
-    // Active menu groups based on selected panel mode
-    const currentMenuGroups = useMemo(() => {
-        return panelMode === 'home_services' ? HOME_SERVICES_MENU_GROUPS : REAL_ESTATE_MENU_GROUPS;
-    }, [panelMode, HOME_SERVICES_MENU_GROUPS, REAL_ESTATE_MENU_GROUPS]);
-
     // Auto-expand whichever parent contains the currently active child, so
     // reloading a deep link (e.g. /admin/users?status=active) doesn't leave
     // its parent collapsed.
     useEffect(() => {
         const currentFull = location.pathname + location.search;
-        for (const group of currentMenuGroups) {
+        for (const group of MENU_GROUPS) {
             for (const item of group.items) {
                 if (item.children?.some(c => c.path === currentFull || location.pathname.startsWith(c.path.split('?')[0]))) {
                     setExpandedItems(prev => (prev[item.label] ? prev : { ...prev, [item.label]: true }));
@@ -325,70 +234,7 @@ const AdminLayout = () => {
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [location.pathname, location.search, currentMenuGroups]);
-
-    // Sidebar search state & ref
-    const [sidebarSearch, setSidebarSearch] = useState('');
-    const searchInputRef = useRef(null);
-
-    // Filter menu groups and items based on search query
-    const filteredMenuGroups = useMemo(() => {
-        const q = sidebarSearch.trim().toLowerCase();
-        if (!q) return currentMenuGroups;
-
-        return currentMenuGroups.map(group => {
-            const groupTitleMatches = group.title.toLowerCase().includes(q);
-
-            const matchingItems = group.items.map(item => {
-                const itemMatches = item.label.toLowerCase().includes(q);
-
-                if (item.children?.length) {
-                    const matchingChildren = item.children.filter(child =>
-                        child.label.toLowerCase().includes(q)
-                    );
-
-                    if (itemMatches || groupTitleMatches) {
-                        return {
-                            ...item,
-                            children: matchingChildren.length > 0 ? matchingChildren : item.children,
-                        };
-                    } else if (matchingChildren.length > 0) {
-                        return {
-                            ...item,
-                            children: matchingChildren,
-                        };
-                    }
-                    return null;
-                }
-
-                return (itemMatches || groupTitleMatches) ? item : null;
-            }).filter(Boolean);
-
-            if (matchingItems.length > 0) {
-                return {
-                    ...group,
-                    items: matchingItems
-                };
-            }
-            return null;
-        }).filter(Boolean);
-    }, [sidebarSearch, currentMenuGroups]);
-
-    const totalMatches = useMemo(() => {
-        if (!sidebarSearch.trim()) return 0;
-        let count = 0;
-        for (const group of filteredMenuGroups) {
-            for (const item of group.items) {
-                if (item.children?.length) {
-                    count += item.children.length;
-                } else {
-                    count += 1;
-                }
-            }
-        }
-        return count;
-    }, [filteredMenuGroups, sidebarSearch]);
-
+    }, [location.pathname, location.search, MENU_GROUPS]);
 
     return (
         <div className="flex h-screen bg-gray-100 font-sans text-gray-900 overflow-hidden">
@@ -400,261 +246,125 @@ const AdminLayout = () => {
                 className="bg-white text-gray-900 flex flex-col h-full border-r border-gray-100 shadow-xl z-20 transition-all duration-300 relative"
             >
                 {/* Sidebar Header */}
-                <div className={`p-4 flex items-center justify-between bg-white border-b border-gray-100 transition-all duration-300 ${!isSidebarOpen && 'flex-col gap-4 p-3'}`}>
+                <div className={`p-5 flex items-center justify-between bg-white border-b border-gray-50 transition-all duration-300 ${!isSidebarOpen && 'flex-col gap-4 p-4'}`}>
                     <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
                             <img src={logo} alt="Logo" className="w-9 h-9 object-contain" />
                         </div>
                         {isSidebarOpen && (
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-[13px] font-black text-gray-900 truncate tracking-tight uppercase">
+                            <div>
+                                <h2 className="text-xs font-black text-gray-800 tracking-tight uppercase">
                                     GET RIGHT <span className="text-orange-600">HOME</span>
-                                </span>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${panelMode === 'real_estate' ? 'bg-orange-500' : 'bg-teal-500'} animate-pulse`}></span>
-                                    <p className="text-[9px] text-gray-500 font-extrabold tracking-wider uppercase truncate">
-                                        {panelMode === 'real_estate' ? 'Real Estate Admin' : 'Home Services Admin'}
-                                    </p>
-                                </div>
+                                </h2>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">ADMIN PANEL</p>
                             </div>
                         )}
                     </div>
-                    
-                    {/* Sidebar Collapse Toggle */}
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className={`p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-colors ${!isSidebarOpen && 'mt-1'}`}
-                        title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+                        className={`p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-colors ${!isSidebarOpen && 'mt-2'}`}
                     >
                         {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
                     </button>
                 </div>
 
-                {/* Panel Switcher inside Sidebar */}
-                <div className="px-3 pt-3 pb-2 shrink-0 border-b border-gray-100/80 bg-gray-50/50">
-                    {isSidebarOpen ? (
-                        <div className="p-1 bg-gray-200/70 rounded-xl flex items-center gap-1 border border-gray-300/60 shadow-inner">
-                            <button
-                                type="button"
-                                onClick={() => handleSwitchPanel('real_estate')}
-                                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-200 ${
-                                    panelMode === 'real_estate'
-                                        ? 'bg-white text-orange-600 shadow-sm border border-gray-200/80'
-                                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'
-                                }`}
-                            >
-                                <Building2 size={13} className={panelMode === 'real_estate' ? 'text-orange-600' : 'text-gray-400'} />
-                                <span>Real Estate</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleSwitchPanel('home_services')}
-                                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-200 ${
-                                    panelMode === 'home_services'
-                                        ? 'bg-white text-teal-600 shadow-sm border border-gray-200/80'
-                                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'
-                                }`}
-                            >
-                                <Wrench size={13} className={panelMode === 'home_services' ? 'text-teal-600' : 'text-gray-400'} />
-                                <span>Home Services</span>
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex justify-center">
-                            <button
-                                type="button"
-                                onClick={() => handleSwitchPanel(panelMode === 'real_estate' ? 'home_services' : 'real_estate')}
-                                className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-sm ${
-                                    panelMode === 'real_estate'
-                                        ? 'bg-orange-50 border-orange-200 text-orange-600 hover:bg-orange-100'
-                                        : 'bg-teal-50 border-teal-200 text-teal-600 hover:bg-teal-100'
-                                }`}
-                                title={`Currently in ${panelMode === 'real_estate' ? 'Real Estate' : 'Home Services'}. Click to switch.`}
-                            >
-                                {panelMode === 'real_estate' ? <Building2 size={16} /> : <Wrench size={16} />}
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Sidebar Search Box */}
-                <div className="px-4 pt-3 pb-2 shrink-0 border-b border-gray-100/60">
-                    {isSidebarOpen ? (
-                        <div className="space-y-1.5">
-                            <div className="relative flex items-center">
-                                <Search size={15} className="absolute left-3 text-gray-400 pointer-events-none" />
-                                <input
-                                    ref={searchInputRef}
-                                    type="text"
-                                    value={sidebarSearch}
-                                    onChange={(e) => setSidebarSearch(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Escape') {
-                                            setSidebarSearch('');
-                                            e.currentTarget.blur();
-                                        }
-                                    }}
-                                    placeholder={panelMode === 'home_services' ? "Search services menu..." : "Search real estate menu..."}
-                                    className="w-full pl-9 pr-8 py-2 bg-gray-50 hover:bg-gray-100/80 focus:bg-white border border-gray-200 focus:border-gray-900 rounded-xl text-xs font-medium text-gray-800 placeholder-gray-400 outline-none transition-all shadow-sm focus:ring-1 focus:ring-gray-900"
-                                />
-                                {sidebarSearch && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setSidebarSearch('');
-                                            searchInputRef.current?.focus();
-                                        }}
-                                        className="absolute right-2.5 p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 transition-colors"
-                                        title="Clear search"
-                                    >
-                                        <X size={13} />
-                                    </button>
-                                )}
-                            </div>
-                            {sidebarSearch.trim() && (
-                                <div className="flex items-center justify-between px-1 text-[11px] text-gray-400 font-medium">
-                                    <span>{totalMatches} result{totalMatches === 1 ? '' : 's'}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSidebarSearch('')}
-                                        className="text-[10px] text-orange-600 hover:text-orange-700 font-bold hover:underline"
-                                    >
-                                        Clear
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex justify-center">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsSidebarOpen(true);
-                                    setTimeout(() => searchInputRef.current?.focus(), 150);
-                                }}
-                                className="w-10 h-10 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors shadow-sm"
-                                title="Search in sidebar"
-                            >
-                                <Search size={16} />
-                            </button>
-                        </div>
-                    )}
-                </div>
-
                 {/* Navigation with Groups */}
-                <nav className="flex-1 py-3 px-4 space-y-5 overflow-y-auto custom-scrollbar">
-                    {filteredMenuGroups.length === 0 ? (
-                        <div className="py-8 px-2 text-center">
-                            <div className="w-10 h-10 mx-auto rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mb-2">
-                                <Search size={16} />
-                            </div>
-                            <p className="text-xs font-bold text-gray-700">No menu items found</p>
-                            <p className="text-[11px] text-gray-400 mt-1">No results for "{sidebarSearch}"</p>
-                            <button
-                                type="button"
-                                onClick={() => setSidebarSearch('')}
-                                className="mt-3 px-3 py-1.5 text-[11px] font-bold bg-gray-900 text-white rounded-lg hover:bg-black transition-colors"
-                            >
-                                Clear Search
-                            </button>
-                        </div>
-                    ) : (
-                        filteredMenuGroups.map((group, gIdx) => (
-                            <div key={gIdx} className="space-y-2">
-                                {isSidebarOpen && (
-                                    <h4 className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
-                                        {group.title}
-                                    </h4>
-                                )}
-                                <div className="space-y-1">
-                                    {group.items.map((item) => {
-                                        const hasChildren = !!item.children?.length;
-                                        const currentFull = location.pathname + location.search;
-                                        const isActive = hasChildren
-                                            ? item.children.some(c => c.path === currentFull || (location.pathname.startsWith(c.path.split('?')[0]) && !c.path.includes('?')))
-                                            : item.path === '/admin/properties'
-                                                ? location.pathname === item.path || location.pathname.startsWith('/admin/properties/')
-                                                : location.pathname.startsWith(item.path);
-                                        const isExpanded = sidebarSearch.trim() ? true : !!expandedItems[item.label];
+                <nav className="flex-1 py-4 px-4 space-y-6 overflow-y-auto custom-scrollbar">
+                    {MENU_GROUPS.map((group, gIdx) => (
+                        <div key={gIdx} className="space-y-2">
+                            {isSidebarOpen && (
+                                <h4 className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+                                    {group.title}
+                                </h4>
+                            )}
+                            <div className="space-y-1">
+                                {group.items.map((item) => {
+                                    const hasChildren = !!item.children?.length;
+                                    const currentFull = location.pathname + location.search;
+                                    const isActive = hasChildren
+                                        ? item.children.some(c => c.path === currentFull || (location.pathname.startsWith(c.path.split('?')[0]) && !c.path.includes('?')))
+                                        : item.path === '/admin/properties'
+                                            ? location.pathname === item.path || location.pathname.startsWith('/admin/properties/')
+                                            : location.pathname.startsWith(item.path);
+                                    const isExpanded = !!expandedItems[item.label];
 
-                                        if (hasChildren) {
-                                            return (
-                                                <div key={item.label}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setExpandedItems(prev => ({ ...prev, [item.label]: !prev[item.label] }))}
-                                                        className={`flex items-center transition-all group relative text-[13px] font-medium tracking-tight ${isSidebarOpen
-                                                            ? 'w-full gap-3 px-4 py-2.5 rounded-xl'
-                                                            : 'justify-center w-12 h-12 rounded-xl mx-auto mb-1'
-                                                            } ${isActive
-                                                            ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
-                                                            : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
-                                                            }`}
-                                                    >
-                                                        <item.icon size={18} className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-900'}`} />
-                                                        {isSidebarOpen && (
-                                                            <>
-                                                                <span className="whitespace-nowrap flex-1 truncate text-left">{item.label}</span>
-                                                                <ChevronDown size={14} className={`shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''} ${isActive ? 'text-white' : 'text-gray-400'}`} />
-                                                            </>
-                                                        )}
-                                                    </button>
-
-                                                    {isSidebarOpen && isExpanded && (
-                                                        <div className="mt-1 ml-[22px] pl-4 border-l-2 border-gray-100 space-y-1">
-                                                            {item.children.map((child) => {
-                                                                const childActive = currentFull === child.path || (!child.path.includes('?') && (location.pathname === child.path || (location.pathname === '/admin/home-service/users' && child.path === '/admin/home-service/users/all') || (location.pathname === '/admin/home-service/users/all' && child.path === '/admin/home-service/users')));
-                                                                return (
-                                                                    <Link
-                                                                        key={child.path}
-                                                                        to={child.path}
-                                                                        className={`block px-3 py-2 rounded-lg text-[12.5px] font-medium tracking-tight transition-colors ${childActive
-                                                                            ? 'bg-gray-900 text-white font-semibold'
-                                                                            : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
-                                                                            }`}
-                                                                    >
-                                                                        {child.label}
-                                                                    </Link>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        }
-
+                                    if (hasChildren) {
                                         return (
-                                            <Link
-                                                key={item.path}
-                                                to={item.path}
-                                                className={`flex items-center transition-all group relative text-[13px] font-medium tracking-tight ${isSidebarOpen
-                                                    ? 'gap-3 px-4 py-2.5 rounded-xl'
-                                                    : 'justify-center w-12 h-12 rounded-xl mx-auto mb-1'
-                                                    } ${isActive
-                                                    ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
-                                                    : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
-                                                    }`}
-                                            >
-                                                <item.icon size={18} className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-900'}`} />
-                                                {isSidebarOpen && (
-                                                    <motion.span
-                                                        initial={{ opacity: 0, x: -5 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        className="whitespace-nowrap flex-1 truncate"
-                                                    >
-                                                        {item.label}
-                                                    </motion.span>
+                                            <div key={item.label}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setExpandedItems(prev => ({ ...prev, [item.label]: !prev[item.label] }))}
+                                                    className={`flex items-center transition-all group relative text-[13px] font-medium tracking-tight ${isSidebarOpen
+                                                        ? 'w-full gap-3 px-4 py-2.5 rounded-xl'
+                                                        : 'justify-center w-12 h-12 rounded-xl mx-auto mb-1'
+                                                        } ${isActive
+                                                        ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
+                                                        : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
+                                                        }`}
+                                                >
+                                                    <item.icon size={18} className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-900'}`} />
+                                                    {isSidebarOpen && (
+                                                        <>
+                                                            <span className="whitespace-nowrap flex-1 truncate text-left">{item.label}</span>
+                                                            <ChevronDown size={14} className={`shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''} ${isActive ? 'text-white' : 'text-gray-400'}`} />
+                                                        </>
+                                                    )}
+                                                </button>
+
+                                                {isSidebarOpen && isExpanded && (
+                                                    <div className="mt-1 ml-[22px] pl-4 border-l-2 border-gray-100 space-y-1">
+                                                        {item.children.map((child) => {
+                                                            const childActive = currentFull === child.path || (!child.path.includes('?') && (location.pathname === child.path || (location.pathname === '/admin/home-service/users' && child.path === '/admin/home-service/users/all') || (location.pathname === '/admin/home-service/users/all' && child.path === '/admin/home-service/users')));
+                                                            return (
+                                                                <Link
+                                                                    key={child.path}
+                                                                    to={child.path}
+                                                                    className={`block px-3 py-2 rounded-lg text-[12.5px] font-medium tracking-tight transition-colors ${childActive
+                                                                        ? 'bg-gray-900 text-white font-semibold'
+                                                                        : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
+                                                                        }`}
+                                                                >
+                                                                    {child.label}
+                                                                </Link>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 )}
-                                                {item.badge && isSidebarOpen && (
-                                                    <span className="ml-auto w-2 h-2 bg-red-500 rounded-full shrink-0"></span>
-                                                )}
-                                            </Link>
+                                            </div>
                                         );
-                                    })}
-                                </div>
+                                    }
+
+                                    return (
+                                        <Link
+                                            key={item.path}
+                                            to={item.path}
+                                            className={`flex items-center transition-all group relative text-[13px] font-medium tracking-tight ${isSidebarOpen
+                                                ? 'gap-3 px-4 py-2.5 rounded-xl'
+                                                : 'justify-center w-12 h-12 rounded-xl mx-auto mb-1'
+                                                } ${isActive
+                                                ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
+                                                : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
+                                                }`}
+                                        >
+                                            <item.icon size={18} className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-900'}`} />
+                                            {isSidebarOpen && (
+                                                <motion.span
+                                                    initial={{ opacity: 0, x: -5 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    className="whitespace-nowrap flex-1 truncate"
+                                                >
+                                                    {item.label}
+                                                </motion.span>
+                                            )}
+                                            {item.badge && isSidebarOpen && (
+                                                <span className="ml-auto w-2 h-2 bg-red-500 rounded-full shrink-0"></span>
+                                            )}
+                                        </Link>
+                                    );
+                                })}
                             </div>
-                        ))
-                    )}
+                        </div>
+                    ))}
                 </nav>
 
 
@@ -675,42 +385,18 @@ const AdminLayout = () => {
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
                 {/* Topbar */}
-                <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 md:px-8 shadow-sm z-10 shrink-0">
-                    <div className="flex items-center gap-4 md:gap-6 flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-lg md:text-xl font-bold text-gray-800 uppercase tracking-tighter shrink-0">
-                                GET RIGHT <span className="text-orange-600">HOME</span>
-                            </h1>
-
-                            {/* Panel Switcher Pill Toggle in Topbar */}
-                            <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200/90 shadow-sm shrink-0">
-                                <button
-                                    type="button"
-                                    onClick={() => handleSwitchPanel('real_estate')}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-                                        panelMode === 'real_estate'
-                                            ? 'bg-white text-orange-600 shadow-sm border border-gray-100 font-extrabold'
-                                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    <Building2 size={14} className={panelMode === 'real_estate' ? 'text-orange-600' : 'text-gray-400'} />
-                                    <span className="hidden sm:inline">Real Estate</span>
-                                    <span className="sm:hidden">Estate</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleSwitchPanel('home_services')}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-                                        panelMode === 'home_services'
-                                            ? 'bg-white text-teal-600 shadow-sm border border-gray-100 font-extrabold'
-                                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    <Wrench size={14} className={panelMode === 'home_services' ? 'text-teal-600' : 'text-gray-400'} />
-                                    <span className="hidden sm:inline">Home Services</span>
-                                    <span className="sm:hidden">Services</span>
-                                </button>
-                            </div>
+                <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">
+                    <div className="flex items-center gap-4 flex-1">
+                        <h1 className="text-xl font-bold text-gray-800 uppercase tracking-tighter shrink-0">
+                            GET RIGHT <span className="text-orange-600">HOME</span>
+                        </h1>
+                        <div className="hidden md:flex items-center relative max-w-md w-full ml-8">
+                            <Search size={16} className="absolute left-3 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search users, bookings, hotels..."
+                                className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-black focus:bg-white transition-all outline-none"
+                            />
                         </div>
                     </div>
 
