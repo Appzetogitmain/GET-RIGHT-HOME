@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiMapPin, FiPhone, FiClock, FiUser, FiCheck, FiX, FiArrowRight, FiNavigation, FiTool, FiCheckCircle, FiDollarSign, FiCamera, FiPlus, FiTrash, FiXCircle, FiAward, FiFileText, FiKey } from 'react-icons/fi';
+import { FiMapPin, FiPhone, FiClock, FiUser, FiCheck, FiX, FiArrowRight, FiNavigation, FiTool, FiCheckCircle, FiDollarSign, FiCamera, FiPlus, FiTrash, FiXCircle, FiAward, FiFileText, FiKey, FiUsers } from 'react-icons/fi';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import { SkeletonCard } from '../../../../components/common/SkeletonLoaders';
@@ -9,6 +9,9 @@ const CashCollectionModal = lazy(() => import('../../components/common/CashColle
 const VisitVerificationModal = lazy(() => import('../../components/common/VisitVerificationModal'));
 const WorkCompletionModal = lazy(() => import('../../components/common/WorkCompletionModal'));
 const OtpVerificationModal = lazy(() => import('../../components/common/OtpVerificationModal'));
+import HelperJobView from '../../components/common/HelperJobView';
+import JobHelperSection from '../../components/common/JobHelperSection';
+import RejectJobModal from '../../components/common/RejectJobModal';
 const GenerateEstimateModal = lazy(() => import('../../components/common/GenerateEstimateModal'));
 import workerService from '../../../../services/workerService';
 import api from '../../../../services/api';
@@ -30,6 +33,8 @@ const JobDetails = () => {
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [helperOpen, setHelperOpen] = useState(false);
   const [otpInput, setOtpInput] = useState(['', '', '', '']); // Array for 4 digit OTP
   const [workPhotos, setWorkPhotos] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -209,6 +214,10 @@ const JobDetails = () => {
   };
 
   const handleStatusUpdate = async (type) => {
+    if (type === 'reject-assigned') {
+      setIsRejectOpen(true);
+      return;
+    }
     if (type === 'visit' && !isVisitModalOpen) {
       if (job.status === 'journey_started') {
         try {
@@ -292,6 +301,9 @@ const JobDetails = () => {
     );
   }
 
+  // Admin added me to help on someone else's job: read-only, no amounts.
+  if (job.isHelper) return <HelperJobView job={job} />;
+
   const getStatusLabel = (status) => {
     const labels = {
       'pending': 'Pending',
@@ -359,7 +371,33 @@ const JobDetails = () => {
             </div>
           )}
 
-          {job.workerResponse === 'ACCEPTED' && (job.status === 'confirmed' || job.status === 'assigned') && (
+          {['ACCEPTED', 'AUTO_ASSIGNED', 'ADMIN_ASSIGNED'].includes(job.workerResponse) && (job.status === 'confirmed' || job.status === 'assigned') && (
+            <button
+              onClick={() => handleStatusUpdate('reject-assigned')}
+              disabled={actionLoading}
+              className="w-full py-3 rounded-2xl font-bold text-red-500 bg-red-50 border border-red-100 shadow-sm active:scale-95 transition-all mb-1"
+            >
+              REJECT THIS JOB
+            </button>
+          )}
+
+          {/* Need an extra pair of hands? Ask admin to add a worker to this job. */}
+          {['assigned', 'confirmed', 'accepted', 'journey_started', 'visited', 'estimate_provided', 'estimate_accepted', 'in_progress'].includes(String(job.status).toLowerCase()) && (
+            (job.helperRequests || []).some((r) => r.status === 'pending') ? (
+              <div className="w-full py-3 rounded-2xl text-center text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 mb-1">
+                Extra worker requested — waiting for admin
+              </div>
+            ) : (
+              <button
+                onClick={() => setHelperOpen(true)}
+                className="w-full py-3 rounded-2xl font-bold text-blue-700 bg-blue-50 border border-blue-100 shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2 mb-1"
+              >
+                <FiUsers className="w-4 h-4" /> REQUEST EXTRA WORKER
+              </button>
+            )
+          )}
+
+          {['ACCEPTED', 'AUTO_ASSIGNED', 'ADMIN_ASSIGNED'].includes(job.workerResponse) && (job.status === 'confirmed' || job.status === 'assigned') && (
             <button
               onClick={() => handleStatusUpdate('start')}
               disabled={actionLoading}
@@ -548,6 +586,9 @@ const JobDetails = () => {
           </div>
         </div>
 
+        {/* Extra workers (request / who was added) */}
+        <JobHelperSection job={job} onChanged={fetchJobDetails} open={helperOpen} onOpenChange={setHelperOpen} />
+
         {/* Booked Services List */}
         {job.items && job.items.length > 0 && (
           <div className="bg-white rounded-2xl p-5 mb-6 shadow-md">
@@ -694,6 +735,27 @@ const JobDetails = () => {
           )}
         </div>
       </main>
+
+      <RejectJobModal
+        isOpen={isRejectOpen}
+        onClose={() => setIsRejectOpen(false)}
+        loading={actionLoading}
+        onConfirm={async (reason) => {
+          try {
+            setActionLoading(true);
+            const res = await workerService.releaseJob(id, reason);
+            if (res?.success) {
+              toast.success('Job sent back to admin');
+              setIsRejectOpen(false);
+              navigate('/worker/jobs');
+            }
+          } catch (error) {
+            toast.error(error.response?.data?.message || 'Could not reject the job');
+          } finally {
+            setActionLoading(false);
+          }
+        }}
+      />
 
       {/* Unified Worker Completion Modal - REUSABLE COMPONENT */}
       <Suspense fallback={null}>

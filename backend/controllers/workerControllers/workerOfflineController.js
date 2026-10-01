@@ -6,6 +6,7 @@ import { createNotification } from '../notificationControllers/notificationContr
 import { generateTimeSlots } from '../../utils/slotGenerator.js';
 import { getIO } from '../../sockets.js';
 import { istYmd, weekdayOfYmd, ALL_WEEKDAYS } from '../../utils/slotAvailability.js';
+import { syncOnlineWithTodayAvailability } from '../../services/workerAvailabilityService.js';
 
 /**
  * Worker: Submit an offline request
@@ -151,10 +152,13 @@ export const getActiveOfflineRequest = async (req, res) => {
       status: 'pending'
     }).sort({ createdAt: -1 });
 
+    const { todayMarked, todayPending } = await syncOnlineWithTodayAvailability(workerId);
     const worker = await Worker.findById(workerId).select('currentOfflineSchedule isOnline approvalStatus');
 
     res.status(200).json({
       success: true,
+      todayAvailabilityMarked: todayMarked,
+      todayAvailabilityPending: todayPending,
       data: pendingRequest || null,
       pendingRequest: pendingRequest || null,
       activeSchedule: worker?.currentOfflineSchedule || null,
@@ -272,7 +276,7 @@ export const approveOfflineRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Request not found' });
     }
 
-    if (request.status !== 'pending') {
+    if (!['pending', 'rejected'].includes(request.status)) {
       return res.status(400).json({
         success: false,
         message: `Cannot approve request with status '${request.status}'`

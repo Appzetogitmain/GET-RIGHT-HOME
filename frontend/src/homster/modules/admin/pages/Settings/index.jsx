@@ -40,8 +40,24 @@ const AdminSettings = () => {
     jobReminderConfirmMinutes: 15,
     advanceBookingDays: 7,
     workerLeaveAutoApprove: false,
+    availabilityRequiresApproval: true,
     requireDailyAvailability: true,
-    isOnlinePaymentEnabled: true
+    isOnlinePaymentEnabled: true,
+    advancePaymentThreshold: 2000,
+    advancePaymentPercent: 30,
+    vip: {
+      enabled: false,
+      name: 'VIP Membership',
+      price: 199,
+      originalPrice: 0,
+      durationDays: 30,
+      plans: [
+        { name: '1 Month', price: 199, originalPrice: 299, durationDays: 30 },
+        { name: '6 Months', price: 599, originalPrice: 1199, durationDays: 180 }
+      ],
+      maxDiscount: 0,
+      tiers: [{ minAmount: 500, percent: 5 }, { minAmount: 1500, percent: 10 }, { minAmount: 3000, percent: 15 }]
+    }
   });
 
   // Billing Configuration State
@@ -127,28 +143,48 @@ const AdminSettings = () => {
       try {
         const res = await getSettings();
         if (res.success && res.settings) {
-          setFinancialSettings({
-            visitedCharges: res.settings.visitedCharges || 0,
+          setFinancialSettings((prev) => ({
+            ...prev,
+            applyGst: !!res.settings.applyGst,
+            maxSearchTime: res.settings.maxSearchTime ?? prev.maxSearchTime,
+            waveDuration: res.settings.waveDuration ?? prev.waveDuration,
+            visitedCharges: res.settings.visitedCharges ?? 0,
             serviceGstPercentage: res.settings.serviceGstPercentage ?? 18,
             partsGstPercentage: res.settings.partsGstPercentage ?? 18,
             servicePayoutPercentage: res.settings.servicePayoutPercentage ?? 90,
             partsPayoutPercentage: res.settings.partsPayoutPercentage ?? 100,
-            tdsPercentage: res.settings.tdsPercentage || 1,
-            defaultCommission: res.settings.defaultCommission || 10,
-            platformFeePercentage: res.settings.platformFeePercentage || 1,
-            platformFlatFee: res.settings.platformFlatFee || 20,
-            cashCollectionFee: res.settings.cashCollectionFee || 20,
-            cancellationPenalty: res.settings.cancellationPenalty !== undefined ? res.settings.cancellationPenalty : 49,
-            searchRadius: res.settings.searchRadius || 10,
+            tdsPercentage: res.settings.tdsPercentage ?? 1,
+            defaultCommission: res.settings.defaultCommission ?? 10,
+            platformFeePercentage: res.settings.platformFeePercentage ?? 1,
+            platformFlatFee: res.settings.platformFlatFee ?? 20,
+            cashCollectionFee: res.settings.cashCollectionFee ?? 20,
+            cancellationPenalty: res.settings.cancellationPenalty ?? 49,
+            searchRadius: res.settings.searchRadius ?? 10,
             bookingBufferMinutes: res.settings.bookingBufferMinutes ?? 120,
             jobReminderLeadMinutes: res.settings.jobReminderLeadMinutes ?? 120,
             jobReminderConfirmMinutes: res.settings.jobReminderConfirmMinutes ?? 15,
             advanceBookingDays: res.settings.advanceBookingDays ?? 7,
             workerLeaveAutoApprove: !!res.settings.workerLeaveAutoApprove,
+            availabilityRequiresApproval: res.settings.availabilityRequiresApproval !== false,
+            advancePaymentThreshold: res.settings.advancePaymentThreshold ?? 2000,
+            advancePaymentPercent: res.settings.advancePaymentPercent ?? 30,
+            vip: {
+              enabled: !!res.settings.vip?.enabled,
+              name: res.settings.vip?.name || 'VIP Membership',
+              price: res.settings.vip?.price ?? 199,
+              originalPrice: res.settings.vip?.originalPrice ?? 0,
+              durationDays: res.settings.vip?.durationDays ?? 30,
+              plans: (res.settings.vip?.plans?.length
+                ? res.settings.vip.plans
+                : [{ name: res.settings.vip?.name || 'VIP Membership', price: res.settings.vip?.price ?? 199, originalPrice: res.settings.vip?.originalPrice ?? 0, durationDays: res.settings.vip?.durationDays ?? 30 }]
+              ).map((pl) => ({ name: pl.name, price: pl.price, originalPrice: pl.originalPrice || 0, durationDays: pl.durationDays })),
+              maxDiscount: res.settings.vip?.maxDiscount ?? 0,
+              tiers: (res.settings.vip?.tiers || []).map((t) => ({ minAmount: t.minAmount, percent: t.percent }))
+            },
             requireDailyAvailability: res.settings.requireDailyAvailability !== false,
             isOnlinePaymentEnabled: res.settings.isOnlinePaymentEnabled !== undefined ? res.settings.isOnlinePaymentEnabled : true,
             bookingModel: res.settings.bookingModel || 'worker'
-          });
+          }));
           // Load billing settings
           setBillingSettings({
             companyName: res.settings.companyName || 'TodayMyDream',
@@ -241,6 +277,33 @@ const AdminSettings = () => {
     }));
   };
 
+  const setVipField = (field, value) =>
+    setFinancialSettings(prev => ({ ...prev, vip: { ...prev.vip, [field]: value } }));
+
+  const setVipTier = (index, field, value) =>
+    setFinancialSettings(prev => ({
+      ...prev,
+      vip: { ...prev.vip, tiers: prev.vip.tiers.map((t, i) => (i === index ? { ...t, [field]: value === '' ? '' : Number(value) } : t)) }
+    }));
+
+  const setVipPlan = (index, field, value) =>
+    setFinancialSettings(prev => ({
+      ...prev,
+      vip: { ...prev.vip, plans: prev.vip.plans.map((pl, i) => (i === index ? { ...pl, [field]: field === 'name' ? value : (value === '' ? '' : Number(value)) } : pl)) }
+    }));
+
+  const addVipPlan = () =>
+    setFinancialSettings(prev => ({ ...prev, vip: { ...prev.vip, plans: [...prev.vip.plans, { name: '', price: 0, originalPrice: 0, durationDays: 30 }] } }));
+
+  const removeVipPlan = (index) =>
+    setFinancialSettings(prev => ({ ...prev, vip: { ...prev.vip, plans: prev.vip.plans.filter((_, i) => i !== index) } }));
+
+  const addVipTier = () =>
+    setFinancialSettings(prev => ({ ...prev, vip: { ...prev.vip, tiers: [...prev.vip.tiers, { minAmount: 0, percent: 5 }] } }));
+
+  const removeVipTier = (index) =>
+    setFinancialSettings(prev => ({ ...prev, vip: { ...prev.vip, tiers: prev.vip.tiers.filter((_, i) => i !== index) } }));
+
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
@@ -250,10 +313,11 @@ const AdminSettings = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await updateSettings(financialSettings);
+      const res = await updateSettings(financialSettings);
+      if (res?.success === false) throw new Error(res.message);
       toast.success('Financial settings updated');
     } catch (error) {
-      toast.error('Failed to update settings');
+      toast.error(error.response?.data?.message || error.message || 'Failed to update settings');
     } finally {
       setLoading(false);
     }
@@ -269,7 +333,7 @@ const AdminSettings = () => {
       });
       toast.success('Platform operating hours & slots updated successfully!');
     } catch (error) {
-      toast.error('Failed to update operating hours');
+      toast.error(error.response?.data?.message || 'Failed to update operating hours');
     } finally {
       setLoading(false);
     }
@@ -363,7 +427,7 @@ const AdminSettings = () => {
       await updateSettings(billingSettings);
       toast.success('Billing settings updated');
     } catch (error) {
-      toast.error('Failed to update billing settings');
+      toast.error(error.response?.data?.message || 'Failed to update billing settings');
     } finally {
       setBillingLoading(false);
     }
@@ -383,7 +447,7 @@ const AdminSettings = () => {
       await updateSettings(supportSettings);
       toast.success('Support settings updated');
     } catch (error) {
-      toast.error('Failed to update support settings');
+      toast.error(error.response?.data?.message || 'Failed to update support settings');
     } finally {
       setSupportLoading(false);
     }
@@ -751,7 +815,7 @@ const AdminSettings = () => {
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Job Reminder Before Start (Mins)</label>
-                          <input type="number" min="1" max="1440" step="15" name="jobReminderLeadMinutes" value={financialSettings.jobReminderLeadMinutes} onChange={handleFinancialChange}
+                          <input type="number" min="1" max="1440" step="1" name="jobReminderLeadMinutes" value={financialSettings.jobReminderLeadMinutes} onChange={handleFinancialChange}
                             className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
                           <p className="text-[10px] text-gray-400 mt-1">Professional gets a confirm popup this long before an assigned job (e.g. 120 = at 7 AM for a 9 AM job)</p>
                         </div>
@@ -777,6 +841,15 @@ const AdminSettings = () => {
                           <p className="text-[10px] text-gray-400 mt-1">Leave days a worker marks block their slots only once approved (or immediately if auto-approve is on)</p>
                         </div>
                         <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Worker Availability Approval</label>
+                          <button type="button"
+                            onClick={() => handleFinancialChange({ target: { name: 'availabilityRequiresApproval', value: !financialSettings.availabilityRequiresApproval } })}
+                            className={`px-4 py-2.5 rounded-lg border text-sm font-semibold w-full text-left ${financialSettings.availabilityRequiresApproval ? 'bg-green-50 border-green-300 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-600'}`}>
+                            {financialSettings.availabilityRequiresApproval ? 'Admin must approve Available days' : 'Auto-approve Available days'}
+                          </button>
+                          <p className="text-[10px] text-gray-400 mt-1">When on, a day a worker marks Available only takes effect after you approve it under Workers → Leave &amp; Availability</p>
+                        </div>
+                        <div>
                           <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Daily Availability Marking</label>
                           <button type="button"
                             onClick={() => handleFinancialChange({ target: { name: 'requireDailyAvailability', value: !financialSettings.requireDailyAvailability } })}
@@ -788,6 +861,109 @@ const AdminSettings = () => {
                       </div>
                     </div>
                   </div>
+                  {/* Advance payment */}
+                  <div className="pt-2 border-t border-gray-100">
+                    <h3 className="text-sm font-bold text-gray-800 mb-1">Advance Payment</h3>
+                    <p className="text-[11px] text-gray-400 mb-3">Collected online before a booking is sent to professionals. Below the threshold the full amount is paid; at or above it only the percentage below is paid up front and the rest after the service.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Full payment below (₹)</label>
+                        <input type="number" min="0" name="advancePaymentThreshold" value={financialSettings.advancePaymentThreshold} onChange={handleFinancialChange}
+                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
+                        <p className="text-[10px] text-gray-400 mt-1">Bookings under this amount are paid 100% online</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Advance above threshold (%)</label>
+                        <input type="number" min="1" max="100" name="advancePaymentPercent" value={financialSettings.advancePaymentPercent} onChange={handleFinancialChange}
+                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
+                        <p className="text-[10px] text-gray-400 mt-1">Share of the booking paid up front on bigger orders</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* VIP membership */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-800">VIP Membership Offer</h3>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Offered to customers right before "Find nearby workers". They can add it for the fee below to get a discount, or skip it.</p>
+                      </div>
+                      <button type="button"
+                        onClick={() => setVipField('enabled', !financialSettings.vip.enabled)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${financialSettings.vip.enabled ? 'bg-green-600' : 'bg-gray-200'}`}>
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${financialSettings.vip.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+
+                    <div className={`space-y-4 ${financialSettings.vip.enabled ? '' : 'opacity-50'}`}>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Plans customers can choose</label>
+                        <div className="space-y-2">
+                          {financialSettings.vip.plans.map((plan, index) => (
+                            <div key={index} className="grid grid-cols-12 items-end gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                              <div className="col-span-12 sm:col-span-4">
+                                <span className="mb-1 block text-[10px] font-semibold uppercase text-gray-400">Name</span>
+                                <input type="text" value={plan.name} onChange={(e) => setVipPlan(index, 'name', e.target.value)} placeholder="e.g. 6 Months"
+                                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-green-500" />
+                              </div>
+                              <div className="col-span-4 sm:col-span-2">
+                                <span className="mb-1 block text-[10px] font-semibold uppercase text-gray-400">Fee ₹</span>
+                                <input type="number" min="0" value={plan.price} onChange={(e) => setVipPlan(index, 'price', e.target.value)}
+                                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-green-500" />
+                              </div>
+                              <div className="col-span-4 sm:col-span-2">
+                                <span className="mb-1 block text-[10px] font-semibold uppercase text-gray-400">Was ₹</span>
+                                <input type="number" min="0" value={plan.originalPrice} onChange={(e) => setVipPlan(index, 'originalPrice', e.target.value)}
+                                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-green-500" />
+                              </div>
+                              <div className="col-span-4 sm:col-span-2">
+                                <span className="mb-1 block text-[10px] font-semibold uppercase text-gray-400">Days</span>
+                                <input type="number" min="1" value={plan.durationDays} onChange={(e) => setVipPlan(index, 'durationDays', e.target.value)}
+                                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-green-500" />
+                              </div>
+                              <div className="col-span-12 sm:col-span-2 sm:text-right">
+                                {financialSettings.vip.plans.length > 1 && (
+                                  <button type="button" onClick={() => removeVipPlan(index)} className="text-xs font-semibold text-red-500 hover:underline">Remove</button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <button type="button" onClick={addVipPlan} className="mt-2 text-xs font-bold text-green-700 hover:underline">+ Add plan</button>
+                        <p className="mt-1 text-[10px] text-gray-400">"Was ₹" is shown struck through next to the fee (0 = hide). Up to 6 plans; the first one is the default.</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Max discount per booking (₹)</label>
+                          <input type="number" min="0" value={financialSettings.vip.maxDiscount} onChange={(e) => setVipField('maxDiscount', Number(e.target.value))}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
+                          <p className="text-[10px] text-gray-400 mt-1">0 = no cap</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Discount by order value</label>
+                        <div className="space-y-2">
+                          {financialSettings.vip.tiers.map((tier, index) => (
+                            <div key={index} className="flex items-center gap-2 text-sm">
+                              <span className="text-gray-500 shrink-0">Order of ₹</span>
+                              <input type="number" min="0" value={tier.minAmount} onChange={(e) => setVipTier(index, 'minAmount', e.target.value)}
+                                className="w-28 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500" />
+                              <span className="text-gray-500 shrink-0">or more →</span>
+                              <input type="number" min="1" max="100" value={tier.percent} onChange={(e) => setVipTier(index, 'percent', e.target.value)}
+                                className="w-20 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500" />
+                              <span className="text-gray-500 shrink-0">% off</span>
+                              <button type="button" onClick={() => removeVipTier(index)} className="ml-auto text-xs font-semibold text-red-500 hover:underline">Remove</button>
+                            </div>
+                          ))}
+                        </div>
+                        <button type="button" onClick={addVipTier} className="mt-2 text-xs font-bold text-green-700 hover:underline">+ Add tier</button>
+                        <p className="text-[10px] text-gray-400 mt-1">The highest tier an order reaches decides the discount. Members get it on every booking without paying the fee again.</p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end pt-2">
                     <button type="submit" disabled={loading}
                       className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center gap-2 disabled:opacity-60 shadow-lg shadow-green-200">
@@ -949,7 +1125,12 @@ const AdminSettings = () => {
                     <button onClick={() => {
                       const newValue = !financialSettings.isOnlinePaymentEnabled;
                       setFinancialSettings(prev => ({ ...prev, isOnlinePaymentEnabled: newValue }));
-                      updateSettings({ isOnlinePaymentEnabled: newValue });
+                      updateSettings({ isOnlinePaymentEnabled: newValue })
+                        .then(() => toast.success(newValue ? 'Online payments enabled' : 'Online payments disabled'))
+                        .catch((err) => {
+                          setFinancialSettings(prev => ({ ...prev, isOnlinePaymentEnabled: !newValue }));
+                          toast.error(err.response?.data?.message || 'Failed to update online payment setting');
+                        });
                     }}
                       className={`relative w-12 h-7 rounded-full transition-all duration-300 ${financialSettings.isOnlinePaymentEnabled ? 'bg-green-600' : 'bg-gray-200'}`}>
                       <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${financialSettings.isOnlinePaymentEnabled ? 'translate-x-5' : 'translate-x-0'}`} />

@@ -15,7 +15,9 @@ const homeServiceCategorySchema = new mongoose.Schema({
   isDirectService: { type: Boolean, default: false },
   isEstimateBased: { type: Boolean, default: false },
   bookingModes: [{ type: String, enum: ['instant', 'slot'] }],
-  cityIds: { type: [String], default: ['default'] }
+  cityIds: { type: [String], default: ['default'] },
+  // Zones this category is offered in. Empty = every zone.
+  zoneIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Zone' }]
 }, { timestamps: true });
 
 export default mongoose.model('HomeServiceCategory', homeServiceCategorySchema);

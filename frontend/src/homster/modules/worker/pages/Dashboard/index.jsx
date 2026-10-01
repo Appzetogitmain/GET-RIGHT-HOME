@@ -108,6 +108,8 @@ const Dashboard = () => {
 
   const [alertJobId, setAlertJobId] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
+  const [todayMarked, setTodayMarked] = useState(true);
+  const [todayPending, setTodayPending] = useState(false);
   const [togglingOnline, setTogglingOnline] = useState(false);
   const [locationWatchId, setLocationWatchId] = useState(null);
 
@@ -184,7 +186,16 @@ const Dashboard = () => {
       return;
     }
 
-    // Worker wants to toggle ONLINE:
+    // Worker wants to toggle ONLINE: today must be marked Available first
+    if (!todayMarked) {
+      const { toast } = await import('react-hot-toast');
+      toast.error(todayPending
+        ? "Today's availability is waiting for admin approval."
+        : "Not marked for today. Mark today as Available in 'My availability' to go online.");
+      setAvailabilityModalOpen(true);
+      return;
+    }
+
     // 1. Enforce verified/approved status check
     if (workerProfile.approvalStatus !== 'approved') {
       const { toast } = await import('react-hot-toast');
@@ -238,7 +249,14 @@ const Dashboard = () => {
       console.error('Toggle online error:', error);
       const { toast } = await import('react-hot-toast');
       toast.error(error.response?.data?.message || 'Failed to update status');
-      if (error.response?.data?.code === 'AVAILABILITY_NOT_MARKED') setAvailabilityModalOpen(true);
+      if (error.response?.data?.code === 'AVAILABILITY_NOT_MARKED') {
+        setTodayMarked(false);
+        setAvailabilityModalOpen(true);
+      }
+      if (error.response?.data?.code === 'AVAILABILITY_PENDING_APPROVAL') {
+        setTodayMarked(false);
+        setTodayPending(true);
+      }
     } finally {
       setTogglingOnline(false);
     }
@@ -339,6 +357,8 @@ const Dashboard = () => {
         });
         // Sync online status from DB
         setIsOnline(profile.isOnline || false);
+        setTodayMarked(profile.todayAvailabilityMarked !== false);
+        setTodayPending(!!profile.todayAvailabilityPending);
         localStorage.setItem('workerIsBusy', profile.status === 'busy' ? 'true' : 'false');
       }
 
@@ -349,6 +369,8 @@ const Dashboard = () => {
         if (offlineRes.isOnline !== undefined) {
           setIsOnline(offlineRes.isOnline);
         }
+        if (offlineRes.todayAvailabilityMarked !== undefined) setTodayMarked(offlineRes.todayAvailabilityMarked);
+        if (offlineRes.todayAvailabilityPending !== undefined) setTodayPending(offlineRes.todayAvailabilityPending);
       }
 
       if (statsRes.success) {
@@ -359,6 +381,7 @@ const Dashboard = () => {
           todayEarnings: todayEarnings || 0,
           thisWeekEarnings: thisWeekEarnings || 0,
           thisMonthEarnings: thisMonthEarnings || 0,
+          helperJobs: statsRes.data.helperJobs || 0,
           pendingJobs: pendingJobs !== undefined ? pendingJobs : (activeJobs || 0),
           acceptedJobs: acceptedJobs !== undefined ? acceptedJobs : (activeJobs || 0),
           completedJobs: completedJobs || 0,
@@ -592,11 +615,11 @@ const Dashboard = () => {
                     <div className={`w-3 h-3 rounded-full ${isBusy ? 'bg-amber-500' : isOnline ? 'bg-[#00B48A]' : 'bg-gray-400'}`} />
                   </div>
                   <h3 className="text-[#1E3A8A] font-bold text-[17px] tracking-tight">
-                    {isBusy ? 'You are Busy' : isOnline ? 'You are Online' : 'You are Offline'}
+                    {isBusy ? 'You are Busy' : isOnline ? 'You are Online' : !todayMarked ? (todayPending ? 'Awaiting admin approval' : 'Not marked for today') : 'You are Offline'}
                   </h3>
                 </div>
                 <p className="text-[#64748B] text-[13px] pl-7 mb-2 font-medium">
-                  {isBusy ? 'Complete your current work to receive the next booking' : isOnline ? 'Receiving nearby job requests' : 'Go online to receive jobs'}
+                  {isBusy ? 'Complete your current work to receive the next booking' : isOnline ? 'Receiving nearby job requests' : !todayMarked ? (todayPending ? "Today's availability is pending approval. You can go online once approved." : "Mark today as Available to go online.") : 'Go online to receive jobs'}
                   <button
                     type="button"
                     onClick={() => setAvailabilityModalOpen(true)}
@@ -766,6 +789,25 @@ const Dashboard = () => {
             </div>
           </button>
         </div>
+
+        {/* Added by admin as a helper on someone's job */}
+        {stats.helperJobs > 0 && (
+          <div className="px-4 pt-4">
+            <button
+              type="button"
+              onClick={() => navigate('/worker/jobs')}
+              className="flex w-full items-center justify-between rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3.5 text-left shadow-sm"
+            >
+              <div>
+                <p className="text-sm font-bold text-violet-900">You've been added as a helper</p>
+                <p className="text-xs text-violet-700">
+                  {stats.helperJobs} job{stats.helperJobs > 1 ? 's' : ''} to help on — open My Jobs for the address and time
+                </p>
+              </div>
+              <FiChevronRight className="h-5 w-5 shrink-0 text-violet-500" />
+            </button>
+          </div>
+        )}
 
         {/* Earnings Card */}
         <div className="px-4 pt-4">
@@ -1413,7 +1455,10 @@ const Dashboard = () => {
       {/* Weekly days + leave calendar (opened from the toggle) */}
       <WorkerAvailabilityModal
         isOpen={availabilityModalOpen}
-        onClose={() => setAvailabilityModalOpen(false)}
+        onClose={() => {
+          setAvailabilityModalOpen(false);
+          fetchDashboardData();
+        }}
         onRequestHourlyLeave={() => setOfflineModalOpen(true)}
       />
 

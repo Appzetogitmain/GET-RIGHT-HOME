@@ -254,6 +254,16 @@ export const playAdminOfflineAlertSound = async () => {
   }
 };
 
+
+// Urgent, repeating chime for admin when a booking needs manual assignment —
+// three rounds so it isn't missed if the admin is looking elsewhere.
+export const playManualAssignmentAlertSound = async () => {
+  for (let i = 0; i < 3; i += 1) {
+    await playAdminOfflineAlertSound();
+    await new Promise((resolve) => setTimeout(resolve, 1400));
+  }
+};
+
 // Play urgent ring for booking alerts
 let currentAudio = null; // Global variable to track current playing audio
 let alertInterval = null; // Global variable to track synthesizer interval
@@ -401,6 +411,7 @@ export default {
   playApprovalSuccessSound,
   playRejectionSound,
   playAdminOfflineAlertSound,
+  playManualAssignmentAlertSound,
   isSoundEnabled
 };
 

@@ -143,6 +143,9 @@ export const workerAuthService = {
   verifyLogin: async (data) => {
     const response = await api.post('/workers/auth/verify-login', data);
     if (response.data.success && !response.data.isNewUser && response.data.accessToken) {
+      sessionStorage.removeItem('workerAccessToken');
+      sessionStorage.removeItem('workerRefreshToken');
+      sessionStorage.removeItem('workerData');
       localStorage.setItem('workerAccessToken', response.data.accessToken);
       localStorage.setItem('workerRefreshToken', response.data.refreshToken);
       localStorage.setItem('workerData', JSON.stringify(response.data.worker));
@@ -156,6 +159,9 @@ export const workerAuthService = {
   register: async (data) => {
     const response = await api.post('/workers/auth/register', data);
     if (response.data.accessToken) {
+      sessionStorage.removeItem('workerAccessToken');
+      sessionStorage.removeItem('workerRefreshToken');
+      sessionStorage.removeItem('workerData');
       localStorage.setItem('workerAccessToken', response.data.accessToken);
       localStorage.setItem('workerRefreshToken', response.data.refreshToken);
       localStorage.setItem('workerData', JSON.stringify(response.data.worker));
@@ -170,6 +176,9 @@ export const workerAuthService = {
     const { email, ...loginData } = data;
     const response = await api.post('/workers/auth/login', loginData);
     if (response.data.accessToken) {
+      sessionStorage.removeItem('workerAccessToken');
+      sessionStorage.removeItem('workerRefreshToken');
+      sessionStorage.removeItem('workerData');
       localStorage.setItem('workerAccessToken', response.data.accessToken);
       localStorage.setItem('workerRefreshToken', response.data.refreshToken);
       localStorage.setItem('workerData', JSON.stringify(response.data.worker));
@@ -191,6 +200,9 @@ export const workerAuthService = {
     localStorage.removeItem('workerAccessToken');
     localStorage.removeItem('workerRefreshToken');
     localStorage.removeItem('workerData');
+    sessionStorage.removeItem('workerAccessToken');
+    sessionStorage.removeItem('workerRefreshToken');
+    sessionStorage.removeItem('workerData');
   },
 
   // Get profile

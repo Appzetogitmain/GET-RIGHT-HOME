@@ -2,7 +2,9 @@ import Worker from '../../models/Worker.js';
 import WorkerOfflineRequest from '../../models/WorkerOfflineRequest.js';
 import { findWorkerActiveJob, syncWorkerCapacityStatus } from '../../services/workerCapacityService.js';
 import Settings from '../../models/Settings.js';
-import { istYmd } from '../../utils/slotAvailability.js';
+import { istYmd, isLegacyAvailabilityEnabled } from '../../utils/slotAvailability.js';
+import WorkerAvailabilityRequest from '../../models/WorkerAvailabilityRequest.js';
+import { syncOnlineWithTodayAvailability } from '../../services/workerAvailabilityService.js';
 import { validationResult } from 'express-validator';
 import cloudinaryService from '../../services/cloudinaryService.js';
 import { createNotification } from '../notificationControllers/notificationController.js';
@@ -14,6 +16,7 @@ const getProfile = async (req, res) => {
   try {
     const workerId = req.user.id;
     await syncWorkerCapacityStatus(workerId);
+    const { todayMarked, todayPending } = await syncOnlineWithTodayAvailability(workerId);
 
     const worker = await Worker.findById(workerId)
       .populate('zoneIds', 'name status')
@@ -36,9 +39,8 @@ const getProfile = async (req, res) => {
     if (zoneNames.length === 0 && Array.isArray(worker.zones) && worker.zones.length > 0) {
       zoneNames = worker.zones.filter(Boolean);
     }
-    if (zoneNames.length === 0 && worker.address?.city) {
-      zoneNames = [worker.address.city];
-    }
+    // Only zones the admin actually assigned count. Falling back to the address
+    // city used to show "Indore Zone" for workers who receive no zone bookings.
 
     res.status(200).json({
       success: true,
@@ -59,7 +61,7 @@ const getProfile = async (req, res) => {
         zoneIds: worker.zoneIds || [],
         zones: worker.zones || [],
         zoneNames: zoneNames,
-        primaryZone: zoneNames[0] || worker.address?.city || 'Not Assigned',
+        primaryZone: zoneNames[0] || 'Not Assigned',
         rating: worker.rating || 0,
         totalJobs: worker.totalJobs || 0,
         completedJobs: worker.completedJobs || 0,
@@ -69,6 +71,8 @@ const getProfile = async (req, res) => {
         isPhoneVerified: worker.isPhoneVerified || false,
         isEmailVerified: worker.isEmailVerified || false,
         isOnline: worker.isOnline || false,
+        todayAvailabilityMarked: todayMarked,
+        todayAvailabilityPending: todayPending,
         aadhar: worker.aadhar || null,
         panCard: worker.panCard || null,
         drivingLicense: worker.drivingLicense || null,
@@ -446,11 +450,14 @@ const toggleOnline = async (req, res) => {
       const hsCfg = await Settings.findOne({ type: 'global' }).select('requireDailyAvailability').lean();
       if (hsCfg?.requireDailyAvailability !== false) {
         const todayYmd = istYmd(new Date());
-        if (!(worker.availability?.availableDates || []).includes(todayYmd)) {
+        if (!isLegacyAvailabilityEnabled(worker.availability) && !(worker.availability?.availableDates || []).includes(todayYmd)) {
+          const pending = await WorkerAvailabilityRequest.exists({ workerId, dateStr: todayYmd, status: 'pending' });
           return res.status(400).json({
             success: false,
-            code: 'AVAILABILITY_NOT_MARKED',
-            message: "Mark today as Available in 'My availability' before going online."
+            code: pending ? 'AVAILABILITY_PENDING_APPROVAL' : 'AVAILABILITY_NOT_MARKED',
+            message: pending
+              ? "Today's availability is waiting for admin approval. You can go online once it is approved."
+              : "Mark today as Available in 'My availability' before going online."
           });
         }
       }

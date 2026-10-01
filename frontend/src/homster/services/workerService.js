@@ -7,6 +7,12 @@ const workerService = {
     return response.data;
   },
 
+  // Admin-defined professions (e.g. Electrician) a worker can choose from
+  getProfessions: async () => {
+    const response = await api.get('/workers/professions');
+    return response.data;
+  },
+
   getReferrals: async () => {
     const response = await api.get('/workers/referrals');
     return response.data;
@@ -106,6 +112,12 @@ const workerService = {
 
   confirmJobReminder: async (id) => {
     const response = await api.post(`/workers/jobs/${id}/confirm-reminder`);
+    return response.data;
+  },
+
+  // Ask admin to add extra workers to a job
+  requestHelper: async (id, { count = 1, reason = '' } = {}) => {
+    const response = await api.post(`/workers/jobs/${id}/helper-request`, { count, reason });
     return response.data;
   },
 

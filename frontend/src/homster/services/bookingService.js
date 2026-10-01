@@ -6,6 +6,12 @@ import api from './api';
  */
 
 export const bookingService = {
+  // Price preview: what VIP would change and what is paid now vs after service
+  quote: async (data) => {
+    const response = await api.post('/hs-bookings/quote', data);
+    return response.data;
+  },
+
   // Create a new booking
   create: async (bookingData) => {
     console.log('[BookingService] Creating booking with payload:', JSON.stringify(bookingData, null, 2));

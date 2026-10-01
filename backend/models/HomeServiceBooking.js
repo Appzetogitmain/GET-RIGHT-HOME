@@ -59,6 +59,7 @@ const bookingSchema = new mongoose.Schema({
       'pending',                     // not started
       'searching',                   // requests going out to workers
       'manual_assignment_required',  // automatic matching exhausted → ops queue
+      'awaiting_worker',             // admin picked a worker; waiting for them to accept
       'assigned',                    // a worker holds this booking
       'reassigning',                 // previous worker dropped out, retrying
       'unfulfillable'                // ops determined it cannot be served
@@ -167,7 +168,8 @@ const bookingSchema = new mongoose.Schema({
       duration: { type: String },
       description: { type: String },
       imageUrl: { type: String },
-      features: [{ type: String }]
+      features: [{ type: String }],
+      optionLabel: { type: String }
     },
     quantity: { type: Number, default: 1 }
   }],
@@ -385,9 +387,83 @@ const bookingSchema = new mongoose.Schema({
     default: BOOKING_STATUS.PENDING,
     index: true
   },
+  // Worker an admin has offered this booking to but who hasn't accepted yet.
+  // `workerId` stays empty until they accept, so the job isn't "assigned" and
+  // the worker isn't marked busy before they've said yes.
+  adminAssignedWorkerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Worker',
+    default: null
+  },
+  // How the current worker got the job: 'broadcast' (offer + accept), 'auto'
+  // (slot bookings go straight to an available worker) or 'admin'.
+  assignmentMode: {
+    type: String,
+    enum: ['broadcast', 'auto', 'admin'],
+    default: 'broadcast'
+  },
+
+  // ---- Advance payment (collected before the booking is dispatched) ----
+  // 'none'     no advance needed (free / plan covered) — dispatched immediately
+  // 'awaiting' advance not paid yet — the booking is NOT sent to any worker
+  // 'paid'     advance received — booking has been dispatched
+  advanceStatus: {
+    type: String,
+    enum: ['none', 'awaiting', 'paid'],
+    default: 'none',
+    index: true
+  },
+  advanceRequired: { type: Number, default: 0 },   // service part due up front
+  advancePaid: { type: Number, default: 0 },       // service part actually paid
+  advancePaymentId: { type: String, default: null },
+  advancePaidAt: { type: Date, default: null },
+
+  // ---- VIP membership offered at checkout ----
+  vipDiscount: { type: Number, default: 0 },       // taken off the service price
+  vipFee: { type: Number, default: 0 },            // membership price, paid with the advance
+  vip: {
+    added: { type: Boolean, default: false },      // bought with this booking
+    member: { type: Boolean, default: false },     // already a member (no fee)
+    planName: { type: String, default: '' },
+    percent: { type: Number, default: 0 },
+    durationDays: { type: Number, default: 0 },
+    activated: { type: Boolean, default: false }   // membership switched on after payment
+  },
+
+  // ---- Extra workers added by admin on the lead worker's request ----
+  // Extra workers admin added (and the payout each earns). Hidden from every
+  // query unless a caller asks for them with .select('+helpers +helperRequests'),
+  // so a payout can't leak through an endpoint that returns a whole booking.
+  helperRequests: {
+    type: [{
+    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Worker' },
+    count: { type: Number, default: 1 },
+    reason: { type: String, default: '' },
+    status: { type: String, enum: ['pending', 'fulfilled', 'rejected'], default: 'pending' },
+    requestedAt: { type: Date, default: Date.now },
+    handledAt: { type: Date, default: null },
+    handledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
+    note: { type: String, default: '' }
+  }],
+    select: false
+  },
+  helpers: {
+    type: [{
+    workerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', required: true },
+    addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
+    addedAt: { type: Date, default: Date.now },
+    // What the helper earns for this job. Only the admin ever sees it; it is
+    // credited to the helper's wallet when the job completes.
+    payoutAmount: { type: Number, default: 0 },
+    payoutStatus: { type: String, enum: ['pending', 'paid', 'cancelled'], default: 'pending' },
+    paidAt: { type: Date, default: null }
+  }],
+    select: false
+  },
+
   workerResponse: {
     type: String,
-    enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'ADMIN_ASSIGNED'],
+    enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'ADMIN_ASSIGNED', 'AUTO_ASSIGNED'],
     default: 'PENDING'
   },
   zoneId: {
@@ -474,6 +550,9 @@ const bookingSchema = new mongoose.Schema({
   // ==========================================
   // 12. SETTLEMENT (Worker/User)
   // ==========================================
+  // What the lead worker was credited for the service after the helper split
+  // (null until credited). Lets completion reconcile if a helper joined later.
+  leadPayoutCredited: { type: Number, default: null },
   workerPaymentStatus: {
     type: String,
     enum: ['PENDING', 'PAID', 'SUCCESS'],
@@ -498,7 +577,18 @@ const bookingSchema = new mongoose.Schema({
 });
 
 // Generate unique booking number
+bookingSchema.post('save', function (doc) {
+  // Helpers are paid when the job completes; a cancelled job pays nobody. Both
+  // are no-ops (one cheap query) for bookings without helpers.
+  const status = doc.status;
+  if (!doc.$locals?.statusChanged || !['completed', 'cancelled'].includes(status)) return;
+  import('../services/helperPayoutService.js')
+    .then((m) => (status === 'completed' ? m.settleHelperPayouts(doc._id) : m.cancelHelperPayouts(doc._id)))
+    .catch((err) => console.error('[HelperPayout] hook failed:', err.message));
+});
+
 bookingSchema.pre('save', async function () {
+  this.$locals.statusChanged = this.isModified('status');
   if (this.isNew && !this.bookingNumber) {
     const timestamp = Date.now().toString().slice(-8);
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');

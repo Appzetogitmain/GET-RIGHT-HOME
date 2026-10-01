@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { playNotificationSound, isSoundEnabled, playAlertRing, stopAlertRing, playApprovalSuccessSound, playRejectionSound, playAdminOfflineAlertSound } from '../utils/notificationSound';
+import { playNotificationSound, isSoundEnabled, playAlertRing, stopAlertRing, playApprovalSuccessSound, playRejectionSound, playAdminOfflineAlertSound, playManualAssignmentAlertSound } from '../utils/notificationSound';
 import { registerFCMToken, setupForegroundNotificationHandler } from '../services/pushNotificationService';
 
 const SwipeableNotification = ({ t, data, onClick }) => {
@@ -417,8 +417,11 @@ export const SocketProvider = ({ children }) => {
 
       // A professional ignored the pre-job reminder (or dropped the job) —
       // surface it so ops can re-broadcast the booking.
-      const notifyBookingNeedsAttention = (title, data, fallback) => {
-        if (isSoundEnabled('admin')) playAdminOfflineAlertSound();
+      const notifyBookingNeedsAttention = (title, data, fallback, { urgentSound = false } = {}) => {
+        if (isSoundEnabled('admin')) {
+          if (urgentSound) playManualAssignmentAlertSound();
+          else playAdminOfflineAlertSound();
+        }
         toast.custom(
           (t) => (
             <div
@@ -429,7 +432,7 @@ export const SocketProvider = ({ children }) => {
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-sm text-gray-900 leading-tight">{title}</div>
                 <div className="text-xs text-gray-600 mt-1">{data.message || fallback}</div>
-                <div className="text-[11px] font-bold text-red-600 mt-2">Open bookings to re-broadcast &rarr;</div>
+                <div className="text-[11px] font-bold text-red-600 mt-2">Open bookings to assign &rarr;</div>
               </div>
             </div>
           ),
@@ -439,8 +442,12 @@ export const SocketProvider = ({ children }) => {
       };
       newSocket.on('worker_reminder_unconfirmed', (data) =>
         notifyBookingNeedsAttention('Professional Not Responding', data, 'A professional has not confirmed an upcoming job.'));
+      newSocket.on('helper_requested', (data) =>
+        notifyBookingNeedsAttention('Extra Worker Requested', data, `${data.workerName || 'A professional'} needs extra help on booking #${data.bookingNumber || ''}.`, { urgentSound: true }));
+      newSocket.on('booking_needs_assignment', (data) =>
+        notifyBookingNeedsAttention('Booking Needs Assignment', data, `Booking #${data.bookingNumber || ''} has no available professional. Please assign one.`, { urgentSound: true }));
       newSocket.on('booking_rejected_by_worker', (data) =>
-        notifyBookingNeedsAttention('Professional Released a Job', data, `Booking #${data.bookingNumber || ''} needs reassignment.`));
+        notifyBookingNeedsAttention('Professional Released a Job', data, `Booking #${data.bookingNumber || ''} needs reassignment.`, { urgentSound: true }));
 
       newSocket.on('offline_request_updated', (data) => {
         window.dispatchEvent(new CustomEvent('workerOfflineRequestReceived', { detail: data }));
@@ -449,6 +456,24 @@ export const SocketProvider = ({ children }) => {
 
     // Listen for special Worker Job Assignments
     if (userType === 'worker') {
+      // A slot job was handed straight to this worker (or admin added them as a
+      // helper): no accept popup — a soft alert, and the jobs list refreshes.
+      newSocket.on('slot_job_assigned', (data) => {
+        if (isSoundEnabled('worker')) playNotificationSound();
+        toast.success(data?.message || 'New job assigned to you', { duration: 6000 });
+        window.dispatchEvent(new Event('workerJobsUpdated'));
+      });
+      newSocket.on('helper_changed', () => window.dispatchEvent(new Event('workerJobsUpdated')));
+
+      // Admin approved / rejected the worker's availability request
+      newSocket.on('worker_availability_changed', (data) => {
+        if (data?.title) {
+          if (data.type === 'availability_approved') toast.success(data.message || data.title);
+          else toast.error(data.message || data.title);
+        }
+        window.dispatchEvent(new Event('workerOfflineStatusUpdated'));
+      });
+
       newSocket.on('worker_capacity_changed', (data) => {
         const isBusy = !!data?.isBusy;
         localStorage.setItem('workerIsBusy', isBusy ? 'true' : 'false');

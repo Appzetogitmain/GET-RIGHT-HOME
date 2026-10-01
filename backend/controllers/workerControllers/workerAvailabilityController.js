@@ -24,11 +24,15 @@ export const getMyAvailability = async (req, res) => {
 /** Worker: save marked weekdays and leave days. Body: { availableDays, leaveDates, reason } */
 export const updateMyAvailability = async (req, res) => {
   try {
-    const { availableDays, availableDates, leaveDates, reason } = req.body || {};
-    const data = await applyAvailability(req.user.id, { availableDays, availableDates, leaveDates, reason });
+    const { availableDays, availableDates, leaveDates, reason, slotOffs } = req.body || {};
+    const data = await applyAvailability(req.user.id, { availableDays, availableDates, leaveDates, reason, slotOffs });
     res.json({
       success: true,
-      message: data.leaveAutoApprove ? 'Availability saved.' : 'Availability saved. New leave days are awaiting admin approval.',
+      message: (data.slotOffsPending && Object.keys(data.slotOffsPending).length)
+        ? 'Saved. Your slot leave has been sent to admin for approval - those slots stay open until it is approved.'
+        : data.pendingAvailableDates?.length
+        ? 'Saved. Your Available days have been sent to admin for approval.'
+        : data.leaveAutoApprove ? 'Availability saved.' : 'Availability saved. New leave days are awaiting admin approval.',
       data
     });
   } catch (error) {
@@ -48,8 +52,8 @@ export const getWorkerAvailabilityAdmin = async (req, res) => {
 /** Admin: edit a worker's availability (leave takes effect immediately). */
 export const updateWorkerAvailabilityAdmin = async (req, res) => {
   try {
-    const { availableDays, availableDates, leaveDates, reason } = req.body || {};
-    const data = await applyAvailability(req.params.id, { availableDays, availableDates, leaveDates, reason }, { byAdmin: true, adminId: req.user?.id });
+    const { availableDays, availableDates, leaveDates, reason, slotOffs } = req.body || {};
+    const data = await applyAvailability(req.params.id, { availableDays, availableDates, leaveDates, reason, slotOffs }, { byAdmin: true, adminId: req.user?.id });
     res.json({ success: true, message: 'Worker availability updated.', data });
   } catch (error) {
     fail(res, error, 'Admin update availability');

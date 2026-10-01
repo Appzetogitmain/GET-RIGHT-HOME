@@ -29,6 +29,8 @@ export const PAYMENT_STATUS = {
   PAID: 'paid',
   REFUNDED: 'refunded',
   PLAN_COVERED: 'plan_covered',
+  // Advance (or part) paid online; the rest is due when the work is billed.
+  PARTIAL: 'partial',
   FAILED: 'failed',
   COLLECTED_BY_VENDOR: 'collected_by_vendor',
 };

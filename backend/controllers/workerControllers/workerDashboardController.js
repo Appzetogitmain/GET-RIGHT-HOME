@@ -162,9 +162,13 @@ const getDashboardStats = async (req, res) => {
       .populate('serviceId', 'title');
 
     // 7. Get Emergency Jobs (Assigned/Pending acceptance)
+    // Only jobs still waiting for the worker's answer. A job handed straight to
+    // them (slot booking / admin assignment) or already accepted needs no
+    // Accept / Decline — it just shows up in My Jobs.
     const emergencyJobs = await HomeServiceBooking.find({
       workerId: worker._id,
-      status: BOOKING_STATUS.ASSIGNED
+      status: BOOKING_STATUS.ASSIGNED,
+      workerResponse: { $nin: ['ACCEPTED', 'AUTO_ASSIGNED', 'ADMIN_ASSIGNED'] }
     })
     .select('-serviceImages -requirementImages -workPhotos -reviewImages')
     .sort({ createdAt: -1 })
@@ -180,9 +184,19 @@ const getDashboardStats = async (req, res) => {
       await worker.save();
     }
 
+    // Jobs where admin added this worker to help someone else (no amounts).
+    const helperJobsCount = await HomeServiceBooking.countDocuments({
+      helpers: { $elemMatch: { workerId: worker._id, payoutStatus: { $ne: 'cancelled' } } },
+      status: { $in: [
+        BOOKING_STATUS.ASSIGNED, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.ACCEPTED,
+        BOOKING_STATUS.JOURNEY_STARTED, BOOKING_STATUS.VISITED, BOOKING_STATUS.IN_PROGRESS
+      ] }
+    });
+
     res.status(200).json({
       success: true,
       data: {
+        helperJobs: helperJobsCount,
         totalEarnings,
         todayEarnings,
         thisWeekEarnings,

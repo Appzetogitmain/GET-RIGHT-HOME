@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, User, Wallet, Heart, HelpCircle, ChevronRight,
     LogOut, Settings, Building, Bell, Edit3, Video,
-    Star, PlusCircle, CreditCard, MessageSquare, Lightbulb, Gift
+    Star, PlusCircle, CreditCard, MessageSquare, Lightbulb, Gift, CalendarCheck
 } from 'lucide-react';
 import { userService } from '../../services/apiService';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -201,6 +201,17 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                     <MenuItem icon={Video} label="Reels" path="/reels" />
                                 </div>
                             </div>
+
+                            {/* Bookings & Orders - only show if logged in */}
+                            {user && (
+                                <div>
+                                    <SectionTitle title="Bookings & Orders" />
+                                    <div className="flex flex-col gap-1">
+                                        <MenuItem icon={CalendarCheck} label="My Service Bookings" path="/user/home-services/bookings" />
+                                        <MenuItem icon={Building} label="Hotel & Stay Bookings" path="/bookings" />
+                                    </div>
+                                </div>
+                            )}
 
                             {/* My Properties - only show if logged in */}
                             {user && (

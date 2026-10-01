@@ -24,6 +24,7 @@ import {
   initiateCashCollection,
   generateEstimate
 } from '../../controllers/workerControllers/workerBookingController.js';
+import { requestHelper } from '../../controllers/helperController.js';
 
 // Validation rules
 const updateStatusValidation = [
@@ -54,6 +55,8 @@ router.post('/:id/visit/verify', authenticate, isWorker, verifyVisit);
 router.post('/:id/complete', authenticate, isWorker, completeJob);
 // Worker drops an accepted job -> booking returns for reassignment (never cancelled).
 router.post('/:id/release', authenticate, isWorker, releaseJob);
+// Lead worker asks admin for extra hands on a job.
+router.post('/:id/helper-request', authenticate, isWorker, requestHelper);
 router.post('/:id/confirm-reminder', authenticate, isWorker, confirmJobReminder);
 router.post('/:id/payment/collect', authenticate, isWorker, collectCash);
 router.post('/:id/payment/initiate-cash', authenticate, isWorker, initiateCashCollection);

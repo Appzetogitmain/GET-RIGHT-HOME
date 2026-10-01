@@ -133,6 +133,8 @@ app.use(cors({
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import adminDevRoutes from './routes/adminDevRoutes.js';
+import zoneCatalogRoutes from './routes/zoneCatalogRoutes.js';
 import offerRoutes from './routes/offerRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
 import infoRoutes from './routes/infoRoutes.js';
@@ -182,6 +184,8 @@ import { seedAdminOnStartup } from './utils/adminSeeder.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin/zone-catalog', zoneCatalogRoutes); // admin-only; must precede the generic /api/admin router
+app.use('/api/admin/dev', adminDevRoutes); // superadmin-only; must precede the generic /api/admin router
 app.use('/api/admin', adminRoutes);
 app.use('/api/zones', zoneRoutes);
 app.use('/api/offers', offerRoutes);

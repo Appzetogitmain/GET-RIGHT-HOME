@@ -220,6 +220,15 @@ const adminWorkerService = {
     return response.data;
   },
 
+  /** Professions (profession -> home-service categories) */
+  getProfessions: async () => (await api.get('/admin/workers/professions')).data,
+  createProfession: async (payload) => (await api.post('/admin/workers/professions', payload)).data,
+  updateProfession: async (id, payload) => (await api.put('/admin/workers/professions/' + id, payload)).data,
+  deleteProfession: async (id) => (await api.delete('/admin/workers/professions/' + id)).data,
+
+  /** Admin cancels a booking (refunds prepaid amount to the customer's wallet) */
+  cancelBooking: async (id, reason) => (await api.post('/admin/workers/jobs/' + id + '/cancel', { reason })).data,
+
   /**
    * Get all worker subscription plans
    */

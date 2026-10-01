@@ -25,7 +25,18 @@ const serviceSchema = z.object({
   projectImages: z.array(z.string()).optional(),
   isInstant: z.boolean().optional(),
   bookingModes: z.array(z.enum(['instant', 'slot'])).min(1),
-  instantEtaMinutes: z.number().min(5).max(180).optional()
+  instantEtaMinutes: z.number().min(5).max(180).optional(),
+  groupTitle: z.string().optional(),
+  badge: z.string().optional(),
+  duration: z.string().optional(),
+  rating: z.number().min(0).max(5).optional(),
+  reviewCount: z.string().optional(),
+  options: z.array(z.object({
+    label: z.string().min(1, "Every option needs a name"),
+    price: z.number().min(0, "Option price must be non-negative"),
+    discountPrice: z.number().min(0).optional(),
+    duration: z.string().optional()
+  })).optional()
 });
 
 const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
@@ -174,7 +185,13 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     workerName: "",
     projectImages: [],
     isInstant: false,
-    instantEtaMinutes: 30
+    instantEtaMinutes: 30,
+    groupTitle: "",
+    badge: "",
+    duration: "",
+    rating: "",
+    reviewCount: "",
+    options: []
   });
   const [saving, setSaving] = useState(false);
 
@@ -227,7 +244,13 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       workerName: "",
       projectImages: [],
       isInstant: false,
-      instantEtaMinutes: 30
+      instantEtaMinutes: 30,
+      groupTitle: "",
+      badge: "",
+      duration: "",
+      rating: "",
+      reviewCount: "",
+      options: []
     });
     setIsModalOpen(false);
   };
@@ -253,7 +276,13 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       workerName: service.workerName || "",
       projectImages: service.projectImages || [],
       isInstant: service.isInstant || false,
-      instantEtaMinutes: service.instantEtaMinutes || 30
+      instantEtaMinutes: service.instantEtaMinutes || 30,
+      groupTitle: service.groupTitle || "",
+      badge: service.badge || "",
+      duration: service.duration || "",
+      rating: service.rating || "",
+      reviewCount: service.reviewCount || "",
+      options: (service.options || []).map((o) => ({ label: o.label, price: o.price, discountPrice: o.discountPrice || "", duration: o.duration || "" }))
     });
     setIsModalOpen(true);
   };
@@ -333,7 +362,20 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       projectImages: form.projectImages,
       isInstant: form.isInstant,
       bookingModes: selectedFormCategory?.bookingModes || ['slot'],
-      instantEtaMinutes: form.isInstant ? Number(form.instantEtaMinutes) || 30 : undefined
+      instantEtaMinutes: form.isInstant ? Number(form.instantEtaMinutes) || 30 : undefined,
+      groupTitle: form.groupTitle?.trim() || "",
+      badge: form.badge?.trim() || "",
+      duration: form.duration?.trim() || "",
+      rating: form.rating !== "" && form.rating !== undefined ? Number(form.rating) : 0,
+      reviewCount: form.reviewCount?.trim() || "",
+      options: (form.options || [])
+        .filter((o) => String(o.label || "").trim() !== "")
+        .map((o) => ({
+          label: o.label.trim(),
+          price: Number(o.price) || 0,
+          discountPrice: o.discountPrice ? Number(o.discountPrice) : 0,
+          duration: (o.duration || "").trim()
+        }))
     };
 
     const result = serviceSchema.safeParse(data);
@@ -815,6 +857,69 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
           )}
 
           {/* Description */}
+          {/* How it is shown to customers: group heading, duration, rating, options */}
+          {(!form.isTexture && !form.isIdea && !form.isRecentProject) && (
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4 space-y-4">
+              <div>
+                <h4 className="text-sm font-bold text-gray-800">Listing details</h4>
+                <p className="text-[11px] text-gray-500">Optional. Shapes how this service appears on the customer's services page.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Group heading</label>
+                  <input value={form.groupTitle} onChange={e => setForm({ ...form, groupTitle: e.target.value })}
+                    placeholder="e.g. Furnished Apartment (services with the same heading are shown together)"
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Badge (shown after the title)</label>
+                  <input value={form.badge} onChange={e => setForm({ ...form, badge: e.target.value })}
+                    placeholder="e.g. ★  💎  👑" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Duration</label>
+                  <input value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })}
+                    placeholder="e.g. 3 hrs 45 mins" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Rating</label>
+                    <input type="number" step="0.01" min="0" max="5" value={form.rating} onChange={e => setForm({ ...form, rating: e.target.value })}
+                      placeholder="4.75" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Reviews</label>
+                    <input value={form.reviewCount} onChange={e => setForm({ ...form, reviewCount: e.target.value })}
+                      placeholder="9.6K+" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1">Options (e.g. 1 BHK, 2 BHK …)</label>
+                <p className="text-[11px] text-gray-500 mb-2">If you add options, the customer picks one and the price comes from it (the base price above is then only a fallback).</p>
+                <div className="space-y-2">
+                  {form.options.map((opt, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                      <input className="col-span-4 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Name" value={opt.label}
+                        onChange={e => setForm({ ...form, options: form.options.map((o, j) => j === i ? { ...o, label: e.target.value } : o) })} />
+                      <input type="number" min="0" className="col-span-2 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Price" value={opt.price}
+                        onChange={e => setForm({ ...form, options: form.options.map((o, j) => j === i ? { ...o, price: e.target.value } : o) })} />
+                      <input type="number" min="0" className="col-span-2 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Offer" value={opt.discountPrice}
+                        onChange={e => setForm({ ...form, options: form.options.map((o, j) => j === i ? { ...o, discountPrice: e.target.value } : o) })} />
+                      <input className="col-span-3 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="Duration" value={opt.duration}
+                        onChange={e => setForm({ ...form, options: form.options.map((o, j) => j === i ? { ...o, duration: e.target.value } : o) })} />
+                      <button type="button" onClick={() => setForm({ ...form, options: form.options.filter((_, j) => j !== i) })}
+                        className="col-span-1 text-red-500 text-lg leading-none" title="Remove">×</button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={() => setForm({ ...form, options: [...form.options, { label: "", price: "", discountPrice: "", duration: "" }] })}
+                  className="mt-2 text-xs font-bold text-emerald-700 hover:underline">+ Add option</button>
+              </div>
+            </div>
+          )}
+
           {(!form.isTexture && !form.isIdea && !form.isRecentProject) && (
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">Description (Points)</label>

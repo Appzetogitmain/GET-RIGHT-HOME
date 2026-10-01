@@ -1,6 +1,7 @@
 import HomeServiceCategory from '../models/HomeServiceCategory.js';
 import HomeServiceSubCategory from '../models/HomeServiceSubCategory.js';
 import HomeServiceService from '../models/HomeServiceService.js';
+import Zone from '../models/Zone.js';
 import { normalizeBookingModes } from '../utils/bookingModes.js';
 
 const addAndFilter = (filter, clause) => {
@@ -24,6 +25,35 @@ const modeClause = (bookingMode, { allowLegacyInstant = false } = {}) => {
   };
 };
 
+/**
+ * Zone-wise catalog for the user app. When the request carries the customer's
+ * location (?lat&lng) the catalog is limited to what the admin offers in the
+ * zone that location falls in (empty zoneIds = offered everywhere) and the old
+ * city filter is not used. Returns null when the location is unknown or no
+ * zones are configured, in which case the city filter applies as before.
+ */
+const resolveZoneScope = async (query) => {
+  const lat = parseFloat(query.lat);
+  const lng = parseFloat(query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (!(await Zone.exists({ status: 'active' }))) return null;
+  const zone = await Zone.findOne({
+    status: 'active',
+    area: { $geoIntersects: { $geometry: { type: 'Point', coordinates: [lng, lat] } } }
+  }).select('_id').lean();
+  return { zoneId: zone?._id || null };
+};
+
+const zoneClause = (scope) => ({
+  $or: [
+    { zoneIds: { $size: 0 } },
+    { zoneIds: { $exists: false } },
+    ...(scope.zoneId ? [{ zoneIds: scope.zoneId }] : [])
+  ]
+});
+
+const zoneCategoryIds = async (scope) => HomeServiceCategory.distinct('_id', zoneClause(scope));
+
 // Categories
 export const getCategories = async (req, res) => {
   try {
@@ -46,7 +76,10 @@ export const getPublicCategories = async (req, res) => {
   try {
     const { cityId, bookingMode } = req.query;
     const filter = { isActive: true, showOnHome: true };
-    if (cityId) {
+    const scope = await resolveZoneScope(req.query);
+    if (scope) {
+      addAndFilter(filter, zoneClause(scope));
+    } else if (cityId) {
       filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
     }
     if (bookingMode === 'instant') {
@@ -152,7 +185,11 @@ export const getPublicSubCategories = async (req, res) => {
     const { categoryId, cityId, bookingMode } = req.query;
     const filter = { isActive: true };
     if (categoryId) filter.categoryId = categoryId;
-    if (cityId) {
+    const scope = await resolveZoneScope(req.query);
+    if (scope) {
+      // Sub-categories follow their category's zones.
+      addAndFilter(filter, { categoryId: { $in: await zoneCategoryIds(scope) } });
+    } else if (cityId) {
       filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
     }
     if (bookingMode === 'instant') {
@@ -178,7 +215,12 @@ export const getPublicServices = async (req, res) => {
     if (subCategoryId) filter.subCategoryId = subCategoryId;
     const requestedMode = bookingMode || (instant === 'true' ? 'instant' : null);
     addAndFilter(filter, modeClause(requestedMode, { allowLegacyInstant: true }));
-    if (cityId) {
+    const scope = await resolveZoneScope(req.query);
+    if (scope) {
+      // A service needs its own zone offer AND its category offered in the zone.
+      addAndFilter(filter, zoneClause(scope));
+      addAndFilter(filter, { categoryId: { $in: await zoneCategoryIds(scope) } });
+    } else if (cityId) {
       filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
     }
 

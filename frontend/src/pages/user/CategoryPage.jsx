@@ -6,6 +6,8 @@ import { toast } from 'react-hot-toast';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCart } from '../../homster/context/CartContext';
 import { useCity } from '../../homster/context/CityContext';
+import CategoryLanding from '../../components/user/CategoryLanding';
+import ServiceListing from '../../homster/modules/user/components/booking/ServiceListing';
 
 const toAssetUrl = (url) => {
     if (!url) return '';
@@ -110,6 +112,16 @@ const CategoryPage = () => {
         }
     };
 
+    // A category opens on its landing (banner + sub-category grid). Only when we
+    // are sent here for one particular sub-category does its services page open directly.
+    useEffect(() => {
+        if (category?.isDirectService || selectedSubCategory || subCategories.length === 0) return;
+        const wanted = location.state?.subCategory;
+        const start = wanted && subCategories.find((s) => String(s.id || s._id) === String(wanted.id || wanted._id));
+        if (start) handleSubCategoryClick(start);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subCategories, category?.isDirectService]);
+
     const getCartItem = (serviceId) => {
         if (!serviceId || !cartItems?.length) return null;
         return cartItems.find((item) => 
@@ -117,6 +129,53 @@ const CategoryPage = () => {
             String(item._id) === String(serviceId) ||
             String(item.id) === String(serviceId)
         );
+    };
+
+    // Add a service (or one option of it) to the cart.
+    const addToCartWithOption = async (service, option) => {
+        try {
+            const unit = option
+                ? (Number(option.discountPrice) > 0 && Number(option.discountPrice) < Number(option.price) ? Number(option.discountPrice) : Number(option.price))
+                : (service.discountPrice || service.basePrice || service.price);
+            const original = option ? Number(option.price) : Number(service.basePrice || service.price);
+            const response = await addToCart({
+                serviceId: service.id || service._id,
+                categoryId: category?.id || category?._id,
+                subCategoryId: selectedSubCategory?.id || selectedSubCategory?._id || undefined,
+                title: option ? `${service.title} · ${option.label}` : service.title,
+                optionLabel: option?.label || '',
+                description: service.description || '',
+                duration: option?.duration || service.duration || '',
+                icon: toAssetUrl(service.icon || service.imageUrl || selectedSubCategory?.iconUrl || category?.homeIconUrl || ''),
+                category: category?.title,
+                subCategory: selectedSubCategory?.title || category?.title || '',
+                price: unit,
+                unitPrice: unit,
+                originalPrice: original > unit ? original : undefined,
+                serviceCount: 1,
+                isInstant: bookingMode === 'instant',
+                bookingMode,
+            });
+            if (response.success) {
+                toast.success(`${option ? `${service.title} · ${option.label}` : service.title} added`);
+                setCartBarDismissed(false);
+            } else {
+                toast.error(response.message || 'Failed to add to cart');
+            }
+        } catch {
+            toast.error('Failed to add to cart');
+        }
+    };
+
+    // + / − on a cart line (removes it when it reaches zero).
+    const changeLineQty = async (line, delta) => {
+        const next = (Number(line.serviceCount) || 1) + delta;
+        const itemId = line._id || line.id || line.serviceId;
+        if (next <= 0) {
+            await removeItem(itemId);
+        } else {
+            await updateItem(itemId, next);
+        }
     };
 
     const handleServiceClick = async (service) => {
@@ -218,6 +277,52 @@ const CategoryPage = () => {
     };
 
     const isDirect = category?.isDirectService;
+
+    // Services page (NoBroker-style listing) for a direct category or a chosen sub-category.
+    if (category && (isDirect || selectedSubCategory)) {
+        return (
+            <ServiceListing
+                title={category?.title || 'Services'}
+                subTitle={selectedSubCategory?.title || ''}
+                subRating={selectedSubCategory?.rating}
+                mergePlain={bookingMode !== 'instant'}
+                ctaLabel={bookingMode === 'instant' ? 'Proceed' : 'Select Address'}
+                etaMinutes={bookingMode === 'instant' ? (Math.min(...(services.map((s) => Number(s.instantEtaMinutes) || 30)), 30) || 30) : 0}
+                subReviewCount={selectedSubCategory?.reviewCount}
+                bannerUrl={toAssetUrl(selectedSubCategory?.bannerUrl || selectedSubCategory?.imageUrl || category?.bannerUrl || '')}
+                description={selectedSubCategory?.description || ''}
+                services={services}
+                loading={loading}
+                cartItems={cartItems}
+                cartCount={cartCount}
+                totalPrice={totalCartPrice}
+                onAdd={addToCartWithOption}
+                onChangeQty={changeLineQty}
+                onBack={() => (!isDirect && selectedSubCategory ? setSelectedSubCategory(null) : navigate(-1))}
+                onOpenCart={() => navigate('/user/cart')}
+                subCategories={isDirect ? [] : subCategories}
+                activeSubId={selectedSubCategory?.id || selectedSubCategory?._id}
+                onSelectSub={handleSubCategoryClick}
+            />
+        );
+    }
+
+    if (category && !isDirect) {
+        const eta = bookingMode === 'instant' ? Math.min(...services.map((sv) => Number(sv.instantEtaMinutes) || 30), 30) : 0;
+        return (
+            <CategoryLanding
+                category={category}
+                subCategories={subCategories}
+                loading={loading}
+                cityName={currentCity?.name || currentCity?.title || ''}
+                cartCount={cartCount}
+                instantEta={eta}
+                onBack={() => navigate(-1)}
+                onOpenCart={() => navigate('/user/cart')}
+                onPick={handleSubCategoryClick}
+            />
+        );
+    }
 
     return (
         <div className="min-h-screen bg-white pb-28">

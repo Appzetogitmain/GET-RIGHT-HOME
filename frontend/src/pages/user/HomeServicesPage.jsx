@@ -21,6 +21,8 @@ import {
     Crown
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import InstantCategoriesSheet from '../../components/user/InstantCategoriesSheet';
+import SubCategoriesSheet from '../../components/user/SubCategoriesSheet';
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCity } from '../../homster/context/CityContext';
 import BottomNav from '../../homster/modules/user/components/layout/BottomNav';
@@ -102,6 +104,8 @@ const HomeServicesPage = () => {
     const [directServicesMap, setDirectServicesMap] = useState({});
     const [directSubCategoriesMap, setDirectSubCategoriesMap] = useState({});
     const [instantServices, setInstantServices] = useState([]);
+    const [instantSheetOpen, setInstantSheetOpen] = useState(false);
+    const [sheetCategory, setSheetCategory] = useState(null);
 
     // Which categories actually have an instant-eligible service, so the
     // ⚡ badge below only shows up where it's true (e.g. once admin flags an
@@ -121,7 +125,13 @@ const HomeServicesPage = () => {
         if (!cat) return;
         const id = cat.id || cat._id;
         if (!id) return;
-        navigate(`/home-services/category/${id}`, { state: { category: cat } });
+        // A category with sub-categories opens a sheet to pick one; a direct-service
+        // category has nothing to pick, so it goes straight to its services.
+        if (cat.isDirectService) {
+            navigate(`/home-services/category/${id}`, { state: { category: cat } });
+        } else {
+            setSheetCategory(cat);
+        }
     }, [navigate]);
 
     const [promos, setPromos] = useState([]);
@@ -368,30 +378,22 @@ const HomeServicesPage = () => {
                 </div>
 
                 <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
-                    {/* Dedicated Instant Services Tile */}
+                    {/* Dedicated Instant Services Tile: opens the "Experts at your doorstep" sheet */}
                     <motion.button
                         whileHover={{ y: -6 }}
                         whileTap={{ scale: 0.96 }}
-                        onClick={() => navigate('/home-services/instant')}
-                        className="w-full h-32 sm:h-40 bg-white border border-amber-200/80 rounded-2xl shadow-sm overflow-hidden flex flex-col p-2.5 sm:p-3 relative group cursor-pointer text-left ring-2 ring-amber-400/20"
+                        onClick={() => setInstantSheetOpen(true)}
+                        className="w-full h-32 sm:h-40 bg-white border border-violet-200/80 rounded-2xl shadow-sm overflow-hidden flex flex-col p-2.5 sm:p-3 relative group cursor-pointer text-left"
                     >
-                        <span className="text-[9px] sm:text-xs font-black text-gray-900 leading-tight line-clamp-1 mb-1.5 sm:mb-2">
-                            Instant Booking
+                        <span className="text-[9px] sm:text-xs font-black text-gray-900 leading-tight line-clamp-2 mb-1.5 sm:mb-2">
+                            Instant Services
                         </span>
-                        <div className="flex-1 relative rounded-xl overflow-hidden bg-gray-100">
-                            <img
-                                src="/instant-service.png"
-                                alt="Instant Booking"
-                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent flex items-end justify-between p-1.5">
-                                <span className="text-[8px] sm:text-[10px] font-black text-white flex items-center gap-0.5">
-                                    <Zap size={9} className="text-amber-400 fill-amber-400" /> Instant
-                                </span>
-                                <span className="text-[7px] sm:text-[9px] font-black text-white bg-amber-500/90 px-1 py-0.5 rounded uppercase">
-                                    ⚡ {fastestInstantEta}m
-                                </span>
-                            </div>
+                        <div className="flex-1 relative rounded-xl overflow-hidden bg-gradient-to-br from-violet-50 via-white to-violet-100 flex flex-col items-center justify-center">
+                            <span className="flex items-center text-violet-700">
+                                <Zap className="w-5 h-5 sm:w-7 sm:h-7 fill-violet-600 text-violet-600" />
+                                <span className="text-xl sm:text-3xl font-black italic leading-none">{fastestInstantEta}</span>
+                            </span>
+                            <span className="text-[9px] sm:text-xs font-black italic text-violet-700 -mt-0.5">mins</span>
                         </div>
                     </motion.button>
 
@@ -1419,6 +1421,17 @@ const HomeServicesPage = () => {
             {/* Active Booking Card (Shows when a worker is assigned) */}
             <ActiveBookingCard />
 
+            <InstantCategoriesSheet
+                isOpen={instantSheetOpen}
+                onClose={() => setInstantSheetOpen(false)}
+                etaMinutes={fastestInstantEta}
+                onPick={(cat) => navigate(`/home-services/category/${cat.id || cat._id}?mode=instant`, { state: { category: cat, bookingMode: "instant" } })}
+            />
+            <SubCategoriesSheet
+                category={sheetCategory}
+                onClose={() => setSheetCategory(null)}
+                onPick={(sub) => navigate(`/home-services/category/${sheetCategory.id || sheetCategory._id}`, { state: { category: sheetCategory, subCategory: sub } })}
+            />
             <BottomNav />
         </div>
     );

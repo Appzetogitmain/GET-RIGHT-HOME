@@ -49,7 +49,9 @@ export const computeBookingPricing = ({
       // the service's own base price. The item's own `price` field is client
       // data and is deliberately NOT trusted.
       const id = String(item?.serviceId?._id || item?.serviceId || item?.card?._id || item?._id || '');
-      const trusted = trustedPrices?.get?.(id);
+      // A service with options is priced by the option the customer picked.
+      const optionLabel = String(item?.optionLabel || item?.card?.optionLabel || '');
+      const trusted = (optionLabel ? trustedPrices?.get?.(`${id}|${optionLabel}`) : undefined) ?? trustedPrices?.get?.(id);
       const unit = toNumber(trusted, toNumber(service?.discountPrice || service?.basePrice, 0));
       return sum + lineTotal(item, unit);
     }, 0);

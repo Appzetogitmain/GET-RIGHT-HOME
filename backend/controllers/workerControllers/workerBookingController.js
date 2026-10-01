@@ -20,9 +20,12 @@ import { REMINDABLE_STATUSES, buildReminderPayload } from '../../cron/jobReminde
 import {
   claimWorkerCapacity,
   findWorkerActiveJob,
+  isImmediateBooking,
   syncWorkerCapacityStatus
 } from '../../services/workerCapacityService.js';
 import { supportsBookingMode } from '../../utils/bookingModes.js';
+import { findWorkerIneligibility } from '../../services/locationService.js';
+import { sanitizeBookingForHelper, sanitizeBookingForLead } from '../../services/helperPayoutService.js';
 
 /**
  * Records how one worker responded to a booking offer.
@@ -60,8 +63,13 @@ const getAssignedJobs = async (req, res) => {
     const workerId = req.user.id;
     const { status, page = 1, limit = 100 } = req.query;
 
-    // Build query
-    const query = { workerId };
+    // Jobs I lead, plus jobs where admin added me as a helper.
+    const query = {
+      $or: [
+        { workerId },
+        { helpers: { $elemMatch: { workerId, payoutStatus: { $ne: 'cancelled' } } } }
+      ]
+    };
     if (status) {
       query.status = status;
     }
@@ -71,11 +79,12 @@ const getAssignedJobs = async (req, res) => {
 
     // Get bookings
     const bookings = await HomeServiceBooking.find(query)
-      .select('-serviceImages -requirementImages -workPhotos -reviewImages')
+      .select('-serviceImages -requirementImages -workPhotos -reviewImages +helpers +helperRequests')
       .populate('userId', 'name phone email')
       .populate('vendorId', 'name businessName phone')
       .populate('serviceId', 'title iconUrl')
       .populate('categoryId', 'title slug')
+      .populate('helpers.workerId', 'name phone profilePhoto')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -95,7 +104,20 @@ const getAssignedJobs = async (req, res) => {
     const bills = await VendorBill.find({ bookingId: { $in: bookingIds } }).select('bookingId vendorTotalEarning').lean();
     const billByBookingId = new Map(bills.map(b => [String(b.bookingId), b]));
 
+    // Lead workers of the jobs where I only help (to show who I'm working with).
+    const leadIds = [...new Set(bookings.filter(b => String(b.workerId || '') !== String(workerId)).map(b => String(b.workerId)))];
+    const leads = leadIds.length
+      ? await Worker.find({ _id: { $in: leadIds } }).select('name phone profilePhoto').lean()
+      : [];
+    const leadById = new Map(leads.map(l => [String(l._id), l]));
+
     const bookingsWithWorkerAmount = bookings.map(b => {
+      // Helper view: no money anywhere, read-only.
+      if (String(b.workerId || '') !== String(workerId)) {
+        const asHelper = b.toObject();
+        asHelper.workerId = leadById.get(String(b.workerId)) || asHelper.workerId;
+        return sanitizeBookingForHelper(asHelper, workerId);
+      }
       const obj = b.toObject();
       const bill = billByBookingId.get(String(b._id));
       // A finalized bill (job billed/completed) is the real, authoritative
@@ -105,7 +127,7 @@ const getAssignedJobs = async (req, res) => {
       obj.workerAmount = bill
         ? bill.vendorTotalEarning
         : Math.max(0, parseFloat((((b.basePrice || b.finalAmount || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
-      return obj;
+      return sanitizeBookingForLead(obj);
     });
 
     res.status(200).json({
@@ -144,11 +166,10 @@ const getPendingRequests = async (req, res) => {
     const workerId = req.user.id;
 
     // A worker holding a job must not see any other offer until WORK_DONE.
+    // A worker on a job right now only sees offers for later slots; anything
+    // that would start now waits until the current work is done.
     const activeJob = await findWorkerActiveJob(workerId);
-    if (activeJob) {
-      await syncWorkerCapacityStatus(workerId);
-      return res.status(200).json({ success: true, data: [], isBusy: true, activeBookingId: activeJob._id });
-    }
+    if (activeJob) await syncWorkerCapacityStatus(workerId);
 
     const requests = await BookingRequest.find({
       workerId,
@@ -157,7 +178,7 @@ const getPendingRequests = async (req, res) => {
     }).sort({ sentAt: -1 }).lean();
 
     if (requests.length === 0) {
-      return res.status(200).json({ success: true, data: [] });
+      return res.status(200).json({ success: true, data: [], ...(activeJob ? { isBusy: true, activeBookingId: activeJob._id } : {}) });
     }
 
     const bookingIds = requests.map(r => r.bookingId);
@@ -186,7 +207,9 @@ const getPendingRequests = async (req, res) => {
     const bufferMinutes = await getBufferMinutes();
     const offerable = [];
     for (const b of bookings) {
-      if (!(await findWorkerConflict(workerId, b, { bufferMinutes }))) offerable.push(b);
+      if (activeJob && await isImmediateBooking(b)) continue;
+      const adminOffered = b.adminAssignedWorkerId && String(b.adminAssignedWorkerId) === String(workerId);
+      if (adminOffered || !(await findWorkerConflict(workerId, b, { bufferMinutes }))) offerable.push(b);
     }
     const bookingMap = new Map(offerable.map(b => [String(b._id), b]));
 
@@ -206,6 +229,10 @@ const getPendingRequests = async (req, res) => {
         const booking = bookingMap.get(String(r.bookingId));
         if (!booking) return null;
         const workerAmount = Math.max(0, parseFloat((((booking.basePrice || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
+        // A direct admin offer has its own short window, counted from when it was sent.
+        const adminOffered = booking.adminAssignedWorkerId && String(booking.adminAssignedWorkerId) === String(workerId);
+        const offerWindowSec = adminOffered ? 60 : responseWindowSec;
+        const offerStartedAt = adminOffered ? r.sentAt : (booking.waveStartedAt || r.sentAt);
         return {
           bookingId: booking._id,
           serviceName: booking.serviceName,
@@ -232,15 +259,15 @@ const getPendingRequests = async (req, res) => {
           respondBySeconds: Math.max(
             0,
             Math.round(
-              (new Date(booking.waveStartedAt || r.sentAt).getTime() + responseWindowSec * 1000 - Date.now()) / 1000
+              (new Date(offerStartedAt).getTime() + offerWindowSec * 1000 - Date.now()) / 1000
             )
           ),
-          responseWindowSeconds: responseWindowSec
+          responseWindowSeconds: offerWindowSec
         };
       })
       .filter(Boolean);
 
-    res.status(200).json({ success: true, data });
+    res.status(200).json({ success: true, data, ...(activeJob ? { isBusy: true, activeBookingId: activeJob._id } : {}) });
   } catch (error) {
     console.error('Get pending requests error:', error);
     res.status(500).json({
@@ -258,17 +285,33 @@ const getJobById = async (req, res) => {
     const workerId = req.user.id;
     const { id } = req.params;
 
-    const booking = await HomeServiceBooking.findOne({ _id: id, workerId })
+    const booking = await HomeServiceBooking.findOne({
+      _id: id,
+      $or: [
+        { workerId },
+        { helpers: { $elemMatch: { workerId, payoutStatus: { $ne: 'cancelled' } } } }
+      ]
+    })
       .populate('userId', 'name phone email')
       .populate('vendorId', 'name businessName phone email address')
       .populate('serviceId', 'title description iconUrl images')
-      .populate('categoryId', 'title slug');
+      .populate('categoryId', 'title slug')
+      .select('+helpers +helperRequests')
+      .populate('helpers.workerId', 'name phone profilePhoto');
 
     if (!booking) {
       return res.status(404).json({
         success: false,
         message: 'Job not found'
       });
+    }
+
+    // Admin added me to help on someone else's job: read-only, and no amounts.
+    if (String(booking.workerId || '') !== String(workerId)) {
+      const lead = await Worker.findById(booking.workerId).select('name phone profilePhoto').lean();
+      const asHelper = booking.toObject();
+      asHelper.workerId = lead || asHelper.workerId;
+      return res.status(200).json({ success: true, data: sanitizeBookingForHelper(asHelper, workerId) });
     }
 
     // Same fix as getAssignedJobs: the raw booking amount is what the
@@ -289,7 +332,7 @@ const getJobById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: bookingObj
+      data: sanitizeBookingForLead(bookingObj)
     });
   } catch (error) {
     console.error('Get job error:', error);
@@ -850,7 +893,8 @@ const createBill = async (req, res) => {
     const trueOriginalServiceBase = booking.basePrice || booking.totalAmount || 0;
     const baseDiscount = booking.discount || 0;
     const promoDiscount = booking.promoDiscount || 0;
-    const totalDiscount = baseDiscount + promoDiscount;
+    // The VIP discount, like a promo, comes out of the admin's cut, not the worker's.
+    const totalDiscount = baseDiscount + promoDiscount + (booking.vipDiscount || 0);
 
     // Fetch Platform Settings
     //
@@ -1058,6 +1102,11 @@ const collectCash = async (req, res) => {
     // (initiateCashCollection / initiateOnlineCollection), which is what
     // actually moves the booking into AWAITING_PAYMENT.
     const allowedStatuses = [BOOKING_STATUS.AWAITING_PAYMENT];
+    // Already paid online up front: nothing further to request, the OTP just
+    // closes the finished job.
+    if (booking.isWorkerPaid === true || booking.paymentStatus === PAYMENT_STATUS.PAID) {
+      allowedStatuses.push(BOOKING_STATUS.WORK_DONE);
+    }
     if (!allowedStatuses.includes(booking.status)) {
       return res.status(400).json({ success: false, message: `Payment hasn't been requested yet for this booking (status: ${booking.status})` });
     }
@@ -1162,6 +1211,7 @@ const respondToJob = async (req, res) => {
   const { status } = req.body;
   const workerId = req.user.id;
   let capacityClaimed = false;
+  let immediateJob = true;
 
   console.log(`[WorkerAction] respondToJob - ID: ${id}, Status: ${status}, Worker: ${workerId}`);
 
@@ -1220,21 +1270,32 @@ const respondToJob = async (req, res) => {
     if (status === 'ACCEPTED') {
       const acceptingWorker = await Worker.findById(workerId).select('name bookingModes').lean();
       const bookingMode = booking.bookingType === 'instant' ? 'instant' : 'slot';
-      if (!supportsBookingMode(acceptingWorker, bookingMode)) {
+      // A job the admin offered to this worker was approved by the admin,
+      // possibly as an override of zone / profession / type / day-off rules.
+      const adminOffered = booking.adminAssignedWorkerId && String(booking.adminAssignedWorkerId) === String(workerId);
+      if (!adminOffered && !supportsBookingMode(acceptingWorker, bookingMode)) {
         return res.status(409).json({
           success: false,
           code: 'WORKER_BOOKING_MODE_NOT_ALLOWED',
           message: `Your profile is not enabled for ${bookingMode === 'instant' ? 'Instant' : 'Slot'} bookings.`
         });
       }
+      // Zone + profession are re-checked at accept time: the admin may have
+      // changed them after the offer went out.
+      const acceptingFull = await Worker.findById(workerId).select('name zoneIds zones serviceCategories').lean();
+      // Admin-assigned jobs were approved by the admin, possibly as an override.
+      const ineligible = acceptingFull && !adminOffered && await findWorkerIneligibility(acceptingFull, booking);
+      if (ineligible) {
+        return res.status(409).json({ success: false, code: 'WORKER_NOT_ELIGIBLE', message: ineligible });
+      }
       // Slot buffer: refuse if this worker already holds a job too close to
       // this one (admin-configured gap). Authoritative check — the offer may
       // have been sent before the worker accepted their other job.
-      const unavailableMsg = await findWorkerUnavailability(workerId, booking);
+      const unavailableMsg = !adminOffered && await findWorkerUnavailability(workerId, booking);
       if (unavailableMsg) {
         return res.status(409).json({ success: false, code: 'WORKER_UNAVAILABLE', message: unavailableMsg });
       }
-      const conflict = await findWorkerConflict(workerId, booking);
+      const conflict = !adminOffered && await findWorkerConflict(workerId, booking);
       if (conflict) {
         const bufferMinutes = await getBufferMinutes();
         return res.status(409).json({
@@ -1244,17 +1305,22 @@ const respondToJob = async (req, res) => {
         });
       }
 
-      const capacity = await claimWorkerCapacity(workerId, booking._id);
-      if (!capacity.claimed) {
-        return res.status(409).json({
-          success: false,
-          code: 'WORKER_BUSY',
-          message: capacity.activeJob
-            ? `You are already busy with booking #${capacity.activeJob.bookingNumber}. Mark that work done before accepting another booking.`
-            : 'You are currently busy. Mark your current work done before accepting another booking.'
-        });
+      // A job for later (e.g. tonight's slot) doesn't occupy the worker now:
+      // no busy lock, and the slot-buffer check above already protects overlaps.
+      immediateJob = await isImmediateBooking(booking);
+      if (immediateJob) {
+        const capacity = await claimWorkerCapacity(workerId, booking._id);
+        if (!capacity.claimed) {
+          return res.status(409).json({
+            success: false,
+            code: 'WORKER_BUSY',
+            message: capacity.activeJob
+              ? `You are already busy with booking #${capacity.activeJob.bookingNumber}. Mark that work done before accepting another booking.`
+              : 'You are currently busy. Mark your current work done before accepting another booking.'
+          });
+        }
+        capacityClaimed = true;
       }
-      capacityClaimed = true;
 
       // First valid accept wins atomically; two workers can never both claim
       // the same booking even if their requests arrive together.
@@ -1281,7 +1347,8 @@ const respondToJob = async (req, res) => {
             workerAcceptedAt: new Date(),
             acceptedAt: new Date(),
             assignedAt: new Date(),
-            waveStartedAt: null
+            waveStartedAt: null,
+            adminAssignedWorkerId: null
           }
         },
         { new: true }
@@ -1332,10 +1399,12 @@ const respondToJob = async (req, res) => {
 
       // This worker is now busy. Withdraw every other open offer so old cards
       // cannot be accepted from another tab/device while the job is active.
-      await BookingRequest.updateMany(
-        { bookingId: { $ne: id }, workerId, status: 'PENDING' },
-        { $set: { status: 'EXPIRED', respondedAt: new Date() } }
-      );
+      if (immediateJob) {
+        await BookingRequest.updateMany(
+          { bookingId: { $ne: id }, workerId, status: 'PENDING' },
+          { $set: { status: 'EXPIRED', respondedAt: new Date() } }
+        );
+      }
 
       // Notify Vendor if applicable
       if (booking.vendorId) {
@@ -1412,6 +1481,10 @@ const respondToJob = async (req, res) => {
       }
 
       recordAssignmentOutcome(booking, workerId, 'rejected', req.body?.reason);
+      if (booking.adminAssignedWorkerId && String(booking.adminAssignedWorkerId) === String(workerId)) {
+        booking.adminAssignedWorkerId = null;
+        booking.workerResponse = 'REJECTED';
+      }
 
       const rejectingWorker = await Worker.findById(workerId).select('name phone');
 
@@ -1465,14 +1538,14 @@ const respondToJob = async (req, res) => {
     }
 
     await booking.save();
-    if (status === 'ACCEPTED') {
+    if (status === 'ACCEPTED' && immediateJob) {
       const io = req.app.get('io') || getIO();
       io?.to(`worker_${workerId}`).emit('worker_capacity_changed', {
         status: 'busy',
         isBusy: true,
         activeBookingId: booking._id.toString()
       });
-    } else if (status === 'REJECTED') {
+    } else if (status === 'REJECTED' || status === 'ACCEPTED') {
       const capacity = await syncWorkerCapacityStatus(workerId);
       (req.app.get('io') || getIO())?.to(`worker_${workerId}`).emit('worker_capacity_changed', {
         status: capacity?.status,
@@ -1608,7 +1681,8 @@ const confirmManualOnlineCollection = async (req, res) => {
     const grandTotal = Number(bill.grandTotal) || 0;
     // Tip goes 100% to the worker on top of their commissioned earning —
     // matches the Razorpay path's crediting in paymentController.
-    const vendorEarning = (Number(bill.vendorTotalEarning) || 0) + (Number(booking.tipAmount) || 0);
+    const { leadShareOf } = await import('../../services/helperPayoutService.js');
+    const vendorEarning = (await leadShareOf(booking._id, Number(bill.vendorTotalEarning) || 0)) + (Number(booking.tipAmount) || 0);
 
     // The customer may already have paid in-app (paymentController credits the
     // worker at that point). Crediting again here would pay the job out twice,
@@ -1810,10 +1884,14 @@ const confirmJobReminder = async (req, res) => {
  */
 const releaseJob = async (req, res) => {
   const { id } = req.params;
-  const { reason = '' } = req.body || {};
+  const reason = String(req.body?.reason || '').trim();
   const workerId = req.user.id;
 
   try {
+    if (reason.length < 3) {
+      return res.status(400).json({ success: false, message: 'Please tell us why you are rejecting this job.' });
+    }
+
     const booking = await HomeServiceBooking.findById(id);
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Job not found' });

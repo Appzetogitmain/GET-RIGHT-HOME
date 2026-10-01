@@ -85,32 +85,25 @@ const Plans = () => {
         serviceService.getAll({ status: 'active' })
       ]);
 
-      console.log('DEBUG: catsRes', catsRes);
-      console.log('DEBUG: brandsRes', brandsRes);
-      console.log('DEBUG: servsRes', servsRes);
-
       if (plansRes.success) setPlans(plansRes.data);
 
       // Robust data extraction for categories
       const categoriesData = catsRes.categories || catsRes.data || (Array.isArray(catsRes) ? catsRes : []);
       const finalCats = Array.isArray(categoriesData) ? categoriesData : [];
-      console.log('DEBUG: finalCats', finalCats);
       setCategories(finalCats);
 
       // Robust data extraction for brands
       const brandsData = brandsRes.brands || brandsRes.data || (Array.isArray(brandsRes) ? brandsRes : []);
       const finalBrands = Array.isArray(brandsData) ? brandsData : [];
-      console.log('DEBUG: finalBrands', finalBrands);
       setBrandsList(finalBrands);
 
       // Robust data extraction for services
       const servicesData = servsRes.services || servsRes.data || (Array.isArray(servsRes) ? servsRes : []);
       const finalServices = Array.isArray(servicesData) ? servicesData : [];
-      console.log('DEBUG: finalServices', finalServices);
       setServicesList(finalServices);
 
     } catch (error) {
-      console.error('DEBUG: fetchInitialData error', error);
+      console.error('fetchInitialData error', error);
       toast.error('Failed to load data');
     } finally {
       setLoading(false);

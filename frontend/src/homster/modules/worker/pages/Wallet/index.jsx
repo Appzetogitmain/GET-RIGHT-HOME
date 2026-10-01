@@ -129,6 +129,8 @@ const Wallet = () => {
       case 'booking_payment':
       case 'estimate_token':
         return 'Earnings Received';
+      case 'helper_payment':
+        return 'Helper Payment';
       case 'cash_collected':
         return 'Cash Collected';
       case 'withdrawal':

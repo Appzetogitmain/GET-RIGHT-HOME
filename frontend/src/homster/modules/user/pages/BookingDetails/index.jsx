@@ -397,8 +397,9 @@ const BookingDetails = () => {
   const handleOnlinePayment = async () => {
     if (paying) return;
 
-    // If a Razorpay order already exists for this booking and hasn't been used, skip creating a new one
-    if (booking.razorpayOrderId) {
+    // Always create a fresh order: a stored one may be the (already paid) advance order.
+    const reuseStoredOrder = false;
+    if (reuseStoredOrder && booking.razorpayOrderId) {
       // Open Razorpay with existing order
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
@@ -448,6 +449,14 @@ const BookingDetails = () => {
       if (!orderResponse.success) {
         toast.error(orderResponse.message || 'Failed to create payment order');
         setPaying(false);
+        return;
+      }
+
+      // The advance already covered the whole bill — nothing left to pay.
+      if (orderResponse.alreadyCovered) {
+        toast.success('Your advance covers this bill. Thank you!');
+        setPaying(false);
+        loadBooking();
         return;
       }
 
@@ -787,6 +796,25 @@ const BookingDetails = () => {
         </header>
 
         <main className="max-w-xl mx-auto px-4 py-6 space-y-6">
+
+          {/* Advance not paid yet: the booking is held and not sent to anyone */}
+          {booking.advanceStatus === 'awaiting' && !['cancelled', 'completed'].includes(booking.status?.toLowerCase()) && (
+            <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5">
+              <h3 className="text-base font-extrabold text-amber-900">Pay to confirm your booking</h3>
+              <p className="text-sm text-amber-800 mt-1">
+                Your booking is on hold until the advance is paid. We then start finding your professional.
+                Unpaid bookings are cancelled automatically after 15 minutes.
+              </p>
+              <button
+                onClick={handleOnlinePayment}
+                disabled={paying}
+                className="mt-4 w-full py-3.5 rounded-xl font-bold text-white shadow-lg active:scale-95 transition-transform disabled:opacity-60"
+                style={{ background: themeColors.button }}
+              >
+                {paying ? 'Opening payment…' : `Pay ₹${Math.round((booking.advanceRequired || 0) + (booking.vipFee || 0)).toLocaleString('en-IN')} now`}
+              </button>
+            </div>
+          )}
 
 
           {/* Visual Progress Stepper */}
@@ -1168,7 +1196,7 @@ const BookingDetails = () => {
                                   const base = (booking.bill?.finalOnlineAmount > 0 ? booking.bill.finalOnlineAmount : null) || booking.finalOnlineAmount || booking.finalAmount || 0;
                                   const isEstimate = booking.isEstimateBased;
                                   const token = isEstimate ? (Number(booking.estimate?.tokenAmount) || 0) : 0;
-                                  return Math.max(0, base - token).toLocaleString('en-IN');
+                                  return Math.max(0, base - token - (Number(booking.advancePaid) || 0)).toLocaleString('en-IN');
                                 })()
                               }</span>
                             </div>
@@ -1360,7 +1388,8 @@ const BookingDetails = () => {
                           // through the bill/booking fallback chain, which
                           // would silently drop it whenever a bill exists.
                           const tipAmount = Number(booking.tipAmount) || 0;
-                          const totalOnline = (isEstimate ? Math.max(0, baseTotalOnline - tokenPaid) : baseTotalOnline) + tipAmount;
+                          const advancePaidAmt = Number(booking.advancePaid) || 0;
+                          const totalOnline = Math.max(0, (isEstimate ? Math.max(0, baseTotalOnline - tokenPaid) : baseTotalOnline) - advancePaidAmt) + tipAmount;
 
                           return (
                             <>
@@ -1427,6 +1456,13 @@ const BookingDetails = () => {
                                     </span>
                                   </div>
                                   <span>-₹{tokenPaid.toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              {advancePaidAmt > 0 && (
+                                <div className="flex justify-between items-center text-emerald-600 text-sm font-medium mt-2 pt-2 border-t border-gray-100">
+                                  <span>Advance already paid</span>
+                                  <span>-₹{advancePaidAmt.toFixed(2)}</span>
                                 </div>
                               )}
 

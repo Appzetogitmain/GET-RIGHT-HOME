@@ -268,16 +268,23 @@ const AssignedJobs = () => {
                           </span>
                         </div>
                       </div>
-                      <div
-                        className="px-3 py-2 rounded-lg font-bold text-lg"
-                        style={{
-                          background: 'rgba(59, 130, 246, 0.1)',
-                          color: '#3B82F6',
-                          border: '1px solid rgba(59, 130, 246, 0.2)',
-                        }}
-                      >
-                        ₹{job.workerAmount ?? job.finalAmount}
-                      </div>
+                      {job.isHelper ? (
+                        // Helpers never see an amount; theirs arrives in the wallet at the end.
+                        <div className="px-3 py-2 rounded-lg font-bold text-xs bg-violet-50 text-violet-700 border border-violet-100">
+                          HELPER
+                        </div>
+                      ) : (
+                        <div
+                          className="px-3 py-2 rounded-lg font-bold text-lg"
+                          style={{
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            color: '#3B82F6',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                          }}
+                        >
+                          ₹{job.workerAmount ?? job.finalAmount}
+                        </div>
+                      )}
                     </div>
 
                     {/* Info Section */}

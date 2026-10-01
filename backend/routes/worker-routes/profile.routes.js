@@ -3,6 +3,7 @@ const router = express.Router();
 import {  body  } from 'express-validator';
 import {  authenticate  } from '../../middlewares/authMiddleware.js';
 import {  isWorker  } from '../../middlewares/authMiddleware.js';
+import { getActiveProfessions } from '../../controllers/professionController.js';
 import {  getProfile, updateProfile, updateLocation, toggleOnline, getReferrals  } from '../../controllers/workerControllers/workerProfileController.js';
 
 // Validation rules
@@ -13,6 +14,7 @@ const updateProfileValidation = [
 ];
 
 // Routes
+router.get('/professions', authenticate, isWorker, getActiveProfessions);
 router.get('/profile', authenticate, isWorker, getProfile);
 router.put('/profile', authenticate, isWorker, updateProfileValidation, updateProfile);
 router.put('/profile/location', authenticate, isWorker, updateLocation);

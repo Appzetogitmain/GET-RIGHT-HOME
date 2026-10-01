@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+  quoteBooking,
   getSlotAvailabilityForUser,
   createBooking,
   getUserBookings,
@@ -62,6 +63,7 @@ const createBookingValidators = [
   body('visitationFee').optional().isFloat({ min: 0 })
 ];
 
+router.post('/quote', quoteBooking);
 router.post('/', createBookingValidators, createBooking);
 router.get('/slot-availability', getSlotAvailabilityForUser);
 router.get('/my', getUserBookings);

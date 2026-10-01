@@ -103,11 +103,12 @@ export const CartProvider = ({ children }) => {
         // stale slot item from silently converting an Instant checkout.
         const sameModeItems = prev.filter((item) => getCartItemMode(item) === bookingMode);
         // Prevent duplicate addition of the same serviceId
-        const exists = sameModeItems.some(item => (item.serviceId && item.serviceId === itemData.serviceId) || item._id === itemId || item.id === itemId);
+        const sameLine = (item) => item.serviceId && item.serviceId === itemData.serviceId && (item.optionLabel || '') === (itemData.optionLabel || '');
+        const exists = sameModeItems.some(item => sameLine(item) || item._id === itemId || item.id === itemId);
         let updated;
         if (exists) {
           updated = sameModeItems.map(item => {
-            if ((item.serviceId && item.serviceId === itemData.serviceId) || item._id === itemId || item.id === itemId) {
+            if (sameLine(item) || item._id === itemId || item.id === itemId) {
               const newCount = (Number(item.serviceCount) || 1) + initialCount;
               const uPrice = Number(item.unitPrice) || unitPrice || (item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
               return {

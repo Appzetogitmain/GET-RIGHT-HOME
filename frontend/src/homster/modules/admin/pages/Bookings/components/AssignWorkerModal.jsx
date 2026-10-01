@@ -1,19 +1,44 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FiX, FiSearch, FiCheck, FiUser, FiMapPin, FiPhone,
-  FiStar, FiAlertCircle, FiCheckCircle, FiShield, FiTag, FiZap
+  FiX, FiSearch, FiUser, FiMapPin, FiPhone, FiStar, FiAlertTriangle,
+  FiZap, FiCalendar, FiCheck, FiInfo
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import adminWorkerService from '../../../../../services/adminWorkerService';
 import { adminBookingService } from '../../../../../services/adminBookingService';
 
+// Server errors an admin may knowingly override when assigning.
+const OVERRIDABLE_CODES = [
+  'WORKER_NOT_ELIGIBLE',
+  'WORKER_BOOKING_MODE_NOT_ALLOWED',
+  'WORKER_UNAVAILABLE',
+  'SLOT_CONFLICT'
+];
+
+const norm = (v) => String(v || '').toLowerCase().trim();
+
+const Chip = ({ tone = 'slate', children }) => {
+  const tones = {
+    green: 'bg-emerald-50 text-emerald-700 ring-emerald-600/15',
+    amber: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+    blue: 'bg-blue-50 text-blue-700 ring-blue-600/15',
+    slate: 'bg-slate-100 text-slate-600 ring-slate-500/10'
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${tones[tone]}`}>
+      {children}
+    </span>
+  );
+};
+
 const AssignWorkerModal = ({ isOpen, onClose, booking, onSuccess }) => {
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('recommended'); // 'recommended' | 'all'
   const [assigningId, setAssigningId] = useState(null);
-  const [activeTab, setActiveTab] = useState('zone'); // 'zone' | 'all' (mobile tab toggle)
+  const [confirm, setConfirm] = useState(null); // { worker, message }
 
   useEffect(() => {
     if (isOpen) {
@@ -21,7 +46,8 @@ const AssignWorkerModal = ({ isOpen, onClose, booking, onSuccess }) => {
     } else {
       setSearch('');
       setWorkers([]);
-      setActiveTab('zone');
+      setFilter('recommended');
+      setConfirm(null);
     }
   }, [isOpen]);
 
@@ -29,9 +55,7 @@ const AssignWorkerModal = ({ isOpen, onClose, booking, onSuccess }) => {
     try {
       setLoading(true);
       const res = await adminWorkerService.getAllWorkers({ approvalStatus: 'approved' });
-      if (res.success) {
-        setWorkers(res.data || []);
-      }
+      if (res.success) setWorkers(res.data || []);
     } catch (error) {
       console.error('Error fetching workers', error);
       toast.error('Failed to load workers');
@@ -40,23 +64,30 @@ const AssignWorkerModal = ({ isOpen, onClose, booking, onSuccess }) => {
     }
   };
 
-  const handleAssign = async (workerId) => {
+  const assign = async (worker, override = false) => {
+    const workerId = worker._id || worker.id;
     try {
       setAssigningId(workerId);
-      const res = await adminBookingService.assignWorker(booking._id, workerId);
+      const res = await adminBookingService.assignWorker(booking._id, workerId, override);
       if (res.success) {
-        toast.success(res.message || 'Worker assigned successfully!');
-        if (onSuccess) onSuccess();
+        toast.success(res.message || 'Worker assigned successfully');
+        setConfirm(null);
+        onSuccess?.();
         onClose();
       }
     } catch (error) {
-      toast.error(error.message || 'Failed to assign worker');
+      if (!override && OVERRIDABLE_CODES.includes(error.code)) {
+        // Admin has final authority: show why it's flagged and let them proceed.
+        setConfirm({ worker, message: error.message });
+      } else {
+        setConfirm(null);
+        toast.error(error.message || 'Failed to assign worker');
+      }
     } finally {
       setAssigningId(null);
     }
   };
 
-  // Resolve target zone identifier and name from booking
   const bookingZoneId = useMemo(() => {
     if (!booking) return null;
     if (booking.zoneId?._id) return String(booking.zoneId._id);
@@ -66,234 +97,113 @@ const AssignWorkerModal = ({ isOpen, onClose, booking, onSuccess }) => {
 
   const bookingZoneName = useMemo(() => {
     if (!booking) return '';
-    if (booking.zoneName) return booking.zoneName;
-    if (booking.zoneId && typeof booking.zoneId === 'object' && booking.zoneId.name) {
-      return booking.zoneId.name;
-    }
-    if (booking.address?.city) return booking.address.city;
-    if (booking.customerLocation?.city) return booking.customerLocation.city;
-    return '';
+    return booking.zoneName || booking.zoneId?.name || booking.address?.city || '';
   }, [booking]);
 
-  // Check if a worker belongs to the booking's zone
+  const isInstant = booking?.bookingType === 'instant';
+
   const isWorkerInZone = (worker) => {
-    if (!bookingZoneId && !bookingZoneName) return false;
-    const targetName = bookingZoneName.toLowerCase().trim();
-
-    // 1. Check zoneIds array by ID
-    if (bookingZoneId && Array.isArray(worker.zoneIds)) {
-      const matchId = worker.zoneIds.some(z => {
-        const zid = z?._id ? String(z._id) : String(z);
-        return zid === String(bookingZoneId);
-      });
-      if (matchId) return true;
-    }
-
-    // 2. Check zoneIds array by populated zone name
-    if (targetName && Array.isArray(worker.zoneIds)) {
-      const matchName = worker.zoneIds.some(z => {
-        if (typeof z === 'object' && z?.name) {
-          return z.name.toLowerCase().trim() === targetName;
-        }
-        return false;
-      });
-      if (matchName) return true;
-    }
-
-    // 3. Check worker.zones string array
-    if (targetName && Array.isArray(worker.zones)) {
-      const matchName = worker.zones.some(z =>
-        typeof z === 'string' && z.toLowerCase().trim() === targetName
-      );
-      if (matchName) return true;
-    }
-
-    // 4. Check worker.address.city
-    if (targetName && worker.address?.city) {
-      if (worker.address.city.toLowerCase().trim() === targetName) {
-        return true;
-      }
-    }
-
-    // 5. Check if booking address city matches worker address city
-    if (booking?.address?.city && worker.address?.city) {
-      if (booking.address.city.toLowerCase().trim() === worker.address.city.toLowerCase().trim()) {
-        return true;
-      }
-    }
-
+    const target = norm(bookingZoneName);
+    if (bookingZoneId && Array.isArray(worker.zoneIds)
+      && worker.zoneIds.some((z) => String(z?._id || z) === bookingZoneId)) return true;
+    if (target && Array.isArray(worker.zoneIds)
+      && worker.zoneIds.some((z) => typeof z === 'object' && norm(z?.name) === target)) return true;
+    if (target && Array.isArray(worker.zones) && worker.zones.some((z) => norm(z) === target)) return true;
     return false;
   };
 
-  // Check if worker category matches booking serviceCategory
   const isCategoryMatch = (worker) => {
-    if (!booking?.serviceCategory) return false;
-    const targetCategory = booking.serviceCategory.toLowerCase().trim();
-    return (worker.serviceCategories || []).some(cat =>
-      cat && (cat.toLowerCase().trim().includes(targetCategory) || targetCategory.includes(cat.toLowerCase().trim()))
-    );
-  };
-
-  // Helper to sort: category match first, then online status, then name
-  const sortWorkerList = (list) => {
-    return [...list].sort((a, b) => {
-      const aCat = isCategoryMatch(a) ? 1 : 0;
-      const bCat = isCategoryMatch(b) ? 1 : 0;
-      if (bCat !== aCat) return bCat - aCat;
-
-      const aOnline = (a.isOnline || a.status === 'ONLINE' || a.status === 'online') ? 1 : 0;
-      const bOnline = (b.isOnline || b.status === 'ONLINE' || b.status === 'online') ? 1 : 0;
-      if (bOnline !== aOnline) return bOnline - aOnline;
-
-      return (a.name || '').localeCompare(b.name || '');
+    const target = norm(booking?.serviceCategory);
+    if (!target) return false;
+    return (worker.serviceCategories || []).some((c) => {
+      const cat = norm(c);
+      return cat && (cat.includes(target) || target.includes(cat));
     });
   };
 
-  // Filter workers based on search term
-  const filteredAll = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    if (!q) return workers;
-    return workers.filter(w => {
-      const name = (w.name || '').toLowerCase();
-      const phone = (w.phone || '').toLowerCase();
-      const city = (w.address?.city || '').toLowerCase();
-      const cats = (w.serviceCategories || []).join(' ').toLowerCase();
-      const zones = (w.zones || []).join(' ').toLowerCase();
-      return name.includes(q) || phone.includes(q) || city.includes(q) || cats.includes(q) || zones.includes(q);
-    });
-  }, [workers, search]);
+  const supportsMode = (worker) => {
+    const modes = Array.isArray(worker.bookingModes) && worker.bookingModes.length ? worker.bookingModes : ['slot'];
+    return modes.includes(isInstant ? 'instant' : 'slot');
+  };
 
-  // Separate into Zone workers and All workers
-  const zoneWorkers = useMemo(() => {
-    const inZone = filteredAll.filter(w => isWorkerInZone(w));
-    return sortWorkerList(inZone);
-  }, [filteredAll, bookingZoneId, bookingZoneName]);
+  const isOnline = (w) => !!(w.isOnline || norm(w.status) === 'online');
 
-  const allWorkers = useMemo(() => {
-    return sortWorkerList(filteredAll);
-  }, [filteredAll]);
+  // Rank: how well the worker fits this booking, then presence, then name.
+  const decorate = (w) => {
+    const inZone = isWorkerInZone(w);
+    const skill = isCategoryMatch(w);
+    const mode = supportsMode(w);
+    const online = isOnline(w);
+    const fit = (inZone ? 4 : 0) + (skill ? 4 : 0) + (mode ? 2 : 0) + (online ? 1 : 0);
+    return { worker: w, inZone, skill, mode, online, fit, recommended: inZone && skill && mode };
+  };
 
-  // Render a worker card
-  const renderWorkerCard = (worker, isInZoneList = false) => {
+  const rows = useMemo(() => {
+    const q = norm(search);
+    return workers
+      .filter((w) => !q || [w.name, w.phone, w.address?.city, (w.serviceCategories || []).join(' '), (w.zones || []).join(' ')]
+        .some((f) => norm(f).includes(q)))
+      .map(decorate)
+      .sort((a, b) => b.fit - a.fit || (a.worker.name || '').localeCompare(b.worker.name || ''));
+  }, [workers, search, booking]);
+
+  const recommendedCount = rows.filter((r) => r.recommended).length;
+  const visible = filter === 'recommended' ? rows.filter((r) => r.recommended) : rows;
+
+  const renderRow = (row) => {
+    const { worker, inZone, skill, mode, online } = row;
     const id = worker._id || worker.id;
-    const catMatch = isCategoryMatch(worker);
-    const inZone = isWorkerInZone(worker);
-    const isOnline = worker.isOnline || worker.status === 'ONLINE' || worker.status === 'online';
-    const city = worker.address?.city || (worker.zones && worker.zones[0]) || 'City N/A';
-    const categoriesStr = (worker.serviceCategories || []).join(', ') || 'General';
+    const busy = assigningId === id;
+    const skills = (worker.serviceCategories || []).join(', ') || 'No skills listed';
 
     return (
-      <div
-        key={id}
-        className={`p-3 rounded-xl border transition-all hover:shadow-sm ${
-          catMatch
-            ? 'border-blue-200 bg-blue-50/40 hover:border-blue-300'
-            : 'border-gray-200 bg-white hover:border-gray-300'
-        }`}
-      >
-        <div className="flex items-start justify-between gap-3">
-          {/* Avatar & Info */}
-          <div className="flex items-start gap-2.5 min-w-0 flex-1">
-            <div className="relative shrink-0 mt-0.5">
-              {worker.profilePhoto ? (
-                <img
-                  src={worker.profilePhoto}
-                  alt={worker.name}
-                  className="w-10 h-10 rounded-full object-cover border border-gray-200"
-                />
-              ) : (
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs ${
-                  catMatch ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
-                }`}>
-                  {worker.name ? worker.name.charAt(0).toUpperCase() : <FiUser className="w-4 h-4" />}
-                </div>
-              )}
-              {/* Online pulse indicator */}
-              <span
-                className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-white ${
-                  isOnline ? 'bg-emerald-500' : 'bg-gray-300'
-                }`}
-                title={isOnline ? 'Online' : 'Offline'}
-              />
+      <li key={id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition-colors hover:border-slate-300">
+        <div className="relative shrink-0">
+          {worker.profilePhoto ? (
+            <img src={worker.profilePhoto} alt="" className="h-11 w-11 rounded-full border border-slate-200 object-cover" />
+          ) : (
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
+              {worker.name ? worker.name.charAt(0).toUpperCase() : <FiUser className="h-4 w-4" />}
             </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h4 className="text-xs font-bold text-gray-900 truncate">{worker.name}</h4>
-                {worker.rating > 0 && (
-                  <span className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 bg-amber-50 px-1 rounded">
-                    <FiStar className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                    {worker.rating.toFixed(1)}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-[10px] text-gray-500 mt-0.5">
-                {worker.phone && (
-                  <span className="flex items-center gap-1">
-                    <FiPhone className="w-2.5 h-2.5 text-gray-400" />
-                    {worker.phone}
-                  </span>
-                )}
-                <span className="flex items-center gap-1 truncate">
-                  <FiMapPin className="w-2.5 h-2.5 text-gray-400 shrink-0" />
-                  {city}
-                </span>
-              </div>
-
-              <p className="text-[10px] text-gray-600 mt-1 line-clamp-1" title={categoriesStr}>
-                <span className="font-semibold text-gray-700">Skills:</span> {categoriesStr}
-              </p>
-
-              {/* Badges */}
-              <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                {catMatch && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded">
-                    <FiCheck className="w-2.5 h-2.5" /> Category Match
-                  </span>
-                )}
-                {!isInZoneList && inZone && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-100 text-indigo-800 text-[9px] font-bold rounded">
-                    <FiMapPin className="w-2.5 h-2.5" /> In Booking Zone
-                  </span>
-                )}
-                {isOnline ? (
-                  <span className="inline-block px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-semibold rounded">
-                    Online
-                  </span>
-                ) : (
-                  <span className="inline-block px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] rounded">
-                    Offline
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Assign Button */}
-          <button
-            type="button"
-            onClick={() => handleAssign(id)}
-            disabled={assigningId === id}
-            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
-              assigningId === id
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-200 active:scale-95'
-            }`}
-          >
-            {assigningId === id ? (
-              <>
-                <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                Assigning...
-              </>
-            ) : (
-              <>
-                <FiCheck className="w-3.5 h-3.5" /> Assign
-              </>
-            )}
-          </button>
+          )}
+          <span
+            title={online ? 'Online' : 'Offline'}
+            className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-white ${online ? 'bg-emerald-500' : 'bg-slate-300'}`}
+          />
         </div>
-      </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <h4 className="truncate text-sm font-semibold text-slate-900">{worker.name}</h4>
+            {worker.rating > 0 && (
+              <span className="flex items-center gap-0.5 text-[11px] font-semibold text-amber-600">
+                <FiStar className="h-3 w-3 fill-amber-400 text-amber-400" />{Number(worker.rating).toFixed(1)}
+              </span>
+            )}
+            {worker.phone && (
+              <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                <FiPhone className="h-3 w-3" />{worker.phone}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 truncate text-[11px] text-slate-500" title={skills}>{skills}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            <Chip tone={online ? 'green' : 'slate'}>{online ? 'Online' : 'Offline'}</Chip>
+            <Chip tone={inZone ? 'green' : 'amber'}>{inZone ? 'In zone' : 'Outside zone'}</Chip>
+            <Chip tone={skill ? 'green' : 'amber'}>{skill ? 'Skill match' : 'Different skill'}</Chip>
+            {!mode && <Chip tone="amber">{isInstant ? 'Instant not enabled' : 'Slot not enabled'}</Chip>}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => assign(worker)}
+          disabled={!!assigningId}
+          className="shrink-0 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {busy ? 'Assigning…' : 'Assign'}
+        </button>
+      </li>
     );
   };
 
@@ -311,236 +221,183 @@ const AssignWorkerModal = ({ isOpen, onClose, booking, onSuccess }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[100]"
+            className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm"
           />
           <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.98 }}
+            initial={{ opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 30, scale: 0.98 }}
-            transition={{ duration: 0.2 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[96%] max-w-5xl bg-white rounded-2xl shadow-2xl z-[101] overflow-hidden flex flex-col max-h-[90vh]"
+            exit={{ opacity: 0, y: 24, scale: 0.98 }}
+            transition={{ duration: 0.18 }}
+            className="fixed left-1/2 top-1/2 z-[101] flex max-h-[90vh] w-[94%] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
           >
-            {/* Modal Header */}
-            <div className="p-4 border-b border-gray-100 bg-gray-50/80">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-gray-900">Assign Worker Manually</h2>
-                    {booking?.bookingType === 'instant' ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500 text-white flex items-center gap-1">
-                        <FiZap className="w-3 h-3" /> Instant
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-100 text-indigo-700">
-                        📅 Scheduled
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-600">
-                    <span>
-                      Booking <span className="font-bold text-gray-900">#{booking?.bookingNumber || booking?._id?.slice(-6).toUpperCase()}</span>
-                    </span>
-                    <span>•</span>
-                    <span>
-                      Category: <span className="font-semibold text-blue-600">{booking?.serviceCategory || 'Service'}</span>
-                    </span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1 text-gray-700 font-medium">
-                      <FiMapPin className="w-3.5 h-3.5 text-rose-500" />
-                      Target Zone: <span className="font-bold text-gray-900">{bookingZoneName || 'Not Set'}</span>
-                    </span>
-                  </div>
+            {/* Header */}
+            <div className="border-b border-slate-100 px-5 pb-4 pt-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-base font-bold text-slate-900">Assign a professional</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    You can assign any approved worker — flagged mismatches ask for your confirmation.
+                  </p>
                 </div>
-
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                  aria-label="Close"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                 >
-                  <FiX className="w-4 h-4" />
+                  <FiX className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Rejection / Escalation Alert Banner */}
+              {/* Booking summary */}
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
+                <span className="font-semibold text-slate-900">#{booking?.bookingNumber || booking?._id?.slice(-6).toUpperCase()}</span>
+                <span className="inline-flex items-center gap-1">
+                  {isInstant ? <FiZap className="h-3.5 w-3.5 text-amber-500" /> : <FiCalendar className="h-3.5 w-3.5 text-indigo-500" />}
+                  {isInstant ? 'Instant' : 'Scheduled'}
+                </span>
+                <span>{booking?.serviceName || booking?.serviceCategory || 'Service'}</span>
+                <span className="inline-flex items-center gap-1">
+                  <FiMapPin className="h-3.5 w-3.5 text-rose-500" />{bookingZoneName || 'Zone not set'}
+                </span>
+              </div>
+
               {isManualRequired && (
-                <div className="mt-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 text-xs text-amber-900">
-                  <FiAlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold">Manual Assignment Required: </span>
-                    {booking.rejectionReason ? (
-                      <span>Worker rejected with reason: <span className="italic font-medium">"{booking.rejectionReason}"</span>. Please assign another worker or platform vendor below.</span>
-                    ) : (
-                      <span>No worker accepted the initial dispatch or job was rejected. Please assign an available worker or vendor directly.</span>
-                    )}
-                  </div>
+                <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+                  <FiInfo className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <p>
+                    {booking?.rejectionReason
+                      ? <>A professional declined this booking (<span className="italic">“{booking.rejectionReason}”</span>). Choose another worker.</>
+                      : 'No professional was available to take this booking automatically. Choose a worker to assign.'}
+                  </p>
                 </div>
               )}
 
-              {/* Search Bar */}
-              <div className="relative mt-3">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search workers by name, phone, city, or skill category..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-xs"
-                />
-              </div>
-
-              {/* Mobile View Tab Switcher */}
-              <div className="flex md:hidden items-center gap-2 mt-3 pt-2 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('zone')}
-                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                    activeTab === 'zone'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-white text-gray-600 border border-gray-200'
-                  }`}
-                >
-                  <FiMapPin className="w-3.5 h-3.5" />
-                  In-Zone ({zoneWorkers.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('all')}
-                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                    activeTab === 'all'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-white text-gray-600 border border-gray-200'
-                  }`}
-                >
-                  <FiUser className="w-3.5 h-3.5" />
-                  All Vendors ({allWorkers.length})
-                </button>
+              {/* Search + filter */}
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <FiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by name, phone, city or skill"
+                    className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                  />
+                </div>
+                <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-xs font-semibold">
+                  {[
+                    ['recommended', `Recommended (${recommendedCount})`],
+                    ['all', `All workers (${rows.length})`]
+                  ].map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setFilter(key)}
+                      className={`rounded-md px-3 py-1.5 transition ${filter === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Split Content Area */}
-            <div className="p-4 flex-1 overflow-y-auto">
+            {/* List */}
+            <div className="flex-1 overflow-y-auto bg-slate-50/60 px-5 py-4">
               {loading ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                  <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-2" />
-                  <p className="text-xs font-medium">Loading approved workers...</p>
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <div className="mb-2 h-7 w-7 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
+                  <p className="text-xs font-medium">Loading workers…</p>
+                </div>
+              ) : visible.length === 0 ? (
+                <div className="py-14 text-center">
+                  <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                    <FiUser className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">
+                    {filter === 'recommended' ? 'No recommended workers' : 'No workers found'}
+                  </p>
+                  <p className="mx-auto mt-1 max-w-xs text-xs text-slate-500">
+                    {filter === 'recommended'
+                      ? 'Nobody matches this booking’s zone, skill and booking type. You can still assign any worker.'
+                      : 'Try a different search.'}
+                  </p>
+                  {filter === 'recommended' && (
+                    <button
+                      type="button"
+                      onClick={() => setFilter('all')}
+                      className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Show all workers
+                    </button>
+                  )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
-                  {/* LEFT COLUMN: In-Zone Workers */}
-                  <div
-                    className={`flex flex-col rounded-xl border border-blue-100 bg-blue-50/20 overflow-hidden ${
-                      activeTab !== 'zone' ? 'hidden md:flex' : 'flex'
-                    }`}
-                  >
-                    {/* Column Header */}
-                    <div className="p-3 bg-gradient-to-r from-blue-100/60 to-indigo-100/40 border-b border-blue-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center text-xs">
-                          <FiMapPin className="w-3.5 h-3.5" />
-                        </span>
-                        <div>
-                          <h3 className="text-xs font-bold text-gray-900">
-                            {bookingZoneName ? `${bookingZoneName} Zone Workers` : 'In-Zone Workers'}
-                          </h3>
-                          <p className="text-[10px] text-gray-500">
-                            Workers registered or located in this booking's zone
-                          </p>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 text-white">
-                        {zoneWorkers.length}
-                      </span>
-                    </div>
-
-                    {/* Worker List */}
-                    <div className="p-3 space-y-2 flex-1 overflow-y-auto max-h-[50vh] md:max-h-[55vh]">
-                      {zoneWorkers.length === 0 ? (
-                        <div className="text-center py-10 px-4">
-                          <div className="w-10 h-10 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-2">
-                            <FiMapPin className="w-5 h-5" />
-                          </div>
-                          <p className="text-xs font-semibold text-gray-700">No workers in this zone</p>
-                          <p className="text-[11px] text-gray-500 mt-1 max-w-xs mx-auto">
-                            {bookingZoneName
-                              ? `No registered workers found directly inside '${bookingZoneName}'.`
-                              : 'No specific zone specified on this booking.'}
-                          </p>
-                          <p className="text-[11px] text-blue-600 font-medium mt-2">
-                            👉 Select any available vendor from the "All Vendors" column on the right.
-                          </p>
-                        </div>
-                      ) : (
-                        zoneWorkers.map(w => renderWorkerCard(w, true))
-                      )}
-                    </div>
-                  </div>
-
-                  {/* RIGHT COLUMN: All Vendors / All Workers */}
-                  <div
-                    className={`flex flex-col rounded-xl border border-gray-200 bg-gray-50/20 overflow-hidden ${
-                      activeTab !== 'all' ? 'hidden md:flex' : 'flex'
-                    }`}
-                  >
-                    {/* Column Header */}
-                    <div className="p-3 bg-gradient-to-r from-gray-100 to-slate-100 border-b border-gray-200 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-md bg-gray-700 text-white flex items-center justify-center text-xs">
-                          <FiUser className="w-3.5 h-3.5" />
-                        </span>
-                        <div>
-                          <h3 className="text-xs font-bold text-gray-900">All Platform Vendors & Workers</h3>
-                          <p className="text-[10px] text-gray-500">
-                            Browse and assign any approved provider platform-wide
-                          </p>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-700 text-white">
-                        {allWorkers.length}
-                      </span>
-                    </div>
-
-                    {/* Worker List */}
-                    <div className="p-3 space-y-2 flex-1 overflow-y-auto max-h-[50vh] md:max-h-[55vh]">
-                      {allWorkers.length === 0 ? (
-                        <div className="text-center py-10 px-4">
-                          <div className="w-10 h-10 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-2">
-                            <FiUser className="w-5 h-5" />
-                          </div>
-                          <p className="text-xs font-semibold text-gray-700">No workers found</p>
-                          <p className="text-[11px] text-gray-500 mt-1">
-                            Try adjusting your search query to find workers.
-                          </p>
-                        </div>
-                      ) : (
-                        allWorkers.map(w => renderWorkerCard(w, false))
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <ul className="space-y-2">{visible.map(renderRow)}</ul>
               )}
             </div>
 
             {/* Footer */}
-            <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between text-xs text-gray-500">
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" /> Online
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-gray-300" /> Offline
-                </span>
-                <span className="hidden sm:inline text-blue-600 font-medium">
-                  ★ Category matches are prioritized at top
-                </span>
-              </div>
+            <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-[11px] text-slate-500">
+              <span className="inline-flex items-center gap-1.5">
+                <FiCheck className="h-3.5 w-3.5 text-emerald-600" />
+                Recommended = in zone, matching skill, booking type enabled
+              </span>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 font-semibold hover:bg-gray-100 transition-colors"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 Close
               </button>
             </div>
+
+            {/* Override confirmation */}
+            <AnimatePresence>
+              {confirm && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/40 p-4"
+                >
+                  <motion.div
+                    initial={{ scale: 0.96, y: 8 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.96, y: 8 }}
+                    className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+                  >
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                      <FiAlertTriangle className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900">Assign {confirm.worker.name} anyway?</h3>
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600">{confirm.message}</p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      As admin you can override this. The worker will be notified of the assignment.
+                    </p>
+                    <div className="mt-4 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConfirm(null)}
+                        disabled={!!assigningId}
+                        className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => assign(confirm.worker, true)}
+                        disabled={!!assigningId}
+                        className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        {assigningId ? 'Assigning…' : 'Assign anyway'}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </>
       )}

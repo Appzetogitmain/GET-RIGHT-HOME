@@ -185,7 +185,6 @@ const ReelSection = ({ category, theme }) => {
                 // Show all reels on the home page regardless of category tab 
                 // to ensure maximum visibility of new content as requested.
                 const res = await reelService.getFeed({ category: 'All', limit: 20 });
-                console.log('REEL_DEBUG: Fetched reels count:', res.reels?.length, res.reels);
                 setReels(res.reels || []);
             } catch (err) {
                 console.error("Failed to fetch reels for section:", err);

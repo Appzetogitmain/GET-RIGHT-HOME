@@ -57,7 +57,6 @@ async function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-      console.log('✅ Service Worker registered:', registration.scope);
       return registration;
     } catch (error) {
       console.error('❌ Service Worker registration failed:', error);
@@ -76,10 +75,8 @@ async function requestNotificationPermission() {
   if ('Notification' in window) {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
-      console.log('✅ Notification permission granted');
       return true;
     } else {
-      console.log('❌ Notification permission denied');
       return false;
     }
   }
@@ -174,7 +171,6 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
     }
 
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-    console.log(`[FCM] Saving to backend: ${baseUrl}${endpoint}`);
 
     const response = await fetch(`${baseUrl}${endpoint}`, {
       method: method,
@@ -191,7 +187,6 @@ async function registerFCMToken(userType = 'user', forceUpdate = false) {
 
     if (response.ok) {
       localStorage.setItem(storageKey, token);
-      console.log('[FCM] ✅ FCM token registered with backend successfully!');
       return token;
     } else {
       console.error('[FCM] ❌ Failed to register token with backend:', responseData);

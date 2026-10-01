@@ -221,6 +221,93 @@ const AdminLayout = () => {
         }
     ], [supportUnreadCount, unreadCount]);
 
+    // Home Services Admin Menu Groups
+    const HOME_SERVICES_MENU_GROUPS = useMemo(() => [
+        {
+            title: 'OVERVIEW',
+            items: [
+                { icon: LayoutDashboard, label: 'Services Dashboard', path: '/admin/home-service/dashboard' },
+            ]
+        },
+        {
+            title: 'OPERATIONS & BOOKINGS',
+            items: [
+                {
+                    icon: ShoppingBag, label: 'Bookings', children: [
+                        { label: 'All Bookings', path: '/admin/home-service/bookings' },
+                        { label: 'Live Tracking', path: '/admin/home-service/bookings/tracking' },
+                        { label: 'Notifications', path: '/admin/home-service/bookings/notifications' },
+                    ]
+                },
+                { icon: ClipboardList, label: 'Service Reports', path: '/admin/home-service/reports' },
+                { icon: Star, label: 'Service Reviews', path: '/admin/home-service/reviews' },
+            ]
+        },
+        {
+            title: 'WORKER MANAGEMENT',
+            items: [
+                {
+                    icon: UserCog, label: 'Workers', children: [
+                        { label: 'All Workers', path: '/admin/home-service/workers/all' },
+                        { label: 'Offline Requests', path: '/admin/home-service/workers/offline-requests' },
+                        { label: 'Worker Jobs', path: '/admin/home-service/workers/jobs' },
+                        { label: 'Withdrawals', path: '/admin/home-service/workers/withdrawals' },
+                        { label: 'Complaints', path: '/admin/home-service/workers/complaints' },
+                        { label: 'Worker Analytics', path: '/admin/home-service/workers/analytics' },
+                    ]
+                },
+                {
+                    icon: Package, label: 'Plans & Membership', children: [
+                        { label: 'User Plans', path: '/admin/home-service/plans' },
+                        { label: 'Worker Plans', path: '/admin/home-service/worker-plans' },
+                    ]
+                },
+            ]
+        },
+        {
+            title: 'USERS & CATALOG',
+            items: [
+                {
+                    icon: Users, label: 'Service Users', children: [
+                        { label: 'All Users', path: '/admin/home-service/users/all' },
+                        { label: 'Active Users', path: '/admin/home-service/users/all?status=active' },
+                        { label: 'Blocked Users', path: '/admin/home-service/users/all?status=blocked' },
+                    ]
+                },
+                {
+                    icon: Layers, label: 'Service Catalog', children: [
+                        { label: 'Catalog Home', path: '/admin/home-service/user-categories' },
+                        { label: 'Categories', path: '/admin/home-service/user-categories/categories' },
+                        { label: 'Sub Categories', path: '/admin/home-service/user-categories/sub-categories' },
+                        { label: 'Services & Rates', path: '/admin/home-service/user-categories/sections' },
+                    ]
+                },
+                { icon: Wallet, label: 'Service Payments', path: '/admin/home-service/payments' },
+            ]
+        },
+        {
+            title: 'ZONES & SETTINGS',
+            items: [
+                { icon: MapPin, label: 'Zone Setup', path: '/admin/home-service/zones' },
+                { icon: Bell, label: 'Service Notifications', path: '/admin/home-service/notifications' },
+                { icon: Settings, label: 'Service Settings', path: '/admin/home-service/settings' },
+            ]
+        },
+        {
+            title: 'SYSTEM',
+            items: [
+                { icon: MessageSquare, label: 'Support Chat', path: '/admin/support-chat', badge: supportUnreadCount > 0 },
+                { icon: Bell, label: 'Notifications', path: '/admin/notifications', badge: unreadCount > 0 },
+                { icon: Settings, label: 'Settings', path: '/admin/settings' },
+            ]
+        }
+    ], [supportUnreadCount, unreadCount]);
+
+    // Active menu groups based on selected panel mode
+    const currentMenuGroups = useMemo(() => {
+        return panelMode === 'home_services' ? HOME_SERVICES_MENU_GROUPS : REAL_ESTATE_MENU_GROUPS;
+    }, [panelMode, HOME_SERVICES_MENU_GROUPS, REAL_ESTATE_MENU_GROUPS]);
+
     // Auto-expand whichever parent contains the currently active child, so
     // reloading a deep link (e.g. /admin/users?status=active) doesn't leave
     // its parent collapsed.
@@ -298,8 +385,8 @@ const AdminLayout = () => {
                                                         ? 'w-full gap-3 px-4 py-2.5 rounded-xl'
                                                         : 'justify-center w-12 h-12 rounded-xl mx-auto mb-1'
                                                         } ${isActive
-                                                        ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
-                                                        : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
+                                                            ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
+                                                            : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
                                                         }`}
                                                 >
                                                     <item.icon size={18} className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-900'}`} />
@@ -342,8 +429,8 @@ const AdminLayout = () => {
                                                 ? 'gap-3 px-4 py-2.5 rounded-xl'
                                                 : 'justify-center w-12 h-12 rounded-xl mx-auto mb-1'
                                                 } ${isActive
-                                                ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
-                                                : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
+                                                    ? 'bg-black text-white shadow-xl shadow-gray-900/10 font-semibold'
+                                                    : 'text-slate-500 hover:bg-gray-50 hover:text-gray-900'
                                                 }`}
                                         >
                                             <item.icon size={18} className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-900'}`} />

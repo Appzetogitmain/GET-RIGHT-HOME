@@ -7,6 +7,8 @@ const homeServiceServiceSchema = new mongoose.Schema({
   subCategoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'HomeServiceSubCategory' },
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'HomeServiceCategory', required: true },
   cityIds: [{ type: String, default: ['default'] }],
+  // Zones this service is offered in. Empty = every zone.
+  zoneIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Zone' }],
   imageUrl: { type: String },
   icon: { type: String },
   isActive: { type: Boolean, default: true },
@@ -24,7 +26,25 @@ const homeServiceServiceSchema = new mongoose.Schema({
   // section being hardcoded/unmanaged.
   isInstant: { type: Boolean, default: false },
   bookingModes: [{ type: String, enum: ['instant', 'slot'] }],
-  instantEtaMinutes: { type: Number, default: 30 }
+  instantEtaMinutes: { type: Number, default: 30 },
+
+  // ---- Listing details (how the service is shown to customers) ----
+  // Services with the same group heading are shown together, e.g. the
+  // "Furnished Apartment" heading over its Essential / Premium / Elite plans.
+  groupTitle: { type: String, default: '' },
+  badge: { type: String, default: '' },             // small mark after the title, e.g. ★ 💎 👑
+  duration: { type: String, default: '' },          // "3 hrs 45 mins"
+  rating: { type: Number, default: 0 },             // 4.75
+  reviewCount: { type: String, default: '' },       // "9.6K+"
+  features: [{ type: String }],                     // bullet points
+  // Variants of this service (e.g. 1 BHK ... 5 BHK), each with its own price.
+  // When present the customer picks one; the price comes from the option.
+  options: [{
+    label: { type: String, required: true },
+    price: { type: Number, required: true, min: 0 },
+    discountPrice: { type: Number, default: 0, min: 0 },
+    duration: { type: String, default: '' }
+  }]
 }, { timestamps: true });
 
 export default mongoose.model('HomeServiceService', homeServiceServiceSchema);

@@ -8,9 +8,19 @@ import { themeColors } from '../../../../theme';
 import AddressSelectionModal from './components/AddressSelectionModal';
 import TimeSlotModal from './components/TimeSlotModal';
 import SearchStatusModal from './components/SearchStatusModal';
+import VipMembershipCard from './components/VipMembershipCard';
+import VipStrip from './components/VipStrip';
+import CartStepView from './components/CartStepView';
+import SlotStepView from './components/SlotStepView';
+import AddressSheet from './components/AddressSheet';
+import VipPromptSheet from './components/VipPromptSheet';
+import VipPlanSheet from './components/VipPlanSheet';
+
+const NO_WORKERS_MESSAGE = 'No professional is available for this service in your area right now. Your booking has been sent to our team, who will assign a professional shortly.';
 import { bookingService } from '../../../../services/bookingService';
 import { paymentService } from '../../../../services/paymentService';
 import { cartService } from '../../../../services/cartService';
+import { publicCatalogService } from '../../../../services/catalogService';
 import { configService } from '../../../../services/configService';
 import { getPlans } from '../../services/planService';
 import { userAuthService } from '../../../../services/authService';
@@ -52,7 +62,8 @@ const Checkout = () => {
     removeCategoryItems: removeCategoryGlobal,
     removeSubCategoryItems: removeSubCategoryGlobal,
     updateItem: updateItemGlobal,
-    removeItem: removeItemGlobal
+    removeItem: removeItemGlobal,
+    addToCart: addToCartGlobal
   } = useCart();
 
   const [cartItems, setCartItems] = useState([]);
@@ -76,6 +87,18 @@ const Checkout = () => {
   const [searchingVendors, setSearchingVendors] = useState(false);
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [searchMessage, setSearchMessage] = useState(null);
+  const [quote, setQuote] = useState(null);       // price preview (VIP offer, pay now / later)
+  const [vipAdded, setVipAdded] = useState(false);   // customer added a VIP plan
+  const [vipPlanKey, setVipPlanKey] = useState(null); // which plan
+  const [planSheet, setPlanSheet] = useState(null);    // { pay: boolean } while the plan sheet is open
+  // Step flow (not for plan purchases): cart -> slot (scheduled only) -> summary
+  const [flowStep, setFlowStep] = useState('cart');
+  const [showAddressSheet, setShowAddressSheet] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [showVipSheet, setShowVipSheet] = useState(false);
+  const [vipSkipped, setVipSkipped] = useState(false);
+  const [addons, setAddons] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('pay_at_home'); // 'online' | 'pay_at_home'
 
   const [loading, setLoading] = useState(true);
@@ -125,7 +148,7 @@ const Checkout = () => {
   })();
 
   useEffect(() => {
-    if (!showTimeSlotModal || !availabilityServiceId || !addressDetails?.lat || !addressDetails?.lng) return undefined;
+    if (!(showTimeSlotModal || flowStep === 'slot') || !availabilityServiceId || !addressDetails?.lat || !addressDetails?.lng) return undefined;
     let cancelled = false;
     setAvailabilityLoading(true);
     bookingService.getSlotAvailability({
@@ -147,7 +170,7 @@ const Checkout = () => {
     });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showTimeSlotModal, availabilityServiceId, addressDetails?.lat, addressDetails?.lng]);
+  }, [showTimeSlotModal, flowStep, availabilityServiceId, addressDetails?.lat, addressDetails?.lng]);
 
   // Once availability is known, move off a fully-booked date to the first free one
   useEffect(() => {
@@ -425,6 +448,14 @@ const Checkout = () => {
   const cartCount = cartItems.length;
 
   const handleBack = () => {
+    if (!plan && flowStep === 'summary') {
+      setFlowStep(cartIsInstant ? 'cart' : 'slot');
+      return;
+    }
+    if (!plan && flowStep === 'slot') {
+      setFlowStep('cart');
+      return;
+    }
     if (currentStep === 'payment') {
       setCurrentStep('details');
     } else {
@@ -504,9 +535,15 @@ const Checkout = () => {
       }
     }
 
+    const vipChoiceProceed = await resolveVipChoice();
+    if (!vipChoiceProceed) return;
+
+    const isSlotProceed = bookingType !== 'instant';
     try {
-      setShowVendorModal(true);
-      setCurrentStep('searching');
+      if (!isSlotProceed) {
+        setShowVendorModal(true);
+        setCurrentStep('searching');
+      }
 
       const firstItem = cartItems[0];
       if (!firstItem) {
@@ -590,14 +627,27 @@ const Checkout = () => {
         },
 
         paymentMethod: 'online',
+        addVip: vipChoiceProceed.addVip,
+        vipPlanKey: vipChoiceProceed.vipPlanKey,
         bookedItems: bookedItemsData
       });
+
+      if (response.success && response.requiresPayment) {
+        setBookingRequest(response.data);
+        await payAdvanceForBooking(response.data, { slot: isSlotProceed });
+        return;
+      }
 
       if (response.success) {
         setBookingRequest(response.data);
 
-        // If the backend returns an assigned vendor immediately (rare but possible)
-        if ((response.data.vendorId || response.data.workerId) && (response.data.status === 'ACCEPTED' || response.data.status === 'ASSIGNED')) {
+        // Nobody is available for this service in the zone: the search ends
+        // immediately and the booking is already with the admin team.
+        if (response.noWorkersAvailable || String(response.data.status || '').toLowerCase() === 'manual_assignment_required') {
+          setCurrentStep('manual_assignment');
+          setSearchMessage(response.message || NO_WORKERS_MESSAGE);
+          setSearchingVendors(false);
+        } else if ((response.data.vendorId || response.data.workerId) && (response.data.status === 'ACCEPTED' || response.data.status === 'ASSIGNED')) {
           setCurrentStep('accepted');
           setAcceptedProfessional({
             ...(response.data.vendorId || response.data.workerId || {}),
@@ -669,7 +719,7 @@ const Checkout = () => {
               setShowVendorModal(false);
               navigate('/user', { replace: true });
             }, 10000);
-          } else if (status === 'NO_VENDORS' || status === 'NO_WORKERS') {
+          } else if (status === 'NO_VENDORS' || status === 'NO_WORKERS' || status === 'MANUAL_ASSIGNMENT_REQUIRED') {
             // No worker auto-accepted — the booking stays active and moves to
             // admin manual assignment. This is NOT a failure, so don't cancel
             // or dead-end the customer; keep them updated and let them track it.
@@ -755,10 +805,11 @@ const Checkout = () => {
     socket.on('booking_updated', (data) => {
       if (data.bookingId === bookingRequest._id || data.relatedId === bookingRequest._id) {
         const socketStatus = (data.status || '').toUpperCase();
-        if (data.message && socketStatus !== 'NO_WORKERS' && socketStatus !== 'NO_VENDORS') {
+        const isManual = socketStatus === 'NO_WORKERS' || socketStatus === 'NO_VENDORS' || socketStatus === 'MANUAL_ASSIGNMENT_REQUIRED';
+        if (data.message && !isManual) {
           setSearchMessage(data.message);
         }
-        if (socketStatus === 'NO_WORKERS' || socketStatus === 'NO_VENDORS') {
+        if (isManual) {
           // Same non-failure treatment as the booking_search_failed handler above.
           setSearchingVendors(false);
           setCurrentStep('manual_assignment');
@@ -782,8 +833,138 @@ const Checkout = () => {
     };
   }, [currentStep, bookingRequest]);
 
+  // Cart lines in the shape the booking / quote endpoints expect.
+  const buildBookedItems = () => cartItems.map(item => {
+    const count = Math.max(1, Number(item.serviceCount) || 1);
+    const unitPrice = item.card?.price || Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+    return {
+      serviceId: typeof item.serviceId === 'object' ? (item.serviceId?._id || item.serviceId?.id) : item.serviceId,
+      optionLabel: item.optionLabel || undefined,
+      brandName: item.sectionTitle || item.brand || '',
+      brandIcon: item.sectionIcon || null,
+      card: {
+        title: item.card?.title || item.title || 'Unknown Service',
+        subtitle: item.card?.subtitle || item.description || '',
+        price: unitPrice,
+        originalPrice: item.card?.originalPrice || item.originalPrice || null,
+        duration: item.card?.duration || item.duration || '',
+        description: item.card?.description || item.description || '',
+        imageUrl: item.card?.imageUrl || item.icon || '',
+        features: item.card?.features || [],
+        optionLabel: item.optionLabel || undefined
+      },
+      quantity: count
+    };
+  });
+
+  /**
+   * Before the search starts: price the order and, if the customer isn't a VIP
+   * yet, offer the membership. Resolves to { addVip } — or null if they closed
+   * the offer, which cancels the booking attempt. Skipping is a normal choice.
+   */
+  const resolveVipChoice = async (override, planKey) => {
+    const firstItem = cartItems[0];
+    const serviceId = typeof firstItem?.serviceId === 'object'
+      ? firstItem.serviceId._id || firstItem.serviceId.id
+      : firstItem?.serviceId;
+    try {
+      const q = await bookingService.quote({
+        serviceId,
+        bookedItems: buildBookedItems(),
+        promoDiscount: promoDiscountAmount
+      });
+      setQuote(q);
+      const offered = q?.success && !q.isMember && q.vip?.eligible && q.vip?.plans?.length;
+      const wantsVip = typeof override === 'boolean' ? override : vipAdded;
+      return { addVip: !!(offered && wantsVip), vipPlanKey: planKey || vipPlanKey || q.vip?.plans?.[0]?.key };
+    } catch (err) {
+      // Never block a booking because the preview failed.
+      console.warn('Quote failed:', err);
+      return { addVip: false };
+    }
+  };
+
+  const clearCartAfterPayment = async () => {
+    try {
+      if (subCategoryName) {
+        await removeSubCategoryGlobal(subCategoryName);
+      } else if (category) {
+        await removeCategoryGlobal(category);
+      } else {
+        await clearCartGlobal();
+      }
+      setCartItems([]);
+    } catch (error) { /* cart is also cleared server-side */ }
+  };
+
+  /**
+   * The booking exists but is held until its advance is paid. Take the payment
+   * now; only then does the booking go out to professionals.
+   */
+  const payAdvanceForBooking = async (booking, { slot = false } = {}) => {
+    try {
+      if (!slot) setCurrentStep('paying');
+      const orderResponse = await paymentService.createOrder(booking._id);
+      if (!orderResponse?.success) throw new Error(orderResponse?.message || 'Could not start the payment');
+      if (!window.Razorpay) throw new Error('Payment gateway is not ready. Please try again.');
+
+      await new Promise((resolve, reject) => {
+        const rzp = new window.Razorpay({
+          key: orderResponse.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount: orderResponse.order.amount,
+          currency: orderResponse.order.currency || 'INR',
+          order_id: orderResponse.order.id,
+          name: 'GetRight Home',
+          description: `Advance for ${booking.serviceName || 'your booking'}`,
+          handler: async (response) => {
+            try {
+              toast.loading('Confirming payment...');
+              const verified = await paymentService.verifyPayment({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                bookingId: booking._id
+              });
+              toast.dismiss();
+              verified?.success ? resolve() : reject(new Error('Payment could not be verified'));
+            } catch (err) {
+              toast.dismiss();
+              reject(err);
+            }
+          },
+          modal: { ondismiss: () => reject(new Error('dismissed')) },
+          prefill: { name: contactDetails.name || 'User', contact: contactDetails.phone || userPhone },
+          theme: { color: themeColors.button }
+        });
+        rzp.on('payment.failed', () => reject(new Error('failed')));
+        rzp.open();
+      });
+
+      await clearCartAfterPayment();
+      if (slot) {
+        // Slot bookings go straight to a professional in the background: no
+        // searching screen, just confirm and show the booking.
+        toast.success('Booking confirmed!');
+        setSearchingVendors(false);
+        navigate(`/user/booking-confirmation/${booking._id}`, { replace: true });
+        return;
+      }
+      toast.success('Payment received');
+      setCurrentStep('waiting'); // instant: wait for a professional to accept
+    } catch (err) {
+      const message = ['dismissed', 'failed'].includes(err?.message)
+        ? 'Payment not completed. Your booking is held for 15 minutes — pay from My Bookings to confirm it.'
+        : (err?.message || 'Payment failed');
+      toast.error(message);
+      setShowVendorModal(false);
+      setSearchingVendors(false);
+      setCurrentStep('details');
+      navigate(`/user/booking/${booking._id}`, { replace: true });
+    }
+  };
+
   // Search for nearby vendors
-  const handleSearchVendors = async () => {
+  const handleSearchVendors = async (vipOverride, planKeyOverride) => {
     try {
       // Validate required fields
       if (bookingType === 'scheduled') {
@@ -808,9 +989,17 @@ const Checkout = () => {
         return;
       }
 
-      // Open modal and start searching
-      setShowVendorModal(true);
-      setCurrentStep('searching');
+      // VIP offer comes before the search starts; the customer may skip it.
+      const vipChoice = await resolveVipChoice(typeof vipOverride === 'boolean' ? vipOverride : undefined, planKeyOverride);
+      if (!vipChoice) return;
+
+      // Instant bookings show the live search; slot bookings don't — they pay
+      // and are confirmed straight away.
+      const isSlotBooking = bookingType !== 'instant';
+      if (!isSlotBooking) {
+        setShowVendorModal(true);
+        setCurrentStep('searching');
+      }
       setSearchingVendors(true);
 
       // Get first service
@@ -903,6 +1092,8 @@ const Checkout = () => {
         visitationFee: finalVisitedFee,
         promoCode: appliedPromo ? appliedPromo.code : null,
         promoDiscount: promoDiscountAmount,
+        addVip: vipChoice.addVip,
+        vipPlanKey: vipChoice.vipPlanKey,
 
         // Metadata for better data capture
         serviceCategory: firstItem.categoryTitle || firstItem.category || 'General',
@@ -925,6 +1116,21 @@ const Checkout = () => {
       const booking = bookingResponse.data;
       setBookingRequest(booking);
       toast.dismiss();
+
+      // Advance to pay: the booking is held until it is paid.
+      if (bookingResponse.requiresPayment) {
+        await payAdvanceForBooking(booking, { slot: isSlotBooking });
+        return;
+      }
+
+      // Nothing to pay up front (e.g. covered by a plan): slot bookings are done.
+      if (isSlotBooking) {
+        await clearCartAfterPayment();
+        toast.success('Booking confirmed!');
+        setSearchingVendors(false);
+        navigate(`/user/booking-confirmation/${booking._id}`, { replace: true });
+        return;
+      }
 
       // Cart will be cleared only after payment is confirmed or Pay At Home is confirmed
 
@@ -1242,16 +1448,21 @@ const Checkout = () => {
 
         const response = await userAuthService.getProfile();
         if (response.success && response.user) {
-          const updatedAddresses = [newAddress]; // Always replace with single address
-          await userAuthService.updateProfile({ addresses: updatedAddresses });
-          toast.success('Address updated in profile!');
+          // Keep the customer's other saved addresses; the new one becomes the default.
+          const others = (response.user.addresses || [])
+            .filter((a) => a.addressLine1 !== newAddress.addressLine1)
+            .map((a) => ({ ...a, isDefault: false }));
+          await userAuthService.updateProfile({ addresses: [newAddress, ...others] });
+          setSavedAddresses([newAddress, ...others]);
+          toast.success('Address saved!');
         }
       } catch (e) {
         console.error('Failed to save address to profile', e);
       }
     }
 
-    if (bookingType === 'scheduled') {
+    // Plan checkouts keep the old slot modal; the step flow has its own slot page.
+    if (plan && bookingType === 'scheduled') {
       setShowTimeSlotModal(true);
     }
   };
@@ -1551,10 +1762,157 @@ const Checkout = () => {
   const totalAmount = Math.max(0, itemTotal - promoDiscountAmount);
   const amountToPay = totalAmount;
 
+  // Server-side preview: VIP discount for members, and how much is paid now
+  // versus after the service. Refreshed whenever the cart or coupon changes.
+  useEffect(() => {
+    if (quote?.isMember || (quote?.success && !quote?.vip?.eligible)) setVipAdded(false);
+  }, [quote?.isMember, quote?.vip?.eligible]);
+
+  const quoteKey = cartItems.map(i => `${i.serviceId?._id || i.serviceId}:${i.serviceCount}`).join('|') + `|${promoDiscountAmount}`;
+  useEffect(() => {
+    if (plan || cartItems.length === 0) {
+      setQuote(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const first = cartItems[0];
+        const serviceId = typeof first.serviceId === 'object' ? first.serviceId._id || first.serviceId.id : first.serviceId;
+        const q = await bookingService.quote({ serviceId, bookedItems: buildBookedItems(), promoDiscount: promoDiscountAmount });
+        if (!cancelled && q?.success) setQuote(q);
+      } catch { /* preview only */ }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteKey, plan]);
+
   // Helper for Free Plan Full Breakdown Display
   const displayTax = 0;
   const displayFee = 0;
   const displaySavings = savings;
+
+  // ---- Step flow helpers -------------------------------------------------
+
+  const loadSavedAddresses = async () => {
+    try {
+      setAddressesLoading(true);
+      const res = await userAuthService.getProfile();
+      const list = res?.user?.addresses || [];
+      // The address already on screen is always selectable, even if it was just added.
+      if (address && !list.some((a) => a.addressLine1 === address)) {
+        list.unshift({ type: addressDetails?.type || 'home', addressLine1: address, addressLine2: houseNumber, city: addressDetails?.city, state: addressDetails?.state, pincode: addressDetails?.pincode, lat: addressDetails?.lat, lng: addressDetails?.lng });
+      }
+      setSavedAddresses(list);
+    } catch {
+      /* the sheet still offers "Add New Address" */
+    } finally {
+      setAddressesLoading(false);
+    }
+  };
+
+  const openAddressSheet = () => {
+    setShowAddressSheet(true);
+    loadSavedAddresses();
+  };
+
+  const selectSavedAddress = (a) => {
+    setAddress(a.addressLine1);
+    setHouseNumber(a.addressLine2 || '');
+    setAddressDetails({
+      address: a.addressLine1,
+      lat: a.lat,
+      lng: a.lng,
+      type: a.type,
+      city: a.city,
+      state: a.state,
+      pincode: a.pincode
+    });
+    // The slot list depends on the address.
+    setSlotAvailability(null);
+    setSelectedTime(null);
+  };
+
+  // Recommended add-ons: other services from the same category as the cart.
+  const addonCategoryId = cartItems[0]?.categoryId;
+  useEffect(() => {
+    if (plan || !addonCategoryId) { setAddons([]); return undefined; }
+    let cancelled = false;
+    publicCatalogService.getServices(cartIsInstant ? { categoryId: addonCategoryId } : { categoryId: addonCategoryId, bookingMode: 'slot' })
+      .then((res) => {
+        if (cancelled || !res?.success) return;
+        const inCart = new Set(cartItems.map((i) => String(i.serviceId?._id || i.serviceId)));
+        setAddons(
+          (res.services || [])
+            .filter((svc) => !inCart.has(String(svc._id || svc.id)))
+            .slice(0, 10)
+            .map((svc) => ({
+              id: svc._id || svc.id,
+              title: svc.title,
+              price: svc.discountPrice > 0 ? svc.discountPrice : svc.basePrice,
+              // Service photo first, then its sub-category / category picture.
+              image: toAssetUrl(
+                svc.icon || svc.imageUrl || svc.iconUrl || svc.images?.[0]
+                || svc.subCategoryId?.iconUrl || svc.subCategoryId?.imageUrl
+                || svc.categoryId?.icon || svc.categoryId?.image || ''
+              ),
+              raw: svc
+            }))
+        );
+      })
+      .catch(() => setAddons([]));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addonCategoryId, cartIsInstant, cartItems.length, plan]);
+
+  const addAddonToCart = async (svc) => {
+    const raw = svc.raw || {};
+    const res = await addToCartGlobal({
+      serviceId: svc.id,
+      categoryId: raw.categoryId?._id || raw.categoryId || addonCategoryId,
+      subCategoryId: raw.subCategoryId?._id || raw.subCategoryId || cartItems[0]?.subCategoryId,
+      title: svc.title,
+      description: raw.description || '',
+      icon: svc.image,
+      category: cartItems[0]?.category,
+      subCategory: cartItems[0]?.subCategory || cartItems[0]?.category || '',
+      price: svc.price,
+      unitPrice: svc.price,
+      serviceCount: 1,
+      // keep an instant cart instant (otherwise the add-on turns it into a mixed cart)
+      isInstant: cartIsInstant,
+      bookingMode: cartIsInstant ? 'instant' : 'slot'
+    });
+    if (res?.success) toast.success(`${svc.title} added`);
+    else toast.error(res?.message || 'Could not add it');
+  };
+
+  // Cart -> address (+ slot for scheduled bookings)
+  const handleCartNext = () => {
+    if (cartItems.length === 0) return;
+    if (cartIsInstant) {
+      if (!addressDetails) { openAddressSheet(); return; }
+      setFlowStep('summary');
+      return;
+    }
+    setFlowStep('slot');
+    if (!addressDetails) openAddressSheet();
+  };
+
+  const handleSlotProceed = () => {
+    if (!addressDetails) { openAddressSheet(); return; }
+    if (!selectedDate || !selectedTime) { toast.error('Please pick a date and time'); return; }
+    setFlowStep('summary');
+  };
+
+  // Pay: if the customer hasn't taken VIP, offer it one last time first.
+  const handlePayNow = () => {
+    if (!addressDetails) { openAddressSheet(); return; }
+    if (bookingType === 'scheduled' && (!selectedDate || !selectedTime)) { setFlowStep('slot'); return; }
+    const canOfferVip = quote?.success && !quote.isMember && quote.vip?.eligible && !vipAdded && !vipSkipped;
+    if (canOfferVip) { setShowVipSheet(true); return; }
+    handleSearchVendors(vipAdded, vipPlanKey || undefined);
+  };
 
   // Date and time slot helper functions
   const getDates = () => {
@@ -1662,8 +2020,159 @@ const Checkout = () => {
     );
   }
 
+  // ---- Step flow views (cart -> slot -> summary) -----------------------------
+  const addressLineForUi = address ? `${houseNumber ? `${houseNumber}, ` : ''}${address}` : '';
+  const selectedVipPlan = quote?.vip?.plans?.find((pl) => pl.key === vipPlanKey) || quote?.vip?.plans?.[0] || null;
+  const payOption = quote?.success
+    ? ((vipAdded && selectedVipPlan?.option) ? selectedVipPlan.option : quote.options?.skip)
+    : null;
+  const payNowDisplay = payOption ? payOption.payNow : totalAmount;
+  const displayTotal = payOption ? payOption.serviceTotal + payOption.vipFee : totalAmount;
+
+  const vipCardNode = quote?.success && !quote.isMember && quote.vip?.eligible && totalAmount > 0 ? (
+    <VipMembershipCard
+      vip={quote.vip}
+      added={vipAdded}
+      selectedPlan={vipAdded ? selectedVipPlan : null}
+      onToggle={() => (vipAdded ? setVipAdded(false) : setPlanSheet({ pay: false }))}
+      onChangePlan={() => setPlanSheet({ pay: false })}
+      savingNow={selectedVipPlan?.netSaving ?? quote.vip.netSaving}
+    />
+  ) : null;
+
+  const vipPlanSheetNode = (
+    <VipPlanSheet
+      isOpen={!!planSheet}
+      vip={quote?.vip}
+      selectedKey={vipPlanKey || quote?.vip?.plans?.[0]?.key}
+      payNow={!!planSheet?.pay}
+      onSelect={setVipPlanKey}
+      onClose={() => setPlanSheet(null)}
+      onConfirm={(key) => {
+        const pay = !!planSheet?.pay;
+        setVipPlanKey(key);
+        setVipAdded(true);
+        setPlanSheet(null);
+        if (pay) handleSearchVendors(true, key);
+      }}
+    />
+  );
+
+  const closeAddressSheet = () => {
+    setShowAddressSheet(false);
+    // Instant bookings have no slot step: choosing the address moves on.
+    if (flowStep === 'cart' && cartIsInstant && addressDetails) setFlowStep('summary');
+  };
+
+  const stepOverlays = (
+    <>
+      {vipPlanSheetNode}
+      <AddressSheet
+        isOpen={showAddressSheet}
+        onClose={closeAddressSheet}
+        addresses={savedAddresses}
+        selectedLine={address}
+        loading={addressesLoading}
+        onSelect={selectSavedAddress}
+        onAddNew={() => { setShowAddressSheet(false); setShowAddressModal(true); }}
+      />
+      <AddressSelectionModal
+        isOpen={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        address={address}
+        houseNumber={houseNumber}
+        onHouseNumberChange={setHouseNumber}
+        onSave={handleAddressSave}
+      />
+    </>
+  );
+
+  if (!plan && flowStep === 'cart') {
+    return (
+      <>
+        <CartStepView
+          items={cartItems}
+          toAssetUrl={toAssetUrl}
+          priceOf={calculateItemPrice}
+          originalPriceOf={(item) => {
+            const count = Math.max(1, Number(item.serviceCount) || 1);
+            const unit = Number(item.unitPrice) || (item.price && item.serviceCount ? Number(item.price) / Number(item.serviceCount) : Number(item.price)) || 0;
+            return (Number(item.originalPrice) || unit) * count;
+          }}
+          onRemove={handleRemoveItem}
+          onQty={handleQuantityChange}
+          addons={addons}
+          onAddAddon={addAddonToCart}
+          vipCard={vipCardNode}
+          vipStrip={quote?.success && !quote.isMember && quote.vip && totalAmount > 0 ? (
+            <VipStrip
+              vip={quote.vip}
+              added={vipAdded}
+              selectedPlan={vipAdded ? selectedVipPlan : null}
+              onToggle={() => {
+                if (!quote.vip.eligible) {
+                  const t = (quote.vip.tiers || [])[0];
+                  toast(t ? `VIP gives ${t.percent}% off on orders of ₹${t.minAmount}+. Add a few more services to unlock it.` : 'VIP is not available for this order yet.');
+                  return;
+                }
+                if (vipAdded) setVipAdded(false); else setPlanSheet({ pay: false });
+              }}
+              onChangePlan={() => setPlanSheet({ pay: false })}
+            />
+          ) : null}
+          summary={(() => {
+            const fmt = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
+            const rows = [{ label: 'Item total', value: fmt(totalOriginalPrice) }];
+            const general = displaySavings - vipDiscountAmount;
+            if (general > 0) rows.push({ label: 'Discount', value: `-${fmt(general)}`, tone: 'good' });
+            if (vipDiscountAmount > 0) rows.push({ label: 'VIP savings', value: `-${fmt(vipDiscountAmount)}`, tone: 'good' });
+            if (promoDiscountAmount > 0) rows.push({ label: 'Promo applied', value: `-${fmt(promoDiscountAmount)}`, tone: 'good' });
+            if (payOption?.vipFee > 0) rows.push({ label: 'VIP membership', value: fmt(payOption.vipFee) });
+            return {
+              rows,
+              total: fmt(displayTotal),
+              payNow: payOption ? fmt(payOption.payNow) : null,
+              payLater: payOption && payOption.payLater > 0 ? fmt(payOption.payLater) : null
+            };
+          })()}
+          total={displayTotal}
+          nextLabel={cartIsInstant && addressDetails ? 'Continue' : 'Select Address'}
+          onNext={handleCartNext}
+          onBack={handleBack}
+        />
+        {stepOverlays}
+      </>
+    );
+  }
+
+  if (!plan && flowStep === 'slot') {
+    return (
+      <>
+        <SlotStepView
+          dates={getDates()}
+          selectedDate={selectedDate}
+          selectedTime={selectedTime}
+          onDate={handleDateSelect}
+          slots={getTimeSlots()}
+          onTime={setSelectedTime}
+          formatDate={formatDate}
+          isDateSelected={isDateSelected}
+          isDateFullyBooked={isDateFullyBooked}
+          availabilityLoading={availabilityLoading}
+          notServiceable={notServiceable}
+          addressLine={addressLineForUi}
+          addressLabel={(() => { const t = String(addressDetails?.type || 'home'); return t.charAt(0).toUpperCase() + t.slice(1); })()}
+          onChangeAddress={openAddressSheet}
+          onProceed={handleSlotProceed}
+          onBack={handleBack}
+        />
+        {stepOverlays}
+      </>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-white pb-80">
+    <div className={`min-h-screen bg-white ${plan ? "pb-80" : "pb-28"}`}>
       {/* Header */}
       <header className="bg-white">
         <div className="px-4 pt-4 pb-3">
@@ -1675,7 +2184,7 @@ const Checkout = () => {
               <FiArrowLeft className="w-6 h-6 text-black" />
             </button>
             <h1 className="text-xl font-bold text-black">
-              {category ? `${category} Checkout` : (plan ? 'Plan Checkout' : 'Your Cart')}
+              {category ? `${category} Checkout` : (plan ? 'Plan Checkout' : 'Order Summary')}
             </h1>
           </div>
         </div>
@@ -1703,8 +2212,63 @@ const Checkout = () => {
           </div>
         )}
 
-        {/* Cart Items */}
-        <div className="space-y-4 mb-4">
+        {/* Order summary: items (compact) + where / when */}
+        {!plan && (
+          <>
+            <div className="mb-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-bold text-slate-800">Your services</h3>
+              <div className="space-y-2.5">
+                {cartItems.map((item) => (
+                  <div key={item._id || item.id || item.serviceId} className="flex items-start justify-between gap-3 text-sm">
+                    <span className="min-w-0 text-slate-700">
+                      <span className="font-semibold text-slate-900">{item.title}</span>
+                      {(item.serviceCount || 1) > 1 && <span className="ml-1 text-slate-400">× {item.serviceCount}</span>}
+                    </span>
+                    <span className="shrink-0 font-bold text-slate-900">₹{calculateItemPrice(item).toLocaleString('en-IN')}</span>
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={() => setFlowStep('cart')} className="mt-3 text-xs font-bold" style={{ color: themeColors.button }}>
+                Edit cart
+              </button>
+            </div>
+
+            <div className="mb-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(52, 121, 137, 0.1)' }}>
+                  <FiHome className="h-4 w-4" style={{ color: themeColors.button }} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Service address</p>
+                  <p className="text-sm font-semibold text-slate-900">{addressLineForUi || 'Select an address'}</p>
+                </div>
+                <button type="button" onClick={openAddressSheet} className="text-xs font-bold" style={{ color: themeColors.button }}>Change</button>
+              </div>
+              {bookingType === 'scheduled' && (
+                <div className="mt-3 flex items-start gap-3 border-t border-slate-100 pt-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(52, 121, 137, 0.1)' }}>
+                    <FiClock className="h-4 w-4" style={{ color: themeColors.button }} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Time slot</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {selectedDate ? (() => {
+                        const { day, date: dateNum } = formatDate(selectedDate);
+                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        const slot = selectedTime && getTimeSlots().find((sl) => sl.value === selectedTime);
+                        return `${day}, ${dateNum} ${monthNames[selectedDate.getMonth()]}${slot ? ` • ${slot.range || slot.display}` : ''}`;
+                      })() : 'Select date & time'}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => setFlowStep('slot')} className="text-xs font-bold" style={{ color: themeColors.button }}>Change</button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Cart Items (plan checkout only; the step flow shows the compact list above) */}
+        <div className={plan ? 'space-y-4 mb-4' : 'hidden'}>
           {cartItems.map((item) => {
             const brandName = item.brand || item.sectionTitle;
             const categoryName = item.categoryTitle || item.category;
@@ -2015,6 +2579,65 @@ const Checkout = () => {
           </div>
         </div>
 
+        {/* Pay now / pay after service (advance rule) + VIP */}
+        {/* VIP membership offer (like a deal card): ADD to take the discount, or ignore it */}
+        {quote?.success && !quote.isMember && quote.vip?.eligible && totalAmount > 0 && (
+          <VipMembershipCard
+            vip={quote.vip}
+            added={vipAdded}
+            selectedPlan={vipAdded ? selectedVipPlan : null}
+            onToggle={() => (vipAdded ? setVipAdded(false) : setPlanSheet({ pay: false }))}
+            onChangePlan={() => setPlanSheet({ pay: false })}
+            savingNow={selectedVipPlan?.netSaving ?? quote.vip.netSaving}
+          />
+        )}
+
+        {quote?.success && quote.options?.skip && totalAmount > 0 && (() => {
+          const withVip = vipAdded && !quote.isMember && selectedVipPlan?.option;
+          const o = withVip ? selectedVipPlan.option : quote.options.skip;
+          return (
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              {withVip && (
+                <div className="mb-3 space-y-1.5 rounded-xl bg-amber-50 px-3 py-2 text-sm">
+                  <div className="flex items-center justify-between text-amber-900">
+                    <span className="font-semibold">VIP discount ({quote.vip.percent}%)</span>
+                    <span className="font-black">−₹{Math.round(quote.vip.discount).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-amber-900">
+                    <span className="font-semibold">{selectedVipPlan?.name || quote.vip.planName}</span>
+                    <span className="font-black">+₹{Math.round(o.vipFee).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-amber-200 pt-1.5 text-slate-900">
+                    <span className="font-bold">Booking total</span>
+                    <span className="font-black">₹{Math.round(o.serviceTotal + o.vipFee).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              )}
+              {quote.isMember && quote.vip?.eligible && (
+                <div className="mb-3 flex items-center justify-between rounded-xl bg-amber-50 px-3 py-2 text-sm">
+                  <span className="font-bold text-amber-800">VIP discount applied</span>
+                  <span className="font-black text-amber-700">−₹{Math.round(quote.vip.discount).toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-semibold text-slate-700">Pay now {o.fullUpfront ? '(full amount)' : `(${o.advancePercent}% advance)`}</span>
+                <span className="text-base font-black text-slate-900">₹{Math.round(o.payNow).toLocaleString('en-IN')}</span>
+              </div>
+              {o.payLater > 0 && (
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Pay after the service</span>
+                  <span className="font-bold text-slate-700">₹{Math.round(o.payLater).toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                {o.fullUpfront
+                  ? `Bookings under ₹${Number(quote.advanceRule?.threshold || 2000).toLocaleString('en-IN')} are paid in full online to confirm.`
+                  : `Only ${o.advancePercent}% is paid now to confirm; the rest is paid online after the work is done.`}
+              </p>
+            </div>
+          );
+        })()}
+
         {/* Important Note regarding Base Price */}
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 flex items-start gap-4 shadow-sm">
           <div className="bg-blue-100 p-2 rounded-full shrink-0 mt-0.5">
@@ -2064,6 +2687,8 @@ const Checkout = () => {
 
       </main>
 
+      {plan && (
+        <>
       {/* Bottom Action Button */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
 
@@ -2176,7 +2801,7 @@ const Checkout = () => {
             className="w-full text-white py-3 rounded-lg text-base font-semibold transition-colors disabled:opacity-50 shadow-lg shadow-teal-500/30"
             style={{ backgroundColor: themeColors.button }}
           >
-            {searchingVendors ? `Searching for ${bookingModel}s...` :
+            {searchingVendors ? (bookingType === 'instant' ? `Searching for ${bookingModel}s...` : 'Confirming your booking...') :
               currentStep === 'payment' ? (totalAmount === 0 ? 'Confirm Booking (Free)' : (paymentMethod === 'online' ? 'Proceed to Pay' : 'Confirm Booking')) :
                 plan ? 'Proceed to Payment' :
                   bookingType === 'instant' ? `Find nearby ${bookingModel}s now` :
@@ -2186,6 +2811,29 @@ const Checkout = () => {
           </button>
         </div>
       </div>
+        </>
+      )}
+
+      {!plan && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 py-3">
+          {payOption && payOption.payLater > 0 && (
+            <p className="mb-2 text-center text-[11px] text-slate-500">
+              {`₹${Math.round(payOption.payLater).toLocaleString('en-IN')} to be paid after the service`}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handlePayNow}
+            disabled={searchingVendors}
+            className="w-full rounded-xl py-3.5 text-sm font-bold text-white shadow-lg transition disabled:opacity-60"
+            style={{ backgroundColor: themeColors.button }}
+          >
+            {searchingVendors
+              ? (bookingType === 'instant' ? `Searching for ${bookingModel}s...` : 'Confirming your booking...')
+              : `Pay Now | ₹${Math.round(payNowDisplay).toLocaleString('en-IN')}`}
+          </button>
+        </div>
+      )}
 
       {/* Live Booking Status Card (Visible when minimized).
           Hidden while the user is still filling in this checkout: the card is
@@ -2194,6 +2842,29 @@ const Checkout = () => {
       {currentStep !== 'details' && (
         <LiveBookingCard key={bookingRequest?._id || 'default'} />
       )}
+
+      {/* Step flow: address sheet + the "missing out" VIP sheet before paying */}
+      {!plan && (
+        <>
+          <AddressSheet
+            isOpen={showAddressSheet}
+            onClose={closeAddressSheet}
+            addresses={savedAddresses}
+            selectedLine={address}
+            loading={addressesLoading}
+            onSelect={selectSavedAddress}
+            onAddNew={() => { setShowAddressSheet(false); setShowAddressModal(true); }}
+          />
+          <VipPromptSheet
+            isOpen={showVipSheet}
+            vip={quote?.vip}
+            onSkip={() => { setShowVipSheet(false); setVipSkipped(true); handleSearchVendors(false); }}
+            onAdd={() => { setShowVipSheet(false); setPlanSheet({ pay: true }); }}
+          />
+        </>
+      )}
+
+      {vipPlanSheetNode}
 
       {/* Search Status Modal */}
       <SearchStatusModal
