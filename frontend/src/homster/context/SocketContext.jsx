@@ -105,7 +105,8 @@ export const SocketProvider = ({ children }) => {
     const hasUserAuth = userType === 'user' && (token || localStorage.getItem('user') || localStorage.getItem('userData'));
 
     // If no token and no auth for this role, we don't connect
-    if (!token && !hasUserAuth && !hasAdminAuth && !hasWorkerAuth) {
+    // Guests on the public site still connect so listings can refresh live.
+    if (!token && !hasUserAuth && !hasAdminAuth && !hasWorkerAuth && userType !== 'user') {
       if (socket) {
         socket.disconnect();
         setSocket(null);
@@ -219,6 +220,12 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('disconnect', (reason) => {
       console.log(`❌ [Socket] ${userType?.toUpperCase()} disconnected → reason: ${reason}`);
+    });
+
+    // A listing just went live (admin approved / created it): let open search
+    // and list pages refresh themselves.
+    newSocket.on('property_listed', (data) => {
+      window.dispatchEvent(new CustomEvent('propertyListed', { detail: data }));
     });
 
     newSocket.on('connect_error', (err) => {

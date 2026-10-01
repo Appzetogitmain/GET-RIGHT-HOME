@@ -258,6 +258,64 @@ export const createEnquiry = async (req, res) => {
     }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// OWNER: Clicked "Boost" on one of their listings.
+// Without an active subscription this records a sales lead for the admin
+// (Admin → Enquiries). It deliberately has no propertyId, so it never shows up
+// in the owner's own "received enquiries" and never bumps lead counters.
+// POST /api/enquiries/boost
+// ─────────────────────────────────────────────────────────────────────────────
+export const createBoostLead = async (req, res) => {
+    try {
+        const { propertyId } = req.body;
+        const sub = req.user.subscription;
+        const hasSubscription = !!(sub && sub.status === 'active' && sub.expiryDate && new Date(sub.expiryDate) >= new Date());
+
+        if (hasSubscription) {
+            return res.status(200).json({ success: true, leadCreated: false, hasSubscription: true });
+        }
+
+        const property = propertyId ? await Property.findOne({ _id: propertyId, userId: req.user._id }) : null;
+        if (!property) {
+            return res.status(404).json({ success: false, message: 'Property not found' });
+        }
+
+        // One boost lead per user + property per day
+        const sourceUrl = `/property/${property._id}`;
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const existing = await Enquiry.findOne({ userId: req.user._id, actionType: 'boost', sourceUrl, createdAt: { $gte: dayAgo } });
+        if (existing) {
+            return res.status(200).json({ success: true, leadCreated: false, deduplicated: true, hasSubscription: false });
+        }
+
+        const city = property.address?.city || '';
+        await Enquiry.create({
+            enquiryId: `ENQ-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`,
+            userId: req.user._id,
+            targetType: 'general',
+            name: req.user.name || 'User',
+            phone: req.user.phone || '',
+            email: req.user.email || '',
+            actionType: 'boost',
+            enquiryType: 'boost',
+            sourceContext: 'my_properties',
+            sourceUrl,
+            message: `Wants to boost listing "${property.propertyName}"${city ? ` (${city})` : ''} [${property.status}] - no active subscription.`,
+            requirement: {
+                text: `Boost request: ${property.propertyName}`,
+                propertyType: property.propertyType || '',
+                city
+            },
+            status: 'new'
+        });
+
+        return res.status(201).json({ success: true, leadCreated: true, hasSubscription: false });
+    } catch (error) {
+        console.error('Create Boost Lead Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 // Helper function to mask phone number
 const maskPhone = (ph) => {
     if (!ph) return '';

@@ -6,7 +6,7 @@ import {
   Eye, AlertCircle, ArrowLeft, Plus, LayoutGrid, 
   Search, Clock, CheckCircle2, Timer
 } from 'lucide-react';
-import { propertyService } from '../../services/apiService';
+import { propertyService, enquiryService } from '../../services/apiService';
 import { toast } from 'react-hot-toast';
 
 const MyProperties = () => {
@@ -119,6 +119,9 @@ const MyProperties = () => {
   const handleSubmitDraft = async (property) => {
     setSubmittingId(property._id);
     try {
+      // No subscription -> this click becomes a lead in Admin > Enquiries.
+      // Fire-and-forget: it must never block the submit itself.
+      enquiryService.createBoostLead(property._id).catch(() => {});
       const res = await propertyService.submitForApproval(property._id);
       if (res.success) {
         toast.success('Submitted for approval.');
@@ -308,7 +311,7 @@ const MyProperties = () => {
                           disabled={submittingId === property._id}
                           className="px-4 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
                         >
-                          {submittingId === property._id ? 'Submitting...' : 'Submit'}
+                          {submittingId === property._id ? 'Boosting...' : 'Boost'}
                         </button>
                       </div>
                     ) : (

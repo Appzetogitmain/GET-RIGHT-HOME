@@ -12,6 +12,11 @@ export const api = axios.create({
 // Simple GET request cache to prevent layout shifts on back navigation
 const apiCache = new Map();
 
+// A listing just went live: drop cached GETs so the next list/search fetch is fresh.
+if (typeof window !== 'undefined') {
+  window.addEventListener('propertyListed', () => apiCache.clear());
+}
+
 // In-flight GET de-duplication.
 // The apiCache above is only consulted at request time, so when several
 // components mount together and request the same endpoint in the same tick,
@@ -440,6 +445,15 @@ export const enquiryService = {
   create: async (data) => {
     try {
       const response = await api.post('/enquiries', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  // Owner clicked Boost: records an admin lead if they have no subscription
+  createBoostLead: async (propertyId) => {
+    try {
+      const response = await api.post('/enquiries/boost', { propertyId });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

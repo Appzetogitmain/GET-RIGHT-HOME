@@ -3,6 +3,7 @@ import express from 'express';
 import { protect, optionalProtect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import {
     createEnquiry,
+    createBoostLead,
     getMyEnquiries,
     getReceivedEnquiries,
     updateEnquiryStatus
@@ -13,6 +14,9 @@ const router = express.Router();
 // ── User/Buyer routes ─────────────────────────────────────────────────────────
 // Submit a new enquiry for a property
 router.post('/', optionalProtect, createEnquiry);
+
+// Owner clicked Boost without a subscription -> lead for admin
+router.post('/boost', protect, createBoostLead);
 
 // View enquiries I've submitted (buyer)
 router.get('/my', protect, getMyEnquiries);

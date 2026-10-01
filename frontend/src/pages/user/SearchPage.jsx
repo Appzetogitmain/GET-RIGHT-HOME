@@ -454,8 +454,9 @@ const SearchPage = () => {
         fetchProperties();
     }, [searchParams, location, propertyTypes, categoriesResolved]);
 
-    const fetchProperties = async () => {
-        setLoading(true);
+
+    const fetchProperties = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const currentFilters = getInitialFilters();
             const params = getParamsFromFilters(currentFilters);
@@ -496,6 +497,16 @@ const SearchPage = () => {
             setLoading(false);
         }
     };
+
+    // Real-time: when a new listing goes live, re-run the current search quietly.
+    // (Declared after fetchProperties — a const, so it can't be referenced earlier.)
+    const fetchPropertiesRef = useRef(fetchProperties);
+    fetchPropertiesRef.current = fetchProperties;
+    useEffect(() => {
+        const onListed = () => fetchPropertiesRef.current(true);
+        window.addEventListener('propertyListed', onListed);
+        return () => window.removeEventListener('propertyListed', onListed);
+    }, []);
 
     const updateFilter = (key, value) => {
         setFilters(prev => ({ ...prev, [key]: value }));

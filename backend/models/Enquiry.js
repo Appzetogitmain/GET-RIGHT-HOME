@@ -64,19 +64,19 @@ const enquirySchema = new mongoose.Schema({
     // ── Enquiry & Action Details ──────────────────────────────────────────────
     actionType: {
         type: String,
-        enum: ['call', 'whatsapp', 'view_number', 'brochure_download', 'download_brochure', 'visit', 'schedule_visit', 'callback', 'document_view', 'profile_view', 'chat', 'request_photos', 'general'],
+        enum: ['call', 'whatsapp', 'view_number', 'brochure_download', 'download_brochure', 'visit', 'schedule_visit', 'callback', 'document_view', 'profile_view', 'chat', 'request_photos', 'boost', 'general'],
         default: 'callback'
     },
 
     enquiryType: {
         type: String,
-        enum: ['call', 'whatsapp', 'view_number', 'brochure_download', 'download_brochure', 'visit', 'schedule_visit', 'callback', 'document_view', 'profile_view', 'chat', 'request_photos', 'general'],
+        enum: ['call', 'whatsapp', 'view_number', 'brochure_download', 'download_brochure', 'visit', 'schedule_visit', 'callback', 'document_view', 'profile_view', 'chat', 'request_photos', 'boost', 'general'],
         default: 'callback'
     },
 
     sourceContext: {
         type: String,
-        enum: ['card', 'property_card', 'detail_page', 'details_page', 'broker_profile', 'builder_profile', 'profile_page', 'quick_view', 'search_card', 'home_section', 'general'],
+        enum: ['card', 'property_card', 'detail_page', 'details_page', 'broker_profile', 'builder_profile', 'profile_page', 'quick_view', 'search_card', 'home_section', 'my_properties', 'general'],
         default: 'detail_page'
     },
 

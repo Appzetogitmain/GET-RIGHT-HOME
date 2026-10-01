@@ -5,7 +5,7 @@ import {
     ArrowLeft, ChevronRight, Loader2, MapPin,
     MessageSquare, Send, Crown, Sparkles, PhoneCall,
     Calendar, Clock, FileText, User, Users, Building, ChevronDown, Bell,
-    CheckCircle2, ExternalLink, Filter, Layers, Check, X, ShieldAlert, BadgeCheck
+    CheckCircle2, ExternalLink, Eye, Filter, Layers, Check, X, ShieldAlert, BadgeCheck
 } from 'lucide-react';
 import { enquiryService, propertyService } from '../../services/apiService';
 import subscriptionService from '../../services/subscriptionService';

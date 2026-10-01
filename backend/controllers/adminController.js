@@ -773,6 +773,7 @@ export const createAdminProject = async (req, res) => {
     const newProject = new Project(projectData);
     await newProject.save();
 
+    emitPropertyListed(req, newProject);
     res.status(201).json({ success: true, message: 'Project created successfully', project: newProject });
   } catch (error) {
     console.error('Error creating admin project:', error);
@@ -882,6 +883,7 @@ export const createAdminProperty = async (req, res) => {
     const newProperty = await Property.create(propertyData);
     await syncBuilderProjectDetails(newProperty._id, newProperty.dynamicData);
     await newProperty.populate('builderProjectDetails');
+    emitPropertyListed(req, newProperty);
     res.status(201).json({ success: true, property: newProperty });
   } catch (error) {
     console.error('Create Admin Property Error:', error);
@@ -991,6 +993,22 @@ export const getPropertyRequests = async (req, res) => {
   }
 };
 
+// Tell every connected client a listing just went live so open search/list
+// pages can refresh without a manual reload.
+const emitPropertyListed = (req, doc) => {
+  try {
+    const io = req.app.get('io');
+    if (!io || !doc) return;
+    io.emit('property_listed', {
+      propertyId: String(doc._id),
+      propertyName: doc.propertyName,
+      city: doc.address?.city || ''
+    });
+  } catch (e) {
+    console.error('emitPropertyListed error:', e.message);
+  }
+};
+
 export const updateHotelStatus = async (req, res) => {
   try {
     const { propertyId, hotelId, status, isLive } = req.body;
@@ -1017,6 +1035,7 @@ export const updateHotelStatus = async (req, res) => {
 
     const hotel = await Property.findByIdAndUpdate(id, update, { new: true });
     if (!hotel) return res.status(404).json({ success: false, message: 'Property not found' });
+    if (hotel.status === 'approved' && hotel.isLive) emitPropertyListed(req, hotel);
     res.status(200).json({ success: true, hotel });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error updating hotel status' });
@@ -1080,6 +1099,7 @@ export const verifyPropertyDocuments = async (req, res) => {
 
     await docs.save();
     await property.save();
+    if (property.status === 'approved' && property.isLive) emitPropertyListed(req, property);
     res.status(200).json({ success: true, property, documents: docs });
   } catch (e) {
     console.error("verifyPropertyDocuments Error:", e);
