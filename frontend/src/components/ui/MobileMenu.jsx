@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, User, Wallet, Heart, HelpCircle, ChevronRight,
     LogOut, Settings, Building, Bell, Edit3, Video,
-    Star, PlusCircle, CreditCard, MessageSquare, Lightbulb, Gift
+    Star, PlusCircle, CreditCard, MessageSquare, Lightbulb, Gift, CalendarCheck
 } from 'lucide-react';
 import { userService } from '../../services/apiService';
 import { useNavigate, useLocation } from 'react-router-dom';

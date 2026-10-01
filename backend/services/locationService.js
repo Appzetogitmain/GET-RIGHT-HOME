@@ -100,7 +100,8 @@ export const matchesWorkerCategory = (workerCategories, filters) => {
  * A worker's serviceCategories may name an admin-defined Profession (e.g.
  * "Electrician"). Such an entry qualifies the worker ONLY for the categories
  * the admin bundled under that profession — matched by category id, never
- * fuzzily. Any other entry keeps the legacy name matching.
+ * fuzzily — and the worker's other category names are ignored. A worker with
+ * no profession keeps the legacy name matching.
  */
 export const workerServesBooking = (worker, filters, professions = []) => {
   const byName = new Map(professions.map(p => [normalizeCategoryString(p.name), p]));
@@ -111,8 +112,10 @@ export const workerServesBooking = (worker, filters, professions = []) => {
     if (profession) held.push(profession);
     else plain.push(entry);
   }
-  if (filters?.categoryId && held.some(p => (p.categoryIds || []).some(id => String(id) === String(filters.categoryId)))) {
-    return true;
+  if (held.length > 0) {
+    // A deactivated profession serves nothing; it must not fall back to fuzzy
+    // name matching on the profession's label.
+    return !!filters?.categoryId && held.some(p => p.isActive !== false) && held.filter(p => p.isActive !== false).some(p => (p.categoryIds || []).some(id => String(id) === String(filters.categoryId)));
   }
   return matchesWorkerCategory(plain, filters);
 };
@@ -130,9 +133,10 @@ export const findNearbyWorkers = async (location, radius, filters) => {
     const baseQuery = {
       approvalStatus: 'approved',
       isActive: true,
-      // Accepting a job sets this status atomically. Keep busy workers out of
-      // both instant and scheduled discovery until their work is marked done.
-      status: { $ne: 'busy' }
+      // Busy workers are filtered afterwards by filterAvailableWorkers, which
+      // looks at the jobs they hold right now. The stored `busy` flag is not
+      // used here: a slot job accepted for tonight must not hide the worker
+      // from an instant booking this afternoon.
     };
     // Scheduled (future-day) bookings can go to workers who are offline right
     // now — availability is governed by their marked days/leave, not the toggle.
@@ -236,7 +240,7 @@ export const findNearbyWorkers = async (location, radius, filters) => {
     // Apply strict category filter
     if (filters && (filters.service || filters.serviceName || filters.slug || filters.categoryId)) {
       const categoryFilterName = filters.service || filters.serviceName || filters.slug || 'category';
-      const professions = await Profession.find({ isActive: true }).select('name categoryIds').lean();
+      const professions = await Profession.find({}).select('name categoryIds isActive').lean();
       const filtered = formattedWorkers.filter(worker => workerServesBooking(worker, filters, professions));
 
       console.log(`[LocationService] Category filter "${categoryFilterName}" matched ${filtered.length} of ${formattedWorkers.length} nearby workers`);
@@ -270,7 +274,7 @@ export const findWorkerIneligibility = async (worker, booking) => {
     serviceName: booking.serviceName,
     categoryId: booking.categoryId
   };
-  const professions = await Profession.find({ isActive: true }).select('name categoryIds').lean();
+  const professions = await Profession.find({}).select('name categoryIds isActive').lean();
   if (!workerServesBooking(worker, filters, professions)) {
     return `${worker.name}'s profession does not cover ${booking.serviceCategory || 'this'} bookings.`;
   }

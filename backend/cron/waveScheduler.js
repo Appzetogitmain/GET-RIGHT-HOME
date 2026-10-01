@@ -31,6 +31,105 @@ const INITIAL_SEARCH_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
 // unassigned before the ops team is pulled in.
 const DEFAULT_MANUAL_ESCALATION_MS = 3 * 60 * 1000; // 3 minutes
 
+
+// Rings the admin panel (toast + sound) when a booking lands in the
+// manual-assignment queue.
+const alertAdminsManualAssignment = (io, booking, reason) => {
+  try {
+    io.to('admin_room').emit('booking_needs_assignment', {
+      bookingId: booking._id,
+      bookingNumber: booking.bookingNumber,
+      serviceName: booking.serviceName,
+      bookingType: booking.bookingType,
+      zoneName: booking.zoneName,
+      reason
+    });
+  } catch { /* socket optional */ }
+};
+
+
+// An admin-assigned offer gets 60s on the worker's screen. If the app is closed
+// nobody auto-rejects it, so after a short grace the offer lapses and the
+// booking goes back to the manual-assignment queue (admin is alerted).
+const ADMIN_OFFER_LAPSE_MS = 120 * 1000;
+const expireStaleAdminOffers = async (io) => {
+  try {
+    const offered = await HomeServiceBooking.find({
+      status: BOOKING_STATUS.SEARCHING,
+      workerId: null,
+      assignmentStatus: 'awaiting_worker',
+      adminAssignedWorkerId: { $ne: null }
+    });
+    for (const booking of offered) {
+      const request = await BookingRequest.findOne({
+        bookingId: booking._id,
+        workerId: booking.adminAssignedWorkerId,
+        status: 'PENDING'
+      });
+      if (request && Date.now() - new Date(request.sentAt).getTime() < ADMIN_OFFER_LAPSE_MS) continue;
+      if (request) {
+        request.status = 'EXPIRED';
+        request.respondedAt = new Date();
+        await request.save();
+      }
+      booking.adminAssignedWorkerId = null;
+      booking.status = BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED;
+      booking.assignmentStatus = 'manual_assignment_required';
+      await booking.save();
+      console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: admin-assigned worker did not respond → manual assignment.`);
+      alertAdminsManualAssignment(io, booking, 'The worker you assigned did not respond in time');
+      try {
+        io.to(`user_${booking.userId}`).emit('booking_updated', {
+          bookingId: booking._id,
+          status: BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED,
+          message: 'We are assigning a service professional to your booking.'
+        });
+      } catch { /* socket optional */ }
+    }
+  } catch (err) {
+    console.error('[WaveScheduler] Admin offer expiry check failed:', err);
+  }
+};
+
+// A booking waiting for its advance payment is not sent to anyone. If the
+// customer never pays, it lapses after this long.
+const ADVANCE_PAYMENT_WINDOW_MS = 15 * 60 * 1000;
+
+const cancelUnpaidAdvanceBookings = async (io) => {
+  try {
+    const stale = await HomeServiceBooking.find({
+      status: BOOKING_STATUS.PENDING,
+      advanceStatus: 'awaiting',
+      createdAt: { $lte: new Date(Date.now() - ADVANCE_PAYMENT_WINDOW_MS) }
+    }).select('_id userId bookingNumber');
+
+    for (const booking of stale) {
+      const result = await HomeServiceBooking.updateOne(
+        { _id: booking._id, status: BOOKING_STATUS.PENDING, advanceStatus: 'awaiting' },
+        {
+          $set: {
+            status: BOOKING_STATUS.CANCELLED,
+            cancelledAt: new Date(),
+            cancelledBy: 'system',
+            cancellationReason: 'Advance payment was not completed'
+          }
+        }
+      );
+      if (!result.modifiedCount) continue;
+      console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: advance not paid in time → cancelled.`);
+      try {
+        io.to(`user_${booking.userId}`).emit('booking_updated', {
+          bookingId: booking._id,
+          status: BOOKING_STATUS.CANCELLED,
+          message: 'Your booking was cancelled because the payment was not completed.'
+        });
+      } catch { /* socket optional */ }
+    }
+  } catch (err) {
+    console.error('[WaveScheduler] Unpaid advance cleanup failed:', err);
+  }
+};
+
 /**
  * Flags bookings that have gone too long without a worker so the ops team can
  * start assigning by hand.
@@ -49,8 +148,8 @@ const escalateStaleBookingsToOps = async (manualEscalationMs, io) => {
       workerId: null,
       createdAt: { $lte: cutoff },
       // Only escalate once.
-      assignmentStatus: { $ne: 'manual_assignment_required' }
-    }).select('_id userId bookingNumber');
+      assignmentStatus: { $nin: ['manual_assignment_required', 'awaiting_worker'] }
+    }).select('_id userId bookingNumber serviceName bookingType zoneName');
 
     for (const booking of stale) {
       await HomeServiceBooking.updateOne(
@@ -59,6 +158,7 @@ const escalateStaleBookingsToOps = async (manualEscalationMs, io) => {
       );
 
       console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: unassigned past the escalation window → ops queue (automatic search continues).`);
+      alertAdminsManualAssignment(io, booking, 'No professional accepted in time');
 
       try {
         io.to(`user_${booking.userId}`).emit('booking_updated', {
@@ -101,6 +201,8 @@ const handleInitialSearchRetry = async (booking, io) => {
         service: booking.serviceCategory,
         serviceName: booking.serviceName,
         categoryId: booking.categoryId,
+        // Retries must honour the worker's allowed booking types too.
+        bookingMode: booking.bookingType === 'instant' ? 'instant' : 'slot',
         includeOffline: booking.bookingType !== 'instant' && isFutureIstDay(booking.scheduledDate)
       };
 
@@ -204,6 +306,7 @@ const handleInitialSearchRetry = async (booking, io) => {
       await booking.save();
 
       console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: No ${bookingModel}s found after 3 minutes. Handing to manual assignment.`);
+      alertAdminsManualAssignment(io, booking, 'No professional found');
 
       io.to(`user_${booking.userId}`).emit('booking_updated', {
         bookingId: booking._id,
@@ -263,6 +366,8 @@ export const startWaveScheduler = (io) => {
       // and whoever lands first wins. Without this the customer waits out every
       // wave before anyone human looks at it.
       await escalateStaleBookingsToOps(manualEscalationMs, io);
+      await expireStaleAdminOffers(io);
+      await cancelUnpaidAdvanceBookings(io);
 
       for (const booking of activeBookings) {
         // currentWave === 0 means the initial search found zero partners — keep
@@ -322,6 +427,7 @@ export const startWaveScheduler = (io) => {
             // Everyone eligible has been asked and nobody took it. Hand over to
             // the ops team — the booking remains active.
             console.log(`[WaveScheduler] Booking ${booking.bookingNumber}: all eligible workers exhausted → manual assignment.`);
+            alertAdminsManualAssignment(io, booking, 'All eligible professionals were asked; nobody accepted');
 
             // Anyone still sitting on an unanswered request timed out; record
             // it so ops can see the attempt history rather than guessing.

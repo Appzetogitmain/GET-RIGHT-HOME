@@ -15,6 +15,9 @@ const subCategorySchema = z.object({
   iconUrl: z.string().optional(),
   bannerUrl: z.string().optional(),
   badge: z.string().optional(),
+  description: z.string().optional(),
+  rating: z.number().min(0).max(5).optional(),
+  reviewCount: z.string().optional(),
 });
 
 const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
@@ -43,6 +46,9 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
     iconUrl: "",
     bannerUrl: "",
     badge: "",
+    description: "",
+    rating: "",
+    reviewCount: "",
     categoryId: "",
     cityIds: [],
   });
@@ -135,6 +141,9 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           iconUrl: svc.imageUrl || svc.iconUrl || "",
           bannerUrl: svc.bannerUrl || "",
           badge: svc.badge || "",
+          description: svc.description || "",
+          rating: svc.rating || "",
+          reviewCount: svc.reviewCount || "",
           isActive: svc.isActive !== false,
           isEstimateBased: svc.categoryId?.isEstimateBased || false,
           cityIds: (svc.cityIds || []).map(id => getStrId(id)).filter(Boolean),
@@ -209,6 +218,9 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       iconUrl: subCat.iconUrl || "",
       bannerUrl: subCat.bannerUrl || "",
       badge: subCat.badge || "",
+      description: subCat.description || "",
+      rating: subCat.rating || "",
+      reviewCount: subCat.reviewCount || "",
       categoryId: subCat.categoryId || "",
       cityIds: subCat.cityIds || [],
     });
@@ -222,6 +234,9 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       iconUrl: "",
       bannerUrl: "",
       badge: "",
+      description: "",
+      rating: "",
+      reviewCount: "",
       categoryId: "",
       cityIds: selectedCity ? [selectedCity] : [],
     });
@@ -282,6 +297,9 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       iconUrl: form.iconUrl.trim(),
       bannerUrl: form.bannerUrl.trim(),
       badge: form.badge.trim(),
+      description: form.description.trim(),
+      rating: form.rating !== "" ? Number(form.rating) : 0,
+      reviewCount: form.reviewCount.trim(),
     });
 
     if (!validationResult.success) {
@@ -538,6 +556,22 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
             </select>
           </div>
           
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">Description <span className="font-normal text-gray-400">(optional)</span></label>
+            <textarea rows={3} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Short text shown to customers under the banner" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Rating <span className="font-normal text-gray-400">(0 - 5)</span></label>
+              <input type="number" step="0.01" min="0" max="5" placeholder="4.75" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Reviews <span className="font-normal text-gray-400">(optional)</span></label>
+              <input type="text" placeholder="9.6K+" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" value={form.reviewCount} onChange={(e) => setForm({ ...form, reviewCount: e.target.value })} />
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             {/* Sub-category Icon Upload */}
             <div>

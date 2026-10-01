@@ -75,6 +75,11 @@ const cartItemSchema = new mongoose.Schema({
     type: String,
     default: '10k+'
   },
+  // Which variant of the service (e.g. "3 BHK") this line is for.
+  optionLabel: {
+    type: String,
+    default: ''
+  },
   // Section / Brand info (from service catalog)
   sectionTitle: {
     type: String,

@@ -37,11 +37,26 @@ const getTokenKeys = (url) => {
   return { access: 'token', refresh: 'refreshToken', role: 'user' };
 };
 
+// Catalog is zone-wise: attach the customer's saved location so the server can
+// return only the categories/services offered in their zone.
+const ZONE_CATALOG_URL = /^\/public\/(categories|sub-categories|services)(\?|$)/;
+
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
+    if ((config.method || 'get') === 'get' && ZONE_CATALOG_URL.test(config.url || '')) {
+      try {
+        const lat = localStorage.getItem('currentLat');
+        const lng = localStorage.getItem('currentLng');
+        if (lat && lng) config.params = { ...(config.params || {}), lat, lng };
+      } catch { /* storage unavailable */ }
+    }
     const { access } = getTokenKeys(config.url);
-    const token = sessionStorage.getItem(access) || localStorage.getItem(access);
+    // The homster auth flows persist the current account in localStorage.
+    // A stale token left in sessionStorage used to override it, so the UI could
+    // show one worker from workerData while mutations (such as leave) were sent
+    // as a different, previously logged-in worker. Keep localStorage canonical.
+    const token = localStorage.getItem(access) || sessionStorage.getItem(access);
 
     // For debugging
     // console.log(`Request to ${config.url}, using token key: ${access}, token exists: ${!!token}`);
@@ -99,7 +114,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       const { access, refresh, role } = getTokenKeys(originalRequest.url);
-      const refreshToken = sessionStorage.getItem(refresh) || localStorage.getItem(refresh);
+      const refreshToken = localStorage.getItem(refresh) || sessionStorage.getItem(refresh);
 
       if (!refreshToken) {
         // No refresh token, logout
@@ -121,10 +136,10 @@ api.interceptors.response.use(
         const { accessToken } = response.data;
 
         // Save new access token - Try session first, then local (update where it was found)
-        if (sessionStorage.getItem(access)) {
-          sessionStorage.setItem(access, accessToken);
-        } else {
+        if (localStorage.getItem(access)) {
           localStorage.setItem(access, accessToken);
+        } else {
+          sessionStorage.setItem(access, accessToken);
         }
 
         // Update authorization header

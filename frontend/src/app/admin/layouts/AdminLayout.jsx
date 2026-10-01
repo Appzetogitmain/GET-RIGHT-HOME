@@ -254,7 +254,7 @@ const AdminLayout = () => {
                     icon: UserCog, label: 'Workers', children: [
                         { label: 'All Workers', path: '/admin/home-service/workers/all' },
                         { label: 'Professions', path: '/admin/home-service/workers/professions' },
-                        { label: 'Offline Requests', path: '/admin/home-service/workers/offline-requests' },
+                        { label: 'Leave & Availability', path: '/admin/home-service/workers/offline-requests' },
                         { label: 'Worker Jobs', path: '/admin/home-service/workers/jobs' },
                         { label: 'Withdrawals', path: '/admin/home-service/workers/withdrawals' },
                         { label: 'Complaints', path: '/admin/home-service/workers/complaints' },
@@ -294,6 +294,7 @@ const AdminLayout = () => {
             title: 'ZONES & SETTINGS',
             items: [
                 { icon: MapPin, label: 'Zone Setup', path: '/admin/home-service/zones' },
+                { icon: MapPin, label: 'Zone Services', path: '/admin/home-service/zone-services' },
                 { icon: Bell, label: 'Service Notifications', path: '/admin/home-service/notifications' },
                 { icon: Settings, label: 'Service Settings', path: '/admin/home-service/settings' },
                 { icon: Settings, label: 'Dev Settings', path: '/admin/home-service/dev-settings' },

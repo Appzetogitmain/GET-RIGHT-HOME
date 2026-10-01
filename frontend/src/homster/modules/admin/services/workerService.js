@@ -216,6 +216,32 @@ export const forceWorkerOnline = async (workerId, data = {}) => {
   }
 };
 
+/**
+ * Worker availability approvals (days a worker marked Available)
+ */
+export const getAvailabilityRequests = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.status && params.status !== 'all') query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+  const response = await api.get(`/admin/workers/availability-requests?${query.toString()}`);
+  return response.data;
+};
+
+export const approveAvailabilityRequests = async (ids) => {
+  const response = await api.post('/admin/workers/availability-requests/approve', { ids });
+  return response.data;
+};
+
+export const rejectAvailabilityRequest = async (id, reason) => {
+  const response = await api.post(`/admin/workers/availability-requests/${id}/reject`, { reason });
+  return response.data;
+};
+
+export const revokeAvailabilityRequest = async (id, reason) => {
+  const response = await api.post(`/admin/workers/availability-requests/${id}/revoke`, { reason });
+  return response.data;
+};
+
 export default {
   getAllWorkers,
   getWorkerDetails,
@@ -229,6 +255,10 @@ export default {
   approveOfflineRequest,
   rejectOfflineRequest,
   adjustOfflineRequestTime,
-  forceWorkerOnline
+  forceWorkerOnline,
+  getAvailabilityRequests,
+  approveAvailabilityRequests,
+  rejectAvailabilityRequest,
+  revokeAvailabilityRequest
 };
 

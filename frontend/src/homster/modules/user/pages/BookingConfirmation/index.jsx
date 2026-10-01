@@ -99,7 +99,15 @@ const BookingConfirmation = () => {
   const [socketMessage, setSocketMessage] = useState(null);
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isSearching, setIsSearching] = useState(!location.state?.noVendorsFound); // Respect passed state
+  // Starts off: only an instant booking that is still looking for a professional
+  // shows the search animation. Slot bookings are confirmed and assigned in the
+  // background, so they never flash a "searching" screen.
+  const [isSearching, setIsSearching] = useState(false);
+
+  const stillSearching = (data) => {
+    const status = String(data?.status || '').toLowerCase();
+    return data?.bookingType === 'instant' && !data?.vendorId && !data?.workerId && ['requested', 'searching'].includes(status);
+  };
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -116,11 +124,7 @@ const BookingConfirmation = () => {
         }
         setBooking(data);
 
-        // Check if vendor or worker is already assigned
-        const currentStatus = data.status?.toLowerCase();
-        if (data.vendorId || data.workerId || (currentStatus !== 'requested' && currentStatus !== 'searching')) {
-          setIsSearching(false);
-        }
+        setIsSearching(stillSearching(data) && !location.state?.noVendorsFound);
       } else {
         toast.error(response.message || 'Booking not found');
         navigate('/user/home-services/bookings');
@@ -144,11 +148,7 @@ const BookingConfirmation = () => {
         }
         setBooking(data);
 
-        // Check if vendor or worker is already assigned
-        const currentStatus = data.status?.toLowerCase();
-        if (data.vendorId || data.workerId || (currentStatus !== 'requested' && currentStatus !== 'searching')) {
-          setIsSearching(false);
-        }
+        setIsSearching(stillSearching(data) && !location.state?.noVendorsFound);
       }
     } catch (error) {
       console.error('Refresh booking error:', error);
@@ -178,9 +178,11 @@ const BookingConfirmation = () => {
           if (data.message) {
             setSocketMessage(data.message);
           }
-          if (data.status === 'NO_WORKERS' || data.status === 'no_workers' || data.status === 'NO_VENDORS' || data.status === 'no_vendors') {
+          if (['no_workers', 'no_vendors', 'manual_assignment_required'].includes(String(data.status || '').toLowerCase())) {
             setIsSearching(false);
             setBooking(prev => ({ ...prev, status: data.status, message: data.message }));
+          } else {
+            refreshBooking();
           }
         }
       };
@@ -221,8 +223,7 @@ const BookingConfirmation = () => {
 
           setBooking(updatedBooking);
           // If vendor accepted or status changed
-          const currentStatus = updatedBooking.status?.toLowerCase();
-          if (updatedBooking.vendorId || (currentStatus !== 'requested' && currentStatus !== 'searching')) {
+          if (!stillSearching(updatedBooking)) {
             setIsSearching(false);
             clearInterval(pollInterval);
           }
@@ -352,7 +353,7 @@ const BookingConfirmation = () => {
           )}
 
           {/* Success Icon - Show when confirmed */}
-          {!isSearching && ['confirmed', 'assigned', 'journey_started', 'work_in_progress', 'visited', 'work_done', 'completed'].includes(String(booking?.status || '').toLowerCase()) && (
+          {!isSearching && (['confirmed', 'assigned', 'journey_started', 'work_in_progress', 'visited', 'work_done', 'completed'].includes(String(booking?.status || '').toLowerCase()) || (booking?.bookingType !== 'instant' && ['pending', 'searching', 'requested'].includes(String(booking?.status || '').toLowerCase()) && booking?.advanceStatus !== 'awaiting')) && (
             <div className="flex flex-col items-center justify-center mb-6">
               <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
                 <FiCheckCircle className="w-12 h-12 text-green-600" />
@@ -380,12 +381,12 @@ const BookingConfirmation = () => {
           {/* Manual Assignment - Show when no worker auto-accepted (no_workers/no_vendors).
               This is NOT a failure: the booking stays active and admin assigns a
               professional directly, so this must never read as a dead end. */}
-          {!isSearching && ['no_workers', 'no_vendors'].includes(String(booking?.status || '').toLowerCase()) && (
+          {!isSearching && ['no_workers', 'no_vendors', 'manual_assignment_required'].includes(String(booking?.status || '').toLowerCase()) && (
             <div className="flex flex-col items-center justify-center mb-6 text-center">
               <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-4 border border-amber-100 shadow-sm">
                 <FiBell className="w-10 h-10 text-amber-500 animate-pulse" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">We're On It</h1>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Sent to Our Team</h1>
               <p className="text-sm text-gray-500 max-w-[260px] mb-6 mx-auto">
                 {booking?.message || "Your order has been taken successfully. We are currently assigning a service professional to your booking. You will receive the professional details shortly."}
               </p>
@@ -405,17 +406,12 @@ const BookingConfirmation = () => {
               <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <FiXCircle className="w-12 h-12 text-red-600" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">No Expert Found</h1>
-              <p className="text-sm text-gray-500 max-w-[260px] mb-6 mx-auto">
-                {booking?.message || "We couldn't find a nearby expert for your request at this moment."}
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                {String(booking?.status || '').toLowerCase() === 'cancelled' ? 'Booking Cancelled' : 'Booking Not Completed'}
+              </h1>
+              <p className="text-sm text-gray-500 max-w-[260px] mx-auto">
+                {booking?.cancellationReason || booking?.message || 'This booking is no longer active.'}
               </p>
-              <button
-                onClick={() => navigate('/')}
-                className="px-8 py-3 bg-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-600/20 active:scale-95 transition-all flex items-center gap-2"
-              >
-                <FiArrowRight className="w-5 h-5" />
-                Search Again
-              </button>
             </div>
           )}
 
@@ -426,12 +422,12 @@ const BookingConfirmation = () => {
                 <p className="text-xs text-gray-500 mb-1">Booking ID</p>
                 <p className="text-base font-bold text-black">{booking.bookingNumber || booking._id || booking.id}</p>
               </div>
-              <div className={`px-3 py-1.5 rounded-full ${(isSearching || booking?.status?.toLowerCase() === 'requested')
+              <div className={`px-3 py-1.5 rounded-full ${(isSearching || ['requested', 'manual_assignment_required'].includes(booking?.status?.toLowerCase()))
                 ? 'bg-amber-50 text-amber-700 border border-amber-200'
                 : 'bg-green-50 text-green-700 border border-green-200'
                 }`}>
                 <span className="text-sm font-semibold">
-                  {isSearching ? 'Finding Worker...' : (booking?.status?.toLowerCase() === 'requested' ? 'Request Sent' : 'Confirmed')}
+                  {isSearching ? 'Finding Worker...' : (booking?.status?.toLowerCase() === 'manual_assignment_required' ? 'Assigning Professional' : booking?.status?.toLowerCase() === 'requested' ? 'Request Sent' : 'Confirmed')}
                 </span>
               </div>
             </div>

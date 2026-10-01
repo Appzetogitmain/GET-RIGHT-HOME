@@ -157,6 +157,16 @@ const SearchStatusModal = ({ isOpen, onClose, currentStep, acceptedProfessional,
           </div>
         )}
 
+        {currentStep === 'paying' && (
+          <div className="flex flex-col items-center justify-center pt-14 pb-12 px-6 min-h-[360px] text-center">
+            <div className="mb-6 h-14 w-14 animate-spin rounded-full border-4 border-gray-200" style={{ borderTopColor: themeColors.brand.teal }} />
+            <h3 className="text-xl font-black text-gray-900 mb-2">Complete your payment</h3>
+            <p className="text-gray-500 text-[13px] font-medium leading-relaxed">
+              Your booking is confirmed as soon as the payment goes through. We then start finding your professional.
+            </p>
+          </div>
+        )}
+
         {currentStep === 'accepted' && acceptedProfessional && (
           <div className="flex flex-col items-center pt-12 pb-10 px-6 bg-white w-full h-full min-h-[450px]">
             {/* Success Icon */}
@@ -239,9 +249,9 @@ const SearchStatusModal = ({ isOpen, onClose, currentStep, acceptedProfessional,
               </svg>
             </div>
 
-            <h3 className="text-2xl font-black text-gray-900 mb-2 italic text-center">We're On It</h3>
+            <h3 className="text-2xl font-black text-gray-900 mb-2 italic text-center">Sent to Our Team</h3>
             <p className="text-gray-600 text-sm text-center mb-8 px-6 font-semibold leading-relaxed">
-              {searchMessage || "Your order has been taken successfully. We are currently assigning a service professional to your booking. You will receive the professional details shortly."}
+              {searchMessage || "No professional is available for this service in your area right now. Your booking has been sent to our team, who will assign a professional shortly."}
             </p>
 
             <button

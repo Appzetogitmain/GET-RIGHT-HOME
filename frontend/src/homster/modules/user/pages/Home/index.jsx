@@ -158,6 +158,7 @@ const Home = () => {
       if (locationObj.lat && locationObj.lng) {
         localStorage.setItem('currentLat', locationObj.lat);
         localStorage.setItem('currentLng', locationObj.lng);
+        publicCatalogService.invalidateCache(); // catalog is zone-wise; refetch for the new location
       }
 
       // Try to parse city from location object (Google Places)
@@ -213,6 +214,7 @@ const Home = () => {
                 const { latitude, longitude } = position.coords;
                 localStorage.setItem('currentLat', latitude);
                 localStorage.setItem('currentLng', longitude);
+                publicCatalogService.invalidateCache();
                 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
                 const response = await fetch(
                   `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`

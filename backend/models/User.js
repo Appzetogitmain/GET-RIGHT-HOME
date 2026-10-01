@@ -126,6 +126,14 @@ const userSchema = new mongoose.Schema({
   panCardImage: { type: String }, // URL
   termsAccepted: { type: Boolean, default: false },
   isVip: { type: Boolean, default: false },
+  // Home Services VIP membership (separate from the real-estate VIP above).
+  hsVip: {
+    isActive: { type: Boolean, default: false },
+    planName: { type: String, default: '' },
+    expiry: { type: Date, default: null },
+    purchasedAt: { type: Date, default: null },
+    pricePaid: { type: Number, default: 0 }
+  },
   vipExpiry: { type: Date },
 
   // Subscription Details (For Owner / Broker)

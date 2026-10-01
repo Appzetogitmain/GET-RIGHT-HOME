@@ -1490,6 +1490,36 @@ export const updateContactStatus = async (req, res) => {
   }
 };
 
+// Fees, GST, payout, online-payment and billing fields live on the Home
+// Services `Settings` doc (that's what pricing, bills and invoices read), not
+// on PlatformSettings. The admin Settings page posts them to the same endpoint,
+// so they are bridged here — before, they were accepted and silently dropped.
+const HS_NUMBER_FIELDS = {
+  visitedCharges: [0, 100000],
+  serviceGstPercentage: [0, 100],
+  partsGstPercentage: [0, 100],
+  servicePayoutPercentage: [0, 100],
+  partsPayoutPercentage: [0, 100],
+  tdsPercentage: [0, 100],
+  platformFeePercentage: [0, 100]
+};
+const HS_STRING_FIELDS = [
+  'companyName', 'companyGSTIN', 'companyPAN', 'companyAddress', 'companyCity',
+  'companyState', 'companyPincode', 'companyPhone', 'companyEmail', 'invoicePrefix', 'sacCode'
+];
+
+const pickHsFinancials = (hs) => {
+  const out = {
+    isOnlinePaymentEnabled: hs.isOnlinePaymentEnabled !== false,
+    advancePaymentThreshold: hs.advancePaymentThreshold ?? 2000,
+    advancePaymentPercent: hs.advancePaymentPercent ?? 30,
+    vip: hs.vip?.toObject ? hs.vip.toObject() : (hs.vip || {})
+  };
+  Object.keys(HS_NUMBER_FIELDS).forEach((key) => { out[key] = hs[key]; });
+  HS_STRING_FIELDS.forEach((key) => { out[key] = hs[key]; });
+  return out;
+};
+
 export const getPlatformSettings = async (req, res) => {
   try {
     const settings = await PlatformSettings.getSettings();
@@ -1512,7 +1542,9 @@ export const getPlatformSettings = async (req, res) => {
       jobReminderConfirmMinutes: hsSettings.jobReminderConfirmMinutes ?? 15,
       advanceBookingDays: hsSettings.advanceBookingDays ?? 7,
       workerLeaveAutoApprove: !!hsSettings.workerLeaveAutoApprove,
-      requireDailyAvailability: hsSettings.requireDailyAvailability !== false
+      availabilityRequiresApproval: hsSettings.availabilityRequiresApproval !== false,
+      requireDailyAvailability: hsSettings.requireDailyAvailability !== false,
+      ...pickHsFinancials(hsSettings)
     };
 
     res.status(200).json({ success: true, settings: merged });
@@ -1561,6 +1593,7 @@ export const updatePlatformSettings = async (req, res) => {
       jobReminderConfirmMinutes,
       advanceBookingDays,
       workerLeaveAutoApprove,
+      availabilityRequiresApproval,
       requireDailyAvailability
     } = req.body;
 
@@ -1594,6 +1627,7 @@ export const updatePlatformSettings = async (req, res) => {
         settings.operatingHours.sameDayLeadMinutes = Math.round(leadMin);
       }
     }
+    if (typeof req.body.applyGst === 'boolean') settings.applyGst = req.body.applyGst;
     if (typeof maintenanceMode === 'boolean') settings.maintenanceMode = maintenanceMode;
     if (typeof bookingDisabledMessage === 'string') settings.bookingDisabledMessage = bookingDisabledMessage;
     if (typeof maintenanceTitle === 'string') settings.maintenanceTitle = maintenanceTitle;
@@ -1659,6 +1693,7 @@ export const updatePlatformSettings = async (req, res) => {
       hsSettings.advanceBookingDays = Math.round(adv);
     }
     if (typeof workerLeaveAutoApprove === 'boolean') hsSettings.workerLeaveAutoApprove = workerLeaveAutoApprove;
+    if (typeof availabilityRequiresApproval === 'boolean') hsSettings.availabilityRequiresApproval = availabilityRequiresApproval;
     if (typeof requireDailyAvailability === 'boolean') hsSettings.requireDailyAvailability = requireDailyAvailability;
     if (jobReminderConfirmMinutes !== undefined) {
       const confirm = Number(jobReminderConfirmMinutes);
@@ -1667,6 +1702,92 @@ export const updatePlatformSettings = async (req, res) => {
       }
       hsSettings.jobReminderConfirmMinutes = Math.round(confirm);
     }
+    for (const [key, [min, max]] of Object.entries(HS_NUMBER_FIELDS)) {
+      if (req.body[key] === undefined) continue;
+      const value = Number(req.body[key]);
+      if (!Number.isFinite(value) || value < min || value > max) {
+        return res.status(400).json({ success: false, message: `${key} must be between ${min} and ${max}` });
+      }
+      hsSettings[key] = value;
+    }
+    if (typeof req.body.isOnlinePaymentEnabled === 'boolean') hsSettings.isOnlinePaymentEnabled = req.body.isOnlinePaymentEnabled;
+
+    // Advance payment: below the threshold pay in full; above it only this %.
+    if (req.body.advancePaymentThreshold !== undefined) {
+      const threshold = Number(req.body.advancePaymentThreshold);
+      if (!Number.isFinite(threshold) || threshold < 0 || threshold > 10000000) {
+        return res.status(400).json({ success: false, message: 'Advance payment threshold must be 0 or more' });
+      }
+      hsSettings.advancePaymentThreshold = Math.round(threshold);
+    }
+    if (req.body.advancePaymentPercent !== undefined) {
+      const pct = Number(req.body.advancePaymentPercent);
+      if (!Number.isFinite(pct) || pct < 1 || pct > 100) {
+        return res.status(400).json({ success: false, message: 'Advance payment percentage must be between 1 and 100' });
+      }
+      hsSettings.advancePaymentPercent = pct;
+    }
+
+    // VIP membership offer shown at checkout.
+    if (req.body.vip && typeof req.body.vip === 'object') {
+      const v = req.body.vip;
+      const next = hsSettings.vip?.toObject ? hsSettings.vip.toObject() : { ...(hsSettings.vip || {}) };
+      if (typeof v.enabled === 'boolean') next.enabled = v.enabled;
+      if (typeof v.name === 'string' && v.name.trim()) next.name = v.name.trim();
+      if (v.price !== undefined) {
+        const price = Number(v.price);
+        if (!Number.isFinite(price) || price < 0) return res.status(400).json({ success: false, message: 'VIP price must be 0 or more' });
+        next.price = Math.round(price);
+      }
+      if (Array.isArray(v.plans)) {
+        const plans = v.plans.map((p) => ({
+          name: String(p.name || '').trim(),
+          price: Number(p.price),
+          originalPrice: Number(p.originalPrice) || 0,
+          durationDays: Number(p.durationDays)
+        }));
+        if (plans.length > 6 || plans.some((p) => !p.name || !Number.isFinite(p.price) || p.price < 0 || !Number.isFinite(p.durationDays) || p.durationDays < 1 || p.originalPrice < 0)) {
+          return res.status(400).json({ success: false, message: 'Each VIP plan needs a name, a price of 0 or more and a validity of at least 1 day (max 6 plans)' });
+        }
+        next.plans = plans.map((p) => ({ ...p, price: Math.round(p.price), originalPrice: Math.round(p.originalPrice), durationDays: Math.round(p.durationDays) }));
+      }
+      if (v.originalPrice !== undefined && !Array.isArray(v.plans)) {
+        const orig = Number(v.originalPrice);
+        if (!Number.isFinite(orig) || orig < 0) return res.status(400).json({ success: false, message: 'Original price must be 0 or more' });
+        next.originalPrice = Math.round(orig);
+      }
+      if (v.durationDays !== undefined) {
+        const days = Number(v.durationDays);
+        if (!Number.isFinite(days) || days < 1 || days > 3650) return res.status(400).json({ success: false, message: 'VIP duration must be between 1 and 3650 days' });
+        next.durationDays = Math.round(days);
+      }
+      if (v.maxDiscount !== undefined) {
+        const cap = Number(v.maxDiscount);
+        if (!Number.isFinite(cap) || cap < 0) return res.status(400).json({ success: false, message: 'Maximum discount must be 0 or more' });
+        next.maxDiscount = Math.round(cap);
+      }
+      if (Array.isArray(v.tiers)) {
+        const tiers = v.tiers.map((t) => ({ minAmount: Number(t.minAmount), percent: Number(t.percent) }));
+        if (tiers.length > 10 || tiers.some((t) => !Number.isFinite(t.minAmount) || t.minAmount < 0 || !Number.isFinite(t.percent) || t.percent <= 0 || t.percent > 100)) {
+          return res.status(400).json({ success: false, message: 'Each VIP tier needs an order amount of 0 or more and a discount between 1 and 100%' });
+        }
+        next.tiers = tiers.sort((a, b) => a.minAmount - b.minAmount);
+      }
+      // The single-plan fields always mirror the first plan (they are what older
+      // clients and bookings read).
+      if (next.plans?.length) {
+        next.price = next.plans[0].price;
+        next.originalPrice = next.plans[0].originalPrice;
+        next.durationDays = next.plans[0].durationDays;
+      }
+      if (next.enabled && (!next.tiers || next.tiers.length === 0)) {
+        return res.status(400).json({ success: false, message: 'Add at least one discount tier before turning VIP on' });
+      }
+      hsSettings.vip = next;
+    }
+    HS_STRING_FIELDS.forEach((key) => {
+      if (typeof req.body[key] === 'string') hsSettings[key] = req.body[key].trim();
+    });
     await hsSettings.save();
 
     const merged = {
@@ -1680,12 +1801,15 @@ export const updatePlatformSettings = async (req, res) => {
       jobReminderConfirmMinutes: hsSettings.jobReminderConfirmMinutes ?? 15,
       advanceBookingDays: hsSettings.advanceBookingDays ?? 7,
       workerLeaveAutoApprove: !!hsSettings.workerLeaveAutoApprove,
-      requireDailyAvailability: hsSettings.requireDailyAvailability !== false
+      availabilityRequiresApproval: hsSettings.availabilityRequiresApproval !== false,
+      requireDailyAvailability: hsSettings.requireDailyAvailability !== false,
+      ...pickHsFinancials(hsSettings)
     };
 
     res.status(200).json({ success: true, settings: merged });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error updating platform settings' });
+    console.error('Update platform settings error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Server error updating platform settings' });
   }
 };
 

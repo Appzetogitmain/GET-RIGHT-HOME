@@ -73,7 +73,8 @@ const BookingTrack = () => {
     if (paying) return;
 
     // If a Razorpay order already exists for this booking, reuse it
-    if (booking.razorpayOrderId) {
+    const reuseStoredOrder = false; // a stored order may be the already-paid advance order
+    if (reuseStoredOrder && booking.razorpayOrderId) {
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: Math.round((booking.finalAmount || 0) * 100),

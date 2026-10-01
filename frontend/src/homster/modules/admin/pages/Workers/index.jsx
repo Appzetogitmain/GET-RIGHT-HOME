@@ -24,7 +24,7 @@ const Workers = () => {
   const navTabs = [
     { name: 'All Workers', path: '/admin/home-service/workers/all', icon: FiUsers },
     { name: 'Professions', path: '/admin/home-service/workers/professions', icon: FiActivity },
-    { name: 'Offline Requests', path: '/admin/home-service/workers/offline-requests', icon: FiClock },
+    { name: 'Leave & Availability', path: '/admin/home-service/workers/offline-requests', icon: FiClock },
     { name: 'Worker Jobs', path: '/admin/home-service/workers/jobs', icon: FiClock },
     { name: 'Withdrawals', path: '/admin/home-service/workers/withdrawals', icon: FiDollarSign },
     { name: 'Monthly Target', path: '/admin/home-service/workers/monthly-target', icon: FiActivity },

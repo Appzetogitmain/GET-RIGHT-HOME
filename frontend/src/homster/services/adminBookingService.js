@@ -51,10 +51,47 @@ export const adminBookingService = {
     }
   },
 
-  // Assign worker manually
-  assignWorker: async (jobId, workerId) => {
+  // Extra workers on a job (admin sees what each helper earns)
+  getHelpers: async (jobId) => {
     try {
-      const response = await api.post(`/admin/workers/jobs/${jobId}/assign`, { workerId });
+      const response = await api.get(`/admin/workers/jobs/${jobId}/helpers`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to load helpers' };
+    }
+  },
+
+  addHelper: async (jobId, workerId, payoutAmount, override = false) => {
+    try {
+      const response = await api.post(`/admin/workers/jobs/${jobId}/helpers`, { workerId, payoutAmount, override });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to add helper' };
+    }
+  },
+
+  removeHelper: async (jobId, workerId) => {
+    try {
+      const response = await api.delete(`/admin/workers/jobs/${jobId}/helpers/${workerId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to remove helper' };
+    }
+  },
+
+  rejectHelperRequest: async (jobId, requestId, note = '') => {
+    try {
+      const response = await api.post(`/admin/workers/jobs/${jobId}/helper-requests/${requestId}/reject`, { note });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to decline the request' };
+    }
+  },
+
+  // Assign worker manually
+  assignWorker: async (jobId, workerId, override = false) => {
+    try {
+      const response = await api.post(`/admin/workers/jobs/${jobId}/assign`, { workerId, override });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to assign worker' };

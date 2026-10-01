@@ -23,6 +23,7 @@ const WorkerPlans = lazy(() => import('../pages/Plans/WorkerPlans'));
 const Scrap = lazy(() => import('../pages/Scrap'));
 const Reviews = lazy(() => import('../pages/Reviews'));
 const DevSettings = lazy(() => import('../pages/DevSettings'));
+const ZoneServices = lazy(() => import('../pages/ZoneServices'));
 
 // Loading fallback component
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -63,6 +64,7 @@ const HomeServiceAdminRoutes = () => {
         <Route path="worker-plans" element={<WorkerPlans />} />
         <Route path="workers/withdrawals" element={<WorkerWithdrawals />} />
         <Route path="zones" element={<ZoneSetup />} />
+        <Route path="zone-services" element={<ZoneServices />} />
         <Route path="reviews" element={<Reviews />} />
         <Route path="settings/*" element={<Settings />} />
         <Route path="dev-settings" element={<DevSettings />} />

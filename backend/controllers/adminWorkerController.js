@@ -1,4 +1,5 @@
 import PlatformSettings from '../models/PlatformSettings.js';
+import Settings from '../models/Settings.js';
 import Worker from '../models/Worker.js';
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import Transaction from '../models/Transaction.js';
@@ -12,7 +13,8 @@ import { safeRegex } from '../utils/escapeRegex.js';
 import { findWorkerConflict, findWorkerUnavailability, getBufferMinutes, describeConflict } from '../utils/slotAvailability.js';
 import BookingRequest from '../models/HomeServiceBookingRequest.js';
 import { getIO } from '../sockets.js';
-import { claimWorkerCapacity, syncWorkerCapacityStatus } from '../services/workerCapacityService.js';
+import { claimWorkerCapacity, findWorkerActiveJob, isImmediateBooking, syncWorkerCapacityStatus } from '../services/workerCapacityService.js';
+import { directAssign, reassignSlotBooking } from '../services/bookingDispatchService.js';
 import { normalizeBookingModes, supportsBookingMode } from '../utils/bookingModes.js';
 
 import Zone from '../models/Zone.js';
@@ -609,8 +611,12 @@ export const getAllJobs = async (req, res) => {
     const [total, jobs, statsAgg, escalatedNotYetTerminal, instantCount, scheduledCount] = await Promise.all([
       HomeServiceBooking.countDocuments(query),
       HomeServiceBooking.find(query, null, { allowDiskUse: true })
+        .select('+helpers +helperRequests')
         .populate('userId', 'name email phone')
         .populate('workerId', 'name email phone profilePhoto rating')
+        .populate('adminAssignedWorkerId', 'name phone profilePhoto rating')
+        .populate('helpers.workerId', 'name phone profilePhoto')
+        .populate('helperRequests.requestedBy', 'name phone')
         .populate('vendorId', 'name businessName phone email profilePhoto')
         .populate('zoneId', 'name status')
         .sort({ createdAt: -1 })
@@ -1018,11 +1024,15 @@ export const rejectWorkerWithdrawal = async (req, res) => {
   }
 };
 
+const ADMIN_ASSIGN_RESPONSE_SECONDS = 60;
+
 export const assignWorkerToBooking = async (req, res) => {
-  let claimedWorkerId = null;
   try {
     const { id } = req.params;
-    const { workerId } = req.body;
+    // `override` lets the admin knowingly assign a worker outside the booking's
+    // zone / profession / booking-type rules — the usual reason a booking is in
+    // the manual queue is that nobody inside those rules was available.
+    const { workerId, override } = req.body;
 
     const booking = await HomeServiceBooking.findById(id);
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
@@ -1030,13 +1040,13 @@ export const assignWorkerToBooking = async (req, res) => {
     const worker = await Worker.findById(workerId);
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
 
-    const ineligible = await findWorkerIneligibility(worker, booking);
+    const ineligible = !override && await findWorkerIneligibility(worker, booking);
     if (ineligible) {
       return res.status(409).json({ success: false, code: 'WORKER_NOT_ELIGIBLE', message: ineligible });
     }
 
     const bookingMode = booking.bookingType === 'instant' ? 'instant' : 'slot';
-    if (!supportsBookingMode(worker, bookingMode)) {
+    if (!override && !supportsBookingMode(worker, bookingMode)) {
       return res.status(409).json({
         success: false,
         code: 'WORKER_BOOKING_MODE_NOT_ALLOWED',
@@ -1047,12 +1057,18 @@ export const assignWorkerToBooking = async (req, res) => {
     if (booking.status === BOOKING_STATUS.COMPLETED || booking.status === BOOKING_STATUS.CANCELLED) {
       return res.status(400).json({ success: false, message: `Cannot assign worker, booking is already ${booking.status}` });
     }
+    if (booking.advanceStatus === 'awaiting') {
+      return res.status(400).json({ success: false, message: 'The customer has not paid the advance yet, so this booking cannot be assigned.' });
+    }
 
-    const unavailableMsg = await findWorkerUnavailability(worker._id, booking);
+    // Day-off / leave / nearby-job warnings are advisory for the admin: with
+    // `override` they are acknowledged and the assignment goes ahead. A worker
+    // who is mid-job (capacity claim below) still can't be double-assigned.
+    const unavailableMsg = !override && await findWorkerUnavailability(worker._id, booking);
     if (unavailableMsg) {
       return res.status(409).json({ success: false, code: 'WORKER_UNAVAILABLE', message: unavailableMsg.replace('you have', 'the worker has').replace('you are', 'the worker is') });
     }
-    const conflict = await findWorkerConflict(worker._id, booking);
+    const conflict = !override && await findWorkerConflict(worker._id, booking);
     if (conflict) {
       return res.status(409).json({
         success: false,
@@ -1061,83 +1077,166 @@ export const assignWorkerToBooking = async (req, res) => {
       });
     }
 
-    const capacity = await claimWorkerCapacity(worker._id, booking._id);
-    if (!capacity.claimed) {
+    // The worker is only *offered* the job here. They become busy / assigned
+    // when they accept, so a worker already holding another job can't be offered
+    // a second one.
+    const activeJob = await isImmediateBooking(booking) ? await findWorkerActiveJob(worker._id, booking._id) : null;
+    if (activeJob) {
       return res.status(409).json({
         success: false,
         code: 'WORKER_BUSY',
-        message: capacity.activeJob
-          ? `${worker.name} is busy with booking #${capacity.activeJob.bookingNumber}.`
-          : `${worker.name} is currently busy.`
+        message: `${worker.name} is busy with booking #${activeJob.bookingNumber}.`
       });
     }
-    claimedWorkerId = worker._id;
 
     const previousWorkerId = booking.workerId;
 
-    booking.status = BOOKING_STATUS.ASSIGNED;
-    booking.workerId = worker._id;
-    booking.workerAcceptedAt = new Date();
-    booking.acceptedAt = new Date();
-    booking.assignedAt = new Date();
-    booking.assignmentStatus = 'assigned';
+    // Slot bookings are given straight to the worker: no offer, no accept popup.
+    // They see it in their jobs, and can still reject it with a reason.
+    if (booking.bookingType !== 'instant') {
+      if (previousWorkerId && String(previousWorkerId) === String(worker._id)) {
+        return res.status(400).json({ success: false, message: `${worker.name} is already assigned to this booking.` });
+      }
+      if (previousWorkerId) {
+        // Take it back from the current worker first.
+        booking.workerId = null;
+        booking.status = BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED;
+        booking.assignmentStatus = 'manual_assignment_required';
+        await booking.save();
+        await syncWorkerCapacityStatus(previousWorkerId);
+        const ioPrev = req.app.get('io') || getIO();
+        ioPrev?.to(`worker_${previousWorkerId}`).emit('job_cancelled', {
+          bookingId: booking._id.toString(),
+          message: `Booking #${booking.bookingNumber} has been reassigned by admin`
+        });
+        createNotification({
+          workerId: previousWorkerId,
+          type: 'job_reassigned',
+          title: 'Job Reassigned',
+          message: `Booking #${booking.bookingNumber} has been given to another professional.`,
+          relatedId: booking._id,
+          relatedType: 'booking',
+          priority: 'high'
+        }).catch(() => {});
+      }
+      const assigned = await directAssign(booking._id, worker._id, { mode: 'admin', adminId: req.user.id });
+      if (!assigned) {
+        return res.status(409).json({ success: false, code: 'WORKER_BUSY', message: `${worker.name} could not be assigned right now (busy or the booking changed).` });
+      }
+      getIO()?.to('admin_room').emit('offline_request_updated', {});
+      return res.json({ success: true, message: `Assigned to ${worker.name}.`, data: assigned });
+    }
+
+    // Withdraw any offer still open to other workers; this one replaces them.
+    await BookingRequest.updateMany(
+      { bookingId: booking._id, workerId: { $ne: worker._id }, status: 'PENDING' },
+      { $set: { status: 'EXPIRED', respondedAt: new Date() } }
+    );
+    const platformSettings = await PlatformSettings.getSettings();
+    // A direct admin assignment is a one-to-one ask, so the worker gets a short,
+    // fixed window; if it lapses the booking returns to the manual queue.
+    const responseWindowSec = ADMIN_ASSIGN_RESPONSE_SECONDS;
+    const commissionPct = platformSettings?.defaultCommission ?? 10;
+    await BookingRequest.findOneAndUpdate(
+      { bookingId: booking._id, workerId: worker._id },
+      {
+        $set: {
+          status: 'PENDING',
+          wave: 0,
+          sentAt: new Date(),
+          respondedAt: null,
+          // Long-lived: this is a direct admin assignment, not a timed broadcast.
+          expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000)
+        }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    booking.workerId = null;
+    booking.status = BOOKING_STATUS.SEARCHING;
+    booking.assignmentStatus = 'awaiting_worker';
+    booking.adminAssignedWorkerId = worker._id;
     booking.workerResponse = 'ADMIN_ASSIGNED';
+    booking.waveStartedAt = null;
+    booking.currentWave = 0;
+    booking.workerAcceptedAt = null;
+    booking.acceptedAt = null;
+    booking.assignedAt = null;
     // New worker → fresh pre-job reminder cycle.
     booking.reminderSentAt = null;
     booking.reminderConfirmedAt = null;
     booking.reminderEscalatedAt = null;
-    
     await booking.save();
+
     if (previousWorkerId && String(previousWorkerId) !== String(worker._id)) {
       await syncWorkerCapacityStatus(previousWorkerId);
     }
 
-    // Notify User
-    await createNotification({
-      userId: booking.userId,
-      type: 'worker_assigned',
-      title: 'Worker Assigned',
-      message: `Admin has assigned ${worker.name} for your booking #${booking.bookingNumber}.`,
-      relatedId: booking._id,
-      relatedType: 'booking',
-      priority: 'high',
-      pushData: { type: 'worker_assigned', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
-    });
+    const populated = await HomeServiceBooking.findById(booking._id).populate('userId', 'name phone');
 
-    // Notify Worker
+    // Ask the worker (push + in-app + live popup)
     await createNotification({
       workerId: worker._id,
       type: 'job_assigned',
-      title: 'New Job Assigned',
-      message: 'Admin has manually assigned a new job to you.',
+      title: 'New Job Assigned to You',
+      message: `Admin has assigned booking #${booking.bookingNumber} (${booking.serviceName}) to you. Please accept to confirm.`,
       relatedId: booking._id,
       relatedType: 'booking',
       priority: 'high',
       pushData: { type: 'new_job', bookingId: booking._id.toString(), link: `/worker/job/${booking._id}` }
     });
 
-    const io = req.app.get('io');
+    // Customer is told a professional is being confirmed — not yet assigned.
+    await createNotification({
+      userId: booking.userId,
+      type: 'assignment_pending',
+      title: 'Professional Being Confirmed',
+      message: `We have requested ${worker.name} for your booking #${booking.bookingNumber}. You will be notified once they confirm.`,
+      relatedId: booking._id,
+      relatedType: 'booking',
+      priority: 'high',
+      pushData: { type: 'assignment_pending', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
+    });
+
+    const io = req.app.get('io') || getIO();
     if (io) {
-      io.to(`user_${booking.userId}`).emit('booking_accepted', {
+      io.to(`worker_${worker._id}`).emit('new_booking_request', {
+        bookingId: booking._id,
+        serviceName: booking.serviceName,
+        customerName: populated?.userId?.name,
+        customerPhone: populated?.userId?.phone,
+        scheduledDate: booking.scheduledDate,
+        scheduledTime: booking.scheduledTime,
+        price: booking.finalAmount || booking.basePrice,
+        totalAmount: booking.finalAmount || booking.basePrice,
+        workerAmount: Math.max(0, parseFloat((((booking.basePrice || 0) * (100 - commissionPct)) / 100).toFixed(2))),
+        address: booking.address,
+        serviceCategory: booking.serviceCategory,
+        brandName: booking.brandName,
+        brandIcon: booking.brandIcon,
+        categoryIcon: booking.categoryIcon,
+        bookedItems: booking.bookedItems,
+        requirementText: booking.requirementText,
+        isConsultancyRequest: booking.isConsultancyRequest,
+        isEstimateBased: booking.isEstimateBased,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + responseWindowSec * 1000).toISOString(),
+        respondBySeconds: responseWindowSec,
+        responseWindowSeconds: responseWindowSec,
+        assignedByAdmin: true,
+        playSound: true,
+        message: 'Admin assigned you a booking'
+      });
+      io.to(`user_${booking.userId}`).emit('booking_updated', {
         bookingId: booking._id,
         status: booking.status,
-        worker: { id: worker._id, name: worker.name, phone: worker.phone }
-      });
-      io.to(`worker_${worker._id}`).emit('new_job_alert', {
-        type: 'job_assigned',
-        bookingId: booking._id,
-        message: 'Admin assigned a new job to you.'
-      });
-      io.to(`worker_${worker._id}`).emit('worker_capacity_changed', {
-        status: 'busy',
-        isBusy: true,
-        activeBookingId: booking._id.toString()
+        assignmentStatus: 'awaiting_worker',
+        message: 'We are confirming a professional for your booking.'
       });
     }
 
-    res.json({ success: true, message: 'Worker successfully assigned to booking', data: booking });
+    res.json({ success: true, message: `Booking offered to ${worker.name}. It will show as accepted once they confirm.`, data: booking });
   } catch (error) {
-    if (claimedWorkerId) await syncWorkerCapacityStatus(claimedWorkerId).catch(() => {});
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -1304,12 +1403,15 @@ export const rebroadcastBooking = async (req, res) => {
     // Old offers (any worker, any wave) are void; the fresh search recreates them.
     await BookingRequest.deleteMany({ bookingId: booking._id });
 
+    // Slot bookings are never broadcast: they are auto-assigned to an available
+    // worker below. Instant ones restart the wave search.
+    const isSlotBooking = booking.bookingType !== 'instant';
     booking.workerId = null;
-    booking.status = BOOKING_STATUS.SEARCHING;
-    booking.assignmentStatus = 'searching';
+    booking.status = isSlotBooking ? BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED : BOOKING_STATUS.SEARCHING;
+    booking.assignmentStatus = isSlotBooking ? 'manual_assignment_required' : 'searching';
     booking.workerResponse = 'PENDING';
     booking.currentWave = 0; // scheduler re-runs the geo search and starts wave 1
-    booking.waveStartedAt = new Date();
+    booking.waveStartedAt = isSlotBooking ? null : new Date();
     booking.potentialWorkers = [];
     booking.notifiedWorkers = [];
     booking.notifiedPartners = [];
@@ -1350,6 +1452,18 @@ export const rebroadcastBooking = async (req, res) => {
       status: BOOKING_STATUS.SEARCHING,
       message: 'We are assigning a service professional to your booking.'
     });
+
+    if (isSlotBooking) {
+      const result = await reassignSlotBooking(booking._id);
+      const fresh = await HomeServiceBooking.findById(booking._id);
+      return res.json({
+        success: true,
+        message: result.assigned
+          ? 'Booking assigned to another available professional.'
+          : 'No other professional is available for this slot. It stays in the manual queue.',
+        data: fresh
+      });
+    }
 
     res.json({ success: true, message: 'Booking re-broadcast to other professionals', data: booking });
   } catch (error) {

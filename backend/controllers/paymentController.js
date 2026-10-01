@@ -18,6 +18,10 @@ import VendorBill from '../models/VendorBill.js';
 import { settleOrder, failOrder } from '../services/subscriptionActivationService.js';
 import { activateLegacySubscriptionFromWebhook } from './subscriptionController.js';
 import { getIO } from '../sockets.js';
+import User from '../models/User.js';
+import { PAYMENT_STATUS } from '../utils/constants.js';
+import { isVipMember } from '../utils/vipAndAdvance.js';
+import { dispatchBooking } from '../services/bookingDispatchService.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -69,6 +73,9 @@ export const createPaymentOrder = async (req, res) => {
 
     // Use token amount if isEstimateToken is true, else use final amount
     let baseAmount = 0;
+    // 'booking_advance': the up-front payment that releases the booking to
+    // workers. 'booking_final': whatever is left after the work is billed.
+    let orderType = 'booking_final';
     if (isEstimateToken && isHomeService) {
       if (!booking.isEstimateBased || booking.estimate?.status !== 'PENDING') {
         return res.status(400).json({ message: 'No pending estimate found' });
@@ -78,6 +85,21 @@ export const createPaymentOrder = async (req, res) => {
       baseAmount = isHomeService ? (booking.finalOnlineAmount || booking.finalAmount || booking.totalAmount || 0) : booking.totalAmount;
       if (isHomeService && booking.isEstimateBased && booking.estimate?.tokenAmount) {
         baseAmount = Math.max(0, baseAmount - booking.estimate.tokenAmount);
+      }
+      if (isHomeService && booking.advanceStatus === 'awaiting') {
+        // Service advance + VIP membership fee (if the customer added it).
+        baseAmount = (booking.advanceRequired || 0) + (booking.vipFee || 0);
+        orderType = 'booking_advance';
+      } else if (isHomeService && (booking.advancePaid || 0) > 0) {
+        // The advance is already with us — only the balance is due.
+        baseAmount = Math.max(0, baseAmount - booking.advancePaid);
+        if (baseAmount <= 0) {
+          // Nothing left to pay (the advance covered the bill): settle directly.
+          const settled = await settleBookingPayment(null, booking.advancePaymentId || 'ADVANCE', {
+            notes: { bookingId: String(booking._id), isHomeService: 'true' }
+          });
+          return res.json({ success: true, alreadyCovered: true, booking: { id: booking._id, status: settled.booking?.status, paymentStatus: settled.booking?.paymentStatus } });
+        }
       }
     }
     
@@ -103,10 +125,16 @@ export const createPaymentOrder = async (req, res) => {
         bookingId: booking._id.toString(),
         userId: booking.userId?.toString(),
         isHomeService: isHomeService ? 'true' : 'false',
+        ...(isHomeService ? { type: orderType } : {}),
         propertyId: booking.propertyId?.toString() || 'none'
       }
     };
     const order = await razorpay.orders.create(options);
+    if (isHomeService && !isEstimateToken) {
+      // Lets /verify confirm the order belongs to this booking from our own
+      // record, instead of a second round trip to Razorpay.
+      await HomeServiceBooking.updateOne({ _id: booking._id }, { $set: { razorpayOrderId: order.id } });
+    }
     res.json({
       success: true,
       order: {
@@ -129,6 +157,61 @@ export const createPaymentOrder = async (req, res) => {
       error: error.error?.description || error.message
     });
   }
+};
+
+
+/**
+ * Settles the up-front payment of a home-service booking: records it, switches
+ * on the VIP membership if one was bought with it, and only now releases the
+ * booking to workers. Idempotent (the webhook and the browser both call it).
+ */
+const settleAdvancePayment = async (booking, paymentId) => {
+  if (booking.advanceStatus === 'paid') {
+    return { ok: true, alreadySettled: true, isHomeService: true, booking };
+  }
+
+  booking.advanceStatus = 'paid';
+  booking.advancePaid = booking.advanceRequired || 0;
+  booking.advancePaymentId = paymentId;
+  booking.advancePaidAt = new Date();
+  booking.razorpayOrderId = null; // the next order (the balance) must be a fresh one
+  booking.paymentMethod = 'online';
+  booking.paymentStatus = PAYMENT_STATUS.PARTIAL;
+
+  if ((booking.vipFee || 0) > 0 && booking.vip?.added && !booking.vip?.activated) {
+    try {
+      const user = await User.findById(booking.userId);
+      if (user) {
+        const now = new Date();
+        // A renewal stacks on whatever time is left.
+        const from = isVipMember(user) ? new Date(user.hsVip.expiry) : now;
+        const expiry = new Date(from.getTime() + (booking.vip.durationDays || 30) * 24 * 60 * 60 * 1000);
+        user.hsVip = { isActive: true, planName: booking.vip.planName || 'VIP Membership', expiry, purchasedAt: now, pricePaid: booking.vipFee };
+        await user.save();
+        booking.vip.activated = true;
+      }
+    } catch (err) {
+      console.error('[settleAdvancePayment] VIP activation failed:', err.message);
+    }
+  }
+
+  await booking.save();
+
+  try {
+    const io = getIO();
+    io?.to(`user_${String(booking.userId)}`).emit('booking_updated', {
+      bookingId: String(booking._id),
+      status: 'searching',
+      advanceStatus: 'paid',
+      message: 'Payment received. We are finding a professional for you.'
+    });
+  } catch { /* socket optional */ }
+
+  setImmediate(() => {
+    dispatchBooking(booking._id).catch((err) => console.error('[settleAdvancePayment] dispatch failed:', err));
+  });
+
+  return { ok: true, alreadySettled: false, isHomeService: true, booking };
 };
 
 /**
@@ -189,18 +272,27 @@ export const settleBookingPayment = async (razorpayOrderId, paymentId, prefetche
     return { ok: true, alreadySettled: true, isHomeService, booking };
   }
 
+  if (isHomeService && notes.type === 'booking_advance') {
+    return settleAdvancePayment(booking, paymentId);
+  }
+
   if (isHomeService) {
     booking.paymentStatus = 'paid';
     booking.paymentMethod = 'online';
     // Paying does NOT close the job — see the identical comment on the
     // client path below for why this isn't `completed`.
-    if (booking.status !== 'completed') {
+    // Only a booking whose work is finished moves to awaiting_payment. Paying
+    // up front (instant bookings are paid at checkout) must leave a booking that
+    // is still searching / waiting for a worker exactly where it is — flipping
+    // it to awaiting_payment took it out of dispatch so no worker could accept.
+    if (booking.status === 'work_done') {
       booking.status = 'awaiting_payment';
     }
     booking.workerPaymentStatus = 'PAID';
     booking.isWorkerPaid = true;
     booking.finalSettlementStatus = 'DONE';
     booking.paymentId = paymentId;
+    booking.razorpayOrderId = null;
 
     // The worker still needs a final OTP from the customer to close the job
     // (see confirmManualOnlineCollection / collectCash) — normally createBill
@@ -220,7 +312,9 @@ export const settleBookingPayment = async (razorpayOrderId, paymentId, prefetche
     try {
       const bill = await VendorBill.findOne({ bookingId: booking._id });
       if (bill) {
-        let payout = bill.vendorTotalEarning || 0;
+        // The lead keeps only their share when helpers work on the job.
+        const { leadShareOf } = await import('../services/helperPayoutService.js');
+        let payout = await leadShareOf(booking._id, bill.vendorTotalEarning || 0);
         if (booking.isEstimateBased && booking.estimate?.tokenAmount) {
           payout = Math.max(0, payout - booking.estimate.tokenAmount);
         }
@@ -512,7 +606,13 @@ export const verifyPayment = async (req, res) => {
       // makes it back to this endpoint. Delegating rather than duplicating
       // also means this path can no longer drift out of sync with the
       // webhook's version of "what does a paid booking look like".
-      const settled = await settleBookingPayment(razorpay_order_id, razorpay_payment_id);
+      // The signature above proves this order id was paid. If we stored that
+      // same order id on the booking when creating the order, the booking is
+      // known without asking Razorpay again (a slow network call).
+      const knownOrder = isHomeService && booking.razorpayOrderId && booking.razorpayOrderId === razorpay_order_id
+        ? { notes: { bookingId: String(booking._id), isHomeService: 'true', type: booking.advanceStatus === 'awaiting' ? 'booking_advance' : 'booking_final' } }
+        : null;
+      const settled = await settleBookingPayment(razorpay_order_id, razorpay_payment_id, knownOrder);
       if (!settled.ok) {
         return res.status(404).json({ message: settled.reason || 'Booking not found' });
       }

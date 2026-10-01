@@ -115,6 +115,12 @@ const workerService = {
     return response.data;
   },
 
+  // Ask admin to add extra workers to a job
+  requestHelper: async (id, { count = 1, reason = '' } = {}) => {
+    const response = await api.post(`/workers/jobs/${id}/helper-request`, { count, reason });
+    return response.data;
+  },
+
   releaseJob: async (id, reason = '') => {
     const response = await api.post(`/workers/jobs/${id}/release`, { reason });
     return response.data;

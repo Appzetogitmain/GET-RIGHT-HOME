@@ -40,6 +40,13 @@ import {
   adjustOfflineRequestTime,
   forceWorkerOnline
 } from '../controllers/workerControllers/workerOfflineController.js';
+import { addHelper, removeHelper, rejectHelperRequest, getJobHelpers } from '../controllers/helperController.js';
+import {
+  getAvailabilityRequests,
+  approveAvailabilityRequests,
+  rejectAvailabilityRequest,
+  revokeAvailabilityRequest
+} from '../controllers/workerControllers/workerAvailabilityRequestController.js';
 import {
   getProfessions,
   createProfession,
@@ -58,6 +65,10 @@ router.use(authorizedRoles('admin', 'superadmin'));
 router.get('/jobs', getAllJobs);
 router.get('/jobs/:id', getJobById);
 router.post('/jobs/:id/assign', assignWorkerToBooking);
+router.get('/jobs/:id/helpers', getJobHelpers);
+router.post('/jobs/:id/helpers', addHelper);
+router.delete('/jobs/:id/helpers/:workerId', removeHelper);
+router.post('/jobs/:id/helper-requests/:requestId/reject', rejectHelperRequest);
 router.post('/jobs/:id/rebroadcast', rebroadcastBooking);
 router.post('/jobs/:id/cancel', adminCancelBooking);
 router.get('/payments', getWorkerPayments);
@@ -69,6 +80,13 @@ router.get('/professions', getProfessions);
 router.post('/professions', createProfession);
 router.put('/professions/:id', updateProfession);
 router.delete('/professions/:id', deleteProfession);
+
+// Worker Availability Approval
+router.get('/availability-requests', getAvailabilityRequests);
+router.post('/availability-requests/approve', approveAvailabilityRequests);
+router.post('/availability-requests/:id/approve', approveAvailabilityRequests);
+router.post('/availability-requests/:id/reject', rejectAvailabilityRequest);
+router.post('/availability-requests/:id/revoke', revokeAvailabilityRequest);
 
 // Worker Offline Request Management
 router.get('/offline-requests', getAllOfflineRequests);

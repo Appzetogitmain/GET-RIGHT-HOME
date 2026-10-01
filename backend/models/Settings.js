@@ -109,6 +109,12 @@ const settingsSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // When true (default), days a worker marks Available only take effect once
+  // an admin approves them.
+  availabilityRequiresApproval: {
+    type: Boolean,
+    default: true
+  },
   // Pre-job reminder: this many minutes before an assigned job starts, the
   // worker gets a popup asking them to confirm they're on their way.
   jobReminderLeadMinutes: {
@@ -226,6 +232,37 @@ const settingsSchema = new mongoose.Schema({
   supportWhatsapp: {
     type: String,
     default: ''
+  },
+  // Advance payment: a booking below the threshold is paid in full online up
+  // front; at or above it only this percentage is paid up front, the rest
+  // after the work.
+  advancePaymentThreshold: { type: Number, default: 2000, min: 0 },
+  advancePaymentPercent: { type: Number, default: 30, min: 1, max: 100 },
+  // VIP membership offered to customers at checkout.
+  vip: {
+    enabled: { type: Boolean, default: false },
+    name: { type: String, default: 'VIP Membership' },
+    price: { type: Number, default: 199, min: 0 },
+    // Shown struck through next to the price ("₹599"); 0 = don't show.
+    originalPrice: { type: Number, default: 0, min: 0 },
+    durationDays: { type: Number, default: 30, min: 1 },
+    // Plans the customer can choose between (e.g. 1 month / 6 months). When this
+    // is empty the single price / durationDays above is offered as one plan.
+    plans: {
+      type: [{
+        name: { type: String, default: '' },
+        price: { type: Number, min: 0 },
+        originalPrice: { type: Number, default: 0, min: 0 },
+        durationDays: { type: Number, min: 1 }
+      }],
+      default: []
+    },
+    // Highest tier whose minAmount the order reaches decides the % off.
+    tiers: {
+      type: [{ minAmount: { type: Number, min: 0 }, percent: { type: Number, min: 0, max: 100 } }],
+      default: [{ minAmount: 500, percent: 5 }, { minAmount: 1500, percent: 10 }, { minAmount: 3000, percent: 15 }]
+    },
+    maxDiscount: { type: Number, default: 0, min: 0 } // 0 = no cap
   },
   isOnlinePaymentEnabled: {
     type: Boolean,

@@ -4,7 +4,7 @@ import PlatformSettings from '../models/PlatformSettings.js';
 import Worker from '../models/Worker.js';
 import WorkerOfflineRequest from '../models/WorkerOfflineRequest.js';
 import { BOOKING_STATUS } from './constants.js';
-import { filterWorkersWithoutActiveJobs } from '../services/workerCapacityService.js';
+import { filterWorkersWithoutActiveJobs, getBusyWorkerIds, isImmediateBooking } from '../services/workerCapacityService.js';
 
 // Platform runs in India; slot times ("09:00") are wall-clock IST.
 const IST_OFFSET = '+05:30';
@@ -16,6 +16,14 @@ export const DEFAULT_BUFFER_MINUTES = 120;
 export const DEFAULT_SAME_DAY_LEAD_MINUTES = 60;
 export const DEFAULT_ADVANCE_BOOKING_DAYS = 7;
 export const ALL_WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
+
+// Older worker documents stored availability as the string "AVAILABLE".
+// Treat that value as the old all-days-available setting until the document is
+// migrated to the calendar shape. Without this compatibility check, an online
+// legacy worker is interpreted as having marked zero dates and every customer
+// slot is incorrectly shown as fully booked.
+export const isLegacyAvailabilityEnabled = (availability) =>
+  typeof availability === 'string' && availability.trim().toUpperCase() === 'AVAILABLE';
 
 // Statuses in which a worker is actually committed to the job. Searching /
 // pending / manual-assignment rows have no worker to protect, and completed /
@@ -120,7 +128,11 @@ const overlaps = (a, b) => overlapsWithBuffer(a, b, 0);
  */
 const loadWorkerContext = async (workerIds, rangeStart, rangeEnd, bufferMs, excludeBookingId) => {
   const bookingQuery = {
-    workerId: { $in: workerIds },
+    // Jobs they lead, and jobs where admin added them as a helper.
+    $or: [
+      { workerId: { $in: workerIds } },
+      { helpers: { $elemMatch: { workerId: { $in: workerIds }, payoutStatus: { $ne: 'cancelled' } } } }
+    ],
     status: { $in: WORKER_COMMITTED_STATUSES },
     // scheduledDate is stored at an arbitrary time of day; widen by two days
     // each side and let the precise slot-window check decide.
@@ -132,7 +144,7 @@ const loadWorkerContext = async (workerIds, rangeStart, rangeEnd, bufferMs, excl
   if (excludeBookingId) bookingQuery._id = { $ne: excludeBookingId };
 
   const [bookings, leaves, workers, hsSettings] = await Promise.all([
-    HomeServiceBooking.find(bookingQuery).select('workerId bookingNumber scheduledDate timeSlot scheduledTime').lean(),
+    HomeServiceBooking.find(bookingQuery).select('workerId helpers bookingNumber scheduledDate timeSlot scheduledTime').lean(),
     WorkerOfflineRequest.find({
       workerId: { $in: workerIds },
       status: 'approved',
@@ -150,14 +162,19 @@ const loadWorkerContext = async (workerIds, rangeStart, rangeEnd, bufferMs, excl
     bookings: new Map(),
     leaves: new Map(),
     days: new Map(),
-    dates: new Map()
+    dates: new Map(),
+    legacyAvailable: new Set()
   };
   for (const b of bookings) {
     const window = getBookingWindow(b);
     if (!window) continue;
-    const key = String(b.workerId);
-    if (!ctx.bookings.has(key)) ctx.bookings.set(key, []);
-    ctx.bookings.get(key).push({ booking: b, window });
+    // The lead and every active helper are all occupied for this window.
+    const people = new Set([String(b.workerId)]);
+    (b.helpers || []).filter((h) => h.payoutStatus !== 'cancelled').forEach((h) => people.add(String(h.workerId)));
+    for (const key of people) {
+      if (!ctx.bookings.has(key)) ctx.bookings.set(key, []);
+      ctx.bookings.get(key).push({ booking: b, window });
+    }
   }
   for (const l of leaves) {
     const key = String(l.workerId);
@@ -165,6 +182,9 @@ const loadWorkerContext = async (workerIds, rangeStart, rangeEnd, bufferMs, excl
     ctx.leaves.get(key).push({ start: new Date(l.startDateTime), end: new Date(l.endDateTime) });
   }
   for (const w of workers) {
+    if (isLegacyAvailabilityEnabled(w.availability)) {
+      ctx.legacyAvailable.add(String(w._id));
+    }
     const days = w.availability?.availableDays;
     ctx.days.set(String(w._id), Array.isArray(days) && days.length ? days : ALL_WEEKDAYS);
     ctx.dates.set(String(w._id), new Set(w.availability?.availableDates || []));
@@ -181,7 +201,7 @@ const getBlock = (workerId, window, ctx, { ignoreBookings = false } = {}) => {
 
   if (ctx.requireDaily) {
     // Every date must be explicitly marked Available by the worker.
-    if (!(ctx.dates.get(key) || new Set()).has(ymd)) return { type: 'day_off' };
+    if (!ctx.legacyAvailable.has(key) && !(ctx.dates.get(key) || new Set()).has(ymd)) return { type: 'day_off' };
   } else {
     const days = ctx.days.get(key) || ALL_WEEKDAYS;
     const marked = (ctx.dates.get(key) || new Set()).has(ymd);
@@ -226,10 +246,13 @@ export const filterAvailableWorkers = async (workers, booking, { excludeBookingI
   // Capacity is global: once a worker accepts any job, no new booking should
   // reach them until that job is marked WORK_DONE. This gate deliberately
   // still applies to instant bookings even when slot-overlap checks are skipped.
-  const capacityAvailable = await filterWorkersWithoutActiveJobs(
-    workers,
-    excludeBookingId || booking?._id
-  );
+  // Only a booking that starts now-ish needs a worker who is free right now; a
+  // slot for tonight is governed by the buffer check below, not by whether the
+  // worker happens to be on a job this minute.
+  const needsFreeWorker = await isImmediateBooking(booking);
+  const capacityAvailable = needsFreeWorker
+    ? await filterWorkersWithoutActiveJobs(workers, excludeBookingId || booking?._id)
+    : workers;
   if (!capacityAvailable.length) return [];
   const window = getBookingWindow(booking);
   if (!window) return capacityAvailable;
@@ -251,7 +274,11 @@ export const getSlotAvailability = async ({ workers, ymds, slots }) => {
   const leadMs = (await getSameDayLeadMinutes()) * MINUTE_MS;
   const earliest = Date.now() + leadMs;
   const today = istYmd(new Date());
-  const capacityWorkers = await filterWorkersWithoutActiveJobs(workers);
+  const capacityWorkers = workers;
+  // Workers on a job right now only lose the slots that start soon; later slots
+  // are decided by the buffer check against their bookings.
+  const busyNow = await getBusyWorkerIds(workers);
+  const bufferMs = (await getBufferMinutes()) * MINUTE_MS;
 
   const cells = [];
   for (const ymd of ymds) {
@@ -265,7 +292,6 @@ export const getSlotAvailability = async ({ workers, ymds, slots }) => {
   if (capacityWorkers.length && cells.length) {
     const starts = cells.map((c) => c.window.start.getTime());
     const ends = cells.map((c) => c.window.end.getTime());
-    const bufferMs = (await getBufferMinutes()) * MINUTE_MS;
     ctx = await loadWorkerContext(
       capacityWorkers.map((w) => w._id),
       new Date(Math.min(...starts)),
@@ -279,7 +305,8 @@ export const getSlotAvailability = async ({ workers, ymds, slots }) => {
       let available = false;
       if (ctx && c.window.start.getTime() >= earliest) {
         const pool = ymd === today ? capacityWorkers.filter((w) => w.isOnline) : capacityWorkers;
-        available = pool.some((w) => !getBlock(w._id, c.window, ctx));
+        const soon = c.window.start.getTime() <= Date.now() + bufferMs;
+        available = pool.some((w) => !(soon && busyNow.has(String(w._id))) && !getBlock(w._id, c.window, ctx));
       }
       return { value: c.slot.value, end: c.slot.end, display: c.slot.display, range: c.slot.range, available };
     });
@@ -290,7 +317,10 @@ export const getSlotAvailability = async ({ workers, ymds, slots }) => {
 /** Committed bookings of a worker on/after `fromDate` (for leave / day-off guards). */
 export const getWorkerFutureBookings = async (workerId, fromDate = new Date()) => {
   const rows = await HomeServiceBooking.find({
-    workerId,
+    $or: [
+      { workerId },
+      { helpers: { $elemMatch: { workerId, payoutStatus: { $ne: 'cancelled' } } } }
+    ],
     status: { $in: WORKER_COMMITTED_STATUSES },
     scheduledDate: { $gte: new Date(fromDate.getTime() - DAY_MS) }
   }).select('bookingNumber serviceName serviceCategory bookingType status scheduledDate timeSlot scheduledTime').lean();

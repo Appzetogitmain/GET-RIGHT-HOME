@@ -42,8 +42,10 @@ const getStatusColor = (status) => {
   }
 };
 
-const getStatusLabel = (status) => {
+const getStatusLabel = (status, assignmentStatus, advanceStatus) => {
   const s = status?.toLowerCase();
+  if (advanceStatus === 'awaiting' && s === 'pending') return 'AWAITING ADVANCE PAYMENT';
+  if (assignmentStatus === 'awaiting_worker') return 'AWAITING WORKER ACCEPTANCE';
   if (s === 'no_workers' || s === 'no_vendors' || s === 'manual_assignment_required') return 'MANUAL ASSIGNMENT REQUIRED';
   return status?.replace('_', ' ');
 };
@@ -173,7 +175,11 @@ const Bookings = () => {
 
   const handleRebroadcast = async (booking) => {
     const who = booking.workerId?.name ? ` from ${booking.workerId.name}` : '';
-    if (!window.confirm(`Take booking #${booking.bookingNumber}${who} and offer it to all other professionals?`)) return;
+    const isSlot = booking.bookingType?.toLowerCase() !== 'instant';
+    const question = isSlot
+      ? `Take booking #${booking.bookingNumber}${who} and automatically assign it to another available professional?`
+      : `Take booking #${booking.bookingNumber}${who} and offer it to all other professionals?`;
+    if (!window.confirm(question)) return;
     try {
       const res = await adminBookingService.rebroadcastBooking(booking._id);
       toast.success(res.message || 'Booking re-broadcast');
@@ -333,9 +339,10 @@ const Bookings = () => {
               ) : (
                 bookings.map((booking) => {
                   const isInstant = booking.bookingType?.toLowerCase() === 'instant';
-                  const provider = booking.workerId || booking.vendorId;
+                  const awaitingWorker = booking.assignmentStatus === 'awaiting_worker' && !booking.workerId;
+                  const provider = booking.workerId || booking.vendorId || (awaitingWorker ? booking.adminAssignedWorkerId : null);
                   const acceptedTime = booking.acceptedAt || booking.workerAcceptedAt;
-                  const isAccepted = !!acceptedTime || ['assigned', 'accepted', 'in_progress', 'completed'].includes(booking.status?.toLowerCase());
+                  const isAccepted = !awaitingWorker && !!acceptedTime || ['assigned', 'accepted', 'in_progress', 'completed'].includes(booking.status?.toLowerCase());
                   const duration = booking.bookedItems?.[0]?.card?.duration || booking.serviceId?.duration;
 
                   return (
@@ -430,7 +437,11 @@ const Bookings = () => {
                                   <FiPhone className="w-2.5 h-2.5" /> {provider.phone}
                                 </a>
                               )}
-                              {acceptedTime ? (
+                              {awaitingWorker ? (
+                                <span className="inline-block text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100 mt-0.5">
+                                  Awaiting acceptance
+                                </span>
+                              ) : acceptedTime ? (
                                 <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100 mt-0.5">
                                   <FiCheckCircle className="w-2.5 h-2.5" /> Accepted {new Date(acceptedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
@@ -493,8 +504,8 @@ const Bookings = () => {
 
                       {/* 7. Status */}
                       <td className="px-3 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${getStatusColor(booking.status)}`}>
-                          {getStatusLabel(booking.status)}
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${booking.assignmentStatus === 'awaiting_worker' ? 'bg-purple-50 text-purple-700 border-purple-200' : getStatusColor(booking.status)}`}>
+                          {getStatusLabel(booking.status, booking.assignmentStatus, booking.advanceStatus)}
                         </span>
                         {booking.status?.toLowerCase() === 'cancelled' && booking.cancellationReason && (
                           <p
@@ -535,13 +546,15 @@ const Bookings = () => {
                                   ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
                                   : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
                               }`}
-                              title="Take this booking back and offer it to all other professionals"
+                              title={booking.bookingType?.toLowerCase() === 'instant'
+                                ? 'Take this booking back and offer it to all other professionals'
+                                : 'Take this booking back and auto-assign it to another available professional'}
                             >
-                              Re-broadcast
+                              {booking.bookingType?.toLowerCase() === 'instant' ? 'Re-broadcast' : 'Auto-assign'}
                             </button>
                           )}
 
-                          {['SEARCHING', 'NO_WORKERS', 'NO_VENDORS', 'MANUAL_ASSIGNMENT_REQUIRED', 'PENDING'].includes(booking.status?.toUpperCase()) && (
+                          {booking.advanceStatus !== 'awaiting' && ['SEARCHING', 'NO_WORKERS', 'NO_VENDORS', 'MANUAL_ASSIGNMENT_REQUIRED', 'PENDING'].includes(booking.status?.toUpperCase()) && (
                             <button
                               onClick={() => setSelectedAssignBooking(booking)}
                               className="px-2 py-1 bg-blue-50 border border-blue-100 text-blue-600 rounded-md text-[10px] font-bold hover:bg-blue-100 transition-colors"
@@ -599,6 +612,7 @@ const Bookings = () => {
         onClose={() => setSelectedDetailBooking(null)}
         booking={selectedDetailBooking}
         onCancelBooking={canCancel(selectedDetailBooking) ? handleCancelBooking : null}
+        onChanged={fetchData}
         onAssignWorker={(bookingToAssign) => {
           setSelectedAssignBooking(bookingToAssign);
         }}

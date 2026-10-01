@@ -31,6 +31,8 @@ import { computeBookingPricing, pricingMatchesClient } from '../utils/bookingPri
 import referralService from '../services/referralService.js';
 import { syncWorkerCapacityStatus } from '../services/workerCapacityService.js';
 import { supportsBookingMode } from '../utils/bookingModes.js';
+import { computeVip, splitAdvance } from '../utils/vipAndAdvance.js';
+import { dispatchBooking, NO_WORKERS_MESSAGE } from '../services/bookingDispatchService.js';
 
 /**
  * Which dates/slots can be booked for a service at an address.
@@ -104,6 +106,122 @@ const getSlotAvailabilityForUser = async (req, res) => {
   }
 };
 
+
+
+// serviceId -> price, plus "serviceId|option" -> price for services with options.
+const buildTrustedPrices = (services) => {
+  const map = new Map();
+  for (const p of services) {
+    map.set(String(p._id), p.discountPrice > 0 ? p.discountPrice : p.basePrice);
+    for (const o of p.options || []) {
+      map.set(`${p._id}|${o.label}`, o.discountPrice > 0 ? o.discountPrice : o.price);
+    }
+  }
+  return map;
+};
+
+/**
+ * Price preview for checkout: what the booking costs, what VIP would change,
+ * and how much is paid now vs after the work. Mirrors createBooking's rules but
+ * writes nothing. Body: { serviceId, bookedItems, visitingCharges, promoDiscount }
+ */
+const quoteBooking = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    let { serviceId, bookedItems, visitingCharges, promoDiscount } = req.body;
+    if (serviceId && typeof serviceId === 'object') serviceId = serviceId._id || serviceId.id;
+
+    const [user, hs] = await Promise.all([
+      User.findById(userId).select('wallet hsVip'),
+      Settings.findOne({ type: 'global' }).lean()
+    ]);
+
+    let service = null;
+    if (mongoose.Types.ObjectId.isValid(serviceId)) {
+      service = await Service.findById(serviceId).select('basePrice discountPrice').lean();
+    } else if (Array.isArray(bookedItems) && bookedItems.length > 0) {
+      const item = bookedItems[0];
+      service = { basePrice: item.card?.price || item.price || 0, discountPrice: 0 };
+    }
+    if (!service) return res.status(404).json({ success: false, message: 'Service not found' });
+
+    let trustedPrices = null;
+    if (Array.isArray(bookedItems) && bookedItems.length > 0) {
+      const itemIds = bookedItems
+        .map((it) => String(it?.serviceId?._id || it?.serviceId || it?.card?._id || it?._id || ''))
+        .filter((id) => mongoose.Types.ObjectId.isValid(id));
+      if (itemIds.length > 0) {
+        const priced = await Service.find({ _id: { $in: itemIds } }).select('basePrice discountPrice options').lean();
+        trustedPrices = buildTrustedPrices(priced);
+      }
+    }
+
+    const pricing = computeBookingPricing({
+      service,
+      bookedItems,
+      trustedPrices,
+      visitingCharges,
+      promoDiscount,
+      pendingPenalty: user?.wallet?.penalty || 0
+    });
+
+    const vip = computeVip({
+      settings: hs,
+      user,
+      taxableBase: pricing.basePrice - pricing.discount - pricing.promoDiscount
+    });
+    const online = hs?.isOnlinePaymentEnabled !== false;
+
+    const optionFor = (serviceTotal, fee) => {
+      const split = splitAdvance({ settings: hs, serviceTotal });
+      return {
+        serviceTotal,
+        vipFee: fee,
+        payNow: online ? split.payNow + fee : 0,
+        payLater: online ? split.payLater : split.total,
+        fullUpfront: split.full,
+        advancePercent: split.percent
+      };
+    };
+
+    // A member already gets the discount; everyone else sees it as an offer.
+    const withoutVip = optionFor(pricing.finalAmount, 0);
+    const afterDiscount = Math.max(0, pricing.finalAmount - vip.discount);
+    const withVip = vip.eligible ? optionFor(afterDiscount, vip.fee) : null;
+    // What the customer pays under each plan on offer (the discount is the same).
+    const planOptions = vip.eligible && !vip.isMember
+      ? vip.plans.map((p) => ({ ...p, option: optionFor(afterDiscount, p.price), netSaving: vip.discount - p.price }))
+      : [];
+
+    res.json({
+      success: true,
+      amount: { subtotal: pricing.basePrice - pricing.discount - pricing.promoDiscount, total: pricing.finalAmount },
+      isMember: vip.isMember,
+      memberExpiry: vip.isMember ? user.hsVip.expiry : null,
+      vip: vip.enabled ? {
+        eligible: vip.eligible,
+        planName: vip.planName,
+        price: vip.price,
+        originalPrice: vip.originalPrice,
+        tiers: vip.tiers,
+        maxPercent: vip.maxPercent,
+        durationDays: vip.durationDays,
+        plans: planOptions,
+        percent: vip.percent,
+        discount: vip.discount,
+        netSaving: vip.netSaving
+      } : null,
+      // What the customer pays if they take / skip the offer. For a member,
+      // `skip` already includes their discount.
+      options: vip.isMember && withVip ? { skip: withVip, vip: null } : { skip: withoutVip, vip: withVip },
+      advanceRule: { threshold: hs?.advancePaymentThreshold ?? 2000, percent: hs?.advancePaymentPercent ?? 30 }
+    });
+  } catch (error) {
+    console.error('Quote booking error:', error);
+    res.status(500).json({ success: false, message: 'Could not calculate the price' });
+  }
+};
+
 /**
  * Create a new booking
  */
@@ -146,7 +264,9 @@ const createBooking = async (req, res) => {
       // Consultancy Fields
       isConsultancyRequest,
       requirementText,
-      requirementImages
+      requirementImages,
+      addVip, // customer chose to add the VIP membership offered at checkout
+      vipPlanKey // which VIP plan they picked
     } = req.body;
 
     let visitingCharges = reqVisitingCharges !== undefined ? reqVisitingCharges : (reqVisitationFee || 0);
@@ -172,7 +292,7 @@ const createBooking = async (req, res) => {
     }
 
     let service = null;
-    let user = await User.findById(userId).select('name phone wallet plans');
+    let user = await User.findById(userId).select('name phone wallet plans hsVip');
 
     if (mongoose.Types.ObjectId.isValid(serviceId)) {
       service = await Service.findById(serviceId).select('title basePrice discountPrice description images iconUrl categoryId category categoryIds bookingModes isInstant').lean();
@@ -347,10 +467,21 @@ const createBooking = async (req, res) => {
     console.log(`[CreateBooking] Found ${nearbyPartners.length} nearby ${bookingModel}s for booking`);
     // Store in a shared variable for background tasks
     const foundPartners = nearbyPartners;
+
+    // Nobody in the zone can take this service (no matching worker, or none
+    // allowed for this booking type). There's nothing to search for, so don't
+    // make the customer wait through a retry window: the booking goes straight
+    // to the admin's manual-assignment queue and the customer is told so now.
+    const noWorkersAvailable = foundPartners.length === 0;
     // --- END SEARCH BLOCK ---
 
     // Calculate pricing - use amount from frontend if provided, otherwise calculate
     let basePrice, discount, tax, finalAmount;
+    // VIP membership (offered at checkout) and advance payment settings.
+    const hsFull = await Settings.findOne({ type: 'global' }).lean();
+    let vipDiscount = 0;
+    let vipFee = 0;
+    let vipInfo = { added: false, member: false, planName: '', percent: 0, durationDays: 0, activated: false };
     let bookingStatus = BOOKING_STATUS.SEARCHING;
     let bookingPaymentStatus = PAYMENT_STATUS.PENDING;
 
@@ -428,11 +559,9 @@ const createBooking = async (req, res) => {
 
         if (itemIds.length > 0) {
           const priced = await Service.find({ _id: { $in: itemIds } })
-            .select('basePrice discountPrice')
+            .select('basePrice discountPrice options')
             .lean();
-          trustedPrices = new Map(
-            priced.map((p) => [String(p._id), p.discountPrice > 0 ? p.discountPrice : p.basePrice])
-          );
+          trustedPrices = buildTrustedPrices(priced);
         }
       }
 
@@ -452,6 +581,28 @@ const createBooking = async (req, res) => {
       tax = pricing.tax;
       visitingCharges = pricing.visitingCharges;
       finalAmount = pricing.finalAmount;
+
+      // VIP: a member gets the % off for free; anyone else gets it only if they
+      // chose to add the membership (fee is charged with the advance below).
+      const vipCalc = computeVip({
+        settings: hsFull,
+        user,
+        taxableBase: pricing.basePrice - pricing.discount - pricing.promoDiscount,
+        planKey: vipPlanKey
+      });
+      if (vipCalc.eligible && (vipCalc.isMember || addVip === true)) {
+        vipDiscount = vipCalc.discount;
+        vipFee = vipCalc.fee;
+        vipInfo = {
+          added: !vipCalc.isMember,
+          member: vipCalc.isMember,
+          planName: vipCalc.planName,
+          percent: vipCalc.percent,
+          durationDays: vipCalc.durationDays,
+          activated: vipCalc.isMember
+        };
+        finalAmount = Math.max(0, finalAmount - vipDiscount);
+      }
 
       if (!pricingMatchesClient(finalAmount, amount)) {
         console.warn(
@@ -478,6 +629,15 @@ const createBooking = async (req, res) => {
     if (finalAmount < 1 && paymentMethod !== 'plan_benefit') {
       finalAmount = 1;
     }
+
+    // --- ADVANCE PAYMENT ---
+    // Below the admin's threshold the whole service amount is paid online up
+    // front; above it only the admin's % is. The VIP fee (if any) is always
+    // paid up front. Nothing is dispatched to a worker until this is paid.
+    const advance = splitAdvance({ settings: hsFull, serviceTotal: finalAmount });
+    const onlineAllowed = hsFull?.isOnlinePaymentEnabled !== false;
+    const requiresAdvance = onlineAllowed && paymentMethod !== 'plan_benefit' && (advance.payNow + vipFee) > 0;
+    const payNowAmount = requiresAdvance ? advance.payNow + vipFee : 0;
 
     // Create booking
     const bookingNumber = `BK${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
@@ -547,7 +707,7 @@ const createBooking = async (req, res) => {
       tax,
       visitingCharges,
       finalAmount,
-      userPayableAmount: finalAmount,
+      userPayableAmount: finalAmount + vipFee,
       address: {
         type: address.type || 'home',
         addressLine1: address.addressLine1,
@@ -568,7 +728,15 @@ const createBooking = async (req, res) => {
       // userNotes: userNotes || null, // Removed
       // isPlusAdded: isPlusAdded || false, // Removed
       paymentMethod: paymentMethod || null,
-      status: bookingStatus,
+      status: requiresAdvance
+        ? BOOKING_STATUS.PENDING
+        : (noWorkersAvailable ? BOOKING_STATUS.MANUAL_ASSIGNMENT_REQUIRED : bookingStatus),
+      assignmentStatus: requiresAdvance ? 'pending' : (noWorkersAvailable ? 'manual_assignment_required' : 'pending'),
+      advanceStatus: requiresAdvance ? 'awaiting' : 'none',
+      advanceRequired: requiresAdvance ? advance.payNow : 0,
+      vipDiscount,
+      vipFee,
+      vip: vipInfo,
       paymentStatus: bookingPaymentStatus,
       zoneId: matchingZone?._id || null,
       zoneName: matchingZone?.name || address.city || null
@@ -584,16 +752,30 @@ const createBooking = async (req, res) => {
       }
     }
 
-    // --- IMMEDIATE RESPONSE ---
-    // Send immediate response to the client. All subsequent operations will run in the background.
+    // --- RESPONSE ---
     res.status(201).json({
       success: true,
-      message: 'Booking created successfully. We are finding vendors for you.',
+      message: requiresAdvance
+        ? 'Booking created. Pay the advance to confirm it.'
+        : (noWorkersAvailable ? NO_WORKERS_MESSAGE : 'Booking created successfully. We are finding vendors for you.'),
+      noWorkersAvailable,
+      requiresPayment: requiresAdvance,
+      payment: {
+        payNowAmount,
+        advanceAmount: requiresAdvance ? advance.payNow : 0,
+        vipFee,
+        payLaterAmount: advance.payLater,
+        serviceTotal: finalAmount,
+        fullPaymentUpfront: advance.full,
+        advancePercent: advance.percent,
+        vipDiscount
+      },
       data: {
         _id: booking._id,
         bookingNumber: booking.bookingNumber,
         status: booking.status,
         paymentStatus: booking.paymentStatus,
+        advanceStatus: booking.advanceStatus,
         finalAmount: booking.finalAmount,
         scheduledDate: booking.scheduledDate,
         scheduledTime: booking.scheduledTime,
@@ -605,295 +787,13 @@ const createBooking = async (req, res) => {
       }
     });
 
-    // --- DEFERRED POST-BOOKING OPERATIONS ---
-    // All operations below will run non-blocking after the HTTP response has been sent.
-    setImmediate(async () => {
-      try {
-        // Re-fetch user and booking for background tasks to ensure latest state
-        const userForBackground = await User.findById(userId);
-        const bookingForBackground = await HomeServiceBooking.findById(booking._id)
-          .populate('userId', 'name phone email')
-          .populate('serviceId', 'title iconUrl')
-          .populate('categoryId', 'title slug');
-        const serviceForBackground = await Service.findById(bookingForBackground.serviceId) || {
-          title: bookingForBackground.serviceName,
-          category: bookingForBackground.serviceCategory
-        };
-
-        if (!userForBackground || !bookingForBackground) {
-          console.error('[CreateBooking] Background task failed: User or Booking not found after initial creation.');
-          return;
-        }
-
-        // If Plus membership was added, update user status
-        if (isPlusAdded) {
-          const expiryDate = new Date();
-          expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year membership
-          userForBackground.plans = {
-            isActive: true,
-            name: 'Plus Membership',
-            expiry: expiryDate,
-            price: 999 // Or fetch based on constants if needed, hardcoding placeholder or 0
-          };
-          await userForBackground.save();
-          console.log(`User ${userId} upgraded to Plus Membership until ${expiryDate}`);
-        }
-
-        // Partners already found above
-        // WAVE-BASED ALERTING: Prioritize actively connected workers (app/dashboard open), then sort by distance
-        const io = getIO();
-        const isWorkerActiveOnSocket = (id) => {
-          if (!io) return false;
-          const room = io.sockets.adapter.rooms.get(`worker_${id}`);
-          return room ? room.size > 0 : false;
-        };
-        // Search and notification happen in different ticks. A worker may have
-        // accepted another job in between, so re-check global capacity before
-        // creating requests or emitting any alert.
-        const stillAvailablePartners = await filterAvailableWorkers(
-          foundPartners,
-          bookingForBackground,
-          { ignoreBookings: bookingForBackground.bookingType === 'instant' }
-        );
-
-        const sortedPartners = stillAvailablePartners.sort((a, b) => {
-          const aActive = isWorkerActiveOnSocket(a._id) ? 1 : 0;
-          const bActive = isWorkerActiveOnSocket(b._id) ? 1 : 0;
-          if (aActive !== bActive) {
-            return bActive - aActive; // Actively connected workers get priority in Wave 1
-          }
-          return (a.distance || 0) - (b.distance || 0);
-        });
-
-        // BROADCAST TO ALL IN-ZONE PARTNERS:
-        // As requested: all matching workers in the same zone receive the booking offer simultaneously
-        const targetPartners = sortedPartners;
-
-        // Store potential workers in booking
-        bookingForBackground.potentialWorkers = targetPartners.map(v => ({
-          workerId: v._id,
-          distance: v.distance || 0
-        }));
-
-        bookingForBackground.currentWave = 1;
-        bookingForBackground.waveStartedAt = new Date();
-        bookingForBackground.notifiedPartners = targetPartners.map(v => v._id);
-        bookingForBackground.notifiedWorkers = targetPartners.map(v => v._id);
-        bookingForBackground.assignmentStatus = 'searching';
-
-        // Log attempt history for all notified workers
-        bookingForBackground.assignmentAttempts = bookingForBackground.assignmentAttempts || [];
-        targetPartners.forEach((p) => {
-          bookingForBackground.assignmentAttempts.push({
-            workerId: p._id,
-            waveNumber: 1,
-            notifiedAt: new Date(),
-            outcome: 'notified'
-          });
-        });
-
-        await bookingForBackground.save();
-
-        // Fetch Platform Settings for Dynamic Worker Price — this is only the
-        // "Earn ₹X" preview shown in the job-alert notification, before the
-        // worker has even accepted; createBill computes the real, final split
-        // at job completion using this same percentage, so the two can't
-        // drift apart the way a separately-hardcoded flat fee could.
-        const platformSettings = await PlatformSettings.getSettings();
-        const commissionPercentage = platformSettings.defaultCommission ?? 10;
-        const workerAmount = Math.max(0, parseFloat((((bookingForBackground.basePrice || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
-        console.log(`[WorkerAmount Calc] basePrice: ${bookingForBackground.basePrice}, commission%: ${commissionPercentage}, workerAmount: ${workerAmount}`);
-
-        const waveSettings = await Settings.findOne({ type: 'global' }).select('waveDuration').lean();
-        const responseWindowSec = waveSettings?.waveDuration || 300;
-
-        if (targetPartners.length > 0) {
-          console.log(`[CreateBooking] Alerting ALL ${targetPartners.length} matching in-zone ${bookingModel}s simultaneously`);
-
-          // Create BookingRequest entries for ALL in-zone partners
-          const bookingRequests = targetPartners.map(partner => ({
-            bookingId: bookingForBackground._id,
-            workerId: partner._id,
-            status: 'PENDING',
-            wave: 1,
-            distance: partner.distance || null,
-            sentAt: new Date(),
-            // Instant/same-day offers lapse in 1h; future-day ones stay open
-            // longer so an offline worker still sees them when they're back.
-            expiresAt: new Date(Date.now() + (bookingType !== 'instant' && isFutureIstDay(scheduledDate) ? 12 : 1) * 60 * 60 * 1000)
-          }));
-
-          try {
-            await BookingRequest.insertMany(bookingRequests, { ordered: false });
-            console.log(`[CreateBooking] Created ${bookingRequests.length} BookingRequest entries for in-zone ${bookingModel}s`);
-
-            // Notify all in-zone partners about new job
-            for (const partner of targetPartners) {
-              await createNotification({
-                workerId: partner._id,
-                type: 'new_job_available',
-                title: 'New Job Available in Your Zone!',
-                message: `A new ${bookingForBackground.serviceName} job is available in your zone. Earn ₹${workerAmount}!`,
-                relatedId: bookingForBackground._id,
-                relatedType: 'booking',
-                priority: 'high',
-                pushData: {
-                  type: 'new_job',
-                  bookingId: bookingForBackground._id.toString(),
-                  link: `/worker/job/${bookingForBackground._id}`
-                }
-              });
-            }
-
-            // Also notify User that we are finding professionals
-            await createNotification({
-              userId: bookingForBackground.userId._id,
-              type: 'finding_professional',
-              title: 'Booking Received!',
-              message: `We have received your booking for ${bookingForBackground.serviceName}. Finding the best professional for you...`,
-              relatedId: bookingForBackground._id,
-              relatedType: 'booking',
-              pushData: {
-                type: 'booking_confirmed',
-                bookingId: bookingForBackground._id.toString(),
-                link: `/user/booking/${bookingForBackground._id}`
-              }
-            });
-          } catch (err) {
-            if (err.code !== 11000) console.error('[CreateBooking] BookingRequest insert error:', err);
-          }
-        } else {
-          console.warn(`[CreateBooking] NO ${bookingModel.toUpperCase()}S FOUND on initial search for booking ${bookingForBackground.bookingNumber}. Will keep retrying for up to 3 minutes before giving up.`);
-
-          bookingForBackground.currentWave = 0;
-          bookingForBackground.waveStartedAt = new Date();
-          await bookingForBackground.save();
-
-          const io = getIO();
-          if (io) {
-            io.to(`user_${userId}`).emit('booking_updated', {
-              bookingId: bookingForBackground._id,
-              status: BOOKING_STATUS.SEARCHING,
-              message: `Searching for nearby ${bookingModel}s...`
-            });
-          }
-
-          await createNotification({
-            userId: userId,
-            type: 'finding_professional',
-            title: 'Booking Received!',
-            message: `We're finding the best professional for your ${bookingForBackground.serviceName} booking. This may take a few minutes.`,
-            relatedId: bookingForBackground._id,
-            relatedType: 'booking',
-            pushData: { type: 'booking_confirmed', bookingId: bookingForBackground._id.toString(), link: `/user/booking/${bookingForBackground._id}` }
-          });
-        }
-
-        // Send notifications to all target in-zone partners
-        if (io) {
-          console.log(`[CreateBooking] Emitting Socket.IO events to all ${targetPartners.length} in-zone ${bookingModel}s...`);
-          targetPartners.forEach(async (partner) => {
-            const partnerRoom = `${bookingModel}_${partner._id.toString()}`;
-            io.to(partnerRoom).emit('new_booking_request', {
-              bookingId: bookingForBackground._id,
-              serviceName: serviceForBackground.title,
-              customerName: userForBackground.name,
-              customerPhone: userForBackground.phone,
-              scheduledDate: scheduledDate,
-              scheduledTime: scheduledTime,
-              price: bookingForBackground.finalAmount || bookingForBackground.basePrice || workerAmount,
-              workerAmount: workerAmount,
-              workerEarnings: workerAmount,
-              totalAmount: bookingForBackground.finalAmount || bookingForBackground.basePrice,
-              address: address,
-              distance: partner.distance,
-              serviceCategory: bookingForBackground.serviceCategory,
-              brandName: bookingForBackground.brandName,
-              brandIcon: bookingForBackground.brandIcon,
-              categoryIcon: bookingForBackground.categoryIcon,
-              bookedItems: bookingForBackground.bookedItems,
-              requirementText: bookingForBackground.requirementText,
-              isConsultancyRequest: bookingForBackground.isConsultancyRequest,
-              isEstimateBased: bookingForBackground.isEstimateBased,
-              createdAt: bookingForBackground.createdAt || new Date(),
-              expiresAt: new Date(Date.now() + responseWindowSec * 1000).toISOString(),
-              respondBySeconds: responseWindowSec,
-              responseWindowSeconds: responseWindowSec,
-              playSound: true,
-              message: `New booking request in ${bookingForBackground.zoneName || 'your zone'}!`
-            });
-          });
-          
-          // Notify user about searching
-          io.to(`user_${userId}`).emit('booking_updated', {
-            bookingId: bookingForBackground._id,
-            status: BOOKING_STATUS.SEARCHING,
-            message: `Searching professionals in your zone...`
-          });
-        }
-
-        // 2. Send Firebase/FCM notifications
-        try {
-          const partnerNotifications = targetPartners.map(partner =>
-            createNotification({
-              workerId: partner._id,
-              type: 'booking_request',
-              title: 'New Booking Request',
-              message: `New service request for ${serviceForBackground.title} from ${userForBackground.name}`,
-              relatedId: bookingForBackground._id,
-              relatedType: 'booking',
-              data: {
-                bookingId: bookingForBackground._id,
-                serviceName: serviceForBackground.title,
-                customerName: userForBackground.name,
-                customerPhone: userForBackground.phone,
-                scheduledDate: scheduledDate,
-                scheduledTime: scheduledTime,
-                location: address,
-                price: bookingForBackground.finalAmount || bookingForBackground.basePrice || workerAmount,
-                workerAmount: workerAmount,
-                totalAmount: bookingForBackground.finalAmount || bookingForBackground.basePrice,
-                distance: partner.distance
-              },
-              pushData: {
-                type: 'new_booking',
-                dataOnly: false,
-                link: `/worker/bookings/${bookingForBackground._id}`
-              }
-            })
-          );
-          await Promise.all(partnerNotifications);
-        } catch (notifError) {
-          console.error('[CreateBooking] Firebase/Notification Error:', notifError.message);
-        }
-
-        // NOTIFY USER: Send actionable notification so they can track status
-        await createNotification({
-          userId,
-          type: 'booking_requested',
-          title: 'Booking Created',
-          message: `Your booking ${bookingForBackground.bookingNumber} has been created successfully.`,
-          relatedId: bookingForBackground._id,
-          relatedType: 'booking',
-          pushData: {
-            type: 'booking_requested',
-            bookingId: bookingForBackground._id.toString(),
-            link: `/user/booking/${bookingForBackground._id}`
-            // dataOnly: true // Removed to ensure User sees the visual notification
-          }
-        });
-        // Clear cart — single atomic operation
-        await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
-        console.log(`[CreateBooking][bg] Cart cleared for user ${userId}`);
-
-        // Send confirmation emails (fire-and-forget — never blocks)
-        sendBookingEmails(bookingForBackground, userForBackground, null, serviceForBackground)
-          .catch(err => console.error('[CreateBooking][bg] Email error:', err));
-
-      } catch (bgErr) {
-        console.error('[CreateBooking][bg] Background task failed:', bgErr);
-      }
-    });
+    // Without an advance to collect the booking goes out right away; otherwise
+    // dispatch happens when the advance is confirmed (see paymentController).
+    if (!requiresAdvance) {
+      setImmediate(() => {
+        dispatchBooking(booking._id).catch((err) => console.error('[CreateBooking] dispatch failed:', err));
+      });
+    }
 
   } catch (error) {
     console.error('Create booking error:', error);
@@ -971,7 +871,8 @@ const getUserBookings = async (req, res) => {
     console.log(`[getUserBookings] Executing find() without populate...`);
     // Exclude potentially massive arrays (like base64 images) that cause network timeouts
     const bookings = await HomeServiceBooking.find(query)
-      .select('-serviceImages -requirementImages -workPhotos -reviewImages')
+      // Helper payouts are internal: customers never see them.
+      .select('-serviceImages -requirementImages -workPhotos -reviewImages -helpers -helperRequests')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum)
@@ -1062,6 +963,9 @@ const getBookingById = async (req, res) => {
 
     // Convert to object to attach bill
     const bookingData = booking;
+    // Helper payouts are internal: customers never see them.
+    delete bookingData.helpers;
+    delete bookingData.helperRequests;
     if (bill) {
       bookingData.bill = bill;
     }
@@ -1184,8 +1088,20 @@ const cancelBooking = async (req, res) => {
       }
     }
 
+    // An advance already paid online comes back to the wallet; any cancellation
+    // fee is taken out of it first, and only a shortfall becomes a penalty.
+    let penaltyToAdd = cancellationFee > 0 && !isPaid ? cancellationFee : 0;
+    const advanceHeld = isPaid ? 0 : (booking.advancePaid || 0);
+    if (advanceHeld > 0) {
+      const feeFromAdvance = Math.min(cancellationFee, advanceHeld);
+      const advanceRefund = advanceHeld - feeFromAdvance;
+      penaltyToAdd = Math.max(0, cancellationFee - feeFromAdvance);
+      refundAmount += advanceRefund;
+      refundMessage = `Booking cancelled. ₹${advanceRefund} of your advance has been refunded to your wallet${feeFromAdvance > 0 ? ` (cancellation fee ₹${feeFromAdvance} deducted)` : ''}.`;
+    }
+
     // Update User Wallet
-    if (refundAmount > 0 || (cancellationFee > 0 && !isPaid)) {
+    if (refundAmount > 0 || penaltyToAdd > 0) {
 
       const user = await User.findById(userId);
 
@@ -1208,16 +1124,16 @@ const cancelBooking = async (req, res) => {
       }
 
       // 2. Process Cancellation Fee (Add to Penalty Bucket if Unpaid)
-      if (cancellationFee > 0 && !isPaid) {
+      if (penaltyToAdd > 0) {
         // Use wallet.penalty bucket
-        user.wallet.penalty = (user.wallet.penalty || 0) + cancellationFee;
+        user.wallet.penalty = (user.wallet.penalty || 0) + penaltyToAdd;
         // Do NOT create a 'debit' transaction yet, as money hasn't left. 
         // Or create a 'penalty_added' transaction?
         // User didn't ask for transaction record logic, just functionality.
         // We will skip transaction for penalty addition to keep it simple, 
         // as the actual CHARGE happens on next booking creation.
 
-        console.log(`[CancelBooking] Added penalty of ₹${cancellationFee} to user ${userId}. Total Penalty: ${user.wallet.penalty}`);
+        console.log(`[CancelBooking] Added penalty of ₹${penaltyToAdd} to user ${userId}. Total Penalty: ${user.wallet.penalty}`);
       }
 
       await user.save();
@@ -1739,6 +1655,7 @@ const setTip = async (req, res) => {
 };
 
 export {
+  quoteBooking,
   getSlotAvailabilityForUser,
   createBooking,
   getUserBookings,

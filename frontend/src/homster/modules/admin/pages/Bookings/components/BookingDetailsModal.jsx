@@ -1,4 +1,5 @@
 import React from 'react';
+import HelpersPanel from './HelpersPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiX, FiCalendar, FiClock, FiZap, FiUser, FiPhone, FiMail,
@@ -6,7 +7,7 @@ import {
   FiExternalLink, FiUserCheck, FiShield, FiPackage
 } from 'react-icons/fi';
 
-const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCancelBooking }) => {
+const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCancelBooking, onChanged }) => {
   if (!isOpen || !booking) return null;
 
   const isInstant = booking.bookingType?.toLowerCase() === 'instant';
@@ -45,6 +46,9 @@ const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCance
       return dateStr;
     }
   };
+
+  // A closed booking can't take a worker any more — no assign / reassign actions.
+  const isClosed = ['cancelled', 'completed', 'rejected'].includes(booking.status?.toLowerCase());
 
   // Get duration if present in booked items
   const itemDuration = booking.bookedItems?.[0]?.card?.duration || booking.serviceId?.duration;
@@ -200,8 +204,10 @@ const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCance
                         </span>
                       )
                     ) : (
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-amber-100 text-amber-800 border border-amber-200">
-                        Unassigned
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${
+                        isClosed ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-amber-100 text-amber-800 border-amber-200'
+                      }`}>
+                        {isClosed ? 'Closed' : 'Unassigned'}
                       </span>
                     )}
                   </div>
@@ -273,13 +279,17 @@ const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCance
                       <div className="w-10 h-10 mx-auto rounded-full bg-amber-50 text-amber-500 flex items-center justify-center mb-2">
                         <FiAlertCircle className="w-5 h-5" />
                       </div>
-                      <p className="text-xs font-bold text-gray-800">No Provider Assigned Yet</p>
-                      <p className="text-[11px] text-gray-500 mt-0.5">
-                        {booking.status?.toLowerCase() === 'searching'
-                          ? 'Automated search in progress...'
-                          : 'Requires manual assignment by admin.'}
+                      <p className="text-xs font-bold text-gray-800">
+                        {isClosed ? 'No Provider Was Assigned' : 'No Provider Assigned Yet'}
                       </p>
-                      {onAssignWorker && (
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        {isClosed
+                          ? `This booking is ${booking.status?.toLowerCase()}, so a worker can't be assigned.`
+                          : booking.status?.toLowerCase() === 'searching'
+                            ? 'Automated search in progress...'
+                            : 'Requires manual assignment by admin.'}
+                      </p>
+                      {onAssignWorker && !isClosed && (
                         <button
                           onClick={() => {
                             onClose();
@@ -294,7 +304,7 @@ const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCance
                   )}
                 </div>
 
-                {provider && onAssignWorker && (
+                {provider && onAssignWorker && !isClosed && (
                   <div className="mt-3 pt-2 border-t border-gray-100 flex justify-end">
                     <button
                       onClick={() => {
@@ -309,6 +319,9 @@ const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCance
                 )}
               </div>
             </div>
+
+            {/* Extra workers: requests from the lead worker + who was added */}
+            <HelpersPanel booking={booking} onChanged={onChanged} />
 
             {/* 3. CUSTOMER & SERVICE ADDRESS */}
             <div className="p-4 rounded-xl border border-gray-200 bg-gray-50/50">
@@ -376,6 +389,25 @@ const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCance
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-600 mb-3 flex items-center gap-1.5">
                 <FiDollarSign className="w-4 h-4 text-emerald-600" /> Service & Billing Summary
               </h3>
+
+              {(booking.advanceStatus && booking.advanceStatus !== 'none') || booking.vipFee > 0 || booking.vipDiscount > 0 ? (
+                <div className="mb-3 grid grid-cols-2 gap-2 text-[11px]">
+                  {booking.advanceStatus && booking.advanceStatus !== 'none' && (
+                    <div className={`rounded-lg px-3 py-2 ${booking.advanceStatus === 'paid' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>
+                      <p className="font-bold uppercase tracking-wide">Advance</p>
+                      <p className="mt-0.5 text-sm font-black">₹{(booking.advanceStatus === 'paid' ? booking.advancePaid : booking.advanceRequired || 0).toLocaleString('en-IN')}</p>
+                      <p>{booking.advanceStatus === 'paid' ? 'Paid online' : 'Awaiting payment'}</p>
+                    </div>
+                  )}
+                  {(booking.vipFee > 0 || booking.vipDiscount > 0) && (
+                    <div className="rounded-lg bg-violet-50 px-3 py-2 text-violet-800">
+                      <p className="font-bold uppercase tracking-wide">VIP</p>
+                      <p className="mt-0.5 text-sm font-black">−₹{(booking.vipDiscount || 0).toLocaleString('en-IN')}</p>
+                      <p>{booking.vipFee > 0 ? `Membership ₹${booking.vipFee} bought` : 'Member discount'}</p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-gray-100">

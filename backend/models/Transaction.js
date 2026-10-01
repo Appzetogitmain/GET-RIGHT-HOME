@@ -47,7 +47,9 @@ const transactionSchema = new mongoose.Schema({
       'cash_collected',
       'target_bonus',
       'achievement_bonus',
-      'estimate_token'
+      'estimate_token',
+      'helper_payment',
+      'helper_split'
     ],
     required: true
   },
