@@ -34,7 +34,7 @@ const InstantServicesModal = ({ isOpen, onClose, services, onBook, bookingIds = 
                 <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0 border-b border-gray-100">
                     <div>
                         <h2 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-1.5">
-                            {title || 'All Instant Services'} <Zap size={18} className="text-amber-500 fill-amber-400" />
+                            {title || 'All Instant Services'} <Zap size={18} className="text-[#347989] fill-[#347989]" />
                         </h2>
                         <p className="text-xs text-gray-400 font-medium mt-0.5">Verified technicians, doorstep in 30–45 minutes</p>
                     </div>
@@ -58,9 +58,9 @@ const InstantServicesModal = ({ isOpen, onClose, services, onBook, bookingIds = 
                             return (
                                 <div
                                     key={serviceId}
-                                    className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/30 transition-colors"
+                                    className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 hover:border-[#347989]/40 hover:bg-[#347989]/5 transition-colors"
                                 >
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shrink-0 flex items-center justify-center text-white overflow-hidden">
+                                    <div className="w-12 h-12 rounded-xl bg-[#347989] shrink-0 flex items-center justify-center text-white overflow-hidden">
                                         {(service.imageUrl || service.icon) ? (
                                             <img src={service.imageUrl || service.icon} alt="" className="w-full h-full object-cover" />
                                         ) : (
@@ -72,7 +72,7 @@ const InstantServicesModal = ({ isOpen, onClose, services, onBook, bookingIds = 
                                         {subtitle && <p className="text-[11px] text-gray-400 font-medium truncate">{subtitle}</p>}
                                         <div className="flex items-center gap-2 mt-1">
                                             <span className="text-xs font-black text-gray-900">₹{price}</span>
-                                            <span className="flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                                            <span className="flex items-center gap-0.5 text-[10px] font-bold text-[#347989] bg-[#347989]/10 px-1.5 py-0.5 rounded-full">
                                                 <Clock size={9} /> {service.instantEtaMinutes || 30} min
                                             </span>
                                         </div>
@@ -80,7 +80,7 @@ const InstantServicesModal = ({ isOpen, onClose, services, onBook, bookingIds = 
                                     <button
                                         onClick={() => onBook(service)}
                                         disabled={isBooking}
-                                        className="shrink-0 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[11px] font-black uppercase px-4 py-2 rounded-xl shadow-sm disabled:opacity-60 transition-all"
+                                        className="shrink-0 bg-[#347989] hover:bg-[#2a6370] text-white text-[11px] font-black uppercase px-4 py-2 rounded-xl shadow-sm disabled:opacity-60 transition-all"
                                     >
                                         {isBooking ? 'Adding...' : 'Book'}
                                     </button>

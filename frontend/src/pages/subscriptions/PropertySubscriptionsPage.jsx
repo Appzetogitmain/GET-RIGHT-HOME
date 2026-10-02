@@ -19,7 +19,7 @@ const loadRazorpay = () => new Promise((resolve) => {
 });
 
 const TIER_CONFIG = {
-    basic: { gradient: 'from-slate-500 to-slate-700', icon: Package, ring: 'ring-slate-200' },
+    basic: { gradient: 'from-slate-600 to-slate-800', icon: Package, ring: 'ring-slate-200' },
     premium: { gradient: 'from-amber-400 to-orange-600', icon: Star, ring: 'ring-amber-200' },
     relationship_manager: { gradient: 'from-purple-500 to-indigo-700', icon: Crown, ring: 'ring-purple-200' },
     custom: { gradient: 'from-emerald-500 to-teal-700', icon: Zap, ring: 'ring-emerald-200' },
@@ -30,8 +30,8 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numer
 
 const FeatureRow = ({ text }) => (
     <div className="flex items-start gap-2.5">
-        <CheckCircle size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-        <span className="text-xs font-semibold text-gray-800 leading-tight">{text}</span>
+        <CheckCircle size={15} className="text-emerald-500 mt-px shrink-0" />
+        <span className="text-[13px] font-medium text-slate-700 leading-snug">{text}</span>
     </div>
 );
 
@@ -346,61 +346,84 @@ const PropertySubscriptionsPage = () => {
     );
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-28">
-            <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
-                <div className="flex items-center gap-4 px-4 py-4">
-                    <button onClick={handleBack} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors">
-                        <ArrowLeft size={18} className="text-gray-700" />
+        <div className="min-h-screen bg-slate-50 pb-28">
+            <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-100">
+                <div className="flex items-center gap-3 px-4 py-3.5 max-w-2xl mx-auto">
+                    <button onClick={handleBack} className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 transition-colors">
+                        <ArrowLeft size={18} className="text-slate-700" />
                     </button>
-                    <div className="flex-1">
-                        <h1 className="text-lg font-black text-gray-900 capitalize">Boost Your Listings</h1>
-                        <p className="text-xs text-gray-400 font-medium">Subscribe a property to get more visibility</p>
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-base font-extrabold text-slate-900 tracking-tight">Boost Your Listings</h1>
+                        <p className="text-[11px] text-slate-500 font-medium truncate">Subscribe a property to get more visibility</p>
                     </div>
                 </div>
 
                 {availableModes.length > 1 && (
-                    <div className="flex gap-2 px-4 pb-3">
-                        {availableModes.map((m) => (
-                            <button
-                                key={m}
-                                onClick={() => setMode(m)}
-                                className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide transition flex items-center justify-center gap-1.5 ${mode === m ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500'}`}
-                            >
-                                {m === 'sale' ? <Home size={14} /> : <Building2 size={14} />} {m}
-                            </button>
-                        ))}
+                    <div className="px-4 pb-3 max-w-2xl mx-auto">
+                        <div className="flex p-1 bg-slate-100 rounded-xl gap-1">
+                            {availableModes.map((m) => (
+                                <button
+                                    key={m}
+                                    onClick={() => setMode(m)}
+                                    className={`flex-1 py-2 rounded-lg text-[11px] font-extrabold uppercase tracking-wider transition flex items-center justify-center gap-1.5 ${mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                                >
+                                    {m === 'sale' ? <Home size={13} /> : <Building2 size={13} />} {m}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
 
             <div className="px-4 pt-4 max-w-2xl mx-auto">
+                {/* Value props */}
+                <div className="grid grid-cols-3 gap-2 mb-5">
+                    {[
+                        { icon: TrendingUp, label: 'Higher ranking' },
+                        { icon: ShieldCheck, label: 'Verified badge' },
+                        { icon: Zap, label: 'More leads' },
+                    ].map(({ icon: I, label }) => (
+                        <div key={label} className="bg-white border border-slate-100 rounded-xl py-2.5 px-2 flex flex-col items-center gap-1 shadow-sm">
+                            <I size={15} className="text-indigo-600" />
+                            <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">{label}</span>
+                        </div>
+                    ))}
+                </div>
+
                 {activeSubs.length > 0 && (
-                    <div className="mb-6 space-y-3">
-                        <h2 className="text-xs font-black uppercase tracking-wider text-gray-400 px-1">Active subscriptions</h2>
-                        {activeSubs.map((s) => (
-                            <div key={s._id} className="bg-gray-900 rounded-2xl p-4 text-white flex items-center justify-between">
-                                <div>
-                                    <p className="font-black text-sm flex items-center gap-1.5">
-                                        <TrendingUp size={14} className="text-emerald-400" /> {s.planName}
-                                    </p>
-                                    <p className="text-[11px] text-gray-400 mt-0.5">
-                                        {s.propertyIds?.length || 0} listing(s) · expires {fmtDate(s.expiryDate)}
-                                    </p>
+                    <div className="mb-5 space-y-2">
+                        <h2 className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 px-1">Active subscriptions</h2>
+                        {activeSubs.map((s) => {
+                            const daysLeft = Math.max(0, Math.ceil((new Date(s.expiryDate) - new Date()) / 86400000));
+                            return (
+                                <div key={s._id} className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-3.5 text-white flex items-center gap-3 shadow-md">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                                        <TrendingUp size={17} className="text-emerald-400" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-extrabold text-sm truncate">{s.planName}</p>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">
+                                            {s.propertyIds?.length || 0} listing(s) · expires {fmtDate(s.expiryDate)}
+                                        </p>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <span className="block text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                            {s.mode}
+                                        </span>
+                                        <span className="block text-[10px] text-slate-400 font-semibold mt-1">{daysLeft} days left</span>
+                                    </div>
                                 </div>
-                                <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                                    {s.mode}
-                                </span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
                 {loading ? (
-                    <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
+                    <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-300" /></div>
                 ) : plans.length === 0 ? (
                     <div className="text-center py-16">
-                        <Package size={40} className="text-gray-200 mx-auto mb-3" />
-                        <p className="text-gray-400 font-medium">No {mode} plans available right now</p>
+                        <Package size={40} className="text-slate-200 mx-auto mb-3" />
+                        <p className="text-slate-400 font-medium">No {mode} plans available right now</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -408,6 +431,8 @@ const PropertySubscriptionsPage = () => {
                             const cfg = TIER_CONFIG[plan.planTier] || TIER_CONFIG.basic;
                             const Icon = cfg.icon;
                             const highlights = planHighlights(plan);
+                            const popular = plan.planTier === 'premium';
+                            const perDay = plan.durationDays > 0 && plan.price > 0 ? Math.round(plan.price / plan.durationDays) : 0;
 
                             return (
                                 <motion.div
@@ -415,32 +440,45 @@ const PropertySubscriptionsPage = () => {
                                     initial={{ opacity: 0, y: 16 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.06 }}
-                                    className={`bg-white rounded-3xl border-2 border-gray-100 overflow-hidden ring-4 ${cfg.ring} ring-opacity-0 hover:ring-opacity-40 transition`}
+                                    className={`relative bg-white rounded-2xl overflow-hidden border ${popular ? 'border-amber-300 shadow-lg shadow-amber-100' : 'border-slate-200 shadow-sm'}`}
                                 >
-                                    <div className={`h-16 bg-gradient-to-r ${cfg.gradient} flex items-center px-5 gap-3`}>
-                                        <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                                            <Icon size={18} className="text-white" />
+                                    {popular && (
+                                        <div className="absolute top-3 right-3 z-10 text-[9px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white text-amber-600 shadow">
+                                            Most popular
                                         </div>
-                                        <span className="text-white font-black text-base">{plan.name}</span>
+                                    )}
+                                    <div className={`bg-gradient-to-r ${cfg.gradient} flex items-center px-4 py-3.5 gap-3`}>
+                                        <div className="w-9 h-9 rounded-xl bg-white/20 ring-1 ring-white/30 flex items-center justify-center">
+                                            <Icon size={17} className="text-white" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <span className="block text-white font-extrabold text-[15px] leading-tight">{plan.name}</span>
+                                            {plan.tagline && <span className="block text-white/80 text-[11px] font-medium truncate">{plan.tagline}</span>}
+                                        </div>
                                     </div>
 
-                                    <div className="p-5">
-                                        {plan.tagline && <p className="text-xs text-gray-400 font-semibold mb-3">{plan.tagline}</p>}
-
-                                        <div className="flex items-baseline gap-1.5 mb-4">
-                                            <span className="text-3xl font-black text-gray-900">{fmt(plan.price)}</span>
-                                            <span className="text-gray-400 text-xs font-bold uppercase">/ {plan.durationDays} days</span>
+                                    <div className="p-4">
+                                        <div className="flex items-end justify-between mb-3 pb-3 border-b border-slate-100">
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-2xl font-extrabold text-slate-900 tracking-tight">{fmt(plan.price)}</span>
+                                                <span className="text-slate-400 text-[11px] font-bold uppercase">/ {plan.durationDays} days</span>
+                                            </div>
+                                            {perDay > 0 && (
+                                                <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                                                    ≈ ₹{perDay}/day
+                                                </span>
+                                            )}
                                         </div>
 
-                                        <div className="space-y-2.5 mb-5">
+                                        <div className="space-y-2 mb-4">
                                             {highlights.map((h) => <FeatureRow key={h} text={h} />)}
                                         </div>
 
                                         <button
                                             onClick={() => openPicker(plan)}
-                                            className="w-full py-3.5 rounded-2xl text-sm font-black bg-gray-900 text-white hover:bg-black shadow-lg transition active:scale-95"
+                                            className={`w-full py-3 rounded-xl text-sm font-extrabold text-white shadow-md transition active:scale-[0.98] bg-gradient-to-r ${cfg.gradient}`}
                                         >
-                                            Get This Plan
+                                            Get {plan.name}
                                         </button>
                                     </div>
                                 </motion.div>
@@ -449,9 +487,9 @@ const PropertySubscriptionsPage = () => {
                     </div>
                 )}
 
-                <div className="mt-6 bg-blue-50 rounded-2xl p-4 flex items-start gap-3 border border-blue-100">
-                    <AlertCircle size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-blue-700 leading-relaxed font-medium">
+                <div className="mt-6 bg-white rounded-xl p-3.5 flex items-start gap-2.5 border border-slate-200">
+                    <AlertCircle size={15} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
                         Subscriptions attach to the listing(s) you choose. Plans are non-refundable. Higher tiers give
                         stronger search ranking, showcase placement and verified badges.
                     </p>

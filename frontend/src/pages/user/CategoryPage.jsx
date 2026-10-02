@@ -34,8 +34,15 @@ const CategoryPage = () => {
     const [category, setCategory] = useState(location.state?.category || null);
     const [subCategories, setSubCategories] = useState([]);
     const [services, setServices] = useState([]);
+    const [allServices, setAllServices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedSubCategory, setSelectedSubCategory] = useState(null);
+
+    // goBack() does nothing when the page was opened directly / reloaded (no history to go back to)
+    const goBack = () => {
+        if (window.history.state && window.history.state.idx > 0) navigate(-1);
+        else navigate('/home-services', { replace: true });
+    };
 
     // Floating Cart Bar state
     const [cartBarDismissed, setCartBarDismissed] = useState(false);
@@ -82,8 +89,12 @@ const CategoryPage = () => {
                     const res = await publicCatalogService.getServices({ categoryId, bookingMode });
                     if (res.success) setServices(res.services || []);
                 } else {
-                    const res = await publicCatalogService.getSubCategories({ cityId, categoryId, bookingMode });
+                    const [res, svcRes] = await Promise.all([
+                        publicCatalogService.getSubCategories({ cityId, categoryId, bookingMode }),
+                        publicCatalogService.getServices({ categoryId, bookingMode }).catch(() => null),
+                    ]);
                     if (res.success) setSubCategories(res.subCategories || []);
+                    if (svcRes?.success) setAllServices(svcRes.services || []);
                 }
             } catch (err) {
                 console.error('Failed to load category content:', err);
@@ -132,7 +143,8 @@ const CategoryPage = () => {
     };
 
     // Add a service (or one option of it) to the cart.
-    const addToCartWithOption = async (service, option) => {
+    const addToCartWithOption = async (service, option, subOverride) => {
+        const sub = subOverride || selectedSubCategory;
         try {
             const unit = option
                 ? (Number(option.discountPrice) > 0 && Number(option.discountPrice) < Number(option.price) ? Number(option.discountPrice) : Number(option.price))
@@ -141,14 +153,14 @@ const CategoryPage = () => {
             const response = await addToCart({
                 serviceId: service.id || service._id,
                 categoryId: category?.id || category?._id,
-                subCategoryId: selectedSubCategory?.id || selectedSubCategory?._id || undefined,
+                subCategoryId: sub?.id || sub?._id || undefined,
                 title: option ? `${service.title} · ${option.label}` : service.title,
                 optionLabel: option?.label || '',
                 description: service.description || '',
                 duration: option?.duration || service.duration || '',
                 icon: toAssetUrl(service.icon || service.imageUrl || selectedSubCategory?.iconUrl || category?.homeIconUrl || ''),
                 category: category?.title,
-                subCategory: selectedSubCategory?.title || category?.title || '',
+                subCategory: sub?.title || category?.title || '',
                 price: unit,
                 unitPrice: unit,
                 originalPrice: original > unit ? original : undefined,
@@ -298,7 +310,7 @@ const CategoryPage = () => {
                 totalPrice={totalCartPrice}
                 onAdd={addToCartWithOption}
                 onChangeQty={changeLineQty}
-                onBack={() => (!isDirect && selectedSubCategory ? setSelectedSubCategory(null) : navigate(-1))}
+                onBack={() => (!isDirect && selectedSubCategory ? setSelectedSubCategory(null) : goBack())}
                 onOpenCart={() => navigate('/user/cart')}
                 subCategories={isDirect ? [] : subCategories}
                 activeSubId={selectedSubCategory?.id || selectedSubCategory?._id}
@@ -313,11 +325,16 @@ const CategoryPage = () => {
             <CategoryLanding
                 category={category}
                 subCategories={subCategories}
+                services={allServices}
+                cartItems={cartItems}
+                totalPrice={totalCartPrice}
+                onAdd={addToCartWithOption}
+                onChangeQty={changeLineQty}
                 loading={loading}
                 cityName={currentCity?.name || currentCity?.title || ''}
                 cartCount={cartCount}
                 instantEta={eta}
-                onBack={() => navigate(-1)}
+                onBack={() => goBack()}
                 onOpenCart={() => navigate('/user/cart')}
                 onPick={handleSubCategoryClick}
             />
@@ -330,7 +347,7 @@ const CategoryPage = () => {
             <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100">
                 <div className="max-w-3xl mx-auto px-5 py-4 flex items-center gap-3">
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={() => goBack()}
                         className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-gray-100 transition-colors shrink-0"
                     >
                         <ArrowLeft className="w-5 h-5 text-gray-900" />

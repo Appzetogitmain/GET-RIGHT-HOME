@@ -53,8 +53,8 @@ const InstantCategoriesSheet = ({ isOpen, onClose, etaMinutes = 15, onPick }) =>
         <div className="flex items-start justify-between px-5 pb-3 pt-5">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Experts at your doorstep</h2>
-            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-violet-700 px-3 py-1 text-xs font-bold text-white">
-              <Zap size={12} className="fill-amber-300 text-amber-300" /> in {etaMinutes} mins
+            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#347989] px-3 py-1 text-xs font-bold text-white">
+              <Zap size={12} className="fill-white text-white" /> in {etaMinutes} mins
             </span>
           </div>
           <button type="button" onClick={close} aria-label="Close" className="rounded-full border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100">
@@ -81,7 +81,7 @@ const InstantCategoriesSheet = ({ isOpen, onClose, etaMinutes = 15, onPick }) =>
                     className="flex flex-col items-center text-center transition active:scale-95"
                   >
                     <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 p-2.5 shadow-sm">
-                      {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <Zap className="text-violet-500" />}
+                      {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <Zap className="text-[#347989]" />}
                     </div>
                     <span className="mt-2 line-clamp-2 text-xs font-medium leading-tight text-slate-700">{cat.title}</span>
                   </button>

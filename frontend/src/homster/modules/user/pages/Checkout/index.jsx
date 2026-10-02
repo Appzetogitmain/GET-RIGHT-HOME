@@ -2639,13 +2639,13 @@ const Checkout = () => {
         })()}
 
         {/* Important Note regarding Base Price */}
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 flex items-start gap-4 shadow-sm">
-          <div className="bg-blue-100 p-2 rounded-full shrink-0 mt-0.5">
-            <FiInfo className="w-5 h-5 text-blue-600" />
+        <div className="bg-[#347989]/10 border border-[#347989]/20 rounded-xl p-4 mb-6 flex items-start gap-4 shadow-sm">
+          <div className="bg-[#347989]/15 p-2 rounded-full shrink-0 mt-0.5">
+            <FiInfo className="w-5 h-5 text-[#347989]" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-blue-900 mb-1">Note</h4>
-            <p className="text-sm text-blue-800 leading-relaxed font-medium">
+            <h4 className="text-sm font-bold text-[#265a67] mb-1">Note</h4>
+            <p className="text-sm text-[#2a6370] leading-relaxed font-medium">
               This is a base booking cost. Additional service cost is decided by the {bookingModel} after service bill preparation.
             </p>
           </div>

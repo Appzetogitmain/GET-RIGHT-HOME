@@ -15,24 +15,23 @@ const StatCard = ({ icon: Icon, label, value, sub, color = 'text-gray-800', bg =
     <motion.div
         whileTap={{ scale: onClick ? 0.97 : 1 }}
         onClick={onClick}
-        className={`bg-white rounded-2xl p-4 border border-gray-100 shadow-sm ${onClick ? 'cursor-pointer hover:shadow-md' : ''} transition-all`}
+        className={`bg-white rounded-xl p-2.5 border border-gray-100 shadow-sm flex items-center gap-2.5 min-w-0 ${onClick ? 'cursor-pointer hover:shadow-md' : ''} transition-all`}
     >
-        <div className="flex items-start justify-between mb-2">
-            <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center`}>
-                <Icon size={18} className={color} />
-            </div>
-            {badge && (
-                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-wider">
-                    {badge}
-                </span>
-            )}
-            {onClick && !badge && <ChevronRight size={14} className="text-gray-300 mt-1" />}
+        <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center shrink-0`}>
+            <Icon size={15} className={color} />
         </div>
-        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">{label}</p>
-        <p className={`text-xl font-black ${color}`}>{value}</p>
-        {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+        <div className="min-w-0 flex-1">
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-none">{label}</p>
+            <p className={`text-base font-black leading-tight truncate mt-0.5 ${color}`}>{value}</p>
+            {sub && <p className="text-[10px] text-gray-400 truncate leading-tight">{sub}</p>}
+        </div>
+        {badge && (
+            <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase">{badge}</span>
+        )}
+        {onClick && !badge && <ChevronRight size={13} className="text-gray-300 shrink-0" />}
     </motion.div>
 );
+
 
 
 
@@ -159,7 +158,7 @@ const UserPropertyDashboard = () => {
     return (
         <div className="min-h-screen bg-gray-50 pb-28">
             {/* Hero */}
-            <div className="relative h-52 overflow-hidden">
+            <div className="relative h-36 overflow-hidden">
                 {coverImage
                     ? <img src={coverImage} alt={propertyName} className="w-full h-full object-cover" />
                     : <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-violet-800" />
@@ -199,12 +198,12 @@ const UserPropertyDashboard = () => {
                 </div>
             </div>
 
-            <div className="px-4 pt-5 max-w-xl mx-auto space-y-5">
+            <div className="px-3 pt-3 max-w-xl mx-auto space-y-3">
 
                 {/* ── VIEWS & LEADS METRICS ── */}
                 <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-3">Performance Analytics</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5">Performance Analytics</p>
+                    <div className="grid grid-cols-2 gap-2">
                         {/* Views */}
                         <StatCard
                             icon={Eye}
@@ -229,45 +228,45 @@ const UserPropertyDashboard = () => {
 
                 {/* ── LEADS BREAKDOWN ── */}
                 {totalLeads > 0 && (
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="px-3 py-2 border-b border-gray-50 flex items-center justify-between">
                             <div>
                                 <h2 className="text-sm font-black text-gray-900">Leads Breakdown</h2>
                                 <p className="text-[10px] text-gray-400 font-medium mt-0.5">Action-based buyer contacts</p>
                             </div>
                             {conversionRate > 0 && (
                                 <div className="text-right">
-                                    <p className="text-lg font-black text-emerald-600">{conversionRate}%</p>
+                                    <p className="text-base font-black text-emerald-600 leading-none">{conversionRate}%</p>
                                     <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Conversion</p>
                                 </div>
                             )}
                         </div>
                         <div className="grid grid-cols-3 divide-x divide-gray-50">
-                            <div className="p-3 text-center">
-                                <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center mx-auto mb-1">
-                                    <Phone size={14} className="text-blue-600" />
+                            <div className="py-2 px-2 text-center">
+                                <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center mx-auto mb-0.5">
+                                    <Phone size={12} className="text-blue-600" />
                                 </div>
-                                <p className="text-base font-black text-gray-900">{fmt(leadsBreakdown.call)}</p>
+                                <p className="text-sm font-black text-gray-900 leading-tight">{fmt(leadsBreakdown.call)}</p>
                                 <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Calls</p>
                             </div>
-                            <div className="p-3 text-center">
-                                <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center mx-auto mb-1">
-                                    <MessageCircle size={14} className="text-emerald-600" />
+                            <div className="py-2 px-2 text-center">
+                                <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center mx-auto mb-0.5">
+                                    <MessageCircle size={12} className="text-emerald-600" />
                                 </div>
-                                <p className="text-base font-black text-gray-900">{fmt(leadsBreakdown.whatsapp)}</p>
+                                <p className="text-sm font-black text-gray-900 leading-tight">{fmt(leadsBreakdown.whatsapp)}</p>
                                 <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">WhatsApp</p>
                             </div>
-                            <div className="p-3 text-center">
-                                <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center mx-auto mb-1">
-                                    <Zap size={14} className="text-amber-600" />
+                            <div className="py-2 px-2 text-center">
+                                <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center mx-auto mb-0.5">
+                                    <Zap size={12} className="text-amber-600" />
                                 </div>
-                                <p className="text-base font-black text-gray-900">{fmt(leadsBreakdown.callback)}</p>
+                                <p className="text-sm font-black text-gray-900 leading-tight">{fmt(leadsBreakdown.callback)}</p>
                                 <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Callbacks</p>
                             </div>
                         </div>
                         {/* Progress bar */}
                         {totalViews > 0 && (
-                            <div className="px-4 pb-3">
+                            <div className="px-3 pb-2">
                                 <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold mb-1">
                                     <span>{totalLeads} leads from {totalViews} views</span>
                                     <span>{conversionRate}% conversion</span>
@@ -284,7 +283,7 @@ const UserPropertyDashboard = () => {
                 )}
 
                 {/* ── SECONDARY STATS ── */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                     <StatCard
                         icon={Star}
                         label="Rating"
@@ -305,8 +304,8 @@ const UserPropertyDashboard = () => {
                 </div>
 
                 {/* ── QUICK ACTIONS ── */}
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="px-4 py-3 border-b border-gray-50">
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-50">
                         <h2 className="text-sm font-black text-gray-900">Quick Actions</h2>
                     </div>
                     {[
@@ -327,9 +326,9 @@ const UserPropertyDashboard = () => {
                                     navigate(action.path);
                                 }
                             }}
-                            className="flex items-center gap-3 w-full px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0"
+                            className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0"
                         >
-                            <div className={`w-8 h-8 rounded-lg ${action.bg} flex items-center justify-center flex-shrink-0`}>
+                            <div className={`w-7 h-7 rounded-lg ${action.bg} flex items-center justify-center flex-shrink-0`}>
                                 <action.icon size={15} className={action.color} />
                             </div>
                             <span className="flex-1 text-left text-sm font-semibold text-gray-700">{action.label}</span>
@@ -339,8 +338,8 @@ const UserPropertyDashboard = () => {
                 </div>
 
                 {/* ── RECENT LEADS ── */}
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-gray-50">
                         <div>
                             <h2 className="text-sm font-black text-gray-900">Recent Leads</h2>
                             <p className="text-[10px] text-gray-400 font-medium">Buyers who contacted you</p>
@@ -367,7 +366,7 @@ const UserPropertyDashboard = () => {
                             const status = enq.status || 'new';
 
                             return (
-                                <div key={enq._id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-b-0">
+                                <div key={enq._id} className="flex items-center gap-3 px-3 py-2 border-b border-gray-50 last:border-b-0">
                                     <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center flex-shrink-0 uppercase">
                                         {initial}
                                     </div>

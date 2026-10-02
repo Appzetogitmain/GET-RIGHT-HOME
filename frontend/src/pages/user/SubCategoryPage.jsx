@@ -368,7 +368,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                                 window.scrollTo(0, 0);
                             }
                         }}
-                        className={`flex-1 text-center py-2.5 rounded-lg text-sm font-bold cursor-pointer transition-all duration-300 ${isWithinCity ? 'bg-[#008b74] text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`flex-1 text-center py-2.5 rounded-lg text-sm font-bold cursor-pointer transition-all duration-300 ${isWithinCity ? 'bg-[#347989] text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         Within City
                     </div>
@@ -381,7 +381,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                                 window.scrollTo(0, 0);
                             }
                         }}
-                        className={`flex-1 text-center py-2.5 rounded-lg text-sm font-bold cursor-pointer transition-all duration-300 ${!isWithinCity ? 'bg-[#008b74] text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`flex-1 text-center py-2.5 rounded-lg text-sm font-bold cursor-pointer transition-all duration-300 ${!isWithinCity ? 'bg-[#347989] text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         Between Cities
                     </div>
@@ -584,7 +584,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                 <motion.button
                     whileTap={{ scale: 0.98 }}
                     onClick={handleProceed}
-                    className="w-full py-4 bg-[#00695C] hover:bg-[#004D40] text-white font-black uppercase tracking-widest text-sm rounded-xl shadow-lg shadow-[#00695C]/40 transition-all"
+                    className="w-full py-4 bg-[#347989] hover:bg-[#2a6370] text-white font-black uppercase tracking-widest text-sm rounded-xl shadow-lg shadow-[#347989]/40 transition-all"
                 >
                     Get Estimate
                 </motion.button>
@@ -822,7 +822,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                 {/* 2 */}
                 <div className="flex gap-4 items-start">
                     <div className="w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
-                         <Award className="text-blue-500 w-5 h-5" strokeWidth={1.5} />
+                         <Award className="text-[#347989] w-5 h-5" strokeWidth={1.5} />
                     </div>
                     <div className="pt-0.5">
                          <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Best Quality Service</h3>
@@ -1895,7 +1895,7 @@ const SubCategoryPage = () => {
                                 <div className="relative border-l-2 border-dashed border-gray-200 ml-4 sm:ml-5 space-y-7">
                                     <div className="relative pl-8 sm:pl-10">
                                         <div className="absolute -left-[17px] top-0 w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center shadow-sm">
-                                            <Smartphone className="w-4 h-4 text-indigo-600" />
+                                            <Smartphone className="w-4 h-4 text-[#347989]" />
                                         </div>
                                         <div>
                                             <h3 className="text-[15px] font-bold text-[#1A3B5C]">Book Home Inspection</h3>
@@ -1905,7 +1905,7 @@ const SubCategoryPage = () => {
 
                                     <div className="relative pl-8 sm:pl-10">
                                         <div className="absolute -left-[17px] top-0 w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center shadow-sm">
-                                            <Ruler className="w-4 h-4 text-indigo-600" />
+                                            <Ruler className="w-4 h-4 text-[#347989]" />
                                         </div>
                                         <div>
                                             <h3 className="text-[15px] font-bold text-[#1A3B5C]">Measure & Estimate</h3>
@@ -1915,7 +1915,7 @@ const SubCategoryPage = () => {
 
                                     <div className="relative pl-8 sm:pl-10">
                                         <div className="absolute -left-[17px] top-0 w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center shadow-sm">
-                                            <PlayCircle className="w-4 h-4 text-indigo-600" />
+                                            <PlayCircle className="w-4 h-4 text-[#347989]" />
                                         </div>
                                         <div>
                                             <h3 className="text-[15px] font-bold text-[#1A3B5C]">Project Initiation</h3>
@@ -1925,7 +1925,7 @@ const SubCategoryPage = () => {
 
                                     <div className="relative pl-8 sm:pl-10">
                                         <div className="absolute -left-[17px] top-0 w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center shadow-sm">
-                                            <Sparkles className="w-4 h-4 text-indigo-600" />
+                                            <Sparkles className="w-4 h-4 text-[#347989]" />
                                         </div>
                                         <div>
                                             <h3 className="text-[15px] font-bold text-[#1A3B5C]">Cleaning & Quality Check</h3>
@@ -1942,7 +1942,7 @@ const SubCategoryPage = () => {
                                 <div className="flex items-center mb-3">
                                     <h2 className="text-base sm:text-lg font-bold text-[#1E293B] flex items-center gap-2">
                                         Tour our Recent Projects
-                                        <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-sm">New</span>
+                                        <span className="bg-[#347989] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-sm">New</span>
                                     </h2>
                                 </div>
                                 <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x">
@@ -2203,7 +2203,7 @@ const SubCategoryPage = () => {
                                     handleCartToggle(selectedTexture);
                                     setSelectedTexture(null);
                                 }}
-                                className="w-full py-3.5 bg-[#009688] hover:bg-[#00897B] text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
+                                className="w-full py-3.5 bg-[#347989] hover:bg-[#2a6370] text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
                             >
                                 Get Estimate
                             </button>
@@ -2254,7 +2254,7 @@ const SubCategoryPage = () => {
                                     handleCartToggle(selectedIdea);
                                     setSelectedIdea(null);
                                 }}
-                                className="w-full py-3.5 bg-[#009688] hover:bg-[#00897B] text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
+                                className="w-full py-3.5 bg-[#347989] hover:bg-[#2a6370] text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
                             >
                                 Get Estimate
                             </button>
@@ -2506,7 +2506,7 @@ const SubCategoryPage = () => {
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <ShoppingCart className="text-[#00695C] w-5 h-5" />
+                                    <ShoppingCart className="text-[#347989] w-5 h-5" />
                                 )}
                             </div>
 
@@ -2517,7 +2517,7 @@ const SubCategoryPage = () => {
                                 <h4 className="text-[13px] font-bold text-gray-900 truncate">
                                     {subCategory?.title || category?.title}
                                 </h4>
-                                <span className="text-[11px] font-semibold text-[#00695C] flex items-center gap-0.5">
+                                <span className="text-[11px] font-semibold text-[#347989] flex items-center gap-0.5">
                                     View Details <ChevronRight size={12} strokeWidth={3} />
                                 </span>
                             </div>
@@ -2525,7 +2525,7 @@ const SubCategoryPage = () => {
                             <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => navigate('/user/cart')}
-                                className="bg-[#00695C] hover:bg-[#004D40] text-white rounded-xl px-4 py-2 text-center shrink-0 transition-colors"
+                                className="bg-[#347989] hover:bg-[#2a6370] text-white rounded-xl px-4 py-2 text-center shrink-0 transition-colors"
                             >
                                 <span className="block text-[13px] font-bold leading-tight">View Cart</span>
                                 <span className="block text-[10px] opacity-90 leading-tight">{cartCount} item{cartCount > 1 ? 's' : ''}</span>

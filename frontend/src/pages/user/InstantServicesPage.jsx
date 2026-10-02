@@ -110,7 +110,7 @@ const InstantServicesPage = () => {
                     >
                         <ArrowLeft className="w-5 h-5 text-gray-900" />
                     </button>
-                    <div className="w-10 h-10 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 bg-[#347989] rounded-xl flex items-center justify-center shrink-0">
                         <Zap className="w-5 h-5 text-white fill-white" />
                     </div>
                     <div className="min-w-0">
@@ -121,7 +121,7 @@ const InstantServicesPage = () => {
                             Verified technicians, doorstep in 30–45 min
                         </p>
                     </div>
-                    {loading && <div className="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin ml-auto shrink-0"></div>}
+                    {loading && <div className="w-5 h-5 border-2 border-[#347989] border-t-transparent rounded-full animate-spin ml-auto shrink-0"></div>}
                 </div>
             </div>
 
@@ -141,10 +141,10 @@ const InstantServicesPage = () => {
                                     onClick={() => navigate(`/home-services/category/${category.id || category._id}?mode=instant`, { state: { category, bookingMode: 'instant' } })}
                                     className="flex flex-col items-center text-center"
                                 >
-                                    <div className="w-full aspect-square rounded-2xl bg-amber-50 border border-amber-100 p-4 overflow-hidden flex items-center justify-center">
+                                    <div className="w-full aspect-square rounded-2xl bg-[#347989]/10 border border-[#347989]/20 p-4 overflow-hidden flex items-center justify-center">
                                         {(category.homeIconUrl || category.icon || category.imageUrl) ? (
                                             <img src={toAssetUrl(category.homeIconUrl || category.icon || category.imageUrl)} alt="" className="w-full h-full object-contain" />
-                                        ) : <Zap className="text-amber-500" />}
+                                        ) : <Zap className="text-[#347989]" />}
                                     </div>
                                     <span className="text-xs font-bold text-gray-800 mt-2 line-clamp-2">{category.title}</span>
                                 </motion.button>
@@ -173,9 +173,9 @@ const InstantServicesPage = () => {
                                 initial={{ y: 10, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 key={serviceId}
-                                className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/30 transition-colors"
+                                className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 hover:border-[#347989]/40 hover:bg-[#347989]/5 transition-colors"
                             >
-                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shrink-0 flex items-center justify-center text-white overflow-hidden">
+                                <div className="w-14 h-14 rounded-xl bg-[#347989] shrink-0 flex items-center justify-center text-white overflow-hidden">
                                     {(service.imageUrl || service.icon) ? (
                                         <img src={toAssetUrl(service.imageUrl || service.icon)} alt="" className="w-full h-full object-cover" />
                                     ) : (
@@ -187,7 +187,7 @@ const InstantServicesPage = () => {
                                     {subtitle && <p className="text-[11px] text-gray-400 font-medium truncate">{subtitle}</p>}
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className="text-xs font-black text-gray-900">₹{price}</span>
-                                        <span className="flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                                        <span className="flex items-center gap-0.5 text-[10px] font-bold text-[#347989] bg-[#347989]/10 px-1.5 py-0.5 rounded-full">
                                             <Clock size={9} /> {service.instantEtaMinutes || 30} min
                                         </span>
                                     </div>
@@ -195,7 +195,7 @@ const InstantServicesPage = () => {
                                 <button
                                     onClick={() => handleBook(service)}
                                     disabled={isBooking}
-                                    className="shrink-0 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[11px] font-black uppercase px-4 py-2 rounded-xl shadow-sm disabled:opacity-60 transition-all"
+                                    className="shrink-0 bg-[#347989] hover:bg-[#2a6370] text-white text-[11px] font-black uppercase px-4 py-2 rounded-xl shadow-sm disabled:opacity-60 transition-all"
                                 >
                                     {isBooking ? 'Adding...' : 'Book'}
                                 </button>
@@ -224,7 +224,7 @@ const InstantServicesPage = () => {
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <ShoppingCart className="text-[#00695C] w-5 h-5" />
+                                    <ShoppingCart className="text-[#347989] w-5 h-5" />
                                 )}
                             </div>
 
@@ -235,7 +235,7 @@ const InstantServicesPage = () => {
                                 <h4 className="text-[13px] font-bold text-gray-900 truncate">
                                     {lastAddedItem?.title || cartItems[cartItems.length - 1]?.title || 'Instant Service'}
                                 </h4>
-                                <span className="text-[11px] font-semibold text-[#00695C] flex items-center gap-0.5">
+                                <span className="text-[11px] font-semibold text-[#347989] flex items-center gap-0.5">
                                     View Details <ChevronRight size={12} strokeWidth={3} />
                                 </span>
                             </div>
@@ -243,7 +243,7 @@ const InstantServicesPage = () => {
                             <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => navigate('/user/cart')}
-                                className="bg-[#00695C] hover:bg-[#004D40] text-white rounded-xl px-4 py-2 text-center shrink-0 transition-colors"
+                                className="bg-[#347989] hover:bg-[#2a6370] text-white rounded-xl px-4 py-2 text-center shrink-0 transition-colors"
                             >
                                 <span className="block text-[13px] font-bold leading-tight">View Cart</span>
                                 <span className="block text-[10px] opacity-90 leading-tight">{cartCount} item{cartCount > 1 ? 's' : ''}</span>

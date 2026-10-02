@@ -15,6 +15,9 @@ import adminService from '../../../services/adminService';
 const AdminLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [expandedItems, setExpandedItems] = useState({});
+    const [panelMode] = useState(() => {
+        try { return localStorage.getItem('adminPanelMode') === 'home_services' ? 'home_services' : 'real_estate'; } catch { return 'real_estate'; }
+    });
     const location = useLocation();
     const navigate = useNavigate();
     const logout = useAdminStore(state => state.logout);
@@ -303,6 +306,8 @@ const AdminLayout = () => {
         }
     ], [supportUnreadCount, unreadCount]);
 
+    const REAL_ESTATE_MENU_GROUPS = MENU_GROUPS;
+
     // Active menu groups based on selected panel mode
     const currentMenuGroups = useMemo(() => {
         return panelMode === 'home_services' ? HOME_SERVICES_MENU_GROUPS : REAL_ESTATE_MENU_GROUPS;
@@ -313,7 +318,7 @@ const AdminLayout = () => {
     // its parent collapsed.
     useEffect(() => {
         const currentFull = location.pathname + location.search;
-        for (const group of MENU_GROUPS) {
+        for (const group of currentMenuGroups) {
             for (const item of group.items) {
                 if (item.children?.some(c => c.path === currentFull || location.pathname.startsWith(c.path.split('?')[0]))) {
                     setExpandedItems(prev => (prev[item.label] ? prev : { ...prev, [item.label]: true }));
@@ -321,7 +326,7 @@ const AdminLayout = () => {
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [location.pathname, location.search, MENU_GROUPS]);
+    }, [location.pathname, location.search, currentMenuGroups]);
 
     return (
         <div className="flex h-screen bg-gray-100 font-sans text-gray-900 overflow-hidden">
@@ -357,7 +362,7 @@ const AdminLayout = () => {
 
                 {/* Navigation with Groups */}
                 <nav className="flex-1 py-4 px-4 space-y-6 overflow-y-auto custom-scrollbar">
-                    {MENU_GROUPS.map((group, gIdx) => (
+                    {currentMenuGroups.map((group, gIdx) => (
                         <div key={gIdx} className="space-y-2">
                             {isSidebarOpen && (
                                 <h4 className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
