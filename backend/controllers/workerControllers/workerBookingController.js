@@ -126,7 +126,7 @@ const getAssignedJobs = async (req, res) => {
       // worker already saw before accepting.
       obj.workerAmount = bill
         ? bill.vendorTotalEarning
-        : Math.max(0, parseFloat((((b.basePrice || b.finalAmount || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
+        : Math.max(0, parseFloat((((b.basePrice || b.finalAmount || 0) * (100 - (b.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
       return sanitizeBookingForLead(obj);
     });
 
@@ -228,7 +228,7 @@ const getPendingRequests = async (req, res) => {
       .map(r => {
         const booking = bookingMap.get(String(r.bookingId));
         if (!booking) return null;
-        const workerAmount = Math.max(0, parseFloat((((booking.basePrice || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
+        const workerAmount = Math.max(0, parseFloat((((booking.basePrice || 0) * (100 - (booking.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
         // A direct admin offer has its own short window, counted from when it was sent.
         const adminOffered = booking.adminAssignedWorkerId && String(booking.adminAssignedWorkerId) === String(workerId);
         const offerWindowSec = adminOffered ? 60 : responseWindowSec;
@@ -327,7 +327,7 @@ const getJobById = async (req, res) => {
     } else {
       const platformSettings = await PlatformSettings.getSettings();
       const commissionPercentage = platformSettings?.defaultCommission ?? 10;
-      bookingObj.workerAmount = Math.max(0, parseFloat((((booking.basePrice || booking.finalAmount || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
+      bookingObj.workerAmount = Math.max(0, parseFloat((((booking.basePrice || booking.finalAmount || 0) * (100 - (booking.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
     }
 
     res.status(200).json({
@@ -906,7 +906,8 @@ const createBill = async (req, res) => {
     // Applies only to the ORIGINAL booked price — a worker's own added
     // extras/parts (below) stay 100% theirs, same as before.
     const isEstimate = booking.isEstimateBased;
-    const commissionPercentage = isEstimate ? 0 : (platformSettings?.defaultCommission ?? 10);
+    // Packers & Movers carries its own commission (admin: Packers & Movers > Rates).
+    const commissionPercentage = isEstimate ? 0 : (booking.moverDetails?.commissionPercent ?? platformSettings?.defaultCommission ?? 10);
     const cashExtraFee = isEstimate ? 0 : (platformSettings?.cashCollectionFee ?? 20);
 
     const grossAdminCommission = isEstimate ? 0 : parseFloat(((trueOriginalServiceBase * commissionPercentage) / 100).toFixed(2));

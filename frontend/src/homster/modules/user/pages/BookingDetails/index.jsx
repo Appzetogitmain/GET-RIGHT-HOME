@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import MoverDetailsCard from '../../../../../components/common/MoverDetailsCard';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import useAppNotifications from '../../../../hooks/useAppNotifications';
@@ -788,6 +789,11 @@ const BookingDetails = () => {
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
                 ID: <span className="font-mono">{booking.bookingNumber || booking._id?.slice(-8).toUpperCase()}</span>
               </p>
+              {booking.groupSize > 1 && (
+                <p className="mt-1.5 inline-flex rounded-full bg-violet-50 px-2.5 py-0.5 text-[10px] font-bold text-violet-700">
+                  Part {booking.groupIndex || 1} of {booking.groupSize}: your order is handled by separate professionals, see My Bookings for the rest
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -796,6 +802,7 @@ const BookingDetails = () => {
         </header>
 
         <main className="max-w-xl mx-auto px-4 py-6 space-y-6">
+          <MoverDetailsCard booking={booking} viewer="user" />
 
           {/* Advance not paid yet: the booking is held and not sent to anyone */}
           {booking.advanceStatus === 'awaiting' && !['cancelled', 'completed'].includes(booking.status?.toLowerCase()) && (

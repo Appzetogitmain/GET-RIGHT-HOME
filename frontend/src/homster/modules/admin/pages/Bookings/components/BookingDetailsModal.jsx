@@ -1,5 +1,6 @@
 import React from 'react';
 import HelpersPanel from './HelpersPanel';
+import MoverDetailsCard from '../../../../../../components/common/MoverDetailsCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiX, FiCalendar, FiClock, FiZap, FiUser, FiPhone, FiMail,
@@ -319,6 +320,8 @@ const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCance
                 )}
               </div>
             </div>
+
+            <MoverDetailsCard booking={booking} viewer="admin" />
 
             {/* Extra workers: requests from the lead worker + who was added */}
             <HelpersPanel booking={booking} onChanged={onChanged} />

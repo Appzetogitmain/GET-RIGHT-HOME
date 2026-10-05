@@ -120,6 +120,20 @@ const buildTrustedPrices = (services) => {
   return map;
 };
 
+// GST on the customer's service value, driven by the admin's "Apply GST" +
+// "Tax rate" platform settings (off => nothing is added).
+const gstConfig = async () => {
+  const p = await PlatformSettings.getSettings();
+  const ratePct = Math.max(0, Number(p?.taxRate) || 0);
+  return { applied: p?.applyGst === true && ratePct > 0, ratePct };
+};
+const gstBreakdown = (serviceValue, { applied, ratePct }) => {
+  const value = Math.max(0, Number(serviceValue) || 0);
+  const total = applied ? Math.round((value * ratePct) / 100) : 0;
+  const half = Math.round(total * 50) / 100;
+  return { applied, ratePct, serviceValue: value, cgst: half, sgst: half, total, grandTotal: value + total };
+};
+
 /**
  * Price preview for checkout: what the booking costs, what VIP would change,
  * and how much is paid now vs after the work. Mirrors createBooking's rules but
@@ -156,12 +170,14 @@ const quoteBooking = async (req, res) => {
       }
     }
 
+    const gstCfg = await gstConfig();
     const pricing = computeBookingPricing({
       service,
       bookedItems,
       trustedPrices,
       visitingCharges,
       promoDiscount,
+      taxRate: gstCfg.applied ? gstCfg.ratePct / 100 : 0,
       pendingPenalty: user?.wallet?.penalty || 0
     });
 
@@ -186,7 +202,12 @@ const quoteBooking = async (req, res) => {
 
     // A member already gets the discount; everyone else sees it as an offer.
     const withoutVip = optionFor(pricing.finalAmount, 0);
-    const afterDiscount = Math.max(0, pricing.finalAmount - vip.discount);
+    // GST is charged on the value after every discount, VIP included.
+    const taxable0 = pricing.basePrice - pricing.discount - pricing.promoDiscount;
+    const restOfBill = pricing.finalAmount - taxable0 - pricing.tax; // visiting + penalty
+    const gstWithout = gstBreakdown(taxable0, gstCfg);
+    const gstWith = gstBreakdown(taxable0 - vip.discount, gstCfg);
+    const afterDiscount = Math.max(0, gstWith.grandTotal + restOfBill);
     const withVip = vip.eligible ? optionFor(afterDiscount, vip.fee) : null;
     // What the customer pays under each plan on offer (the discount is the same).
     const planOptions = vip.eligible && !vip.isMember
@@ -196,6 +217,7 @@ const quoteBooking = async (req, res) => {
     res.json({
       success: true,
       amount: { subtotal: pricing.basePrice - pricing.discount - pricing.promoDiscount, total: pricing.finalAmount },
+      gst: { applied: gstCfg.applied, ratePct: gstCfg.ratePct, withoutVip: gstWithout, withVip: vip.discount > 0 ? gstWith : null },
       isMember: vip.isMember,
       memberExpiry: vip.isMember ? user.hsVip.expiry : null,
       vip: vip.enabled ? {
@@ -348,6 +370,19 @@ const createBooking = async (req, res) => {
       totalServiceValue = service.basePrice || 500;
     }
 
+    // Which category each cart line belongs to. A cart can mix categories
+    // (e.g. packers & movers + cleaning); dispatch then gives the whole order to
+    // one worker who covers all of them, or splits it per category.
+    const lineServiceIds = (Array.isArray(bookedItems) ? bookedItems : [])
+      .map((i) => String(i?.serviceId || ''))
+      .filter((id) => mongoose.Types.ObjectId.isValid(id));
+    const lineServices = lineServiceIds.length
+      ? await Service.find({ _id: { $in: lineServiceIds } }).select('categoryId categoryIds').lean()
+      : [];
+    const categoryOfService = new Map(lineServices.map((sv) => [String(sv._id), String(sv.categoryId || sv.categoryIds?.[0] || '')]));
+    const orderCategoryIds = [...new Set([...categoryOfService.values()].filter(Boolean))];
+    const multiCategory = orderCategoryIds.length > 1;
+
     // Check for Pending Penalty
     const pendingPenalty = user.wallet?.penalty || 0;
 
@@ -446,7 +481,7 @@ const createBooking = async (req, res) => {
     // them is tied up, a scheduled booking is rejected now instead of being
     // accepted and then sitting unassigned.
     const workersBeforeSlotCheck = nearbyPartners.length;
-    if (workersBeforeSlotCheck > 0 && bookingType !== 'instant') {
+    if (workersBeforeSlotCheck > 0 && bookingType !== 'instant' && !multiCategory) {
       nearbyPartners = await filterAvailableWorkers(nearbyPartners, { scheduledDate, timeSlot });
       if (nearbyPartners.length === 0) {
         return res.status(409).json({
@@ -472,7 +507,8 @@ const createBooking = async (req, res) => {
     // allowed for this booking type). There's nothing to search for, so don't
     // make the customer wait through a retry window: the booking goes straight
     // to the admin's manual-assignment queue and the customer is told so now.
-    const noWorkersAvailable = foundPartners.length === 0;
+    // (A mixed-category order is checked per category when it is dispatched.)
+    const noWorkersAvailable = foundPartners.length === 0 && !multiCategory;
     // --- END SEARCH BLOCK ---
 
     // Calculate pricing - use amount from frontend if provided, otherwise calculate
@@ -565,11 +601,13 @@ const createBooking = async (req, res) => {
         }
       }
 
+      const gstCfg = await gstConfig();
       const pricing = computeBookingPricing({
         service,
         bookedItems,
         trustedPrices,
         visitingCharges,
+        taxRate: gstCfg.applied ? gstCfg.ratePct / 100 : 0,
         // Promo validation lives upstream; clamp here so a promo can never
         // exceed the service value regardless of what was sent.
         promoDiscount: reqPromoDiscount,
@@ -601,7 +639,12 @@ const createBooking = async (req, res) => {
           durationDays: vipCalc.durationDays,
           activated: vipCalc.isMember
         };
-        finalAmount = Math.max(0, finalAmount - vipDiscount);
+        // GST follows the discounted value, so recompute it with the VIP discount.
+        const taxable0 = pricing.basePrice - pricing.discount - pricing.promoDiscount;
+        const restOfBill = pricing.finalAmount - taxable0 - pricing.tax;
+        const g = gstBreakdown(taxable0 - vipDiscount, gstCfg);
+        tax = g.total;
+        finalAmount = Math.max(0, g.serviceValue + g.total + restOfBill);
       }
 
       if (!pricingMatchesClient(finalAmount, amount)) {
@@ -651,6 +694,8 @@ const createBooking = async (req, res) => {
 
     // Map booked items to new schema (sectionTitle -> brandName)
     const formattedBookedItems = (Array.isArray(bookedItems) && bookedItems.length > 0) ? bookedItems.map(item => ({
+      serviceId: mongoose.Types.ObjectId.isValid(String(item.serviceId || '')) ? item.serviceId : undefined,
+      categoryId: categoryOfService.get(String(item.serviceId || '')) || undefined,
       brandName: item.brandName || item.sectionTitle || item.brand || '', // Robust fallback
       brandIcon: item.brandIcon || item.sectionIcon || item.icon || null,
       card: item.card || item,
@@ -683,6 +728,7 @@ const createBooking = async (req, res) => {
       vendorId: null, // Will be assigned when vendor accepts
       serviceId: safeServiceId,
       categoryId: finalCategory?._id || categoryId,
+      categoryIds: orderCategoryIds,
       serviceName: service.title,
       serviceCategory: reqServiceCategory || finalCategory?.title || service.category || 'General',
       isEstimateBased: finalCategory?.isEstimateBased || req.body.isEstimateBased || false,

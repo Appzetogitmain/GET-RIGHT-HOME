@@ -269,12 +269,21 @@ export const findWorkerIneligibility = async (worker, booking) => {
       if (!legacy) return `${worker.name} is not assigned to the ${zone?.name || 'booking'} zone.`;
     }
   }
+  const professions = await Profession.find({}).select('name categoryIds isActive').lean();
+  const cats = [...new Set((booking.categoryIds || []).map(String))];
+  if (cats.length > 1) {
+    for (const cid of cats) {
+      if (!workerServesBooking(worker, { categoryId: cid }, professions)) {
+        return `${worker.name} does not cover every service in this order. Assign one worker per service instead.`;
+      }
+    }
+    return null;
+  }
   const filters = {
     service: booking.serviceCategory,
     serviceName: booking.serviceName,
     categoryId: booking.categoryId
   };
-  const professions = await Profession.find({}).select('name categoryIds isActive').lean();
   if (!workerServesBooking(worker, filters, professions)) {
     return `${worker.name}'s profession does not cover ${booking.serviceCategory || 'this'} bookings.`;
   }

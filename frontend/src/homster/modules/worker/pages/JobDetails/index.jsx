@@ -11,6 +11,7 @@ const WorkCompletionModal = lazy(() => import('../../components/common/WorkCompl
 const OtpVerificationModal = lazy(() => import('../../components/common/OtpVerificationModal'));
 import HelperJobView from '../../components/common/HelperJobView';
 import JobHelperSection from '../../components/common/JobHelperSection';
+import MoverDetailsCard from '../../../../../components/common/MoverDetailsCard';
 import RejectJobModal from '../../components/common/RejectJobModal';
 const GenerateEstimateModal = lazy(() => import('../../components/common/GenerateEstimateModal'));
 import workerService from '../../../../services/workerService';
@@ -585,6 +586,8 @@ const JobDetails = () => {
             </div>
           </div>
         </div>
+
+        <MoverDetailsCard booking={job} viewer="worker" />
 
         {/* Extra workers (request / who was added) */}
         <JobHelperSection job={job} onChanged={fetchJobDetails} open={helperOpen} onOpenChange={setHelperOpen} />

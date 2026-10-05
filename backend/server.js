@@ -14,6 +14,7 @@ import { Server } from 'socket.io';
 import morgan from 'morgan';
 import workerRoutes from './routes/workerRoutes.js';
 import hsBookingRoutes from './routes/hsBookingRoutes.js';
+import { customerRouter as moverRoutes, adminRouter as adminMoverRoutes } from './routes/moverRoutes.js';
 import adminWorkerRoutes from './routes/adminWorkerRoutes.js';
 import zoneRoutes from './routes/zoneRoutes.js';
 import fcmRoutes from './routes/fcmRoutes.js';
@@ -184,6 +185,7 @@ import { seedAdminOnStartup } from './utils/adminSeeder.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin/movers', adminMoverRoutes); // before the generic /api/admin router
 app.use('/api/admin/zone-catalog', zoneCatalogRoutes); // admin-only; must precede the generic /api/admin router
 app.use('/api/admin/dev', adminDevRoutes); // superadmin-only; must precede the generic /api/admin router
 app.use('/api/admin', adminRoutes);
@@ -269,6 +271,7 @@ app.use('/api/enquiries', enquiryRoutes);
 app.use('/api/locality-reviews', localityReviewRoutes);
 app.use('/api/workers', workerRoutes);
 app.use('/api/hs-bookings', hsBookingRoutes);
+app.use('/api/movers', moverRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin/workers', adminWorkerRoutes);

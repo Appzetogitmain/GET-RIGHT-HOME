@@ -14,6 +14,7 @@ import adminService from '../../../services/adminService';
 
 const AdminLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [menuQuery, setMenuQuery] = useState('');
     const [expandedItems, setExpandedItems] = useState({});
     const location = useLocation();
     const navigate = useNavigate();
@@ -181,6 +182,7 @@ const AdminLayout = () => {
                 },
                 { icon: ShoppingBag, label: 'Service Bookings', path: '/admin/home-service/bookings' },
                 { icon: Layers, label: 'Service Catalog', path: '/admin/home-service/user-categories' },
+                { icon: Package, label: 'Packers & Movers', path: '/admin/home-service/packers-movers' },
                 { icon: Wallet, label: 'Service Payments', path: '/admin/home-service/payments' },
                 { icon: ClipboardList, label: 'Service Reports', path: '/admin/home-service/reports' },
                 { icon: Star, label: 'Service Reviews', path: '/admin/home-service/reviews' },
@@ -282,6 +284,7 @@ const AdminLayout = () => {
                         { label: 'Services & Rates', path: '/admin/home-service/user-categories/sections' },
                     ]
                 },
+                { icon: Package, label: 'Packers & Movers', path: '/admin/home-service/packers-movers' },
                 { icon: Wallet, label: 'Service Payments', path: '/admin/home-service/payments' },
             ]
         },
@@ -303,17 +306,35 @@ const AdminLayout = () => {
         }
     ], [supportUnreadCount, unreadCount]);
 
-    // Active menu groups based on selected panel mode
+    // Active menu groups: the Home Services panel lives under /admin/home-service
+    const panelMode = location.pathname.startsWith('/admin/home-service') ? 'home_services' : 'real_estate';
     const currentMenuGroups = useMemo(() => {
-        return panelMode === 'home_services' ? HOME_SERVICES_MENU_GROUPS : REAL_ESTATE_MENU_GROUPS;
-    }, [panelMode, HOME_SERVICES_MENU_GROUPS, REAL_ESTATE_MENU_GROUPS]);
+        return panelMode === 'home_services' ? HOME_SERVICES_MENU_GROUPS : MENU_GROUPS;
+    }, [panelMode, HOME_SERVICES_MENU_GROUPS, MENU_GROUPS]);
+
+    // Sidebar search: matches a group title, a tab, or a sub-tab. A matching
+    // parent keeps all its sub-tabs; otherwise only the matching sub-tabs show.
+    const searchTerm = menuQuery.trim().toLowerCase();
+    const visibleGroups = useMemo(() => {
+        if (!searchTerm) return currentMenuGroups;
+        const has = (text) => String(text || '').toLowerCase().includes(searchTerm);
+        return currentMenuGroups.map((group) => {
+            if (has(group.title)) return group;
+            const items = group.items.map((item) => {
+                if (has(item.label)) return item;
+                const children = (item.children || []).filter((c) => has(c.label));
+                return children.length ? { ...item, children } : null;
+            }).filter(Boolean);
+            return items.length ? { ...group, items } : null;
+        }).filter(Boolean);
+    }, [currentMenuGroups, searchTerm]);
 
     // Auto-expand whichever parent contains the currently active child, so
     // reloading a deep link (e.g. /admin/users?status=active) doesn't leave
     // its parent collapsed.
     useEffect(() => {
         const currentFull = location.pathname + location.search;
-        for (const group of MENU_GROUPS) {
+        for (const group of currentMenuGroups) {
             for (const item of group.items) {
                 if (item.children?.some(c => c.path === currentFull || location.pathname.startsWith(c.path.split('?')[0]))) {
                     setExpandedItems(prev => (prev[item.label] ? prev : { ...prev, [item.label]: true }));
@@ -321,7 +342,7 @@ const AdminLayout = () => {
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [location.pathname, location.search, MENU_GROUPS]);
+    }, [location.pathname, location.search, currentMenuGroups]);
 
     return (
         <div className="flex h-screen bg-gray-100 font-sans text-gray-900 overflow-hidden">
@@ -356,8 +377,32 @@ const AdminLayout = () => {
                 </div>
 
                 {/* Navigation with Groups */}
+                {isSidebarOpen && (
+                    <div className="px-4 pt-3">
+                        <div className="relative">
+                            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                value={menuQuery}
+                                onChange={(e) => setMenuQuery(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Escape') setMenuQuery(''); }}
+                                placeholder="Search menu…"
+                                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-8 text-[13px] text-gray-800 outline-none transition focus:border-gray-400 focus:bg-white"
+                            />
+                            {menuQuery && (
+                                <button type="button" onClick={() => setMenuQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:text-gray-700">
+                                    <X size={14} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 <nav className="flex-1 py-4 px-4 space-y-6 overflow-y-auto custom-scrollbar">
-                    {MENU_GROUPS.map((group, gIdx) => (
+                    {searchTerm && visibleGroups.length === 0 && isSidebarOpen && (
+                        <p className="px-4 py-6 text-center text-xs text-gray-400">No menu matches “{menuQuery}”</p>
+                    )}
+                    {visibleGroups.map((group, gIdx) => (
                         <div key={gIdx} className="space-y-2">
                             {isSidebarOpen && (
                                 <h4 className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
@@ -373,7 +418,7 @@ const AdminLayout = () => {
                                         : item.path === '/admin/properties'
                                             ? location.pathname === item.path || location.pathname.startsWith('/admin/properties/')
                                             : location.pathname.startsWith(item.path);
-                                    const isExpanded = !!expandedItems[item.label];
+                                    const isExpanded = !!searchTerm || !!expandedItems[item.label];
 
                                     if (hasChildren) {
                                         return (

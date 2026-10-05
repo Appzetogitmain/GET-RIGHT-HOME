@@ -124,8 +124,8 @@ const CartStepView = ({
             <div className="space-y-2.5 px-4 py-4 text-sm">
               {summary.rows.map((r) => (
                 <div key={r.label} className="flex items-center justify-between">
-                  <span className={r.tone === 'good' ? 'font-medium text-emerald-600' : 'text-slate-600'}>{r.label}</span>
-                  <span className={r.tone === 'good' ? 'font-semibold text-emerald-600' : 'font-medium text-slate-900'}>{r.value}</span>
+                  <span className={r.tone === 'good' ? 'font-medium text-emerald-600' : r.strong ? 'font-bold text-slate-800' : 'text-slate-600'}>{r.label}</span>
+                  <span className={r.tone === 'good' ? 'font-semibold text-emerald-600' : r.strong ? 'font-bold text-slate-900' : 'font-medium text-slate-900'}>{r.value}</span>
                 </div>
               ))}
               <div className="flex items-center justify-between border-t border-dashed border-slate-200 pt-3">

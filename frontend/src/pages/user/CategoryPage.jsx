@@ -32,6 +32,11 @@ const CategoryPage = () => {
     const bookingMode = location.state?.bookingMode === 'instant' || searchParams.get('mode') === 'instant' ? 'instant' : 'slot';
 
     const [category, setCategory] = useState(location.state?.category || null);
+
+    // Packers & Movers is a quote wizard, not a service list.
+    useEffect(() => {
+        if (/packers/i.test(category?.title || category?.name || '')) navigate('/home-services/packers-movers', { replace: true });
+    }, [category, navigate]);
     const [subCategories, setSubCategories] = useState([]);
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);

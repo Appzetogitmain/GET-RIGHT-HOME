@@ -1209,7 +1209,7 @@ export const assignWorkerToBooking = async (req, res) => {
         scheduledTime: booking.scheduledTime,
         price: booking.finalAmount || booking.basePrice,
         totalAmount: booking.finalAmount || booking.basePrice,
-        workerAmount: Math.max(0, parseFloat((((booking.basePrice || 0) * (100 - commissionPct)) / 100).toFixed(2))),
+        workerAmount: Math.max(0, parseFloat((((booking.basePrice || 0) * (100 - (booking.moverDetails?.commissionPercent ?? commissionPct))) / 100).toFixed(2))),
         address: booking.address,
         serviceCategory: booking.serviceCategory,
         brandName: booking.brandName,

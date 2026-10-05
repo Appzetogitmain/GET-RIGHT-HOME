@@ -140,6 +140,15 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Service category is required']
   },
+  // Packers & Movers: route, inventory, add-ons and the price breakdown (set by the movers wizard).
+  moverDetails: { type: mongoose.Schema.Types.Mixed, default: null },
+  // Every category in the order. More than one means the order may be split
+  // into one booking per category when no single worker covers them all.
+  categoryIds: [{ type: mongoose.Schema.Types.ObjectId }],
+  // Bookings born from the same order share this id (the first booking's number).
+  bookingGroupId: { type: String, default: null, index: true },
+  groupSize: { type: Number, default: 1 },
+  groupIndex: { type: Number, default: 1 },
   isEstimateBased: {
     type: Boolean,
     default: false
@@ -157,6 +166,9 @@ const bookingSchema = new mongoose.Schema({
   }],
   // Booked Items (Brand > Card snapshot)
   bookedItems: [{
+    // which service / category this line is (a cart can mix categories)
+    serviceId: { type: mongoose.Schema.Types.ObjectId },
+    categoryId: { type: mongoose.Schema.Types.ObjectId },
     brandName: { type: String, default: '' },
     brandIcon: { type: String, default: null },
     serviceName: { type: String, default: '' },

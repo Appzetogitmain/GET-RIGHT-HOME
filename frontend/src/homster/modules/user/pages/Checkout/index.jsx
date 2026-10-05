@@ -2027,6 +2027,20 @@ const Checkout = () => {
     ? ((vipAdded && selectedVipPlan?.option) ? selectedVipPlan.option : quote.options?.skip)
     : null;
   const payNowDisplay = payOption ? payOption.payNow : totalAmount;
+  // GST breakdown from the server quote (only when admin has GST switched on).
+  const gstView = quote?.success && quote.gst?.applied
+    ? ((vipAdded || quote.isMember) && quote.gst.withVip ? quote.gst.withVip : quote.gst.withoutVip)
+    : null;
+  const gstRows = (g) => {
+    const f = (n) => `₹${(Math.round((Number(n) || 0) * 100) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const half = Number(g.ratePct) / 2;
+    return [
+      { label: 'Service value', value: f(g.serviceValue) },
+      { label: `CGST @ ${half}%`, value: f(g.cgst) },
+      { label: `SGST @ ${half}%`, value: f(g.sgst) },
+      { label: `Total GST @ ${g.ratePct}%`, value: f(g.total), strong: true }
+    ];
+  };
   const displayTotal = payOption ? payOption.serviceTotal + payOption.vipFee : totalAmount;
 
   const vipCardNode = quote?.success && !quote.isMember && quote.vip?.eligible && totalAmount > 0 ? (
@@ -2127,6 +2141,7 @@ const Checkout = () => {
             if (general > 0) rows.push({ label: 'Discount', value: `-${fmt(general)}`, tone: 'good' });
             if (vipDiscountAmount > 0) rows.push({ label: 'VIP savings', value: `-${fmt(vipDiscountAmount)}`, tone: 'good' });
             if (promoDiscountAmount > 0) rows.push({ label: 'Promo applied', value: `-${fmt(promoDiscountAmount)}`, tone: 'good' });
+            if (gstView) rows.push(...gstRows(gstView));
             if (payOption?.vipFee > 0) rows.push({ label: 'VIP membership', value: fmt(payOption.vipFee) });
             return {
               rows,
@@ -2548,6 +2563,20 @@ const Checkout = () => {
               </div>
             )}
 
+            {/* GST breakdown (when admin has GST on) */}
+            {gstView && gstRows(gstView).map((r) => (
+              <div key={r.label} className="flex justify-between items-center">
+                <span className={`text-sm ${r.strong ? 'font-bold text-slate-800' : 'text-slate-500'}`}>{r.label}</span>
+                <span className={`text-sm ${r.strong ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>{r.value}</span>
+              </div>
+            ))}
+            {gstView && payOption?.vipFee > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">VIP Membership</span>
+                <span className="text-sm font-medium text-slate-700">₹{Math.round(payOption.vipFee).toLocaleString('en-IN')}</span>
+              </div>
+            )}
+
             {/* Visited Fee */}
             {displayFee > 0 && (
               <div className="flex justify-between items-center">
@@ -2570,7 +2599,7 @@ const Checkout = () => {
                     </>
                   ) : (
                     <span className="text-xl font-black text-slate-900">
-                      ₹{totalAmount.toLocaleString('en-IN')}
+                      ₹{(gstView ? Math.round(displayTotal * 100) / 100 : totalAmount).toLocaleString('en-IN')}
                     </span>
                   )}
                 </div>

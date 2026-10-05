@@ -407,6 +407,11 @@ const MyBookings = () => {
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
                         #{booking.bookingNumber || (booking._id || booking.id).substring(0, 8)}
                       </p>
+                      {booking.groupSize > 1 && (
+                        <p className="mb-1.5 inline-flex rounded-full bg-violet-50 px-2.5 py-0.5 text-[10px] font-bold text-violet-700 ring-1 ring-violet-100">
+                          Part {booking.groupIndex || 1} of {booking.groupSize} of your order · handled by a separate professional
+                        </p>
+                      )}
 
                       {/* Detailed Booking Info */}
                       <div className="space-y-1">

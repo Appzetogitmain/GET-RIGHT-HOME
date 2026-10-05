@@ -32,7 +32,35 @@ const OPEN_FOR_ASSIGNMENT = [
  * type, free for the slot, and not on `excludeWorkerIds` (e.g. whoever just
  * rejected it).
  */
-export const findDispatchPartners = async (booking, { excludeWorkerIds = [] } = {}) => {
+export const findDispatchPartners = async (booking, opts = {}) => {
+  // An order that spans several categories goes only to workers who cover ALL
+  // of them; otherwise it is split per category (see splitBookingByCategory).
+  const cats = [...new Set((booking.categoryIds || []).map(String))];
+  if (cats.length > 1) {
+    const lists = [];
+    for (const cid of cats) {
+      lists.push(await findPartnersForCategory({
+        _id: booking._id,
+        categoryId: cid,
+        serviceCategory: '',
+        serviceName: '',
+        bookingType: booking.bookingType,
+        scheduledDate: booking.scheduledDate,
+        scheduledTime: booking.scheduledTime,
+        timeSlot: booking.timeSlot,
+        address: booking.address
+      }, opts));
+    }
+    const common = lists.slice(1).reduce(
+      (ids, list) => new Set(list.map((w) => String(w._id)).filter((id) => ids.has(id))),
+      new Set(lists[0].map((w) => String(w._id)))
+    );
+    return lists[0].filter((w) => common.has(String(w._id)));
+  }
+  return findPartnersForCategory(booking, opts);
+};
+
+const findPartnersForCategory = async (booking, { excludeWorkerIds = [] } = {}) => {
   const hs = await Settings.findOne({ type: 'global' }).select('searchRadius').lean();
   const category = booking.categoryId
     ? await HomeServiceCategory.findById(booking.categoryId?._id || booking.categoryId).select('title slug').lean()
@@ -235,6 +263,126 @@ export const reassignSlotBooking = async (bookingId, { excludeWorkerIds = [] } =
   return { assigned: false };
 };
 
+const MONEY_SPLIT = ['basePrice', 'discount', 'promoDiscount', 'tax', 'visitingCharges', 'finalAmount', 'vipDiscount', 'advanceRequired', 'advancePaid', 'finalOnlineAmount', 'finalCashAmount'];
+const money2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+/**
+ * An order with items from several categories that no single worker covers is
+ * split into one booking per category, each going to workers of that category.
+ * The customer paid once; amounts are shared out by each part's item value.
+ * The original booking keeps the first category (and the payment, VIP fee).
+ * Returns the new bookings, or null if there was nothing to split.
+ */
+export const splitBookingByCategory = async (bookingId) => {
+  const booking = await HomeServiceBooking.findById(bookingId);
+  if (!booking || booking.workerId) return null;
+
+  const mainCat = String(booking.categoryId || booking.categoryIds?.[0] || '');
+  const groups = new Map();
+  for (const item of booking.bookedItems || []) {
+    const key = String(item.categoryId || mainCat);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  }
+  if (groups.size < 2) return null;
+
+  // Claim the split so a second dispatch trigger can't do it twice.
+  const claim = await HomeServiceBooking.updateOne(
+    { _id: booking._id, bookingGroupId: null },
+    { $set: { bookingGroupId: booking.bookingNumber } }
+  );
+  if (!claim.modifiedCount) return null;
+
+  const orderedKeys = [mainCat, ...[...groups.keys()].filter((k) => k !== mainCat)].filter((k) => groups.has(k));
+  const cats = await HomeServiceCategory.find({ _id: { $in: orderedKeys.filter(Boolean) } }).select('title icon image isEstimateBased').lean();
+  const catById = new Map(cats.map((c) => [String(c._id), c]));
+  const valueOf = (items) => items.reduce((sum, i) => sum + (Number(i.card?.price) || 0) * (Number(i.quantity) || 1), 0);
+  const total = orderedKeys.reduce((sum, k) => sum + valueOf(groups.get(k)), 0) || 1;
+
+  const base = booking.toObject();
+  const children = [];
+  const taken = Object.fromEntries(MONEY_SPLIT.map((f) => [f, 0]));
+  let takenPayable = 0;
+  const payableBase = Math.max(0, (Number(base.userPayableAmount) || 0) - (Number(base.vipFee) || 0));
+
+  for (let i = 1; i < orderedKeys.length; i += 1) {
+    const key = orderedKeys[i];
+    const items = groups.get(key);
+    const ratio = valueOf(items) / total;
+    const cat = catById.get(key);
+    const child = { ...base };
+    ['_id', '__v', 'createdAt', 'updatedAt', 'helpers', 'helperRequests'].forEach((f) => delete child[f]);
+    MONEY_SPLIT.forEach((f) => {
+      child[f] = money2((Number(base[f]) || 0) * ratio);
+      taken[f] += child[f];
+    });
+    child.userPayableAmount = money2(payableBase * ratio);
+    takenPayable += child.userPayableAmount;
+    Object.assign(child, {
+      bookingNumber: `${booking.bookingNumber}-${i + 1}`,
+      bookingGroupId: booking.bookingNumber,
+      groupIndex: i + 1,
+      groupSize: orderedKeys.length,
+      categoryId: key,
+      categoryIds: [key],
+      serviceId: items[0].serviceId || base.serviceId,
+      serviceName: items[0].card?.title || cat?.title || base.serviceName,
+      serviceCategory: cat?.title || base.serviceCategory,
+      isEstimateBased: !!cat?.isEstimateBased,
+      categoryIcon: cat?.icon || cat?.image || base.categoryIcon,
+      bookedItems: items.map((it) => (typeof it.toObject === 'function' ? it.toObject() : it)),
+      vipFee: 0,
+      workerId: null,
+      vendorId: null,
+      status: BOOKING_STATUS.SEARCHING,
+      assignmentStatus: 'pending',
+      assignmentAttempts: [],
+      potentialWorkers: [],
+      notifiedWorkers: [],
+      notifiedPartners: [],
+      currentWave: 0,
+      waveStartedAt: null,
+      leadPayoutCredited: null
+    });
+    children.push(await HomeServiceBooking.create(child));
+  }
+
+  // The original booking keeps its first category and whatever is left over.
+  const firstKey = orderedKeys[0];
+  const first = groups.get(firstKey);
+  const firstCat = catById.get(firstKey);
+  const $set = {
+    bookingGroupId: booking.bookingNumber,
+    groupIndex: 1,
+    groupSize: orderedKeys.length,
+    categoryId: firstKey,
+    categoryIds: [firstKey],
+    bookedItems: first.map((it) => (typeof it.toObject === 'function' ? it.toObject() : it)),
+    serviceName: first[0].card?.title || firstCat?.title || booking.serviceName,
+    serviceCategory: firstCat?.title || booking.serviceCategory,
+    isEstimateBased: !!firstCat?.isEstimateBased,
+    userPayableAmount: money2((Number(base.userPayableAmount) || 0) - takenPayable)
+  };
+  if (first[0].serviceId) $set.serviceId = first[0].serviceId;
+  MONEY_SPLIT.forEach((f) => { $set[f] = money2(Math.max(0, (Number(base[f]) || 0) - taken[f])); });
+  await HomeServiceBooking.updateOne({ _id: booking._id }, { $set });
+
+  try {
+    await createNotification({
+      userId: booking.userId,
+      type: 'booking_split',
+      title: 'Your order is split into separate bookings',
+      message: `Different professionals handle each service, so your order is now ${orderedKeys.length} bookings (${[booking.bookingNumber, ...children.map((c) => c.bookingNumber)].join(', ')}). You pay nothing extra.`,
+      relatedId: booking._id,
+      relatedType: 'booking',
+      pushData: { type: 'booking_confirmed', bookingId: booking._id.toString(), link: '/user/bookings' }
+    });
+  } catch { /* notification is best effort */ }
+  getIO()?.to(`user_${String(booking.userId)}`).emit('booking_updated', { bookingId: String(booking._id), status: booking.status, split: true });
+
+  return children;
+};
+
 /**
  * Sends a paid (or free) booking to professionals.
  *   - slot bookings  -> straight to an available worker (no accept popup)
@@ -261,6 +409,18 @@ export const dispatchBooking = async (bookingId) => {
     const bookingModel = 'worker';
 
     let foundPartners = await findDispatchPartners(booking);
+
+    // Several categories and nobody covers them all: one booking per category.
+    if ((booking.categoryIds || []).length > 1 && foundPartners.length === 0) {
+      const children = await splitBookingByCategory(booking._id);
+      if (children) {
+        for (const child of children) {
+          setImmediate(() => dispatchBooking(child._id).catch((err) => console.error('[Dispatch] split child failed:', err)));
+        }
+        // This booking now holds only its own category: dispatch it afresh.
+        return dispatchBooking(booking._id);
+      }
+    }
 
     // Re-fetch user and booking for background tasks to ensure latest state
     const userForBackground = await User.findById(userId);
@@ -355,7 +515,7 @@ export const dispatchBooking = async (bookingId) => {
     // drift apart the way a separately-hardcoded flat fee could.
     const platformSettings = await PlatformSettings.getSettings();
     const commissionPercentage = platformSettings.defaultCommission ?? 10;
-    const workerAmount = Math.max(0, parseFloat((((bookingForBackground.basePrice || 0) * (100 - commissionPercentage)) / 100).toFixed(2)));
+    const workerAmount = Math.max(0, parseFloat((((bookingForBackground.basePrice || 0) * (100 - (bookingForBackground.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
     console.log(`[WorkerAmount Calc] basePrice: ${bookingForBackground.basePrice}, commission%: ${commissionPercentage}, workerAmount: ${workerAmount}`);
 
     const waveSettings = await Settings.findOne({ type: 'global' }).select('waveDuration').lean();

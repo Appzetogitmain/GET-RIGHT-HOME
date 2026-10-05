@@ -125,6 +125,11 @@ const HomeServicesPage = () => {
         if (!cat) return;
         const id = cat.id || cat._id;
         if (!id) return;
+        // Packers & Movers has its own quote wizard (location, items, slot, summary).
+        if (/packers/i.test(cat.title || cat.name || '')) {
+            navigate('/home-services/packers-movers');
+            return;
+        }
         // A category with sub-categories opens a sheet to pick one; a direct-service
         // category has nothing to pick, so it goes straight to its services.
         if (cat.isDirectService) {
@@ -132,6 +137,18 @@ const HomeServicesPage = () => {
         } else {
             setSheetCategory(cat);
         }
+    }, [navigate]);
+
+    // Banners, promos and curated cards go straight to the category page (no popup).
+    const openCategoryPage = useCallback((cat) => {
+        if (!cat) return;
+        const id = cat.id || cat._id;
+        if (!id) return;
+        if (/packers/i.test(cat.title || cat.name || '')) {
+            navigate('/home-services/packers-movers');
+            return;
+        }
+        navigate(`/home-services/category/${id}`, { state: { category: cat } });
     }, [navigate]);
 
     const [promos, setPromos] = useState([]);
@@ -273,15 +290,7 @@ const HomeServicesPage = () => {
                         ]).map((promo) => (
                             <motion.div
                                 key={promo.id || promo._id}
-                                onClick={() => {
-                                    if (promo.targetCategoryId) {
-                                        const cat = categories.find(c => (c.id || c._id) === promo.targetCategoryId);
-                                        openCategoryModal(cat || { id: promo.targetCategoryId, title: promo.title });
-                                    } else if (promo.slug) {
-                                        navigate(`/service/${promo.slug}`);
-                                    }
-                                }}
-                                className="min-w-full snap-center h-full relative cursor-pointer flex-shrink-0"
+                                className="min-w-full snap-center h-full relative flex-shrink-0"
                             >
                                 <img
                                     src={promo.imageUrl || promo.image || '/instant-service.png'}
@@ -542,15 +551,7 @@ const HomeServicesPage = () => {
                                 <motion.div
                                     key={idx}
                                     whileHover={{ y: -8 }}
-                                    onClick={() => {
-                                        if (item.targetCategoryId) {
-                                            const cat = categories.find(c => (c.id || c._id) === item.targetCategoryId);
-                                            openCategoryModal(cat || { id: item.targetCategoryId, title: item.title });
-                                        } else if (item.slug) {
-                                            navigate(`/service/${item.slug}`);
-                                        }
-                                    }}
-                                    className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-xl relative overflow-hidden shadow-xl shadow-gray-200/40 group bg-gray-900 cursor-pointer"
+                                    className="min-w-full md:min-w-[450px] snap-center h-52 md:h-64 rounded-xl relative overflow-hidden shadow-xl shadow-gray-200/40 group bg-gray-900"
                                 >
                                     <div className="relative h-full overflow-hidden">
                                         {item.gifUrl ? (
@@ -1166,7 +1167,7 @@ const HomeServicesPage = () => {
                                 onClick={() => {
                                     if (item.targetCategoryId) {
                                         const cat = categories.find(c => (c.id || c._id) === item.targetCategoryId);
-                                        openCategoryModal(cat || { id: item.targetCategoryId, title: item.title });
+                                        openCategoryPage(cat || { id: item.targetCategoryId, title: item.title });
                                     } else if (item.slug) {
                                         navigate(`/service/${item.slug}`);
                                     }
@@ -1206,7 +1207,7 @@ const HomeServicesPage = () => {
                                 onClick={() => {
                                     if (service.targetCategoryId) {
                                         const cat = categories.find(c => (c.id || c._id) === service.targetCategoryId);
-                                        openCategoryModal(cat || { id: service.targetCategoryId, title: service.title });
+                                        openCategoryPage(cat || { id: service.targetCategoryId, title: service.title });
                                     } else if (service.slug) {
                                         navigate(`/service/${service.slug}`);
                                     }
@@ -1269,7 +1270,7 @@ const HomeServicesPage = () => {
                                 onClick={() => {
                                     if (card.targetCategoryId) {
                                         const cat = categories.find(c => (c.id || c._id) === card.targetCategoryId);
-                                        openCategoryModal(cat || { id: card.targetCategoryId, title: card.title });
+                                        openCategoryPage(cat || { id: card.targetCategoryId, title: card.title });
                                     } else if (card.slug) {
                                         navigate(`/service/${card.slug}`);
                                     }

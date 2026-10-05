@@ -16,6 +16,22 @@ const MONEY_FIELDS = [
   'workerPaymentStatus', 'isWorkerPaid', 'workerPaidAt', 'finalSettlementStatus', 'estimate'
 ];
 
+// Packers & Movers details keep the route and inventory for workers, but not
+// the customer's price breakdown, token or the platform's commission.
+const stripMoverMoney = (obj) => {
+  const m = obj.moverDetails;
+  if (!m) return;
+  obj.moverDetails = {
+    relocationType: m.relocationType,
+    from: m.from,
+    to: m.to,
+    notes: m.notes,
+    distanceKm: m.distanceKm,
+    inventory: m.inventory,
+    addOns: (m.addOns || []).map((a) => ({ key: a.key, name: a.name, group: a.group }))
+  };
+};
+
 /**
  * A booking as a helper sees it: read-only job details with every amount
  * removed — including what the helper themself will be paid.
@@ -23,6 +39,7 @@ const MONEY_FIELDS = [
 export const sanitizeBookingForHelper = (booking, helperWorkerId) => {
   const obj = typeof booking.toObject === 'function' ? booking.toObject() : { ...booking };
   MONEY_FIELDS.forEach((field) => { delete obj[field]; });
+  stripMoverMoney(obj);
 
   if (Array.isArray(obj.bookedItems)) {
     obj.bookedItems = obj.bookedItems.map((item) => {
@@ -49,6 +66,7 @@ export const sanitizeBookingForHelper = (booking, helperWorkerId) => {
 
 /** A booking as the lead worker sees it: helper names yes, helper payouts no. */
 export const sanitizeBookingForLead = (obj) => {
+  stripMoverMoney(obj);
   obj.helpers = (obj.helpers || [])
     .filter((h) => h.payoutStatus !== 'cancelled')
     .map((h) => ({ workerId: h.workerId?._id || h.workerId, name: h.workerId?.name, phone: h.workerId?.phone, profilePhoto: h.workerId?.profilePhoto }));
