@@ -26,9 +26,14 @@ const ScrollToTop = () => {
       setTimeout(goToTop, 100);
     } else if (action === 'POP') {
       // Back Navigation: Restore previous scroll position or target element
-      const lastElementId = sessionStorage.getItem(`last-clicked-id-${locationKey}`) || sessionStorage.getItem('last-clicked-card-id');
-      const lastSectionId = sessionStorage.getItem(`last-clicked-section-${locationKey}`) || sessionStorage.getItem('last-clicked-section-id');
-      const savedPosition = sessionStorage.getItem(`scrollPos-${locationKey}`) || sessionStorage.getItem('last-page-scrollPos');
+      // The un-keyed "last-*" values describe the most recent click anywhere in
+      // the app, so they are only meaningful if that click was on THIS page —
+      // otherwise a stale card/section from another visit would win and yank
+      // the user to the wrong spot.
+      const globalIsOurs = sessionStorage.getItem('last-page-locationKey') === locationKey;
+      const lastElementId = sessionStorage.getItem(`last-clicked-id-${locationKey}`) || (globalIsOurs ? sessionStorage.getItem('last-clicked-card-id') : null);
+      const lastSectionId = sessionStorage.getItem(`last-clicked-section-${locationKey}`) || (globalIsOurs ? sessionStorage.getItem('last-clicked-section-id') : null);
+      const savedPosition = sessionStorage.getItem(`scrollPos-${locationKey}`) || (globalIsOurs ? sessionStorage.getItem('last-page-scrollPos') : null);
 
       const isReload =
         isFirstRunRef.current &&
@@ -132,10 +137,20 @@ const ScrollToTop = () => {
     let isRestoring = true;
     setTimeout(() => { isRestoring = false; }, 600);
 
+    // While the side menu / a modal is open the body is pinned with
+    // position:fixed; top:-Ypx, which makes window.scrollY read 0. The real
+    // position is the pinned offset, so read that instead of saving a bogus 0.
+    const readScroll = () => {
+      if (document.body.style.position === 'fixed') {
+        const pinned = parseInt(document.body.style.top || '0', 10);
+        return Math.abs(Number.isNaN(pinned) ? 0 : pinned);
+      }
+      return window.lenis ? window.lenis.scroll : window.scrollY;
+    };
+
     const saveCurrentScroll = () => {
       if (isRestoring) return;
-      const currentPos = window.lenis ? window.lenis.scroll : window.scrollY;
-      sessionStorage.setItem(`scrollPos-${locationKey}`, Math.round(currentPos || 0).toString());
+      sessionStorage.setItem(`scrollPos-${locationKey}`, Math.round(readScroll() || 0).toString());
     };
 
     let scrollTimeout;
@@ -149,8 +164,7 @@ const ScrollToTop = () => {
 
     // Global Click Tracker to save clicked element ID, section ID, and current scroll immediately
     const clickTracker = (e) => {
-      const currentPos = window.lenis ? window.lenis.scroll : window.scrollY;
-      const scrollVal = Math.round(currentPos || 0).toString();
+      const scrollVal = Math.round(readScroll() || 0).toString();
       sessionStorage.setItem(`scrollPos-${locationKey}`, scrollVal);
       sessionStorage.setItem('last-page-scrollPos', scrollVal);
       sessionStorage.setItem('last-page-locationKey', locationKey);
@@ -160,6 +174,11 @@ const ScrollToTop = () => {
       if (itemEl && itemEl.id) {
         sessionStorage.setItem(`last-clicked-id-${locationKey}`, itemEl.id);
         sessionStorage.setItem('last-clicked-card-id', itemEl.id);
+      } else {
+        // Clicked something that isn't a card (e.g. a side-menu item): forget the
+        // old card so "back" returns to where the user actually was.
+        sessionStorage.removeItem(`last-clicked-id-${locationKey}`);
+        sessionStorage.removeItem('last-clicked-card-id');
       }
 
       // Check for section container ID
@@ -167,6 +186,9 @@ const ScrollToTop = () => {
       if (section && section.id) {
         sessionStorage.setItem(`last-clicked-section-${locationKey}`, section.id);
         sessionStorage.setItem('last-clicked-section-id', section.id);
+      } else {
+        sessionStorage.removeItem(`last-clicked-section-${locationKey}`);
+        sessionStorage.removeItem('last-clicked-section-id');
       }
     };
 
