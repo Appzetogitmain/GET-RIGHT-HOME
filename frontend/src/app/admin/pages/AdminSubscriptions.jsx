@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Plus, Edit2, Trash2, X, Save, AlertCircle, CheckCircle, Package, Zap, 
-    MapPin, Layers, Settings, Eye, EyeOff, ShieldAlert, Award
+    MapPin, Layers, Settings, Eye, EyeOff, ShieldAlert, Award, UserPlus
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import subscriptionService from '../../../services/subscriptionService';
+import adminService from '../../../services/adminService';
+import SubscriptionLeadsTab from '../components/SubscriptionLeadsTab';
 
 const PlanModal = ({ plan, onClose, onSuccess }) => {
     const [formData, setFormData] = useState({
@@ -428,11 +430,12 @@ const LISTING_TYPE_BADGE_STYLES = {
 };
 
 const AdminSubscriptions = () => {
-    const [activeTab, setActiveTab] = useState('owner_plans'); // 'owner_plans', 'broker_plans', 'builder_plans', or 'tiers'
+    const [activeTab, setActiveTab] = useState('owner_plans'); // 'owner_plans', 'broker_plans', 'builder_plans', 'tiers' or 'subscription_leads'
     const [listingTypeFilter, setListingTypeFilter] = useState('all_types'); // 'all_types' shows every listing type
     const [plans, setPlans] = useState([]);
     const [tiers, setTiers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [openLeadsCount, setOpenLeadsCount] = useState(0);
 
     // Modal state for Plans
     const [showPlanModal, setShowPlanModal] = useState(false);
@@ -446,7 +449,16 @@ const AdminSubscriptions = () => {
         fetchData();
     }, [activeTab]);
 
+    // Open-lead count for the tab badge (the tab itself refreshes it when opened).
+    useEffect(() => {
+        adminService.getSubscriptionLeads({ status: 'open', limit: 1 })
+            .then((res) => { if (res?.success) setOpenLeadsCount(res.counts?.open || 0); })
+            .catch(() => {});
+    }, []);
+
     const fetchData = async () => {
+        // The leads tab loads its own data.
+        if (activeTab === 'subscription_leads') { setLoading(false); return; }
         setLoading(true);
         try {
             if (activeTab === 'tiers') {
@@ -552,9 +564,9 @@ const AdminSubscriptions = () => {
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-2">
                         <Award className="text-emerald-600" size={32} /> Subscription Panel
                     </h1>
-                    <p className="text-gray-500 text-sm mt-1">Configure subscription packages, tier tags, limits, and pricing strategy.</p>
+                    <p className="text-gray-500 text-sm mt-1">Configure subscription packages, tier tags, limits, and pricing strategy — and follow up with builders whose free access has ended.</p>
                 </div>
-                {activeTab !== 'tiers' ? (
+                {activeTab === 'subscription_leads' ? null : activeTab !== 'tiers' ? (
                     <button
                         onClick={handleCreatePlan}
                         className="bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-800 transition-all shadow-lg active:scale-95 shrink-0"
@@ -610,10 +622,22 @@ const AdminSubscriptions = () => {
                     <Layers size={16} />
                     Tier Types Manager
                 </button>
+                <button
+                    onClick={() => setActiveTab('subscription_leads')}
+                    className={`pb-3 font-bold text-sm uppercase flex items-center gap-2 transition-all relative ${
+                        activeTab === 'subscription_leads' ? 'text-black border-b-2 border-black' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                >
+                    <UserPlus size={16} />
+                    Subscription Leads
+                    {openLeadsCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-black leading-none">{openLeadsCount}</span>
+                    )}
+                </button>
             </div>
 
             {/* Listing-type filter — split a role's plans by Rent / Buy / PG / Commercial */}
-            {activeTab !== 'tiers' && (
+            {activeTab !== 'tiers' && activeTab !== 'subscription_leads' && (
                 <div className="flex items-center gap-2 mb-4 overflow-x-auto custom-scrollbar whitespace-nowrap">
                     <button
                         onClick={() => setListingTypeFilter('all_types')}
@@ -639,7 +663,9 @@ const AdminSubscriptions = () => {
 
             {/* Workspace Area */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                {loading ? (
+                {activeTab === 'subscription_leads' ? (
+                    <SubscriptionLeadsTab onOpenCountChange={setOpenLeadsCount} />
+                ) : loading ? (
                     <div className="p-12 flex justify-center">
                         <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
                     </div>

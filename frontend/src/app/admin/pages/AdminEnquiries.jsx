@@ -57,6 +57,7 @@ const ActionTypeBadge = ({ action }) => {
         callback: { label: 'Callback', icon: BellRing, style: 'bg-blue-50 text-blue-700 border-blue-200' },
         profile_view: { label: 'Profile View', icon: UserCheck, style: 'bg-teal-50 text-teal-700 border-teal-200' },
         boost: { label: 'Boost Request', icon: BellRing, style: 'bg-orange-50 text-orange-700 border-orange-200' },
+        subscription_required: { label: 'Subscription Needed', icon: BellRing, style: 'bg-red-50 text-red-700 border-red-200' },
         document_view: { label: 'Document', icon: FileText, style: 'bg-violet-50 text-violet-700 border-violet-200' },
     };
     const current = config[raw] || { label: raw.replace('_', ' '), icon: BellRing, style: 'bg-gray-50 text-gray-700 border-gray-200' };
@@ -544,6 +545,7 @@ const AdminEnquiries = () => {
                             <option value="visit">Schedule Visit</option>
                             <option value="callback">Callback Request</option>
                             <option value="boost">Boost Request</option>
+                            <option value="subscription_required">Subscription Needed</option>
                         </select>
                     </div>
 
