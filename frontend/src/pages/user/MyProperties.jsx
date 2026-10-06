@@ -9,6 +9,7 @@ import {
 import { propertyService, enquiryService } from '../../services/apiService';
 import { toast } from 'react-hot-toast';
 import FreeAccessBanner from '../../components/user/FreeAccessBanner';
+import { goBackOrHome } from '../../utils/navigation';
 
 const MyProperties = () => {
   const navigate = useNavigate();
@@ -159,7 +160,7 @@ const MyProperties = () => {
         <div className="px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => navigate('/')}
+              onClick={() => goBackOrHome(navigate)}
               className="p-2 hover:bg-gray-50 rounded-xl transition-colors"
             >
               <ArrowLeft size={20} className="text-gray-600" />
