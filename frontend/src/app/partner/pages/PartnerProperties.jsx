@@ -87,6 +87,8 @@ const PartnerProperties = () => {
 
     toast.error(eligibility.message || 'Please subscribe to continue listing properties.');
     setShowSubscriptionModal(true);
+    // Reached the paywall → let the server log a subscription lead (best effort).
+    propertyService.reportPaywallHit().catch(() => {});
     return false;
   };
 

@@ -656,6 +656,8 @@ const DynamicFormEngine = () => {
       // required) → show the subscription step with the matching message.
       setShowPlanPicker(false);
       setSubscriptionGate({ propertyId: savedId, eligibility });
+      // Reached the paywall → let the server log a subscription lead (best effort).
+      api.post('/properties/listing-eligibility/paywall', { propertyId: savedId }).catch(() => {});
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not save your project');
     } finally {
