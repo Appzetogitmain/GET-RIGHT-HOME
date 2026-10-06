@@ -1752,11 +1752,8 @@ const generateEstimate = async (req, res) => {
   try {
     const workerId = req.user.id;
     const { id } = req.params;
-    const { estimatedAmount, estimateDescription } = req.body;
-
-    if (!estimatedAmount || estimatedAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'Valid estimated amount is required' });
-    }
+    const { estimateDescription, items, notes } = req.body;
+    let { estimatedAmount } = req.body;
 
     const booking = await HomeServiceBooking.findOne({ _id: id, workerId });
     if (!booking) {
@@ -1767,24 +1764,64 @@ const generateEstimate = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Estimate can only be generated when status is visited or in_progress' });
     }
 
-    // Token logic: 30% of total estimate is collected upfront; admin's cut of
-    // that token now follows the same admin-configured commission rate as a
-    // regular booking (was hardcoded to 20% here, independent of Settings).
-    const platformSettings = await PlatformSettings.getSettings();
-    const commissionPercentage = platformSettings?.defaultCommission ?? 10;
-    const tokenAmount = Math.round(Number(estimatedAmount) * 0.3);
-    const adminCommission = Math.round((Number(estimatedAmount) * commissionPercentage) / 100);
-    const workerAdvance = tokenAmount - adminCommission;
+    // Price comes from the admin's rate card when the category has one: the worker
+    // only picks the rooms / items and how many. Otherwise the older typed amount is used.
+    const { computeEstimate, advanceFor } = await import('../../services/estimateService.js');
+    const EstimateRateItem = (await import('../../models/EstimateRateItem.js')).default;
+    const EstimateSettings = (await import('../../models/EstimateSettings.js')).default;
+    const hasRateCard = (await EstimateRateItem.countDocuments({ categoryId: booking.categoryId, isActive: true })) > 0;
 
-    booking.estimate = {
-      amount: Number(estimatedAmount),
-      description: estimateDescription,
-      tokenAmount: tokenAmount,
-      adminCommission: adminCommission,
-      workerAdvance: workerAdvance,
-      status: 'PENDING',
-      generatedAt: new Date()
-    };
+    let estimate;
+    if (hasRateCard) {
+      if (!Array.isArray(items) || !items.length) {
+        return res.status(400).json({ success: false, message: 'Select the rooms / work from the rate card' });
+      }
+      let calc;
+      try {
+        calc = await computeEstimate({ categoryId: booking.categoryId, items });
+      } catch (err) {
+        return res.status(err.status || 500).json({ success: false, message: err.message });
+      }
+      if (!calc.lines.length || calc.amount <= 0) {
+        return res.status(400).json({ success: false, message: 'Select at least one item from the rate card' });
+      }
+      estimate = {
+        amount: calc.amount,
+        description: String(notes || estimateDescription || calc.lines.map((l) => `${l.name} x ${l.qty}`).join(', ')).slice(0, 1000),
+        items: calc.lines,
+        gst: calc.gst,
+        advanceType: calc.advanceType,
+        advanceValue: calc.advanceValue,
+        commissionPercent: calc.commissionPercent,
+        tokenAmount: calc.tokenAmount,
+        adminCommission: calc.adminCommission,
+        workerAdvance: calc.workerAdvance
+      };
+    } else {
+      estimatedAmount = Number(estimatedAmount);
+      if (!estimatedAmount || estimatedAmount <= 0) {
+        return res.status(400).json({ success: false, message: 'Valid estimated amount is required' });
+      }
+      // No rate card: still follow the admin's advance rule (default 30%).
+      const rule = await EstimateSettings.getFor(booking.categoryId);
+      const platformSettings = await PlatformSettings.getSettings();
+      const commissionPercentage = rule.commissionPercent ?? platformSettings?.defaultCommission ?? 10;
+      const tokenAmount = advanceFor(rule, estimatedAmount);
+      const adminCommission = Math.round((estimatedAmount * commissionPercentage) / 100);
+      estimate = {
+        amount: estimatedAmount,
+        description: estimateDescription,
+        items: [],
+        advanceType: rule.advanceType,
+        advanceValue: rule.advanceValue,
+        commissionPercent: commissionPercentage,
+        tokenAmount,
+        adminCommission,
+        workerAdvance: Math.max(0, tokenAmount - adminCommission)
+      };
+    }
+
+    booking.estimate = { ...estimate, status: 'PENDING', generatedAt: new Date() };
 
     // We don't overwrite basePrice or finalAmount yet. 
     // They get updated ONLY when the customer approves.
@@ -1798,20 +1835,19 @@ const generateEstimate = async (req, res) => {
       io.to(`user_${String(booking.userId?._id || booking.userId)}`).emit('booking_updated', {
         bookingId: String(booking._id),
         status: BOOKING_STATUS.ESTIMATE_PROVIDED,
-        estimatedAmount: booking.finalAmount,
-        tokenAmount: booking.userPayableAmount
+        estimatedAmount: booking.estimate.amount,
+        tokenAmount: booking.estimate.tokenAmount
       });
-      // push notification to user
-      try {
-        const notificationService = (await import('../../../services/notificationService.js')).default;
-        await notificationService.sendToUser(booking.userId, {
-          title: 'Estimate Received',
-          body: `Worker has provided an estimate of ₹${booking.finalAmount} for your job. Please pay the token to start work.`,
-          data: { type: 'estimate', bookingId: String(booking._id) }
-        });
-      } catch (err) {
-        console.error('Error sending push notification for estimate:', err);
-      }
+      // in-app + push notification to the customer
+      createNotification({
+        userId: booking.userId,
+        type: 'estimate_received',
+        title: 'Estimate Received',
+        message: `Your professional sent an estimate of ₹${booking.estimate.amount}. Accept it and pay the advance of ₹${booking.estimate.tokenAmount} to start the work.`,
+        relatedId: booking._id,
+        relatedType: 'booking',
+        pushData: { type: 'estimate', bookingId: String(booking._id), link: `/user/booking/${booking._id}` }
+      }).catch((err) => console.warn('Estimate notification failed:', err.message));
     }
 
     res.status(200).json({ 

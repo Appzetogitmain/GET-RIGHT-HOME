@@ -1,5 +1,6 @@
 import express from 'express';
 const router = express.Router();
+import { getEstimateOptions } from '../../controllers/estimateController.js';
 import { body } from 'express-validator';
 import { authenticate } from '../../middlewares/authMiddleware.js';
 import { isWorker } from '../../middlewares/authMiddleware.js';
@@ -65,5 +66,6 @@ router.get('/:id/bill', authenticate, isWorker, getBill);
 router.post('/:id/bill', authenticate, isWorker, createBill);
 router.post('/:id/verify-items-otp', authenticate, isWorker, verifyItemsOtp);
 router.patch('/:id/estimate', authenticate, isWorker, generateEstimate);
+router.get('/:id/estimate-options', authenticate, isWorker, getEstimateOptions);
 
 export default router;

@@ -237,6 +237,21 @@ const bookingSchema = new mongoose.Schema({
   estimate: {
     amount: { type: Number, default: 0 },
     description: { type: String, default: '' },
+    // Lines picked from the admin's rate card (room-wise price)
+    items: [{
+      _id: false,
+      itemId: { type: mongoose.Schema.Types.ObjectId },
+      group: String,
+      name: String,
+      unitLabel: String,
+      qty: Number,
+      unitPrice: Number,
+      amount: Number
+    }],
+    gst: { type: mongoose.Schema.Types.Mixed, default: null },
+    advanceType: { type: String, default: null },
+    advanceValue: { type: Number, default: null },
+    commissionPercent: { type: Number, default: null },
     tokenAmount: { type: Number, default: 0 },
     adminCommission: { type: Number, default: 0 },
     workerAdvance: { type: Number, default: 0 },

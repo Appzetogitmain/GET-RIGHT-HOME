@@ -204,6 +204,7 @@ export const createMoverBooking = async (req, res) => {
         addOns: quote.addOns,
         distanceKm: quote.distanceKm,
         distanceKnown: quote.distanceKnown,
+        distance: quote.distance,
         route: quote.route,
         units: quote.units,
         serviceCharge: quote.serviceCharge,
@@ -349,6 +350,7 @@ export const adminUpdateSettings = async (req, res) => {
     if (b.commissionPercent !== undefined) {
       settings.commissionPercent = b.commissionPercent === null || b.commissionPercent === '' ? null : Math.min(100, Math.max(0, num(b.commissionPercent)));
     }
+    if (b.roadFactor !== undefined) settings.roadFactor = Math.max(1, num(b.roadFactor, 1.25));
     if (b.maxWithinCityKm !== undefined) settings.maxWithinCityKm = Math.max(1, num(b.maxWithinCityKm, 60));
     if (b.withinCityMode !== undefined) {
       if (!['all', 'selected'].includes(b.withinCityMode)) return res.status(400).json({ success: false, message: 'Invalid Within City mode' });
@@ -368,7 +370,7 @@ export const adminUpdateSettings = async (req, res) => {
         if (seen.has(key)) throw Object.assign(new Error(`${fromCity} and ${toCity} are added twice`), { status: 400 });
         seen.add(key);
         const opt = (v) => (v === '' || v === null || v === undefined ? null : Math.max(0, num(v)));
-        return { fromCity, toCity, bothWays: r.bothWays !== false, isActive: r.isActive !== false, baseCharge: opt(r.baseCharge), perUnitRate: opt(r.perUnitRate), distanceKm: opt(r.distanceKm), transitDays: opt(r.transitDays) };
+        return { fromCity, toCity, bothWays: r.bothWays !== false, isActive: r.isActive !== false, baseCharge: opt(r.baseCharge), perUnitRate: opt(r.perUnitRate), transitDays: opt(r.transitDays) };
       });
     }
     if (b.advanceBookingDays !== undefined) settings.advanceBookingDays = Math.max(1, Math.floor(num(b.advanceBookingDays, 30)));

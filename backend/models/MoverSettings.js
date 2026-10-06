@@ -19,7 +19,6 @@ const routeSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   baseCharge: { type: Number, default: null, min: 0 },
   perUnitRate: { type: Number, default: null, min: 0 },
-  distanceKm: { type: Number, default: null, min: 0 },
   transitDays: { type: Number, default: null, min: 0 }   // typical delivery time shown to the customer
 });
 
@@ -59,6 +58,8 @@ const moverSettingsSchema = new mongoose.Schema({
   maxWithinCityKm: { type: Number, default: 60, min: 1 },
   // Between Cities is served only on these routes.
   routes: { type: [routeSchema], default: [] },
+  // Straight-line distance is multiplied by this when Google road distance is unavailable.
+  roadFactor: { type: Number, default: 1.25, min: 1 },
   // Token (booking amount) collected online to confirm; the rest is due at unloading.
   tokenType: { type: String, enum: ['fixed', 'percent'], default: 'fixed' },
   tokenValue: { type: Number, default: 499, min: 0 },

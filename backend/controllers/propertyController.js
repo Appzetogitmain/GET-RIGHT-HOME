@@ -2473,6 +2473,59 @@ export const getPopularAreas = async (req, res) => {
  * a normalised key before a suggestion is built — otherwise "Indore",
  * "INDORE " and "indore" would each produce their own entry.
  */
+/**
+ * Place suggestions for the search box (cities and localities that really have
+ * listings), like a portal's "Vijay Nagar, Indore - Locality" rows.
+ */
+export const getLocationSuggestions = async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 20);
+    if (q.length < 1) return res.json({ success: true, suggestions: [] });
+    const rx = safeRegex(q, { exact: false });
+
+    const rows = await Property.aggregate([
+      { $match: { status: 'approved', isLive: true } },
+      {
+        $project: {
+          city: { $trim: { input: { $ifNull: ['$address.city', ''] } } },
+          area: {
+            $trim: {
+              input: { $ifNull: ['$address.area', { $ifNull: ['$address.locality', { $ifNull: ['$dynamicData.locality', ''] }] }] }
+            }
+          }
+        }
+      },
+      { $match: { $or: [{ city: rx }, { area: rx }] } },
+      { $group: { _id: { city: { $toLower: '$city' }, area: { $toLower: '$area' } }, city: { $first: '$city' }, area: { $first: '$area' }, count: { $sum: 1 } } },
+      { $limit: 300 }
+    ]);
+
+    const lower = q.toLowerCase();
+    const cities = new Map();
+    const places = [];
+    rows.forEach((r) => {
+      const city = titleCaseCity(r.city);
+      if (city && city.toLowerCase().includes(lower)) {
+        cities.set(city, (cities.get(city) || 0) + r.count);
+      }
+      const area = titleCaseCity(r.area);
+      if (area && area.toLowerCase() !== city.toLowerCase() && area.toLowerCase().includes(lower)) {
+        places.push({ type: 'Locality', name: area, city, label: city ? `${area}, ${city}` : area, count: r.count });
+      }
+    });
+    const list = [
+      ...[...cities.entries()].map(([name, count]) => ({ type: 'City', name, city: name, label: name, count })),
+      ...places
+    ];
+    const rank = (x) => (x.name.toLowerCase() === lower ? 0 : x.name.toLowerCase().startsWith(lower) ? 1 : 2);
+    list.sort((a, b) => rank(a) - rank(b) || b.count - a.count);
+    res.json({ success: true, suggestions: list.slice(0, limit) });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
 export const getSearchSuggestions = async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();

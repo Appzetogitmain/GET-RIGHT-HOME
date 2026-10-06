@@ -2,6 +2,7 @@ import MoverInventoryItem from '../models/MoverInventoryItem.js';
 import MoverSettings from '../models/MoverSettings.js';
 import PlatformSettings from '../models/PlatformSettings.js';
 import Zone from '../models/Zone.js';
+import axios from 'axios';
 
 const num = (v, d = 0) => {
   const n = Number(v);
@@ -122,12 +123,12 @@ export const checkCoverage = async ({ relocationType, from, to }) => {
     const servedIds = new Set(served.map((z) => String(z._id)));
     const where = names ? `We provide Within City moves in: ${names}.` : 'Within City moves are not available yet.';
     if (!pickupZone || !servedIds.has(String(pickupZone._id))) {
-      return { ok: false, code: 'OUT_OF_AREA', message: `We don't provide Packers & Movers at the pickup location yet. ${where}` };
+      return { ok: false, code: 'OUT_OF_AREA', message: `We don't provide Packers & Movers at the pickup location (${from?.address || 'selected address'}) yet. ${where}` };
     }
     if (to?.lat && to?.lng) {
       const dropZone = await zoneAt(to);
       if (!dropZone || !servedIds.has(String(dropZone._id))) {
-        return { ok: false, code: 'OUT_OF_AREA', message: `We don't provide Packers & Movers at the drop location yet. ${where}` };
+        return { ok: false, code: 'OUT_OF_AREA', message: `We don't provide Packers & Movers at the drop location (${to?.address || 'selected address'}) yet. ${where}` };
       }
     } else {
       return { ok: false, code: 'PIN_NEEDED', message: 'Please pick the drop address from the suggestions so we can check the service area.' };
@@ -158,6 +159,56 @@ export const checkCoverage = async ({ relocationType, from, to }) => {
   return { ok: true, zone: pickupZone, route };
 };
 
+/* ------------------------------------------------------------------ */
+/* Distance: fixed route km > Google road distance > estimate          */
+/* ------------------------------------------------------------------ */
+
+const roadCache = new Map();   // "lat,lng>lat,lng" -> { km, at }
+const ROAD_TTL_MS = 6 * 60 * 60 * 1000;
+let warnedNoRoad = false;
+
+/** Driving distance in km from Google (null when unavailable). */
+export const googleRoadKm = async (a, b) => {
+  const key = process.env.GOOGLE_MAP_API_KEY;
+  if (!key || !a?.lat || !a?.lng || !b?.lat || !b?.lng) return null;
+  const ck = `${a.lat.toFixed(3)},${a.lng.toFixed(3)}>${b.lat.toFixed(3)},${b.lng.toFixed(3)}`;
+  const hit = roadCache.get(ck);
+  if (hit && Date.now() - hit.at < ROAD_TTL_MS) return hit.km;
+  try {
+    const { data } = await axios.get('https://maps.googleapis.com/maps/api/distancematrix/json', {
+      params: { origins: `${a.lat},${a.lng}`, destinations: `${b.lat},${b.lng}`, mode: 'driving', units: 'metric', key },
+      timeout: 6000
+    });
+    const el = data?.rows?.[0]?.elements?.[0];
+    if (data?.status === 'OK' && el?.status === 'OK' && el.distance?.value) {
+      const km = round2(el.distance.value / 1000);
+      roadCache.set(ck, { km, at: Date.now() });
+      return km;
+    }
+    if (!warnedNoRoad) {
+      warnedNoRoad = true;
+      console.warn('[Movers] Google Distance Matrix unavailable:', data?.status, data?.error_message || el?.status, '- using estimated road distance');
+    }
+  } catch (err) {
+    if (!warnedNoRoad) { warnedNoRoad = true; console.warn('[Movers] Distance Matrix call failed:', err.message); }
+  }
+  return null;
+};
+
+/** The distance to price on (real road km), and where it came from. */
+export const resolveDistance = async ({ from, to, settings, rate }) => {
+  const straight = haversineKm(from, to);
+  const road = await googleRoadKm(from, to);
+  if (road !== null) return { km: road, source: 'road', straightKm: straight };
+  if (straight !== null) return { km: round2(straight * Math.max(1, num(settings.roadFactor, 1.25))), source: 'estimate', straightKm: straight };
+  return { km: num(rate.defaultKm), source: 'default', straightKm: null };
+};
+
+/** Distance charge: every road km after the free km, at the per-km rate. */
+export const distanceChargeFor = (rate, km) => ({
+  charge: Math.max(0, km - num(rate.freeKm)) * num(rate.perKmRate)
+});
+
 export const tokenFor = (settings, total) => {
   const raw = settings.tokenType === 'percent' ? (total * num(settings.tokenValue)) / 100 : num(settings.tokenValue);
   return Math.min(Math.max(0, Math.round(raw)), Math.round(total));
@@ -165,7 +216,7 @@ export const tokenFor = (settings, total) => {
 
 /**
  * The whole price of a move, computed on the server from the admin's rate card:
- *   service = max(minCharge, base + units x perUnit + km beyond freeKm x perKm) + no-lift charges
+ *   service = base + units x perUnit + distance charge (km x per-km rate) + no-lift charges
  *   total   = service + add-ons (+ GST when admin has it on)
  *   token   = admin's token rule, the rest is due at unloading.
  */
@@ -193,12 +244,13 @@ export const computeMoverQuote = async ({ relocationType, from, to, items = [], 
     lines.push({ itemId: d._id, name: d.name, group: d.group, room: d.room, qty, units: d.units });
   }
 
-  const routeKm = route?.distanceKm ? num(route.distanceKm) : null;
-  const measured = routeKm ?? haversineKm(from, to);
-  const km = measured ?? num(rate.defaultKm);
-  const distanceCharge = Math.max(0, km - num(rateUsed.freeKm)) * num(rateUsed.perKmRate);
+  const dist = await resolveDistance({ from, to, settings, rate });
+  const km = dist.km;
+  const measured = dist.source === 'default' ? null : km;
+  const { charge: distanceCharge } = distanceChargeFor(rateUsed, km);
   const rawService = num(rateUsed.baseCharge) + units * num(rateUsed.perUnitRate) + distanceCharge;
-  const base = lines.length ? Math.max(num(rateUsed.minCharge), rawService) : 0;
+  // The customer pays exactly what the rate card works out to (no minimum charge).
+  const base = lines.length ? rawService : 0;
   const noLiftEnds = (from?.lift === false ? 1 : 0) + (to?.lift === false ? 1 : 0);
   const noLiftCharge = lines.length ? noLiftEnds * num(rateUsed.noLiftCharge) : 0;
   const serviceCharge = Math.round(base + noLiftCharge);
@@ -224,11 +276,12 @@ export const computeMoverQuote = async ({ relocationType, from, to, items = [], 
     relocationType: type,
     distanceKm: km,
     distanceKnown: measured !== null,
+    distance: { km, source: dist.source, straightKm: dist.straightKm, perKmRate: num(rateUsed.perKmRate), freeKm: num(rateUsed.freeKm), charge: Math.round(distanceCharge) },
     route: route ? { fromCity: route.fromCity, toCity: route.toCity, transitDays: route.transitDays ?? null } : null,
     units: round2(units),
     lines,
     serviceCharge,
-    breakdown: { base: Math.round(base), noLiftCharge: Math.round(noLiftCharge), noLiftEnds },
+    breakdown: { base: Math.round(base), distanceCharge: Math.round(distanceCharge), unitCharge: Math.round(units * num(rateUsed.perUnitRate)), baseCharge: Math.round(num(rateUsed.baseCharge)), noLiftCharge: Math.round(noLiftCharge), noLiftEnds },
     addOns: chosen,
     addOnTotal,
     gst: { applied: gstOn, ratePct: gstOn ? num(platform.taxRate) : 0, amount: gst },
