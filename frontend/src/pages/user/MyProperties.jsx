@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { propertyService, enquiryService } from '../../services/apiService';
 import { toast } from 'react-hot-toast';
+import FreeAccessBanner from '../../components/user/FreeAccessBanner';
 
 const MyProperties = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const MyProperties = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [submittingId, setSubmittingId] = useState(null);
+  const [eligibility, setEligibility] = useState(null);
 
   const fetchProperties = async () => {
     setLoading(true);
@@ -34,8 +36,18 @@ const MyProperties = () => {
     }
   };
 
+  const fetchEligibility = async () => {
+    try {
+      const res = await propertyService.getListingEligibility();
+      setEligibility(res?.eligibility || null);
+    } catch {
+      setEligibility(null);
+    }
+  };
+
   useEffect(() => {
     fetchProperties();
+    fetchEligibility();
   }, []);
 
   const handleAddProperty = () => {
@@ -132,7 +144,7 @@ const MyProperties = () => {
     } catch (e) {
       // propertyService rethrows the response body itself, not the axios error.
       toast.error(e?.message || 'Could not submit for approval');
-      if (e?.trialExpired || e?.limitReached) {
+      if (e?.trialExpired || e?.limitReached || e?.reason) {
         navigate('/my-subscriptions');
       }
     } finally {
@@ -169,6 +181,8 @@ const MyProperties = () => {
       </div>
 
       <div className="px-5 pt-6 max-w-2xl mx-auto space-y-6">
+        <FreeAccessBanner eligibility={eligibility} onSubscribe={() => navigate('/my-subscriptions')} />
+
         {/* Search Bar */}
         <div className="relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-900 transition-colors" size={18} />

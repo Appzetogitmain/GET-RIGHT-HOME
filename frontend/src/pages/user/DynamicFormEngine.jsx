@@ -645,14 +645,15 @@ const DynamicFormEngine = () => {
 
       const eligibility = await fetchEligibility();
 
-      // Paying subscribers skip the upsell entirely and go straight through.
-      if (eligibility?.isSubscriptionActive && eligibility?.canSubmit) {
+      // Anyone the admin's free-access rule (or a paid plan) allows to publish
+      // goes straight through — no paywall while still inside free limits.
+      if (eligibility?.canSubmit) {
         await submitDraftForApproval(savedId);
         return;
       }
 
-      // Trial (active or expired) → show the subscription step. Skip is only
-      // offered while the trial is still valid.
+      // Blocked (trial over, free listing limit reached, or a subscription is
+      // required) → show the subscription step with the matching message.
       setShowPlanPicker(false);
       setSubscriptionGate({ propertyId: savedId, eligibility });
     } catch (err) {
@@ -2384,24 +2385,21 @@ const DynamicFormEngine = () => {
                     <span className="text-xs font-bold uppercase tracking-wide">Saved as draft</span>
                   </div>
 
+                  {/* Title/message come from the server (admin-editable copy,
+                      or mode-aware defaults: trial ended / limit reached /
+                      subscription required). */}
                   <h3 className="text-lg font-bold text-slate-900">
-                    {subscriptionGate.eligibility?.trialExpired
-                      ? 'Your free trial has ended'
-                      : 'Free Listing or Subscription Listing?'}
+                    {subscriptionGate.eligibility?.title || 'Subscription required'}
                   </h3>
 
                   <p className="text-[13px] text-slate-600 leading-relaxed">
-                    {subscriptionGate.eligibility?.trialExpired
-                      ? (subscriptionGate.eligibility?.message
-                        || 'Your free trial has expired. Subscribe to a plan to publish this listing.')
-                      : subscriptionGate.eligibility?.limitReached
-                        ? subscriptionGate.eligibility?.message
-                        : `You're on the free trial with ${subscriptionGate.eligibility?.trialDaysRemaining ?? 0} day${subscriptionGate.eligibility?.trialDaysRemaining === 1 ? '' : 's'} left. A subscription gets this listing higher ranking, showcase placement and more lead access — or skip and publish it as a free listing.`}
+                    {subscriptionGate.eligibility?.message
+                      || 'Subscribe to a plan to publish this listing.'}
                   </p>
 
                   <p className="text-[12px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
                     Your project is safe in <span className="font-semibold text-slate-700">My Listings</span> as a draft
-                    {subscriptionGate.eligibility?.trialExpired ? ' — submit it once you subscribe.' : '.'}
+                    {' — submit it once you subscribe.'}
                   </p>
                 </div>
 
