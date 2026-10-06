@@ -14,7 +14,7 @@ import Booking from '../models/Booking.js';
 import Enquiry from '../models/Enquiry.js';
 import { mapBuilderProjectFields, generateUniqueSlug } from '../utils/builderProjectMapper.js';
 import { escapeRegex, safeRegex } from '../utils/escapeRegex.js';
-import { getListingEligibility } from '../utils/listingEligibility.js';
+import { getListingEligibility, isFreeAccessActive } from '../utils/listingEligibility.js';
 import { rankSuggestions, titleCaseCity, displayPropertyType, displayAvailability, displayBhk } from '../utils/searchSuggestions.js';
 import { buildZeroResultAlternatives } from '../utils/zeroResultRecovery.js';
 import { recordSearch, recordSearchOutcome, getSearchAnalytics } from '../services/searchAnalyticsService.js';
@@ -208,6 +208,8 @@ export const createProperty = async (req, res) => {
         return res.status(403).json({
           message: eligibility.message,
           trialExpired: eligibility.trialExpired,
+          reason: eligibility.reason,
+          title: eligibility.title,
           limitReached: eligibility.limitReached,
           currentCount: eligibility.currentCount,
           maxAllowed: eligibility.maxAllowed,
@@ -2594,6 +2596,8 @@ export const submitPropertyForApproval = async (req, res) => {
           success: false,
           message: eligibility.message,
           trialExpired: eligibility.trialExpired,
+          reason: eligibility.reason,
+          title: eligibility.title,
           limitReached: eligibility.limitReached,
           eligibility
         });
@@ -2728,19 +2732,12 @@ export const revealContact = async (req, res) => {
         new Date(sub.expiryDate) > new Date();
 
       let isTrialActive = false;
-      let trialDays = 30;
       if (!isSubscriptionActive) {
-        // Check free trial status
+        // Still inside the admin-configured free window? (lifetime / listing-only
+        // free access has no clock, so it never expires here.)
         const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
         const settings = await PlatformSettings.getSettings();
-        trialDays = settings.freeTrialDurationDays || 30;
-        const partnerCreatedAt = partner.createdAt || partner.partnerSince || new Date();
-        const trialEndDate = new Date(partnerCreatedAt);
-        trialEndDate.setDate(trialEndDate.getDate() + trialDays);
-
-        if (new Date() <= trialEndDate) {
-          isTrialActive = true;
-        }
+        isTrialActive = isFreeAccessActive(settings, partner, partner.role);
       }
 
       if (!isSubscriptionActive && !isTrialActive) {
