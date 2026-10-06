@@ -61,7 +61,8 @@ import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import {
     adminGetAllEnquiries,
     adminUpdateEnquiry,
-    adminDeleteEnquiry
+    adminDeleteEnquiry,
+    adminGetSubscriptionLeads
 } from '../controllers/enquiryController.js';
 import { 
   getWorkerAnalytics,
@@ -88,6 +89,8 @@ router.use(authorizedRoles('admin', 'superadmin', 'manager'));
 router.use('/builders', builderRoutes);
 
 // Enquiries (dedicated Enquiry collection — not Booking)
+// Listers blocked by the paywall (Subscriptions section → Subscription Leads)
+router.get('/subscription-leads', checkManagerPermission('subscriptions', 'view'), adminGetSubscriptionLeads);
 router.get('/enquiries', checkManagerPermission('enquiries', 'view'), adminGetAllEnquiries);
 router.put('/enquiries/:id', checkManagerPermission('enquiries', 'edit'), adminUpdateEnquiry);
 router.delete('/enquiries/:id', checkManagerPermission('enquiries', 'delete'), adminDeleteEnquiry);
