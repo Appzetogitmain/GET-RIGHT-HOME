@@ -64,19 +64,19 @@ const enquirySchema = new mongoose.Schema({
     // ── Enquiry & Action Details ──────────────────────────────────────────────
     actionType: {
         type: String,
-        enum: ['call', 'whatsapp', 'view_number', 'brochure_download', 'download_brochure', 'visit', 'schedule_visit', 'callback', 'document_view', 'profile_view', 'chat', 'request_photos', 'boost', 'general'],
+        enum: ['call', 'whatsapp', 'view_number', 'brochure_download', 'download_brochure', 'visit', 'schedule_visit', 'callback', 'document_view', 'profile_view', 'chat', 'request_photos', 'boost', 'subscription_required', 'general'],
         default: 'callback'
     },
 
     enquiryType: {
         type: String,
-        enum: ['call', 'whatsapp', 'view_number', 'brochure_download', 'download_brochure', 'visit', 'schedule_visit', 'callback', 'document_view', 'profile_view', 'chat', 'request_photos', 'boost', 'general'],
+        enum: ['call', 'whatsapp', 'view_number', 'brochure_download', 'download_brochure', 'visit', 'schedule_visit', 'callback', 'document_view', 'profile_view', 'chat', 'request_photos', 'boost', 'subscription_required', 'general'],
         default: 'callback'
     },
 
     sourceContext: {
         type: String,
-        enum: ['card', 'property_card', 'detail_page', 'details_page', 'broker_profile', 'builder_profile', 'profile_page', 'quick_view', 'search_card', 'home_section', 'my_properties', 'general'],
+        enum: ['card', 'property_card', 'detail_page', 'details_page', 'broker_profile', 'builder_profile', 'profile_page', 'quick_view', 'search_card', 'home_section', 'my_properties', 'subscription_paywall', 'general'],
         default: 'detail_page'
     },
 
@@ -126,6 +126,21 @@ const enquirySchema = new mongoose.Schema({
         default: 'new'
     },
 
+    // ── Subscription lead details (actionType 'subscription_required') ────────
+    // A lister whose free access ended (or who never had any) reached the
+    // paywall. One open lead per user; repeat attempts refresh it.
+    subscriptionLead: {
+        reason: { type: String, enum: ['trial_expired', 'limit_reached', 'subscription_required'] },
+        mode: { type: String, default: '' },
+        role: { type: String, default: '' },
+        currentCount: { type: Number, default: 0 },
+        maxAllowed: { type: Number, default: null },
+        trialEndsAt: { type: Date, default: null },
+        attemptCount: { type: Number, default: 1 },
+        lastAttemptAt: { type: Date },
+        resolvedReason: { type: String, default: '' } // e.g. 'subscribed'
+    },
+
     // ── Admin Notes ───────────────────────────────────────────────────────────
     adminNotes: {
         type: String,
@@ -140,5 +155,6 @@ enquirySchema.index({ brokerId: 1, createdAt: -1 });
 enquirySchema.index({ builderId: 1, createdAt: -1 });
 enquirySchema.index({ userId: 1, createdAt: -1 });
 enquirySchema.index({ phone: 1, propertyId: 1, actionType: 1, createdAt: -1 });
+enquirySchema.index({ actionType: 1, status: 1, updatedAt: -1 });
 
 export default mongoose.model('Enquiry', enquirySchema);

@@ -11,6 +11,7 @@ import {
   getPropertyDetails,
   getMyProperties,
   getMyListingEligibility,
+  reportPaywallHit,
   submitPropertyForApproval,
   getSearchSuggestions,
   getPopularCities,
@@ -51,6 +52,7 @@ const ownerRoles = authorizedRoles('partner', 'admin', 'user', 'superadmin', 'ow
 router.get('/my', protect, ownerRoles, getMyProperties);
 // Must stay above '/:id' so "listing-eligibility" isn't parsed as a property id.
 router.get('/listing-eligibility', protect, ownerRoles, getMyListingEligibility);
+router.post('/listing-eligibility/paywall', protect, ownerRoles, reportPaywallHit);
 router.get('/:id/reveal-contact', revealContact);
 router.get('/:id/similar', getSimilarProperties);
 router.get('/:id/stats', protect, ownerRoles, getPropertyStats);

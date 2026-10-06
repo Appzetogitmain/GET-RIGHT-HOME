@@ -15,6 +15,7 @@ import Enquiry from '../models/Enquiry.js';
 import { mapBuilderProjectFields, generateUniqueSlug } from '../utils/builderProjectMapper.js';
 import { escapeRegex, safeRegex } from '../utils/escapeRegex.js';
 import { getListingEligibility, isFreeAccessActive } from '../utils/listingEligibility.js';
+import { safeRecordSubscriptionLead } from '../utils/subscriptionLead.js';
 import { rankSuggestions, titleCaseCity, displayPropertyType, displayAvailability, displayBhk } from '../utils/searchSuggestions.js';
 import { buildZeroResultAlternatives } from '../utils/zeroResultRecovery.js';
 import { recordSearch, recordSearchOutcome, getSearchAnalytics } from '../services/searchAnalyticsService.js';
@@ -205,6 +206,8 @@ export const createProperty = async (req, res) => {
         return res.status(404).json({ message: 'Account not found' });
       }
       if (!eligibility.canSubmit) {
+        // Blocked by the paywall → lead for admin (fire-and-forget, never blocks).
+        safeRecordSubscriptionLead(req.user, eligibility, { propertyId: req.params?.id });
         return res.status(403).json({
           message: eligibility.message,
           trialExpired: eligibility.trialExpired,
@@ -2543,6 +2546,26 @@ export const getSearchSuggestions = async (req, res) => {
  * Lets the listing wizard find out, before asking the user to do anything,
  * whether they can submit — and if not, why (trial still running vs expired).
  */
+/**
+ * The wizard / listings page calls this when the user actually lands on the
+ * paywall (as opposed to merely fetching eligibility on page load). The
+ * server re-evaluates eligibility itself — the client only signals "I reached
+ * the paywall" — and records the subscription lead if they really are blocked.
+ */
+export const reportPaywallHit = async (req, res) => {
+  try {
+    const eligibility = await getListingEligibility(req.user);
+    if (!eligibility.found) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+    const propertyId = req.body?.propertyId || undefined;
+    safeRecordSubscriptionLead(req.user, eligibility, { propertyId, sourceUrl: req.body?.sourceUrl });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
 export const getMyListingEligibility = async (req, res) => {
   try {
     const eligibility = await getListingEligibility(req.user);
@@ -2592,6 +2615,8 @@ export const submitPropertyForApproval = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Account not found' });
       }
       if (!eligibility.canSubmit) {
+        // Blocked by the paywall → lead for admin (fire-and-forget, never blocks).
+        safeRecordSubscriptionLead(req.user, eligibility, { propertyId: req.params?.id });
         return res.status(403).json({
           success: false,
           message: eligibility.message,
