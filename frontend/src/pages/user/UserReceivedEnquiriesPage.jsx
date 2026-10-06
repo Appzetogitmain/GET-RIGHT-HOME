@@ -5,7 +5,7 @@ import {
     ArrowLeft, ChevronRight, Loader2, MapPin,
     MessageSquare, Send, Crown, Sparkles, PhoneCall,
     Calendar, Clock, FileText, User, Users, Building, ChevronDown, Bell,
-    CheckCircle2, ExternalLink, Eye, Filter, Layers, Check, X, ShieldAlert, BadgeCheck
+    CheckCircle2, ExternalLink, Share2, Eye, Filter, Layers, Check, X, ShieldAlert, BadgeCheck, Star
 } from 'lucide-react';
 import { enquiryService, propertyService } from '../../services/apiService';
 import subscriptionService from '../../services/subscriptionService';
@@ -180,12 +180,8 @@ const UserReceivedEnquiriesPage = () => {
             setSentEnquiries(sentRes.enquiries || []);
             if (subRes.success) setCurrentSub(subRes.subscription);
 
-            // Default to received tab if user has properties, else sent
-            if (myProps.length > 0) {
-                setActiveTab('received');
-            } else {
-                setActiveTab('sent');
-            }
+            // Sent tab is hidden; always show received enquiries
+            setActiveTab('received');
 
             await loadReceivedData('All');
         } catch (err) {
@@ -272,6 +268,57 @@ const UserReceivedEnquiriesPage = () => {
 
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
     const fmtDateTime = (d) => d ? new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const fmtRelDate = (d) => {
+        if (!d) return '';
+        const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86400000);
+        if (days <= 0) return 'Today';
+        if (days === 1) return 'Yesterday';
+        return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+
+    // 99acres-style 1–5 lead score, derived from how strong the buyer's action was
+    const getLeadScore = (item) => {
+        const byAction = {
+            visit: 4.5, schedule_visit: 4.5, callback: 4, call: 4, whatsapp: 3.5, chat: 3.5,
+            view_number: 3, request_photos: 3, brochure_download: 2.5, download_brochure: 2.5,
+            document_view: 2, profile_view: 1.5, general: 2.5
+        };
+        let score = byAction[item.actionType || item.enquiryType] ?? 3;
+        if (item.preferredDate) score += 0.5;
+        if (item.message) score += 0.5;
+        return Math.min(5, score);
+    };
+
+    // e.g. "Rs49 Lac, 2 Bed, Independent House/Villa for Sale in Bellary bypass"
+    const getListingTitle = (prop) => {
+        if (!prop || !prop._id) return 'Property';
+        let priceVal =
+            prop.startingPrice ??
+            prop.rentDetails?.monthlyRent ?? prop.pgDetails?.monthlyRent ??
+            prop.buyDetails?.expectedPrice ?? prop.plotDetails?.expectedPrice ??
+            prop.dynamicData?.expectedPrice ?? prop.dynamicData?.monthlyRent ??
+            prop.dynamicData?.expectedRent ?? prop.dynamicData?.price ?? prop.price;
+        if (priceVal && typeof priceVal === 'object') {
+            priceVal = ['value', 'amount', 'price', 'expectedPrice', 'monthlyRent']
+                .map(k => priceVal[k]).find(v => v !== undefined && v !== null);
+        }
+        const n = Number(priceVal) || 0;
+        const price = n >= 10000000 ? `Rs${+(n / 10000000).toFixed(2)} Cr`
+            : n >= 100000 ? `Rs${+(n / 100000).toFixed(2)} Lac`
+            : n > 0 ? `Rs${n.toLocaleString('en-IN')}` : '';
+
+        const bhk = prop.buyDetails?.bhk || prop.rentDetails?.bhk || prop.dynamicData?.bhk || prop.bhk;
+        const bhkNum = bhk ? String(bhk).replace(/\D/g, '') : '';
+        const tx = String(prop.transactionType || prop.listingType || '').toLowerCase();
+        const purpose = tx.includes('rent') || prop.rentDetails?.monthlyRent ? 'Rent' : tx.includes('sale') || tx.includes('buy') ? 'Sale' : '';
+        const place = prop.address?.locality || prop.address?.area || prop.address?.city || '';
+        const type = prop.propertyType || '';
+
+        const head = [price, bhkNum ? `${bhkNum} Bed` : '', type].filter(Boolean).join(', ');
+        const title = `${head}${purpose ? ` for ${purpose}` : ''}${place ? ` in ${place}` : ''}`.trim();
+        return title || prop.propertyName || 'Property';
+    };
+
 
     const getSpecs = (prop) => {
         if (!prop) return 'N/A';
@@ -479,7 +526,7 @@ const UserReceivedEnquiriesPage = () => {
         <>
         <div className="min-h-screen bg-slate-50 pb-24 md:pb-8 text-slate-800">
             {/* Header */}
-            <div className="sticky top-0 z-30 bg-white border-b border-slate-150 shadow-sm">
+            <div className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
                 <div className="flex items-center gap-3 px-4 py-3.5">
                     <button
                         onClick={() => navigate(-1)}
@@ -496,36 +543,28 @@ const UserReceivedEnquiriesPage = () => {
                     </div>
                 </div>
 
-                {/* Main Tabs (Sent vs Received) */}
+                {/* Tabs: All Responses | All Respondents */}
                 <div className="flex border-t border-slate-100">
-                    <button
-                        onClick={() => setActiveTab('sent')}
-                        className={`flex-1 py-3 text-center text-xs font-bold transition-all relative ${
-                            activeTab === 'sent' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                    >
-                        Sent Enquiries
-                        {activeTab === 'sent' && (
-                            <motion.div
-                                layoutId="activeTabUnderline"
-                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"
-                            />
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('received')}
-                        className={`flex-1 py-3 text-center text-xs font-bold transition-all relative ${
-                            activeTab === 'received' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                    >
-                        Received Enquiries ({counts.all || receivedEnquiries.length})
-                        {activeTab === 'received' && (
-                            <motion.div
-                                layoutId="activeTabUnderline"
-                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"
-                            />
-                        )}
-                    </button>
+                    {[
+                        { key: 'all_responses', label: 'All Responses', count: counts.all || receivedEnquiries.length },
+                        { key: 'all_respondents', label: 'All Respondents', count: counts.respondentsCount || respondents.length }
+                    ].map(t => (
+                        <button
+                            key={t.key}
+                            onClick={() => setReceivedSubView(t.key)}
+                            className={`flex-1 py-3 text-center text-sm font-bold transition-all relative ${
+                                receivedSubView === t.key ? 'text-slate-900' : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                        >
+                            {t.label} ({t.count})
+                            {receivedSubView === t.key && (
+                                <motion.div
+                                    layoutId="activeTabUnderline"
+                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"
+                                />
+                            )}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -552,57 +591,11 @@ const UserReceivedEnquiriesPage = () => {
                             </div>
                         )}
 
-                        {/* Sub-view Switcher: All Responses vs All Respondents */}
-                        <div className="bg-slate-200/70 p-1 rounded-xl flex gap-1">
-                            <button
-                                onClick={() => setReceivedSubView('all_responses')}
-                                className={`flex-1 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
-                                    receivedSubView === 'all_responses'
-                                        ? 'bg-white text-blue-600 shadow-sm'
-                                        : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                <Layers size={13} />
-                                All Responses
-                            </button>
-                            <button
-                                onClick={() => setReceivedSubView('all_respondents')}
-                                className={`flex-1 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
-                                    receivedSubView === 'all_respondents'
-                                        ? 'bg-white text-blue-600 shadow-sm'
-                                        : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                <Users size={13} />
-                                All Respondents ({counts.respondentsCount || respondents.length})
-                            </button>
-                        </div>
-
-                        {/* Owner Package Promotional Banner */}
-                        <div
-                            onClick={() => navigate('/my-subscriptions')}
-                            className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center justify-between cursor-pointer hover:border-blue-200 shadow-sm active:scale-[0.99] transition-all"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-sm shadow-blue-500/20">
-                                    <Crown size={16} />
-                                </div>
-                                <div>
-                                    <h4 className="text-[12px] font-extrabold text-slate-800 leading-tight">Want to sell faster?</h4>
-                                    <p className="text-[10px] text-slate-500 font-bold mt-0.5">
-                                        Stand out with our owner packages. Upgrade now
-                                    </p>
-                                </div>
-                            </div>
-                            <ChevronRight size={15} className="text-slate-400 shrink-0" />
-                        </div>
-
                         {/* Filter Tabs / Pills */}
                         <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
                             {[
                                 { key: 'ALL', label: 'All', count: counts.all },
                                 { key: 'CONTACTED', label: 'Contacted', count: counts.contacted },
-                                { key: 'MATCHING BUYERS', label: 'Matching Buyers', count: counts.matchingBuyers },
                                 { key: 'NEW', label: 'New', count: counts.new },
                                 { key: 'SCHEDULED', label: 'Scheduled', count: counts.scheduled },
                                 { key: 'CLOSED', label: 'Closed', count: counts.closed }
@@ -724,7 +717,7 @@ const UserReceivedEnquiriesPage = () => {
                                                 >
                                                     <div className="flex gap-4 pt-1">
                                                         <div className="w-[80px] shrink-0" onClick={(e) => { e.stopPropagation(); prop._id && navigateToProperty(prop); }}>
-                                                            <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 border border-slate-150 shrink-0 shadow-sm mx-auto">
+                                                            <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shrink-0 shadow-sm mx-auto">
                                                                 {prop.coverImage ? (
                                                                     <img src={prop.coverImage} className="w-full h-full object-cover" alt="" />
                                                                 ) : (
@@ -947,108 +940,115 @@ const UserReceivedEnquiriesPage = () => {
                                         </div>
                                     ) : (
                                         <div className="space-y-3">
-                                            {filteredRespondents.map(respondent => (
-                                                <div
-                                                    key={respondent.respondentId}
-                                                    className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3 hover:border-blue-200 transition-all"
-                                                >
-                                                    {/* Respondent Header */}
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-11 h-11 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 font-extrabold flex items-center justify-center text-sm shrink-0">
-                                                                {respondent.avatar ? (
-                                                                    <img src={respondent.avatar} className="w-full h-full rounded-full object-cover" alt="" />
-                                                                ) : (
-                                                                    respondent.name?.charAt(0)?.toUpperCase() || 'R'
+                                            {filteredRespondents.map(respondent => {
+                                                const enqs = respondent.enquiries || [];
+                                                const latest = enqs.reduce((a, b) => (!a || new Date(b.createdAt) > new Date(a.createdAt) ? b : a), null) || {};
+                                                const latestProp = latest.propertyId || respondent.properties?.[0] || {};
+                                                const score = enqs.length ? Math.max(...enqs.map(getLeadScore)) : 3;
+                                                const latestStatus = (latest.status || respondent.statuses?.[0] || 'new').toLowerCase();
+                                                const rPhone = respondent.rawPhone || respondent.phone || '';
+
+                                                return (
+                                                    <div key={respondent.respondentId} className="bg-white border border-slate-300 rounded-sm shadow-sm">
+                                                        <div className="p-4 space-y-2.5">
+                                                            {/* Row 1: Name + latest date */}
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <h4 className="text-base font-extrabold text-slate-900 leading-tight truncate">{respondent.name}</h4>
+                                                                <span className="text-xs text-slate-500 font-medium shrink-0">{fmtRelDate(respondent.lastEnquiryDate)}</span>
+                                                            </div>
+
+                                                            {/* Row 2: Lead score + respondent type */}
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                                                                    <span>Lead Score :</span>
+                                                                    <span className="font-extrabold text-slate-900">{score.toFixed(1)}</span>
+                                                                    <span className="flex items-center">
+                                                                        {[1, 2, 3, 4, 5].map(n => (
+                                                                            <Star
+                                                                                key={n}
+                                                                                size={15}
+                                                                                className={n <= Math.round(score) ? 'fill-amber-400 text-amber-400' : 'fill-slate-200 text-slate-200'}
+                                                                            />
+                                                                        ))}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-sm text-slate-700 font-semibold shrink-0">{respondent.userType === 'user' || !respondent.userType ? 'Individual' : respondent.userType}</span>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2">
+                                                                <LeadTypeBadge type={latest.actionType || latest.enquiryType} />
+                                                                {respondent.totalEnquiries > 1 && (
+                                                                    <span className="text-[11px] font-semibold text-slate-500">{respondent.totalEnquiries} enquiries</span>
                                                                 )}
                                                             </div>
-                                                            <div>
-                                                                <h4 className="text-xs font-black text-slate-900">{respondent.name}</h4>
-                                                                <div className="flex items-center gap-2 mt-0.5">
-                                                                    <span className="text-[9px] font-extrabold text-slate-500 uppercase bg-slate-100 px-1.5 py-0.5 rounded">
-                                                                        {respondent.userType || 'Buyer'}
-                                                                    </span>
-                                                                    <span className="text-[9px] font-extrabold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full">
-                                                                        {respondent.totalEnquiries} {respondent.totalEnquiries > 1 ? 'Enquiries' : 'Enquiry'}
-                                                                    </span>
+
+                                                            {/* Row 3: Property title */}
+                                                            <p
+                                                                onClick={() => latestProp._id && navigateToProperty(latestProp)}
+                                                                className="text-base text-slate-800 leading-snug cursor-pointer"
+                                                            >
+                                                                {getListingTitle(latestProp)}
+                                                            </p>
+
+                                                            {/* Row 4: Status + contact icons */}
+                                                            <div className="flex items-center justify-between gap-3 pt-1">
+                                                                <div className="text-xs text-slate-500 font-medium">
+                                                                    <span className="block">Enquiry status</span>
+                                                                    <span className="mt-0.5 block text-xs font-bold text-slate-700 capitalize">{latestStatus}</span>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-3">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const text = `${respondent.name} enquired about ${latestProp.propertyName || 'a property'}`;
+                                                                            if (navigator.share) navigator.share({ text }).catch(() => {});
+                                                                            else navigator.clipboard?.writeText(text).then(() => toast.success('Copied'));
+                                                                        }}
+                                                                        className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"
+                                                                        aria-label="Share"
+                                                                    >
+                                                                        <Share2 size={16} />
+                                                                    </button>
+                                                                    {respondent.isContactAuthorized && rPhone ? (
+                                                                        <>
+                                                                            <a
+                                                                                href={`https://wa.me/${rPhone.replace(/[^0-9]/g, '')}?text=Hello%20${encodeURIComponent(respondent.name)},%20I%20am%20following%20up%20on%20your%20enquiries%20on%20Get-Right-Home.`}
+                                                                                target="_blank" rel="noopener noreferrer"
+                                                                                className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center"
+                                                                                aria-label="WhatsApp"
+                                                                            >
+                                                                                <Send size={16} />
+                                                                            </a>
+                                                                            <a
+                                                                                href={`tel:${rPhone}`}
+                                                                                className="w-10 h-10 rounded-full bg-blue-800 text-white flex items-center justify-center"
+                                                                                aria-label="Call"
+                                                                            >
+                                                                                <PhoneCall size={16} />
+                                                                            </a>
+                                                                        </>
+                                                                    ) : null}
                                                                 </div>
                                                             </div>
                                                         </div>
 
-                                                        <div className="text-right">
-                                                            <p className="text-[8px] font-black text-slate-400 uppercase">Latest Enquiry</p>
-                                                            <p className="text-[10px] font-bold text-slate-600">{fmtDate(respondent.lastEnquiryDate)}</p>
+                                                        {/* Footer links */}
+                                                        <div className="flex items-center justify-between border-t border-slate-300 px-4 py-3">
+                                                            <button
+                                                                onClick={() => setSelectedRespondent(respondent)}
+                                                                className="text-sm font-medium text-blue-700"
+                                                            >
+                                                                View Respondent Details ({respondent.totalEnquiries})
+                                                            </button>
+                                                            {!(respondent.isContactAuthorized && rPhone) && (
+                                                                <button onClick={() => navigate('/my-subscriptions')} className="flex items-center gap-1 text-sm font-medium text-orange-600">
+                                                                    <Crown size={14} /> Upgrade
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
-
-                                                    <hr className="border-t border-slate-100 w-full" />
-
-                                                    {/* Properties Enquired on (Chips / list) */}
-                                                    <div className="space-y-1.5">
-                                                        <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider">
-                                                            Properties Enquired ({respondent.properties.length})
-                                                        </p>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {respondent.properties.map(p => (
-                                                                <div
-                                                                    key={p._id}
-                                                                    onClick={() => navigateToProperty(p)}
-                                                                    className="flex items-center gap-2 p-1.5 pr-2.5 rounded-lg bg-slate-50 border border-slate-150 hover:bg-slate-100 cursor-pointer transition-colors max-w-full"
-                                                                >
-                                                                    <div className="w-7 h-7 rounded-md overflow-hidden bg-slate-200 shrink-0">
-                                                                        {p.coverImage ? (
-                                                                            <img src={p.coverImage} className="w-full h-full object-cover" alt="" />
-                                                                        ) : (
-                                                                            <div className="w-full h-full flex items-center justify-center text-slate-400"><Building size={12} /></div>
-                                                                        )}
-                                                                    </div>
-                                                                    <span className="text-xs font-bold text-slate-800 truncate max-w-[150px]">
-                                                                        {p.propertyName}
-                                                                    </span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Status Badges */}
-                                                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                                        <span className="text-[8px] font-black uppercase text-slate-400">Current Statuses:</span>
-                                                        {respondent.statuses.map((st, i) => (
-                                                            <EnquiryStatusBadge key={i} status={st} />
-                                                        ))}
-                                                    </div>
-
-                                                    {/* Action Buttons */}
-                                                    <div className="flex gap-2 pt-1 border-t border-slate-100">
-                                                        <button
-                                                            onClick={() => setSelectedRespondent(respondent)}
-                                                            className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-1.5 transition-all text-xs font-bold shadow-sm"
-                                                        >
-                                                            <Eye size={13} /> View Respondent Details ({respondent.totalEnquiries})
-                                                        </button>
-
-                                                        {respondent.isContactAuthorized && respondent.phone && (
-                                                            <>
-                                                                <a
-                                                                    href={`https://wa.me/${respondent.rawPhone ? respondent.rawPhone.replace(/[^0-9]/g, '') : respondent.phone.replace(/[^0-9]/g, '')}?text=Hello%20${encodeURIComponent(respondent.name)},%20I%20am%20following%20up%20on%20your%20enquiries%20on%20Get-Right-Home.`}
-                                                                    target="_blank" rel="noopener noreferrer"
-                                                                    className="w-9 h-9 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors border border-emerald-100"
-                                                                    title="WhatsApp Respondent"
-                                                                >
-                                                                    <Send size={13} />
-                                                                </a>
-                                                                <a
-                                                                    href={`tel:${respondent.rawPhone || respondent.phone}`}
-                                                                    className="w-9 h-9 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition-colors border border-indigo-100"
-                                                                    title="Call Respondent"
-                                                                >
-                                                                    <PhoneCall size={13} />
-                                                                </a>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )
                                 ) : (
@@ -1072,121 +1072,124 @@ const UserReceivedEnquiriesPage = () => {
                                                 const rawMsg = item.message || item.inquiryMetadata?.message || '';
                                                 const recvProp = item.propertyId || {};
                                                 const isContactAuth = item.isContactAuthorized;
+                                                const score = getLeadScore(item);
 
                                                 return (
-                                                    <div key={item._id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3 hover:border-blue-200 transition-all">
-                                                        {/* Header */}
-                                                        <div className="flex gap-4 pt-1">
-                                                            {/* Left: Property thumbnail */}
-                                                            <div className="w-[80px] shrink-0" onClick={() => recvProp._id && navigateToProperty(recvProp)}>
-                                                                <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 border border-slate-150 shrink-0 shadow-sm mx-auto cursor-pointer">
-                                                                    {recvProp.coverImage ? (
-                                                                        <img src={recvProp.coverImage} className="w-full h-full object-cover" alt="" />
-                                                                    ) : (
-                                                                        <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50"><Building size={16} /></div>
-                                                                    )}
-                                                                </div>
+                                                    <div key={item._id} className="bg-white border border-slate-300 rounded-sm shadow-sm">
+                                                        <div className="p-4 space-y-2.5">
+                                                            {/* Row 1: Name + date */}
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <h4 className="text-base font-extrabold text-slate-900 leading-tight truncate">{buyerName}</h4>
+                                                                <span className="text-xs text-slate-500 font-medium shrink-0">{fmtRelDate(item.createdAt)}</span>
                                                             </div>
 
-                                                            {/* Right: Status selector, Type badge, Date */}
-                                                            <div className="flex-1 min-w-0 flex flex-wrap items-center justify-end gap-2 pt-0.5 content-start">
-                                                                <select
-                                                                    value={status}
-                                                                    onChange={(e) => handleUpdateStatus(item._id, e.target.value)}
-                                                                    className={`text-[10px] font-bold rounded-md border outline-none cursor-pointer uppercase transition-all ${
-                                                                        status === 'contacted' ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                                                        : status === 'new' ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                                                        : status === 'scheduled' ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                                                        : status === 'dropped' ? 'bg-red-50 text-red-700 border-red-200'
-                                                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                                    }`}
-                                                                    style={{ 
-                                                                        height: '24px', 
-                                                                        paddingLeft: '8px', 
-                                                                        paddingRight: '8px', 
-                                                                        appearance: 'none',
-                                                                        WebkitAppearance: 'none',
-                                                                        MozAppearance: 'none',
-                                                                        textAlign: 'center'
-                                                                    }}
-                                                                >
-                                                                    <option value="new" className="text-slate-800 bg-white text-[10px]">New</option>
-                                                                    <option value="contacted" className="text-slate-800 bg-white text-[10px]">Contacted</option>
-                                                                    <option value="scheduled" className="text-slate-800 bg-white text-[10px]">Scheduled</option>
-                                                                    <option value="closed" className="text-slate-800 bg-white text-[10px]">Closed</option>
-                                                                    <option value="dropped" className="text-slate-800 bg-white text-[10px]">Dropped</option>
-                                                                </select>
+                                                            {/* Row 2: Lead score + respondent type */}
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                                                                    <span>Lead Score :</span>
+                                                                    <span className="font-extrabold text-slate-900">{score.toFixed(1)}</span>
+                                                                    <span className="flex items-center">
+                                                                        {[1, 2, 3, 4, 5].map(n => (
+                                                                            <Star
+                                                                                key={n}
+                                                                                size={15}
+                                                                                className={n <= Math.round(score) ? 'fill-amber-400 text-amber-400' : 'fill-slate-200 text-slate-200'}
+                                                                            />
+                                                                        ))}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-sm text-slate-700 font-semibold shrink-0">{item.userId?.userType || 'Individual'}</span>
+                                                            </div>
 
+                                                            <div className="flex items-center gap-2">
                                                                 <LeadTypeBadge type={item.actionType || item.enquiryType} />
+                                                            </div>
 
-                                                                <div className="flex items-center justify-center h-[24px] px-2 bg-slate-50 text-slate-500 border border-slate-200 rounded-md text-[10px] font-bold">
-                                                                    {fmtDate(item.createdAt)}
+                                                            {/* Row 3: Property title */}
+                                                            <p
+                                                                onClick={() => recvProp._id && navigateToProperty(recvProp)}
+                                                                className="text-base text-slate-800 leading-snug cursor-pointer"
+                                                            >
+                                                                {getListingTitle(recvProp)}
+                                                            </p>
+
+                                                            {rawMsg && <MessageBlock message={rawMsg} />}
+
+                                                            {/* Row 4: Status + contact icons */}
+                                                            <div className="flex items-center justify-between gap-3 pt-1">
+                                                                <div className="text-xs text-slate-500 font-medium">
+                                                                    <span className="block">Enquiry status</span>
+                                                                    <select
+                                                                        value={status}
+                                                                        onChange={(e) => handleUpdateStatus(item._id, e.target.value)}
+                                                                        className="mt-0.5 text-xs font-bold text-slate-700 bg-transparent outline-none cursor-pointer capitalize -ml-0.5"
+                                                                    >
+                                                                        <option value="new">New</option>
+                                                                        <option value="contacted">Contacted</option>
+                                                                        <option value="scheduled">Scheduled</option>
+                                                                        <option value="closed">Closed</option>
+                                                                        <option value="dropped">Dropped</option>
+                                                                    </select>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-3">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const text = `${buyerName} enquired about ${recvProp.propertyName || 'a property'}`;
+                                                                            if (navigator.share) navigator.share({ text }).catch(() => {});
+                                                                            else navigator.clipboard?.writeText(text).then(() => toast.success('Copied'));
+                                                                        }}
+                                                                        className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"
+                                                                        aria-label="Share"
+                                                                    >
+                                                                        <Share2 size={16} />
+                                                                    </button>
+                                                                    {phone && isContactAuth ? (
+                                                                        <>
+                                                                            <a
+                                                                                href={`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=Hello%20${encodeURIComponent(buyerName)},%20thank%20you%20for%20enquiring%20about%20"${encodeURIComponent(recvProp.propertyName || '')}".`}
+                                                                                target="_blank" rel="noopener noreferrer"
+                                                                                className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center"
+                                                                                aria-label="WhatsApp"
+                                                                            >
+                                                                                <Send size={16} />
+                                                                            </a>
+                                                                            <a
+                                                                                href={`tel:${phone}`}
+                                                                                className="w-10 h-10 rounded-full bg-blue-800 text-white flex items-center justify-center"
+                                                                                aria-label="Call"
+                                                                            >
+                                                                                <PhoneCall size={16} />
+                                                                            </a>
+                                                                        </>
+                                                                    ) : null}
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <hr className="border-t border-slate-100/80 w-full my-1" />
 
-                                                        {/* Buyer and Property Names */}
-                                                        <div className="flex gap-3 pt-1">
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Buyer / Respondent</p>
-                                                                <p className="font-extrabold text-[10px] text-slate-700 truncate">{buyerName}</p>
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Property</p>
-                                                                <p className="font-extrabold text-[10px] text-slate-700 truncate">{recvProp.propertyName || 'Property'}</p>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Specs */}
-                                                        <div className="text-xs pt-1">
-                                                            <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-0.5">Property Specs</p>
-                                                            <p className="font-bold text-slate-700">{getSpecs(recvProp)}</p>
-                                                        </div>
-
-                                                        {/* Structured message */}
-                                                        {rawMsg && <MessageBlock message={rawMsg} />}
-
-                                                        {/* Action Buttons */}
-                                                        <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                                                        {/* Footer links */}
+                                                        <div className="flex items-center justify-between border-t border-slate-300 px-4 py-3">
                                                             <button
                                                                 onClick={() => setSelectedEnquiry({ ...item, prop: recvProp, buyerName, phone })}
-                                                                className="flex-1 min-w-[120px] py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg flex items-center justify-center gap-1.5 transition-all text-xs font-bold"
+                                                                className="text-sm font-medium text-blue-700"
                                                             >
-                                                                <Eye size={12} /> View Details
+                                                                View Lead Detail
                                                             </button>
-
-                                                            <button
-                                                                onClick={() => setScheduleModalEnquiry(item)}
-                                                                className="flex-1 min-w-[120px] py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg flex items-center justify-center gap-1.5 transition-all text-xs font-bold"
-                                                            >
-                                                                <Calendar size={12} /> Schedule Visit
-                                                            </button>
-
-                                                            {phone && isContactAuth ? (
-                                                                <div className="flex gap-1.5 w-full sm:w-auto">
-                                                                    <a
-                                                                        href={`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=Hello%20${encodeURIComponent(buyerName)},%20thank%20you%20for%20enquiring%20about%20"${encodeURIComponent(recvProp.propertyName || '')}".`}
-                                                                        target="_blank" rel="noopener noreferrer"
-                                                                        className="flex-1 sm:flex-initial px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center gap-1.5 transition-all text-xs font-bold border border-emerald-100"
+                                                            <div className="flex items-center gap-4">
+                                                                {!(phone && isContactAuth) && (
+                                                                    <button onClick={() => navigate('/my-subscriptions')} className="flex items-center gap-1 text-sm font-medium text-orange-600">
+                                                                        <Crown size={14} /> Upgrade
+                                                                    </button>
+                                                                )}
+                                                                {rawMsg && (
+                                                                    <button
+                                                                        onClick={() => setSelectedEnquiry({ ...item, prop: recvProp, buyerName, phone })}
+                                                                        className="flex items-center gap-1 text-sm font-medium text-blue-700"
                                                                     >
-                                                                        <Send size={12} /> WhatsApp
-                                                                    </a>
-                                                                    <a
-                                                                        href={`tel:${phone}`}
-                                                                        className="flex-1 sm:flex-initial px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-1.5 transition-all text-xs font-bold shadow-sm"
-                                                                    >
-                                                                        <PhoneCall size={12} /> Call
-                                                                    </a>
-                                                                </div>
-                                                            ) : (
-                                                                <button
-                                                                    onClick={() => navigate('/my-subscriptions')}
-                                                                    className="w-full py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold"
-                                                                >
-                                                                    <Crown size={12} /> Upgrade to view phone ({phone})
-                                                                </button>
-                                                            )}
+                                                                        <MessageSquare size={14} /> View Message
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 );
@@ -1305,7 +1308,7 @@ const UserReceivedEnquiriesPage = () => {
                             {selectedEnquiry.prop && (
                                 <div className="flex gap-3 items-center">
                                     <div
-                                        className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 shrink-0 border border-slate-150 cursor-pointer"
+                                        className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200 cursor-pointer"
                                         onClick={() => { setSelectedEnquiry(null); navigateToProperty(selectedEnquiry.prop); }}
                                     >
                                         {selectedEnquiry.prop.coverImage ? (
@@ -1378,7 +1381,7 @@ const UserReceivedEnquiriesPage = () => {
                             </div>
 
                             {/* Respondent Contact Info */}
-                            <div className="border border-slate-150 rounded-xl p-3 flex items-center justify-between">
+                            <div className="border border-slate-200 rounded-xl p-3 flex items-center justify-between">
                                 <div className="flex items-center gap-2.5">
                                     <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs">
                                         {selectedEnquiry.buyerName?.charAt(0)?.toUpperCase() || 'U'}
@@ -1479,7 +1482,7 @@ const UserReceivedEnquiriesPage = () => {
 
                         <div className="px-5 py-4 space-y-4">
                             {/* Profile Info Bar */}
-                            <div className="flex items-center justify-between bg-slate-50 p-3.5 rounded-2xl border border-slate-150">
+                            <div className="flex items-center justify-between bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-700 font-black flex items-center justify-center text-base shrink-0">
                                         {selectedRespondent.avatar ? (
@@ -1531,7 +1534,7 @@ const UserReceivedEnquiriesPage = () => {
                                         >
                                             <div className="flex gap-3">
                                                 <div
-                                                    className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-150 cursor-pointer"
+                                                    className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200 cursor-pointer"
                                                     onClick={() => { setSelectedRespondent(null); navigateToProperty(prop); }}
                                                 >
                                                     {prop.coverImage ? (
@@ -1543,11 +1546,10 @@ const UserReceivedEnquiriesPage = () => {
 
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-start justify-between gap-2">
-                                                        <h5 className="text-xs font-black text-slate-900 truncate">{prop.propertyName || 'Property'}</h5>
+                                                        <h5 className="text-xs font-black text-slate-900 leading-snug line-clamp-2">{getListingTitle(prop)}</h5>
                                                         <span className="text-[9px] text-slate-400 font-bold shrink-0">{fmtDate(enq.createdAt)}</span>
                                                     </div>
-                                                    <p className="text-[10px] text-slate-500 font-bold mt-0.5">{getSpecs(prop)}</p>
-                                                    <div className="flex items-center gap-1.5 mt-1.5">
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                                         <EnquiryStatusBadge status={enq.status} />
                                                         <LeadTypeBadge type={enq.actionType || enq.enquiryType} />
                                                     </div>
@@ -1562,11 +1564,11 @@ const UserReceivedEnquiriesPage = () => {
                                             )}
 
                                             {/* Status Selector & Actions for this enquiry */}
-                                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                                            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
                                                 <select
                                                     value={(enq.status || 'new').toLowerCase()}
                                                     onChange={(e) => handleUpdateStatus(enq._id, e.target.value)}
-                                                    className="text-[10px] font-bold rounded-lg border border-slate-200 px-2 py-1 bg-slate-50 text-slate-700 outline-none cursor-pointer uppercase"
+                                                    className="min-w-[110px] flex-1 text-[10px] font-bold rounded-lg border border-slate-200 px-2 py-1.5 bg-slate-50 text-slate-700 outline-none cursor-pointer uppercase"
                                                 >
                                                     <option value="new">New</option>
                                                     <option value="contacted">Contacted</option>
@@ -1647,7 +1649,7 @@ const UserReceivedEnquiriesPage = () => {
                         <form onSubmit={handleScheduleVisitSubmit} className="px-5 py-4 space-y-4">
                             {/* Property Target */}
                             {scheduleModalEnquiry.propertyId && (
-                                <div className="bg-slate-50 border border-slate-150 p-3 rounded-xl flex items-center gap-3">
+                                <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-200 shrink-0">
                                         {scheduleModalEnquiry.propertyId.coverImage ? (
                                             <img src={scheduleModalEnquiry.propertyId.coverImage} className="w-full h-full object-cover" alt="" />

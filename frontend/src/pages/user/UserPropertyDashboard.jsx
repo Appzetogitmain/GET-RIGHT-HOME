@@ -300,7 +300,7 @@ const UserPropertyDashboard = () => {
                         sub={subscription?.planId ? `Expires ${new Date(subscription.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'Upgrade for more leads'}
                         color="text-emerald-600"
                         bg="bg-emerald-50"
-                        onClick={() => navigate('/my-subscriptions')}
+                        onClick={() => navigate(`/my-subscriptions?propertyId=${property._id || id}`)}
                     />
                 </div>
 
@@ -311,7 +311,7 @@ const UserPropertyDashboard = () => {
                     </div>
                     {[
                         { icon: PhoneCall, label: 'View All Leads & Enquiries', path: '/my-enquiries', color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                        { icon: BarChart2, label: 'Boost Property Visibility', path: '/my-subscriptions', color: 'text-violet-600', bg: 'bg-violet-50' },
+                        { icon: BarChart2, label: 'Boost Property Visibility', path: `/my-subscriptions?propertyId=${property._id || id}`, color: 'text-violet-600', bg: 'bg-violet-50' },
                         { icon: Wallet, label: 'My Wallet & Earnings', path: '/wallet', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                         { icon: Edit3, label: 'Edit This Property', path: getPropertyEditPath(), color: 'text-gray-700', bg: 'bg-gray-100' },
                         { icon: Eye, label: 'Preview Listing', path: property.isBuilderProject ? `/project/${property.slug || property._id}` : `/property/${property.slug || property._id}`, color: 'text-blue-600', bg: 'bg-blue-50', external: true },

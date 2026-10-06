@@ -928,7 +928,7 @@ const ProfileEdit = () => {
             action={
               <button
                 type="button"
-                onClick={() => navigate(bookingTab === 'services' ? '/user/home-services/bookings' : '/bookings')}
+                onClick={() => navigate('/user/home-services/bookings')}
                 className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-colors cursor-pointer"
               >
                 <span>View All</span>
@@ -936,47 +936,6 @@ const ProfileEdit = () => {
               </button>
             }
           >
-            {/* Filter Pill Tabs */}
-            <div className="flex items-center p-1 bg-slate-100/90 rounded-xl gap-1">
-              <button
-                type="button"
-                onClick={() => setBookingTab('services')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  bookingTab === 'services'
-                    ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <span>Home Services</span>
-                {hsBookings.length > 0 && (
-                  <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
-                    bookingTab === 'services' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {hsBookings.length}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setBookingTab('stays')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  bookingTab === 'stays'
-                    ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <span>Stays & Hotels</span>
-                {stayBookings.length > 0 && (
-                  <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
-                    bookingTab === 'stays' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {stayBookings.length}
-                  </span>
-                )}
-              </button>
-            </div>
-
             {/* Content: Home Services Tab */}
             {bookingTab === 'services' && (
               <div className="space-y-3">
@@ -1069,103 +1028,6 @@ const ProfileEdit = () => {
                         className="w-full py-2 text-center text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50/50 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
                       >
                         View all {hsBookings.length} bookings →
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Content: Stays & Hotels Tab */}
-            {bookingTab === 'stays' && (
-              <div className="space-y-3">
-                {bookingsLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="h-20 bg-slate-100/80 rounded-xl animate-pulse" />
-                    ))}
-                  </div>
-                ) : stayBookings.length === 0 ? (
-                  <div className="text-center py-7 px-4 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
-                    <div className="w-11 h-11 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2.5 shadow-sm">
-                      <Ticket size={20} />
-                    </div>
-                    <p className="text-xs font-bold text-slate-800">No stay bookings yet</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs mx-auto">
-                      Explore handpicked apartments, villas, and hotels for your next stay.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/search')}
-                      className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-amber-600/20 active:scale-95 cursor-pointer"
-                    >
-                      Explore Properties
-                      <ChevronRight size={13} />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    {stayBookings.slice(0, 3).map((sb) => {
-                      const sbId = sb._id || sb.id || sb.bookingId;
-                      const propName = sb.propertyId?.propertyName || 'Hotel / Property Stay';
-                      const roomName = sb.roomTypeId?.name;
-                      const dateStr = sb.checkInDate ? formatBookingDate(sb.checkInDate) : '';
-                      const price = sb.totalAmount !== undefined ? sb.totalAmount : (sb.amount || 0);
-
-                      return (
-                        <div
-                          key={sbId}
-                          onClick={() => navigate('/bookings')}
-                          className="p-3.5 sm:p-4 rounded-xl border border-slate-200/90 hover:border-amber-300 bg-white hover:bg-amber-50/20 transition-all cursor-pointer group shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                        >
-                          <div className="flex items-start gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                              <Ticket size={16} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap mb-1">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${getBookingStatusBadgeClass(sb.bookingStatus || sb.status)}`}>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                                  {getBookingStatusLabel(sb.bookingStatus || sb.status)}
-                                </span>
-                              </div>
-                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors truncate">
-                                {propName}
-                              </h4>
-                              <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1 flex-wrap">
-                                {roomName && <span className="font-medium text-slate-700">{roomName}</span>}
-                                {dateStr && (
-                                  <span className="flex items-center gap-1">
-                                    <Clock size={11} className="text-slate-400" />
-                                    Check-in: {dateStr}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 shrink-0">
-                            <div className="text-left sm:text-right">
-                              <p className="text-[9px] uppercase font-bold text-slate-400">Total</p>
-                              <p className="text-xs sm:text-sm font-black text-slate-900">
-                                ₹{price}
-                              </p>
-                            </div>
-                            <div className="p-1.5 rounded-lg text-slate-300 group-hover:text-amber-600 group-hover:bg-amber-50 transition-colors">
-                              <ChevronRight size={15} />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {stayBookings.length > 3 && (
-                      <button
-                        type="button"
-                        onClick={() => navigate('/bookings')}
-                        className="w-full py-2 text-center text-xs font-bold text-amber-600 hover:text-amber-700 bg-amber-50/50 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
-                      >
-                        View all {stayBookings.length} stay bookings →
                       </button>
                     )}
                   </>

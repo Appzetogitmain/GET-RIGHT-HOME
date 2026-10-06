@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Building2, MapPin, Pencil, PlusCircle, Trash2, 
   Eye, AlertCircle, ArrowLeft, Plus, LayoutGrid, 
-  Search, Clock, CheckCircle2, Timer
+  Search, Clock, CheckCircle2, Timer, Zap
 } from 'lucide-react';
 import { propertyService, enquiryService } from '../../services/apiService';
 import { toast } from 'react-hot-toast';
@@ -330,12 +330,22 @@ const MyProperties = () => {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => handleViewDetails(property)}
-                        className="px-5 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all"
-                      >
-                        View Details
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {property.status === 'approved' && (
+                          <button
+                            onClick={() => navigate(`/my-subscriptions?propertyId=${property._id}`)}
+                            className="px-4 py-2.5 bg-orange-50 text-orange-600 border border-orange-100 text-[10px] font-black uppercase tracking-widest rounded-xl active:scale-95 transition-all flex items-center gap-1"
+                          >
+                            <Zap size={12} /> Boost
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleViewDetails(property)}
+                          className="px-5 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all"
+                        >
+                          View Details
+                        </button>
+                      </div>
                     )}
                   </div>
                 </motion.div>
