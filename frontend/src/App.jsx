@@ -73,6 +73,7 @@ const InstantServicesPage = React.lazy(() => import('./pages/user/InstantService
 const HomsterAdminRoutes = React.lazy(() => import('./homster/modules/admin/routes/index.jsx'));
 const UserReceivedBookingsPage = React.lazy(() => import('./pages/user/UserReceivedBookingsPage'));
 const UserReceivedEnquiriesPage = React.lazy(() => import('./pages/user/UserReceivedEnquiriesPage'));
+const LeadDetailPage = React.lazy(() => import('./pages/user/LeadDetailPage'));
 const UserSubscriptionsPage = React.lazy(() => import('./pages/user/UserSubscriptionsPage'));
 const UserPropertyDashboard = React.lazy(() => import('./pages/user/UserPropertyDashboard'));
 const UserMyReviewsPage = React.lazy(() => import('./pages/user/UserMyReviewsPage'));
@@ -253,7 +254,7 @@ const Layout = ({ children }) => {
   // 3. NAVBAR VISIBILITY
   const showUserNavs = !isPartnerApp;
 
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/property/', '/handpicked/', '/project/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/', '/broker/'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/property/', '/handpicked/', '/project/', '/legal', '/terms', '/privacy', '/reels', '/home-services', '/user/cart', '/user/home-services/checkout', '/user/booking/', '/broker/', '/my-enquiries/'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
   const isReelsPage = location.pathname.startsWith('/reels');
 
@@ -723,6 +724,7 @@ function App() {
                       <Route path="/my-properties" element={<MyProperties />} />
                       <Route path="/my-received-bookings" element={<UserReceivedBookingsPage />} />
                       <Route path="/my-enquiries" element={<UserReceivedEnquiriesPage />} />
+                      <Route path="/my-enquiries/:id" element={<LeadDetailPage />} />
                       <Route path="/my-subscriptions" element={<UserSubscriptionsPage />} />
                       <Route path="/my-property-dashboard/:id" element={<UserPropertyDashboard />} />
                       <Route path="/properties/:id" element={<PartnerPropertyDetails />} />
