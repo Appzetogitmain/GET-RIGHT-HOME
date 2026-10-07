@@ -5,7 +5,7 @@ import { Card, inr, teal } from './Parts';
 const Lift = ({ place, onChange }) => (
   <label className="mt-1.5 ml-6 flex cursor-pointer items-center gap-2 text-xs text-slate-600">
     <input type="checkbox" checked={place?.lift !== false} onChange={(e) => onChange({ ...place, lift: e.target.checked })} className="h-4 w-4 rounded" style={{ accentColor: teal }} />
-    Is service lift available<span className="text-red-500">*</span>
+    Is service lift available<span className="text-[#BB5F36]">*</span>
   </label>
 );
 
@@ -15,7 +15,7 @@ const AddOnRow = ({ addOn, selected, onToggle }) => (
       <div className="min-w-0">
         <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
           {addOn.name}
-          {addOn.isRecommended && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">Recommended</span>}
+          {addOn.isRecommended && <span className="rounded-full bg-[#D68F35]/20 px-2 py-0.5 text-[10px] font-bold text-[#8a5a1f]">Recommended</span>}
         </p>
         {addOn.description && <p className="mt-1 text-xs leading-relaxed text-slate-500">{addOn.description}</p>}
       </div>
@@ -52,11 +52,11 @@ const SummaryStep = ({ config, from, to, setFrom, setTo, lines, date, slot, onEd
     <div className="mx-auto grid max-w-5xl gap-4 px-4 pb-36 pt-4 md:grid-cols-[1fr_360px]">
       <div className="space-y-4">
         {quote?.route && (
-          <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+          <div className="rounded-2xl border border-[#347989]/20 bg-[#347989]/10 px-4 py-3 text-sm text-[#2b6270]">
             <p className="font-bold">{quote.route.fromCity} → {quote.route.toCity} · Between Cities</p>
-            <p className="mt-0.5 text-xs text-indigo-800/80">
+            <p className="mt-0.5 text-xs text-[#2b6270]/80">
               {quote.route.transitDays ? `Your goods are delivered in about ${quote.route.transitDays} day${quote.route.transitDays > 1 ? 's' : ''} after pickup. ` : ''}
-              {quote.distanceKm ? `Route distance ~${Math.round(quote.distanceKm)} km.` : ''}
+              {quote.distanceKm ? `Road distance ~${Math.round(quote.distanceKm)} km.` : ''}
             </p>
           </div>
         )}
@@ -66,10 +66,10 @@ const SummaryStep = ({ config, from, to, setFrom, setTo, lines, date, slot, onEd
             <h2 className="text-base font-bold text-slate-900">Movement Details</h2>
             <button type="button" onClick={onBack} className="text-sm font-semibold" style={{ color: teal }}>Edit</button>
           </div>
-          <div className="flex items-start gap-2 text-sm text-slate-800"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-red-500" /> {from?.address}</div>
+          <div className="flex items-start gap-2 text-sm text-slate-800"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#BB5F36]" /> {from?.address}</div>
           <Lift place={from} onChange={setFrom} />
           <div className="my-2 ml-[7px] h-4 border-l border-dashed border-slate-300" />
-          <div className="flex items-start gap-2 text-sm text-slate-800"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> {to?.address}</div>
+          <div className="flex items-start gap-2 text-sm text-slate-800"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#347989]" /> {to?.address}</div>
           <Lift place={to} onChange={setTo} />
           <div className="mt-4 flex items-center justify-between border-t border-dashed border-slate-200 pt-3">
             <span className="flex items-center gap-2 text-sm font-semibold text-slate-800"><Calendar className="h-4 w-4 text-slate-500" /> {dateLabel} | {slot?.label}</span>
@@ -109,48 +109,47 @@ const SummaryStep = ({ config, from, to, setFrom, setTo, lines, date, slot, onEd
         )}
       </div>
 
-      {/* Payment summary */}
-      <div className="md:sticky md:top-4 md:self-start">
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
-          <h2 className="px-4 pt-4 text-base font-bold text-slate-900">Payment Summary</h2>
-          <div className="mt-3 px-4 py-2.5 text-center text-sm font-semibold text-white" style={{ backgroundColor: teal }}>
-            {quote ? `Pay ${inr(quote.token)} to confirm your booking` : 'Calculating your price…'}
-          </div>
-          {quote && (
+      {/* Payment summary (same layout as My Cart) */}
+      <div className="md:sticky md:top-20 md:self-start">
+        <h2 className="mb-2 text-sm font-bold text-slate-800">Payment Summary</h2>
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          {!quote ? (
+            <p className="px-4 py-8 text-center text-sm text-slate-400">Calculating your price…</p>
+          ) : (
             <>
-              <div className="flex items-center justify-between bg-slate-50 px-5 py-4">
-                <div className="text-center">
-                  <span className="mx-auto flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">1</span>
-                  <p className="mt-1 text-xs font-semibold text-slate-800">Booking Amount</p>
-                  <p className="text-[11px] text-slate-500">({inr(quote.token)})</p>
-                </div>
-                <span className="mx-2 h-px flex-1 bg-slate-300" />
-                <div className="text-center">
-                  <span className="mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: teal }}>2</span>
-                  <p className="mt-1 text-xs font-semibold text-slate-800">At time of unloading</p>
-                  <p className="text-[11px] text-slate-500">({inr(quote.dueAtUnloading)})</p>
-                </div>
-              </div>
-
-              <div className={`space-y-2 px-4 py-4 text-sm transition ${quoting ? 'opacity-50' : ''}`}>
-                <div className="flex justify-between text-slate-700"><span>Packers and Movers Service</span><span>{inr(quote.serviceCharge)}</span></div>
+              <div className={`space-y-2.5 px-4 py-4 text-sm transition ${quoting ? 'opacity-50' : ''}`}>
+                <div className="flex items-center justify-between"><span className="text-slate-600">Packers & Movers service</span><span className="font-medium text-slate-900">{inr(quote.serviceCharge)}</span></div>
+                {quote.distance && (
+                  <div className="flex items-center justify-between text-xs text-slate-500"><span>Distance ~{Math.round(quote.distance.km)} km by road</span><span>included</span></div>
+                )}
                 {quote.breakdown.noLiftCharge > 0 && (
-                  <div className="flex justify-between text-xs text-slate-500"><span>incl. no service lift charge</span><span>{inr(quote.breakdown.noLiftCharge)}</span></div>
+                  <div className="flex items-center justify-between text-xs text-slate-500"><span>No service lift charge</span><span>{inr(quote.breakdown.noLiftCharge)}</span></div>
                 )}
                 {quote.addOns.map((a) => (
-                  <div key={a.key} className="flex justify-between text-slate-700"><span>{a.name}</span><span>{inr(a.price)}</span></div>
+                  <div key={a.key} className="flex items-center justify-between"><span className="text-slate-600">{a.name}</span><span className="font-medium text-slate-900">{inr(a.price)}</span></div>
                 ))}
                 {quote.gst.applied && (
-                  <div className="flex justify-between text-slate-700"><span>GST @ {quote.gst.ratePct}%</span><span>{inr(quote.gst.amount)}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-slate-600">GST @ {quote.gst.ratePct}%</span><span className="font-medium text-slate-900">{inr(quote.gst.amount)}</span></div>
                 )}
-                <div className="flex justify-between border-t border-slate-200 pt-2.5 font-bold text-slate-900"><span>Total Amount to be Paid</span><span>{inr(quote.total)}</span></div>
-                <div className="flex justify-between font-bold" style={{ color: teal }}><span>Booking Amount</span><span>{inr(quote.token)}</span></div>
-                <p className="text-[11px] text-slate-500">Pay the booking amount now to confirm. The rest is paid at the time of unloading.</p>
-                {!quote.distanceKnown && <p className="text-[11px] text-amber-700">Distance is estimated. The final price may change if the route differs.</p>}
+                <div className="flex items-center justify-between border-t border-dashed border-slate-200 pt-3">
+                  <span className="text-base font-bold text-slate-900">Total Amount</span>
+                  <span className="text-lg font-extrabold text-slate-900">{inr(quote.total)}</span>
+                </div>
+              </div>
+              <div className="space-y-1.5 border-t border-slate-100 bg-slate-50 px-4 py-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-700">Pay now (booking amount)</span>
+                  <span className="font-bold" style={{ color: teal }}>{inr(quote.token)}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-500">
+                  <span>Pay at time of unloading</span>
+                  <span className="font-semibold">{inr(quote.dueAtUnloading)}</span>
+                </div>
               </div>
             </>
           )}
         </div>
+        {quote && !quote.distanceKnown && <p className="mt-2 text-[11px] text-[#BB5F36]">Distance is estimated. The final price may change if the route differs.</p>}
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white">
@@ -163,7 +162,7 @@ const SummaryStep = ({ config, from, to, setFrom, setTo, lines, date, slot, onEd
             type="button"
             disabled={!quote || quoting || confirming}
             onClick={onConfirm}
-            className="flex-1 rounded-xl py-3.5 text-sm font-bold text-white shadow-md disabled:opacity-50 md:max-w-xs"
+            className="flex-1 rounded-xl py-3.5 text-sm font-bold text-white shadow-lg disabled:opacity-50 md:max-w-xs"
             style={{ backgroundColor: teal }}
           >
             {confirming ? 'Please wait…' : 'Confirm Booking'}

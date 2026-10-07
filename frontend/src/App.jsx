@@ -69,6 +69,7 @@ const HomeServicesPage = React.lazy(() => import('./pages/user/HomeServicesPage'
 const SubCategoryPage = React.lazy(() => import('./pages/user/SubCategoryPage'));
 const CategoryPage = React.lazy(() => import('./pages/user/CategoryPage'));
 const PackersMoversPage = React.lazy(() => import('./pages/user/PackersMoversPage'));
+const BookVisitPage = React.lazy(() => import('./pages/user/BookVisitPage'));
 const InstantServicesPage = React.lazy(() => import('./pages/user/InstantServicesPage'));
 const HomsterAdminRoutes = React.lazy(() => import('./homster/modules/admin/routes/index.jsx'));
 const UserReceivedBookingsPage = React.lazy(() => import('./pages/user/UserReceivedBookingsPage'));
@@ -482,6 +483,7 @@ function App() {
                     <Route path="/home-services/sub-category" element={<SubCategoryPage />} />
                     <Route path="/home-services/category/:categoryId" element={<CategoryPage />} />
                     <Route path="/home-services/packers-movers" element={<PackersMoversPage />} />
+                    <Route path="/home-services/book-visit/:categoryId" element={<BookVisitPage />} />
                     <Route path="/home-services/instant" element={<InstantServicesPage />} />
                     <Route path="/home-service" element={<Navigate to="/home-services" replace />} />
                     {/* Cart is unified at /user/cart (backed by global cart with complete checkout) */}

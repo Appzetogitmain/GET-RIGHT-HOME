@@ -36,6 +36,7 @@ const CategoryPage = () => {
     // Packers & Movers is a quote wizard, not a service list.
     useEffect(() => {
         if (/packers/i.test(category?.title || category?.name || '')) navigate('/home-services/packers-movers', { replace: true });
+        else if (category?.isEstimateBased) navigate(`/home-services/book-visit/${category.id || category._id}`, { replace: true });
     }, [category, navigate]);
     const [subCategories, setSubCategories] = useState([]);
     const [services, setServices] = useState([]);

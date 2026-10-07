@@ -1,63 +1,76 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiCheckCircle, FiDollarSign, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiX, FiCheckCircle, FiDollarSign, FiPlus, FiMinus, FiTrash2 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import workerService from '../../../../services/workerService';
+import estimateService from '../../../../services/estimateService';
+import { themeColors } from '../../../../theme';
 
+const TEAL = themeColors.button;
+const inr = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
+
+/**
+ * The worker's estimate after inspecting the site. With an admin rate card the
+ * worker only picks rooms / work and how many; the prices come from the card and
+ * the customer's advance follows the admin's rule. Categories with no rate card
+ * fall back to typed line items.
+ */
 const GenerateEstimateModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
-  const [estimatedAmount, setEstimatedAmount] = useState('');
-  const [items, setItems] = useState([{ name: '', price: '' }]);
+  const [card, setCard] = useState(null);       // rate card + rules
+  const [loadingCard, setLoadingCard] = useState(false);
+  const [qty, setQty] = useState({});           // itemId -> qty
+  const [notes, setNotes] = useState('');
+  const [manual, setManual] = useState([{ name: '', price: '' }]);
   const [loading, setLoading] = useState(false);
-  const [breakdown, setBreakdown] = useState(null);
 
   useEffect(() => {
-    // Calculate total from items
-    const amount = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-    setEstimatedAmount(amount > 0 ? amount.toString() : '');
+    if (!isOpen) return;
+    setQty({}); setNotes(''); setManual([{ name: '', price: '' }]);
+    setLoadingCard(true);
+    estimateService.getOptions(bookingId)
+      .then((res) => setCard(res.data))
+      .catch((e) => { toast.error(e.message || 'Could not load the rate card'); setCard(null); })
+      .finally(() => setLoadingCard(false));
+  }, [isOpen, bookingId]);
 
-    if (amount > 0) {
-      const tokenAmount = Math.round(amount * 0.3); // 30% Token
-      const adminCommission = Math.round(amount * 0.2); // 20% of Total Amount
-      const workerAdvance = tokenAmount - adminCommission;
-      setBreakdown({ tokenAmount, adminCommission, workerAdvance });
-    } else {
-      setBreakdown(null);
-    }
-  }, [items]);
+  const hasCard = !!card?.hasItems;
+  const flat = useMemo(() => (card?.groups || []).flatMap((g) => g.items.map((i) => ({ ...i, group: g.name }))), [card]);
+  const picked = flat.filter((i) => qty[i.id] > 0);
+  const subtotal = picked.reduce((s, i) => s + i.price * qty[i.id], 0);
+  const gst = card?.gst?.applied ? Math.round((subtotal * card.gst.ratePct) / 100) : 0;
+  const manualTotal = manual.reduce((s, i) => s + (Number(i.price) || 0), 0);
+  const amount = hasCard ? subtotal + gst : manualTotal;
 
-  const handleSubmit = async () => {
-    if (!estimatedAmount || isNaN(estimatedAmount) || Number(estimatedAmount) <= 0) {
-      toast.error('Please enter valid item prices to calculate the estimate');
-      return;
-    }
-    
-    // Filter valid items
-    const validItems = items.filter(item => item.name.trim() && item.price);
-    if (validItems.length === 0) {
-      toast.error('Please add at least one item with a valid name and price');
-      return;
-    }
+  const rule = card?.rule || { advanceType: 'percent', advanceValue: 30 };
+  const advance = Math.min(amount, Math.round(rule.advanceType === 'fixed' ? Number(rule.advanceValue) : (amount * Number(rule.advanceValue)) / 100));
+  const commission = Math.round((amount * (card?.commissionPercent ?? 10)) / 100);
+  const yourAdvance = Math.max(0, advance - commission);
 
-    // Convert items array to string description for backend compatibility
-    const description = validItems.map(item => `${item.name}: ₹${item.price}`).join(', ');
+  const change = (item, delta) => {
+    const cur = qty[item.id] || 0;
+    let next = cur + delta;
+    if (delta > 0 && cur === 0) next = item.minQty;      // first tap starts at the minimum
+    if (delta < 0 && cur <= item.minQty) next = 0;       // below the minimum removes it
+    next = Math.min(item.maxQty, Math.max(0, next));
+    setQty((q) => { const c = { ...q }; if (next > 0) c[item.id] = next; else delete c[item.id]; return c; });
+  };
 
+  const submit = async () => {
     setLoading(true);
     try {
-      const payload = {
-        estimatedAmount: Number(estimatedAmount),
-        estimateDescription: description
-      };
-      
-      const response = await workerService.generateEstimate(bookingId, payload);
-      
-      if (response.success) {
-        toast.success('Estimate sent to customer!');
-        onSuccess();
+      let payload;
+      if (hasCard) {
+        if (!picked.length) { toast.error('Select at least one room or work item'); setLoading(false); return; }
+        payload = { items: picked.map((i) => ({ itemId: i.id, qty: qty[i.id] })), notes };
       } else {
-        toast.error(response.message || 'Failed to generate estimate');
+        const valid = manual.filter((i) => i.name.trim() && Number(i.price) > 0);
+        if (!valid.length) { toast.error('Add at least one item with a name and price'); setLoading(false); return; }
+        payload = { estimatedAmount: valid.reduce((s, i) => s + Number(i.price), 0), estimateDescription: valid.map((i) => `${i.name}: ₹${i.price}`).join(', ') };
       }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Something went wrong');
+      const res = await workerService.generateEstimate(bookingId, payload);
+      if (res.success) { toast.success('Estimate sent to the customer!'); onSuccess(); } else toast.error(res.message || 'Failed to send the estimate');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -67,175 +80,93 @@ const GenerateEstimateModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center p-0 sm:p-4">
+      <div className="fixed inset-0 z-[70] flex items-end justify-center p-0 sm:items-center sm:p-4">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
-          onClick={loading ? undefined : onClose}
-        />
-        
-        <motion.div
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="relative z-10 w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+          initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="relative z-10 flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
         >
-          {/* Header */}
-          <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
-            <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                <FiDollarSign className="w-5 h-5" />
-              </div>
-              Generate Estimate
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <h3 className="flex items-center gap-2 text-lg font-black text-gray-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-white" style={{ backgroundColor: TEAL }}><FiDollarSign className="h-4 w-4" /></span>
+              Create Estimate
             </h3>
-            <button 
-              onClick={onClose}
-              disabled={loading}
-              className="p-2 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <FiX className="w-5 h-5 text-gray-600 font-bold" />
-            </button>
+            <button onClick={onClose} disabled={loading} className="rounded-full bg-gray-50 p-2 hover:bg-gray-100"><FiX className="h-5 w-5 text-gray-600" /></button>
           </div>
 
-          {/* Scrollable Content */}
-          <div className="p-6 overflow-y-auto custom-scrollbar flex-1 pb-24 sm:pb-6">
-            <div className="space-y-5">
-              
-              <div>
-                <label className="block text-sm font-black text-gray-700 mb-2">Total Estimated Amount (₹)</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <span className="text-gray-500 font-bold text-lg">₹</span>
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            {loadingCard ? (
+              <p className="py-10 text-center text-sm text-gray-400">Loading rate card…</p>
+            ) : hasCard ? (
+              <div className="space-y-5">
+                <p className="text-xs text-gray-500">Select the rooms and work you inspected. Prices are fixed by the company, so the customer gets a clear, standard quote.</p>
+                {card.groups.map((g) => (
+                  <div key={g.name}>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-400">{g.name}</p>
+                    <ul className="space-y-2">
+                      {g.items.map((i) => {
+                        const q = qty[i.id] || 0;
+                        return (
+                          <li key={i.id} className={`flex items-center justify-between gap-3 rounded-xl border p-3 ${q ? '' : 'border-gray-200'}`} style={q ? { borderColor: TEAL, backgroundColor: `${TEAL}0D` } : undefined}>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-gray-900">{i.name}</p>
+                              <p className="text-xs text-gray-500">{inr(i.price)} / {i.unitLabel}{q ? ` · ${inr(i.price * q)}` : ''}</p>
+                            </div>
+                            {q ? (
+                              <div className="flex shrink-0 items-center overflow-hidden rounded-lg border text-sm font-bold" style={{ borderColor: TEAL, color: TEAL }}>
+                                <button type="button" onClick={() => change(i, -1)} className="px-2.5 py-1.5"><FiMinus size={14} /></button>
+                                <span className="min-w-[28px] text-center">{q}</span>
+                                <button type="button" onClick={() => change(i, 1)} className="px-2.5 py-1.5"><FiPlus size={14} /></button>
+                              </div>
+                            ) : (
+                              <button type="button" onClick={() => change(i, 1)} className="shrink-0 rounded-lg border px-4 py-1.5 text-sm font-bold" style={{ borderColor: TEAL, color: TEAL }}>Add</button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
-                  <input 
-                    type="number" 
-                    value={estimatedAmount}
-                    readOnly
-                    placeholder="0"
-                    className="w-full pl-9 pr-4 py-3.5 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-xl text-gray-900 focus:outline-none focus:ring-0 transition-colors placeholder:text-gray-300 cursor-not-allowed"
-                  />
+                ))}
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-gray-600">Note for the customer (optional)</label>
+                  <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. dampness on the east wall of bedroom 1" className="w-full rounded-xl border-2 border-gray-100 px-3 py-2.5 text-sm outline-none focus:border-gray-300" />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1.5 font-bold uppercase tracking-wider">Auto-calculated from breakdown</p>
               </div>
-
-              <div>
-                <div className="flex justify-between items-end mb-2">
-                  <label className="block text-sm font-black text-gray-700">Breakdown (Items / Labor)</label>
-                </div>
-                
-                <div className="space-y-3">
-                  {items.map((item, index) => (
-                    <div key={index} className="flex gap-2 items-start">
-                      <div className="flex-1">
-                        <input 
-                          type="text" 
-                          value={item.name}
-                          onChange={(e) => {
-                            const newItems = [...items];
-                            newItems[index] = { ...newItems[index], name: e.target.value };
-                            setItems(newItems);
-                          }}
-                          placeholder="E.g. Labor, Material"
-                          className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-emerald-500 transition-colors placeholder:text-gray-300"
-                        />
-                      </div>
-                      <div className="w-[110px] relative shrink-0">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <span className="text-gray-400 font-bold text-sm">₹</span>
-                        </div>
-                        <input 
-                          type="number" 
-                          value={item.price}
-                          onChange={(e) => {
-                            const newItems = [...items];
-                            newItems[index] = { ...newItems[index], price: e.target.value };
-                            setItems(newItems);
-                          }}
-                          placeholder="Price"
-                          className="w-full pl-7 pr-3 py-3 bg-white border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-emerald-500 transition-colors placeholder:text-gray-300"
-                        />
-                      </div>
-                      {items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newItems = items.filter((_, i) => i !== index);
-                            setItems(newItems);
-                          }}
-                          className="p-3 mt-0.5 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors shrink-0"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                
-                <button
-                  type="button"
-                  onClick={() => setItems([...items, { name: '', price: '' }])}
-                  className="mt-3 text-xs font-bold text-emerald-600 bg-emerald-50 px-4 py-2.5 rounded-xl hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
-                >
-                  <FiPlus className="w-4 h-4" />
-                  Add Item
-                </button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-500">No rate card is set for this service yet, so enter the items and prices yourself.</p>
+                {manual.map((it, idx) => (
+                  <div key={idx} className="flex items-start gap-2">
+                    <input value={it.name} onChange={(e) => setManual(manual.map((m, j) => (j === idx ? { ...m, name: e.target.value } : m)))} placeholder="Item / labour" className="flex-1 rounded-xl border-2 border-gray-100 px-3 py-2.5 text-sm font-semibold outline-none focus:border-gray-300" />
+                    <input type="number" value={it.price} onChange={(e) => setManual(manual.map((m, j) => (j === idx ? { ...m, price: e.target.value } : m)))} placeholder="₹" className="w-24 rounded-xl border-2 border-gray-100 px-3 py-2.5 text-sm font-semibold outline-none focus:border-gray-300" />
+                    {manual.length > 1 && <button type="button" onClick={() => setManual(manual.filter((_, j) => j !== idx))} className="rounded-xl bg-rose-50 p-3 text-rose-500"><FiTrash2 className="h-4 w-4" /></button>}
+                  </div>
+                ))}
+                <button type="button" onClick={() => setManual([...manual, { name: '', price: '' }])} className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold" style={{ color: TEAL, backgroundColor: `${TEAL}14` }}><FiPlus className="h-4 w-4" /> Add item</button>
               </div>
+            )}
+          </div>
 
-              {breakdown && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/50 p-5 rounded-2xl space-y-3 shadow-inner"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-gray-600">Required Token (30%):</span>
-                    <span className="text-sm font-black text-gray-900">₹{breakdown.tokenAmount}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-gray-500">
-                    <span className="text-xs font-medium">Platform Commission (20% of total):</span>
-                    <span className="text-xs font-bold text-rose-500">-₹{breakdown.adminCommission}</span>
-                  </div>
-                  
-                  <div className="pt-3 mt-1 border-t border-emerald-200/60 border-dashed">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-black text-emerald-900">Your Advance Share:</span>
-                      <span className="text-2xl font-black text-emerald-600 tracking-tight">₹{breakdown.workerAdvance}</span>
-                    </div>
-                  </div>
-                  
-                  <p className="text-[10px] font-medium text-emerald-600/80 leading-relaxed mt-2 bg-emerald-100/30 p-2 rounded-lg border border-emerald-200/30">
-                    * The customer will pay this token amount online to approve the estimate. Your share will be added to your wallet automatically.
-                  </p>
-                </motion.div>
-              )}
-
-              <div className="pt-2">
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="w-full py-4 rounded-2xl font-black text-white shadow-xl shadow-emerald-200/50 hover:shadow-emerald-300/50 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2 text-[15px] tracking-wide"
-                  style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
-                >
-                  {loading ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      SENDING...
-                    </span>
-                  ) : (
-                    <>
-                      SEND ESTIMATE TO CUSTOMER
-                      <FiCheckCircle className="w-5 h-5" />
-                    </>
-                  )}
-                </button>
+          {/* Totals + send */}
+          <div className="border-t border-gray-100 bg-white px-5 py-4">
+            {amount > 0 && (
+              <div className="mb-3 space-y-1.5 rounded-xl bg-gray-50 p-3 text-sm">
+                {gst > 0 && <div className="flex justify-between text-gray-600"><span>GST @ {card.gst.ratePct}%</span><span>{inr(gst)}</span></div>}
+                <div className="flex justify-between"><span className="font-bold text-gray-900">Total estimate</span><span className="text-lg font-extrabold text-gray-900">{inr(amount)}</span></div>
+                <div className="flex justify-between text-xs text-gray-600"><span>Customer pays now ({rule.advanceType === 'fixed' ? 'fixed' : `${rule.advanceValue}%`})</span><span className="font-semibold">{inr(advance)}</span></div>
+                <div className="flex justify-between text-xs text-gray-500"><span>Platform commission on it</span><span>-{inr(commission)}</span></div>
+                <div className="flex justify-between border-t border-dashed border-gray-300 pt-1.5 text-xs font-bold" style={{ color: TEAL }}><span>Your advance share (to wallet)</span><span>{inr(yourAdvance)}</span></div>
               </div>
-            </div>
+            )}
+            <button
+              onClick={submit}
+              disabled={loading || loadingCard || amount <= 0}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-[15px] font-black tracking-wide text-white shadow-lg disabled:opacity-50"
+              style={{ backgroundColor: TEAL }}
+            >
+              {loading ? 'SENDING…' : <>SEND ESTIMATE TO CUSTOMER <FiCheckCircle className="h-5 w-5" /></>}
+            </button>
           </div>
         </motion.div>
       </div>

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import EstimateLines from '../../../../../components/common/EstimateLines';
+import estimateService from '../../../../services/estimateService';
 import MoverDetailsCard from '../../../../../components/common/MoverDetailsCard';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -507,6 +509,17 @@ const BookingDetails = () => {
       toast.dismiss();
       toast.error('Failed to process payment');
       setPaying(false);
+    }
+  };
+
+  const handleRejectEstimate = async () => {
+    if (!window.confirm('Decline this estimate? Your booking will be cancelled. Nothing has been charged.')) return;
+    try {
+      const res = await estimateService.rejectEstimate(booking._id || booking.id, 'Estimate not accepted');
+      toast.success(res.message || 'Estimate declined');
+      loadBooking();
+    } catch (err) {
+      toast.error(err.message || 'Could not decline the estimate');
     }
   };
 
@@ -1561,53 +1574,58 @@ const BookingDetails = () => {
             </section>
           )}
 
-          {/* Estimate Approval Card */}
+          {/* Estimate: room-wise quote to accept (advance) or decline */}
           {booking.isEstimateBased && booking.estimate?.status === 'PENDING' && (
             <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 p-6 space-y-4 mb-6">
-              <div className="text-center mb-4">
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <FiDollarSign className="w-8 h-8 text-emerald-600" />
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: `${themeColors.button}1A` }}>
+                  <FiDollarSign className="w-7 h-7" style={{ color: themeColors.button }} />
                 </div>
-                <h3 className="text-lg font-bold text-black">Estimate Received</h3>
-                <p className="text-sm text-gray-500">The professional has shared an estimate for the requested work. Please review and pay the token to proceed.</p>
+                <h3 className="text-lg font-bold text-black">{booking.estimate?.amount > 0 ? 'Estimate Received' : 'Waiting for the estimate'}</h3>
+                <p className="text-sm text-gray-500">
+                  {booking.estimate?.amount > 0
+                    ? 'Your professional inspected the work and shared this room-wise estimate. Accept it and pay the advance to start.'
+                    : 'Your professional will visit, inspect and send you a room-wise estimate here. Nothing is charged until you accept it.'}
+                </p>
               </div>
 
-              <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-                <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                  <span className="text-sm font-bold text-gray-700">Total Estimate</span>
-                  <span className="text-lg font-black text-gray-900">₹{booking.estimate?.amount}</span>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Breakdown</p>
-                  <p className="text-sm font-medium text-gray-700 leading-relaxed">{booking.estimate?.description}</p>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm font-bold text-emerald-700">Required Token (30%)</span>
-                  <span className="text-xl font-black text-emerald-600">₹{booking.estimate?.tokenAmount}</span>
-                </div>
-                {booking.estimate?.amount > 0 ? (
+              {booking.estimate?.amount > 0 && (
+                <>
+                  <div className="bg-gray-50 rounded-2xl p-4">
+                    <EstimateLines estimate={booking.estimate} viewer="user" />
+                  </div>
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="text-sm font-bold" style={{ color: themeColors.button }}>
+                      Pay now to start {booking.estimate.advanceType === 'fixed' ? '' : `(${booking.estimate.advanceValue ?? 30}%)`}
+                    </span>
+                    <span className="text-xl font-black" style={{ color: themeColors.button }}>₹{booking.estimate?.tokenAmount}</span>
+                  </div>
                   <button
                     onClick={() => handlePayToken(booking.estimate?.tokenAmount)}
-                    className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
-                    style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
+                    disabled={paying}
+                    className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform disabled:opacity-60"
+                    style={{ backgroundColor: themeColors.button }}
                   >
                     <FiDollarSign className="w-5 h-5" />
-                    Pay Token & Approve
+                    {paying ? 'Please wait…' : 'Accept Estimate & Pay Advance'}
                   </button>
-                ) : (
                   <button
-                    disabled
-                    className="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg cursor-not-allowed opacity-70"
-                    style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
+                    onClick={handleRejectEstimate}
+                    disabled={paying}
+                    className="w-full py-3 rounded-xl text-sm font-bold text-gray-600 border border-gray-200 hover:bg-gray-50 disabled:opacity-60"
                   >
-                    <FiDollarSign className="w-5 h-5" />
-                    Partner Preparing Estimate
+                    Decline estimate
                   </button>
-                )}
-              </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Accepted estimate stays visible as the bill's basis */}
+          {booking.isEstimateBased && booking.estimate?.status === 'APPROVED' && booking.estimate?.amount > 0 && (
+            <div className="bg-white rounded-3xl border border-gray-100 p-6 mb-6 space-y-3">
+              <h3 className="text-base font-bold text-black">Accepted estimate</h3>
+              <EstimateLines estimate={booking.estimate} viewer="user" />
             </div>
           )}
 

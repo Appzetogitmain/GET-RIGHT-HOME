@@ -173,6 +173,7 @@ const AdminLayout = () => {
                 {
                     icon: UserCog, label: 'Workers', children: [
                         { label: 'All Workers', path: '/admin/home-service/workers/all' },
+                        { label: 'Professions', path: '/admin/home-service/workers/professions' },
                         { label: 'Offline Requests', path: '/admin/home-service/workers/offline-requests' },
                         { label: 'Worker Jobs', path: '/admin/home-service/workers/jobs' },
                         { label: 'Withdrawals', path: '/admin/home-service/workers/withdrawals' },
@@ -183,6 +184,7 @@ const AdminLayout = () => {
                 { icon: ShoppingBag, label: 'Service Bookings', path: '/admin/home-service/bookings' },
                 { icon: Layers, label: 'Service Catalog', path: '/admin/home-service/user-categories' },
                 { icon: Package, label: 'Packers & Movers', path: '/admin/home-service/packers-movers' },
+                { icon: ClipboardList, label: 'Estimate Pricing', path: '/admin/home-service/estimate-pricing' },
                 { icon: Wallet, label: 'Service Payments', path: '/admin/home-service/payments' },
                 { icon: ClipboardList, label: 'Service Reports', path: '/admin/home-service/reports' },
                 { icon: Star, label: 'Service Reviews', path: '/admin/home-service/reviews' },
@@ -251,6 +253,7 @@ const AdminLayout = () => {
                 {
                     icon: UserCog, label: 'Workers', children: [
                         { label: 'All Workers', path: '/admin/home-service/workers/all' },
+                        { label: 'Professions', path: '/admin/home-service/workers/professions' },
                         { label: 'Offline Requests', path: '/admin/home-service/workers/offline-requests' },
                         { label: 'Worker Jobs', path: '/admin/home-service/workers/jobs' },
                         { label: 'Withdrawals', path: '/admin/home-service/workers/withdrawals' },
@@ -285,6 +288,7 @@ const AdminLayout = () => {
                     ]
                 },
                 { icon: Package, label: 'Packers & Movers', path: '/admin/home-service/packers-movers' },
+                { icon: ClipboardList, label: 'Estimate Pricing', path: '/admin/home-service/estimate-pricing' },
                 { icon: Wallet, label: 'Service Payments', path: '/admin/home-service/payments' },
             ]
         },

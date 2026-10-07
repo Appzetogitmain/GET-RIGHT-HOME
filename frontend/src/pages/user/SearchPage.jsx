@@ -13,6 +13,7 @@ import { locationData, bengaluruAreas } from '../../data/locationData';
     import { parseSearchQuery } from '../../utils/searchQueryParser';
 import { addRecentSearch } from '../../utils/recentActivity';
 import SearchSuggestions from '../../components/user/SearchSuggestions';
+import MobileSearchOverlay from '../../components/user/MobileSearchOverlay';
 import { goBackOrHome } from '../../utils/navigation';
 const getAvailablePropertyTypes = (category, subCategory) => {
     if (category === 'Paying Guest') {
@@ -89,6 +90,8 @@ const SearchPage = () => {
     const [searchInputValue, setSearchInputValue] = useState("");
 
     const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+    // On phones the search box opens the full-screen search (chips + filters) instead of typing inline.
+    const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
     // Holds exactly what the user typed, kept in step with programmatic updates
     // (URL/filter changes, picking a suggestion) so the two never diverge.
@@ -842,6 +845,7 @@ const SearchPage = () => {
 
     return (
         <div className="min-h-screen bg-white pb-24 pt-[110px]">
+            <MobileSearchOverlay open={mobileSearchOpen} onClose={() => setMobileSearchOpen(false)} initialParams={searchParams.toString()} />
             <div className="fixed top-0 w-full z-50 bg-white border-b border-gray-100 pb-2 pt-3 md:pt-4 px-4 shadow-sm">
                 <div className="max-w-7xl mx-auto">
                     {/* `relative` lives on the ROW, not the input's form, so the
@@ -876,7 +880,10 @@ const SearchPage = () => {
                                     typedQueryRef.current = e.target.value;
                                     setSuggestionsOpen(true);
                                 }}
-                                onFocus={() => setSuggestionsOpen(true)}
+                                onFocus={(e) => {
+                                    if (window.innerWidth < 1024) { e.target.blur(); setMobileSearchOpen(true); return; }
+                                    setSuggestionsOpen(true);
+                                }}
                                 placeholder="Search City/Locality/Project"
                                 className="w-full pl-4 pr-9 py-2 border border-gray-200 rounded-full text-sm font-medium text-gray-800 bg-gray-50 flex items-center h-9 outline-none focus:bg-white focus:border-blue-300 focus:shadow-sm transition-all"
                             />

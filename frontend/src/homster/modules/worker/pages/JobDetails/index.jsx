@@ -12,6 +12,7 @@ const OtpVerificationModal = lazy(() => import('../../components/common/OtpVerif
 import HelperJobView from '../../components/common/HelperJobView';
 import JobHelperSection from '../../components/common/JobHelperSection';
 import MoverDetailsCard from '../../../../../components/common/MoverDetailsCard';
+import EstimateLines from '../../../../../components/common/EstimateLines';
 import RejectJobModal from '../../components/common/RejectJobModal';
 const GenerateEstimateModal = lazy(() => import('../../components/common/GenerateEstimateModal'));
 import workerService from '../../../../services/workerService';
@@ -429,6 +430,13 @@ const JobDetails = () => {
             >
               {actionLoading ? 'Loading...' : <>GENERATE ESTIMATE <FiDollarSign className="w-5 h-5" /></>}
             </button>
+          )}
+
+          {job.isEstimateBased && job.estimate?.amount > 0 && ['PENDING', 'APPROVED'].includes(job.estimate?.status) && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-4">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Estimate you sent</p>
+              <EstimateLines estimate={job.estimate} viewer="worker" />
+            </div>
           )}
 
           {job.isEstimateBased && job.estimate?.status === 'PENDING' && job.status === 'estimate_provided' && (

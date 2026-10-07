@@ -130,6 +130,11 @@ const HomeServicesPage = () => {
             navigate('/home-services/packers-movers');
             return;
         }
+        // Estimate-based services (Home Painting ...): book a visit, get a room-wise estimate.
+        if (cat.isEstimateBased) {
+            navigate(`/home-services/book-visit/${id}`);
+            return;
+        }
         // A category with sub-categories opens a sheet to pick one; a direct-service
         // category has nothing to pick, so it goes straight to its services.
         if (cat.isDirectService) {
@@ -146,6 +151,10 @@ const HomeServicesPage = () => {
         if (!id) return;
         if (/packers/i.test(cat.title || cat.name || '')) {
             navigate('/home-services/packers-movers');
+            return;
+        }
+        if (cat.isEstimateBased) {
+            navigate(`/home-services/book-visit/${id}`);
             return;
         }
         navigate(`/home-services/category/${id}`, { state: { category: cat } });
@@ -374,90 +383,81 @@ const HomeServicesPage = () => {
             </div>
 
             {/* Service Categories */}
-            <section className="mt-14 px-5 max-w-7xl mx-auto">
-                <div className="flex flex-col mb-8 group">
-                    <div className="flex items-center gap-2 mb-1.5">
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse" />
-                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.25em]">Explore</span>
+            <section className="mt-12 px-5 max-w-7xl mx-auto">
+                <div className="mb-5 flex items-end justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                        <span className="mt-1 h-10 w-1.5 shrink-0 rounded-full" style={{ background: 'linear-gradient(180deg, #347989 0%, #D68F35 60%, #BB5F36 100%)' }} />
+                        <div>
+                            <h2 className="text-[22px] font-extrabold leading-tight tracking-tight text-gray-900">
+                                Service <span className="text-[#347989]">Categories</span>
+                            </h2>
+                            <p className="mt-1 text-xs font-medium text-gray-500">Trusted home services, booked in a few taps</p>
+                        </div>
                     </div>
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
-                        Service <span className="text-emerald-600">Categories</span>
-                    </h2>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Premium Home Solutions for Every Need</p>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
-                    {/* Dedicated Instant Services Tile: opens the "Experts at your doorstep" sheet */}
+                <div className="grid grid-cols-4 gap-x-2.5 gap-y-5 sm:gap-x-4">
+                    {/* Instant Services: opens the "Experts at your doorstep" sheet */}
                     <motion.button
-                        whileHover={{ y: -6 }}
-                        whileTap={{ scale: 0.96 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => setInstantSheetOpen(true)}
-                        className="w-full h-32 sm:h-40 bg-white border border-violet-200/80 rounded-2xl shadow-sm overflow-hidden flex flex-col p-2.5 sm:p-3 relative group cursor-pointer text-left"
+                        className="group flex flex-col items-center text-center"
                     >
-                        <span className="text-[9px] sm:text-xs font-black text-gray-900 leading-tight line-clamp-2 mb-1.5 sm:mb-2">
-                            Instant Services
-                        </span>
-                        <div className="flex-1 relative rounded-xl overflow-hidden bg-gradient-to-br from-violet-50 via-white to-violet-100 flex flex-col items-center justify-center">
-                            <span className="flex items-center text-violet-700">
-                                <Zap className="w-5 h-5 sm:w-7 sm:h-7 fill-violet-600 text-violet-600" />
-                                <span className="text-xl sm:text-3xl font-black italic leading-none">{fastestInstantEta}</span>
+                        <span
+                            className="relative flex aspect-square w-full flex-col items-center justify-center overflow-hidden rounded-2xl text-white shadow-md ring-1 ring-black/5 transition-transform duration-300 group-hover:-translate-y-1"
+                            style={{ background: 'linear-gradient(145deg, #347989 0%, #2B6270 55%, #BB5F36 140%)' }}
+                        >
+                            <span className="absolute -right-4 -top-4 h-14 w-14 rounded-full bg-white/10" />
+                            <span className="flex items-center">
+                                <Zap className="h-5 w-5 fill-[#D68F35] text-[#D68F35] sm:h-7 sm:w-7" />
+                                <span className="text-2xl font-black italic leading-none sm:text-4xl">{fastestInstantEta}</span>
                             </span>
-                            <span className="text-[9px] sm:text-xs font-black italic text-violet-700 -mt-0.5">mins</span>
-                        </div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-white/85 sm:text-xs">mins</span>
+                        </span>
+                        <span className="mt-2 line-clamp-2 text-[11px] font-semibold leading-tight text-gray-800 sm:text-sm">Instant Services</span>
                     </motion.button>
 
                     {categories.map((cat) => (
                         <motion.button
                             key={cat.id || cat._id}
-                            whileHover={{ y: -6 }}
-                            whileTap={{ scale: 0.96 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => openCategoryModal(cat)}
-                            className="w-full h-32 sm:h-40 bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col p-2.5 sm:p-3 relative group cursor-pointer text-left"
+                            className="group flex flex-col items-center text-center"
                         >
-                            {/* Title top-left */}
-                            <span className="text-[9px] sm:text-xs font-black text-gray-900 leading-tight line-clamp-2 mb-1.5 sm:mb-2">
-                                {cat.title || cat.name}
-                            </span>
-
-                            {/* Framed category photo below the title */}
-                            <div className="flex-1 relative rounded-xl overflow-hidden bg-gray-50">
+                            <span className="relative block aspect-square w-full overflow-hidden rounded-2xl bg-gray-100 shadow-md ring-1 ring-black/5 transition-transform duration-300 group-hover:-translate-y-1">
                                 <img
                                     src={cat.imageUrl || cat.image || cat.homeIconUrl}
                                     alt={cat.title || cat.name}
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    loading="lazy"
+                                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                                 />
 
-                                {/* ⚡ Instant badge — only for categories that actually have an
-                                    instant-eligible service. Tapping it jumps straight to booking
-                                    one, instead of going through the category → sub-category →
-                                    service browse flow. */}
+                                {/* Instant badge: only for categories with an instant-eligible service. */}
                                 {instantCategoryIds.has(String(cat.id || cat._id)) && (
-                                    <button
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             navigate(`/home-services/instant?category=${String(cat.id || cat._id)}`);
                                         }}
-                                        className="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter"
+                                        className="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-0.5 rounded-md bg-[#D68F35] px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-tight text-white shadow"
                                     >
-                                        <Zap size={7} className="fill-white" /> Instant
-                                    </button>
+                                        <Zap size={8} className="fill-white" /> Instant
+                                    </span>
                                 )}
 
-                                {/* Premium Overlay Badge logic placed cleanly on the image itself to prevent title clipping */}
                                 {(cat.hasSaleBadge && cat.homeBadge) ? (
-                                    <div className="absolute top-1.5 right-1.5 z-20">
-                                        <span className="bg-emerald-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
-                                            {cat.homeBadge}
-                                        </span>
-                                    </div>
+                                    <span className="absolute right-1.5 top-1.5 z-20 rounded-md bg-[#347989] px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-tight text-white shadow">
+                                        {cat.homeBadge}
+                                    </span>
                                 ) : cat.isPopular ? (
-                                    <div className="absolute top-1.5 right-1.5 z-20">
-                                        <span className="bg-[#D68F35] text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
-                                            POPULAR
-                                        </span>
-                                    </div>
+                                    <span className="absolute right-1.5 top-1.5 z-20 rounded-md bg-[#BB5F36] px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-tight text-white shadow">
+                                        Popular
+                                    </span>
                                 ) : null}
-                            </div>
+                            </span>
+                            <span className="mt-2 line-clamp-2 text-[11px] font-semibold leading-tight text-gray-800 sm:text-sm">{cat.title || cat.name}</span>
                         </motion.button>
                     ))}
                 </div>
@@ -960,66 +960,6 @@ const HomeServicesPage = () => {
                     </div>
                 </section>
             )}
-
-            {/* Direct Home Services Categories (Dynamically created Categories showing their sub-categories in circular layout) */}
-            {directCategories.length > 0 && directCategories.map((cat) => {
-                const subCats = directSubCategoriesMap[cat._id || cat.id] || [];
-                if (subCats.length === 0) return null;
-
-                return (
-                    <section key={cat._id || cat.id} className="mt-12 px-5 max-w-7xl mx-auto">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex flex-col">
-                                <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight leading-none uppercase">
-                                    {cat.title}
-                                </h2>
-                                <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1.5">Select a service to proceed</p>
-                            </div>
-                        </div>
-
-                        {/* Circular Scrolling List */}
-                        <div className="flex overflow-x-auto gap-6 no-scrollbar pb-4 -mx-5 px-5 snap-x snap-mandatory">
-                            {subCats.map((subCat) => (
-                                <motion.button
-                                    key={subCat._id || subCat.id}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={() => {
-                                        navigate('/home-services/sub-category', {
-                                            state: {
-                                                subCategory: {
-                                                    id: subCat._id || subCat.id,
-                                                    title: subCat.title,
-                                                    iconUrl: subCat.icon || subCat.imageUrl,
-                                                    bannerUrl: subCat.bannerUrl || subCat.imageUrl || subCat.icon
-                                                },
-                                                category: {
-                                                    id: cat._id || cat.id,
-                                                    title: cat.title
-                                                }
-                                            }
-                                        });
-                                    }}
-                                    className="flex flex-col items-center flex-shrink-0 snap-start group cursor-pointer"
-                                    style={{ width: '84px' }}
-                                >
-                                    {/* Circular image container matching screenshot exactly */}
-                                    <div className="w-[84px] h-[84px] rounded-full border-2 border-emerald-500/20 group-hover:border-emerald-500 overflow-hidden relative shadow-md transition-all duration-300 bg-white flex items-center justify-center p-[3px]">
-                                        <img
-                                            src={toAssetUrl(subCat.icon || subCat.imageUrl)}
-                                            alt={subCat.title}
-                                            className="w-full h-full object-cover rounded-full transition-transform duration-500 group-hover:scale-110"
-                                        />
-                                    </div>
-                                    {/* Label text below */}
-                                    <span className="text-[10px] font-black text-gray-800 text-center leading-tight line-clamp-2 mt-2 px-1 uppercase tracking-tighter w-full">
-                                        {subCat.title}
-                                    </span>
-                                </motion.button>
-                            ))}
-                        </div>
-                    </section>
-                );
-            })}
 
             {/* Why  Get Right Home Services */}
             <section className="mt-10 px-5 max-w-7xl mx-auto">

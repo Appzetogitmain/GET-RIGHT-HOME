@@ -40,10 +40,20 @@ const MoverDetailsCard = ({ booking, viewer = 'user' }) => {
           {m.relocationType === 'INTER_CITY' ? 'Between Cities' : 'Within City'}{m.distanceKm ? ` · ${Math.round(m.distanceKm)} km` : ''}
         </span>
       </div>
-      {m.route?.transitDays ? <p className="mb-2 text-xs text-indigo-700">Delivery in about {m.route.transitDays} day{m.route.transitDays > 1 ? 's' : ''} after pickup</p> : null}
-      <Place place={m.from} color="#EF4444" label="Pickup" />
+      {viewer === 'admin' && m.distanceKm ? (
+        <div className="mb-3 rounded-xl border border-[#347989]/20 bg-[#347989]/10 px-3 py-2 text-xs text-[#2b6270]">
+          <p className="font-bold">Distance chosen: {Math.round(m.distanceKm)} km</p>
+          <p className="mt-0.5">
+            {{ road: 'Real road distance (Google)', estimate: 'Estimated (straight line × road factor)', default: 'Default distance (no map pin)', route: 'Fixed route distance' }[m.distance?.source] || 'Measured'}
+            {m.distance?.straightKm ? ` · straight line ${Math.round(m.distance.straightKm)} km` : ''}
+          </p>
+          {m.distance?.charge !== undefined && <p className="mt-0.5">Distance charge {inr(m.distance.charge)}{m.distance.perKmRate ? ` (₹${m.distance.perKmRate}/km${m.distance.freeKm ? `, first ${m.distance.freeKm} km free` : ''})` : ''}</p>}
+        </div>
+      ) : null}
+      {m.route?.transitDays ? <p className="mb-2 text-xs text-[#347989]">Delivery in about {m.route.transitDays} day{m.route.transitDays > 1 ? 's' : ''} after pickup</p> : null}
+      <Place place={m.from} color="#BB5F36" label="Pickup" />
       <div className="my-2 ml-[7px] h-3 border-l border-dashed border-gray-300" />
-      <Place place={m.to} color="#16A34A" label="Drop" />
+      <Place place={m.to} color="#347989" label="Drop" />
 
       <button type="button" onClick={() => setOpen((v) => !v)} className="mt-4 flex w-full items-center justify-between border-t border-gray-100 pt-3 text-left text-sm font-semibold text-gray-800">
         Inventory ({items} items){m.addOns?.length ? ` + ${m.addOns.length} add-on${m.addOns.length > 1 ? 's' : ''}` : ''}

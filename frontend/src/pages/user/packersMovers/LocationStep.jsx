@@ -72,39 +72,39 @@ const LocationStep = ({ relocationType, setRelocationType, from, to, setFrom, se
         <p className="mb-2 mt-4 text-sm font-semibold text-slate-700">Select pickup and drop location</p>
         <div className="relative space-y-3">
           <span className="absolute bottom-[26px] left-[4px] top-[26px] w-px bg-slate-300" />
-          <PlacesInput value={from} onChange={setFrom} placeholder="Shifting From" dotColor="#EF4444" />
-          <PlacesInput value={to} onChange={setTo} placeholder="Shifting To" dotColor="#16A34A" />
+          <PlacesInput value={from} onChange={setFrom} placeholder="Shifting From" dotColor="#BB5F36" allowCurrent />
+          <PlacesInput value={to} onChange={setTo} placeholder="Shifting To" dotColor="#347989" />
         </div>
 
         <div className="mt-4 flex items-center justify-center gap-5 text-[11px] text-slate-500">
-          <span className="inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Professional Handling</span>
-          <span className="inline-flex items-center gap-1"><BadgeIndianRupee className="h-3.5 w-3.5 text-emerald-600" /> Transparent Pricing</span>
+          <span className="inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-[#347989]" /> Professional Handling</span>
+          <span className="inline-flex items-center gap-1"><BadgeIndianRupee className="h-3.5 w-3.5 text-[#347989]" /> Transparent Pricing</span>
         </div>
 
         {relocationType === 'INTER_CITY' && from?.city && to?.city && (
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm">
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-[#347989]/20 bg-[#347989]/5 px-4 py-2.5 text-sm">
             <span className="font-semibold text-slate-800">{from.city} → {to.city}</span>
             {preview === null ? <span className="text-xs text-slate-400">Checking route…</span>
-              : preview.ok ? <span className="text-xs font-semibold text-emerald-700">Route available{preview.route?.transitDays ? ` · ~${preview.route.transitDays} day${preview.route.transitDays > 1 ? 's' : ''} delivery` : ''}</span>
-                : <span className="text-xs font-semibold text-red-600">Not available</span>}
+              : preview.ok ? <span className="text-xs font-semibold text-[#347989]">Route available{preview.route?.transitDays ? ` · ~${preview.route.transitDays} day${preview.route.transitDays > 1 ? 's' : ''} delivery` : ''}</span>
+                : <span className="text-xs font-semibold text-[#BB5F36]">Not available</span>}
           </div>
         )}
 
         {blocked && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="mt-4 rounded-xl border border-[#BB5F36]/30 bg-[#BB5F36]/10 px-4 py-3 text-sm text-[#8f4426]">
             <p className="font-bold">We can't serve this move yet</p>
             <p className="mt-0.5 text-xs leading-relaxed">{blocked}</p>
           </div>
         )}
 
-        <button type="button" disabled={checking} onClick={check} className="mt-4 w-full rounded-xl py-3.5 text-sm font-bold text-white shadow-md active:scale-[0.99] disabled:opacity-60" style={{ backgroundColor: teal }}>
+        <button type="button" disabled={checking} onClick={check} className="mt-4 w-full rounded-xl py-3.5 text-sm font-bold text-white shadow-lg active:scale-[0.99] disabled:opacity-60" style={{ backgroundColor: teal }}>
           {checking ? 'Checking area…' : 'Check Prices'}
         </button>
       </Card>
 
       <div className="mt-5 grid grid-cols-2 gap-3 text-center text-[11px] text-slate-600">
         {['100% Damage & Delay Protection', 'Free instant quote in under 2 minutes', 'Verified movers & trained packers', 'Pay a small token, rest at unloading'].map((t) => (
-          <div key={t} className="rounded-xl bg-white px-3 py-3 shadow-sm ring-1 ring-slate-100">{t}</div>
+          <div key={t} className="rounded-2xl bg-white px-3 py-3 shadow-sm">{t}</div>
         ))}
       </div>
     </div>

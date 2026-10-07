@@ -161,7 +161,7 @@ const PackersMoversPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F1F3F6]">
+    <div className="min-h-screen bg-[#EEF1F6]">
       <WizardHeader step={step} onBack={goBack} title="Packers and Movers" />
 
       {step === 0 && (

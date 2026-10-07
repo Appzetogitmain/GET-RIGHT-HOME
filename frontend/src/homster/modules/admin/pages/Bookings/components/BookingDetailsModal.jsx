@@ -1,6 +1,7 @@
 import React from 'react';
 import HelpersPanel from './HelpersPanel';
 import MoverDetailsCard from '../../../../../../components/common/MoverDetailsCard';
+import EstimateLines from '../../../../../../components/common/EstimateLines';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiX, FiCalendar, FiClock, FiZap, FiUser, FiPhone, FiMail,
@@ -322,6 +323,16 @@ const BookingDetailsModal = ({ isOpen, onClose, booking, onAssignWorker, onCance
             </div>
 
             <MoverDetailsCard booking={booking} viewer="admin" />
+
+            {booking.isEstimateBased && booking.estimate?.amount > 0 && (
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-600">Estimate</h3>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${booking.estimate.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : booking.estimate.status === 'REJECTED' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>{booking.estimate.status === 'APPROVED' ? 'Accepted' : booking.estimate.status === 'REJECTED' ? 'Declined' : 'Awaiting customer'}</span>
+                </div>
+                <EstimateLines estimate={booking.estimate} viewer="admin" />
+              </div>
+            )}
 
             {/* Extra workers: requests from the lead worker + who was added */}
             <HelpersPanel booking={booking} onChanged={onChanged} />

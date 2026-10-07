@@ -25,6 +25,7 @@ const Reviews = lazy(() => import('../pages/Reviews'));
 const DevSettings = lazy(() => import('../pages/DevSettings'));
 const ZoneServices = lazy(() => import('../pages/ZoneServices'));
 const PackersMovers = lazy(() => import('../pages/PackersMovers'));
+const EstimatePricing = lazy(() => import('../pages/EstimatePricing'));
 
 // Loading fallback component
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -67,6 +68,7 @@ const HomeServiceAdminRoutes = () => {
         <Route path="zones" element={<ZoneSetup />} />
         <Route path="zone-services" element={<ZoneServices />} />
         <Route path="packers-movers" element={<PackersMovers />} />
+        <Route path="estimate-pricing" element={<EstimatePricing />} />
         <Route path="reviews" element={<Reviews />} />
         <Route path="settings/*" element={<Settings />} />
         <Route path="dev-settings" element={<DevSettings />} />

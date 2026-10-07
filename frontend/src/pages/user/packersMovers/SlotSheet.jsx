@@ -61,8 +61,8 @@ const SlotSheet = ({ config, date, slot, cartons, onAddCartons, onConfirm, onClo
               })}
             </div>
 
-            <div className="my-3 flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-              <Zap className="h-4 w-4 text-amber-500" /> Slots Filling Fast, Book Now!
+            <div className="my-3 flex items-center gap-2 rounded-lg border border-[#D68F35]/40 bg-[#D68F35]/10 px-3 py-2 text-xs font-semibold text-[#8a5a1f]">
+              <Zap className="h-4 w-4 text-[#D68F35]" /> Slots Filling Fast, Book Now!
             </div>
 
             <p className="mb-1 text-sm font-medium text-slate-600">Select Pickup Slot</p>
@@ -96,7 +96,7 @@ const SlotSheet = ({ config, date, slot, cartons, onAddCartons, onConfirm, onClo
             ))}
           </div>
 
-          <div className="bg-slate-50 px-5 py-3 text-xs text-slate-600">
+          <div className="bg-[#347989]/10 px-5 py-3 text-xs text-slate-700">
             You've added {cartons.added} cartons. Based on your inventory, we estimate you'll need {cartons.needed} for small items like books and clothes.{' '}
             {cartons.canAdd && cartons.toAdd > 0 && (
               <button type="button" onClick={onAddCartons} className="font-semibold underline" style={{ color: teal }}>Add {cartons.toAdd} Cartons</button>
@@ -107,7 +107,7 @@ const SlotSheet = ({ config, date, slot, cartons, onAddCartons, onConfirm, onClo
               type="button"
               disabled={!chosenOk}
               onClick={() => onConfirm({ date: pickedDate, slot: pickedSlot })}
-              className="w-full rounded-xl py-3.5 text-sm font-bold text-white shadow-md disabled:opacity-40"
+              className="w-full rounded-xl py-3.5 text-sm font-bold text-white shadow-lg disabled:opacity-40"
               style={{ backgroundColor: teal }}
             >
               Confirm

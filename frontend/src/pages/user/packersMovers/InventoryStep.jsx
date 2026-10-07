@@ -108,8 +108,8 @@ const InventoryStep = ({ config, qty, setQty, onNext, onBack }) => {
       <p className="mt-3 text-center text-xs text-slate-500">Didn't find what you were looking for? Extra cartons will be provided if needed, charges apply.</p>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white">
-        <div className="flex items-center gap-2 border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-900">
-          <Lightbulb className="h-4 w-4 shrink-0 text-amber-500" /> Add all your major items to get an accurate quote.
+        <div className="flex items-center gap-2 border-b border-[#D68F35]/25 bg-[#D68F35]/10 px-4 py-2 text-xs text-[#8a5a1f]">
+          <Lightbulb className="h-4 w-4 shrink-0 text-[#D68F35]" /> Add all your major items to get an accurate quote.
         </div>
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3">
           <div>
@@ -121,7 +121,7 @@ const InventoryStep = ({ config, qty, setQty, onNext, onBack }) => {
             <button
               type="button"
               onClick={() => (total > 0 ? onNext() : toast.error('Add at least one item to continue'))}
-              className="rounded-xl px-10 py-3 text-sm font-bold text-white shadow-md active:scale-[0.99]"
+              className="rounded-xl px-10 py-3 text-sm font-bold text-white shadow-lg active:scale-[0.99]"
               style={{ backgroundColor: teal }}
             >
               Continue

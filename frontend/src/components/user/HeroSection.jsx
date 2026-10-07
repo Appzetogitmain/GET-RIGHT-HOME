@@ -8,6 +8,7 @@ import BannerCarousel from './BannerCarousel';
 import CityDropdown from './CityDropdown';
 import toast from 'react-hot-toast';
 import DesktopSearchFilterBar from './DesktopSearchFilterBar';
+import MobileSearchOverlay from './MobileSearchOverlay';
 import { getPreferredCity, setPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
 import { addRecentSearch } from '../../utils/recentActivity';
 
@@ -24,6 +25,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     const [selectedDistrict, setSelectedDistrict] = useState(null);
     const [detectingLocation, setDetectingLocation] = useState(false);
     const searchInputRef = useRef(null);
+    const [searchOpen, setSearchOpen] = useState(false);   // full-screen mobile search
     // Track the Y position where the search box sits to trigger sticky correctly
     const searchBoxRef = useRef(null);
 
@@ -204,8 +206,11 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                                 ref={searchInputRef}
                                 type="text"
                                 value={searchQuery}
+                                readOnly
+                                onFocus={(e) => { e.target.blur(); setSearchOpen(true); }}
+                                onClick={() => setSearchOpen(true)}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                onKeyDown={(e) => e.key === 'Enter' && setSearchOpen(true)}
                                 className="absolute inset-0 w-full text-[14px] text-gray-800 outline-none bg-transparent z-10"
                                 style={{ caretColor: accentColor }}
                             />
@@ -234,7 +239,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                         />
                         <button
                             type="button"
-                            onClick={handleSearch}
+                            onClick={() => setSearchOpen(true)}
                             className="px-3 py-1 rounded-lg text-white font-semibold text-xs transition-transform active:scale-95 shrink-0"
                             style={{ backgroundColor: accentColor }}
                         >
@@ -263,6 +268,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                 </div>
             )}
 
+            <MobileSearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
         </motion.section>
     );
