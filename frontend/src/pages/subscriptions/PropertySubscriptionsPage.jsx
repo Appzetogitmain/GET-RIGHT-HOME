@@ -19,19 +19,31 @@ const loadRazorpay = () => new Promise((resolve) => {
 });
 
 const TIER_CONFIG = {
-    basic: { gradient: 'from-slate-500 to-slate-700', icon: Package, ring: 'ring-slate-200' },
-    premium: { gradient: 'from-amber-400 to-orange-600', icon: Star, ring: 'ring-amber-200' },
-    relationship_manager: { gradient: 'from-purple-500 to-indigo-700', icon: Crown, ring: 'ring-purple-200' },
-    custom: { gradient: 'from-emerald-500 to-teal-700', icon: Zap, ring: 'ring-emerald-200' },
+    basic: {
+        gradient: 'from-slate-600 to-slate-800', icon: Package, ring: 'ring-slate-300',
+        accent: 'text-slate-700', check: 'text-slate-600', tint: 'from-slate-50', cta: 'from-slate-700 to-slate-900', shadow: 'shadow-slate-900/20',
+    },
+    premium: {
+        gradient: 'from-amber-400 to-orange-600', icon: Star, ring: 'ring-orange-300',
+        accent: 'text-orange-600', check: 'text-orange-500', tint: 'from-orange-50', cta: 'from-amber-500 to-orange-600', shadow: 'shadow-orange-500/30',
+    },
+    relationship_manager: {
+        gradient: 'from-purple-500 to-indigo-700', icon: Crown, ring: 'ring-purple-300',
+        accent: 'text-indigo-600', check: 'text-indigo-500', tint: 'from-indigo-50', cta: 'from-purple-600 to-indigo-700', shadow: 'shadow-indigo-500/30',
+    },
+    custom: {
+        gradient: 'from-emerald-500 to-teal-700', icon: Zap, ring: 'ring-emerald-300',
+        accent: 'text-emerald-600', check: 'text-emerald-500', tint: 'from-emerald-50', cta: 'from-emerald-500 to-teal-700', shadow: 'shadow-emerald-500/30',
+    },
 };
 
 const fmt = (amt) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amt || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
-const FeatureRow = ({ text }) => (
+const FeatureRow = ({ text, checkClass = 'text-emerald-500' }) => (
     <div className="flex items-start gap-2.5">
-        <CheckCircle size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-        <span className="text-xs font-semibold text-gray-800 leading-tight">{text}</span>
+        <CheckCircle size={15} className={`${checkClass} mt-0.5 shrink-0`} />
+        <span className="text-sm text-slate-800 leading-tight">{text}</span>
     </div>
 );
 
@@ -364,27 +376,30 @@ const PropertySubscriptionsPage = () => {
     );
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-28">
-            <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
-                <div className="flex items-center gap-4 px-4 py-4">
-                    <button onClick={handleBack} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors">
-                        <ArrowLeft size={18} className="text-gray-700" />
+        <div className="min-h-screen bg-[#F5F6F8] pb-28">
+            <div className="sticky top-0 z-30 bg-white shadow-sm">
+                <div className="flex items-center gap-3 px-4 h-14 bg-orange-600 text-white">
+                    <button onClick={handleBack} aria-label="Back" className="p-1 -ml-1">
+                        <ArrowLeft size={22} />
                     </button>
-                    <div className="flex-1">
-                        <h1 className="text-lg font-black text-gray-900 capitalize">Boost Your Listings</h1>
-                        <p className="text-xs text-gray-400 font-medium">Subscribe a property to get more visibility</p>
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-lg font-medium leading-tight">Boost Your Listings</h1>
+                        <p className="text-xs text-white/75 truncate">Subscribe a property to get more visibility</p>
                     </div>
                 </div>
 
                 {availableModes.length > 1 && (
-                    <div className="flex gap-2 px-4 pb-3">
+                    <div className="flex border-b border-[#E0E0E0]" role="tablist">
                         {availableModes.map((m) => (
                             <button
                                 key={m}
+                                role="tab"
+                                aria-selected={mode === m}
                                 onClick={() => setMode(m)}
-                                className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide transition flex items-center justify-center gap-1.5 ${mode === m ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500'}`}
+                                className={`flex-1 py-3 text-[15px] capitalize relative flex items-center justify-center gap-1.5 ${mode === m ? 'text-orange-600 font-semibold' : 'text-slate-500 font-medium'}`}
                             >
-                                {m === 'sale' ? <Home size={14} /> : <Building2 size={14} />} {m}
+                                {m === 'sale' ? <Home size={15} /> : <Building2 size={15} />} {m}
+                                {mode === m && <span className="absolute bottom-0 inset-x-0 h-[3px] bg-orange-600" />}
                             </button>
                         ))}
                     </div>
@@ -394,18 +409,18 @@ const PropertySubscriptionsPage = () => {
             <div className="px-4 pt-4 max-w-2xl mx-auto">
                 {activeSubs.length > 0 && (
                     <div className="mb-6 space-y-3">
-                        <h2 className="text-xs font-black uppercase tracking-wider text-gray-400 px-1">Active subscriptions</h2>
+                        <h2 className="text-sm font-semibold text-slate-600 px-1">Active subscriptions</h2>
                         {activeSubs.map((s) => (
-                            <div key={s._id} className="bg-gray-900 rounded-2xl p-4 text-white flex items-center justify-between">
+                            <div key={s._id} className="bg-white border border-[#E0E0E0] border-l-4 border-l-emerald-500 rounded p-4 flex items-center justify-between">
                                 <div>
-                                    <p className="font-black text-sm flex items-center gap-1.5">
-                                        <TrendingUp size={14} className="text-emerald-400" /> {s.planName}
+                                    <p className="font-semibold text-slate-900 flex items-center gap-1.5">
+                                        <TrendingUp size={15} className="text-emerald-600" /> {s.planName}
                                     </p>
-                                    <p className="text-[11px] text-gray-400 mt-0.5">
+                                    <p className="text-xs text-slate-500 mt-0.5">
                                         {s.propertyIds?.length || 0} listing(s) · expires {fmtDate(s.expiryDate)}
                                     </p>
                                 </div>
-                                <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                                <span className="text-[11px] font-semibold uppercase px-2.5 py-1 rounded bg-emerald-50 text-emerald-700">
                                     {s.mode}
                                 </span>
                             </div>
@@ -433,32 +448,38 @@ const PropertySubscriptionsPage = () => {
                                     initial={{ opacity: 0, y: 16 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.06 }}
-                                    className={`bg-white rounded-3xl border-2 border-gray-100 overflow-hidden ring-4 ${cfg.ring} ring-opacity-0 hover:ring-opacity-40 transition`}
+                                    className="relative bg-white border border-[#E0E0E0] rounded"
                                 >
-                                    <div className={`h-16 bg-gradient-to-r ${cfg.gradient} flex items-center px-5 gap-3`}>
-                                        <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                                            <Icon size={18} className="text-white" />
+                                    {plan.planTier === 'premium' && (
+                                        <span className="absolute -top-px right-4 text-[11px] font-semibold px-2.5 py-1 rounded-b bg-[#FFF3E0] text-orange-700">
+                                            Recommended
+                                        </span>
+                                    )}
+                                    <div className="flex items-center gap-3 px-4 pt-4">
+                                        <div className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                                            <Icon size={19} />
                                         </div>
-                                        <span className="text-white font-black text-base">{plan.name}</span>
+                                        <div className="min-w-0">
+                                            <h3 className="text-lg font-bold text-slate-900 leading-tight">{plan.name}</h3>
+                                            {plan.tagline && <p className="text-sm text-slate-500 truncate">{plan.tagline}</p>}
+                                        </div>
                                     </div>
 
-                                    <div className="p-5">
-                                        {plan.tagline && <p className="text-xs text-gray-400 font-semibold mb-3">{plan.tagline}</p>}
+                                    <div className="px-4 pt-4 flex items-baseline gap-1.5">
+                                        <span className="text-[28px] font-bold text-slate-900">{fmt(plan.price)}</span>
+                                        <span className="text-sm text-slate-500">for {plan.durationDays} days</span>
+                                    </div>
 
-                                        <div className="flex items-baseline gap-1.5 mb-4">
-                                            <span className="text-3xl font-black text-gray-900">{fmt(plan.price)}</span>
-                                            <span className="text-gray-400 text-xs font-bold uppercase">/ {plan.durationDays} days</span>
-                                        </div>
+                                    <div className="px-4 pt-3 pb-4 space-y-2.5 border-b border-[#E0E0E0]">
+                                        {highlights.map((h) => <FeatureRow key={h} text={h} checkClass="text-emerald-600" />)}
+                                    </div>
 
-                                        <div className="space-y-2.5 mb-5">
-                                            {highlights.map((h) => <FeatureRow key={h} text={h} />)}
-                                        </div>
-
+                                    <div className="p-4">
                                         <button
                                             onClick={() => openPicker(plan)}
-                                            className="w-full py-3.5 rounded-2xl text-sm font-black bg-gray-900 text-white hover:bg-black shadow-lg transition active:scale-95"
+                                            className="w-full py-3 rounded bg-orange-600 hover:bg-orange-700 text-white text-[15px] font-semibold transition active:scale-[0.99]"
                                         >
-                                            Get This Plan
+                                            Buy Now
                                         </button>
                                     </div>
                                 </motion.div>
@@ -467,9 +488,9 @@ const PropertySubscriptionsPage = () => {
                     </div>
                 )}
 
-                <div className="mt-6 bg-blue-50 rounded-2xl p-4 flex items-start gap-3 border border-blue-100">
-                    <AlertCircle size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-blue-700 leading-relaxed font-medium">
+                <div className="mt-6 bg-orange-50 rounded p-4 flex items-start gap-3 border border-orange-100">
+                    <AlertCircle size={16} className="text-orange-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-orange-800 leading-relaxed font-medium">
                         Subscriptions attach to the listing(s) you choose. Plans are non-refundable. Higher tiers give
                         stronger search ranking, showcase placement and verified badges.
                     </p>
