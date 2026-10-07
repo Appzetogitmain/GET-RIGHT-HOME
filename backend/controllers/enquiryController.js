@@ -159,28 +159,21 @@ export const createEnquiry = async (req, res) => {
 
         const effectiveActionType = actionType || enquiryType || 'callback';
 
-        // ── DE-DUPLICATION CHECK (15-Minute Window) ──────────────────────────
-        // Prevent duplicate spam from repeated clicks in the same session
-        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-        const dedupeQuery = {
-            $or: [{ userId }, { phone: customerPhone }],
-            actionType: effectiveActionType,
-            createdAt: { $gte: fifteenMinutesAgo }
-        };
+        // ── DE-DUPLICATION: one lead per user + target ───────────────────────
+        // A repeat enquiry (any action, any time) updates the existing lead
+        // instead of creating a second one. Without a resolvable target we keep
+        // the old 15-minute same-action guard.
+        const dedupeQuery = { $or: [{ userId }, { phone: customerPhone }] };
 
         if (resolvedPropertyId) dedupeQuery.propertyId = resolvedPropertyId;
         else if (resolvedBrokerId) dedupeQuery.brokerId = resolvedBrokerId;
         else if (resolvedBuilderId) dedupeQuery.builderId = resolvedBuilderId;
-
-        const existingRecentLead = await Enquiry.findOne(dedupeQuery).sort({ createdAt: -1 });
-        if (existingRecentLead) {
-            return res.status(200).json({
-                success: true,
-                message: 'Lead already recorded (deduplicated)',
-                enquiry: existingRecentLead,
-                deduplicated: true
-            });
+        else {
+            dedupeQuery.actionType = effectiveActionType;
+            dedupeQuery.createdAt = { $gte: new Date(Date.now() - 15 * 60 * 1000) };
         }
+
+        const existingLead = await Enquiry.findOne(dedupeQuery).sort({ createdAt: -1 });
 
         const enquiryId = `ENQ-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
 
@@ -204,6 +197,43 @@ export const createEnquiry = async (req, res) => {
             city: requirement.city || (property?.address?.city || ''),
             purpose: requirement.purpose || (property?.transactionType || '')
         };
+
+        if (existingLead) {
+            // Refresh the previous lead: new date/time, new action, latest details.
+            // No counter increments — it's the same lead, not a new one.
+            const now = new Date();
+            const update = {
+                createdAt: now,
+                updatedAt: now,
+                actionType: effectiveActionType,
+                enquiryType: effectiveActionType,
+                sourceContext: sourceContext || existingLead.sourceContext,
+                sourceUrl: sourceUrl || existingLead.sourceUrl,
+                requirement: structuredRequirement,
+                name: customerName || existingLead.name,
+                phone: customerPhone || existingLead.phone,
+                email: customerEmail || existingLead.email
+            };
+            if (message) update.message = message;
+            if (effectiveBudget) update.budget = effectiveBudget;
+            if (preferredDate) update.preferredDate = new Date(preferredDate);
+            if (timeSlot) update.timeSlot = timeSlot;
+            if (effectiveActionType === 'visit' && preferredDate) update.status = 'scheduled';
+            else if (existingLead.status === 'dropped') update.status = 'new';
+
+            const refreshed = await Enquiry.findByIdAndUpdate(
+                existingLead._id,
+                { $set: update },
+                { new: true, timestamps: false, overwriteImmutable: true }
+            );
+            return res.status(200).json({
+                success: true,
+                message: 'Existing enquiry updated',
+                enquiry: refreshed,
+                deduplicated: true,
+                updated: true
+            });
+        }
 
         const enquiry = new Enquiry({
             enquiryId,
@@ -919,5 +949,65 @@ export const adminDeleteEnquiry = async (req, res) => {
             console.error('Failed to log to file:', e);
         }
         res.status(500).json({ success: false, message: 'Server error deleting enquiry' });
+    }
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: Subscription leads — listers who hit the paywall (free access ended /
+// limit reached / subscription required). Reuses the Enquiry collection; status
+// changes go through the existing PUT /api/admin/enquiries/:id.
+// GET /api/admin/subscription-leads
+//   ?status=open|all|<status>  &reason=trial_expired|limit_reached|subscription_required
+//   &search=  &page=  &limit=
+// ─────────────────────────────────────────────────────────────────────────────
+export const adminGetSubscriptionLeads = async (req, res) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+        const { status = 'open', reason, search } = req.query;
+
+        const RESOLVED = ['closed', 'sold', 'rented', 'dropped'];
+        const base = { actionType: 'subscription_required' };
+        const query = { ...base };
+
+        if (status === 'open') query.status = { $nin: RESOLVED };
+        else if (status && status !== 'all') query.status = status;
+
+        if (reason && reason !== 'all') query['subscriptionLead.reason'] = reason;
+
+        if (search) {
+            const rx = safeRegex(search);
+            query.$or = [{ name: rx }, { phone: rx }, { email: rx }, { enquiryId: rx }, { message: rx }];
+        }
+
+        const [total, leads, openCount, byReason] = await Promise.all([
+            Enquiry.countDocuments(query),
+            Enquiry.find(query)
+                .populate('userId', 'name email phone avatar role builderProfile')
+                .sort({ updatedAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit),
+            Enquiry.countDocuments({ ...base, status: { $nin: RESOLVED } }),
+            Enquiry.aggregate([
+                { $match: { ...base, status: { $nin: RESOLVED } } },
+                { $group: { _id: '$subscriptionLead.reason', count: { $sum: 1 } } }
+            ])
+        ]);
+
+        res.status(200).json({
+            success: true,
+            leads,
+            total,
+            page,
+            limit,
+            counts: {
+                open: openCount,
+                byReason: Object.fromEntries(byReason.map((r) => [r._id || 'unknown', r.count]))
+            }
+        });
+    } catch (error) {
+        console.error('Admin Get Subscription Leads Error:', error);
+        res.status(500).json({ success: false, message: 'Server error fetching subscription leads' });
     }
 };

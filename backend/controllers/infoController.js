@@ -1,5 +1,6 @@
 import InfoPage from '../models/InfoPage.js';
 import PlatformSettings from '../models/PlatformSettings.js';
+import { resolveFreeAccessRule } from '../utils/listingEligibility.js';
 
 export const getPublicPage = async (req, res) => {
   try {
@@ -64,10 +65,18 @@ export const getFinancialSettings = async (req, res) => {
 export const getTrialSettings = async (req, res) => {
   try {
     const settings = await PlatformSettings.getSettings();
+    const rule = resolveFreeAccessRule(settings, new Date(), 'builder');
     res.status(200).json({
       success: true,
-      freeTrialListingLimit: settings.freeTrialListingLimit || 10,
-      freeTrialDurationDays: settings.freeTrialDurationDays || 30
+      // Legacy fields (kept so older clients keep working).
+      freeTrialListingLimit: rule.listingLimit,
+      freeTrialDurationDays: rule.durationDays,
+      // Admin-controlled free access.
+      freeAccessEnabled: rule.enabled,
+      freeAccessMode: rule.enabled ? rule.mode : 'none',
+      freeAccessDurationDays: rule.durationDays,
+      freeAccessListingLimit: rule.listingLimit,
+      freeAccessRoles: rule.roles
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching trial settings' });

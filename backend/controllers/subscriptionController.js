@@ -6,6 +6,7 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import PaymentConfig from '../config/payment.config.js';
 import { SLOT_CONSUMING_STATUS } from '../utils/listingEligibility.js';
+import { closeSubscriptionLeads } from '../utils/subscriptionLead.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -268,6 +269,10 @@ const activatePlanForUser = async ({ userId, role, plan, transactionId }) => {
     };
 
     await subject.save();
+
+    // They subscribed — their open "subscription needed" lead is converted.
+    await closeSubscriptionLeads(userId, 'subscribed');
+
     return subject.subscription;
 };
 

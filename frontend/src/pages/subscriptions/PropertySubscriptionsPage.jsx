@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, CheckCircle, ShieldCheck, Package, Crown, Zap, Star,
@@ -63,7 +63,9 @@ const planHighlights = (plan) => {
 const PropertyPickerModal = ({ plan, properties, loading, onClose, onConfirm, submitting }) => {
     const [selected, setSelected] = useState([]);
     const limit = plan.propertiesPerPurchase || 1;
-    const available = properties.filter((p) => !p.hasActiveSubscription);
+    // Already-subscribed listings stay visible (disabled) so an empty picker
+    // never looks like the listing went missing.
+    const available = properties;
 
     const toggle = (id) => {
         setSelected((prev) => {
@@ -140,8 +142,10 @@ const PropertyPickerModal = ({ plan, properties, loading, onClose, onConfirm, su
                                     key={p._id}
                                     type="button"
                                     onClick={() => toggle(p._id)}
+                                    disabled={p.hasActiveSubscription}
                                     className={`w-full flex items-center gap-3.5 p-3 rounded-2xl border-2 text-left transition-all ${
-                                        isSelected 
+                                        p.hasActiveSubscription ? 'opacity-50 cursor-not-allowed border-gray-100 bg-gray-50' :
+                                        isSelected
                                             ? 'border-emerald-500 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20' 
                                             : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50/50'
                                     }`}
@@ -164,7 +168,9 @@ const PropertyPickerModal = ({ plan, properties, loading, onClose, onConfirm, su
                                         </p>
                                     </div>
                                     <div className="shrink-0">
-                                        {isSelected ? (
+                                        {p.hasActiveSubscription ? (
+                                            <span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Subscribed</span>
+                                        ) : isSelected ? (
                                             <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
                                                 <CheckCircle size={15} />
                                             </div>
@@ -202,6 +208,8 @@ const PropertyPickerModal = ({ plan, properties, loading, onClose, onConfirm, su
 
 const PropertySubscriptionsPage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const scopedPropertyId = searchParams.get('propertyId');
     const { user } = useAuth();
 
     const [loading, setLoading] = useState(true);
@@ -239,11 +247,16 @@ const PropertySubscriptionsPage = () => {
     const loadCatalog = async (m) => {
         try {
             setLoading(true);
-            const res = await propertySubscriptionService.getCatalog({ mode: m });
+            // When opened from a listing's Boost button, the property decides
+            // the mode: a rental listing only sees rental plans, sale only sale.
+            const res = await propertySubscriptionService.getCatalog(
+                scopedPropertyId ? { propertyId: scopedPropertyId } : { mode: m }
+            );
             if (res.success) {
-                setAvailableModes(res.availableModes || []);
-                if (!res.availableModes?.includes(m) && res.availableModes?.length) {
-                    setMode(res.availableModes[0]);
+                const modesForTabs = scopedPropertyId ? (res.modes || []) : (res.availableModes || []);
+                setAvailableModes(modesForTabs);
+                if (!modesForTabs.includes(m) && modesForTabs.length) {
+                    setMode(modesForTabs[0]);
                     return;
                 }
                 setPlans(res.plans || []);
@@ -267,8 +280,13 @@ const PropertySubscriptionsPage = () => {
         setPickerPlan(plan);
         setPropertiesLoading(true);
         try {
+            console.debug('[boost] picker', { scopedPropertyId, mode });
             const res = await propertySubscriptionService.getEligibleProperties(mode);
-            if (res.success) setProperties(res.properties || []);
+            console.debug('[boost] eligible', res);
+            if (res.success) {
+                const all = res.properties || [];
+                setProperties(scopedPropertyId ? all.filter((p) => p._id === scopedPropertyId) : all);
+            }
         } catch (err) {
             toast.error('Could not load your listings');
         } finally {

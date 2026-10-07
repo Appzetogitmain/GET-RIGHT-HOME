@@ -306,6 +306,10 @@ const adminService = {
     const response = await axiosInstance.get('/admin/enquiries', { params });
     return response.data;
   },
+  getSubscriptionLeads: async (params) => {
+    const response = await axiosInstance.get('/admin/subscription-leads', { params });
+    return response.data;
+  },
   updateEnquiry: async (id, data) => {
     const response = await axiosInstance.put(`/admin/enquiries/${id}`, data);
     return response.data;

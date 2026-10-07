@@ -33,6 +33,20 @@ const Section = ({ title, icon: Icon, children }) => (
     </div>
 );
 
+const FREE_ACCESS_MODE_OPTIONS = [
+    { value: 'none', label: 'No free access', help: 'Subscription is required from the start.' },
+    { value: 'time', label: 'Free for a limited time', help: 'Free for a set number of days after signup, then a subscription is needed.' },
+    { value: 'listings', label: 'Free for a limited number of properties', help: 'The first N properties are free, with no time limit.' },
+    { value: 'time_and_listings', label: 'Limited time and properties (whichever ends first)', help: 'Free for N days and up to M properties; whichever limit is reached first ends it.' },
+    { value: 'lifetime', label: 'Free forever (unlimited)', help: 'No limit and no paywall — builders always list free.' }
+];
+const FREE_ACCESS_ROLE_OPTIONS = [
+    { value: 'builder', label: 'Builder' },
+    { value: 'partner', label: 'Partner' },
+    { value: 'broker', label: 'Broker' },
+    { value: 'owner', label: 'Owner' }
+];
+
 const AdminSettings = () => {
     const location = useLocation();
     const isManager = location.pathname.startsWith('/manager');
@@ -62,8 +76,30 @@ const AdminSettings = () => {
     const [maintenanceMessage, setMaintenanceMessage] = useState('');
     const [commission, setCommission] = useState(10);
     const [taxRate, setTaxRate] = useState(12);
-    const [freeTrialListingLimit, setFreeTrialListingLimit] = useState(10);
-    const [freeTrialDurationDays, setFreeTrialDurationDays] = useState(30);
+    const [freeAccess, setFreeAccess] = useState({
+        enabled: true,
+        mode: 'time_and_listings',
+        durationDays: 30,
+        listingLimit: 10,
+        roles: FREE_ACCESS_ROLE_OPTIONS.map((r) => r.value),
+        applyToExisting: true,
+        paywallTitle: '',
+        paywallMessage: ''
+    });
+    const updateFreeAccess = (patch) => setFreeAccess((prev) => ({ ...prev, ...patch }));
+    const toggleFreeAccessRole = (role) => setFreeAccess((prev) => ({
+        ...prev,
+        roles: prev.roles.includes(role) ? prev.roles.filter((r) => r !== role) : [...prev.roles, role]
+    }));
+    const freeAccessUsesTime = freeAccess.mode === 'time' || freeAccess.mode === 'time_and_listings';
+    const freeAccessUsesListings = freeAccess.mode === 'listings' || freeAccess.mode === 'time_and_listings';
+    const freeAccessSummary = (() => {
+        if (!freeAccess.enabled || freeAccess.mode === 'none') return 'Builders must subscribe before they can list a property.';
+        if (freeAccess.mode === 'lifetime') return 'Builders can list unlimited properties, free forever.';
+        if (freeAccess.mode === 'time') return `Builders can list free for ${freeAccess.durationDays || 0} days after signing up.`;
+        if (freeAccess.mode === 'listings') return `Builders can list their first ${freeAccess.listingLimit || 0} properties free, with no time limit.`;
+        return `Builders can list up to ${freeAccess.listingLimit || 0} properties free within ${freeAccess.durationDays || 0} days of signing up — whichever ends first.`;
+    })();
     const [platformFlatFee, setPlatformFlatFee] = useState(20);
     const [cashCollectionFee, setCashCollectionFee] = useState(20);
 
@@ -112,8 +148,16 @@ const AdminSettings = () => {
                     setMaintenanceMessage(res.settings.maintenanceMessage || '');
                     setCommission(res.settings.defaultCommission || 10);
                     setTaxRate(res.settings.taxRate || 12);
-                    setFreeTrialListingLimit(res.settings.freeTrialListingLimit ?? 10);
-                    setFreeTrialDurationDays(res.settings.freeTrialDurationDays ?? 30);
+                    setFreeAccess({
+                        enabled: res.settings.freeAccessEnabled !== false,
+                        mode: res.settings.freeAccessMode || 'time_and_listings',
+                        durationDays: res.settings.freeAccessDurationDays ?? res.settings.freeTrialDurationDays ?? 30,
+                        listingLimit: res.settings.freeAccessListingLimit ?? res.settings.freeTrialListingLimit ?? 10,
+                        roles: Array.isArray(res.settings.freeAccessRoles) ? res.settings.freeAccessRoles : FREE_ACCESS_ROLE_OPTIONS.map((r) => r.value),
+                        applyToExisting: res.settings.freeAccessApplyToExisting !== false,
+                        paywallTitle: res.settings.freeAccessPaywallTitle || '',
+                        paywallMessage: res.settings.freeAccessPaywallMessage || ''
+                    });
                     setPlatformFlatFee(res.settings.platformFlatFee ?? 20);
                     setCashCollectionFee(res.settings.cashCollectionFee ?? 20);
                     setSupportEmail(res.settings.supportEmail || 'getrighthome7@gmail.com');
@@ -212,8 +256,14 @@ const AdminSettings = () => {
                 maintenanceMessage,
                 defaultCommission: Number(commission),
                 taxRate: Number(taxRate),
-                freeTrialListingLimit: Number(freeTrialListingLimit),
-                freeTrialDurationDays: Number(freeTrialDurationDays),
+                freeAccessEnabled: freeAccess.enabled,
+                freeAccessMode: freeAccess.mode,
+                freeAccessDurationDays: Number(freeAccess.durationDays) || 0,
+                freeAccessListingLimit: Number(freeAccess.listingLimit) || 0,
+                freeAccessRoles: freeAccess.roles,
+                freeAccessApplyToExisting: freeAccess.applyToExisting,
+                freeAccessPaywallTitle: freeAccess.paywallTitle,
+                freeAccessPaywallMessage: freeAccess.paywallMessage,
                 platformFlatFee: Number(platformFlatFee),
                 cashCollectionFee: Number(cashCollectionFee),
                 supportEmail,
@@ -622,30 +672,153 @@ const AdminSettings = () => {
                                 </div>
                             </div>
                             <div className="pb-4 pt-6 font-bold text-md flex items-center gap-2 border-b border-gray-100 mt-6 uppercase tracking-tight mb-4">
-                                <CreditCard size={16} /> Free Trial Settings
+                                <CreditCard size={16} /> Builder Free Access
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                            {/* Master switch */}
+                            <label className="flex items-center justify-between gap-4 p-3 border border-gray-200 rounded-xl cursor-pointer mb-4">
                                 <div>
-                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Trial Property Listing Limit</label>
+                                    <p className="text-xs font-bold text-gray-900">Enable free access</p>
+                                    <p className="text-[10px] text-gray-500 mt-0.5">When off, every builder needs a subscription before listing.</p>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={freeAccess.enabled}
+                                    onChange={(e) => updateFreeAccess({ enabled: e.target.checked })}
+                                    className="w-5 h-5 accent-black shrink-0"
+                                />
+                            </label>
+
+                            <div className={freeAccess.enabled ? '' : 'opacity-50 pointer-events-none'}>
+                                {/* Mode */}
+                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">How long should listing be free?</label>
+                                <div className="grid grid-cols-1 gap-2 mb-4">
+                                    {FREE_ACCESS_MODE_OPTIONS.map((opt) => (
+                                        <label
+                                            key={opt.value}
+                                            className={`flex items-start gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${freeAccess.mode === opt.value ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="freeAccessMode"
+                                                value={opt.value}
+                                                checked={freeAccess.mode === opt.value}
+                                                onChange={() => updateFreeAccess({ mode: opt.value })}
+                                                className="mt-0.5 accent-black"
+                                            />
+                                            <span>
+                                                <span className="block text-xs font-bold text-gray-900">{opt.label}</span>
+                                                <span className="block text-[10px] text-gray-500 mt-0.5">{opt.help}</span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+
+                                {/* Numbers, shown only when the chosen mode uses them */}
+                                {(freeAccessUsesTime || freeAccessUsesListings) && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                        {freeAccessUsesListings && (
+                                            <div>
+                                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Free properties allowed</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={freeAccess.listingLimit}
+                                                    onChange={(e) => updateFreeAccess({ listingLimit: e.target.value })}
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
+                                                />
+                                                <p className="text-[10px] text-gray-400 mt-1">Example: 3 → a builder can list 3 properties free. 0 means none.</p>
+                                            </div>
+                                        )}
+                                        {freeAccessUsesTime && (
+                                            <div>
+                                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Free period (days)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={freeAccess.durationDays}
+                                                    onChange={(e) => updateFreeAccess({ durationDays: e.target.value })}
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
+                                                />
+                                                <p className="text-[10px] text-gray-400 mt-1">Counted from the day the builder signed up.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Roles */}
+                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Applies to</label>
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {FREE_ACCESS_ROLE_OPTIONS.map((r) => {
+                                        const checked = freeAccess.roles.includes(r.value);
+                                        return (
+                                            <label
+                                                key={r.value}
+                                                className={`flex items-center gap-2 px-3 py-2 border rounded-xl cursor-pointer text-xs font-bold ${checked ? 'border-black bg-gray-50' : 'border-gray-200 text-gray-500'}`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => toggleFreeAccessRole(r.value)}
+                                                    className="accent-black"
+                                                />
+                                                {r.label}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Existing users */}
+                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">When this rule changes</label>
+                                <div className="grid grid-cols-1 gap-2 mb-4">
+                                    {[
+                                        { value: true, label: 'Apply to everyone', help: 'Existing builders get the new rule immediately.' },
+                                        { value: false, label: 'Keep the old rule for existing builders', help: 'Builders who signed up before this change keep the previous rule; only new sign-ups get the new one.' }
+                                    ].map((opt) => (
+                                        <label
+                                            key={String(opt.value)}
+                                            className={`flex items-start gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${freeAccess.applyToExisting === opt.value ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="freeAccessApplyToExisting"
+                                                checked={freeAccess.applyToExisting === opt.value}
+                                                onChange={() => updateFreeAccess({ applyToExisting: opt.value })}
+                                                className="mt-0.5 accent-black"
+                                            />
+                                            <span>
+                                                <span className="block text-xs font-bold text-gray-900">{opt.label}</span>
+                                                <span className="block text-[10px] text-gray-500 mt-0.5">{opt.help}</span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+
+                                {/* Paywall copy */}
+                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Paywall popup text (optional)</label>
+                                <div className="grid grid-cols-1 gap-3">
                                     <input
-                                        type="number"
-                                        value={freeTrialListingLimit}
-                                        onChange={(e) => setFreeTrialListingLimit(e.target.value)}
+                                        type="text"
+                                        maxLength={120}
+                                        value={freeAccess.paywallTitle}
+                                        onChange={(e) => updateFreeAccess({ paywallTitle: e.target.value })}
+                                        placeholder="Title — leave blank for the default"
                                         className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
-                                        min="0"
+                                    />
+                                    <textarea
+                                        rows={2}
+                                        maxLength={500}
+                                        value={freeAccess.paywallMessage}
+                                        onChange={(e) => updateFreeAccess({ paywallMessage: e.target.value })}
+                                        placeholder="Message — leave blank for the default"
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors resize-none"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Trial Duration (Days)</label>
-                                    <input
-                                        type="number"
-                                        value={freeTrialDurationDays}
-                                        onChange={(e) => setFreeTrialDurationDays(e.target.value)}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
-                                        min="1"
-                                    />
-                                </div>
                             </div>
+
+                            <p className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-xl text-[11px] font-bold text-gray-700">
+                                {freeAccessSummary}
+                            </p>
                         </div>
 
                         <div className="flex justify-end pt-4">

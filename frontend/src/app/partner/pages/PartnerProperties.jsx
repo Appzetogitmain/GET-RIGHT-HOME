@@ -5,6 +5,7 @@ import { propertyService, legalService } from '../../../services/apiService';
 import subscriptionService from '../../../services/subscriptionService';
 import PartnerHeader from '../components/PartnerHeader';
 import { toast } from 'react-hot-toast';
+import FreeAccessBanner from '../../../components/user/FreeAccessBanner';
 
 const PartnerProperties = () => {
   const navigate = useNavigate();
@@ -14,8 +15,7 @@ const PartnerProperties = () => {
   const [propertyToDelete, setPropertyToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [subscription, setSubscription] = useState(null);
-  const [registrationDate, setRegistrationDate] = useState(null);
-  const [trialSettings, setTrialSettings] = useState(null);
+  const [eligibility, setEligibility] = useState(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [adminContact, setAdminContact] = useState(null);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -42,20 +42,22 @@ const PartnerProperties = () => {
 
   const fetchSubscription = async () => {
     try {
-      const [subData, trialData] = await Promise.all([
-        subscriptionService.getCurrentSubscription(),
-        subscriptionService.getTrialSettings()
-      ]);
-
+      const subData = await subscriptionService.getCurrentSubscription();
       if (subData.success) {
         setSubscription(subData.subscription);
-        setRegistrationDate(subData.createdAt || subData.partnerSince || null);
-      }
-      if (trialData.success) {
-        setTrialSettings(trialData);
       }
     } catch (e) {
-      console.error('Failed to fetch subscription or trial settings:', e);
+      console.error('Failed to fetch subscription:', e);
+    }
+  };
+
+  // The server decides who may list (admin-configured free access / plan limits).
+  const fetchEligibility = async () => {
+    try {
+      const res = await propertyService.getListingEligibility();
+      setEligibility(res?.eligibility || null);
+    } catch (e) {
+      console.error('Failed to fetch listing eligibility:', e);
     }
   };
 
@@ -73,47 +75,21 @@ const PartnerProperties = () => {
   useEffect(() => {
     fetchProperties();
     fetchSubscription();
+    fetchEligibility();
     if (isBuilder) {
       fetchAdminContact();
     }
   }, []);
 
   const checkSubscriptionLimit = () => {
-    // Check if subscription exists and is active
-    const isSubActive =
-      subscription?.status === 'active' &&
-      subscription?.expiryDate &&
-      new Date(subscription.expiryDate) > new Date();
+    // Eligibility not loaded (or failed) → let the server make the call.
+    if (!eligibility || eligibility.canSubmit !== false) return true;
 
-    const trialDurationDays = trialSettings?.freeTrialDurationDays || 30;
-    const partnerRegDate = registrationDate ? new Date(registrationDate) : new Date();
-    const trialEndDate = new Date(partnerRegDate);
-    trialEndDate.setDate(trialEndDate.getDate() + trialDurationDays);
-    const isTrialActive = new Date() <= trialEndDate;
-
-    if (!isSubActive && !isTrialActive) {
-      toast.error("Your subscription / trial has expired. Please subscribe to continue.");
-      setShowSubscriptionModal(true);
-      return false;
-    }
-
-    // Check property limit
-    const totalProperties = Object.values(propertiesByType).reduce((sum, list) => sum + list.length, 0);
-    const maxAllowed = isSubActive
-      ? (subscription?.planId?.maxProperties || 0)
-      : (trialSettings?.freeTrialListingLimit || 10);
-
-    if (totalProperties >= maxAllowed) {
-      if (isSubActive) {
-        toast.error(`Property limit reached! Your plan allows ${maxAllowed} properties.`);
-      } else {
-        toast.error(`Free trial limit reached! You can add up to ${maxAllowed} properties during trial.`);
-      }
-      setShowSubscriptionModal(true);
-      return false;
-    }
-
-    return true;
+    toast.error(eligibility.message || 'Please subscribe to continue listing properties.');
+    setShowSubscriptionModal(true);
+    // Reached the paywall → let the server log a subscription lead (best effort).
+    propertyService.reportPaywallHit().catch(() => {});
+    return false;
   };
 
   const handleAddProperty = () => {
@@ -177,6 +153,11 @@ const PartnerProperties = () => {
       <PartnerHeader title="My Properties" subtitle="Manage your listings by property type" />
 
       <div className="px-4 pt-4 max-w-5xl mx-auto">
+        <FreeAccessBanner
+          eligibility={eligibility}
+          onSubscribe={() => navigate('/hotel/subscriptions')}
+          className="mb-4"
+        />
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
             <Building2 size={14} /> Your Listings
@@ -373,28 +354,9 @@ const PartnerProperties = () => {
                 <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4 text-teal-600">
                   <Lock size={32} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Subscription Required</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{eligibility?.title || 'Subscription Required'}</h3>
                 <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-                  {(() => {
-                    const isSubActive =
-                      subscription?.status === 'active' &&
-                      subscription?.expiryDate &&
-                      new Date(subscription.expiryDate) > new Date();
-
-                    const trialDurationDays = trialSettings?.freeTrialDurationDays || 30;
-                    const partnerRegDate = registrationDate ? new Date(registrationDate) : new Date();
-                    const trialEndDate = new Date(partnerRegDate);
-                    trialEndDate.setDate(trialEndDate.getDate() + trialDurationDays);
-                    const isTrialActive = new Date() <= trialEndDate;
-
-                    if (isSubActive) {
-                      return `You've reached your plan's property limit (${subscription?.planId?.maxProperties || 0} properties). Upgrade your plan to add more properties.`;
-                    } else if (isTrialActive) {
-                      return `You've reached your free trial property limit (${trialSettings?.freeTrialListingLimit || 10} properties). Subscribe to a plan to list more properties.`;
-                    } else {
-                      return "Your free trial has expired and you do not have an active subscription. Choose a plan to list your properties.";
-                    }
-                  })()}
+                  {eligibility?.message || 'Choose a plan to list your properties.'}
                 </p>
                 <div className="flex flex-col gap-3">
                   <button

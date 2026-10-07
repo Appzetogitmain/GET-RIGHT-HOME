@@ -1594,6 +1594,14 @@ export const updatePlatformSettings = async (req, res) => {
       reelCouponDiscount,
       freeTrialListingLimit,
       freeTrialDurationDays,
+      freeAccessEnabled,
+      freeAccessMode,
+      freeAccessDurationDays,
+      freeAccessListingLimit,
+      freeAccessRoles,
+      freeAccessApplyToExisting,
+      freeAccessPaywallTitle,
+      freeAccessPaywallMessage,
       platformFlatFee,
       cashCollectionFee,
       targetTitle,
@@ -1669,6 +1677,55 @@ export const updatePlatformSettings = async (req, res) => {
     if (reelCouponDiscount !== undefined) settings.reelCouponDiscount = Number(reelCouponDiscount);
     if (freeTrialListingLimit !== undefined) settings.freeTrialListingLimit = Number(freeTrialListingLimit);
     if (freeTrialDurationDays !== undefined) settings.freeTrialDurationDays = Number(freeTrialDurationDays);
+    // ── Builder free access ────────────────────────────────────────────────
+    const touchesFreeAccess = [freeAccessEnabled, freeAccessMode, freeAccessDurationDays, freeAccessListingLimit, freeAccessRoles, freeAccessApplyToExisting]
+      .some((v) => v !== undefined);
+    if (touchesFreeAccess) {
+      const validModes = ['none', 'time', 'listings', 'time_and_listings', 'lifetime'];
+      const validRoles = ['partner', 'owner', 'broker', 'builder'];
+      if (freeAccessMode !== undefined && !validModes.includes(freeAccessMode)) {
+        return res.status(400).json({ success: false, message: 'Invalid free access mode' });
+      }
+      for (const [label, val] of [['Free access duration', freeAccessDurationDays], ['Free listing limit', freeAccessListingLimit]]) {
+        if (val !== undefined && (!Number.isFinite(Number(val)) || Number(val) < 0 || Number(val) > 100000)) {
+          return res.status(400).json({ success: false, message: `${label} must be a number between 0 and 100000` });
+        }
+      }
+      if (freeAccessRoles !== undefined && (!Array.isArray(freeAccessRoles) || freeAccessRoles.some((r) => !validRoles.includes(r)))) {
+        return res.status(400).json({ success: false, message: 'Invalid free access roles' });
+      }
+
+      // Remember the rule that was live so accounts created before this change
+      // can keep it when "apply to existing users" is off.
+      const before = {
+        enabled: settings.freeAccessEnabled !== false,
+        mode: settings.freeAccessMode || 'time_and_listings',
+        durationDays: settings.freeAccessDurationDays ?? settings.freeTrialDurationDays ?? 30,
+        listingLimit: settings.freeAccessListingLimit ?? settings.freeTrialListingLimit ?? 10,
+        roles: Array.isArray(settings.freeAccessRoles) ? Array.from(settings.freeAccessRoles) : validRoles
+      };
+
+      if (typeof freeAccessEnabled === 'boolean') settings.freeAccessEnabled = freeAccessEnabled;
+      if (freeAccessMode !== undefined) settings.freeAccessMode = freeAccessMode;
+      if (freeAccessDurationDays !== undefined) settings.freeAccessDurationDays = Math.round(Number(freeAccessDurationDays));
+      if (freeAccessListingLimit !== undefined) settings.freeAccessListingLimit = Math.round(Number(freeAccessListingLimit));
+      if (freeAccessRoles !== undefined) settings.freeAccessRoles = freeAccessRoles;
+      if (typeof freeAccessApplyToExisting === 'boolean') settings.freeAccessApplyToExisting = freeAccessApplyToExisting;
+
+      const after = {
+        enabled: settings.freeAccessEnabled !== false,
+        mode: settings.freeAccessMode || 'time_and_listings',
+        durationDays: settings.freeAccessDurationDays ?? settings.freeTrialDurationDays ?? 30,
+        listingLimit: settings.freeAccessListingLimit ?? settings.freeTrialListingLimit ?? 10,
+        roles: Array.from(settings.freeAccessRoles || validRoles)
+      };
+      if (JSON.stringify(before) !== JSON.stringify(after)) {
+        settings.freeAccessPrevious = before;
+        settings.freeAccessChangedAt = new Date();
+      }
+    }
+    if (typeof freeAccessPaywallTitle === 'string') settings.freeAccessPaywallTitle = freeAccessPaywallTitle.trim().slice(0, 120);
+    if (typeof freeAccessPaywallMessage === 'string') settings.freeAccessPaywallMessage = freeAccessPaywallMessage.trim().slice(0, 500);
     if (platformFlatFee !== undefined) settings.platformFlatFee = Number(platformFlatFee);
     if (cashCollectionFee !== undefined) settings.cashCollectionFee = Number(cashCollectionFee);
     if (targetTitle !== undefined) settings.targetTitle = targetTitle;

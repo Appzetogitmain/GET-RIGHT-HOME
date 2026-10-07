@@ -14,7 +14,8 @@ import Booking from '../models/Booking.js';
 import Enquiry from '../models/Enquiry.js';
 import { mapBuilderProjectFields, generateUniqueSlug } from '../utils/builderProjectMapper.js';
 import { escapeRegex, safeRegex } from '../utils/escapeRegex.js';
-import { getListingEligibility } from '../utils/listingEligibility.js';
+import { getListingEligibility, isFreeAccessActive } from '../utils/listingEligibility.js';
+import { safeRecordSubscriptionLead } from '../utils/subscriptionLead.js';
 import { rankSuggestions, titleCaseCity, displayPropertyType, displayAvailability, displayBhk } from '../utils/searchSuggestions.js';
 import { buildZeroResultAlternatives } from '../utils/zeroResultRecovery.js';
 import { recordSearch, recordSearchOutcome, getSearchAnalytics } from '../services/searchAnalyticsService.js';
@@ -205,9 +206,13 @@ export const createProperty = async (req, res) => {
         return res.status(404).json({ message: 'Account not found' });
       }
       if (!eligibility.canSubmit) {
+        // Blocked by the paywall → lead for admin (fire-and-forget, never blocks).
+        safeRecordSubscriptionLead(req.user, eligibility, { propertyId: req.params?.id });
         return res.status(403).json({
           message: eligibility.message,
           trialExpired: eligibility.trialExpired,
+          reason: eligibility.reason,
+          title: eligibility.title,
           limitReached: eligibility.limitReached,
           currentCount: eligibility.currentCount,
           maxAllowed: eligibility.maxAllowed,
@@ -2594,6 +2599,26 @@ export const getSearchSuggestions = async (req, res) => {
  * Lets the listing wizard find out, before asking the user to do anything,
  * whether they can submit — and if not, why (trial still running vs expired).
  */
+/**
+ * The wizard / listings page calls this when the user actually lands on the
+ * paywall (as opposed to merely fetching eligibility on page load). The
+ * server re-evaluates eligibility itself — the client only signals "I reached
+ * the paywall" — and records the subscription lead if they really are blocked.
+ */
+export const reportPaywallHit = async (req, res) => {
+  try {
+    const eligibility = await getListingEligibility(req.user);
+    if (!eligibility.found) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+    const propertyId = req.body?.propertyId || undefined;
+    safeRecordSubscriptionLead(req.user, eligibility, { propertyId, sourceUrl: req.body?.sourceUrl });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
 export const getMyListingEligibility = async (req, res) => {
   try {
     const eligibility = await getListingEligibility(req.user);
@@ -2643,10 +2668,14 @@ export const submitPropertyForApproval = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Account not found' });
       }
       if (!eligibility.canSubmit) {
+        // Blocked by the paywall → lead for admin (fire-and-forget, never blocks).
+        safeRecordSubscriptionLead(req.user, eligibility, { propertyId: req.params?.id });
         return res.status(403).json({
           success: false,
           message: eligibility.message,
           trialExpired: eligibility.trialExpired,
+          reason: eligibility.reason,
+          title: eligibility.title,
           limitReached: eligibility.limitReached,
           eligibility
         });
@@ -2781,19 +2810,12 @@ export const revealContact = async (req, res) => {
         new Date(sub.expiryDate) > new Date();
 
       let isTrialActive = false;
-      let trialDays = 30;
       if (!isSubscriptionActive) {
-        // Check free trial status
+        // Still inside the admin-configured free window? (lifetime / listing-only
+        // free access has no clock, so it never expires here.)
         const PlatformSettings = (await import('../models/PlatformSettings.js')).default;
         const settings = await PlatformSettings.getSettings();
-        trialDays = settings.freeTrialDurationDays || 30;
-        const partnerCreatedAt = partner.createdAt || partner.partnerSince || new Date();
-        const trialEndDate = new Date(partnerCreatedAt);
-        trialEndDate.setDate(trialEndDate.getDate() + trialDays);
-
-        if (new Date() <= trialEndDate) {
-          isTrialActive = true;
-        }
+        isTrialActive = isFreeAccessActive(settings, partner, partner.role);
       }
 
       if (!isSubscriptionActive && !isTrialActive) {

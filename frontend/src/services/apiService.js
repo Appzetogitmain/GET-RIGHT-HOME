@@ -539,6 +539,16 @@ export const propertyService = {
       throw error.response?.data || error.message;
     }
   },
+  // Tells the server the user actually landed on the paywall; the server re-checks
+  // eligibility itself and records the subscription lead if they are truly blocked.
+  reportPaywallHit: async (data = {}) => {
+    try {
+      const response = await api.post('/properties/listing-eligibility/paywall', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
   getListingEligibility: async () => {
     try {
       const response = await api.get('/properties/listing-eligibility');

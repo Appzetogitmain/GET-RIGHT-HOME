@@ -91,6 +91,63 @@ const platformSettingsSchema = new mongoose.Schema(
       type: Number,
       default: 30
     },
+    // ── Builder / lister free access (admin-controlled) ───────────────────────
+    // How long / how many listings a lister may post without a subscription.
+    //   none               → subscription required from day one
+    //   time               → free for `freeAccessDurationDays` days (from signup)
+    //   listings           → first `freeAccessListingLimit` listings are free, no time limit
+    //   time_and_listings  → both limits apply; whichever is hit first ends it
+    //   lifetime           → always free, unlimited
+    // Defaults reproduce the previous hard-coded behaviour (30 days / 10 listings).
+    freeAccessEnabled: {
+      type: Boolean,
+      default: true
+    },
+    freeAccessMode: {
+      type: String,
+      enum: ['none', 'time', 'listings', 'time_and_listings', 'lifetime'],
+      default: 'time_and_listings'
+    },
+    freeAccessDurationDays: {
+      type: Number,
+      min: 0
+    },
+    freeAccessListingLimit: {
+      type: Number,
+      min: 0
+    },
+    // Roles the free-access rule applies to; other metered roles need a plan.
+    freeAccessRoles: {
+      type: [String],
+      default: ['partner', 'owner', 'broker', 'builder']
+    },
+    // true  → a rule change applies to every lister.
+    // false → listers who signed up before the change keep the previous rule.
+    freeAccessApplyToExisting: {
+      type: Boolean,
+      default: true
+    },
+    // Snapshot of the rule that was live before the latest change, plus when the
+    // change happened — used to grandfather older accounts.
+    freeAccessPrevious: {
+      enabled: Boolean,
+      mode: String,
+      durationDays: Number,
+      listingLimit: Number,
+      roles: [String]
+    },
+    freeAccessChangedAt: {
+      type: Date
+    },
+    // Optional admin-editable paywall copy (blank → mode-aware default text).
+    freeAccessPaywallTitle: {
+      type: String,
+      default: ''
+    },
+    freeAccessPaywallMessage: {
+      type: String,
+      default: ''
+    },
     targetTitle: {
       type: String,
       default: 'Monthly Target'

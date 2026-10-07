@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, User, Wallet, Heart, HelpCircle, ChevronRight,
@@ -31,11 +31,14 @@ const MobileMenu = ({ isOpen, onClose }) => {
         }
     }, [isOpen, user]);
 
+    const openedAtPathRef = useRef(null);
+
     // Lock scroll and pause Lenis when open
     useEffect(() => {
         if (isOpen) {
             if (window.lenis) window.lenis.stop();
             const scrollY = window.scrollY;
+            openedAtPathRef.current = location.pathname;
             document.body.style.position = 'fixed';
             document.body.style.top = `-${scrollY}px`;
             document.body.style.width = '100%';
@@ -49,7 +52,9 @@ const MobileMenu = ({ isOpen, onClose }) => {
             document.body.style.width = '';
             document.body.style.overflow = '';
             document.documentElement.style.overflow = '';
-            if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            // Only put the scroll back if we're still on the page the menu was opened
+            // from; after navigating, the new page must start where ScrollToTop puts it.
+            if (scrollY && openedAtPathRef.current === location.pathname) window.scrollTo(0, parseInt(scrollY || '0') * -1);
         }
         return () => {
             if (window.lenis) window.lenis.start();
@@ -208,7 +213,6 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                     <SectionTitle title="Bookings & Orders" />
                                     <div className="flex flex-col gap-1">
                                         <MenuItem icon={CalendarCheck} label="My Service Bookings" path="/user/home-services/bookings" />
-                                        <MenuItem icon={Building} label="Hotel & Stay Bookings" path="/bookings" />
                                     </div>
                                 </div>
                             )}
