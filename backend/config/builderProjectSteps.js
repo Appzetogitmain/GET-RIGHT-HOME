@@ -597,14 +597,11 @@ export const createBuilderSteps = () => [
       { name: 'contactWhatsapp', label: 'WhatsApp Number', type: 'text', placeholder: 'e.g. 9876543210', required: false, order: 3 },
       { name: 'contactAltNumber', label: 'Alternate Number', type: 'text', placeholder: 'e.g. 9876543211', required: false, order: 4 },
       { name: 'contactEmail', label: 'Email Address', type: 'text', placeholder: 'e.g. sales@sujayconstructions.com', required: false, order: 5 },
-      { name: 'contactOfficeAddress', label: 'Office Address', type: 'textarea', placeholder: 'e.g. Sujay Constructions, Nallagandla, Hyderabad', required: false, order: 6 },
-      { name: 'contactWorkingHours', label: 'Working Hours', type: 'text', placeholder: 'e.g. 10:00 AM - 7:00 PM', required: false, order: 7 },
-      { name: 'leadRouting', label: 'Lead Routing', type: 'pill', options: ['Direct to Builder', 'Platform Sales Team', 'Masked / Controlled'], required: false, order: 8 },
-      { name: 'contactWebsite', label: 'Website', type: 'text', placeholder: 'e.g. https://sujayconstructions.com', required: false, order: 9 },
-      { name: 'socialFacebook', label: 'Facebook URL', type: 'text', placeholder: 'https://facebook.com/...', required: false, order: 10 },
-      { name: 'socialInstagram', label: 'Instagram URL', type: 'text', placeholder: 'https://instagram.com/...', required: false, order: 11 },
-      { name: 'socialLinkedin', label: 'LinkedIn URL', type: 'text', placeholder: 'https://linkedin.com/...', required: false, order: 12 },
-      { name: 'socialYoutube', label: 'YouTube URL', type: 'text', placeholder: 'https://youtube.com/...', required: false, order: 13 }
+      { name: 'leadRouting', label: 'Lead Routing', type: 'pill', options: ['Direct to Builder', 'Platform Sales Team', 'Masked / Controlled'], required: false, order: 6 },
+      { name: 'socialFacebook', label: 'Facebook URL', type: 'text', placeholder: 'https://facebook.com/...', required: false, order: 7 },
+      { name: 'socialInstagram', label: 'Instagram URL', type: 'text', placeholder: 'https://instagram.com/...', required: false, order: 8 },
+      { name: 'socialLinkedin', label: 'LinkedIn URL', type: 'text', placeholder: 'https://linkedin.com/...', required: false, order: 9 },
+      { name: 'socialYoutube', label: 'YouTube URL', type: 'text', placeholder: 'https://youtube.com/...', required: false, order: 10 }
     ]
   },
   {
