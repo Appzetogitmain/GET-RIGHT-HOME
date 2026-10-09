@@ -154,6 +154,7 @@ const PartnerWallet = () => {
                             // 3. Verify Payment
                             await walletService.verifyAddMoney({
                                 ...response,
+                                viewAs: 'partner', // credit the partner wallet (the one this page shows)
                                 amount // Pass amount for reference
                             });
                             toast.success('Money added successfully!');

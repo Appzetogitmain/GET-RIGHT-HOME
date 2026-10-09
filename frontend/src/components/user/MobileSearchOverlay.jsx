@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, Search, Crosshair, Plus, Loader2, MapPin, Clock, ChevronDown, Check } from 'lucide-react';
+import { useJsApiLoader } from '@react-google-maps/api';
 import { api } from '../../services/apiService';
+import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 import { addRecentSearch, getRecentSearches } from '../../utils/recentActivity';
 
 /**
@@ -96,7 +98,10 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
   const [range, setRange] = useState([0, null]);         // [minIndex, maxIndex] into steps
   const [panel, setPanel] = useState('');                // which filter is open
   const [cities, setCities] = useState([]);
+  const [areaMap, setAreaMap] = useState({});              // lower-case city -> localities (null = not a city)
+  const cityFlags = useRef(new Set());                     // names added as a city (suggestion / chip / GPS)
   const [locating, setLocating] = useState(false);
+  const { isLoaded: mapsReady } = useJsApiLoader({ id: GOOGLE_MAPS_SCRIPT_ID, googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
 
   const steps = tab === 'rent' || tab === 'pg' ? RENT_STEPS : BUY_STEPS;
   const lastIdx = steps.length - 1;
@@ -132,20 +137,104 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
       .catch(() => setCities([]));
   }, [open, cities.length]);
 
-  // Place suggestions while typing.
+  // Place suggestions while typing: places that have listings with us first, then
+  // every other locality / city Google knows (so a new area is never a dead end).
   useEffect(() => {
     const q = text.trim();
     if (!open || q.length < 1) { setSuggestions([]); setSugLoading(false); return undefined; }
     setSugLoading(true);
     let live = true;
-    const t = setTimeout(() => {
-      api.get('/properties/locations', { params: { q, limit: 8 } })
-        .then((res) => { if (live) setSuggestions(res.data?.suggestions || []); })
-        .catch(() => { if (live) setSuggestions([]); })
-        .finally(() => live && setSugLoading(false));
+    const t = setTimeout(async () => {
+      const ours = await api.get('/properties/locations', { params: { q, limit: 6 } })
+        .then((res) => res.data?.suggestions || [])
+        .catch(() => []);
+
+      // Typing a city lists that city's localities too (listings first, then well-known ones).
+      let localities = [];
+      const cityHit = ours.find((o) => o.type === 'City' && o.name.toLowerCase() === q.toLowerCase())
+        || ours.find((o) => o.type === 'City' && o.name.toLowerCase().startsWith(q.toLowerCase()));
+      if (cityHit) {
+        localities = await api.get('/properties/popular-areas', { params: { city: cityHit.name } })
+          .then((res) => (res.data?.areas || [])
+            .filter((a) => a.name && a.name.length > 2 && !/^\d+$/.test(a.name) && a.name.toLowerCase() !== cityHit.name.toLowerCase())
+            .slice(0, 8)
+            .map((a) => ({ type: 'Locality', name: a.name, label: `${a.name}, ${cityHit.name}`, count: a.count })))
+          .catch(() => []);
+      }
+
+      let google = [];
+      if (window.google?.maps?.places) {
+        google = await new Promise((resolve) => {
+          new window.google.maps.places.AutocompleteService().getPlacePredictions(
+            { input: q, componentRestrictions: { country: 'in' }, types: ['(regions)'] },
+            (preds, status) => resolve(status === 'OK' && preds ? preds : [])
+          );
+        }).then((preds) => preds.map((p) => {
+          const types = p.types || [];
+          const type = types.includes('locality') || types.includes('administrative_area_level_2') ? 'City'
+            : types.some((x) => x.startsWith('sublocality') || x === 'neighborhood') ? 'Locality' : 'Place';
+          return {
+            type,
+            name: p.structured_formatting?.main_text || p.description,
+            label: p.description.replace(/, India$/, ''),
+            fromGoogle: true
+          };
+        }));
+      }
+
+      if (!live) return;
+      const merged = [];
+      const seen = new Set();
+      [...ours, ...localities, ...google].forEach((item) => {
+        const key = `${item.name.toLowerCase()}|${item.type === 'City' ? 'city' : 'place'}`;
+        const plain = item.name.toLowerCase();
+        if (seen.has(key) || (item.fromGoogle && seen.has(`${plain}|city`) && item.type === 'City')) return;
+        seen.add(key);
+        merged.push(item);
+      });
+      setSuggestions(merged.slice(0, 12));
+      setSugLoading(false);
     }, 250);
     return () => { live = false; clearTimeout(t); };
-  }, [text, open]);
+  }, [text, open, mapsReady]);
+
+  // Popular localities around each city chip (like 99acres): areas that have listings with
+  // us first, then well-known localities from Google, so any city gets suggestions.
+  useEffect(() => {
+    if (!open) return;
+    places.forEach((name) => {
+      const key = name.toLowerCase();
+      if (key in areaMap) return;
+      setAreaMap((m) => ({ ...m, [key]: null }));            // mark as in-flight / not a city
+      (async () => {
+        const ours = await api.get('/properties/popular-areas', { params: { city: name } })
+          .then((res) => (res.data?.areas || [])
+            .filter((a) => a.name && a.name.length > 2 && !/^\d+$/.test(a.name) && a.name.toLowerCase() !== key)
+            .map((a) => a.name))
+          .catch(() => []);
+        const isCity = cityFlags.current.has(key) || cities.some((c) => c.city?.toLowerCase() === key) || ours.length > 0;
+        if (!isCity) return;
+        let google = [];
+        if (window.google?.maps?.places) {
+          google = await new Promise((resolve) => {
+            new window.google.maps.places.PlacesService(document.createElement('div')).textSearch(
+              { query: `popular localities in ${name}` },
+              (res, st) => resolve(st === 'OK' && res ? res : [])
+            );
+          }).then((res) => res
+            .filter((r) => (r.types || []).some((t) => ['sublocality', 'sublocality_level_1', 'neighborhood', 'locality'].includes(t)))
+            .map((r) => r.name));
+        }
+        const seen = new Set([key]);
+        const list = [...ours, ...google].filter((n) => {
+          const k = String(n).toLowerCase();
+          if (seen.has(k)) return false;
+          seen.add(k); return true;
+        }).slice(0, 14);
+        if (list.length) setAreaMap((m) => ({ ...m, [key]: list }));
+      })();
+    });
+  }, [places, open, mapsReady, cities]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lock the page behind the sheet.
   useEffect(() => {
@@ -175,9 +264,10 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
   if (!open) return null;
 
   const toggle = (list, setList, v) => setList(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-  const addPlace = (name) => {
+  const addPlace = (name, isCity = false) => {
     const n = String(name || '').trim();
     if (!n) return;
+    if (isCity) cityFlags.current.add(n.toLowerCase());
     setPlaces((p) => (p.some((x) => x.toLowerCase() === n.toLowerCase()) ? p : [...p, n]));
     setText(''); setSuggestions([]);
     inputRef.current?.focus();
@@ -192,7 +282,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json`);
           const data = await res.json();
           const city = data.address?.city || data.address?.town || data.address?.village || data.address?.state_district || '';
-          if (city) addPlace(city);
+          if (city) addPlace(city, true);
         } finally { setLocating(false); }
       },
       () => setLocating(false),
@@ -200,6 +290,8 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
     );
   };
 
+  const localityCity = [...places].reverse().find((n) => areaMap[n.toLowerCase()]?.length) || '';
+  const localityList = localityCity ? areaMap[localityCity.toLowerCase()] : [];
   const typeList = TYPES[tab];
   const showBhk = ['buy', 'rent', 'pg'].includes(tab);
   const showStatus = ['buy', 'commercial', 'plots'].includes(tab) && tab !== 'plots';
@@ -313,7 +405,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
               )}
               {suggestions.map((s) => (
                 <li key={`${s.type}-${s.label}`} className="border-b border-gray-50 last:border-0">
-                  <button type="button" onClick={() => addPlace(s.type === 'Locality' ? s.name : s.name)} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50">
+                  <button type="button" onClick={() => addPlace(s.name, s.type === 'City')} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50">
                     <MapPin size={15} className="shrink-0 text-gray-400" />
                     <span className="min-w-0 flex-1 truncate text-[14px] text-gray-800">{s.label}</span>
                     <span className="shrink-0 text-[11px] font-medium text-gray-400">{s.type}</span>
@@ -333,6 +425,20 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
             </div>
           )}
         </div>
+
+        {/* Popular localities of the chosen city */}
+        {!text.trim() && localityCity && (
+          <div className="mt-3 bg-white px-4 py-4">
+            <p className="mb-3 text-[13px] text-gray-500">Popular Localities in <span className="font-bold text-gray-800">{localityCity}</span></p>
+            <div className="flex flex-wrap gap-2">
+              {localityList.filter((n) => !places.some((x) => x.toLowerCase() === n.toLowerCase())).map((n) => (
+                <button key={n} type="button" onClick={() => addPlace(n)} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] font-semibold text-gray-700 active:scale-95">
+                  <Plus size={12} className="text-gray-400" /> {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="mt-3 bg-white px-4 py-3">
@@ -397,7 +503,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
             <p className="mb-3 text-[13px] text-gray-500">Popular cities in <span className="font-bold text-gray-800">India</span></p>
             <div className="flex flex-wrap gap-2">
               {cities.map(({ city, count }) => (
-                <button key={city} type="button" onClick={() => addPlace(city)} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] font-semibold text-gray-700 active:scale-95">
+                <button key={city} type="button" onClick={() => addPlace(city, true)} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] font-semibold text-gray-700 active:scale-95">
                   <Plus size={12} className="text-gray-400" /> {city} <span className="text-[10px] font-bold text-gray-300">{count}</span>
                 </button>
               ))}

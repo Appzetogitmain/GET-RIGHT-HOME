@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import MobileMenu from '../../components/ui/MobileMenu';
 import { useNavigate } from 'react-router-dom';
 import BannerCarousel from './BannerCarousel';
-import CityDropdown from './CityDropdown';
 import toast from 'react-hot-toast';
 import DesktopSearchFilterBar from './DesktopSearchFilterBar';
 import MobileSearchOverlay from './MobileSearchOverlay';
@@ -183,21 +182,10 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                 {/* This is the ref element — its position triggers sticky */}
                 <div
                     ref={searchBoxRef}
-                    className="lg:hidden absolute -bottom-[72px] left-1/2 -translate-x-1/2 w-[92%] md:w-[78%] z-40"
+                    className="lg:hidden absolute -bottom-6 left-1/2 -translate-x-1/2 w-[92%] md:w-[78%] z-40"
                 >
-                    {/* ROW 1: City Dropdown — full width pill */}
-                    <div className="w-full bg-white rounded-t-2xl border border-b-0 border-gray-200 shadow-md px-3 py-2.5 flex items-center gap-2">
-                        <CityDropdown
-                            selectedCity={selectedCity}
-                            selectedDistrict={selectedDistrict}
-                            onSelect={handleCitySelect}
-                            theme={theme}
-                            fullWidth
-                        />
-                    </div>
-
-                    {/* ROW 2: Search bar */}
-                    <div className="w-full bg-white rounded-b-2xl border border-gray-200 shadow-lg px-3 py-2.5 flex items-center gap-2">
+                    {/* Search bar */}
+                    <div className="w-full bg-white rounded-2xl border border-gray-200 shadow-lg px-3 py-2.5 flex items-center gap-2">
                         <Search size={19} strokeWidth={2} className="text-gray-400 shrink-0" />
 
                         {/* Animated placeholder / real input */}

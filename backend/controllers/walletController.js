@@ -64,8 +64,13 @@ const getWalletRole = (userRole, viewAs) => {
   if (viewAs === 'partner') return 'partner';
   if (viewAs === 'admin') return 'admin';
 
-  // Default based on current authenticated user role
-  return userRole || 'user';
+  // Wallets only exist for user / partner / admin. Owners, builders and brokers
+  // (and anything else) hold their personal wallet as 'user'; the partner app asks
+  // for its own wallet with viewAs=partner. (Passing the raw role, e.g. 'owner',
+  // used to fail the Wallet enum and surface as a 500.)
+  if (userRole === 'admin' || userRole === 'superadmin' || userRole === 'manager') return 'admin';
+  if (userRole === 'partner') return 'partner';
+  return 'user';
 };
 
 /**
@@ -751,8 +756,8 @@ export const createAddMoneyOrder = async (req, res) => {
  */
 export const verifyAddMoneyPayment = async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
-    const role = getWalletRole(req.user.role);
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount, viewAs } = req.body;
+    const role = getWalletRole(req.user.role, viewAs);
 
     const sign = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSign = crypto
