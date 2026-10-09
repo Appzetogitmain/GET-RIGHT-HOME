@@ -163,9 +163,9 @@ const AdminFeaturedProperties = () => {
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-            <Star className="text-amber-500 fill-amber-500" /> Featured Projects Hub
+            <Star className="text-amber-500 fill-amber-500" /> Handpicked Properties Hub
           </h1>
-          <p className="text-sm text-slate-500 mt-1 font-medium">Manage handpicked tags and dynamic plan tiers.</p>
+          <p className="text-sm text-slate-500 mt-1 font-medium">Choose which properties appear as Handpicked on the website, and manage Handpicked tiers (Pro / Gold / Silver).</p>
         </div>
         
         <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner border border-slate-200">
@@ -173,13 +173,13 @@ const AdminFeaturedProperties = () => {
             onClick={() => setActiveTab('properties')}
             className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'properties' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            Assign Tags
+            Assign Handpicked
           </button>
           <button 
             onClick={() => setActiveTab('plans')}
             className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'plans' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            Manage Plans
+            Handpicked Tiers
           </button>
         </div>
       </div>
@@ -217,7 +217,7 @@ const AdminFeaturedProperties = () => {
                   <tr>
                     <th className="p-4 font-bold">Property Details</th>
                     <th className="p-4 font-bold">Listed By</th>
-                    <th className="p-4 font-bold">Current Tag</th>
+                    <th className="p-4 font-bold">Handpicked Status</th>
                     <th className="p-4 font-bold">Duration</th>
                     <th className="p-4 font-bold text-right">Action</th>
                   </tr>
@@ -241,9 +241,9 @@ const AdminFeaturedProperties = () => {
                       <td className="p-4">
                         {p.featuredDetails?.isFeatured ? (
                           <span className={`px-2 py-1 bg-amber-100 text-amber-700 border border-amber-200 rounded-md text-xs font-bold flex items-center gap-1 w-max`}>
-                            <Star size={12} className="fill-amber-500 text-amber-500"/> {(p.featuredDetails.planName && p.featuredDetails.planName !== 'None') ? p.featuredDetails.planName : 'Handpicked'}
+                            <Star size={12} className="fill-amber-500 text-amber-500"/> {(p.featuredDetails.planName && p.featuredDetails.planName !== 'None') ? `Handpicked · ${p.featuredDetails.planName}` : 'Handpicked'}
                           </span>
-                        ) : <span className="text-xs text-slate-400 font-medium">Standard Listing</span>}
+                        ) : <span className="text-xs text-slate-400 font-medium">Not Handpicked</span>}
                       </td>
                       <td className="p-4">
                         {p.featuredDetails?.isFeatured && p.featuredDetails.durationDays ? (
@@ -257,7 +257,7 @@ const AdminFeaturedProperties = () => {
                           onClick={() => handleOpenPropModal(p)}
                           className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                         >
-                          Manage Tag
+                          Manage Handpicked
                         </button>
                       </td>
                     </tr>
@@ -334,26 +334,26 @@ const AdminFeaturedProperties = () => {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-5 border-b border-slate-100 flex justify-between items-center">
               <div>
-                <h3 className="text-lg font-bold text-slate-800">Assign Featured Plan</h3>
+                <h3 className="text-lg font-bold text-slate-800">Make Handpicked</h3>
                 <p className="text-xs text-slate-500">{selectedProperty?.projectName || selectedProperty?.propertyName}</p>
               </div>
               <button onClick={() => setIsPropModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
             <div className="p-5 space-y-5">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Select Plan</label>
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Choose a tier (any option except Remove makes it Handpicked)</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => setSelectedPlanId('None')}
                     className={`p-3 rounded-xl border-2 text-left ${selectedPlanId === 'None' ? 'border-red-500 bg-red-50' : 'border-slate-100'}`}
                   >
-                    <div className="font-bold text-sm">Remove Tag</div>
+                    <div className="font-bold text-sm">Remove (Not Handpicked)</div>
                   </button>
                   <button
                     onClick={() => { setSelectedPlanId('Standard'); setDurationDays(''); }}
                     className={`p-3 rounded-xl border-2 text-left ${selectedPlanId === 'Standard' ? 'border-blue-500 bg-blue-50' : 'border-slate-100'}`}
                   >
-                    <div className="font-bold text-sm">Standard (No Plan)</div>
+                    <div className="font-bold text-sm">Handpicked (Standard)</div>
                   </button>
                   {plans.map(plan => (
                     <button
@@ -381,7 +381,7 @@ const AdminFeaturedProperties = () => {
             </div>
             <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
               <button onClick={() => setIsPropModalOpen(false)} className="px-5 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-200">Cancel</button>
-              <button onClick={handleSaveFeatured} className="px-5 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700">Save Tag</button>
+              <button onClick={handleSaveFeatured} className="px-5 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700">Save Handpicked</button>
             </div>
           </div>
         </div>
