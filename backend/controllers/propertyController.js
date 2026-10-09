@@ -1757,7 +1757,29 @@ export const getPublicProperties = async (req, res) => {
               { $cond: ['$promotionLive', { $ifNull: ['$promotion.verifiedBadge', false] }, false] }
             ]
           },
-          isShowcased: { $cond: ['$promotionLive', { $ifNull: ['$promotion.showcase', false] }, false] }
+          isShowcased: { $cond: ['$promotionLive', { $ifNull: ['$promotion.showcase', false] }, false] },
+          // Plan ladder position: RM 3 > Premium 2 > Basic 1 > Free 0.
+          // Listings promoted before tierRank existed fall back to their tier name.
+          tierRank: {
+            $cond: [
+              '$promotionLive',
+              {
+                $ifNull: [
+                  '$promotion.tierRank',
+                  {
+                    $switch: {
+                      branches: [
+                        { case: { $eq: ['$promotion.planTier', 'relationship_manager'] }, then: 3 },
+                        { case: { $eq: ['$promotion.planTier', 'premium'] }, then: 2 }
+                      ],
+                      default: 1
+                    }
+                  }
+                ]
+              },
+              0
+            ]
+          }
         }
       }
     );
@@ -1812,6 +1834,10 @@ export const getPublicProperties = async (req, res) => {
             // never interferes with tier ordering among equally-filtered
             // results: RM > Premium > Basic > unsubscribed still holds.
             { $min: [{ $multiply: [{ $ifNull: ['$rankingWeight', 0] }, 0.6] }, 60] },
+            // Plan tier on top of the admin weight, so Premium beats Basic even
+            // if both were given the same weight. Only decisive with a free-text
+            // search; without one the sort below is tier-first anyway.
+            { $multiply: [{ $ifNull: ['$tierRank', 0] }, 20] },
             { $cond: ['$isShowcased', 12, 0] }, // showcase entitlement — visibility, not an outrank-everything switch
             { $cond: [{ $eq: ['$isVerified', true] }, 15, 0] },
             { $cond: [{ $eq: ['$reraVerified', true] }, 5, 0] },
@@ -2056,9 +2082,16 @@ export const getPublicProperties = async (req, res) => {
     }
 
     // 7. Sorting
-    let sortStage = { relevanceScore: -1, createdAt: -1 }; // Priority: relevance then Newest
+    // Default ordering is plan-tier first (Premium > Basic > Free), then
+    // relevance. With a free-text search, relevance leads instead — a listing
+    // whose name/locality actually matches must not be buried under a paid one
+    // — and tier still counts via its share of relevanceScore.
+    const defaultSort = searchTerm
+      ? { relevanceScore: -1, tierRank: -1, createdAt: -1 }
+      : { tierRank: -1, relevanceScore: -1, createdAt: -1 };
+    let sortStage = defaultSort;
     if (sort) {
-      if (sort === 'relevance') sortStage = { relevanceScore: -1, createdAt: -1 };
+      if (sort === 'relevance') sortStage = defaultSort;
       if (sort === 'newest') sortStage = { createdAt: -1, relevanceScore: -1 };
       if (sort === 'price_low' || sort === 'priceAsc') sortStage = { startingPrice: 1, relevanceScore: -1 };
       if (sort === 'price_high' || sort === 'priceDesc') sortStage = { startingPrice: -1, relevanceScore: -1 };

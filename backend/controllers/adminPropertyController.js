@@ -34,8 +34,13 @@ export const getAdminFeaturedProperties = async (req, res) => {
       .sort({ createdAt: -1 })
       .catch(() => []);
 
+    // type=all lists every approved property so admin can handpick any listing
+    // (owner/broker too); type=projects keeps the project/builder-only view.
+    const includeAll = req.query.type === 'all';
+
     const dbPropertyProjects = allApprovedProps.filter(p => {
       if (!p || p.status !== 'approved') return false;
+      if (includeAll) return true;
       const creatorRole = String(p.partnerId?.role || p.userId?.role || p.userId?.userType || '').toLowerCase();
       const catName = String(p.propertyCategory || p.dynamicCategory?.name || p.dynamicCategory?.displayName || '').toLowerCase();
 

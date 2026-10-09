@@ -403,6 +403,9 @@ const propertySchema = new mongoose.Schema({
     mode: { type: String, default: null },
     planName: { type: String, default: '' },
     planTier: { type: String, default: '' },
+    // Free 0 < Basic 1 < Premium 2 < RM 3 (see TIER_RANK). Search sorts on
+    // this first so a higher plan always outranks a lower one.
+    tierRank: { type: Number, default: 0 },
     weight: { type: Number, default: 0 },
     showcase: { type: Boolean, default: false },
     priorityPlacement: { type: Boolean, default: false },

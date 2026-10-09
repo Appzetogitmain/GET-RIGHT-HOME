@@ -167,6 +167,8 @@ const InlinePropertySubscribe = ({ propertyId, user, onActivated, onBack }) => {
                         const Icon = cfg.icon;
                         const highlights = planHighlights(plan);
                         const isSubmittingThis = submitting === plan._id;
+                        // State is relative to THIS listing's current plan (backend-computed).
+                        const state = plan.planState || 'upgrade';
                         return (
                             <div key={plan._id} className="border border-slate-200 hover:border-slate-300 rounded-2xl overflow-hidden shadow-xs transition-all">
                                 <div className={`px-4 py-2.5 bg-gradient-to-r ${cfg.gradient} flex items-center gap-2`}>
@@ -182,14 +184,24 @@ const InlinePropertySubscribe = ({ propertyId, user, onActivated, onBack }) => {
                                             </div>
                                         ))}
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => handlePurchase(plan)}
-                                        disabled={!!submitting}
-                                        className="w-full py-2.5 rounded-xl bg-[#005B9F] hover:bg-[#004a83] active:scale-[0.98] text-white text-xs font-bold disabled:opacity-50 transition-all cursor-pointer shadow-sm"
-                                    >
-                                        {isSubmittingThis ? 'Processing...' : `Get ${plan.name}`}
-                                    </button>
+                                    {state === 'upgrade' ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => handlePurchase(plan)}
+                                            disabled={!!submitting}
+                                            className="w-full py-2.5 rounded-xl bg-[#005B9F] hover:bg-[#004a83] active:scale-[0.98] text-white text-xs font-bold disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                                        >
+                                            {isSubmittingThis ? 'Processing...' : 'Upgrade Now'}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            disabled
+                                            className={`w-full py-2.5 rounded-xl text-xs font-bold cursor-default ${state === 'current' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}`}
+                                        >
+                                            {state === 'current' ? 'Current Plan' : 'Included in your plan'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         );

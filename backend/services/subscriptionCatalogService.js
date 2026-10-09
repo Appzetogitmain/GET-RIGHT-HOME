@@ -19,7 +19,62 @@ import {
     resolveProfileType,
     allowedModesFor,
     resolveMode,
+    tierRank,
+    FREE_TIER_RANK,
 } from '../utils/subscriptionConstants.js';
+
+/**
+ * Rank of each live subscription, keyed by subscription id.
+ *
+ * Read from the plan's price rather than the amount paid, so an admin's ₹0
+ * offline assignment of a Premium plan still counts as Premium.
+ */
+const rankSubscriptions = async (subs) => {
+    const planIds = [...new Set(subs.map((s) => String(s.planId)))];
+    const plans = await SubscriptionPlan.find({ _id: { $in: planIds } }).select('price').lean();
+    const priceOf = Object.fromEntries(plans.map((p) => [String(p._id), p.price]));
+
+    return Object.fromEntries(
+        subs.map((s) => [String(s._id), tierRank(s.planTier, priceOf[String(s.planId)])])
+    );
+};
+
+/**
+ * The tier the user is currently on, for the plan cards.
+ *
+ * Scoped to one listing when the page was opened from that listing's Boost
+ * button; otherwise the highest live plan across the user's listings in this
+ * mode. No live plan means Free.
+ */
+const resolveCurrentPlan = async (user, modes, property) => {
+    const match = {
+        status: SUBSCRIPTION_STATUS.ACTIVE,
+        expiryDate: { $gt: new Date() },
+        mode: { $in: modes },
+    };
+    if (property) match.propertyIds = property._id;
+    else match.userId = user._id || user.id;
+
+    const subs = await Subscription.find(match).select('planId planTier planName').lean();
+    if (!subs.length) return { rank: FREE_TIER_RANK, planId: null, planName: 'Free' };
+
+    const ranks = await rankSubscriptions(subs);
+    const top = subs.reduce((best, s) =>
+        (ranks[String(s._id)] > ranks[String(best._id)] ? s : best));
+
+    return { rank: ranks[String(top._id)], planId: String(top.planId), planName: top.planName };
+};
+
+/**
+ * current — the plan the user is on (a ₹0 plan is "current" for a Free user)
+ * upgrade — a higher tier: Upgrade Now
+ * included — a lower tier the user has already outgrown
+ */
+const planStateFor = (plan, current) => {
+    const rank = tierRank(plan.planTier, plan.price);
+    if (current.planId === String(plan._id) || rank === current.rank) return 'current';
+    return rank > current.rank ? 'upgrade' : 'included';
+};
 
 /**
  * Plans this user may purchase.
@@ -57,9 +112,9 @@ export const getEligiblePlans = async (user, opts = {}) => {
         modes = allowed.includes(opts.mode) ? [opts.mode] : [];
     }
 
-    if (modes.length === 0) return { userRole, modes: [], plans: [], property };
+    if (modes.length === 0) return { userRole, modes: [], plans: [], property, currentPlan: null };
 
-    const plans = await SubscriptionPlan.find({
+    const rawPlans = await SubscriptionPlan.find({
         isActive: true,
         schemaVersion: 2,
         targetRole: userRole,
@@ -68,7 +123,18 @@ export const getEligiblePlans = async (user, opts = {}) => {
         .sort({ displayOrder: 1, price: 1 })
         .lean();
 
-    return { userRole, modes, plans, property };
+    const current = await resolveCurrentPlan(user, modes, property);
+
+    // Ladder order (Free → Basic → Premium → RM); displayOrder/price break ties.
+    const plans = rawPlans
+        .map((plan) => ({
+            ...plan,
+            tierRank: tierRank(plan.planTier, plan.price),
+            planState: planStateFor(plan, current),
+        }))
+        .sort((a, b) => a.tierRank - b.tierRank);
+
+    return { userRole, modes, plans, property, currentPlan: current };
 };
 
 /**
@@ -151,19 +217,23 @@ export const assertPurchasable = async (user, plan, propertyIds = []) => {
             };
         }
 
-        // One live subscription per listing. Upgrading is an explicit action,
-        // not an accidental second purchase.
+        // One live subscription per listing. Buying a HIGHER tier is an upgrade
+        // (the old one is retired at activation); the same or a lower tier is
+        // refused so nobody pays twice for what they already have.
         const existing = await Subscription.findOne({
             propertyIds: property._id,
             status: SUBSCRIPTION_STATUS.ACTIVE,
             expiryDate: { $gt: new Date() },
-        });
+        }).lean();
         if (existing) {
-            return {
-                ok: false,
-                reason: `"${property.propertyName || 'This listing'}" already has an active subscription until ${existing.expiryDate.toLocaleDateString('en-IN')}`,
-                existing,
-            };
+            const ranks = await rankSubscriptions([existing]);
+            if (ranks[String(existing._id)] >= tierRank(plan.planTier, plan.price)) {
+                return {
+                    ok: false,
+                    reason: `"${property.propertyName || 'This listing'}" is already on ${existing.planName} until ${new Date(existing.expiryDate).toLocaleDateString('en-IN')} — choose a higher plan to upgrade`,
+                    existing,
+                };
+            }
         }
     }
 
@@ -195,16 +265,26 @@ export const getSubscribableProperties = async (user, mode) => {
         expiryDate: { $gt: new Date() },
     }).lean();
 
-    const subscribed = new Set();
+    const ranks = await rankSubscriptions(active);
+    const subscribed = {};
     for (const sub of active) {
-        for (const id of sub.propertyIds) subscribed.add(String(id));
+        for (const id of sub.propertyIds) {
+            subscribed[String(id)] = { planName: sub.planName, rank: ranks[String(sub._id)] };
+        }
     }
 
-    return inMode.map((p) => ({
-        ...p,
-        mode,
-        hasActiveSubscription: subscribed.has(String(p._id)),
-    }));
+    // The picker uses currentTierRank to let a listing through only for a
+    // plan above the one it already holds.
+    return inMode.map((p) => {
+        const sub = subscribed[String(p._id)];
+        return {
+            ...p,
+            mode,
+            hasActiveSubscription: !!sub,
+            currentPlanName: sub?.planName || 'Free',
+            currentTierRank: sub ? sub.rank : FREE_TIER_RANK,
+        };
+    });
 };
 
 /** Active subscription covering one listing, if any. */

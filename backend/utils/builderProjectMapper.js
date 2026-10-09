@@ -387,9 +387,7 @@ export const mapBuilderProjectFields = (dynamicData) => {
     contactPerson: toStr(get('contactPerson')),
     mobile: toStr(get('contactNumber')),
     altMobile: toStr(get('contactAltNumber')),
-    email: toStr(get('contactEmail')),
-    officeAddress: toStr(get('contactOfficeAddress')),
-    website: toStr(get('contactWebsite'))
+    email: toStr(get('contactEmail'))
   });
   if (Object.keys(social).length) contactDetails.social = social;
   if (Object.keys(contactDetails).length) mapped.contactDetails = contactDetails;

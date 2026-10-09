@@ -403,7 +403,7 @@ const MyBookings = () => {
 
                   {/* Header Section */}
                   <div className="relative z-10 flex items-start justify-between mb-4 border-b border-slate-100 pb-4">
-                    <div className="pr-4 flex-1">
+                    <div className="pr-3 flex-1 min-w-0">
                       <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-1.5 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
                         #{booking.bookingNumber || (booking._id || booking.id).substring(0, 8)}
@@ -445,9 +445,9 @@ const MyBookings = () => {
                     </div>
 
                     {/* Status Badge */}
-                    <div className={`shrink-0 px-3 py-1 pb-1.5 rounded-full border ring-1 ring-inset flex items-center gap-1.5 shadow-sm ${getStatusColor(booking.status)}`}>
+                    <div className={`shrink-0 max-w-[44%] px-3 py-1.5 rounded-2xl border ring-1 ring-inset flex items-center gap-1.5 shadow-sm ${getStatusColor(booking.status)}`}>
                       {getStatusIcon(booking.status)}
-                      <span className="text-[11px] font-bold uppercase tracking-wide">
+                      <span className="text-[11px] font-bold uppercase tracking-wide leading-tight break-words min-w-0">
                         {getStatusLabel(booking.status)}
                       </span>
                     </div>

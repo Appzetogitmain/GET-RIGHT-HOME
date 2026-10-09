@@ -35,6 +35,28 @@ export const PLAN_TIER = {
   CUSTOM: 'custom',
 };
 
+/**
+ * Upgrade ladder: Free < Basic < Premium < Relationship Manager.
+ *
+ * "Free" is not a tier of its own — it is any plan priced at 0, or holding no
+ * plan at all. Custom plans are admin-defined one-offs and sit with Basic.
+ * Drives both the Upgrade Now / Current Plan states and search visibility.
+ */
+export const FREE_TIER_RANK = 0;
+
+export const TIER_RANK = {
+  [PLAN_TIER.BASIC]: 1,
+  [PLAN_TIER.CUSTOM]: 1,
+  [PLAN_TIER.PREMIUM]: 2,
+  [PLAN_TIER.RELATIONSHIP_MANAGER]: 3,
+};
+
+/** Rank of a plan (or a subscription to it), with price 0 counting as Free. */
+export const tierRank = (planTier, price) => {
+  if (price != null && Number(price) <= 0) return FREE_TIER_RANK;
+  return TIER_RANK[planTier] ?? TIER_RANK[PLAN_TIER.BASIC];
+};
+
 /** Default validity per tier. Admin overrides these freely. */
 export const TIER_DEFAULT_VALIDITY_DAYS = {
   [PLAN_TIER.BASIC]: 30,

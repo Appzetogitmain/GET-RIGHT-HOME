@@ -13,7 +13,9 @@ import {
 // v4 = Transaction Type + Property Type moved INTO Step 1 and every downstream
 // step branches off them, so a single universal template replaces the old
 // one-row-per-property-type seeding.
-export const BUILDER_TEMPLATE_VERSION = 4;
+// v5 = Step 13 no longer repeats Office Address / Working Hours / Website
+// (they live in Step 12, Builder Profile).
+export const BUILDER_TEMPLATE_VERSION = 5;
 
 // The wizard is now self-describing: Step 1 collects transactionType and
 // propertyType, and later steps branch on them via `dependsOn`. So exactly one

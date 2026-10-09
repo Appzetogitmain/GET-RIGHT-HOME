@@ -27,7 +27,47 @@ import {
     ORDER_STATUS,
     PAYMENT_TYPE,
     MS_PER_DAY,
+    tierRank,
 } from '../utils/subscriptionConstants.js';
+
+/**
+ * Upgrade: retires whatever lower subscription currently covers these listings.
+ *
+ * A subscription may cover several listings, so only the upgraded listings are
+ * pulled out of it; the old record is cancelled once it covers nothing. The
+ * new subscription is created right after, so the listing is never left
+ * without a promotion in between.
+ */
+const supersedeExisting = async (propertyIds, newPlan) => {
+    if (!propertyIds?.length) return;
+
+    const ids = propertyIds.map(String);
+    const existing = await Subscription.find({
+        propertyIds: { $in: propertyIds },
+        status: SUBSCRIPTION_STATUS.ACTIVE,
+        expiryDate: { $gt: new Date() },
+    });
+
+    for (const sub of existing) {
+        const before = { status: sub.status, propertyIds: sub.propertyIds.map(String) };
+        sub.propertyIds = sub.propertyIds.filter((id) => !ids.includes(String(id)));
+
+        if (sub.propertyIds.length === 0) {
+            sub.status = SUBSCRIPTION_STATUS.CANCELLED;
+            sub.cancelledAt = new Date();
+            sub.cancelReason = `Upgraded to ${newPlan.name}`;
+        }
+        await sub.save();
+
+        await recordAudit({
+            subscriptionId: sub._id,
+            action: 'upgraded',
+            before,
+            after: { status: sub.status, propertyIds: sub.propertyIds.map(String) },
+            reason: `Upgraded to ${newPlan.name}`,
+        }).catch((e) => console.error('[Subscription] upgrade audit failed:', e.message));
+    }
+};
 
 /**
  * Stamps the purchased entitlements onto every covered listing.
@@ -39,6 +79,7 @@ export const applyPromotionToProperties = async (subscription) => {
     if (!subscription.propertyIds?.length) return;
 
     const snap = subscription.entitlementSnapshot || {};
+    const plan = await SubscriptionPlan.findById(subscription.planId).select('price').lean();
 
     await Property.updateMany(
         { _id: { $in: subscription.propertyIds } },
@@ -49,6 +90,7 @@ export const applyPromotionToProperties = async (subscription) => {
                 'promotion.mode': subscription.mode,
                 'promotion.planName': subscription.planName,
                 'promotion.planTier': subscription.planTier,
+                'promotion.tierRank': tierRank(subscription.planTier, plan?.price),
                 'promotion.weight': Number(snap.rankingWeight || 0),
                 'promotion.showcase': !!snap.showcase,
                 'promotion.priorityPlacement': !!snap.priorityPlacement,
@@ -80,6 +122,7 @@ export const clearPromotionFromProperties = async (subscription) => {
         {
             $set: {
                 'promotion.isActive': false,
+                'promotion.tierRank': 0,
                 'promotion.weight': 0,
                 'promotion.showcase': false,
                 'promotion.priorityPlacement': false,
@@ -127,6 +170,10 @@ export const activateSubscription = async ({
     const snapshot = typeof plan.entitlementSnapshot === 'function'
         ? plan.entitlementSnapshot()
         : (order?.entitlementSnapshot || {});
+
+    // Purchase was already checked to be an upgrade (assertPurchasable), so any
+    // live subscription on these listings is a lower tier being replaced.
+    await supersedeExisting(propertyIds, plan);
 
     const subscription = await Subscription.create({
         subscriptionId: generateSubscriptionId(),
