@@ -13,7 +13,8 @@ const AdminFeaturedProperties = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [listType, setListType] = useState('all'); // 'all' | 'projects'
+
   // Plans State
   const [plans, setPlans] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
@@ -43,7 +44,7 @@ const AdminFeaturedProperties = () => {
       fetchProperties(currentPage, searchQuery);
     }, 300);
     return () => clearTimeout(timer);
-  }, [currentPage, searchQuery]);
+  }, [currentPage, searchQuery, listType]);
 
   const fetchPlans = async () => {
     try {
@@ -64,7 +65,7 @@ const AdminFeaturedProperties = () => {
     try {
       setLoading(true);
       const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
-      const res = await api.get(`/admin/featured-projects?page=${page}&limit=${limit}${searchParam}&t=${Date.now()}`);
+      const res = await api.get(`/admin/featured-projects?page=${page}&limit=${limit}${searchParam}&type=${listType}&t=${Date.now()}`);
       
       const projectList = res.data?.projects || res.data?.data || (Array.isArray(res.data) ? res.data : []);
       setProjects(projectList);
@@ -187,6 +188,14 @@ const AdminFeaturedProperties = () => {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
           {/* Filters & Search */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-end">
+            <select
+              value={listType}
+              onChange={(e) => { setListType(e.target.value); setCurrentPage(1); }}
+              className="w-full md:w-48 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Properties</option>
+              <option value="projects">Projects Only</option>
+            </select>
 
             <div className="relative w-full md:w-80">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -206,7 +215,7 @@ const AdminFeaturedProperties = () => {
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
                   <tr>
-                    <th className="p-4 font-bold">Project Details</th>
+                    <th className="p-4 font-bold">Property Details</th>
                     <th className="p-4 font-bold">Listed By</th>
                     <th className="p-4 font-bold">Current Tag</th>
                     <th className="p-4 font-bold">Duration</th>
@@ -217,7 +226,7 @@ const AdminFeaturedProperties = () => {
                   {loading ? (
                     <tr><td colSpan="5" className="p-8 text-center text-slate-400">Loading...</td></tr>
                   ) : projects.length === 0 ? (
-                    <tr><td colSpan="5" className="p-8 text-center text-slate-400">No projects found.</td></tr>
+                    <tr><td colSpan="5" className="p-8 text-center text-slate-400">No properties found.</td></tr>
                   ) : projects.map(p => (
                     <tr key={p._id} className="hover:bg-slate-50">
                       <td className="p-4">
@@ -232,7 +241,7 @@ const AdminFeaturedProperties = () => {
                       <td className="p-4">
                         {p.featuredDetails?.isFeatured ? (
                           <span className={`px-2 py-1 bg-amber-100 text-amber-700 border border-amber-200 rounded-md text-xs font-bold flex items-center gap-1 w-max`}>
-                            <Star size={12} className="fill-amber-500 text-amber-500"/> {p.featuredDetails.planName || 'Handpicked'}
+                            <Star size={12} className="fill-amber-500 text-amber-500"/> {(p.featuredDetails.planName && p.featuredDetails.planName !== 'None') ? p.featuredDetails.planName : 'Handpicked'}
                           </span>
                         ) : <span className="text-xs text-slate-400 font-medium">Standard Listing</span>}
                       </td>

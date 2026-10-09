@@ -75,9 +75,12 @@ const planHighlights = (plan) => {
 const PropertyPickerModal = ({ plan, properties, loading, onClose, onConfirm, submitting }) => {
     const [selected, setSelected] = useState([]);
     const limit = plan.propertiesPerPurchase || 1;
-    // Already-subscribed listings stay visible (disabled) so an empty picker
-    // never looks like the listing went missing.
+    // Already-subscribed listings stay visible so an empty picker never looks
+    // like the listing went missing. One on a LOWER plan can be upgraded; one
+    // on the same or a higher plan is disabled.
     const available = properties;
+    const planRank = plan.tierRank ?? 0;
+    const isBlocked = (p) => p.hasActiveSubscription && (p.currentTierRank ?? 0) >= planRank;
 
     const toggle = (id) => {
         setSelected((prev) => {
@@ -149,14 +152,16 @@ const PropertyPickerModal = ({ plan, properties, loading, onClose, onConfirm, su
                     ) : (
                         available.map((p) => {
                             const isSelected = selected.includes(p._id);
+                            const blocked = isBlocked(p);
+                            const isUpgrade = p.hasActiveSubscription && !blocked;
                             return (
                                 <button
                                     key={p._id}
                                     type="button"
                                     onClick={() => toggle(p._id)}
-                                    disabled={p.hasActiveSubscription}
+                                    disabled={blocked}
                                     className={`w-full flex items-center gap-3.5 p-3 rounded-2xl border-2 text-left transition-all ${
-                                        p.hasActiveSubscription ? 'opacity-50 cursor-not-allowed border-gray-100 bg-gray-50' :
+                                        blocked ? 'opacity-50 cursor-not-allowed border-gray-100 bg-gray-50' :
                                         isSelected
                                             ? 'border-emerald-500 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20' 
                                             : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50/50'
@@ -178,10 +183,16 @@ const PropertyPickerModal = ({ plan, properties, loading, onClose, onConfirm, su
                                             <MapPin size={11} className="shrink-0 text-gray-400" />
                                             <span className="truncate">{p.address?.city || p.address?.locality || p.locality || '—'}</span>
                                         </p>
+                                        <p className="text-[10px] font-semibold text-slate-500 mt-0.5">
+                                            Current: {p.currentPlanName || 'Free'}
+                                            {isUpgrade && <span className="text-orange-600"> · will be upgraded</span>}
+                                        </p>
                                     </div>
                                     <div className="shrink-0">
-                                        {p.hasActiveSubscription ? (
-                                            <span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Subscribed</span>
+                                        {blocked ? (
+                                            <span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                {(p.currentTierRank ?? 0) === planRank ? 'Current Plan' : 'Higher Plan'}
+                                            </span>
                                         ) : isSelected ? (
                                             <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
                                                 <CheckCircle size={15} />
@@ -228,6 +239,7 @@ const PropertySubscriptionsPage = () => {
     const [mode, setMode] = useState('sale');
     const [availableModes, setAvailableModes] = useState([]);
     const [plans, setPlans] = useState([]);
+    const [currentPlan, setCurrentPlan] = useState(null);
     const [mySubscriptions, setMySubscriptions] = useState([]);
     const [pickerPlan, setPickerPlan] = useState(null);
     const [properties, setProperties] = useState([]);
@@ -272,6 +284,7 @@ const PropertySubscriptionsPage = () => {
                     return;
                 }
                 setPlans(res.plans || []);
+                setCurrentPlan(res.currentPlan || null);
             }
         } catch (err) {
             console.error(err);
@@ -326,6 +339,7 @@ const PropertySubscriptionsPage = () => {
                 toast.success('Subscription activated!', { id: tid });
                 setPickerPlan(null);
                 loadMine();
+                loadCatalog(mode);
                 return;
             }
 
@@ -353,6 +367,7 @@ const PropertySubscriptionsPage = () => {
                             toast.success(verify.message || 'Subscription activated!', { id: tid });
                             setPickerPlan(null);
                             loadMine();
+                            loadCatalog(mode);
                         } else {
                             toast.error(verify.message || 'Verification failed', { id: tid });
                         }
@@ -428,6 +443,20 @@ const PropertySubscriptionsPage = () => {
                     </div>
                 )}
 
+                {currentPlan && !loading && (
+                    <div className="mb-4 bg-white border border-[#E0E0E0] rounded p-4 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                            <ShieldCheck size={18} />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-xs text-slate-500">
+                                {scopedPropertyId ? 'This listing is on' : 'Your current plan'}
+                            </p>
+                            <p className="font-bold text-slate-900 truncate">{currentPlan.planName || 'Free'}</p>
+                        </div>
+                    </div>
+                )}
+
                 {loading ? (
                     <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
                 ) : plans.length === 0 ? (
@@ -441,6 +470,8 @@ const PropertySubscriptionsPage = () => {
                             const cfg = TIER_CONFIG[plan.planTier] || TIER_CONFIG.basic;
                             const Icon = cfg.icon;
                             const highlights = planHighlights(plan);
+                            const state = plan.planState || 'upgrade';
+                            const isPaid = Number(plan.price) > 0;
 
                             return (
                                 <motion.div
@@ -448,9 +479,13 @@ const PropertySubscriptionsPage = () => {
                                     initial={{ opacity: 0, y: 16 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.06 }}
-                                    className="relative bg-white border border-[#E0E0E0] rounded"
+                                    className={`relative bg-white border rounded ${state === 'current' ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-[#E0E0E0]'} ${state === 'included' ? 'opacity-60' : ''}`}
                                 >
-                                    {plan.planTier === 'premium' && (
+                                    {state === 'current' ? (
+                                        <span className="absolute -top-px right-4 text-[11px] font-semibold px-2.5 py-1 rounded-b bg-emerald-50 text-emerald-700">
+                                            Current Plan
+                                        </span>
+                                    ) : state === 'upgrade' && plan.planTier === 'premium' && (
                                         <span className="absolute -top-px right-4 text-[11px] font-semibold px-2.5 py-1 rounded-b bg-[#FFF3E0] text-orange-700">
                                             Recommended
                                         </span>
@@ -475,12 +510,39 @@ const PropertySubscriptionsPage = () => {
                                     </div>
 
                                     <div className="p-4">
-                                        <button
-                                            onClick={() => openPicker(plan)}
-                                            className="w-full py-3 rounded bg-orange-600 hover:bg-orange-700 text-white text-[15px] font-semibold transition active:scale-[0.99]"
-                                        >
-                                            Buy Now
-                                        </button>
+                                        {state === 'upgrade' ? (
+                                            <button
+                                                onClick={() => openPicker(plan)}
+                                                className="w-full py-3 rounded bg-orange-600 hover:bg-orange-700 text-white text-[15px] font-semibold transition active:scale-[0.99]"
+                                            >
+                                                Upgrade Now
+                                            </button>
+                                        ) : state === 'current' ? (
+                                            <>
+                                                <button
+                                                    disabled
+                                                    className="w-full py-3 rounded bg-emerald-50 text-emerald-700 text-[15px] font-semibold border border-emerald-200 cursor-default"
+                                                >
+                                                    Current Plan
+                                                </button>
+                                                {/* Plans attach per listing: the same plan can still go on a listing that has none yet. */}
+                                                {isPaid && !scopedPropertyId && (
+                                                    <button
+                                                        onClick={() => openPicker(plan)}
+                                                        className="w-full mt-2 text-sm font-semibold text-orange-600 hover:underline"
+                                                    >
+                                                        Add to another listing
+                                                    </button>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <button
+                                                disabled
+                                                className="w-full py-3 rounded bg-slate-100 text-slate-500 text-[15px] font-semibold cursor-default"
+                                            >
+                                                Included in your plan
+                                            </button>
+                                        )}
                                     </div>
                                 </motion.div>
                             );

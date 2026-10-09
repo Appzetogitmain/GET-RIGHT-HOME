@@ -60,11 +60,14 @@ export const getCatalog = async (req, res) => {
     try {
         const { mode, propertyId } = req.query;
 
-        const { userRole, modes, plans, property } = await getEligiblePlans(req.user, { mode, propertyId });
+        const { userRole, modes, plans, property, currentPlan } = await getEligiblePlans(req.user, { mode, propertyId });
 
         res.json({
             success: true,
             userRole,
+            // { rank, planId, planName } — rank 0 / "Free" when nothing is live.
+            // Each plan carries planState: current | upgrade | included.
+            currentPlan,
             availableModes: allowedModesFor(req.user),
             modes,
             property: property

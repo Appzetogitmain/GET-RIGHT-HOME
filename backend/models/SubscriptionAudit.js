@@ -28,6 +28,7 @@ const subscriptionAuditSchema = new mongoose.Schema({
             'cancelled',
             'expired',
             'reactivated',
+            'upgraded',
             'plan_created',
             'plan_updated',
             'plan_deactivated',

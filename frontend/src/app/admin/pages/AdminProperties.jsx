@@ -113,8 +113,14 @@ const AdminProperties = () => {
     }, []);
 
     const fetchProperties = useCallback(async (page, currentFilters) => {
-        const token = localStorage.getItem('adminToken');
-        if (!token) return;
+        // Same lookup as the admin axios client (adminStore.js). Checking only
+        // `adminToken` here made the page return early and sit on the loading
+        // skeleton forever for sessions stored under `adminAccessToken`.
+        const token = localStorage.getItem('adminToken') || localStorage.getItem('adminAccessToken');
+        if (!token) {
+            setLoading(false);
+            return;
+        }
 
         try {
             setLoading(true);
