@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, Calendar, Tag, Trash2, CheckCircle, Circle } from 'lucide-react';
+import { ArrowLeft, Bell, Calendar, Tag, Trash2, CheckCircle2, Circle, Wallet, Wrench, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { userService } from '../../services/apiService';
 import toast from 'react-hot-toast';
+
+const TEAL = '#ea580c'; // app orange (--color-surface)
+const YELLOW = '#D68F35';
+const ORANGE = '#c2410c';
 
 const NotificationsPage = () => {
     const navigate = useNavigate();
@@ -85,189 +89,163 @@ const NotificationsPage = () => {
         }
     };
 
-    // The generic "i" fallback was showing on almost every notification and
-    // carried no information. Only render an icon where it actually says
-    // something about the notification; otherwise the slot is left for the
-    // admin-supplied image (see notificationImage below).
-    const getIcon = (type) => {
-        switch (type) {
-            case 'booking': return <Calendar size={20} />;
-            case 'offer': return <Tag size={20} />;
-            default: return null;
-        }
-    };
-
     // `data` on the Notification model is Mixed, so an admin-supplied image can
-    // travel there with no schema change. Accept a top-level `image` too, in
-    // case one is promoted to a real field later.
+    // travel there with no schema change.
     const notificationImage = (notif) =>
         notif?.image || notif?.imageUrl || notif?.data?.image || notif?.data?.imageUrl || '';
 
-    const getColor = (type) => {
-        switch (type) {
-            case 'booking': return "bg-green-100 text-green-600";
-            case 'offer': return "bg-purple-100 text-purple-600";
-            default: return "bg-blue-100 text-blue-600";
+    const visual = (type = '') => {
+        const t = String(type).toLowerCase();
+        if (t.includes('booking') || t.includes('professional') || t.includes('estimate')) return { Icon: Calendar, color: TEAL };
+        if (t.includes('offer') || t.includes('promo') || t.includes('coupon')) return { Icon: Tag, color: ORANGE };
+        if (t.includes('wallet') || t.includes('payment') || t.includes('refund')) return { Icon: Wallet, color: YELLOW };
+        if (t.includes('job') || t.includes('service') || t.includes('worker')) return { Icon: Wrench, color: TEAL };
+        return { Icon: Info, color: TEAL };
+    };
+
+    const timeLabel = (d) => {
+        const diff = (Date.now() - new Date(d).getTime()) / 1000;
+        if (diff < 60) return 'Just now';
+        if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+        return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    // Today / Yesterday / date headings.
+    const groups = notifications.reduce((acc, n) => {
+        const d = new Date(n.createdAt);
+        const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+        const days = Math.round((startOf(new Date()) - startOf(d)) / 86400000);
+        const label = days <= 0 ? 'Today' : days === 1 ? 'Yesterday'
+            : d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+        const g = acc.find((x) => x.label === label);
+        if (g) g.items.push(n); else acc.push({ label, items: [n] });
+        return acc;
+    }, []);
+
+    const openNotification = (notif) => {
+        if (isSelectionMode) { toggleSelect(notif._id); return; }
+        const link = notif.data?.pushData?.link || notif.pushData?.link || notif.data?.link || notif.link;
+        const relatedId = notif.data?.relatedId || notif.relatedId;
+        const relatedType = notif.data?.relatedType || notif.relatedType;
+        if (link) navigate(link);
+        else if (relatedId && (relatedType === 'booking' || notif.type === 'finding_professional' || notif.type === 'booking')) {
+            navigate(`/user/booking/${relatedId}`);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-[#F5F7F8]">
             {/* Header */}
-            <div className="bg-surface text-white p-6 pb-8 rounded-b-[30px] shadow-lg sticky top-0 z-30">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => navigate(-1)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
+            <div className="sticky top-0 z-30 text-white shadow-md" style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #c2410c 100%)` }}>
+                <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <button onClick={() => navigate(-1)} aria-label="Back" className="rounded-full bg-white/15 p-2 transition hover:bg-white/25">
                             <ArrowLeft size={20} />
                         </button>
-                        <h1 className="text-xl font-bold">Notifications</h1>
+                        <div className="min-w-0">
+                            <h1 className="text-lg font-extrabold leading-tight">Notifications</h1>
+                            <p className="text-xs text-white/75">
+                                {notifications.length} {notifications.length === 1 ? 'update' : 'updates'}
+                            </p>
+                        </div>
                     </div>
 
-                    {notifications.length > 0 && (
-                        <button
-                            onClick={toggleSelectionMode}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isSelectionMode ? 'bg-white text-surface' : 'bg-white/10 text-white'}`}
-                        >
-                            {isSelectionMode ? 'Cancel' : 'Select'}
-                        </button>
-                    )}
-                </div>
-
-                <div className="flex items-end justify-between">
-                    <div>
-                        <h2 className="text-2xl font-black">Recent Updates</h2>
-                        <p className="text-sm text-white/70">
-                            {notifications.length} {notifications.length === 1 ? 'Notification' : 'Notifications'}
-                        </p>
-                    </div>
-
-                    {/* Delete Action Bar */}
-                    <AnimatePresence>
-                        {isSelectionMode && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 10 }}
-                                className="flex gap-3"
-                            >
-                                <button
-                                    onClick={selectAll}
-                                    className="p-2 bg-white/20 rounded-full hover:bg-white/30 backdrop-blur-sm"
-                                    title="Select All"
-                                >
-                                    {selectedIds.length === notifications.length ? <CheckCircle size={18} /> : <Circle size={18} />}
-                                </button>
-                                {selectedIds.length > 0 && (
-                                    <button
-                                        onClick={deleteSelected}
-                                        className="p-2 bg-red-500 rounded-full hover:bg-red-600 shadow-lg text-white"
-                                        title="Delete Selected"
-                                    >
-                                        <Trash2 size={18} />
+                    <div className="flex items-center gap-2">
+                        <AnimatePresence>
+                            {isSelectionMode && (
+                                <motion.div initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} className="flex items-center gap-2">
+                                    <button onClick={selectAll} className="rounded-full bg-white/15 p-2 hover:bg-white/25" title="Select all">
+                                        {selectedIds.length === notifications.length ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                                     </button>
-                                )}
-                            </motion.div>
+                                    {selectedIds.length > 0 && (
+                                        <button onClick={deleteSelected} className="rounded-full p-2 text-white shadow" style={{ backgroundColor: ORANGE }} title="Delete selected">
+                                            <Trash2 size={18} />
+                                        </button>
+                                    )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                        {notifications.length > 0 && (
+                            <button
+                                onClick={toggleSelectionMode}
+                                className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${isSelectionMode ? 'bg-white text-[#ea580c]' : 'bg-white/15 text-white hover:bg-white/25'}`}
+                            >
+                                {isSelectionMode ? 'Cancel' : 'Select'}
+                            </button>
                         )}
-                    </AnimatePresence>
+                    </div>
                 </div>
             </div>
 
-            <div className="px-5 pt-4 relative z-10 space-y-4 pb-24">
+            <div className="mx-auto max-w-2xl px-4 pb-24 pt-5">
                 {loading ? (
-                    <div className="flex justify-center pt-20">
-                        <div className="animate-spin w-8 h-8 border-4 border-surface border-t-transparent rounded-full"></div>
+                    <div className="space-y-3">
+                        {[0, 1, 2, 3].map((i) => (
+                            <div key={i} className="flex animate-pulse gap-3 rounded-2xl bg-white p-4">
+                                <div className="h-11 w-11 rounded-full bg-gray-100" />
+                                <div className="flex-1 space-y-2 pt-1"><div className="h-3 w-1/2 rounded bg-gray-100" /><div className="h-3 w-5/6 rounded bg-gray-100" /></div>
+                            </div>
+                        ))}
+                    </div>
+                ) : notifications.length === 0 ? (
+                    <div className="flex flex-col items-center pt-24 text-center">
+                        <span className="mb-4 flex h-20 w-20 items-center justify-center rounded-full" style={{ backgroundColor: `${TEAL}14`, color: TEAL }}>
+                            <Bell size={34} />
+                        </span>
+                        <p className="text-base font-bold text-gray-800">You are all caught up</p>
+                        <p className="mt-1 text-sm text-gray-500">Booking and offer updates will show up here.</p>
                     </div>
                 ) : (
-                    <>
-                        <AnimatePresence>
-                            {notifications.map((notif, index) => (
-                                <motion.div
-                                    key={notif._id}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, scale: 0.9, height: 0 }}
-                                    transition={{ delay: index * 0.05 }}
-                                    onClick={() => {
-                                        if (isSelectionMode) {
-                                            toggleSelect(notif._id);
-                                        } else {
-                                            const link = notif.data?.pushData?.link || notif.pushData?.link || notif.data?.link || notif.link;
-                                            const relatedId = notif.data?.relatedId || notif.relatedId;
-                                            const relatedType = notif.data?.relatedType || notif.relatedType;
-
-                                            if (link) {
-                                                navigate(link);
-                                            } else if (relatedId && (relatedType === 'booking' || notif.type === 'finding_professional' || notif.type === 'booking')) {
-                                                navigate(`/user/booking/${relatedId}`);
-                                            }
-                                        }
-                                    }}
-                                    className={`
-                                        bg-white rounded-2xl p-4 shadow-sm border flex gap-4 relative overflow-hidden transition-all cursor-pointer hover:shadow-md
-                                        ${isSelectionMode && selectedIds.includes(notif._id) ? 'border-surface bg-gray-50' : 'border-gray-100'}
-                                    `}
-                                >
-                                    {/* Selection Checkbox */}
-                                    {isSelectionMode && (
-                                        <div className="flex items-center justify-center">
-                                            <div className={`
-                                                w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
-                                                ${selectedIds.includes(notif._id) ? 'bg-surface border-surface' : 'border-gray-300'}
-                                            `}>
-                                                {selectedIds.includes(notif._id) && <CheckCircle size={12} className="text-white" />}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Image the admin attached wins; a meaningful type
-                                        icon is the fallback. Neither present → no
-                                        circle at all, so the text uses the full width
-                                        instead of sitting next to an empty badge. */}
-                                    {(() => {
+                    groups.map((g) => (
+                        <section key={g.label} className="mb-5">
+                            <h2 className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">{g.label}</h2>
+                            <div className="space-y-2.5">
+                                <AnimatePresence>
+                                    {g.items.map((notif) => {
                                         const image = notificationImage(notif);
-                                        if (image) {
-                                            return (
-                                                <img
-                                                    src={image}
-                                                    alt=""
-                                                    className="w-12 h-12 rounded-full object-cover flex-shrink-0 bg-gray-100"
-                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                                />
-                                            );
-                                        }
-                                        const icon = getIcon(notif.type || 'general');
-                                        if (!icon) return null;
+                                        const { Icon, color } = visual(notif.type);
+                                        const selected = isSelectionMode && selectedIds.includes(notif._id);
                                         return (
-                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${getColor(notif.type)}`}>
-                                                {icon}
-                                            </div>
-                                        );
-                                    })()}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-start">
-                                            <h3 className={`font-bold text-sm truncate pr-2 ${notif.isRead ? 'text-gray-600' : 'text-surface'}`}>
-                                                {notif.title}
-                                            </h3>
-                                            {!notif.isRead && !isSelectionMode && (
-                                                <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></div>
-                                            )}
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2">{notif.body}</p>
-                                        <span className="text-[10px] text-gray-400 mt-2 block font-medium">
-                                            {new Date(notif.createdAt).toLocaleDateString()} • {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
+                                            <motion.div
+                                                key={notif._id}
+                                                layout
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95 }}
+                                                onClick={() => openNotification(notif)}
+                                                className={`relative flex cursor-pointer items-start gap-3 overflow-hidden rounded-2xl border p-3.5 transition hover:shadow-md ${selected ? 'border-[#ea580c] bg-[#ea580c]/5' : notif.isRead ? 'border-gray-100 bg-white' : 'border-[#ea580c]/20 bg-white shadow-sm'}`}
+                                            >
+                                                {!notif.isRead && <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: TEAL }} />}
 
-                        {notifications.length === 0 && (
-                            <div className="text-center pt-20 opacity-50">
-                                <Bell size={48} className="text-gray-300 mx-auto mb-2" />
-                                <p className="text-gray-500 font-bold">No new notifications</p>
+                                                {isSelectionMode && (
+                                                    <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${selected ? 'border-[#ea580c] bg-[#ea580c]' : 'border-gray-300'}`}>
+                                                        {selected && <CheckCircle2 size={12} className="text-white" />}
+                                                    </span>
+                                                )}
+
+                                                {image ? (
+                                                    <img src={image} alt="" className="h-11 w-11 shrink-0 rounded-full bg-gray-100 object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                                ) : (
+                                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${color}1A`, color }}>
+                                                        <Icon size={20} />
+                                                    </span>
+                                                )}
+
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <h3 className={`text-sm leading-snug ${notif.isRead ? 'font-semibold text-gray-700' : 'font-bold text-gray-900'}`}>{notif.title}</h3>
+                                                        <span className="shrink-0 pt-0.5 text-[10px] font-medium text-gray-400">{timeLabel(notif.createdAt)}</span>
+                                                    </div>
+                                                    <p className="mt-1 text-[13px] leading-relaxed text-gray-500 line-clamp-3">{notif.body}</p>
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </AnimatePresence>
                             </div>
-                        )}
-                    </>
+                        </section>
+                    ))
                 )}
             </div>
         </div>
