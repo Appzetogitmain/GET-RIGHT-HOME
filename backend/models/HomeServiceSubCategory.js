@@ -4,6 +4,8 @@ const homeServiceSubCategorySchema = new mongoose.Schema({
   title: { type: String, required: true },
   slug: { type: String, required: true, unique: true },
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'HomeServiceCategory', required: true },
+  // Set when this is a nested sub-category (e.g. "Bathroom cleaning" under "Home cleaning")
+  parentSubCategoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'HomeServiceSubCategory', default: null },
   imageUrl: { type: String },
   icon: { type: String },
   bannerUrl: { type: String },

@@ -135,13 +135,13 @@ const HomeServicesPage = () => {
             navigate(`/home-services/book-visit/${id}`);
             return;
         }
-        // A category with sub-categories opens a sheet to pick one; a direct-service
-        // category has nothing to pick, so it goes straight to its services.
-        if (cat.isDirectService) {
-            navigate(`/home-services/category/${id}`, { state: { category: cat } });
-        } else {
+        // A category with sub-categories slides up a bottom sheet listing them; a direct-service
+        // category goes straight to its services page.
+        if (!cat.isDirectService) {
             setSheetCategory(cat);
+            return;
         }
+        navigate(`/home-services/category/${id}`, { state: { category: cat } });
     }, [navigate]);
 
     // Banners, promos and curated cards go straight to the category page (no popup).

@@ -10,6 +10,7 @@ import DesktopSearchFilterBar from './DesktopSearchFilterBar';
 import MobileSearchOverlay from './MobileSearchOverlay';
 import { getPreferredCity, setPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
 import { addRecentSearch } from '../../utils/recentActivity';
+import { parseSearchText } from '../../utils/parseSearchText';
 
 
 const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) => {
@@ -85,7 +86,27 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         navigate(url);
     };
 
-    const handleCitySelect = ({ city, district }) => {
+    const quickKeywords = [
+        'Farm house in Bengaluru',
+        '3BHK Flats in Bengaluru South',
+        'PG for Girls in Yelahanka',
+        'Plot in Devanahalli',
+        '2BHK Apartment for Rent',
+    ];
+
+    const handleKeywordClick = (keyword) => {
+        const parsed = parseSearchText(keyword);
+        const queryParams = new URLSearchParams();
+        if (parsed.transactionType) queryParams.set('transactionType', parsed.transactionType);
+        if (parsed.places.length) queryParams.set('areas', parsed.places.join(','));
+        if (parsed.subTypes.length) queryParams.set('subType', parsed.subTypes.join(','));
+        if (parsed.bhks.length) queryParams.set('bhkType', parsed.bhks.join(','));
+        const url = `/search?${queryParams.toString()}`;
+        addRecentSearch({ label: keyword, url });
+        navigate(url);
+    };
+
+    const handleCitySelect =({ city, district }) => {
         setSelectedCity(city);
         setSelectedDistrict(district);
         if (city) setPreferredCity(city); // persists across pages — read by TopNavbar
@@ -238,7 +259,22 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             </div>
 
             {/* Spacer — accounts for the floating search box height */}
-            <div className="h-[88px] lg:h-[188px]" />
+            {/* On mobile only the bottom 24px of the search box sits below the banner, so 48px leaves a ~24px gap above the title. */}
+            <div className="h-[34px] lg:h-[188px]" />
+
+            {/* ─── Quick keyword chips (mobile/tablet) ─── */}
+            <div className="lg:hidden flex gap-2 overflow-x-auto px-4 pt-1 pb-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
+                {quickKeywords.map((keyword) => (
+                    <button
+                        key={keyword}
+                        type="button"
+                        onClick={() => handleKeywordClick(keyword)}
+                        className="shrink-0 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-[12px] font-medium text-gray-700 shadow-sm active:scale-95 transition-transform"
+                    >
+                        {keyword}
+                    </button>
+                ))}
+            </div>
 
 
             {/* ─── Hero Title & Subtitle ─── */}

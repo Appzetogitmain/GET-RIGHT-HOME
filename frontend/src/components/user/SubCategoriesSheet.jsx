@@ -35,7 +35,7 @@ const SubCategoriesSheet = ({ category, onClose, onPick }) => {
     setLoading(true);
     setSubs([]);
     publicCatalogService.getSubCategories({ cityId: currentCity?._id || currentCity?.id, categoryId, bookingMode: 'slot' })
-      .then((res) => { if (live && res?.success) setSubs(res.subCategories || []); })
+      .then((res) => { if (live && res?.success) setSubs((res.subCategories || []).filter((s) => !s.parentSubCategoryId)); })
       .catch(() => {})
       .finally(() => live && setLoading(false));
     return () => { live = false; };
@@ -55,7 +55,6 @@ const SubCategoriesSheet = ({ category, onClose, onPick }) => {
         <div className="flex items-start justify-between px-5 pb-3 pt-5">
           <div>
             <h2 className="text-lg font-bold text-slate-900">{category.title || category.name}</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Choose a service to continue</p>
           </div>
           <button type="button" onClick={close} aria-label="Close" className="rounded-full border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100">
             <X size={18} />

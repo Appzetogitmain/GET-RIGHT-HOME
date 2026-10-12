@@ -50,6 +50,7 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
     rating: "",
     reviewCount: "",
     categoryId: "",
+    parentSubCategoryId: "",
     cityIds: [],
   });
 
@@ -138,6 +139,7 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           slug: svc.slug,
           categoryId: getStrId(svc.categoryId),
           categoryTitle: svc.categoryId?.title || "Unknown",
+          parentSubCategoryId: getStrId(svc.parentSubCategoryId) || "",
           iconUrl: svc.imageUrl || svc.iconUrl || "",
           bannerUrl: svc.bannerUrl || "",
           badge: svc.badge || "",
@@ -222,6 +224,7 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       rating: subCat.rating || "",
       reviewCount: subCat.reviewCount || "",
       categoryId: subCat.categoryId || "",
+      parentSubCategoryId: subCat.parentSubCategoryId || "",
       cityIds: subCat.cityIds || [],
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -238,6 +241,7 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       rating: "",
       reviewCount: "",
       categoryId: "",
+      parentSubCategoryId: "",
       cityIds: selectedCity ? [selectedCity] : [],
     });
     setIsModalOpen(false);
@@ -311,7 +315,8 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       setLoading(true);
       const subCatData = { 
         ...validationResult.data, 
-        cityIds: form.cityIds, 
+        cityIds: form.cityIds,
+        parentSubCategoryId: form.parentSubCategoryId || null,
         imageUrl: form.iconUrl, 
         bannerUrl: form.bannerUrl,
         bookingModes: categories.find((category) => String(category.id) === String(form.categoryId))?.bookingModes || ['slot']
@@ -494,6 +499,11 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
                     </td>
                     <td className="py-4 px-4">
                       <div className="font-bold text-gray-900">{s.title}</div>
+                      {s.parentSubCategoryId && (
+                        <div className="text-[11px] font-semibold text-gray-400">
+                          under {subCategories.find((p) => p.id === s.parentSubCategoryId)?.title || 'parent'}
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-4">
                       <div className="text-xs text-gray-400">{s.slug || '—'}</div>
@@ -555,7 +565,19 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
               ))}
             </select>
           </div>
-          
+
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">Under Sub-category <span className="font-normal text-gray-400">(optional)</span></label>
+            <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-semibold" value={form.parentSubCategoryId} onChange={(e) => setForm({ ...form, parentSubCategoryId: e.target.value })}>
+              <option value="">None (top-level sub-category)</option>
+              {subCategories
+                .filter((s) => s.categoryId === form.categoryId && !s.parentSubCategoryId && s.id !== editingId)
+                .map((s) => (
+                  <option key={s.id} value={s.id}>{s.title}</option>
+                ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Description <span className="font-normal text-gray-400">(optional)</span></label>
             <textarea rows={3} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Short text shown to customers under the banner" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />

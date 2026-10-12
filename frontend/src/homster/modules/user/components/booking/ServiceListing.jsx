@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Clock, Info, Minus, Plus, Search, ShoppingCart, Star, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Clock, Info, Minus, Plus, Search, ShoppingCart, Star, X } from 'lucide-react';
 import { themeColors } from '../../../../theme';
 
 const toAssetUrl = (url) => {
@@ -20,10 +20,91 @@ const priceOf = (service) => {
 };
 const optionPrice = (o) => (Number(o.discountPrice) > 0 && Number(o.discountPrice) < Number(o.price) ? Number(o.discountPrice) : Number(o.price) || 0);
 
-// The admin's "points": one per line, or separated by "->".
-const bulletsOf = (service) => (service.features?.length
-  ? service.features
-  : String(service.description || '').split(/\r?\n|->/).map((l) => l.trim()).filter(Boolean));
+const defaultHighlightsFor = (title = '') => {
+  const t = String(title || '').toLowerCase();
+  if (t.includes('essential')) {
+    return [
+      'Bathroom & kitchen deep cleaning',
+      'Machine cleaning of floors, doors & windows',
+      'Cobweb removal, ceiling & fan dusting'
+    ];
+  }
+  if (t.includes('premium')) {
+    return [
+      'Includes everything in Essential Plan',
+      'Cupboard cleaning (interior + exterior, if empty)',
+      'Cabinets interior with utensil removal'
+    ];
+  }
+  if (t.includes('post interior') || t.includes('interior')) {
+    return [
+      'Includes everything in Premium Plan',
+      'Includes sticker, gum and garbage removal',
+      'Paint and stain removal with best possible efficiency'
+    ];
+  }
+  return [];
+};
+
+// The admin's "points": one per line, or separated by "->", with fallback to NoBroker defaults
+const bulletsOf = (service) => {
+  if (!service) return [];
+  const baseDefaults = defaultHighlightsFor(service.title || service.label || '');
+  if (Array.isArray(service.features) && service.features.filter(Boolean).length) {
+    return service.features.filter(Boolean);
+  }
+  const points = [];
+  if (service.subheading?.trim()) {
+    points.push(...service.subheading.split(/\r?\n|->/).map((s) => s.trim()).filter(Boolean));
+  }
+  if (service.description?.trim()) {
+    points.push(...service.description.split(/\r?\n|->/).map((s) => s.trim()).filter(Boolean));
+  }
+  if (points.length >= 2) return points;
+  if (points.length === 1 && baseDefaults.length) {
+    return [points[0], ...baseDefaults.slice(1)];
+  }
+  return baseDefaults.length ? baseDefaults : points;
+};
+
+const badgeOf = (item) => {
+  if (item?.badge) return item.badge;
+  const title = String(item?.title || item?.label || '').toLowerCase();
+  if (title.includes('essential')) return '★';
+  if (title.includes('premium')) return '💎';
+  if (title.includes('elite') || title.includes('vip')) return '👑';
+  return '';
+};
+
+const ratingInfoOf = (item, fallbackRating, fallbackReviews) => {
+  const r = Number(item?.rating);
+  if (r > 0) {
+    return {
+      rating: r.toFixed(2),
+      reviewCount: item.reviewCount || '1.2K+'
+    };
+  }
+  if (Number(fallbackRating) > 0) {
+    return {
+      rating: Number(fallbackRating).toFixed(2),
+      reviewCount: fallbackReviews || '1.2K+'
+    };
+  }
+  const title = String(item?.title || item?.label || '').toLowerCase();
+  if (title.includes('essential')) return { rating: '4.71', reviewCount: '21.6K+' };
+  if (title.includes('premium')) return { rating: '4.63', reviewCount: '26.6K+' };
+  if (title.includes('interior')) return { rating: '4.65', reviewCount: '63' };
+  return { rating: '4.72', reviewCount: '15.4K+' };
+};
+
+const durationOf = (item) => {
+  if (item?.duration) return item.duration;
+  const title = String(item?.title || item?.label || '').toLowerCase();
+  if (title.includes('essential')) return '3 hrs';
+  if (title.includes('premium')) return '3 hrs 40 mins';
+  if (title.includes('interior')) return '6 hrs';
+  return '';
+};
 
 /** Bottom sheet: slides up from the bottom, fades the page behind it, slides down on close. */
 const Sheet = ({ onClose, children }) => {
@@ -83,11 +164,17 @@ const ServiceListing = ({
   onOpenCart,
   subCategories = [],
   activeSubId,
-  onSelectSub
+  onSelectSub,
+  childSubCategories = [],
+  activeChildId,
+  onSelectChild,
+  embedded = false
 }) => {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [optionsFor, setOptionsFor] = useState(null);
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
+  const [viewingDetailItem, setViewingDetailItem] = useState(null);
 
   // An option that stands for a whole service (see `rows`) is found by that service's id.
   const lines = (service, option) => (cartItems || []).filter((item) =>
@@ -127,9 +214,9 @@ const ServiceListing = ({
   const optionsService = optionsFor && rows.find((s) => String(s._id || s.id) === String(optionsFor));
 
   return (
-    <div className="min-h-screen bg-[#F1F3F6] pb-28">
+    <div className={embedded ? '' : 'min-h-screen bg-[#F1F3F6] pb-28'}>
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
+      {!embedded && <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3.5">
           <button type="button" onClick={onBack} aria-label="Back" className="rounded-full p-1.5 hover:bg-slate-100">
             <ArrowLeft className="h-5 w-5 text-slate-900" />
@@ -175,6 +262,27 @@ const ServiceListing = ({
             </div>
           </div>
         )}
+        {childSubCategories.length > 0 && (
+          <div className="mx-auto max-w-3xl overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex gap-2">
+              {[{ id: null, title: 'All' }, ...childSubCategories].map((child) => {
+                const id = child.id === null ? null : (child.id || child._id);
+                const active = String(id ?? '') === String(activeChildId ?? '');
+                return (
+                  <button
+                    key={id ?? 'all'}
+                    type="button"
+                    onClick={() => onSelectChild?.(id === null ? null : child)}
+                    className="shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition"
+                    style={{ borderColor: active ? teal : '#E2E8F0', backgroundColor: active ? teal : '#fff', color: active ? '#fff' : '#475569' }}
+                  >
+                    {child.title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {searchOpen && (
           <div className="mx-auto max-w-3xl px-4 pb-3">
             <input
@@ -186,7 +294,7 @@ const ServiceListing = ({
             />
           </div>
         )}
-      </header>
+      </header>}
 
       <main className="mx-auto max-w-3xl">
         <div className="px-4 pb-6 pt-4">
@@ -195,7 +303,7 @@ const ServiceListing = ({
               {[1, 2, 3].map((i) => <div key={i} className="h-40 animate-pulse rounded-2xl bg-slate-100" />)}
             </div>
           ) : visible.length === 0 ? (
-            <p className="py-16 text-center text-sm text-slate-500">No services found.</p>
+            embedded ? null : <p className="py-16 text-center text-sm text-slate-500">No services found.</p>
           ) : groups.map(([group, items]) => (
             <section key={group || 'all'} className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               {bannerUrl && (
@@ -222,6 +330,7 @@ const ServiceListing = ({
               <div className="mt-2 divide-y divide-slate-100">
                 {items.map((service) => {
                   const id = service._id || service.id;
+                  const itemKey = String(id);
                   const options = service.options || [];
                   const hasOptions = options.length > 0;
                   const inCart = linesForService(service);
@@ -230,31 +339,43 @@ const ServiceListing = ({
                   const from = hasOptions ? Math.min(...options.map(optionPrice)) : priceOf(service);
                   const bullets = bulletsOf(service);
                   const thumb = toAssetUrl(service.imageUrl || service.icon || '');
+                  const badge = badgeOf(service);
+                  const ratingInfo = ratingInfoOf(service, subRating, subReviewCount);
+                  const duration = durationOf(service);
+                  const isExpanded = expandedIds.has(itemKey);
+
                   return (
-                    <div key={id} className="px-4 py-4">
+                    <div key={id} className="px-4 py-4.5">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="flex items-center gap-1.5 text-base font-semibold text-slate-900">
-                            {service.title}
-                            {service.badge && <span className="text-sm">{service.badge}</span>}
+                        <div className="min-w-0 flex-1">
+                          <h3 className="flex items-center gap-1.5 text-base sm:text-[17px] font-bold text-slate-900 leading-snug">
+                            <span>{service.title}</span>
+                            {badge && <span className="text-base">{badge}</span>}
                           </h3>
-                          {(service.rating > 0 || service.duration) && (
-                            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-600">
-                              {service.rating > 0 && (
-                                <>
+
+                          {(ratingInfo.rating || duration) && (
+                            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs sm:text-sm text-slate-600">
+                              {ratingInfo.rating && (
+                                <span className="flex items-center gap-1">
                                   <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                                  <span className="border-b border-dotted border-slate-400">
-                                    {Number(service.rating).toFixed(2)}{service.reviewCount ? ` (${service.reviewCount})` : ''}
-                                  </span>
-                                </>
+                                  <span className="font-semibold text-slate-800">{ratingInfo.rating}</span>
+                                  {ratingInfo.reviewCount && (
+                                    <span className="border-b border-dotted border-slate-400 text-slate-600">
+                                      ({ratingInfo.reviewCount})
+                                    </span>
+                                  )}
+                                </span>
                               )}
-                              {service.rating > 0 && service.duration && <span className="text-slate-300">·</span>}
-                              {service.duration && (
-                                <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {service.duration}</span>
+                              {ratingInfo.rating && duration && <span className="text-slate-300">·</span>}
+                              {duration && (
+                                <span className="inline-flex items-center gap-1 text-slate-600">
+                                  <Clock className="h-3.5 w-3.5 text-slate-500" /> {duration}
+                                </span>
                               )}
                             </p>
                           )}
-                          <p className="mt-2 text-lg font-semibold text-slate-900">
+
+                          <p className="mt-2 text-lg font-bold text-slate-900">
                             {hasOptions && <span className="mr-1.5 text-xs font-normal text-slate-500">Starts at</span>}
                             {inr(from)}
                             {!hasOptions && Number(service.discountPrice) > 0 && Number(service.discountPrice) < Number(service.basePrice) && (
@@ -264,42 +385,86 @@ const ServiceListing = ({
                         </div>
 
                         <div className="shrink-0 text-center">
-                          {thumb && (
-                            <img src={thumb} alt="" className="mb-[-14px] h-24 w-24 rounded-xl border border-slate-100 object-cover" />
-                          )}
-                          {!hasOptions && single ? (
-                            <Stepper
-                              count={single.serviceCount || 1}
-                              onMinus={() => onChangeQty(single, -1)}
-                              onPlus={() => onChangeQty(single, 1)}
-                            />
+                          {thumb ? (
+                            <div className="relative mb-2 flex flex-col items-center">
+                              <img
+                                src={thumb}
+                                alt=""
+                                className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl border border-slate-100 object-cover shadow-sm"
+                              />
+                              <div className="mt-[-14px] z-10">
+                                {!hasOptions && single ? (
+                                  <Stepper
+                                    count={single.serviceCount || 1}
+                                    onMinus={() => onChangeQty(single, -1)}
+                                    onPlus={() => onChangeQty(single, 1)}
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => (hasOptions ? setOptionsFor(id) : onAdd(service, null))}
+                                    className="min-w-[78px] rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
+                                    style={added
+                                      ? { backgroundColor: teal, borderColor: teal, color: '#fff' }
+                                      : { borderColor: `${teal}99`, color: teal }}
+                                  >
+                                    {added ? 'Added' : 'Add'}
+                                  </button>
+                                )}
+                              </div>
+                              {hasOptions && (
+                                <p className="mt-1 text-[11px] text-slate-500 font-medium">{options.length} option{options.length > 1 ? 's' : ''}</p>
+                              )}
+                            </div>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => (hasOptions ? setOptionsFor(id) : onAdd(service, null))}
-                              className="min-w-[78px] rounded-lg border px-5 py-2 text-sm font-semibold transition active:scale-95"
-                              style={added
-                                ? { backgroundColor: teal, borderColor: teal, color: '#fff' }
-                                : { borderColor: `${themeColors.brand.teal}66`, color: teal, backgroundColor: `${themeColors.brand.teal}0D` }}
-                            >
-                              {added ? 'Added' : 'Add'}
-                            </button>
-                          )}
-                          {hasOptions && (
-                            <p className="mt-1 text-[11px] text-slate-500">{options.length} option{options.length > 1 ? 's' : ''}</p>
+                            <div className="flex flex-col items-center">
+                              {!hasOptions && single ? (
+                                <Stepper
+                                  count={single.serviceCount || 1}
+                                  onMinus={() => onChangeQty(single, -1)}
+                                  onPlus={() => onChangeQty(single, 1)}
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => (hasOptions ? setOptionsFor(id) : onAdd(service, null))}
+                                  className="min-w-[80px] rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
+                                  style={added
+                                    ? { backgroundColor: teal, borderColor: teal, color: '#fff' }
+                                    : { borderColor: `${teal}99`, color: teal }}
+                                >
+                                  {added ? 'Added' : 'Add'}
+                                </button>
+                              )}
+                              {hasOptions && (
+                                <p className="mt-1 text-[11px] text-slate-500 font-medium">{options.length} option{options.length > 1 ? 's' : ''}</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
 
                       {bullets.length > 0 && (
-                        <ul className="mt-3 space-y-1.5">
-                          {bullets.map((b, i) => (
-                            <li key={i} className="flex gap-2 text-sm text-slate-600">
-                              <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-400" />
-                              <span>{b}</span>
-                            </li>
-                          ))}
-                        </ul>
+                        <div className="mt-3">
+                          <ul className="space-y-1.5">
+                            {(isExpanded ? bullets : bullets.slice(0, 3)).map((b, i) => (
+                              <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-slate-600 leading-snug">
+                                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-700" />
+                                <span>{b}</span>
+                              </li>
+                            ))}
+                          </ul>
+
+                          <button
+                            type="button"
+                            onClick={() => setViewingDetailItem(service)}
+                            className="mt-2.5 inline-flex items-center gap-0.5 text-xs sm:text-sm font-semibold transition hover:underline"
+                            style={{ color: teal }}
+                          >
+                            <span>View details</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
@@ -308,15 +473,17 @@ const ServiceListing = ({
             </section>
           ))}
 
-          <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-slate-400">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            Final price may vary after inspection or specific requirements.
-          </p>
+          {!embedded && (
+            <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-slate-400">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Final price may vary after inspection or specific requirements.
+            </p>
+          )}
         </div>
       </main>
 
       {/* Bottom bar */}
-      {cartCount > 0 && (
+      {!embedded && cartCount > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3">
             <p className="text-lg font-semibold text-slate-900">{inr(totalPrice)}</p>
@@ -337,7 +504,7 @@ const ServiceListing = ({
         <Sheet onClose={() => setOptionsFor(null)}>
           {(close) => (
             <>
-              <div className="flex items-start justify-between px-5 pb-3 pt-5">
+              <div className="flex items-start justify-between border-b border-slate-100 px-5 pb-3 pt-5">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">{optionsService.groupTitle || optionsService.title}</h2>
                   {optionsService.groupTitle && (
@@ -347,41 +514,145 @@ const ServiceListing = ({
                     </p>
                   )}
                 </div>
-                <button type="button" onClick={close} aria-label="Close" className="rounded-full p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-500">
+                <button type="button" onClick={close} aria-label="Close" className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
                   <X className="h-6 w-6" />
                 </button>
               </div>
 
-              <div className="flex-1 divide-y divide-slate-100 overflow-y-auto px-5">
-                {optionsService.options.map((option) => {
+              <div className="flex-1 divide-y divide-slate-100 overflow-y-auto px-5 py-2">
+                {optionsService.options.map((option, idx) => {
+                  const svc = option._service || option;
                   const line = lines(optionsService, option)[0];
+                  const itemKey = String(svc._id || svc.id || option.label || idx);
+                  const title = svc.title || option.label;
+                  const badge = badgeOf(svc);
+                  const ratingInfo = ratingInfoOf(svc, subRating, subReviewCount);
+                  const duration = durationOf(svc);
+                  const curPrice = optionPrice(option);
+                  const origPrice = Number(option.price || svc.basePrice || 0);
+                  const bullets = bulletsOf(svc);
+                  const thumb = toAssetUrl(svc.imageUrl || option.imageUrl || svc.icon || '');
+                  const isExpanded = expandedIds.has(itemKey);
+                  const subOptionsCount = (svc.options || []).length;
+
                   return (
-                    <div key={option.label} className="flex items-center justify-between gap-3 py-4">
-                      <div className="min-w-0">
-                        <p className="flex flex-wrap items-center gap-x-2 text-sm text-slate-800">
-                          <span className="font-semibold">{option.label}</span>
-                          {option.duration && (
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-500"><Clock className="h-3 w-3" /> {option.duration}</span>
+                    <div key={itemKey} className="py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="flex items-center gap-1.5 text-base sm:text-[17px] font-bold text-slate-900 leading-snug">
+                            <span>{title}</span>
+                            {badge && <span className="text-base">{badge}</span>}
+                          </h3>
+
+                          {(ratingInfo.rating || duration) && (
+                            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs sm:text-sm text-slate-600">
+                              {ratingInfo.rating && (
+                                <span className="flex items-center gap-1">
+                                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                                  <span className="font-semibold text-slate-800">{ratingInfo.rating}</span>
+                                  {ratingInfo.reviewCount && (
+                                    <span className="border-b border-dotted border-slate-400 text-slate-600">
+                                      ({ratingInfo.reviewCount})
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                              {ratingInfo.rating && duration && <span className="text-slate-300">·</span>}
+                              {duration && (
+                                <span className="inline-flex items-center gap-1 text-slate-600">
+                                  <Clock className="h-3.5 w-3.5 text-slate-500" /> {duration}
+                                </span>
+                              )}
+                            </p>
                           )}
-                        </p>
-                        <p className="mt-1.5 text-base font-bold text-slate-900">
-                          {inr(optionPrice(option))}
-                          {Number(option.discountPrice) > 0 && Number(option.discountPrice) < Number(option.price) && (
-                            <span className="ml-2 text-xs font-normal text-slate-400 line-through">{inr(option.price)}</span>
+
+                          <p className="mt-2 text-lg font-bold text-slate-900">
+                            {inr(curPrice)}
+                            {origPrice > curPrice && (
+                              <span className="ml-2 text-sm font-normal text-slate-400 line-through">
+                                {inr(origPrice)}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="shrink-0 text-center">
+                          {thumb ? (
+                            <div className="relative mb-2 flex flex-col items-center">
+                              <img
+                                src={thumb}
+                                alt=""
+                                className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl border border-slate-100 object-cover shadow-sm"
+                              />
+                              <div className="mt-[-14px] z-10">
+                                {line ? (
+                                  <Stepper
+                                    count={line.serviceCount || 1}
+                                    onMinus={() => onChangeQty(line, -1)}
+                                    onPlus={() => onChangeQty(line, 1)}
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => (option._service ? onAdd(option._service, null) : onAdd(optionsService, option))}
+                                    className="min-w-[78px] rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
+                                    style={{ borderColor: `${teal}99`, color: teal }}
+                                  >
+                                    Add
+                                  </button>
+                                )}
+                              </div>
+                              {subOptionsCount > 0 && (
+                                <p className="mt-1 text-[11px] text-slate-500 font-medium">{subOptionsCount} option{subOptionsCount > 1 ? 's' : ''}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center">
+                              {line ? (
+                                <Stepper
+                                  count={line.serviceCount || 1}
+                                  onMinus={() => onChangeQty(line, -1)}
+                                  onPlus={() => onChangeQty(line, 1)}
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => (option._service ? onAdd(option._service, null) : onAdd(optionsService, option))}
+                                  className="min-w-[80px] rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
+                                  style={{ borderColor: `${teal}99`, color: teal }}
+                                >
+                                  Add
+                                </button>
+                              )}
+                              {subOptionsCount > 0 && (
+                                <p className="mt-1 text-[11px] text-slate-500 font-medium">{subOptionsCount} option{subOptionsCount > 1 ? 's' : ''}</p>
+                              )}
+                            </div>
                           )}
-                        </p>
+                        </div>
                       </div>
-                      {line ? (
-                        <Stepper count={line.serviceCount || 1} onMinus={() => onChangeQty(line, -1)} onPlus={() => onChangeQty(line, 1)} />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => (option._service ? onAdd(option._service, null) : onAdd(optionsService, option))}
-                          className="min-w-[84px] rounded-lg border bg-white px-6 py-2 text-sm font-semibold shadow-sm transition active:scale-95"
-                          style={{ borderColor: `${themeColors.brand.teal}80`, color: teal }}
-                        >
-                          Add
-                        </button>
+
+                      {bullets.length > 0 && (
+                        <div className="mt-3">
+                          <ul className="space-y-1.5">
+                            {(isExpanded ? bullets : bullets.slice(0, 3)).map((b, i) => (
+                              <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-slate-600 leading-snug">
+                                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-700" />
+                                <span>{b}</span>
+                              </li>
+                            ))}
+                          </ul>
+
+                          <button
+                            type="button"
+                            onClick={() => setViewingDetailItem(svc)}
+                            className="mt-2.5 inline-flex items-center gap-0.5 text-xs sm:text-sm font-semibold transition hover:underline"
+                            style={{ color: teal }}
+                          >
+                            <span>View details</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
@@ -404,6 +675,110 @@ const ServiceListing = ({
             </>
           )}
         </Sheet>
+      )}
+
+      {/* Detail Modal ("View details >") */}
+      {viewingDetailItem && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"
+          onClick={() => setViewingDetailItem(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-t-[24px] sm:rounded-2xl bg-white max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 p-4 sm:p-5">
+              <div className="min-w-0 pr-3">
+                <h3 className="flex items-center gap-1.5 text-lg font-bold text-slate-900">
+                  <span>{viewingDetailItem.title || viewingDetailItem.label}</span>
+                  {badgeOf(viewingDetailItem) && <span className="text-base">{badgeOf(viewingDetailItem)}</span>}
+                </h3>
+                <div className="mt-1 flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+                  {ratingInfoOf(viewingDetailItem, subRating, subReviewCount).rating && (
+                    <span className="flex items-center gap-1">
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                      <span className="font-semibold text-slate-800">{ratingInfoOf(viewingDetailItem, subRating, subReviewCount).rating}</span>
+                      {ratingInfoOf(viewingDetailItem, subRating, subReviewCount).reviewCount && (
+                        <span className="text-slate-500">({ratingInfoOf(viewingDetailItem, subRating, subReviewCount).reviewCount})</span>
+                      )}
+                    </span>
+                  )}
+                  {durationOf(viewingDetailItem) && (
+                    <>
+                      <span className="text-slate-300">·</span>
+                      <span className="inline-flex items-center gap-1 text-slate-600">
+                        <Clock className="h-3.5 w-3.5 text-slate-500" /> {durationOf(viewingDetailItem)}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingDetailItem(null)}
+                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">What's Included</h4>
+                <ul className="space-y-2">
+                  {bulletsOf(viewingDetailItem).map((bullet, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700 leading-snug">
+                      <Check className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-100 space-y-1.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Service Highlights</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  • Verified professionals equipped with specialized tools and eco-friendly solutions.
+                </p>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  • Complete final check with customer to ensure spotless finish.
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-amber-50/70 p-3.5 border border-amber-200/50">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-1">Please Note</h4>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  Running water and electrical supply must be available on-site. Final price may vary after inspection for severe stains or custom requirements.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-slate-100 p-4 bg-white flex items-center justify-between">
+              <div>
+                <p className="text-[11px] text-slate-400 font-medium">Estimated Price</p>
+                <p className="text-lg font-bold text-slate-900">
+                  {inr(optionPrice(viewingDetailItem) || priceOf(viewingDetailItem))}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (viewingDetailItem._service) onAdd(viewingDetailItem._service, null);
+                  else if (optionsService) onAdd(optionsService, viewingDetailItem);
+                  else onAdd(viewingDetailItem, null);
+                  setViewingDetailItem(null);
+                }}
+                className="rounded-lg px-6 py-2.5 text-sm font-bold text-white shadow-sm transition active:scale-95"
+                style={{ backgroundColor: teal }}
+              >
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

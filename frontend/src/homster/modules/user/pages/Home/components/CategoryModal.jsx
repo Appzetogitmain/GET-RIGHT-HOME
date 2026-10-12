@@ -104,12 +104,8 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
   const handleSubCategoryClick = (subCat) => {
     // Navigate to dedicated sub-category page with full context
     onClose();
-    navigate('/home-services/sub-category', {
-      state: {
-        subCategory: subCat,
-        category: category,
-        currentCity: { _id: cityId },
-      }
+    navigate(`/home-services/category/${category.id || category._id}`, {
+      state: { subCategory: subCat, category },
     });
   };
 
@@ -148,7 +144,6 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
     }
   };
 
-  if (!isOpen && !isClosing) return null;
   if (!mounted) return null;
 
   const modalContent = (
@@ -159,7 +154,8 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-md z-[9998]"
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black/60 z-[9998]"
             onClick={onClose}
           />
 
@@ -167,8 +163,8 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-[9999]"
+            transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
+            className="fixed bottom-0 left-0 right-0 z-[9999] mx-auto max-w-xl"
           >
             <div className="absolute -top-14 right-4">
               <button
@@ -179,7 +175,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
               </button>
             </div>
 
-            <div className="bg-white rounded-t-[2.5rem] max-h-[85vh] min-h-[40vh] overflow-hidden flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.15)]">
+            <div className="bg-white rounded-t-[1.75rem] max-h-[85vh] min-h-[40vh] overflow-hidden flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.15)]">
               {isRedirecting ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <motion.div
@@ -211,7 +207,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
                       )}
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">
+                          <h1 className="text-lg font-bold text-gray-900 tracking-tight leading-none">
                             {selectedSubCategory ? selectedSubCategory.title : category?.title || 'Services'}
                           </h1>
                           {category?.bookingType === 'instant' && (
@@ -220,9 +216,9 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          {selectedSubCategory || category?.isDirectService ? 'Select a service to proceed' : 'Select a sub-category'}
-                        </p>
+                        {(selectedSubCategory || category?.isDirectService) && (
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Select a service to proceed</p>
+                        )}
                       </div>
                       {loading && <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin ml-auto"></div>}
                     </div>
@@ -246,10 +242,10 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
                             onClick={() => handleSubCategoryClick(sub)}
                             className="flex flex-col items-center group"
                           >
-                            <div className="w-full aspect-square bg-gray-50 rounded-3xl flex items-center justify-center p-4 border border-gray-100 shadow-sm group-hover:shadow-md group-hover:border-emerald-100 transition-all mb-2 overflow-hidden">
+                            <div className="w-full aspect-square bg-white rounded-2xl flex items-center justify-center p-3 border border-gray-200 shadow-sm transition-all mb-2 overflow-hidden">
                               <img src={toAssetUrl(sub.iconUrl || sub.imageUrl)} alt={sub.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" />
                             </div>
-                            <span className="text-[10px] font-bold text-gray-800 text-center leading-tight line-clamp-2 px-1 uppercase tracking-tighter">
+                            <span className="text-xs font-medium text-gray-800 text-center leading-tight line-clamp-2 px-1">
                               {sub.title}
                             </span>
                           </motion.button>
