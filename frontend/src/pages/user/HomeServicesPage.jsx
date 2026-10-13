@@ -125,18 +125,11 @@ const HomeServicesPage = () => {
         if (!cat) return;
         const id = cat.id || cat._id;
         if (!id) return;
-        // Packers & Movers has its own quote wizard (location, items, slot, summary).
-        if (/packers/i.test(cat.title || cat.name || '')) {
-            navigate('/home-services/packers-movers');
-            return;
-        }
-        // Estimate-based services (Home Painting ...): book a visit, get a room-wise estimate.
-        if (cat.isEstimateBased) {
-            navigate(`/home-services/book-visit/${id}`);
-            return;
-        }
-        // A category with sub-categories slides up a bottom sheet listing them; a direct-service
-        // category goes straight to its services page.
+        // Packers & Movers lists its sub-categories (Within City, Between Cities, ...) in the sheet
+        // like any other category; picking one starts the quote wizard (see the sheet's onPick).
+        // A category with sub-categories slides up a bottom sheet listing them (this includes
+        // estimate-based ones like Home Painting; the estimate flow starts after a sub-category
+        // is picked); a direct-service category goes straight to its services page.
         if (!cat.isDirectService) {
             setSheetCategory(cat);
             return;
@@ -1371,7 +1364,15 @@ const HomeServicesPage = () => {
             <SubCategoriesSheet
                 category={sheetCategory}
                 onClose={() => setSheetCategory(null)}
-                onPick={(sub) => navigate(`/home-services/category/${sheetCategory.id || sheetCategory._id}`, { state: { category: sheetCategory, subCategory: sub } })}
+                onPick={(sub) => {
+                    // Packers & Movers has its own quote wizard (location, items, slot, summary).
+                    if (/packers/i.test(sheetCategory.title || sheetCategory.name || '')) {
+                        const inter = /between|inter/i.test(sub.title || '');
+                        navigate(`/home-services/packers-movers?sub=${sub.id || sub._id}${inter ? '&type=INTER_CITY' : ''}`);
+                        return;
+                    }
+                    navigate(`/home-services/category/${sheetCategory.id || sheetCategory._id}`, { state: { category: sheetCategory, subCategory: sub } });
+                }}
             />
             <BottomNav />
         </div>

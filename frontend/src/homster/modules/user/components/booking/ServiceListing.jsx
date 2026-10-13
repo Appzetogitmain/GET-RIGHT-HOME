@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, ChevronRight, Clock, Info, Minus, Plus, Search, ShoppingCart, Star, X } from 'lucide-react';
 import { themeColors } from '../../../../theme';
+import MiniServicesGrid, { isCardService } from './MiniServicesGrid';
 
 const toAssetUrl = (url) => {
   if (!url) return '';
@@ -168,7 +169,8 @@ const ServiceListing = ({
   childSubCategories = [],
   activeChildId,
   onSelectChild,
-  embedded = false
+  embedded = false,
+  estimateMode = false
 }) => {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -186,7 +188,13 @@ const ServiceListing = ({
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (services || []).filter((s) => !q || `${s.title} ${s.groupTitle || ''}`.toLowerCase().includes(q));
+    return (services || []).filter((s) => !isCardService(s) && (!q || `${s.title} ${s.groupTitle || ''}`.toLowerCase().includes(q)));
+  }, [services, search]);
+
+  // Services the admin marked as "Mini card" go to a grid at the very end instead of the list.
+  const miniServices = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (services || []).filter((s) => isCardService(s) && (!q || String(s.title || '').toLowerCase().includes(q)));
   }, [services, search]);
 
   // Everything sits in one card headed by the sub-category's name.
@@ -302,7 +310,7 @@ const ServiceListing = ({
             <div className="space-y-4">
               {[1, 2, 3].map((i) => <div key={i} className="h-40 animate-pulse rounded-2xl bg-slate-100" />)}
             </div>
-          ) : visible.length === 0 ? (
+          ) : visible.length === 0 && miniServices.length === 0 ? (
             embedded ? null : <p className="py-16 text-center text-sm text-slate-500">No services found.</p>
           ) : groups.map(([group, items]) => (
             <section key={group || 'all'} className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -375,13 +383,13 @@ const ServiceListing = ({
                             </p>
                           )}
 
-                          <p className="mt-2 text-lg font-bold text-slate-900">
+                          {!estimateMode && <p className="mt-2 text-lg font-bold text-slate-900">
                             {hasOptions && <span className="mr-1.5 text-xs font-normal text-slate-500">Starts at</span>}
                             {inr(from)}
                             {!hasOptions && Number(service.discountPrice) > 0 && Number(service.discountPrice) < Number(service.basePrice) && (
                               <span className="ml-2 text-sm font-normal text-slate-400 line-through">{inr(service.basePrice)}</span>
                             )}
-                          </p>
+                          </p>}
                         </div>
 
                         <div className="shrink-0 text-center">
@@ -403,12 +411,12 @@ const ServiceListing = ({
                                   <button
                                     type="button"
                                     onClick={() => (hasOptions ? setOptionsFor(id) : onAdd(service, null))}
-                                    className="min-w-[78px] rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
+                                    className="min-w-[78px] whitespace-nowrap rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
                                     style={added
                                       ? { backgroundColor: teal, borderColor: teal, color: '#fff' }
                                       : { borderColor: `${teal}99`, color: teal }}
                                   >
-                                    {added ? 'Added' : 'Add'}
+                                    {estimateMode ? 'Get Estimate' : added ? 'Added' : 'Add'}
                                   </button>
                                 )}
                               </div>
@@ -428,12 +436,12 @@ const ServiceListing = ({
                                 <button
                                   type="button"
                                   onClick={() => (hasOptions ? setOptionsFor(id) : onAdd(service, null))}
-                                  className="min-w-[80px] rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
+                                  className="min-w-[80px] whitespace-nowrap rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
                                   style={added
                                     ? { backgroundColor: teal, borderColor: teal, color: '#fff' }
                                     : { borderColor: `${teal}99`, color: teal }}
                                 >
-                                  {added ? 'Added' : 'Add'}
+                                  {estimateMode ? 'Get Estimate' : added ? 'Added' : 'Add'}
                                 </button>
                               )}
                               {hasOptions && (
@@ -472,6 +480,12 @@ const ServiceListing = ({
               </div>
             </section>
           ))}
+
+          {!embedded && miniServices.length > 0 && (
+            <div className="-mx-4">
+              <MiniServicesGrid services={miniServices} cartItems={cartItems} onAdd={onAdd} onChangeQty={onChangeQty} />
+            </div>
+          )}
 
           {!embedded && (
             <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-slate-400">
@@ -595,7 +609,7 @@ const ServiceListing = ({
                                   <button
                                     type="button"
                                     onClick={() => (option._service ? onAdd(option._service, null) : onAdd(optionsService, option))}
-                                    className="min-w-[78px] rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
+                                    className="min-w-[78px] whitespace-nowrap rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
                                     style={{ borderColor: `${teal}99`, color: teal }}
                                   >
                                     Add
@@ -618,7 +632,7 @@ const ServiceListing = ({
                                 <button
                                   type="button"
                                   onClick={() => (option._service ? onAdd(option._service, null) : onAdd(optionsService, option))}
-                                  className="min-w-[80px] rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
+                                  className="min-w-[80px] whitespace-nowrap rounded-lg border bg-white px-5 py-1.5 text-sm font-bold shadow-sm transition active:scale-95"
                                   style={{ borderColor: `${teal}99`, color: teal }}
                                 >
                                   Add

@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import moverService from '../../homster/services/moverService';
 import { paymentService } from '../../homster/services/paymentService';
 import { themeColors } from '../../homster/theme';
+import { publicCatalogService } from '../../homster/services/catalogService';
 import { WizardHeader } from './packersMovers/Parts';
 import LocationStep from './packersMovers/LocationStep';
 import InventoryStep from './packersMovers/InventoryStep';
@@ -20,6 +21,8 @@ const PackersMoversPage = () => {
   const [params] = useSearchParams();
 
   const [config, setConfig] = useState(null);
+  // Admin-managed landing content (hero, trips, reviews, FAQs ...) of the Packers & Movers sub-category.
+  const [landing, setLanding] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [step, setStep] = useState(0);
   const [relocationType, setRelocationType] = useState(params.get('type') === 'INTER_CITY' ? 'INTER_CITY' : 'INTRA_CITY');
@@ -40,6 +43,27 @@ const PackersMoversPage = () => {
       .then((res) => setConfig(res.data))
       .catch((e) => setLoadError(e.message || 'Could not load Packers & Movers'));
   }, []);
+
+  const subParam = params.get('sub');
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const cats = await publicCatalogService.getCategories(undefined, 'slot');
+        const cat = (cats.categories || []).find((c) => /packers/i.test(c.title || c.name || ''));
+        if (!cat) return;
+        const res = await publicCatalogService.getSubCategories({ categoryId: cat.id || cat._id });
+        const subs = (res.subCategories || []).filter((s) => s.pageStyle === 'landing');
+        const wantInter = relocationType === 'INTER_CITY';
+        const pick = subs.find((s) => String(s.id || s._id) === String(subParam))
+          || subs.find((s) => /between|inter/i.test(s.title || '') === wantInter)
+          || subs[0];
+        if (live && pick?.premium) setLanding(pick.premium);
+      } catch { /* the wizard works without landing content */ }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subParam]);
 
   // what the customer picked, by id
   const variantsById = useMemo(() => {
@@ -174,6 +198,8 @@ const PackersMoversPage = () => {
           setTo={setTo}
           onNext={() => setStep(1)}
           coverage={config.coverage}
+          content={landing}
+          onStart={(t) => { setRelocationType(t === 'INTER_CITY' ? 'INTER_CITY' : 'INTRA_CITY'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         />
       )}
 

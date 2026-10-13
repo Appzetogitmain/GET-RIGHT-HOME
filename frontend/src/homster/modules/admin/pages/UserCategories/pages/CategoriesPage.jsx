@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { FiGrid, FiPlus, FiEdit2, FiTrash2, FiSave, FiChevronUp, FiChevronDown, FiMove, FiX, FiSearch, FiFilter, FiRotateCcw } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
+import CategoryLandingEditor from "../components/CategoryLandingEditor";
 import Modal from "../components/Modal";
 import ModeSelector from "../components/ModeSelector";
 import { ensureIds, saveCatalog, slugify, toAssetUrl } from "../utils";
@@ -39,6 +40,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
     hasSaleBadge: false,
     showOnHome: true,
     isEstimateBased: false,
+    page: {},
     bookingModes: ['slot'],
   });
   const [uploadingIcon, setUploadingIcon] = useState(false);
@@ -110,6 +112,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             hasSaleBadge: cat.hasSaleBadge || false,
             showOnHome: cat.showOnHome !== false,
             isEstimateBased: cat.isEstimateBased || false,
+            page: cat.page || {},
+            imageUrl: cat.imageUrl || cat.homeIconUrl || "",
             homeOrder: cat.homeOrder || 0,
             isDirectService: cat.isDirectService || false,
             bookingModes: cat.bookingModes?.length ? cat.bookingModes : ['slot'],
@@ -141,6 +145,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
         hasSaleBadge: false,
         showOnHome: true,
         isEstimateBased: false,
+        page: {},
         bookingModes: ['slot'],
       });
       return;
@@ -154,6 +159,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       hasSaleBadge: Boolean(safe.hasSaleBadge),
       showOnHome: safe.showOnHome !== false,
       isEstimateBased: Boolean(safe.isEstimateBased),
+      page: safe.page || {},
       bookingModes: safe.bookingModes?.length ? safe.bookingModes : ['slot'],
     });
   }, [editing]);
@@ -170,6 +176,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       hasSaleBadge: false,
       showOnHome: true,
       isEstimateBased: false,
+      page: {},
       bookingModes: ['slot'],
     });
     setIsModalOpen(false);
@@ -226,6 +233,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
         hasSaleBadge,
         showOnHome,
         isEstimateBased,
+        page: isEstimateBased ? (form.page || {}) : {},
         bookingModes,
         homeOrder,
         cityIds: selectedCity ? [selectedCity] : [],
@@ -262,6 +270,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             hasSaleBadge: response.category.hasSaleBadge || false,
             showOnHome: response.category.showOnHome !== false,
             isEstimateBased: response.category.isEstimateBased || false,
+            page: response.category.page || {},
             homeOrder: response.category.homeOrder || 0,
             isDirectService: response.category.isDirectService || false,
             bookingModes: response.category.bookingModes?.length ? response.category.bookingModes : ['slot'],
@@ -282,6 +291,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             hasSaleBadge: response.category.hasSaleBadge || false,
             showOnHome: response.category.showOnHome !== false,
             isEstimateBased: response.category.isEstimateBased || false,
+            page: response.category.page || {},
             homeOrder: response.category.homeOrder || 0,
             isDirectService: response.category.isDirectService || false,
             bookingModes: response.category.bookingModes?.length ? response.category.bookingModes : ['slot'],
@@ -302,6 +312,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
               hasSaleBadge: response.category.hasSaleBadge || false,
               showOnHome: response.category.showOnHome !== false,
               isEstimateBased: response.category.isEstimateBased || false,
+              page: response.category.page || {},
               homeOrder: response.category.homeOrder || 0,
               isDirectService: response.category.isDirectService || false,
               bookingModes: response.category.bookingModes?.length ? response.category.bookingModes : ['slot'],
@@ -858,6 +869,14 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
               Is Estimate Based Service? (e.g., Painting, Packers)
             </label>
           </div>
+
+          {form.isEstimateBased && (
+            <CategoryLandingEditor
+              categories={categories.filter((c) => c.id !== editingId)}
+              value={form.page}
+              onChange={(page) => setForm((p) => ({ ...p, page }))}
+            />
+          )}
 
           <div className="flex gap-3 pt-4">
             <button

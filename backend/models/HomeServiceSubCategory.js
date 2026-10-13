@@ -16,6 +16,11 @@ const homeServiceSubCategorySchema = new mongoose.Schema({
   bookingModes: [{ type: String, enum: ['instant', 'slot'] }],
   isActive: { type: Boolean, default: true },
   cityIds: { type: [String], default: ['default'] },
+  // Painting (estimate-based) categories: which page opens when the customer taps this sub-category.
+  // 'standard' = nested sub-categories / services listing, 'premium' = the "Get Estimate" showcase page, 'landing' = Packers & Movers style landing page.
+  pageStyle: { type: String, enum: ['standard', 'premium', 'landing'], default: 'standard' },
+  // Content of the premium page: { location, jobsCount, headline, intro, steps: [{title, text}], teamTitle, teamText, teamRating, team: [{name, role, rating}] }
+  premium: { type: Object, default: {} },
   page: { type: Object, default: {} }
 }, { timestamps: true });
 
