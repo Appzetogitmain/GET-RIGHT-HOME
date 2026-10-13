@@ -234,7 +234,10 @@ export const getPublicServices = async (req, res) => {
 export const createSubCategory = async (req, res) => {
   try {
     const { title } = req.body;
-    const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const baseSlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    // slug is globally unique, so add -2, -3... if another sub-category already uses it
+    let slug = baseSlug;
+    for (let i = 2; await HomeServiceSubCategory.exists({ slug }); i++) slug = `${baseSlug}-${i}`;
 
     // Ensure cityIds is an array and defaults to ['default']
     const cityIds = req.body.cityIds?.length > 0 ? req.body.cityIds : ['default'];
@@ -242,6 +245,7 @@ export const createSubCategory = async (req, res) => {
     const parentCategory = await HomeServiceCategory.findById(req.body.categoryId).select('bookingModes').lean();
     const subCategory = await HomeServiceSubCategory.create({
       ...req.body,
+      parentSubCategoryId: req.body.parentSubCategoryId || null,
       slug,
       cityIds,
       bookingModes: normalizeBookingModes(req.body.bookingModes, normalizeBookingModes(parentCategory?.bookingModes))
@@ -257,8 +261,17 @@ export const updateSubCategory = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
+    if (req.body.parentSubCategoryId !== undefined) {
+      updateData.parentSubCategoryId = req.body.parentSubCategoryId || null;
+      if (String(updateData.parentSubCategoryId) === String(id)) {
+        return res.status(400).json({ success: false, message: 'A sub-category cannot be its own parent' });
+      }
+    }
     if (req.body.title) {
-      updateData.slug = req.body.title.toLowerCase().replace(/\s+/g, '-');
+      const baseSlug = req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      let slug = baseSlug;
+      for (let i = 2; await HomeServiceSubCategory.exists({ slug, _id: { $ne: id } }); i++) slug = `${baseSlug}-${i}`;
+      updateData.slug = slug;
     }
     if (req.body.bookingModes !== undefined) updateData.bookingModes = normalizeBookingModes(req.body.bookingModes);
     const subCategory = await HomeServiceSubCategory.findByIdAndUpdate(id, updateData, { new: true });
@@ -299,7 +312,10 @@ export const getServices = async (req, res) => {
 export const createService = async (req, res) => {
   try {
     const { title } = req.body;
-    const slug = title.toLowerCase().replace(/\s+/g, '-');
+    // slug is globally unique, so add -2, -3... if another service already uses it
+    const baseSlug = title.toLowerCase().replace(/\s+/g, '-');
+    let slug = baseSlug;
+    for (let i = 2; await HomeServiceService.exists({ slug }); i++) slug = `${baseSlug}-${i}`;
     const parentCategory = await HomeServiceCategory.findById(req.body.categoryId).select('bookingModes').lean();
     const bookingModes = normalizeBookingModes(req.body.bookingModes, normalizeBookingModes(parentCategory?.bookingModes));
     const service = await HomeServiceService.create({
@@ -321,7 +337,10 @@ export const updateService = async (req, res) => {
 
     const updateData = { ...req.body };
     if (title) {
-      updateData.slug = title.toLowerCase().replace(/\s+/g, '-');
+      const baseSlug = title.toLowerCase().replace(/\s+/g, '-');
+      let slug = baseSlug;
+      for (let i = 2; await HomeServiceService.exists({ slug, _id: { $ne: id } }); i++) slug = `${baseSlug}-${i}`;
+      updateData.slug = slug;
     }
     if (req.body.bookingModes !== undefined) {
       updateData.bookingModes = normalizeBookingModes(req.body.bookingModes);

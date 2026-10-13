@@ -6,6 +6,7 @@ import { useJsApiLoader } from '@react-google-maps/api';
 import { api } from '../../services/apiService';
 import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 import { addRecentSearch, getRecentSearches } from '../../utils/recentActivity';
+import { parseSearchText } from '../../utils/parseSearchText';
 
 /**
  * Full-screen property search for mobile, laid out like a property portal:
@@ -305,13 +306,27 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
 
   const buildUrl = () => {
     const base = { ...TABS.find((t) => t.key === tab).params };
-    const params = new URLSearchParams(base);
     const typed = text.trim();
-    const allPlaces = typed && !places.some((p) => p.toLowerCase() === typed.toLowerCase()) ? [...places, typed] : places;
+    const rawPlaces = typed && !places.some((p) => p.toLowerCase() === typed.toLowerCase()) ? [...places, typed] : places;
+
+    // "2 bhk", "rent", "farmhouse" typed as chips are filters, not locations.
+    const allPlaces = [];
+    const parsedBhks = [];
+    const parsedTypes = [];
+    rawPlaces.forEach((p) => {
+      const parsed = parseSearchText(p);
+      parsed.places.forEach((n) => { if (!allPlaces.some((x) => x.toLowerCase() === n.toLowerCase())) allPlaces.push(n); });
+      parsed.bhks.forEach((b) => { if (!parsedBhks.includes(b)) parsedBhks.push(b); });
+      parsed.subTypes.forEach((s) => { if (!parsedTypes.includes(s)) parsedTypes.push(s); });
+      if (parsed.transactionType) base.transactionType = parsed.transactionType;
+    });
+    const params = new URLSearchParams(base);
     if (allPlaces.length) params.set('areas', allPlaces.join(','));
-    const chosenTypes = tab === 'plots' && types.length === 0 ? ['Plot / Land'] : types;
+    const baseTypes = tab === 'plots' && types.length === 0 ? ['Plot / Land'] : types;
+    const chosenTypes = [...new Set([...baseTypes, ...parsedTypes])];
     if (chosenTypes.length) params.set('subType', chosenTypes.join(','));
-    if (showBhk && bhks.length) params.set('bhkType', bhks.join(','));
+    const allBhks = [...new Set([...(showBhk ? bhks : []), ...parsedBhks])];
+    if (allBhks.length) params.set('bhkType', allBhks.join(','));
     if (showStatus && status.length) params.set('availability', status.join(','));
     if (postedBy.length) params.set('postedBy', postedBy.join(','));
     const min = steps[lo]; const max = steps[hi];

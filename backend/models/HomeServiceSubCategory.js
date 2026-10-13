@@ -4,6 +4,8 @@ const homeServiceSubCategorySchema = new mongoose.Schema({
   title: { type: String, required: true },
   slug: { type: String, required: true, unique: true },
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'HomeServiceCategory', required: true },
+  // Set when this is a nested sub-category (e.g. "Bathroom cleaning" under "Home cleaning")
+  parentSubCategoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'HomeServiceSubCategory', default: null },
   imageUrl: { type: String },
   icon: { type: String },
   bannerUrl: { type: String },
@@ -14,6 +16,11 @@ const homeServiceSubCategorySchema = new mongoose.Schema({
   bookingModes: [{ type: String, enum: ['instant', 'slot'] }],
   isActive: { type: Boolean, default: true },
   cityIds: { type: [String], default: ['default'] },
+  // Painting (estimate-based) categories: which page opens when the customer taps this sub-category.
+  // 'standard' = nested sub-categories / services listing, 'premium' = the "Get Estimate" showcase page, 'landing' = Packers & Movers style landing page.
+  pageStyle: { type: String, enum: ['standard', 'premium', 'landing'], default: 'standard' },
+  // Content of the premium page: { location, jobsCount, headline, intro, steps: [{title, text}], teamTitle, teamText, teamRating, team: [{name, role, rating}] }
+  premium: { type: Object, default: {} },
   page: { type: Object, default: {} }
 }, { timestamps: true });
 

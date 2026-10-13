@@ -27,6 +27,7 @@ const serviceSchema = z.object({
   bookingModes: z.array(z.enum(['instant', 'slot'])).min(1),
   instantEtaMinutes: z.number().min(5).max(180).optional(),
   groupTitle: z.string().optional(),
+  displayStyle: z.enum(['list', 'card']).optional(),
   badge: z.string().optional(),
   duration: z.string().optional(),
   rating: z.number().min(0).max(5).optional(),
@@ -187,6 +188,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     isInstant: false,
     instantEtaMinutes: 30,
     groupTitle: "",
+    displayStyle: "list",
     badge: "",
     duration: "",
     rating: "",
@@ -246,6 +248,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       isInstant: false,
       instantEtaMinutes: 30,
       groupTitle: "",
+    displayStyle: "list",
       badge: "",
       duration: "",
       rating: "",
@@ -278,6 +281,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       isInstant: service.isInstant || false,
       instantEtaMinutes: service.instantEtaMinutes || 30,
       groupTitle: service.groupTitle || "",
+      displayStyle: service.displayStyle === "card" ? "card" : "list",
       badge: service.badge || "",
       duration: service.duration || "",
       rating: service.rating || "",
@@ -364,6 +368,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       bookingModes: selectedFormCategory?.bookingModes || ['slot'],
       instantEtaMinutes: form.isInstant ? Number(form.instantEtaMinutes) || 30 : undefined,
       groupTitle: form.groupTitle?.trim() || "",
+      displayStyle: form.displayStyle === "card" ? "card" : "list",
       badge: form.badge?.trim() || "",
       duration: form.duration?.trim() || "",
       rating: form.rating !== "" && form.rating !== undefined ? Number(form.rating) : 0,
@@ -863,6 +868,31 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
               <div>
                 <h4 className="text-sm font-bold text-gray-800">Listing details</h4>
                 <p className="text-[11px] text-gray-500">Optional. Shapes how this service appears on the customer's services page.</p>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-2">Card style</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: "list", name: "List row", hint: "Normal row with details, shown in its group" },
+                    { key: "card", name: "Mini card", hint: "Image card in a 2-column grid under \"Mini Services\" at the end" }
+                  ].map((opt) => (
+                    <button key={opt.key} type="button" onClick={() => setForm({ ...form, displayStyle: opt.key })}
+                      className={`text-left rounded-xl border-2 p-3 transition ${form.displayStyle === opt.key ? "border-emerald-500 bg-emerald-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                      {opt.key === "list" ? (
+                        <div className="mb-2 space-y-1">
+                          <div className="flex items-center justify-between gap-2"><div className="h-2 w-16 rounded bg-gray-300" /><div className="h-6 w-6 rounded bg-gray-200" /></div>
+                          <div className="h-1.5 w-24 rounded bg-gray-200" /><div className="h-1.5 w-20 rounded bg-gray-200" />
+                        </div>
+                      ) : (
+                        <div className="mb-2 grid grid-cols-2 gap-1.5">
+                          {[0, 1].map((i) => (<div key={i}><div className="h-8 rounded bg-gray-200" /><div className="mt-1 h-1.5 w-10 rounded bg-gray-300" /></div>))}
+                        </div>
+                      )}
+                      <p className="text-xs font-bold text-gray-800">{opt.name}</p>
+                      <p className="text-[10px] text-gray-500 leading-snug">{opt.hint}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">

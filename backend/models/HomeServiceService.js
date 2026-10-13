@@ -32,6 +32,8 @@ const homeServiceServiceSchema = new mongoose.Schema({
   // Services with the same group heading are shown together, e.g. the
   // "Furnished Apartment" heading over its Essential / Premium / Elite plans.
   groupTitle: { type: String, default: '' },
+  // 'list' = normal row listing, 'card' = compact grid card (shown under "Mini Services" at the end of the page)
+  displayStyle: { type: String, enum: ['list', 'card'], default: 'list' },
   badge: { type: String, default: '' },             // small mark after the title, e.g. ★ 💎 👑
   duration: { type: String, default: '' },          // "3 hrs 45 mins"
   rating: { type: Number, default: 0 },             // 4.75

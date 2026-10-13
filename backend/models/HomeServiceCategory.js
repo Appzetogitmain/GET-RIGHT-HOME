@@ -17,7 +17,9 @@ const homeServiceCategorySchema = new mongoose.Schema({
   bookingModes: [{ type: String, enum: ['instant', 'slot'] }],
   cityIds: { type: [String], default: ['default'] },
   // Zones this category is offered in. Empty = every zone.
-  zoneIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Zone' }]
+  zoneIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Zone' }],
+  // Estimate-based landing content managed in admin: ideas, howSteps, projects, explore, reviews, faq ...
+  page: { type: Object, default: {} }
 }, { timestamps: true });
 
 export default mongoose.model('HomeServiceCategory', homeServiceCategorySchema);

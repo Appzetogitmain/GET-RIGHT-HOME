@@ -289,6 +289,7 @@ export const ensureIds = (catalog) => {
       homeOrder: Number.isFinite(c.homeOrder) ? c.homeOrder : 0,
       isEstimateBased: Boolean(c.isEstimateBased),
       isDirectService: Boolean(c.isDirectService),
+      page: c.page && typeof c.page === "object" ? c.page : {},
       bookingModes: Array.isArray(c.bookingModes) && c.bookingModes.length
         ? c.bookingModes.filter((mode) => mode === 'instant' || mode === 'slot')
         : ['slot'],

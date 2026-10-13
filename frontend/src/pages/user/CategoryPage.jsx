@@ -7,7 +7,14 @@ import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCart } from '../../homster/context/CartContext';
 import { useCity } from '../../homster/context/CityContext';
 import CategoryLanding from '../../components/user/CategoryLanding';
+import { themeColors } from '../../homster/theme';
 import ServiceListing from '../../homster/modules/user/components/booking/ServiceListing';
+import MiniServicesGrid, { isCardService } from '../../homster/modules/user/components/booking/MiniServicesGrid';
+import ReviewsSection from '../../homster/modules/user/components/booking/ReviewsSection';
+import { IdeasSection, HowItWorksSection, RecentProjectsSection } from '../../homster/modules/user/components/booking/CategoryLandingBlocks';
+import EstimateServiceCard from '../../homster/modules/user/components/booking/EstimateServiceCard';
+import FaqSection from '../../homster/modules/user/components/booking/FaqSection';
+import ExploreOtherServices from '../../homster/modules/user/components/booking/ExploreOtherServices';
 
 const toAssetUrl = (url) => {
     if (!url) return '';
@@ -36,7 +43,6 @@ const CategoryPage = () => {
     // Packers & Movers is a quote wizard, not a service list.
     useEffect(() => {
         if (/packers/i.test(category?.title || category?.name || '')) navigate('/home-services/packers-movers', { replace: true });
-        else if (category?.isEstimateBased) navigate(`/home-services/book-visit/${category.id || category._id}`, { replace: true });
     }, [category, navigate]);
     const [subCategories, setSubCategories] = useState([]);
     const [services, setServices] = useState([]);
@@ -100,16 +106,47 @@ const CategoryPage = () => {
         if (category) load();
     }, [category?.isDirectService, categoryId, cityId, bookingMode]);
 
-    const handleSubCategoryClick = async (subCat) => {
+    // Nested sub-categories: top-level tabs only show sub-categories without a parent;
+    // the chosen one may have children shown as a second row of chips.
+    const subId = (s) => String(s?.id || s?._id || '');
+    const topSubCategories = useMemo(() => subCategories.filter((s) => !s.parentSubCategoryId), [subCategories]);
+    const childSubCategories = useMemo(
+        () => (selectedSubCategory ? subCategories.filter((c) => String(c.parentSubCategoryId?._id || c.parentSubCategoryId || '') === subId(selectedSubCategory)) : []),
+        [subCategories, selectedSubCategory]
+    );
+    const [selectedChildId, setSelectedChildId] = useState(null);
+
+    const fetchServicesFor = async (subCategoryIds) => {
+        const results = await Promise.all(subCategoryIds.map((id) => publicCatalogService.getServices({ categoryId, subCategoryId: id, bookingMode })));
+        const seen = new Set();
+        return results
+            .flatMap((r) => (r.success ? r.services || [] : []))
+            .filter((sv) => { const k = String(sv.id || sv._id); if (seen.has(k)) return false; seen.add(k); return true; });
+    };
+
+    const selectedChild = selectedChildId ? subCategories.find((s) => subId(s) === String(selectedChildId)) : null;
+    // What the cart / listing treat as "the" sub-category: the nested one when open.
+    const activeSub = selectedChild || selectedSubCategory;
+
+    // A sub-category with children opens its own landing page (like a category does);
+    // picking a child (childId) opens that child's services page.
+    const handleSubCategoryClick = async (subCat, childId = null) => {
+        // Tapping a nested sub-category from anywhere selects its parent + that child.
+        const parentRef = subCat.parentSubCategoryId?._id || subCat.parentSubCategoryId;
+        if (parentRef && !childId) {
+            const parent = subCategories.find((s) => subId(s) === String(parentRef));
+            if (parent) return handleSubCategoryClick(parent, subId(subCat));
+        }
         setSelectedSubCategory(subCat);
+        setSelectedChildId(childId);
+        const hasKids = subCategories.some((c) => String(c.parentSubCategoryId?._id || c.parentSubCategoryId || '') === subId(subCat));
+        if (hasKids && !childId) {
+            setServices([]);
+            return;
+        }
         setLoading(true);
         try {
-            const res = await publicCatalogService.getServices({
-                categoryId,
-                subCategoryId: subCat.id || subCat._id,
-                bookingMode
-            });
-            if (res.success) setServices(res.services || []);
+            setServices(await fetchServicesFor([childId || subId(subCat)]));
         } catch (error) {
             console.error('Failed to load services:', error);
             toast.error('Services could not be loaded');
@@ -118,15 +155,85 @@ const CategoryPage = () => {
         }
     };
 
-    // A category opens on its landing (banner + sub-category grid). Only when we
-    // are sent here for one particular sub-category does its services page open directly.
+    // Single-page listing: every leaf sub-category's services (those without nested children) are
+    // fetched once and rendered as sections - on the category page for top-level leaves, and on a
+    // parent sub-category's own page for its children.
+    const parentOf = (s) => String(s.parentSubCategoryId?._id || s.parentSubCategoryId || '');
+    const hasKids = (sub) => subCategories.some((c) => parentOf(c) === subId(sub));
+    const [sectionServices, setSectionServices] = useState({});
+    const [sectionsLoading, setSectionsLoading] = useState(false);
+    const leafSubs = useMemo(() => subCategories.filter((s) => !subCategories.some((c) => parentOf(c) === subId(s))), [subCategories]);
+    const sectionKey = leafSubs.map(subId).join(',');
     useEffect(() => {
-        if (category?.isDirectService || selectedSubCategory || subCategories.length === 0) return;
-        const wanted = location.state?.subCategory;
-        const start = wanted && subCategories.find((s) => String(s.id || s._id) === String(wanted.id || wanted._id));
-        if (start) handleSubCategoryClick(start);
+        if (category?.isDirectService || leafSubs.length === 0) return undefined;
+        let cancelled = false;
+        (async () => {
+            setSectionsLoading(true);
+            try {
+                const entries = await Promise.all(leafSubs.map(async (sub) => [subId(sub), await fetchServicesFor([subId(sub)])]));
+                if (!cancelled) setSectionServices(Object.fromEntries(entries));
+            } catch (error) {
+                console.error('Failed to load services:', error);
+                if (!cancelled) toast.error('Services could not be loaded');
+            } finally {
+                if (!cancelled) setSectionsLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [subCategories, category?.isDirectService]);
+    }, [sectionKey, categoryId, bookingMode, category?.isDirectService]);
+
+    const scrollToSection = (sub) => {
+        document.getElementById(`sub-section-${subId(sub)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    // Tapping a sub-category with children opens its own page; a leaf scrolls to its section.
+    const openPremium = (sub, replace = false) => navigate(`/home-services/estimate/${categoryId}/${subId(sub)}`, { replace });
+    const pickSub = (sub) => {
+        if (sub.pageStyle === 'premium') return openPremium(sub);
+        return hasKids(sub) ? setSelectedSubCategory(sub) : scrollToSection(sub);
+    };
+    const pickChild = (sub) => (sub.pageStyle === 'premium' ? openPremium(sub) : scrollToSection(sub));
+    const goEstimate = (sub) => navigate(`/home-services/book-visit/${categoryId}${subId(sub) ? `?sub=${subId(sub)}` : ''}`);
+
+    // Arriving for one particular sub-category (e.g. picked in the home sheet): open its own page as
+    // soon as the sub-categories are known (its parent's page if it is nested), or scroll to its
+    // section once the services have loaded.
+    const arrivalDone = useRef(false);
+    const pendingScroll = useRef(null);
+    useEffect(() => {
+        const wanted = location.state?.subCategory;
+        if (!wanted || arrivalDone.current || subCategories.length === 0) return;
+        arrivalDone.current = true;
+        const full = subCategories.find((s) => subId(s) === subId(wanted)) || wanted;
+        const parent = parentOf(full) && subCategories.find((s) => subId(s) === parentOf(full));
+        const open = parent || (hasKids(full) ? full : null);
+        // A premium sub-category has its own estimate page; a standard leaf shows the category landing
+        // (banner, search, sub-category icons, "Services we offer") scrolled to its section.
+        if (!open && full.pageStyle === 'premium') {
+            setTimeout(() => openPremium(full, true), 0);
+            return;
+        }
+        if (!open) pendingScroll.current = full;
+        setTimeout(() => {
+            if (open) setSelectedSubCategory(open);
+            if (open && parent) pendingScroll.current = full;
+        }, 0);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subCategories]);
+
+    useEffect(() => {
+        const target = pendingScroll.current;
+        if (!target || sectionsLoading || !Object.keys(sectionServices).length) return;
+        const t = setTimeout(() => {
+            if (document.getElementById(`sub-section-${subId(target)}`)) {
+                pendingScroll.current = null;
+                scrollToSection(target);
+            }
+        }, 150);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sectionsLoading, sectionServices, selectedSubCategory]);
 
     const getCartItem = (serviceId) => {
         if (!serviceId || !cartItems?.length) return null;
@@ -138,7 +245,7 @@ const CategoryPage = () => {
     };
 
     // Add a service (or one option of it) to the cart.
-    const addToCartWithOption = async (service, option) => {
+    const addToCartWithOption = async (service, option, sub = activeSub) => {
         try {
             const unit = option
                 ? (Number(option.discountPrice) > 0 && Number(option.discountPrice) < Number(option.price) ? Number(option.discountPrice) : Number(option.price))
@@ -147,14 +254,14 @@ const CategoryPage = () => {
             const response = await addToCart({
                 serviceId: service.id || service._id,
                 categoryId: category?.id || category?._id,
-                subCategoryId: selectedSubCategory?.id || selectedSubCategory?._id || undefined,
+                subCategoryId: sub?.id || sub?._id || undefined,
                 title: option ? `${service.title} · ${option.label}` : service.title,
                 optionLabel: option?.label || '',
                 description: service.description || '',
                 duration: option?.duration || service.duration || '',
-                icon: toAssetUrl(service.icon || service.imageUrl || selectedSubCategory?.iconUrl || category?.homeIconUrl || ''),
+                icon: toAssetUrl(service.icon || service.imageUrl || sub?.iconUrl || category?.homeIconUrl || ''),
                 category: category?.title,
-                subCategory: selectedSubCategory?.title || category?.title || '',
+                subCategory: sub?.title || category?.title || '',
                 price: unit,
                 unitPrice: unit,
                 originalPrice: original > unit ? original : undefined,
@@ -189,12 +296,12 @@ const CategoryPage = () => {
             const cartItemData = {
                 serviceId: service.id || service._id,
                 categoryId: category?.id || category?._id,
-                subCategoryId: selectedSubCategory?.id || selectedSubCategory?._id || undefined,
+                subCategoryId: activeSub?.id || activeSub?._id || undefined,
                 title: service.title,
                 description: service.description || '',
-                icon: toAssetUrl(service.icon || service.imageUrl || selectedSubCategory?.iconUrl || category?.homeIconUrl || ''),
+                icon: toAssetUrl(service.icon || service.imageUrl || activeSub?.iconUrl || category?.homeIconUrl || ''),
                 category: category?.title,
-                subCategory: selectedSubCategory?.title || category?.title || '',
+                subCategory: activeSub?.title || category?.title || '',
                 price: service.discountPrice || service.basePrice || service.price,
                 unitPrice: service.discountPrice || service.basePrice || service.price,
                 serviceCount: 1,
@@ -284,49 +391,185 @@ const CategoryPage = () => {
 
     const isDirect = category?.isDirectService;
 
+    // "Explore Other Services" cards open their category on the home screen, like the category tiles do.
+    const openExploreCategory = async (item) => {
+        try {
+            const res = await publicCatalogService.getCategories(undefined, 'slot');
+            const cat = (res.categories || []).find((c) => String(c.id || c._id) === String(item.categoryId));
+            if (cat) { navigate('/home-services', { state: { openCategory: cat } }); window.scrollTo(0, 0); return; }
+        } catch { /* fall through */ }
+        navigate('/home-services');
+    };
+
+    const ctaLabel = bookingMode === 'instant' ? 'Proceed' : 'Select Address';
+    // Admin-managed blocks (Explore, reviews, FAQs) of the sub-category the customer came in through.
+    const pageExtras = (sub) => ({ reviews: sub?.page?.reviews, explore: sub?.page?.explore, faq: sub?.page?.faq });
+
+    const renderSections = (subs, { reviews = null, explore = null, faq = null } = {}) => (
+        <div className={`bg-[#F1F3F6] pt-4 ${cartCount > 0 ? 'pb-28' : 'pb-10'}`}>
+            {subs.map((sub) => {
+                const id = subId(sub);
+                const list = sectionServices[id] || [];
+                if (!sectionsLoading && list.length === 0) return null;
+                // A sub-category holding only Mini cards has nothing of its own to list; the cards show in the
+                // Mini Services grid below, so render just the scroll anchor (no empty padded card).
+                if (!sectionsLoading && list.every(isCardService)) return <div key={id} id={`sub-section-${id}`} className="scroll-mt-4" />;
+                return (
+                    <div key={id} id={`sub-section-${id}`} className="scroll-mt-4">
+                        <ServiceListing
+                            embedded
+                            title={category?.title || 'Services'}
+                            subTitle={sub.title || ''}
+                            subRating={sub.rating}
+                            subReviewCount={sub.reviewCount}
+                            mergePlain={bookingMode !== 'instant' && !category?.isEstimateBased}
+                            estimateMode={Boolean(category?.isEstimateBased)}
+                            ctaLabel={ctaLabel}
+                            etaMinutes={bookingMode === 'instant' ? (Math.min(...list.map((s) => Number(s.instantEtaMinutes) || 30), 30) || 30) : 0}
+                            bannerUrl={toAssetUrl(sub.bannerUrl || sub.imageUrl || '')}
+                            description={sub.description || ''}
+                            services={list}
+                            loading={sectionsLoading}
+                            cartItems={cartItems}
+                            cartCount={cartCount}
+                            totalPrice={totalCartPrice}
+                            onAdd={(service, option) => (category?.isEstimateBased ? goEstimate(sub) : addToCartWithOption(service, option, sub))}
+                            onChangeQty={changeLineQty}
+                            onOpenCart={() => navigate('/user/cart')}
+                        />
+                    </div>
+                );
+            })}
+            <MiniServicesGrid
+                services={subs.flatMap((sub) => (sectionServices[subId(sub)] || []).filter(isCardService))}
+                cartItems={cartItems}
+                onAdd={(service, option) => addToCartWithOption(service, option, subs.find((sub) => (sectionServices[subId(sub)] || []).includes(service)) || activeSub)}
+                onChangeQty={changeLineQty}
+            />
+            {explore && <ExploreOtherServices data={explore} onOpen={openExploreCategory} />}
+            {reviews && <ReviewsSection data={reviews} />}
+            {faq && <FaqSection data={faq} />}
+            {cartCount > 0 && (
+                <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white">
+                    <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3">
+                        <p className="text-lg font-semibold text-slate-900">₹{Math.round(totalCartPrice).toLocaleString('en-IN')}</p>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/user/cart')}
+                            className="rounded-lg px-8 py-3 text-sm font-semibold text-white shadow-sm active:scale-[0.99]"
+                            style={{ backgroundColor: themeColors.button }}
+                        >
+                            {ctaLabel}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
+    // A sub-category that has nested sub-categories gets its own page: its banner, title, rating,
+    // a grid of its children, and every child's services listed below.
+    if (category && !isDirect && selectedSubCategory && childSubCategories.length > 0) {
+        return (
+            <CategoryLanding
+                category={{
+                    title: selectedSubCategory.title,
+                    bannerUrl: selectedSubCategory.bannerUrl || selectedSubCategory.imageUrl,
+                    rating: selectedSubCategory.rating,
+                    reviewCount: selectedSubCategory.reviewCount,
+                    homeIconUrl: category?.homeIconUrl,
+                }}
+                subCategories={childSubCategories}
+                loading={false}
+                cityName={currentCity?.name || currentCity?.title || ''}
+                cartCount={cartCount}
+                instantEta={0}
+                onBack={() => setSelectedSubCategory(null)}
+                onOpenCart={() => navigate('/user/cart')}
+                onPick={pickChild}
+            >
+                {renderSections(childSubCategories, pageExtras(selectedSubCategory))}
+            </CategoryLanding>
+        );
+    }
+
     // Services page (NoBroker-style listing) for a direct category or a chosen sub-category.
     if (category && (isDirect || selectedSubCategory)) {
         return (
             <ServiceListing
                 title={category?.title || 'Services'}
-                subTitle={selectedSubCategory?.title || ''}
-                subRating={selectedSubCategory?.rating}
-                mergePlain={bookingMode !== 'instant'}
+                subTitle={activeSub?.title || ''}
+                subRating={activeSub?.rating}
+                mergePlain={bookingMode !== 'instant' && !category?.isEstimateBased}
+                estimateMode={Boolean(category?.isEstimateBased)}
                 ctaLabel={bookingMode === 'instant' ? 'Proceed' : 'Select Address'}
                 etaMinutes={bookingMode === 'instant' ? (Math.min(...(services.map((s) => Number(s.instantEtaMinutes) || 30)), 30) || 30) : 0}
-                subReviewCount={selectedSubCategory?.reviewCount}
-                bannerUrl={toAssetUrl(selectedSubCategory?.bannerUrl || selectedSubCategory?.imageUrl || category?.bannerUrl || '')}
-                description={selectedSubCategory?.description || ''}
+                subReviewCount={activeSub?.reviewCount}
+                bannerUrl={toAssetUrl(activeSub?.bannerUrl || activeSub?.imageUrl || category?.bannerUrl || '')}
+                description={activeSub?.description || ''}
                 services={services}
                 loading={loading}
                 cartItems={cartItems}
                 cartCount={cartCount}
                 totalPrice={totalCartPrice}
-                onAdd={addToCartWithOption}
+                onAdd={(service, option) => (category?.isEstimateBased ? goEstimate(activeSub) : addToCartWithOption(service, option))}
                 onChangeQty={changeLineQty}
-                onBack={() => (!isDirect && selectedSubCategory ? setSelectedSubCategory(null) : navigate(-1))}
+                onBack={() => {
+                    if (isDirect) return navigate(-1);
+                    // Back from a nested page returns to its parent's landing.
+                    if (selectedChildId) { setSelectedChildId(null); setServices([]); return; }
+                    if (selectedSubCategory) setSelectedSubCategory(null); else navigate(-1);
+                }}
                 onOpenCart={() => navigate('/user/cart')}
-                subCategories={isDirect ? [] : subCategories}
+                subCategories={isDirect || selectedChildId ? [] : topSubCategories}
                 activeSubId={selectedSubCategory?.id || selectedSubCategory?._id}
-                onSelectSub={handleSubCategoryClick}
+                onSelectSub={(s) => handleSubCategoryClick(s)}
             />
         );
     }
 
     if (category && !isDirect) {
-        const eta = bookingMode === 'instant' ? Math.min(...services.map((sv) => Number(sv.instantEtaMinutes) || 30), 30) : 0;
+        // Estimate-based landing: blocks managed on the category itself, falling back to the sub-category the customer came in through.
+        const landingPage = category?.page || {};
+        const arrivalExtras = pageExtras(subCategories.find((s) => subId(s) === subId(location.state?.subCategory)));
+        const landingExtras = { explore: landingPage.explore || arrivalExtras.explore, reviews: landingPage.reviews || arrivalExtras.reviews, faq: landingPage.faq || arrivalExtras.faq };
+        const allSectionServices = Object.values(sectionServices).flat();
+        const eta = bookingMode === 'instant' ? Math.min(...allSectionServices.map((sv) => Number(sv.instantEtaMinutes) || 30), 30) : 0;
         return (
             <CategoryLanding
                 category={category}
-                subCategories={subCategories}
+                subCategories={topSubCategories}
                 loading={loading}
                 cityName={currentCity?.name || currentCity?.title || ''}
                 cartCount={cartCount}
                 instantEta={eta}
                 onBack={() => navigate(-1)}
                 onOpenCart={() => navigate('/user/cart')}
-                onPick={handleSubCategoryClick}
-            />
+                onPick={pickSub}
+            >
+                {category?.isEstimateBased && topSubCategories.length > 0 && (
+                    <div className="mx-auto max-w-3xl px-4 pt-6">
+                        <h2 className="mb-3 text-lg font-bold text-slate-900">Services we offer</h2>
+                        <div className="space-y-4">
+                            {topSubCategories.map((sub) => (
+                                <EstimateServiceCard key={subId(sub)} sub={sub} onOpen={() => pickSub(sub)} onEstimate={() => goEstimate(sub)} />
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {category?.isEstimateBased ? (
+                    <div className="bg-[#F1F3F6] pb-10 pt-1">
+                        <IdeasSection page={landingPage} />
+                        <HowItWorksSection page={landingPage} />
+                        <RecentProjectsSection page={landingPage} />
+                        <div className="mt-6">
+                            {landingExtras.explore && <ExploreOtherServices data={landingExtras.explore} onOpen={openExploreCategory} />}
+                            {landingExtras.reviews && <ReviewsSection data={landingExtras.reviews} />}
+                            {landingExtras.faq && <FaqSection data={landingExtras.faq} />}
+                        </div>
+                    </div>
+                ) : renderSections(topSubCategories.filter((s) => !hasKids(s) && s.pageStyle !== 'premium'), arrivalExtras)}
+            </CategoryLanding>
         );
     }
 
