@@ -9,6 +9,12 @@ import { useCity } from '../../homster/context/CityContext';
 import CategoryLanding from '../../components/user/CategoryLanding';
 import { themeColors } from '../../homster/theme';
 import ServiceListing from '../../homster/modules/user/components/booking/ServiceListing';
+import MiniServicesGrid, { isCardService } from '../../homster/modules/user/components/booking/MiniServicesGrid';
+import ReviewsSection from '../../homster/modules/user/components/booking/ReviewsSection';
+import { IdeasSection, HowItWorksSection, RecentProjectsSection } from '../../homster/modules/user/components/booking/CategoryLandingBlocks';
+import EstimateServiceCard from '../../homster/modules/user/components/booking/EstimateServiceCard';
+import FaqSection from '../../homster/modules/user/components/booking/FaqSection';
+import ExploreOtherServices from '../../homster/modules/user/components/booking/ExploreOtherServices';
 
 const toAssetUrl = (url) => {
     if (!url) return '';
@@ -37,7 +43,6 @@ const CategoryPage = () => {
     // Packers & Movers is a quote wizard, not a service list.
     useEffect(() => {
         if (/packers/i.test(category?.title || category?.name || '')) navigate('/home-services/packers-movers', { replace: true });
-        else if (category?.isEstimateBased) navigate(`/home-services/book-visit/${category.id || category._id}`, { replace: true });
     }, [category, navigate]);
     const [subCategories, setSubCategories] = useState([]);
     const [services, setServices] = useState([]);
@@ -183,7 +188,13 @@ const CategoryPage = () => {
     };
 
     // Tapping a sub-category with children opens its own page; a leaf scrolls to its section.
-    const pickSub = (sub) => (hasKids(sub) ? setSelectedSubCategory(sub) : scrollToSection(sub));
+    const openPremium = (sub, replace = false) => navigate(`/home-services/estimate/${categoryId}/${subId(sub)}`, { replace });
+    const pickSub = (sub) => {
+        if (sub.pageStyle === 'premium') return openPremium(sub);
+        return hasKids(sub) ? setSelectedSubCategory(sub) : scrollToSection(sub);
+    };
+    const pickChild = (sub) => (sub.pageStyle === 'premium' ? openPremium(sub) : scrollToSection(sub));
+    const goEstimate = (sub) => navigate(`/home-services/book-visit/${categoryId}${subId(sub) ? `?sub=${subId(sub)}` : ''}`);
 
     // Arriving for one particular sub-category (e.g. picked in the home sheet): open its own page as
     // soon as the sub-categories are known (its parent's page if it is nested), or scroll to its
@@ -197,6 +208,12 @@ const CategoryPage = () => {
         const full = subCategories.find((s) => subId(s) === subId(wanted)) || wanted;
         const parent = parentOf(full) && subCategories.find((s) => subId(s) === parentOf(full));
         const open = parent || (hasKids(full) ? full : null);
+        // A premium sub-category has its own estimate page; a standard leaf shows the category landing
+        // (banner, search, sub-category icons, "Services we offer") scrolled to its section.
+        if (!open && full.pageStyle === 'premium') {
+            setTimeout(() => openPremium(full, true), 0);
+            return;
+        }
         if (!open) pendingScroll.current = full;
         setTimeout(() => {
             if (open) setSelectedSubCategory(open);
@@ -374,13 +391,29 @@ const CategoryPage = () => {
 
     const isDirect = category?.isDirectService;
 
+    // "Explore Other Services" cards open their category on the home screen, like the category tiles do.
+    const openExploreCategory = async (item) => {
+        try {
+            const res = await publicCatalogService.getCategories(undefined, 'slot');
+            const cat = (res.categories || []).find((c) => String(c.id || c._id) === String(item.categoryId));
+            if (cat) { navigate('/home-services', { state: { openCategory: cat } }); window.scrollTo(0, 0); return; }
+        } catch { /* fall through */ }
+        navigate('/home-services');
+    };
+
     const ctaLabel = bookingMode === 'instant' ? 'Proceed' : 'Select Address';
-    const renderSections = (subs) => (
+    // Admin-managed blocks (Explore, reviews, FAQs) of the sub-category the customer came in through.
+    const pageExtras = (sub) => ({ reviews: sub?.page?.reviews, explore: sub?.page?.explore, faq: sub?.page?.faq });
+
+    const renderSections = (subs, { reviews = null, explore = null, faq = null } = {}) => (
         <div className={`bg-[#F1F3F6] pt-4 ${cartCount > 0 ? 'pb-28' : 'pb-10'}`}>
             {subs.map((sub) => {
                 const id = subId(sub);
                 const list = sectionServices[id] || [];
                 if (!sectionsLoading && list.length === 0) return null;
+                // A sub-category holding only Mini cards has nothing of its own to list; the cards show in the
+                // Mini Services grid below, so render just the scroll anchor (no empty padded card).
+                if (!sectionsLoading && list.every(isCardService)) return <div key={id} id={`sub-section-${id}`} className="scroll-mt-4" />;
                 return (
                     <div key={id} id={`sub-section-${id}`} className="scroll-mt-4">
                         <ServiceListing
@@ -389,7 +422,8 @@ const CategoryPage = () => {
                             subTitle={sub.title || ''}
                             subRating={sub.rating}
                             subReviewCount={sub.reviewCount}
-                            mergePlain={bookingMode !== 'instant'}
+                            mergePlain={bookingMode !== 'instant' && !category?.isEstimateBased}
+                            estimateMode={Boolean(category?.isEstimateBased)}
                             ctaLabel={ctaLabel}
                             etaMinutes={bookingMode === 'instant' ? (Math.min(...list.map((s) => Number(s.instantEtaMinutes) || 30), 30) || 30) : 0}
                             bannerUrl={toAssetUrl(sub.bannerUrl || sub.imageUrl || '')}
@@ -399,13 +433,22 @@ const CategoryPage = () => {
                             cartItems={cartItems}
                             cartCount={cartCount}
                             totalPrice={totalCartPrice}
-                            onAdd={(service, option) => addToCartWithOption(service, option, sub)}
+                            onAdd={(service, option) => (category?.isEstimateBased ? goEstimate(sub) : addToCartWithOption(service, option, sub))}
                             onChangeQty={changeLineQty}
                             onOpenCart={() => navigate('/user/cart')}
                         />
                     </div>
                 );
             })}
+            <MiniServicesGrid
+                services={subs.flatMap((sub) => (sectionServices[subId(sub)] || []).filter(isCardService))}
+                cartItems={cartItems}
+                onAdd={(service, option) => addToCartWithOption(service, option, subs.find((sub) => (sectionServices[subId(sub)] || []).includes(service)) || activeSub)}
+                onChangeQty={changeLineQty}
+            />
+            {explore && <ExploreOtherServices data={explore} onOpen={openExploreCategory} />}
+            {reviews && <ReviewsSection data={reviews} />}
+            {faq && <FaqSection data={faq} />}
             {cartCount > 0 && (
                 <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white">
                     <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3">
@@ -443,9 +486,9 @@ const CategoryPage = () => {
                 instantEta={0}
                 onBack={() => setSelectedSubCategory(null)}
                 onOpenCart={() => navigate('/user/cart')}
-                onPick={scrollToSection}
+                onPick={pickChild}
             >
-                {renderSections(childSubCategories)}
+                {renderSections(childSubCategories, pageExtras(selectedSubCategory))}
             </CategoryLanding>
         );
     }
@@ -457,7 +500,8 @@ const CategoryPage = () => {
                 title={category?.title || 'Services'}
                 subTitle={activeSub?.title || ''}
                 subRating={activeSub?.rating}
-                mergePlain={bookingMode !== 'instant'}
+                mergePlain={bookingMode !== 'instant' && !category?.isEstimateBased}
+                estimateMode={Boolean(category?.isEstimateBased)}
                 ctaLabel={bookingMode === 'instant' ? 'Proceed' : 'Select Address'}
                 etaMinutes={bookingMode === 'instant' ? (Math.min(...(services.map((s) => Number(s.instantEtaMinutes) || 30)), 30) || 30) : 0}
                 subReviewCount={activeSub?.reviewCount}
@@ -468,7 +512,7 @@ const CategoryPage = () => {
                 cartItems={cartItems}
                 cartCount={cartCount}
                 totalPrice={totalCartPrice}
-                onAdd={addToCartWithOption}
+                onAdd={(service, option) => (category?.isEstimateBased ? goEstimate(activeSub) : addToCartWithOption(service, option))}
                 onChangeQty={changeLineQty}
                 onBack={() => {
                     if (isDirect) return navigate(-1);
@@ -485,6 +529,10 @@ const CategoryPage = () => {
     }
 
     if (category && !isDirect) {
+        // Estimate-based landing: blocks managed on the category itself, falling back to the sub-category the customer came in through.
+        const landingPage = category?.page || {};
+        const arrivalExtras = pageExtras(subCategories.find((s) => subId(s) === subId(location.state?.subCategory)));
+        const landingExtras = { explore: landingPage.explore || arrivalExtras.explore, reviews: landingPage.reviews || arrivalExtras.reviews, faq: landingPage.faq || arrivalExtras.faq };
         const allSectionServices = Object.values(sectionServices).flat();
         const eta = bookingMode === 'instant' ? Math.min(...allSectionServices.map((sv) => Number(sv.instantEtaMinutes) || 30), 30) : 0;
         return (
@@ -499,7 +547,28 @@ const CategoryPage = () => {
                 onOpenCart={() => navigate('/user/cart')}
                 onPick={pickSub}
             >
-                {renderSections(topSubCategories.filter((s) => !hasKids(s)))}
+                {category?.isEstimateBased && topSubCategories.length > 0 && (
+                    <div className="mx-auto max-w-3xl px-4 pt-6">
+                        <h2 className="mb-3 text-lg font-bold text-slate-900">Services we offer</h2>
+                        <div className="space-y-4">
+                            {topSubCategories.map((sub) => (
+                                <EstimateServiceCard key={subId(sub)} sub={sub} onOpen={() => pickSub(sub)} onEstimate={() => goEstimate(sub)} />
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {category?.isEstimateBased ? (
+                    <div className="bg-[#F1F3F6] pb-10 pt-1">
+                        <IdeasSection page={landingPage} />
+                        <HowItWorksSection page={landingPage} />
+                        <RecentProjectsSection page={landingPage} />
+                        <div className="mt-6">
+                            {landingExtras.explore && <ExploreOtherServices data={landingExtras.explore} onOpen={openExploreCategory} />}
+                            {landingExtras.reviews && <ReviewsSection data={landingExtras.reviews} />}
+                            {landingExtras.faq && <FaqSection data={landingExtras.faq} />}
+                        </div>
+                    </div>
+                ) : renderSections(topSubCategories.filter((s) => !hasKids(s) && s.pageStyle !== 'premium'), arrivalExtras)}
             </CategoryLanding>
         );
     }

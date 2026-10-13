@@ -4,6 +4,11 @@ import { toast } from "react-hot-toast";
 import CardShell from "../components/CardShell";
 import Modal from "../components/Modal";
 import SubCategoryServicesModal from "../components/SubCategoryServicesModal";
+import PremiumPageEditor from "../components/PremiumPageEditor";
+import ReviewsEditor from "../components/ReviewsEditor";
+import ExploreEditor from "../components/ExploreEditor";
+import FaqEditor from "../components/FaqEditor";
+import PackersLandingEditor from "../components/PackersLandingEditor";
 import { saveCatalog, slugify, toAssetUrl } from "../utils";
 import { subCategoryService, categoryService, publicCatalogService } from "../../../../../services/catalogService";
 import { z } from "zod";
@@ -18,6 +23,7 @@ const subCategorySchema = z.object({
   description: z.string().optional(),
   rating: z.number().min(0).max(5).optional(),
   reviewCount: z.string().optional(),
+  pageStyle: z.enum(["standard", "premium", "landing"]).optional(),
 });
 
 const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
@@ -49,6 +55,9 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
     description: "",
     rating: "",
     reviewCount: "",
+    pageStyle: "standard",
+    premium: {},
+    page: {},
     categoryId: "",
     parentSubCategoryId: "",
     cityIds: [],
@@ -146,6 +155,9 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           description: svc.description || "",
           rating: svc.rating || "",
           reviewCount: svc.reviewCount || "",
+          pageStyle: ["premium", "landing"].includes(svc.pageStyle) ? svc.pageStyle : "standard",
+          premium: svc.premium || {},
+          page: svc.page || {},
           isActive: svc.isActive !== false,
           isEstimateBased: svc.categoryId?.isEstimateBased || false,
           cityIds: (svc.cityIds || []).map(id => getStrId(id)).filter(Boolean),
@@ -161,6 +173,7 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
           title: cat.title,
           slug: cat.slug,
           isEstimateBased: cat.isEstimateBased || false,
+          imageUrl: cat.imageUrl || cat.homeIconUrl || cat.image || "",
           bookingModes: cat.bookingModes?.length ? cat.bookingModes : ['slot']
         }));
       } else {
@@ -174,6 +187,7 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
               title: cat.title,
               slug: cat.slug,
               isEstimateBased: cat.isEstimateBased || false,
+          imageUrl: cat.imageUrl || cat.homeIconUrl || cat.image || "",
               bookingModes: cat.bookingModes?.length ? cat.bookingModes : ['slot']
             }));
           }
@@ -223,6 +237,9 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       description: subCat.description || "",
       rating: subCat.rating || "",
       reviewCount: subCat.reviewCount || "",
+      pageStyle: ["premium", "landing"].includes(subCat.pageStyle) ? subCat.pageStyle : "standard",
+      premium: subCat.premium || {},
+      page: subCat.page || {},
       categoryId: subCat.categoryId || "",
       parentSubCategoryId: subCat.parentSubCategoryId || "",
       cityIds: subCat.cityIds || [],
@@ -240,6 +257,9 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       description: "",
       rating: "",
       reviewCount: "",
+      pageStyle: "standard",
+      premium: {},
+      page: {},
       categoryId: "",
       parentSubCategoryId: "",
       cityIds: selectedCity ? [selectedCity] : [],
@@ -304,6 +324,7 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
       description: form.description.trim(),
       rating: form.rating !== "" ? Number(form.rating) : 0,
       reviewCount: form.reviewCount.trim(),
+      pageStyle: form.pageStyle,
     });
 
     if (!validationResult.success) {
@@ -317,6 +338,9 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
         ...validationResult.data, 
         cityIds: form.cityIds,
         parentSubCategoryId: form.parentSubCategoryId || null,
+        pageStyle: ["premium", "landing"].includes(form.pageStyle) ? form.pageStyle : "standard",
+        premium: form.premium || {},
+        page: form.page || {},
         imageUrl: form.iconUrl, 
         bannerUrl: form.bannerUrl,
         bookingModes: categories.find((category) => String(category.id) === String(form.categoryId))?.bookingModes || ['slot']
@@ -580,7 +604,7 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Description <span className="font-normal text-gray-400">(optional)</span></label>
-            <textarea rows={3} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Short text shown to customers under the banner" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <textarea rows={3} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder={"Shown under the banner. For painting cards, write one point per line:\nTransparent pricing, no hidden costs\nSkilled painting partners"} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -593,6 +617,45 @@ const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
               <input type="text" placeholder="9.6K+" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" value={form.reviewCount} onChange={(e) => setForm({ ...form, reviewCount: e.target.value })} />
             </div>
           </div>
+
+          {categories.find((c) => String(c.id) === String(form.categoryId))?.isEstimateBased && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 space-y-3">
+              <div>
+                <p className="text-sm font-bold text-gray-800">Page design</p>
+                <p className="text-[11px] text-gray-500">What opens when a customer taps this sub-category.</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { key: "standard", name: "Standard", hint: "Nested sub-categories and services, like Cleaning" },
+                  { key: "premium", name: "Premium page", hint: "Showcase page with Get Estimate button, opens the visit booking" },
+                  { key: "landing", name: "Landing page", hint: "Packers & Movers style page: hero, services, reviews, FAQs" },
+                ].map((opt) => (
+                  <button key={opt.key} type="button" onClick={() => setForm({ ...form, pageStyle: opt.key })}
+                    className={`text-left rounded-xl border-2 p-3 transition ${form.pageStyle === opt.key ? "border-emerald-500 bg-emerald-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                    <p className="text-xs font-bold text-gray-800">{opt.name}</p>
+                    <p className="text-[10px] text-gray-500 leading-snug">{opt.hint}</p>
+                  </button>
+                ))}
+              </div>
+              {form.pageStyle === "landing" && (
+                <div className="space-y-2">
+                  <PackersLandingEditor value={form.premium} onChange={(premium) => setForm((prev) => ({ ...prev, premium }))} />
+                  <p className="text-[11px] text-gray-500">Sections with no content are hidden from customers. The booking button opens the Packers &amp; Movers quote flow.</p>
+                </div>
+              )}
+              {form.pageStyle === "premium" && (
+                <div className="space-y-2">
+                  <PremiumPageEditor value={form.premium} onChange={(premium) => setForm((prev) => ({ ...prev, premium }))} />
+                  <p className="text-[11px] text-gray-500">Hero image = the banner uploaded below. Title, rating and description above are used too. Sections with no content are hidden from customers.</p>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          <ExploreEditor categories={categories} value={form.page?.explore} onChange={(explore) => setForm((prev) => ({ ...prev, page: { ...(prev.page || {}), explore } }))} />
+          <FaqEditor value={form.page?.faq} onChange={(faq) => setForm((prev) => ({ ...prev, page: { ...(prev.page || {}), faq } }))} />
+          <ReviewsEditor value={form.page?.reviews} onChange={(reviews) => setForm((prev) => ({ ...prev, page: { ...(prev.page || {}), reviews } }))} />
 
           <div className="grid grid-cols-2 gap-4">
             {/* Sub-category Icon Upload */}

@@ -4,9 +4,11 @@ import { toast } from 'react-hot-toast';
 import PlacesInput from './PlacesInput';
 import moverService from '../../../homster/services/moverService';
 import { Card, teal } from './Parts';
+import { LandingHero, CertStrip, LandingSections } from '../PackersLandingParts';
 
 /** Step 1: Within City / Between Cities, pickup and drop. */
-const LocationStep = ({ relocationType, setRelocationType, from, to, setFrom, setTo, onNext, coverage }) => {
+const LocationStep = ({ relocationType, setRelocationType, from, to, setFrom, setTo, onNext, coverage, content, onStart }) => {
+  const p = content || null;
   const [checking, setChecking] = React.useState(false);
   const [blocked, setBlocked] = React.useState('');
   const [preview, setPreview] = React.useState(null);   // live result for Between Cities
@@ -45,8 +47,11 @@ const LocationStep = ({ relocationType, setRelocationType, from, to, setFrom, se
   };
 
   return (
-    <div className="mx-auto max-w-xl px-4 pb-10 pt-5">
-      <Card className="!p-5">
+    <div>
+      {p && <LandingHero p={p} fallbackTitle="Packers and Movers" />}
+      <div className={`mx-auto max-w-xl px-4 pb-10 ${p ? "-mt-16" : "pt-5"}`}>
+      {p?.certText && <CertStrip text={p.certText} />}
+      <Card className={`!p-5 ${p?.certText ? "!rounded-t-none" : ""}`}>
         <h2 className="text-lg font-bold text-slate-900">Where are you going to relocate?</h2>
 
         <div className="mt-4 grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1">
@@ -77,8 +82,9 @@ const LocationStep = ({ relocationType, setRelocationType, from, to, setFrom, se
         </div>
 
         <div className="mt-4 flex items-center justify-center gap-5 text-[11px] text-slate-500">
-          <span className="inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-[#347989]" /> Professional Handling</span>
-          <span className="inline-flex items-center gap-1"><BadgeIndianRupee className="h-3.5 w-3.5 text-[#347989]" /> Transparent Pricing</span>
+          {(p?.trustPoints?.length ? p.trustPoints : ['Professional Handling', 'Transparent Pricing']).map((t, i) => (
+            <span key={t} className="inline-flex items-center gap-1">{i % 2 === 0 ? <ShieldCheck className="h-3.5 w-3.5 text-[#347989]" /> : <BadgeIndianRupee className="h-3.5 w-3.5 text-[#347989]" />} {t}</span>
+          ))}
         </div>
 
         {relocationType === 'INTER_CITY' && from?.city && to?.city && (
@@ -98,7 +104,7 @@ const LocationStep = ({ relocationType, setRelocationType, from, to, setFrom, se
         )}
 
         <button type="button" disabled={checking} onClick={check} className="mt-4 w-full rounded-xl py-3.5 text-sm font-bold text-white shadow-lg active:scale-[0.99] disabled:opacity-60" style={{ backgroundColor: teal }}>
-          {checking ? 'Checking area…' : 'Check Prices'}
+          {checking ? 'Checking area…' : (p?.ctaLabel || 'Check Prices')}
         </button>
       </Card>
 
@@ -106,6 +112,9 @@ const LocationStep = ({ relocationType, setRelocationType, from, to, setFrom, se
         {['100% Damage & Delay Protection', 'Free instant quote in under 2 minutes', 'Verified movers & trained packers', 'Pay a small token, rest at unloading'].map((t) => (
           <div key={t} className="rounded-2xl bg-white px-3 py-3 shadow-sm">{t}</div>
         ))}
+      </div>
+
+      {p && <LandingSections p={p} onStart={onStart} />}
       </div>
     </div>
   );

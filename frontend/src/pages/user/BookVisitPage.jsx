@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { CalendarDays, ClipboardCheck, IndianRupee, ShieldCheck } from 'lucide-react';
 import estimateService from '../../homster/services/estimateService';
@@ -33,6 +33,7 @@ const dayLabel = (ymd) => {
 const BookVisitPage = () => {
   const { categoryId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [config, setConfig] = useState(null);
   const [error, setError] = useState('');
@@ -51,9 +52,12 @@ const BookVisitPage = () => {
     estimateService.getVisitConfig(categoryId)
       .then((res) => {
         setConfig(res.data);
-        if (res.data.subCategories.length === 1) setSubId(res.data.subCategories[0].id);
+        const wanted = searchParams.get('sub');
+        if (wanted && res.data.subCategories.some((x) => String(x.id) === wanted)) setSubId(wanted);
+        else if (res.data.subCategories.length === 1) setSubId(res.data.subCategories[0].id);
       })
       .catch((e) => setError(e.message || 'Could not load this service'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryId]);
 
   // Slots depend on the address (which professionals serve it).
