@@ -27,6 +27,7 @@ export const estimateService = {
   adminDeleteItem: (id) => unwrap(api.delete(`/admin/estimates/items/${id}`), 'Could not delete the line'),
   adminSeed: (categoryId) => unwrap(api.post('/admin/estimates/items/seed', { categoryId }), 'Could not load the sample'),
   adminRule: (categoryId) => unwrap(api.get('/admin/estimates/rule', { params: { categoryId } }), 'Could not load settings'),
+  adminSaveHero: (data) => unwrap(api.put('/admin/estimates/hero', data), 'Could not save the banner'),
   adminSaveRule: (data) => unwrap(api.put('/admin/estimates/rule', data), 'Could not save settings'),
   adminBookings: (categoryId) => unwrap(api.get('/admin/estimates/bookings', { params: { categoryId } }), 'Could not load estimates')
 };

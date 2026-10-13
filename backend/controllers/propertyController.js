@@ -1402,6 +1402,8 @@ export const getPublicProperties = async (req, res) => {
         return {
           $or: [
             { 'address.area': regex },
+            { propertyName: regex },
+            { 'rentDetails.societyName': regex },
             { 'address.city': regex },
             { 'address.district': regex },
             { 'address.state': regex },
@@ -2552,9 +2554,30 @@ export const getLocationSuggestions = async (req, res) => {
         places.push({ type: 'Locality', name: area, city, label: city ? `${area}, ${city}` : area, count: r.count });
       }
     });
+    // Projects / buildings by name. Repeated letters are forgiven so "appartment" finds "Apartment".
+    const loose = Array.from(q.replace(/[^a-zA-Z0-9 ]/g, '').replace(/(.)\1+/gi, '$1'))
+      .map((ch) => (ch === ' ' ? '\\s+' : `${ch}+`)).join('');
+    let projects = [];
+    if (loose.length >= 3) {
+      const prx = new RegExp(loose, 'i');
+      const props = await Property.find({
+        status: 'approved', isLive: true,
+        $or: [{ propertyName: prx }, { 'rentDetails.societyName': prx }]
+      }).select('propertyName address.area address.city rentDetails.societyName').limit(40).lean();
+      const seenP = new Set();
+      props.forEach((p) => {
+        const nm = String(prx.test(p.propertyName || '') ? p.propertyName : (p.rentDetails?.societyName || p.propertyName || '')).trim();
+        const where = [titleCaseCity(p.address?.area || ''), titleCaseCity(p.address?.city || '')].filter(Boolean).join(', ');
+        const key = `${nm.toLowerCase()}|${where.toLowerCase()}`;
+        if (!nm || seenP.has(key)) return;
+        seenP.add(key);
+        projects.push({ type: 'Project', name: nm, city: p.address?.city || '', label: where ? `${nm}, ${where}` : nm, count: 1 });
+      });
+    }
     const list = [
       ...[...cities.entries()].map(([name, count]) => ({ type: 'City', name, city: name, label: name, count })),
-      ...places
+      ...places,
+      ...projects.slice(0, 8)
     ];
     const rank = (x) => (x.name.toLowerCase() === lower ? 0 : x.name.toLowerCase().startsWith(lower) ? 1 : 2);
     list.sort((a, b) => rank(a) - rank(b) || b.count - a.count);

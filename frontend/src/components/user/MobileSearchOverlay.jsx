@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { X, Search, Crosshair, Plus, Loader2, MapPin, Clock, ChevronDown, Check } from 'lucide-react';
+import { X, Search, Crosshair, Plus, Loader2, ArrowUpLeft, Clock, ChevronDown, Check } from 'lucide-react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { api } from '../../services/apiService';
 import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
@@ -164,35 +164,40 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
 
       let google = [];
       if (window.google?.maps?.places) {
-        google = await new Promise((resolve) => {
-          new window.google.maps.places.AutocompleteService().getPlacePredictions(
-            { input: q, componentRestrictions: { country: 'in' }, types: ['(regions)'] },
+        const svc = new window.google.maps.places.AutocompleteService();
+        const ask = (extra) => new Promise((resolve) => {
+          svc.getPlacePredictions(
+            { input: q, componentRestrictions: { country: 'in' }, ...extra },
             (preds, status) => resolve(status === 'OK' && preds ? preds : [])
           );
-        }).then((preds) => preds.map((p) => {
+        });
+        // Regions (cities, localities) and buildings / projects, like a property portal.
+        const [regions, buildings] = await Promise.all([ask({ types: ['(regions)'] }), ask({})]);
+        google = [...regions, ...buildings].map((p) => {
           const types = p.types || [];
           const type = types.includes('locality') || types.includes('administrative_area_level_2') ? 'City'
-            : types.some((x) => x.startsWith('sublocality') || x === 'neighborhood') ? 'Locality' : 'Place';
+            : types.some((x) => x.startsWith('sublocality') || x === 'neighborhood') ? 'Locality'
+            : types.some((x) => ['establishment', 'premise', 'point_of_interest', 'real_estate_agency'].includes(x)) ? 'Project' : 'Place';
           return {
             type,
             name: p.structured_formatting?.main_text || p.description,
             label: p.description.replace(/, India$/, ''),
             fromGoogle: true
           };
-        }));
+        });
       }
 
       if (!live) return;
       const merged = [];
       const seen = new Set();
       [...ours, ...localities, ...google].forEach((item) => {
-        const key = `${item.name.toLowerCase()}|${item.type === 'City' ? 'city' : 'place'}`;
+        const key = item.type === 'Project' ? `${item.label.toLowerCase()}|project` : `${item.name.toLowerCase()}|${item.type === 'City' ? 'city' : 'place'}`;
         const plain = item.name.toLowerCase();
         if (seen.has(key) || (item.fromGoogle && seen.has(`${plain}|city`) && item.type === 'City')) return;
         seen.add(key);
         merged.push(item);
       });
-      setSuggestions(merged.slice(0, 12));
+      setSuggestions(merged.slice(0, 14));
       setSugLoading(false);
     }, 250);
     return () => { live = false; clearTimeout(t); };
@@ -406,9 +411,11 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
               {suggestions.map((s) => (
                 <li key={`${s.type}-${s.label}`} className="border-b border-gray-50 last:border-0">
                   <button type="button" onClick={() => addPlace(s.name, s.type === 'City')} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50">
-                    <MapPin size={15} className="shrink-0 text-gray-400" />
-                    <span className="min-w-0 flex-1 truncate text-[14px] text-gray-800">{s.label}</span>
-                    <span className="shrink-0 text-[11px] font-medium text-gray-400">{s.type}</span>
+                    <ArrowUpLeft size={15} className="shrink-0 text-gray-400" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold text-gray-800">{s.label}</span>
+                      <span className="block text-[11px] text-gray-400">{s.type}</span>
+                    </span>
                   </button>
                 </li>
               ))}

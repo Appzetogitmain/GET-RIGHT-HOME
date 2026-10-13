@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { PaintBucket } from 'lucide-react';
+import { PaintBucket, Upload, Trash2 } from 'lucide-react';
+import uploadToCloudinary from '../../../../utils/cloudinaryUpload';
 import estimateService from '../../../../services/estimateService';
 import EstimateLines from '../../../../../components/common/EstimateLines';
 
@@ -153,6 +154,85 @@ const Rules = ({ categoryId }) => {
   );
 };
 
+/* ---------------------------------------------------------- Banner & video */
+const Hero = ({ categoryId }) => {
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState('');
+  useEffect(() => {
+    setForm(null);
+    estimateService.adminRule(categoryId)
+      .then((r) => setForm({ heroVideoUrl: r.data.heroVideoUrl || '', heroImageUrl: r.data.heroImageUrl || '', heroTitle: r.data.heroTitle || '', heroOffer: r.data.heroOffer || '' }))
+      .catch((e) => toast.error(e.message));
+  }, [categoryId]);
+  if (!form) return <p className="py-10 text-center text-sm text-gray-400">Loading…</p>;
+
+  const pick = async (e, key, kind) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (kind === 'video' && !file.type.startsWith('video/')) return toast.error('Please choose a video file');
+    if (kind === 'image' && !file.type.startsWith('image/')) return toast.error('Please choose an image');
+    if (kind === 'video' && file.size > 40 * 1024 * 1024) return toast.error('Video is too large. Keep it under 40 MB (a short 10 to 20 second loop works best).');
+    try {
+      setBusy(key);
+      const url = await uploadToCloudinary(file, 'estimate-hero');
+      setForm((f) => ({ ...f, [key]: url }));
+      toast.success('Uploaded. Click Save to publish it.');
+    } catch (err) { toast.error(err.message || 'Upload failed'); } finally { setBusy(''); }
+  };
+  const save = async () => {
+    try {
+      setSaving(true);
+      await estimateService.adminSaveHero({ categoryId, ...form });
+      toast.success('Saved');
+    } catch (e) { toast.error(e.message); } finally { setSaving(false); }
+  };
+
+  const Picker = ({ label, hint, k, kind }) => (
+    <Field label={label} hint={hint}>
+      <div className="flex items-center gap-2">
+        <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:border-[#347989] hover:text-[#347989] ${busy ? 'pointer-events-none opacity-60' : ''}`}>
+          <Upload className="h-4 w-4" /> {busy === k ? 'Uploading…' : form[k] ? 'Replace' : 'Upload'}
+          <input type="file" accept={kind === 'video' ? 'video/*' : 'image/*'} className="hidden" onChange={(e) => pick(e, k, kind)} />
+        </label>
+        {form[k] && <Btn tone="danger" className="!py-2" onClick={() => setForm({ ...form, [k]: '' })}><Trash2 className="h-4 w-4" /></Btn>}
+      </div>
+    </Field>
+  );
+
+  return (
+    <div className="grid max-w-5xl gap-6 lg:grid-cols-[1fr_300px]">
+      <div className="space-y-5">
+        <div className="grid gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <Picker label="Background video" hint="Plays muted on a loop behind the top of the page. Short MP4, under 40 MB." k="heroVideoUrl" kind="video" />
+          <Picker label="Banner image" hint="Shown while the video loads, and when there is no video." k="heroImageUrl" kind="image" />
+          <Field label="Offer tag" hint="Shown as a tag on the banner, e.g. 15% OFF. Leave empty for none.">
+            <input className={input} maxLength={40} value={form.heroOffer} onChange={(e) => setForm({ ...form, heroOffer: e.target.value })} placeholder="15% OFF" />
+          </Field>
+          <Field label="Headline" hint="Empty = the category name.">
+            <input className={input} maxLength={120} value={form.heroTitle} onChange={(e) => setForm({ ...form, heroTitle: e.target.value })} placeholder="Best Painting Services - Expert Painters Near Me" />
+          </Field>
+        </div>
+        <Btn onClick={save} disabled={saving || !!busy}>{saving ? 'Saving…' : 'Save'}</Btn>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">Preview</p>
+        <div className="overflow-hidden rounded-3xl border-4 border-gray-800 bg-white shadow-lg">
+          <div className="relative h-44 bg-gradient-to-br from-[#347989] to-[#BB5F36]">
+            {form.heroVideoUrl ? (
+              <video src={form.heroVideoUrl} poster={form.heroImageUrl || undefined} className="h-full w-full object-cover" autoPlay muted loop playsInline />
+            ) : form.heroImageUrl ? <img src={form.heroImageUrl} alt="" className="h-full w-full object-cover" /> : null}
+            {form.heroOffer && <span className="absolute right-3 top-3 rotate-6 rounded-md bg-[#BB5F36] px-2.5 py-1 text-xs font-extrabold text-white shadow">{form.heroOffer}</span>}
+          </div>
+          <p className="px-3 py-3 text-sm font-extrabold text-gray-900">{form.heroTitle || 'Home Painting'}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ---------------------------------------------------------------- Estimates */
 const Estimates = ({ categoryId }) => {
   const [data, setData] = useState(null);
@@ -205,7 +285,7 @@ const Estimates = ({ categoryId }) => {
 };
 
 /* --------------------------------------------------------------------- Page */
-const TABS = [['rates', 'Rate card'], ['rules', 'Advance & commission'], ['estimates', 'Estimates & money']];
+const TABS = [['rates', 'Rate card'], ['rules', 'Advance & commission'], ['hero', 'Banner & video'], ['estimates', 'Estimates & money']];
 
 const EstimatePricing = () => {
   const [cats, setCats] = useState(null);
@@ -242,7 +322,7 @@ const EstimatePricing = () => {
               <button key={key} type="button" onClick={() => setTab(key)} className={`whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold ${tab === key ? 'border-[#347989] text-[#347989]' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>{label}</button>
             ))}
           </div>
-          {categoryId && (tab === 'rates' ? <RateCard key={categoryId} categoryId={categoryId} /> : tab === 'rules' ? <Rules key={categoryId} categoryId={categoryId} /> : <Estimates key={categoryId} categoryId={categoryId} />)}
+          {categoryId && (tab === 'rates' ? <RateCard key={categoryId} categoryId={categoryId} /> : tab === 'rules' ? <Rules key={categoryId} categoryId={categoryId} /> : tab === 'hero' ? <Hero key={categoryId} categoryId={categoryId} /> : <Estimates key={categoryId} categoryId={categoryId} />)}
         </>
       )}
     </div>

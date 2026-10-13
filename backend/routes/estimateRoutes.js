@@ -4,7 +4,8 @@ import { checkManagerPermission } from '../middlewares/managerPermission.js';
 import {
   getVisitConfig, bookVisit, rejectEstimate,
   adminCategories, adminListItems, adminCreateItem, adminUpdateItem, adminDeleteItem, adminSeedItems,
-  adminGetRule, adminSaveRule, adminEstimateBookings
+  adminGetRule, adminSaveRule,
+  adminSaveHero, adminEstimateBookings
 } from '../controllers/estimateController.js';
 
 // Customer: /api/estimates
@@ -25,4 +26,5 @@ adminRouter.put('/items/:id', checkManagerPermission('categories', 'edit'), admi
 adminRouter.delete('/items/:id', checkManagerPermission('categories', 'delete'), adminDeleteItem);
 adminRouter.get('/rule', checkManagerPermission('categories', 'view'), adminGetRule);
 adminRouter.put('/rule', checkManagerPermission('categories', 'edit'), adminSaveRule);
+adminRouter.put('/hero', checkManagerPermission('categories', 'edit'), adminSaveHero);
 adminRouter.get('/bookings', checkManagerPermission('categories', 'view'), adminEstimateBookings);

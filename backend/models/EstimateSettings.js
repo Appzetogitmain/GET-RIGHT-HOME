@@ -7,7 +7,12 @@ const estimateSettingsSchema = new mongoose.Schema({
   advanceType: { type: String, enum: ['percent', 'fixed'], default: 'percent' },
   advanceValue: { type: Number, default: 30, min: 0 },
   // null => the platform-wide commission is used
-  commissionPercent: { type: Number, default: null, min: 0, max: 100 }
+  commissionPercent: { type: Number, default: null, min: 0, max: 100 },
+  // Top banner of the customer's visit-booking page (background video or image, offer tag, headline)
+  heroVideoUrl: { type: String, default: '' },
+  heroImageUrl: { type: String, default: '' },
+  heroTitle: { type: String, default: '' },
+  heroOffer: { type: String, default: '' }
 }, { timestamps: true });
 
 export const DEFAULT_ESTIMATE_RULE = { advanceType: 'percent', advanceValue: 30, commissionPercent: null };

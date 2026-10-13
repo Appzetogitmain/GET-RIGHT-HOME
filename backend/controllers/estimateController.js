@@ -30,7 +30,7 @@ export const getVisitConfig = async (req, res) => {
     const category = await HomeServiceCategory.findOne({ _id: categoryId, isEstimateBased: true }).select('title icon image').lean();
     if (!category) return res.status(404).json({ success: false, message: 'This service is not available' });
     const [subs, rule, anyService] = await Promise.all([
-      HomeServiceSubCategory.find({ categoryId, isActive: true }).select('title iconUrl imageUrl description').lean(),
+      HomeServiceSubCategory.find({ categoryId, isActive: true }).select('title iconUrl imageUrl bannerUrl description rating reviewCount').lean(),
       EstimateSettings.getFor(categoryId),
       // slot availability is looked up per service (it decides which workers can serve)
       Service.findOne({ $or: [{ categoryId }, { categoryIds: categoryId }], isActive: true, isTexture: { $ne: true }, isIdea: { $ne: true }, isRecentProject: { $ne: true } }).select('_id').lean()
@@ -40,8 +40,9 @@ export const getVisitConfig = async (req, res) => {
       data: {
         category: { id: category._id, title: category.title },
         serviceId: anyService?._id || null,
-        subCategories: subs.map((s) => ({ id: s._id, title: s.title, iconUrl: s.iconUrl || s.imageUrl || '', description: s.description || '' })),
-        advance: { type: rule.advanceType, value: rule.advanceValue }
+        subCategories: subs.map((s) => ({ id: s._id, title: s.title, iconUrl: s.iconUrl || s.imageUrl || '', imageUrl: s.bannerUrl || s.imageUrl || s.iconUrl || '', rating: s.rating || 0, reviewCount: s.reviewCount || '', description: s.description || '' })),
+        advance: { type: rule.advanceType, value: rule.advanceValue },
+        hero: { videoUrl: rule.heroVideoUrl || '', imageUrl: rule.heroImageUrl || '', title: rule.heroTitle || '', offer: rule.heroOffer || '' }
       }
     });
   } catch (error) {
@@ -327,6 +328,23 @@ export const adminSaveRule = async (req, res) => {
     res.json({ success: true, message: 'Saved', data: doc });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Could not save settings' });
+  }
+};
+
+/** PUT /api/admin/estimates/hero — the banner / background video of the visit-booking page. */
+export const adminSaveHero = async (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!isId(b.categoryId)) return res.status(400).json({ success: false, message: 'categoryId is required' });
+    const str = (v, max) => String(v ?? '').trim().slice(0, max);
+    const doc = await EstimateSettings.findOneAndUpdate(
+      { categoryId: b.categoryId },
+      { $set: { heroVideoUrl: str(b.heroVideoUrl, 600), heroImageUrl: str(b.heroImageUrl, 600), heroTitle: str(b.heroTitle, 120), heroOffer: str(b.heroOffer, 40) } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+    res.json({ success: true, message: 'Saved', data: doc });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Could not save the banner' });
   }
 };
 
