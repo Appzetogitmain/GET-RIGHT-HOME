@@ -205,6 +205,12 @@ const PremiumEstimatePage = () => {
       .finally(() => setLoading(false));
   }, [categoryId, subId]);
 
+  // navigate(-1) does nothing when this page is the first history entry (opened directly / refreshed).
+  const goBack = () => {
+    if (window.history.state?.idx > 0) navigate(-1);
+    else navigate(`/home-services/category/${categoryId}`, { replace: true });
+  };
+
   const getEstimate = () => navigate(`/home-services/book-visit/${categoryId}?sub=${subId}`);
 
   if (loading) return <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Loading…</div>;
@@ -226,7 +232,7 @@ const PremiumEstimatePage = () => {
       {/* Floating back + city */}
       <div className="fixed inset-x-0 top-0 z-40">
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 pt-4">
-          <button type="button" onClick={() => navigate(-1)} aria-label="Back" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#c2410c]/85 text-white backdrop-blur">
+          <button type="button" onClick={goBack} aria-label="Back" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#c2410c]/85 text-white backdrop-blur">
             <ArrowLeft className="h-5 w-5" />
           </button>
           {city && <span className="ml-auto flex items-center gap-1 rounded-full bg-[#c2410c]/85 px-4 py-2 text-sm font-semibold text-white backdrop-blur">{city} <ChevronDown className="h-4 w-4" /></span>}
