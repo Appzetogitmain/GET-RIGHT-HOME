@@ -49,15 +49,9 @@ const LocationStep = ({ relocationType, setRelocationType, from, to, setFrom, se
   return (
     <div>
       {p && <LandingHero p={p} fallbackTitle="Packers and Movers" />}
-<<<<<<< HEAD
-      <div className={`mx-auto max-w-xl px-4 pb-10 ${p ? "-mt-16" : "pt-5"}`}>
-      {p?.certText && <CertStrip text={p.certText} />}
-      <Card className={`!p-5 ${p?.certText ? "!rounded-t-none" : ""}`}>
-=======
       <div className={`relative z-10 mx-auto max-w-xl px-4 pb-10 ${p ? "-mt-6" : "pt-5"}`}>
       {p?.certText && <CertStrip text={p.certText} />}
       <Card className={`!p-5 ${p?.certText ? "!mt-0 !rounded-t-none" : ""}`}>
->>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
         <h2 className="text-lg font-bold text-slate-900">Where are you going to relocate?</h2>
 
         <div className="mt-4 grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1">
