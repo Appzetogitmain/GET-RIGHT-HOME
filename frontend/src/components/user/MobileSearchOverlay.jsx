@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { getPreferredCity } from '../../utils/locationPreference';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, Search, Crosshair, Plus, Loader2, ArrowUpLeft, Clock, ChevronDown, Check } from 'lucide-react';
@@ -146,7 +147,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
     setSugLoading(true);
     let live = true;
     const t = setTimeout(async () => {
-      const ours = await api.get('/properties/locations', { params: { q, limit: 6 } })
+      const ours = await api.get('/properties/locations', { params: { q, limit: 6, city: getPreferredCity() || undefined } })
         .then((res) => res.data?.suggestions || [])
         .catch(() => []);
 
@@ -198,6 +199,13 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
         seen.add(key);
         merged.push(item);
       });
+      // Things in the user's own (live-location) city come first, the rest of India after.
+      const home = String(getPreferredCity() || '').trim().toLowerCase();
+      if (home) {
+        const names = /^(bengaluru|bangalore)$/.test(home) ? ['bengaluru', 'bangalore'] : [home];
+        const near = (x) => names.some((n) => (x.label || '').toLowerCase().includes(n)) ? 0 : 1;
+        merged.sort((a, b) => near(a) - near(b));   // stable: order inside each group is kept
+      }
       setSuggestions(merged.slice(0, 14));
       setSugLoading(false);
     }, 250);

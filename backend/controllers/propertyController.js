@@ -2560,10 +2560,15 @@ export const getLocationSuggestions = async (req, res) => {
     let projects = [];
     if (loose.length >= 3) {
       const prx = new RegExp(loose, 'i');
-      const props = await Property.find({
-        status: 'approved', isLive: true,
-        $or: [{ propertyName: prx }, { 'rentDetails.societyName': prx }]
-      }).select('propertyName address.area address.city rentDetails.societyName').limit(40).lean();
+      const nameMatch = { $or: [{ propertyName: prx }, { 'rentDetails.societyName': prx }] };
+      const pick = 'propertyName address.area address.city rentDetails.societyName';
+      const homeCity = String(req.query.city || '').trim();
+      // The user's own city first, then everywhere else.
+      const [mine, others] = await Promise.all([
+        homeCity ? Property.find({ status: 'approved', isLive: true, 'address.city': safeRegex(homeCity, { exact: false }), ...nameMatch }).select(pick).limit(20).lean() : [],
+        Property.find({ status: 'approved', isLive: true, ...nameMatch }).select(pick).limit(40).lean()
+      ]);
+      const props = [...mine, ...others];
       const seenP = new Set();
       props.forEach((p) => {
         const nm = String(prx.test(p.propertyName || '') ? p.propertyName : (p.rentDetails?.societyName || p.propertyName || '')).trim();
@@ -2577,7 +2582,7 @@ export const getLocationSuggestions = async (req, res) => {
     const list = [
       ...[...cities.entries()].map(([name, count]) => ({ type: 'City', name, city: name, label: name, count })),
       ...places,
-      ...projects.slice(0, 8)
+      ...projects.slice(0, 12)
     ];
     const rank = (x) => (x.name.toLowerCase() === lower ? 0 : x.name.toLowerCase().startsWith(lower) ? 1 : 2);
     list.sort((a, b) => rank(a) - rank(b) || b.count - a.count);
