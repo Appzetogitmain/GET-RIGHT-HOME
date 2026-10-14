@@ -20,7 +20,7 @@ import {
     User,
     Crown
 } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import InstantCategoriesSheet from '../../components/user/InstantCategoriesSheet';
 import SubCategoriesSheet from '../../components/user/SubCategoriesSheet';
 import { publicCatalogService } from '../../homster/services/catalogService';
@@ -39,9 +39,12 @@ const toAssetUrl = (url) => {
     return `${base}${clean.startsWith('/') ? '' : '/'}${clean}`;
 };
 
+const SHEET_KEY = 'grh_home_sheet_category';
+
 const HomeServicesPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const navType = useNavigationType();
     const { currentCity } = useCity();
     const [searchQuery, setSearchQuery] = useState('');
     const [isScrolled, setIsScrolled] = useState(false);
@@ -152,6 +155,20 @@ const HomeServicesPage = () => {
         }
         navigate(`/home-services/category/${id}`, { state: { category: cat } });
     }, [navigate]);
+
+    // Coming back (browser/header back) from a page opened through the sub-category sheet reopens that
+    // sheet, so the customer lands where they picked from instead of on a category landing page.
+    useEffect(() => {
+        let saved = null;
+        try {
+            saved = sessionStorage.getItem(SHEET_KEY);
+            sessionStorage.removeItem(SHEET_KEY);
+            sessionStorage.removeItem('grh_category_left');
+        } catch { /* storage unavailable */ }
+        if (navType !== 'POP' || !saved) return;
+        try { openCategoryModal(JSON.parse(saved)); } catch { /* ignore corrupt value */ }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const [promos, setPromos] = useState([]);
     const [curations, setCurations] = useState([]);
@@ -1365,6 +1382,7 @@ const HomeServicesPage = () => {
                 category={sheetCategory}
                 onClose={() => setSheetCategory(null)}
                 onPick={(sub) => {
+                    try { sessionStorage.setItem(SHEET_KEY, JSON.stringify(sheetCategory)); } catch { /* storage unavailable */ }
                     // Packers & Movers has its own quote wizard (location, items, slot, summary).
                     if (/packers/i.test(sheetCategory.title || sheetCategory.name || '')) {
                         const inter = /between|inter/i.test(sub.title || '');

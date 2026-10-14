@@ -29,12 +29,16 @@ const PackersLandingEditor = ({ value, onChange }) => {
         <Field label="Trust points under the button (one per line)">
           <textarea rows={2} className={inputCls} defaultValue={linesToText(p.trustPoints)} onBlur={(e) => set({ trustPoints: textToLines(e.target.value) })} />
         </Field>
+        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+          <input type="checkbox" checked={!p.couponHidden} onChange={(e) => set({ couponHidden: !e.target.checked })} />
+          Show offer banner below the hero text
+        </label>
         <div className="grid grid-cols-2 gap-3">
           <input className={inputCls} placeholder="Coupon label e.g. COUPON" value={p.couponLabel || ""} onChange={(e) => set({ couponLabel: e.target.value })} />
           <input className={inputCls} placeholder="Coupon title e.g. Freedom Plan Sale" value={p.couponTitle || ""} onChange={(e) => set({ couponTitle: e.target.value })} />
         </div>
         <input className={inputCls} placeholder="Coupon text e.g. 10% OFF on booking" value={p.couponText || ""} onChange={(e) => set({ couponText: e.target.value })} />
-        <ImageField label="Coupon image (optional)" value={p.couponImage} onChange={(couponImage) => set({ couponImage })} />
+        <ImageField label="Banner image (optional - a 3D icon shows if empty)" value={p.couponImage} onChange={(couponImage) => set({ couponImage })} />
       </Section>
 
       <Section title="What sets us apart" hint="Highlights with icon">

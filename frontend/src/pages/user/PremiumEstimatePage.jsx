@@ -4,8 +4,8 @@ import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Check, MapPin, Star 
 import { publicCatalogService } from '../../homster/services/catalogService';
 import { useCity } from '../../homster/context/CityContext';
 
-const BRAND = '#347989';
-const CREAM = '#F2F8F9';
+const BRAND = '#ea580c';
+const CREAM = '#FFF7ED';
 const SERIF = "'Lora', Georgia, 'Times New Roman', serif";
 
 const toUrl = (url) => {
@@ -53,7 +53,7 @@ const Carousel = ({ items, cardClass, renderItem, dots = true }) => {
       </div>
       {dots && items.length > 1 && (
         <div className="mt-3 flex justify-center gap-1.5">
-          {items.map((_, i) => <span key={i} className={`h-1.5 rounded-full transition-all ${i === active ? 'w-6 bg-[#347989]' : 'w-1.5 bg-[#347989]/30'}`} />)}
+          {items.map((_, i) => <span key={i} className={`h-1.5 rounded-full transition-all ${i === active ? 'w-6 bg-[#ea580c]' : 'w-1.5 bg-[#ea580c]/30'}`} />)}
         </div>
       )}
     </>
@@ -89,7 +89,7 @@ const ColourVisualiser = ({ p }) => {
         <div className={`mt-5 flex gap-2 overflow-x-auto px-5 ${hideScroll}`}>
           {groups.map((g, i) => (
             <button key={i} type="button" onClick={() => { setGi(i); setCi(0); }}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${i === gi ? 'bg-white text-slate-900 shadow' : 'bg-[#347989]/10 text-slate-600'}`}>
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${i === gi ? 'bg-white text-slate-900 shadow' : 'bg-[#ea580c]/10 text-slate-600'}`}>
               {g.name}
             </button>
           ))}
@@ -137,7 +137,7 @@ const Guarantees = ({ p }) => {
       <Heading title={p.guaranteeTitle} text={p.guaranteeText} />
       <div className="mx-5 mt-5">
         {tabs.length > 1 && (
-          <div className="flex rounded-full bg-[#347989]/10 p-1">
+          <div className="flex rounded-full bg-[#ea580c]/10 p-1">
             {tabs.map((t, i) => (
               <button key={i} type="button" onClick={() => setTab(i)} className={`flex-1 rounded-full py-2.5 text-sm font-semibold transition ${i === tab ? 'bg-white text-slate-900 shadow' : 'text-slate-500'}`}>{t.label}</button>
             ))}
@@ -146,7 +146,7 @@ const Guarantees = ({ p }) => {
         <ul className="mt-4 divide-y divide-stone-200 rounded-2xl border border-stone-200 bg-white px-4">
           {current.list.map((line, i) => (
             <li key={i} className="flex gap-3 py-4 text-[15px] leading-snug text-slate-700">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#347989]" /> <span>{line}</span>
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#ea580c]" /> <span>{line}</span>
             </li>
           ))}
         </ul>
@@ -226,10 +226,10 @@ const PremiumEstimatePage = () => {
       {/* Floating back + city */}
       <div className="fixed inset-x-0 top-0 z-40">
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 pt-4">
-          <button type="button" onClick={() => navigate(-1)} aria-label="Back" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2B6270]/85 text-white backdrop-blur">
+          <button type="button" onClick={() => navigate(-1)} aria-label="Back" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#c2410c]/85 text-white backdrop-blur">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          {city && <span className="ml-auto flex items-center gap-1 rounded-full bg-[#2B6270]/85 px-4 py-2 text-sm font-semibold text-white backdrop-blur">{city} <ChevronDown className="h-4 w-4" /></span>}
+          {city && <span className="ml-auto flex items-center gap-1 rounded-full bg-[#c2410c]/85 px-4 py-2 text-sm font-semibold text-white backdrop-blur">{city} <ChevronDown className="h-4 w-4" /></span>}
         </div>
       </div>
 
@@ -302,14 +302,14 @@ const PremiumEstimatePage = () => {
                     <p className="text-xs text-slate-500">Avg Team Rating</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-[#347989]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-[#347989]">Verified</span>
+                <span className="rounded-full bg-[#ea580c]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-[#ea580c]">Verified</span>
               </div>
             )}
             {team.length > 0 && (
               <div className={`mt-6 flex gap-6 overflow-x-auto px-5 pb-2 ${hideScroll}`}>
                 {team.map((m, i) => (
                   <div key={i} className="w-[110px] shrink-0 text-center">
-                    <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2 border-white bg-[#2B6270] text-lg font-semibold text-white shadow">
+                    <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2 border-white bg-[#c2410c] text-lg font-semibold text-white shadow">
                       {initials(m.name)}
                       {m.rating && <span className="absolute -bottom-2.5 rounded-full bg-white px-2 text-[10px] font-bold text-slate-700 shadow">{m.rating} ★</span>}
                     </div>
@@ -378,7 +378,7 @@ const PremiumEstimatePage = () => {
                     <div className="flex h-full min-h-[210px] flex-col justify-between rounded-3xl bg-white p-5 shadow-sm">
                       <p className="text-[15px] leading-relaxed text-slate-700">{q.quote}</p>
                       <div className="mt-5 flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#347989] text-xs font-bold text-white">{initials(q.name)}</span>
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ea580c] text-xs font-bold text-white">{initials(q.name)}</span>
                         <div>
                           <p className="text-sm font-bold text-slate-800">{q.name}</p>
                           {q.meta && <p className="text-xs text-slate-500">{q.meta}</p>}
