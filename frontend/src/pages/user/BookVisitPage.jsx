@@ -92,8 +92,12 @@ const BookVisitPage = () => {
       .then((res) => {
         setConfig(res.data);
         const wanted = searchParams.get('sub');
-        if (wanted && res.data.subCategories.some((x) => String(x.id) === wanted)) setSubId(wanted);
-        else if (res.data.subCategories.length === 1) setSubId(res.data.subCategories[0].id);
+        if (wanted && res.data.subCategories.some((x) => String(x.id) === wanted)) {
+          // Coming from "Get Estimate": go straight to address / date / slot.
+          setSubId(wanted);
+          setStage('schedule');
+          setAddrOpen(true);
+        } else if (res.data.subCategories.length === 1) setSubId(res.data.subCategories[0].id);
       })
       .catch((e) => setError(e.message || 'Could not load this service'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
