@@ -1382,10 +1382,7 @@ const HomeServicesPage = () => {
                 category={sheetCategory}
                 onClose={() => setSheetCategory(null)}
                 onPick={(sub) => {
-<<<<<<< HEAD
-=======
                     try { sessionStorage.setItem(SHEET_KEY, JSON.stringify(sheetCategory)); } catch { /* storage unavailable */ }
->>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
                     // Packers & Movers has its own quote wizard (location, items, slot, summary).
                     if (/packers/i.test(sheetCategory.title || sheetCategory.name || '')) {
                         const inter = /between|inter/i.test(sub.title || '');
