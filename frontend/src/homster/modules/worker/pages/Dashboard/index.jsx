@@ -11,7 +11,6 @@ import OptimizedImage from '../../../../components/common/OptimizedImage';
 import { useSocket } from '../../../../context/SocketContext';
 import WorkerJobAlertModal from '../../components/bookings/WorkerJobAlertModal';
 import WorkerOfflineModal from './components/WorkerOfflineModal';
-import WorkerAvailabilityModal from '../../components/common/WorkerAvailabilityModal';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import workerWalletService from '../../../../services/workerWalletService';
 
@@ -115,7 +114,6 @@ const Dashboard = () => {
 
   // Offline Leave Request states
   const [offlineModalOpen, setOfflineModalOpen] = useState(false);
-  const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
   const [submittingOffline, setSubmittingOffline] = useState(false);
   const [pendingOfflineRequest, setPendingOfflineRequest] = useState(null);
   const [activeOfflineSchedule, setActiveOfflineSchedule] = useState(null);
@@ -182,7 +180,7 @@ const Dashboard = () => {
     // If currently online, worker wants to toggle OFFLINE:
     if (isOnline) {
       // Worker marks which days they work and which they're on leave
-      setAvailabilityModalOpen(true);
+      navigate('/worker/availability');
       return;
     }
 
@@ -192,7 +190,7 @@ const Dashboard = () => {
       toast.error(todayPending
         ? "Today's availability is waiting for admin approval."
         : "Not marked for today. Mark today as Available in 'My availability' to go online.");
-      setAvailabilityModalOpen(true);
+      navigate('/worker/availability');
       return;
     }
 
@@ -251,7 +249,7 @@ const Dashboard = () => {
       toast.error(error.response?.data?.message || 'Failed to update status');
       if (error.response?.data?.code === 'AVAILABILITY_NOT_MARKED') {
         setTodayMarked(false);
-        setAvailabilityModalOpen(true);
+        navigate('/worker/availability');
       }
       if (error.response?.data?.code === 'AVAILABILITY_PENDING_APPROVAL') {
         setTodayMarked(false);
@@ -622,7 +620,7 @@ const Dashboard = () => {
                   {isBusy ? 'Complete your current work to receive the next booking' : isOnline ? 'Receiving nearby job requests' : !todayMarked ? (todayPending ? "Today's availability is pending approval. You can go online once approved." : "Mark today as Available to go online.") : 'Go online to receive jobs'}
                   <button
                     type="button"
-                    onClick={() => setAvailabilityModalOpen(true)}
+                    onClick={() => navigate('/worker/availability')}
                     className="ml-2 underline text-[#00A699] font-semibold"
                   >
                     My availability
@@ -1452,15 +1450,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Weekly days + leave calendar (opened from the toggle) */}
-      <WorkerAvailabilityModal
-        isOpen={availabilityModalOpen}
-        onClose={() => {
-          setAvailabilityModalOpen(false);
-          fetchDashboardData();
-        }}
-        onRequestHourlyLeave={() => setOfflineModalOpen(true)}
-      />
+
 
       {/* Worker Offline Leave Request Modal */}
       <WorkerOfflineModal

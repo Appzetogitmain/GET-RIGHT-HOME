@@ -17,7 +17,7 @@ const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
  * When the admin requires daily marking, dates that aren't marked Available
  * receive no bookings.
  */
-export default function AvailabilityEditor({ data, onSave, saving = false, isAdmin = false }) {
+export default function AvailabilityEditor({ data, onSave, saving = false, isAdmin = false, isPage = false }) {
   const [availableDays, setAvailableDays] = useState([0, 1, 2, 3, 4, 5, 6]);
   const [availableDates, setAvailableDates] = useState([]);
   const [leaveDates, setLeaveDates] = useState([]);
@@ -428,7 +428,7 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
           </div>
         </div>
 
-        <div className="sticky bottom-0 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-1 bg-gradient-to-t from-white via-white to-white/80">
+        <div className={`${isPage ? 'sticky bottom-20 sm:bottom-4 z-30' : 'sticky bottom-0'} -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-2 bg-gradient-to-t from-white via-white to-white/95 backdrop-blur-xs`}>
           <button
             type="button"
             disabled={saving || !dirty}

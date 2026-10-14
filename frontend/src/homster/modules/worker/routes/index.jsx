@@ -58,6 +58,7 @@ const Referrals = lazyLoad(() => import('../pages/Referrals'));
 const Complaints = lazyLoad(() => import('../pages/Complaints'));
 const PrivacyPolicy = lazyLoad(() => import('../pages/PrivacyPolicy'));
 const DigitalId = lazyLoad(() => import('../pages/DigitalId'));
+const Availability = lazyLoad(() => import('../pages/Availability'));
 
 // Loading fallback component
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -102,6 +103,7 @@ const WorkerRoutes = () => {
                 {/* Protected routes (auth required) */}
                 <Route path="/" element={<ProtectedRoute userType="worker"><Navigate to="dashboard" replace /></ProtectedRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute userType="worker"><Dashboard /></ProtectedRoute>} />
+                <Route path="/availability" element={<ProtectedRoute userType="worker"><Availability /></ProtectedRoute>} />
                 <Route path="/jobs" element={<ProtectedRoute userType="worker"><AssignedJobs /></ProtectedRoute>} />
                 <Route path="/job/:id" element={<ProtectedRoute userType="worker"><JobDetails /></ProtectedRoute>} />
                 <Route path="/job/:id/map" element={<ProtectedRoute userType="worker"><JobMap /></ProtectedRoute>} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward, FiCalendar } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { workerTheme as themeColors } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
@@ -203,6 +203,7 @@ const Profile = () => {
   };
 
   const menuItems = [
+    { icon: FiCalendar, label: 'My Availability', path: '/worker/availability' },
     { icon: FiCreditCard, label: 'Digital ID Card', path: '/worker/digital-id' },
     { icon: FiFileText, label: 'My Documents', path: '/worker/documents' },
     { icon: FiBookOpen, label: 'Training Center', path: '/worker/training' },
