@@ -1,5 +1,10 @@
 import React, { useMemo, useState } from 'react';
+<<<<<<< HEAD
 import { ChevronDown, ChevronRight, Star } from 'lucide-react';
+=======
+import { BadgePercent, ChevronDown, ChevronRight, Star } from 'lucide-react';
+import { Icon3D, pick3D } from './PackersIcons3D';
+>>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
 
 const TEAL = '#347989';
 const TEAL_DARK = '#2B6270';
@@ -19,16 +24,33 @@ const hideScroll = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
 
 const Card = ({ title, children, className = '' }) => (
   <section className={`mt-5 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-black/5 ${className}`}>
+<<<<<<< HEAD
     {title && <h2 className="text-lg font-bold leading-snug text-slate-800">{title}</h2>}
+=======
+    {title && <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900">{title}</h2>}
+>>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
     {children}
   </section>
 );
 
+<<<<<<< HEAD
 const IconBox = ({ src, className = 'h-12 w-12' }) => (
   <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 ${className}`}>
     {src && <img src={toUrl(src)} alt="" className="h-full w-full object-cover" loading="lazy" />}
   </span>
 );
+=======
+const IconBox = ({ src, title, className = 'h-12 w-12' }) => {
+  const icon = pick3D(title);
+  return (
+    <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-2xl ${icon ? 'bg-gradient-to-br from-[#EAF6F8] to-[#CFE8EC] p-1.5' : 'bg-slate-100'} ${className}`}>
+      {icon
+        ? <Icon3D name={icon} />
+        : src && <img src={toUrl(src)} alt="" className="h-full w-full object-cover" loading="lazy" />}
+    </span>
+  );
+};
+>>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
 
 const RatingPill = ({ value }) => (
   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
@@ -38,7 +60,11 @@ const RatingPill = ({ value }) => (
 
 /** Gradient hero (title, rating, text, coupon, certification strip) shown above the booking card. */
 export const LandingHero = ({ p, fallbackTitle }) => (
+<<<<<<< HEAD
   <div className="relative overflow-hidden rounded-b-[40px] px-5 pb-24 pt-6 text-white" style={{ background: `linear-gradient(160deg, ${TEAL} 0%, ${TEAL_DARK} 70%)` }}>
+=======
+  <div className="relative overflow-hidden rounded-b-[40px] px-5 pb-14 pt-6 text-white" style={{ background: `linear-gradient(160deg, ${TEAL} 0%, ${TEAL_DARK} 70%)` }}>
+>>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
     <span className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
     <div className="relative mx-auto max-w-xl">
       <div className="flex items-start justify-between gap-3">
@@ -53,6 +79,7 @@ export const LandingHero = ({ p, fallbackTitle }) => (
         )}
       </div>
       {p.heroText && <p className="mt-3 text-sm leading-relaxed text-white/85">{p.heroText}</p>}
+<<<<<<< HEAD
       {(p.couponTitle || p.couponImage) && (
         <div className="mt-5 flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-slate-800">
           <div>
@@ -61,6 +88,20 @@ export const LandingHero = ({ p, fallbackTitle }) => (
             {p.couponText && <p className="text-xs text-slate-500">{p.couponText}</p>}
           </div>
           {p.couponImage && <img src={toUrl(p.couponImage)} alt="" className="h-14 w-20 shrink-0 object-contain" />}
+=======
+      {!p.couponHidden && (
+        <div className="mt-5 flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-slate-800 shadow-[0_6px_16px_rgba(0,0,0,0.12)]">
+          <div className="min-w-0">
+            <p className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-200">
+              <BadgePercent className="h-3 w-3" /> {p.couponLabel || 'Offer'}
+            </p>
+            <p className="mt-1 text-base font-extrabold leading-tight tracking-tight" style={{ color: TEAL_DARK }}>{p.couponTitle || 'Book your move with Get Right Home'}</p>
+            <p className="text-xs font-medium text-slate-500">{p.couponText || 'Transparent pricing. No hidden charges.'}</p>
+          </div>
+          {p.couponImage
+            ? <img src={toUrl(p.couponImage)} alt="" className="h-14 w-20 shrink-0 object-contain" />
+            : <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#EAF6F8] to-[#CFE8EC] p-1.5"><Icon3D name="quote" /></span>}
+>>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
         </div>
       )}
     </div>
@@ -103,7 +144,11 @@ export const LandingSections = ({ p, onStart }) => {
               <div key={i} className="flex gap-4">
                 <IconBox src={h.image} />
                 <div>
+<<<<<<< HEAD
                   <p className="text-[15px] font-semibold leading-snug text-slate-800">{h.title}</p>
+=======
+                  <p className="text-[15px] font-semibold leading-snug text-gray-900">{h.title}</p>
+>>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
                   {h.link && <p className="mt-1 text-sm font-semibold underline" style={{ color: TEAL }}>{h.link} <ChevronRight className="inline h-4 w-4" /></p>}
                 </div>
               </div>
@@ -120,12 +165,27 @@ export const LandingSections = ({ p, onStart }) => {
               <button key={i} type="button" onClick={() => onStart?.(c.type || 'INTRA_CITY')} className="relative flex min-h-[150px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left">
                 <div className="relative z-10 flex w-3/5 flex-col justify-between p-4">
                   <div>
+<<<<<<< HEAD
                     <p className="text-lg font-bold leading-tight text-slate-800">{c.title}</p>
                     {c.text && <p className="mt-1 text-xs leading-snug text-slate-500">{c.text}</p>}
                   </div>
                   <span className="mt-3 text-sm font-bold underline" style={{ color: TEAL }}>{c.linkLabel || 'Explore'} <ChevronRight className="inline h-4 w-4" /></span>
                 </div>
                 {c.image && <img src={toUrl(c.image)} alt="" className="absolute inset-y-0 right-0 h-full w-2/5 object-cover" loading="lazy" />}
+=======
+                    <p className="text-lg font-extrabold leading-tight tracking-tight text-gray-900">{c.title}</p>
+                    {c.text && <p className="mt-1 text-xs font-medium leading-snug text-slate-500">{c.text}</p>}
+                  </div>
+                  <span className="mt-3 text-sm font-bold underline" style={{ color: TEAL }}>{c.linkLabel || 'Explore'} <ChevronRight className="inline h-4 w-4" /></span>
+                </div>
+                {pick3D(c.title) ? (
+                  <span className="absolute inset-y-0 right-0 flex w-2/5 items-center justify-center bg-gradient-to-br from-[#E3F2F5] to-[#BFDDE3]">
+                    <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/90 p-3 shadow-[0_8px_18px_rgba(43,98,112,0.25)]">
+                      <Icon3D name={pick3D(c.title)} />
+                    </span>
+                  </span>
+                ) : c.image && <img src={toUrl(c.image)} alt="" className="absolute inset-y-0 right-0 h-full w-2/5 object-cover" loading="lazy" />}
+>>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
               </button>
             ))}
           </div>
@@ -147,10 +207,17 @@ export const LandingSections = ({ p, onStart }) => {
             <span className="absolute bottom-6 left-[27px] top-6 border-l-2 border-dashed border-slate-200" />
             {howSteps.map((s, i) => (
               <div key={i} className="relative flex gap-4">
+<<<<<<< HEAD
                 <IconBox src={s.image} className="h-14 w-14 ring-4 ring-white" />
                 <div>
                   <p className="font-semibold text-slate-800">{s.title}</p>
                   {s.text && <p className="text-sm leading-snug text-slate-500">{s.text}</p>}
+=======
+                <IconBox src={s.image} title={s.title} className="h-14 w-14 ring-4 ring-white" />
+                <div>
+                  <p className="text-[15px] font-semibold text-gray-900">{s.title}</p>
+                  {s.text && <p className="text-[13px] font-normal leading-snug text-slate-500">{s.text}</p>}
+>>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
                 </div>
               </div>
             ))}
@@ -200,10 +267,17 @@ export const LandingSections = ({ p, onStart }) => {
           <div className="mt-4 space-y-5">
             {whyItems.map((w, i) => (
               <div key={i} className="flex gap-4">
+<<<<<<< HEAD
                 <IconBox src={w.image} className="h-14 w-14" />
                 <div>
                   <p className="font-semibold text-slate-800">{w.title}</p>
                   {w.text && <p className="text-sm leading-snug text-slate-500">{w.text}</p>}
+=======
+                <IconBox src={w.image} title={w.title} className="h-14 w-14" />
+                <div>
+                  <p className="text-[15px] font-semibold text-gray-900">{w.title}</p>
+                  {w.text && <p className="text-[13px] font-normal leading-snug text-slate-500">{w.text}</p>}
+>>>>>>> c36021dbba81c43e251924bc1ad43e65e392621d
                 </div>
               </div>
             ))}

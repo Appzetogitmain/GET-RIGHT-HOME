@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, useSearchParams, useNavigationType } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Plus, Minus, Layers, Info, Check, X, ShoppingCart, ChevronRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -28,9 +28,14 @@ const toAssetUrl = (url) => {
  * Full-page browsing of a category (its sub-categories, or its services directly if it's a "direct
  * service" category with no sub-category step).
  */
+const CAT_LEFT_KEY = 'grh_category_left';
+
 const CategoryPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const navType = useNavigationType();
+    // Picked from the home sheet: leaving goes to the home page with that sheet open (not through history).
+    const fromSheet = !!location.state?.subCategory;
     const { categoryId } = useParams();
     const [searchParams] = useSearchParams();
     const { currentCity } = useCity();
@@ -39,6 +44,27 @@ const CategoryPage = () => {
     const bookingMode = location.state?.bookingMode === 'instant' || searchParams.get('mode') === 'instant' ? 'instant' : 'slot';
 
     const [category, setCategory] = useState(location.state?.category || null);
+
+    const goHomeSheet = () => navigate('/home-services', { replace: true, state: { openCategory: category } });
+
+    // A category opened from the home sheet is only a stop on the way: coming back to it from a deeper
+    // page goes straight on to the home page (which reopens the sheet) instead of showing this landing.
+    useEffect(() => {
+        const cameFromSheet = !!location.state?.subCategory;
+        try {
+            const left = sessionStorage.getItem(CAT_LEFT_KEY) === '1';
+            sessionStorage.removeItem(CAT_LEFT_KEY);
+            if (cameFromSheet && left && navType === 'POP') { goHomeSheet(); return undefined; }
+        } catch { /* storage unavailable */ }
+        const ownPath = window.location.pathname;
+        return () => {
+            // Only a real navigation away counts (not React's dev-mode remount, where the path is unchanged).
+            if (cameFromSheet && window.location.pathname !== ownPath) {
+                try { sessionStorage.setItem(CAT_LEFT_KEY, '1'); } catch { /* storage unavailable */ }
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Packers & Movers is a quote wizard, not a service list.
     useEffect(() => {
@@ -515,6 +541,8 @@ const CategoryPage = () => {
                 onAdd={(service, option) => (category?.isEstimateBased ? goEstimate(activeSub) : addToCartWithOption(service, option))}
                 onChangeQty={changeLineQty}
                 onBack={() => {
+                    // Picked from the home sheet: back goes straight to the home page, which reopens that sheet.
+                    if (fromSheet) return goHomeSheet();
                     if (isDirect) return navigate(-1);
                     // Back from a nested page returns to its parent's landing.
                     if (selectedChildId) { setSelectedChildId(null); setServices([]); return; }
@@ -543,7 +571,7 @@ const CategoryPage = () => {
                 cityName={currentCity?.name || currentCity?.title || ''}
                 cartCount={cartCount}
                 instantEta={eta}
-                onBack={() => navigate(-1)}
+                onBack={() => (fromSheet ? goHomeSheet() : navigate(-1))}
                 onOpenCart={() => navigate('/user/cart')}
                 onPick={pickSub}
             >

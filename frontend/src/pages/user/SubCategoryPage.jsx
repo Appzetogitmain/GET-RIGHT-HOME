@@ -622,7 +622,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
 
         {/* What sets GetRightHome apart */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-4">
-            <h2 className="text-[14px] font-bold text-gray-800 mb-5">
+            <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-5">
                 What sets GetRightHome apart in {selectedCity ? selectedCity.split(',')[0] : ''} ?
             </h2>
             
@@ -633,7 +633,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                         <HeartHandshake className="text-[#644db8] w-6 h-6" strokeWidth={1.5} />
                     </div>
                     <div>
-                        <h3 className="text-[13px] font-semibold text-gray-800 leading-snug">
+                        <h3 className="text-[15px] font-semibold text-gray-900 leading-snug">
                             15 Lakh+ Satisfied Customers In 100+ Cities
                         </h3>
                     </div>
@@ -645,7 +645,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                         <Package className="text-[#644db8] w-6 h-6" strokeWidth={1.5} />
                     </div>
                     <div>
-                        <h3 className="text-[13px] font-semibold text-gray-800 leading-snug">
+                        <h3 className="text-[15px] font-semibold text-gray-900 leading-snug">
                             100% Damage & Delay Protection
                         </h3>
                     </div>
@@ -657,7 +657,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                         <Trophy className="text-[#644db8] w-6 h-6" strokeWidth={1.5} />
                     </div>
                     <div>
-                        <h3 className="text-[13px] font-semibold text-gray-800 leading-snug">
+                        <h3 className="text-[15px] font-semibold text-gray-900 leading-snug">
                             Awards & Recognitions
                         </h3>
                     </div>
@@ -668,7 +668,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
         {/* House Relocation Services We Offer Near You */}
         {relatedSubCategories && relatedSubCategories.filter(sc => (sc.id || sc._id) !== (subCategory?.id || subCategory?._id)).length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-4">
-                <h2 className="text-[14px] font-bold text-gray-800 mb-4">
+                <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-4">
                     House Relocation Services We Offer Near You
                 </h2>
                 <div className="flex flex-col gap-4">
@@ -703,7 +703,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
 
         {/* How it Works Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-4">
-            <h2 className="text-[14px] font-bold text-gray-800 mb-6 leading-snug">
+            <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-6">
                 How GetRightHome Packers and Movers Near You Works?
             </h2>
             
@@ -718,8 +718,8 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                              <Laptop className="text-orange-500 w-6 h-6" strokeWidth={1.5} />
                         </div>
                         <div className="pt-0.5">
-                             <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Share your Shifting Requirement</h3>
-                             <p className="text-[11px] text-gray-500 leading-snug">Help us by providing when and where do you want to move</p>
+                             <h3 className="text-[15px] font-semibold text-gray-900 mb-1">Share your Shifting Requirement</h3>
+                             <p className="text-xs text-gray-500 leading-snug">Help us by providing when and where do you want to move</p>
                         </div>
                     </div>
 
@@ -729,8 +729,8 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                              <FileText className="text-amber-500 w-6 h-6" strokeWidth={1.5} />
                         </div>
                         <div className="pt-0.5">
-                             <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Receive Free Instant Quote</h3>
-                             <p className="text-[11px] text-gray-500 leading-snug">Get guaranteed lowest priced quote for your shifting instantly</p>
+                             <h3 className="text-[15px] font-semibold text-gray-900 mb-1">Receive Free Instant Quote</h3>
+                             <p className="text-xs text-gray-500 leading-snug">Get guaranteed lowest priced quote for your shifting instantly</p>
                         </div>
                     </div>
 
@@ -740,8 +740,8 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                              <UserCheck className="text-red-500 w-6 h-6" strokeWidth={1.5} />
                         </div>
                         <div className="pt-0.5">
-                             <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Assign Quality Service Expert</h3>
-                             <p className="text-[11px] text-gray-500 leading-snug">To ensure safe relocation quality service expert will be allotted for your movement</p>
+                             <h3 className="text-[15px] font-semibold text-gray-900 mb-1">Assign Quality Service Expert</h3>
+                             <p className="text-xs text-gray-500 leading-snug">To ensure safe relocation quality service expert will be allotted for your movement</p>
                         </div>
                     </div>
 
@@ -751,8 +751,8 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                              <PackageCheck className="text-emerald-500 w-6 h-6" strokeWidth={1.5} />
                         </div>
                         <div className="pt-0.5">
-                             <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Leave the Heavy Lifting to Us</h3>
-                             <p className="text-[11px] text-gray-500 leading-snug">Enjoy hassle-free on time movement of your household goods</p>
+                             <h3 className="text-[15px] font-semibold text-gray-900 mb-1">Leave the Heavy Lifting to Us</h3>
+                             <p className="text-xs text-gray-500 leading-snug">Enjoy hassle-free on time movement of your household goods</p>
                         </div>
                     </div>
                 </div>
@@ -803,7 +803,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
         
         {/* Why Choose Us Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-4 mb-6">
-            <h2 className="text-[14px] font-bold text-gray-800 mb-6 leading-snug">
+            <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-6">
                 Why Choose GetRightHome Packers and Movers for House Shifting?
             </h2>
             
@@ -814,8 +814,8 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                          <Wallet className="text-amber-600 w-5 h-5" strokeWidth={1.5} />
                     </div>
                     <div className="pt-0.5">
-                         <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Lowest Price Guarantee</h3>
-                         <p className="text-[11px] text-gray-500 leading-snug">Moving at a price you can afford - we'll match any competitor's quote</p>
+                         <h3 className="text-[15px] font-semibold text-gray-900 mb-1">Lowest Price Guarantee</h3>
+                         <p className="text-xs text-gray-500 leading-snug">Moving at a price you can afford - we'll match any competitor's quote</p>
                     </div>
                 </div>
 
@@ -825,8 +825,8 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                          <Award className="text-blue-500 w-5 h-5" strokeWidth={1.5} />
                     </div>
                     <div className="pt-0.5">
-                         <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Best Quality Service</h3>
-                         <p className="text-[11px] text-gray-500 leading-snug">Safe and Reliable Packaging and Moving Services</p>
+                         <h3 className="text-[15px] font-semibold text-gray-900 mb-1">Best Quality Service</h3>
+                         <p className="text-xs text-gray-500 leading-snug">Safe and Reliable Packaging and Moving Services</p>
                     </div>
                 </div>
 
@@ -836,8 +836,8 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                          <CalendarClock className="text-emerald-600 w-5 h-5" strokeWidth={1.5} />
                     </div>
                     <div className="pt-0.5">
-                         <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Reschedule your shifting anytime</h3>
-                         <p className="text-[11px] text-gray-500 leading-snug">Change your shifting date as per your convenience.</p>
+                         <h3 className="text-[15px] font-semibold text-gray-900 mb-1">Reschedule your shifting anytime</h3>
+                         <p className="text-xs text-gray-500 leading-snug">Change your shifting date as per your convenience.</p>
                     </div>
                 </div>
 
@@ -847,8 +847,8 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                          <Headset className="text-red-500 w-5 h-5" strokeWidth={1.5} />
                     </div>
                     <div className="pt-0.5">
-                         <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Support Assistance</h3>
-                         <p className="text-[11px] text-gray-500 leading-snug">Dedicated support assistance for quick query resolution</p>
+                         <h3 className="text-[15px] font-semibold text-gray-900 mb-1">Support Assistance</h3>
+                         <p className="text-xs text-gray-500 leading-snug">Dedicated support assistance for quick query resolution</p>
                     </div>
                 </div>
 
@@ -858,8 +858,8 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                          <Users className="text-purple-500 w-5 h-5" strokeWidth={1.5} />
                     </div>
                     <div className="pt-0.5">
-                         <h3 className="text-[13px] font-semibold text-gray-800 mb-1">Professional Labour</h3>
-                         <p className="text-[11px] text-gray-500 leading-snug">Expertly packing and moving your belongings</p>
+                         <h3 className="text-[15px] font-semibold text-gray-900 mb-1">Professional Labour</h3>
+                         <p className="text-xs text-gray-500 leading-snug">Expertly packing and moving your belongings</p>
                     </div>
                 </div>
             </div>
@@ -867,7 +867,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
         
         {/* Customer Reviews Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-            <h2 className="text-[14px] font-bold text-gray-800 mb-4">Customer Reviews</h2>
+            <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-4">Customer Reviews</h2>
             
             <div className="flex items-end justify-between mb-5 px-1">
                 <div>
@@ -922,7 +922,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
         
         {/* Comparison Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-            <h2 className="text-[14px] font-bold text-gray-800 mb-5">GetRightHome compared to local vendors</h2>
+            <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-5">GetRightHome compared to local vendors</h2>
             
             <div className="overflow-hidden">
                 <table className="w-full text-left border-collapse">
@@ -952,7 +952,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
         
         {/* FAQs Section */}
         <div className="bg-white rounded-[16px] shadow-[0px_3px_10px_-1px_#1A1A1A1F] p-5 mb-6">
-            <h2 className="font-bold text-[15px] text-gray-800 mb-5">FaQs- House Shifting Services in {selectedCity !== 'Select City' ? selectedCity : 'India'}</h2>
+            <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-5">FaQs- House Shifting Services in {selectedCity !== 'Select City' ? selectedCity : 'India'}</h2>
             
             <div className="flex items-center gap-3 overflow-x-auto pb-3 snap-x mb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 <style>{`
@@ -1722,7 +1722,7 @@ const SubCategoryPage = () => {
                         {/* Painting Comparison Table */}
                         {category?.slug === 'home-painting' && (
                             <div className="mt-10 mb-4 px-1">
-                                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
+                                <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-5 flex items-center gap-2">
                                     Why <span className="bg-emerald-600 text-white px-2.5 py-0.5 rounded-lg text-sm sm:text-base tracking-wide shadow-sm font-black uppercase">GetRightHome</span> ?
                                 </h2>
                                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
@@ -1775,7 +1775,7 @@ const SubCategoryPage = () => {
                         {/* How it works section */}
                         {category?.slug === 'home-painting' && (
                             <div className="mt-8 mb-6 px-1">
-                                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
+                                <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-4">
                                     How it works
                                 </h2>
                                 <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x">
@@ -1828,7 +1828,7 @@ const SubCategoryPage = () => {
                         {/* Explore Textures */}
                         {textureServices.length > 0 && (
                             <div className="mt-8 mb-6 px-1">
-                                <h2 className="text-base sm:text-lg font-bold text-[#1E293B] mb-3">
+                                <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-3">
                                     Explore Textures
                                 </h2>
                                 <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x">
@@ -1859,7 +1859,7 @@ const SubCategoryPage = () => {
                         {ideaServices.length > 0 && (
                             <div className="mt-8 mb-6 px-1">
                                 <div className="flex items-center justify-between mb-3">
-                                    <h2 className="text-base sm:text-lg font-bold text-[#1E293B]">
+                                    <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900">
                                         Ideas for your Home
                                     </h2>
                                     <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -1891,7 +1891,7 @@ const SubCategoryPage = () => {
                         {/* How painting works */}
                         {category?.slug === 'home-painting' && (
                             <div className="mt-8 mb-10 px-2 sm:px-4">
-                                <h2 className="text-[#1A3B5C] text-lg sm:text-xl font-bold mb-6">How painting works</h2>
+                                <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-6">How painting works</h2>
                                 <div className="relative border-l-2 border-dashed border-gray-200 ml-4 sm:ml-5 space-y-7">
                                     <div className="relative pl-8 sm:pl-10">
                                         <div className="absolute -left-[17px] top-0 w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center shadow-sm">
@@ -1940,7 +1940,7 @@ const SubCategoryPage = () => {
                         {recentProjects.length > 0 && (
                             <div className="mt-8 mb-6 px-1">
                                 <div className="flex items-center mb-3">
-                                    <h2 className="text-base sm:text-lg font-bold text-[#1E293B] flex items-center gap-2">
+                                    <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 flex items-center gap-2">
                                         Tour our Recent Projects
                                         <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-sm">New</span>
                                     </h2>
@@ -2010,7 +2010,7 @@ const SubCategoryPage = () => {
                         {/* Explore Categories */}
                         {exploreCategories.length > 0 && (
                             <div className="mt-10 mb-8 px-1">
-                                <h2 className="text-base sm:text-lg font-bold text-[#1E293B] mb-4">
+                                <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-4">
                                     Explore Other Services
                                 </h2>
                                 <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x">
@@ -2058,7 +2058,7 @@ const SubCategoryPage = () => {
                             <>
                                 {/* Customer Reviews */}
                                 <div className="mt-6 mb-10 px-3">
-                                    <h2 className="text-base sm:text-lg font-bold text-[#1E293B] mb-5">
+                                    <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-5">
                                         Customer Reviews
                                     </h2>
                                     <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-6 snap-x">
@@ -2094,7 +2094,7 @@ const SubCategoryPage = () => {
 
                                 {/* Frequently Asked Questions */}
                                 <div className="mt-2 mb-10 px-4">
-                                    <h2 className="text-xl sm:text-2xl font-bold text-[#1E293B] mb-6">
+                                    <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 mb-6">
                                         Frequently asked questions
                                     </h2>
                                     <div className="flex flex-col border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
