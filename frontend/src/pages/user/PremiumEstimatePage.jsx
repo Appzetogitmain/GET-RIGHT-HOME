@@ -6,7 +6,6 @@ import { useCity } from '../../homster/context/CityContext';
 
 const BRAND = '#ea580c';
 const CREAM = '#FFF7ED';
-const SERIF = "'Lora', Georgia, 'Times New Roman', serif";
 
 const toUrl = (url) => {
   if (!url) return '';
@@ -23,8 +22,8 @@ const hideScroll = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
 const Heading = ({ title, text }) => (
   (title || text) ? (
     <div className="px-5">
-      {title && <h2 className="text-[26px] leading-tight text-slate-800" style={{ fontFamily: SERIF }}>{title}</h2>}
-      {text && <p className="mt-2 text-[15px] leading-relaxed text-slate-500">{text}</p>}
+      {title && <h2 className="text-[17px] md:text-[22px] font-black leading-tight text-gray-900">{title}</h2>}
+      {text && <p className="mt-1 text-[11px] md:text-[13px] leading-relaxed text-gray-500">{text}</p>}
     </div>
   ) : null
 );
@@ -161,7 +160,7 @@ const Faqs = ({ p }) => {
   if (faqs.length === 0) return null;
   return (
     <div className="mt-10 px-5">
-      <h2 className="text-[26px] text-slate-800" style={{ fontFamily: SERIF }}>{p.faqTitle || 'FAQ'}</h2>
+      <h2 className="text-[17px] md:text-[22px] font-black leading-tight text-gray-900">{p.faqTitle || 'FAQ'}</h2>
       <div className="mt-3 divide-y divide-stone-200 border-y border-stone-200">
         {faqs.map((f, i) => (
           <div key={i}>
@@ -187,15 +186,6 @@ const PremiumEstimatePage = () => {
   const { currentCity } = useCity();
   const [sub, setSub] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (document.getElementById('lora-font')) return;
-    const link = document.createElement('link');
-    link.id = 'lora-font';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&display=swap';
-    document.head.appendChild(link);
-  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -249,7 +239,7 @@ const PremiumEstimatePage = () => {
               <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> {rating.toFixed(1)}{sub.reviewCount ? ` (${sub.reviewCount})` : ''}
             </span>
           )}
-          <h1 className="text-3xl font-medium leading-tight" style={{ fontFamily: SERIF }}>{sub.title}</h1>
+          <h1 className="text-[22px] md:text-3xl font-black leading-tight">{sub.title}</h1>
           {(city || p.jobsCount) && (
             <p className="mt-2 flex items-center gap-1.5 text-sm text-white/85">
               <MapPin className="h-4 w-4" /> {[city, p.jobsCount].filter(Boolean).join(' | ')}
