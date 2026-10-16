@@ -275,8 +275,13 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
   // A day the worker newly marks Available is only a request until an admin
   // approves it; already-approved days stay as they are. Admin edits and
   // pre-calendar ("AVAILABLE") workers are applied directly.
-  const requiresApproval = !byAdmin && cfg?.availabilityRequiresApproval !== false
+  const requiresApproval = !byAdmin && cfg?.availabilityRequiresApproval === true
     && !isLegacyAvailabilityEnabled(worker.availability);
+  // Without approval, days the worker marks Available take effect at once; they are
+  // still logged (as approved) so the admin sees who is available on which day.
+  const prevAvailable = new Set(worker.availability?.availableDates || []);
+  const autoLogged = (!byAdmin && !requiresApproval && availableDates !== undefined)
+    ? markedAvailable.filter((d) => !prevAvailable.has(d)) : [];
   const pendingDatesSet = new Set(pendingRequests.map((r) => r.dateStr));
   let newRequestDates = [];
   if (requiresApproval && availableDates !== undefined) {
@@ -392,6 +397,11 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
     newRequestDates.length
       ? WorkerAvailabilityRequest.insertMany(newRequestDates.map((dateStr) => ({ workerId, dateStr })))
       : null,
+    autoLogged.length
+      ? WorkerAvailabilityRequest.insertMany(autoLogged.map((dateStr) => ({ workerId, dateStr, status: 'approved', reviewedAt: new Date() })))
+      : null,
+    // A day marked Available and later turned into Leave no longer counts as available.
+    WorkerAvailabilityRequest.updateMany({ workerId, status: 'approved', dateStr: { $in: requestedLeave || [] } }, { $set: { status: 'cancelled' } }),
     supersededRequests.length
       ? WorkerAvailabilityRequest.updateMany({ _id: { $in: supersededRequests.map((r) => r._id) } }, { $set: { status: 'cancelled' } })
       : null
@@ -449,6 +459,7 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
       kind: 'availability'
     });
   }
+  if (autoLogged.length) io?.to('admin_room').emit('worker_availability_marked', { workerId: worker._id, workerName: worker.name, dates: autoLogged });
   io?.to('admin_room').emit('offline_request_updated', { workerId: worker._id });
 
   return getAvailabilityView(workerId);

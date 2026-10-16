@@ -147,7 +147,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
     setSugLoading(true);
     let live = true;
     const t = setTimeout(async () => {
-      const ours = await api.get('/properties/locations', { params: { q, limit: 40, city: getPreferredCity() || undefined } })
+      const ours = await api.get('/properties/locations', { params: { q, limit: 6, city: getPreferredCity() || undefined } })
         .then((res) => res.data?.suggestions || [])
         .catch(() => []);
 
@@ -179,7 +179,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
           const types = p.types || [];
           const type = types.includes('locality') || types.includes('administrative_area_level_2') ? 'City'
             : types.some((x) => x.startsWith('sublocality') || x === 'neighborhood') ? 'Locality'
-            : types.some((x) => ['establishment', 'premise', 'point_of_interest', 'real_estate_agency'].includes(x)) ? 'Project' : 'Place';
+              : types.some((x) => ['establishment', 'premise', 'point_of_interest', 'real_estate_agency'].includes(x)) ? 'Project' : 'Place';
           return {
             type,
             name: p.structured_formatting?.main_text || p.description,
@@ -200,15 +200,13 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
         merged.push(item);
       });
       // Things in the user's own (live-location) city come first, the rest of India after.
-      // Our own listings always lead; Google fills in after them.
       const home = String(getPreferredCity() || '').trim().toLowerCase();
-      merged.sort((a, b) => Number(!!a.fromGoogle) - Number(!!b.fromGoogle));
       if (home) {
         const names = /^(bengaluru|bangalore)$/.test(home) ? ['bengaluru', 'bangalore'] : [home];
         const near = (x) => names.some((n) => (x.label || '').toLowerCase().includes(n)) ? 0 : 1;
-        merged.sort((a, b) => Number(!!a.fromGoogle) - Number(!!b.fromGoogle) || near(a) - near(b));   // stable
+        merged.sort((a, b) => near(a) - near(b));   // stable: order inside each group is kept
       }
-      setSuggestions(merged.slice(0, 30));
+      setSuggestions(merged.slice(0, 14));
       setSugLoading(false);
     }, 250);
     return () => { live = false; clearTimeout(t); };
@@ -439,7 +437,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
                     <ArrowUpLeft size={15} className="shrink-0 text-gray-400" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-semibold text-gray-800">{s.label}</span>
-                      <span className="block text-[11px] text-gray-400">{s.type}{!s.fromGoogle && <span className="font-semibold" style={{ color: BRAND }}> · On Get Right Home</span>}</span>
+                      <span className="block text-[11px] text-gray-400">{s.type}</span>
                     </span>
                   </button>
                 </li>
