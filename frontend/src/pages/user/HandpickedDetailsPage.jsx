@@ -116,6 +116,17 @@ const HandpickedDetailsPage = () => {
   });
   const [enquirySubmitting, setEnquirySubmitting] = useState(false);
 
+  // Pre-fill the callback form from the logged-in user's profile
+  useEffect(() => {
+    if (!user) return;
+    setEnquiryForm(prev => ({
+      ...prev,
+      name: prev.name || user.name || '',
+      email: prev.email || user.email || '',
+      phone: prev.phone || user.phone || user.mobile || ''
+    }));
+  }, [user]);
+
   // New Builder Section States
   const [showAboutBuilderModal, setShowAboutBuilderModal] = useState(false);
   const [showVerifiedSourcesModal, setShowVerifiedSourcesModal] = useState(false);
@@ -3158,20 +3169,26 @@ const HandpickedDetailsPage = () => {
         </button>
         <button
           onClick={() => {
+            // Already revealed: tap again to dial
+            if (revealedNumber && /\d/.test(revealedNumber)) {
+              window.location.href = `tel:${revealedNumber}`;
+              return;
+            }
+            // Logged in: lead is captured in background, then number is revealed (no form).
+            // Logged out: the OTP enquiry modal opens first, then the number is revealed.
             captureLeadAndExecute({
               targetId: id || property?._id,
               targetType: 'property',
               actionType: 'view_number',
               sourceContext: 'detail_page',
               propertyData: property,
-              onExecute: () => {
-                setShowEnquiryModal(true);
-              }
+              onExecute: handleRevealContact
             });
           }}
-          className="flex-[1.5] flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-orange-600 text-white font-bold text-xs shadow-md shadow-slate-600/30 hover:bg-orange-700 transition-colors"
+          disabled={revealLoading}
+          className="flex-[1.5] flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-orange-600 text-white font-bold text-xs shadow-md shadow-slate-600/30 hover:bg-orange-700 transition-colors disabled:opacity-70"
         >
-          <Phone className="w-3.5 h-3.5" /> View Number
+          <Phone className="w-3.5 h-3.5" /> {revealLoading ? 'Loading...' : revealedNumber ? `Call ${revealedNumber}` : 'View Number'}
         </button>
       </div>
       )}
