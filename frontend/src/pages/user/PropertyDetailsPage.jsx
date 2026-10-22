@@ -1095,11 +1095,8 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
   };
 
   const handleDirectLoggedInEnquiry = async () => {
-    const errors = validateForm(leadName, leadEmail, leadPhone);
-    if (Object.keys(errors).length > 0) {
-      setLeadErrors(errors);
-      return;
-    }
+    // Logged-in user: the backend takes name/phone/email from req.user, so the
+    // profile format (e.g. +91 phone) must not block the lead from being created.
     setLeadErrors({});
 
     setBookingLoading(true);
@@ -1118,12 +1115,13 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
       });
 
       if (response.success) {
-        // Will be called by onSuccess if needed, or we can just return
-      } else {
-        toast.error(response.message || "Failed to submit enquiry");
+        return true;
       }
+      toast.error(response.message || "Failed to submit enquiry");
+      return false;
     } catch (error) {
       toast.error(error.message || "Failed to submit enquiry");
+      return false;
     } finally {
       setBookingLoading(false);
     }
@@ -1270,8 +1268,10 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
 
     const userRaw = localStorage.getItem('user');
     if (userRaw) {
-      handleDirectLoggedInEnquiry();
-      handleRevealContact(actionType);
+      // Create the lead first; only reveal the number once it is saved.
+      handleDirectLoggedInEnquiry().then((created) => {
+        if (created) handleRevealContact(actionType);
+      });
       return;
     }
 

@@ -46,6 +46,8 @@ const CategoryPage = () => {
     const [category, setCategory] = useState(location.state?.category || null);
 
     const goHomeSheet = () => navigate('/home-services', { replace: true, state: { openCategory: category } });
+    // navigate(-1) does nothing when this is the first history entry (opened directly / refreshed): go home instead.
+    const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : goHomeSheet());
 
     // A category opened from the home sheet is only a stop on the way: coming back to it from a deeper
     // page goes straight on to the home page (which reopens the sheet) instead of showing this landing.
@@ -543,10 +545,10 @@ const CategoryPage = () => {
                 onBack={() => {
                     // Picked from the home sheet: back goes straight to the home page, which reopens that sheet.
                     if (fromSheet) return goHomeSheet();
-                    if (isDirect) return navigate(-1);
+                    if (isDirect) return goBack();
                     // Back from a nested page returns to its parent's landing.
                     if (selectedChildId) { setSelectedChildId(null); setServices([]); return; }
-                    if (selectedSubCategory) setSelectedSubCategory(null); else navigate(-1);
+                    if (selectedSubCategory) setSelectedSubCategory(null); else goBack();
                 }}
                 onOpenCart={() => navigate('/user/cart')}
                 subCategories={isDirect || selectedChildId ? [] : topSubCategories}
@@ -571,7 +573,7 @@ const CategoryPage = () => {
                 cityName={currentCity?.name || currentCity?.title || ''}
                 cartCount={cartCount}
                 instantEta={eta}
-                onBack={() => (fromSheet ? goHomeSheet() : navigate(-1))}
+                onBack={() => (fromSheet ? goHomeSheet() : goBack())}
                 onOpenCart={() => navigate('/user/cart')}
                 onPick={pickSub}
             >
@@ -607,7 +609,7 @@ const CategoryPage = () => {
             <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100">
                 <div className="max-w-3xl mx-auto px-5 py-4 flex items-center gap-3">
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={() => goBack()}
                         className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-gray-100 transition-colors shrink-0"
                     >
                         <ArrowLeft className="w-5 h-5 text-gray-900" />

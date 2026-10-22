@@ -697,7 +697,7 @@ const HomeServicesPage = () => {
                             <div className="flex items-center gap-3">
                                 {/* Serif V Logo with Sparkles */}
                                 <div className="relative flex items-center justify-center">
-                                    <span className="text-4xl md:text-5xl font-serif font-black text-[#eab308] select-none tracking-tighter">
+                                    <span className="text-4xl md:text-5xl font-black text-[#eab308] select-none tracking-tighter">
                                         V
                                     </span>
                                     <Sparkles className="absolute -top-1 -right-3 w-4 h-4 text-[#eab308] animate-pulse fill-[#eab308]" />

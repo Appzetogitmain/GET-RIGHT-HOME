@@ -6,7 +6,6 @@ import { useCity } from '../../homster/context/CityContext';
 
 const BRAND = '#ea580c';
 const CREAM = '#FFF7ED';
-const SERIF = "'Lora', Georgia, 'Times New Roman', serif";
 
 const toUrl = (url) => {
   if (!url) return '';
@@ -23,8 +22,8 @@ const hideScroll = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
 const Heading = ({ title, text }) => (
   (title || text) ? (
     <div className="px-5">
-      {title && <h2 className="text-[26px] leading-tight text-slate-800" style={{ fontFamily: SERIF }}>{title}</h2>}
-      {text && <p className="mt-2 text-[15px] leading-relaxed text-slate-500">{text}</p>}
+      {title && <h2 className="text-[17px] md:text-[22px] font-black leading-tight text-gray-900">{title}</h2>}
+      {text && <p className="mt-1 text-[11px] md:text-[13px] leading-relaxed text-gray-500">{text}</p>}
     </div>
   ) : null
 );
@@ -161,7 +160,7 @@ const Faqs = ({ p }) => {
   if (faqs.length === 0) return null;
   return (
     <div className="mt-10 px-5">
-      <h2 className="text-[26px] text-slate-800" style={{ fontFamily: SERIF }}>{p.faqTitle || 'FAQ'}</h2>
+      <h2 className="text-[17px] md:text-[22px] font-black leading-tight text-gray-900">{p.faqTitle || 'FAQ'}</h2>
       <div className="mt-3 divide-y divide-stone-200 border-y border-stone-200">
         {faqs.map((f, i) => (
           <div key={i}>
@@ -189,21 +188,18 @@ const PremiumEstimatePage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (document.getElementById('lora-font')) return;
-    const link = document.createElement('link');
-    link.id = 'lora-font';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&display=swap';
-    document.head.appendChild(link);
-  }, []);
-
-  useEffect(() => {
     window.scrollTo(0, 0);
     publicCatalogService.getSubCategories({ categoryId })
       .then((res) => setSub((res.subCategories || []).find((s) => String(s.id || s._id) === String(subId)) || null))
       .catch(() => setSub(null))
       .finally(() => setLoading(false));
   }, [categoryId, subId]);
+
+  // navigate(-1) does nothing when this page is the first history entry (opened directly / refreshed).
+  const goBack = () => {
+    if (window.history.state?.idx > 0) navigate(-1);
+    else navigate(`/home-services/category/${categoryId}`, { replace: true });
+  };
 
   const getEstimate = () => navigate(`/home-services/book-visit/${categoryId}?sub=${subId}`);
 
@@ -226,7 +222,7 @@ const PremiumEstimatePage = () => {
       {/* Floating back + city */}
       <div className="fixed inset-x-0 top-0 z-40">
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 pt-4">
-          <button type="button" onClick={() => navigate(-1)} aria-label="Back" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#c2410c]/85 text-white backdrop-blur">
+          <button type="button" onClick={goBack} aria-label="Back" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#c2410c]/85 text-white backdrop-blur">
             <ArrowLeft className="h-5 w-5" />
           </button>
           {city && <span className="ml-auto flex items-center gap-1 rounded-full bg-[#c2410c]/85 px-4 py-2 text-sm font-semibold text-white backdrop-blur">{city} <ChevronDown className="h-4 w-4" /></span>}
@@ -243,7 +239,7 @@ const PremiumEstimatePage = () => {
               <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> {rating.toFixed(1)}{sub.reviewCount ? ` (${sub.reviewCount})` : ''}
             </span>
           )}
-          <h1 className="text-3xl font-medium leading-tight" style={{ fontFamily: SERIF }}>{sub.title}</h1>
+          <h1 className="text-[22px] md:text-3xl font-black leading-tight">{sub.title}</h1>
           {(city || p.jobsCount) && (
             <p className="mt-2 flex items-center gap-1.5 text-sm text-white/85">
               <MapPin className="h-4 w-4" /> {[city, p.jobsCount].filter(Boolean).join(' | ')}

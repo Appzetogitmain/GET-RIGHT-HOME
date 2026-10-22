@@ -297,8 +297,10 @@ const AdminLayout = () => {
             title: 'ZONES & SETTINGS',
             items: [
                 { icon: MapPin, label: 'Zone Setup', path: '/admin/home-service/zones' },
+                { icon: MapPin, label: 'Zone Services', path: '/admin/home-service/zone-services' },
                 { icon: Bell, label: 'Service Notifications', path: '/admin/home-service/notifications' },
                 { icon: Settings, label: 'Service Settings', path: '/admin/home-service/settings' },
+                { icon: Settings, label: 'Dev Settings', path: '/admin/home-service/dev-settings' },
             ]
         },
         {
