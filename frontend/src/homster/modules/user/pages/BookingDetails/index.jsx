@@ -1548,8 +1548,14 @@ const BookingDetails = () => {
                               )}
 
                               <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
+                                {advancePaidAmt > 0 && (
+                                  <div className="flex justify-between font-black text-gray-900">
+                                    <span>Total Bill</span>
+                                    <span>₹{(totalOnline + advancePaidAmt).toFixed(2)}</span>
+                                  </div>
+                                )}
                                 <div className="flex justify-between font-black text-gray-900">
-                                  <span>{isEstimate ? 'Pending Bill' : 'Total Bill'}</span>
+                                  <span>{advancePaidAmt > 0 ? 'Remaining' : isEstimate ? 'Pending Bill' : 'Total Bill'}</span>
                                   <span>₹{totalOnline.toFixed(2)}</span>
                                 </div>
                               </div>

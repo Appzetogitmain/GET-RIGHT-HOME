@@ -369,6 +369,12 @@ const EditProfile = () => {
   };
 
 
+  // Deep link from the dashboard (/worker/profile/edit#skills) → jump to Work Profile
+  useEffect(() => {
+    if (loading || window.location.hash !== '#skills') return;
+    document.getElementById('skills')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [loading]);
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="flex flex-col items-center gap-3">
@@ -529,7 +535,7 @@ const EditProfile = () => {
         </div>
 
         {/* Work Category */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 border border-gray-100">
+        <div id="skills" className="bg-white rounded-2xl p-5 shadow-sm space-y-4 border border-gray-100 scroll-mt-4">
           <div className="flex items-center gap-2 mb-2">
             <FiBriefcase className="text-blue-600" />
             <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Work Profile</h2>

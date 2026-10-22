@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import useSocketAwarePoll from '../../../../hooks/useSocketAwarePoll';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { FiX, FiMapPin, FiClock, FiCheck, FiBell, FiMinimize2 } from 'react-icons/fi';
@@ -241,8 +242,13 @@ export default function GlobalWorkerJobAlert() {
   // Catch up on any job offer sent while the app wasn't connected to receive
   // the live socket alert (still loading, tab backgrounded, network drop) —
   // runs on mount and again whenever the tab regains focus/network.
-  useEffect(() => {
-    const fetchPending = async () => {
+  const fetchPending = useCallback(async () => {
+    {
+      // Not signed in as a worker (login/register screens, or no token): there
+      // is nothing to catch up on, and a stale token left over from another
+      // role in this browser would just 403 on every poll.
+      const onAuthPage = /^\/worker\/(login|register|signup)/.test(window.location.pathname);
+      if (onAuthPage || !localStorage.getItem('workerAccessToken')) return;
       try {
         const res = await workerService.getPendingRequests();
         if (!res?.success) return;
@@ -275,20 +281,16 @@ export default function GlobalWorkerJobAlert() {
       } catch {
         // Silent — fallback sync
       }
-    };
-
-    fetchPending();
-    const interval = setInterval(fetchPending, 4000); // 4-second fail-safe background sync
-    window.addEventListener('focus', fetchPending);
-    window.addEventListener('online', fetchPending);
-    window.addEventListener('workerJobsUpdated', fetchPending);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', fetchPending);
-      window.removeEventListener('online', fetchPending);
-      window.removeEventListener('workerJobsUpdated', fetchPending);
-    };
+    }
   }, []);
+
+  // Socket delivers live alerts; this only syncs on (re)connect, focus and
+  // 'workerJobsUpdated', plus a slow safety sync (fast only if socket is down).
+  useSocketAwarePoll(fetchPending, {
+    events: ['workerJobsUpdated'],
+    connectedMs: 60000,
+    fallbackMs: 8000,
+  });
 
   // Stop sound ring whenever no active alerts remain
   useEffect(() => {

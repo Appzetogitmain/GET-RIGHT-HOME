@@ -541,11 +541,17 @@ const Dashboard = () => {
     );
   }
 
+  const zoneLabel = workerProfile.zoneNames?.join(', ') || workerProfile.primaryZone || workerProfile.address?.city || '';
+  const statusTone = isBusy ? 'amber' : isOnline ? 'emerald' : 'slate';
+
   return (
     <div className="min-h-screen pb-20" style={{ background: themeColors.backgroundGradient }}>
       <main className="pt-0">
         {/* Profile & Status Section */}
-        <div className="bg-[#3B82F6] px-5 pt-10 pb-16 rounded-b-[2.5rem] relative mb-14 shadow-lg">
+        <div className="relative bg-gradient-to-br from-[#2563EB] via-[#3B82F6] to-[#60A5FA] px-5 pt-5 pb-10 rounded-b-[2rem] shadow-[0_12px_30px_-10px_rgba(37,99,235,0.55)] overflow-hidden">
+          {/* Decorative shapes */}
+          <div className="absolute -top-16 -right-12 w-56 h-56 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none" />
           {/* Profile Info */}
           <div className="flex items-start gap-4 relative z-10">
             <div className="relative shrink-0">
@@ -578,64 +584,51 @@ const Dashboard = () => {
               <h2 className="text-white text-[22px] font-bold flex items-center gap-1.5 mb-2 leading-tight">
                 {workerProfile.name} <span className="text-xl">👋</span>
               </h2>
-              <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 {highestAchievement && (
                   <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm ${getTierColor(highestAchievement.tier)}`}>
                     <span className="text-[10px]">🛡️</span> {highestAchievement.tier} Partner
                   </div>
                 )}
-                {(workerProfile.zoneNames?.length > 0 || workerProfile.primaryZone || workerProfile.address?.city) && (
-                  <div className="flex items-center gap-1 text-white text-xs font-bold tracking-wide bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur-sm border border-white/20">
-                    <FiMapPin className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Zone: <strong className="capitalize">{workerProfile.zoneNames?.join(', ') || workerProfile.primaryZone || workerProfile.address?.city}</strong></span>
-                  </div>
-                )}
-                {workerProfile.address?.city && (!workerProfile.zoneNames || !workerProfile.zoneNames.includes(workerProfile.address.city)) && (
-                  <div className="flex items-center gap-1 text-white/90 text-xs font-semibold tracking-wide">
-                    {workerProfile.address.city}
+                {zoneLabel && (
+                  <div className="flex items-center gap-1 text-white text-xs font-semibold bg-white/15 px-2.5 py-0.5 rounded-full backdrop-blur-sm border border-white/25 max-w-full">
+                    <FiMapPin className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                    <span className="capitalize truncate">{zoneLabel}</span>
                   </div>
                 )}
               </div>
               {workerProfile.categories && workerProfile.categories.length > 0 && (
-                <p className="text-white text-[13px] font-medium truncate opacity-95 tracking-wide">
-                  {workerProfile.categories.join(' • ')}
-                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/worker/profile/edit#skills')}
+                  className="flex items-center gap-1 max-w-full text-left text-white text-[13px] font-medium opacity-95 tracking-wide active:scale-95 transition-transform"
+                  title="View / edit your skills"
+                >
+                  <span className="truncate">{workerProfile.categories.join(' • ')}</span>
+                  <FiChevronRight className="w-4 h-4 shrink-0" />
+                </button>
               )}
             </div>
           </div>
 
-          {/* Overlapping Status Card */}
-          <div className="absolute left-5 right-5 -bottom-10 z-20">
-            <div className="bg-white rounded-[20px] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center justify-between border border-gray-50">
-              <div>
-                <div className="flex items-center gap-2.5 mb-1.5">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isBusy ? 'bg-amber-100' : isOnline ? 'bg-[#A7F3D0]/60' : 'bg-gray-100'}`}>
-                    <div className={`w-3 h-3 rounded-full ${isBusy ? 'bg-amber-500' : isOnline ? 'bg-[#00B48A]' : 'bg-gray-400'}`} />
-                  </div>
-                  <h3 className="text-[#1E3A8A] font-bold text-[17px] tracking-tight">
-                    {isBusy ? 'You are Busy' : isOnline ? 'You are Online' : !todayMarked ? (todayPending ? 'Awaiting admin approval' : 'Not marked for today') : 'You are Offline'}
-                  </h3>
-                </div>
-                <p className="text-[#64748B] text-[13px] pl-7 mb-2 font-medium">
-                  {isBusy ? 'Complete your current work to receive the next booking' : isOnline ? 'Receiving nearby job requests' : !todayMarked ? (todayPending ? "Today's availability is pending approval. You can go online once approved." : "Mark today as Available to go online.") : 'Go online to receive jobs'}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/worker/availability')}
-                    className="ml-2 underline text-[#00A699] font-semibold"
-                  >
-                    My availability
-                  </button>
+        </div>
+
+        {/* Status Card (overlaps header, stays in normal flow so it never covers content) */}
+        <div className="relative z-20 px-4 -mt-5 mb-2">
+          <div className="bg-white rounded-3xl p-4 shadow-[0_10px_30px_-8px_rgba(15,23,42,0.18)] border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className={`relative w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${statusTone === 'amber' ? 'bg-amber-50' : statusTone === 'emerald' ? 'bg-emerald-50' : 'bg-slate-100'}`}>
+                {isOnline && !isBusy && <span className="absolute inset-0 rounded-2xl bg-emerald-400/20 animate-ping" />}
+                <span className={`relative w-3 h-3 rounded-full ${statusTone === 'amber' ? 'bg-amber-500' : statusTone === 'emerald' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <h3 className="text-[#1E3A8A] font-bold text-base leading-tight tracking-tight">
+                  {isBusy ? 'You are Busy' : isOnline ? 'You are Online' : !todayMarked ? (todayPending ? 'Awaiting admin approval' : 'Not marked for today') : 'You are Offline'}
+                </h3>
+                <p className="text-slate-500 text-xs font-medium mt-0.5 leading-snug">
+                  {isBusy ? 'Complete your current work to receive the next booking' : isOnline ? 'Receiving nearby job requests' : !todayMarked ? (todayPending ? "Availability pending approval. You can go online once approved." : "Mark today as Available to go online.") : 'Go online to receive jobs'}
                 </p>
-                <div className="flex items-center gap-3 pl-7 text-[#64748B] text-[11px] font-bold tracking-wide">
-                  <div className="flex items-center gap-1">
-                    <svg className={`w-3.5 h-3.5 ${isBusy ? 'text-amber-500' : isOnline ? 'text-[#00B48A]' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 22v-4m0-12V2m10 10h-4M6 12H2m4 0a6 6 0 1012 0 6 6 0 00-12 0z" /></svg>
-                    GPS Active • <span className="capitalize font-semibold text-blue-600">{workerProfile.zoneNames?.join(', ') || workerProfile.primaryZone || workerProfile.address?.city || 'Indore'} Zone</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <FiClock className="w-3.5 h-3.5" />
-                    Just now
-                  </div>
-                </div>
               </div>
 
               {/* Toggle Switch */}
@@ -644,23 +637,45 @@ const Dashboard = () => {
                 onClick={handleToggleOnline}
                 disabled={togglingOnline || isBusy}
                 title={isBusy ? 'Finish the current job before changing availability' : isOnline ? 'Click to go Offline' : 'Click to go Online'}
-                className={`relative inline-flex h-7 w-[48px] shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ease-in-out shadow-inner cursor-pointer ${
-                  isBusy ? 'bg-amber-400 cursor-not-allowed' : isOnline ? 'bg-[#00B48A]' : 'bg-gray-300 hover:bg-gray-400/80'
+                className={`relative inline-flex h-8 w-[56px] shrink-0 items-center rounded-full p-1 transition-colors duration-300 ease-in-out shadow-inner cursor-pointer ${
+                  isBusy ? 'bg-amber-400 cursor-not-allowed' : isOnline ? 'bg-emerald-500' : 'bg-slate-300 hover:bg-slate-400/80'
                 }`}
               >
                 <span
                   className={`flex h-6 w-6 transform items-center justify-center rounded-full bg-white shadow-md transition-transform duration-300 ease-in-out ${
-                    isOnline ? 'translate-x-[22px]' : 'translate-x-0'
+                    isOnline ? 'translate-x-6' : 'translate-x-0'
                   }`}
                 >
                   {togglingOnline ? (
-                    <div className={`w-3 h-3 border-[2px] border-current border-t-transparent rounded-full animate-spin ${isOnline ? 'text-[#00B48A]' : 'text-gray-400'}`} />
-                  ) : isOnline ? (
-                    <span className="w-2 h-2 rounded-full bg-[#00B48A]" />
+                    <div className={`w-3 h-3 border-[2px] border-current border-t-transparent rounded-full animate-spin ${isOnline ? 'text-emerald-500' : 'text-slate-400'}`} />
                   ) : (
-                    <span className="w-2 h-2 rounded-full bg-gray-300" />
+                    <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                   )}
                 </span>
+              </button>
+            </div>
+
+            {/* Meta row */}
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-50 text-slate-600 text-[11px] font-semibold">
+                <FiMapPin className={`w-3 h-3 ${isOnline ? 'text-emerald-500' : 'text-slate-400'}`} />
+                {isOnline ? 'GPS Active' : 'GPS Idle'}
+              </span>
+              {zoneLabel && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-[11px] font-semibold capitalize">
+                  {zoneLabel} Zone
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-50 text-slate-500 text-[11px] font-semibold">
+                <FiClock className="w-3 h-3" />
+                Just now
+              </span>
+              <button
+                type="button"
+                onClick={() => navigate('/worker/availability')}
+                className="ml-auto inline-flex items-center gap-0.5 text-[#2563EB] text-xs font-bold active:scale-95 transition-transform"
+              >
+                My availability <FiChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -668,7 +683,7 @@ const Dashboard = () => {
 
         {/* Pending Offline Request Banner */}
         {pendingOfflineRequest && (
-          <div className="px-5 mt-14 -mb-2">
+          <div className="px-5 mt-3 -mb-2">
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
@@ -704,7 +719,7 @@ const Dashboard = () => {
 
         {/* Active Approved Offline Leave Banner */}
         {!pendingOfflineRequest && activeOfflineSchedule?.isActive && (
-          <div className="px-5 mt-14 -mb-2">
+          <div className="px-5 mt-3 -mb-2">
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-sm">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 shrink-0 mt-0.5">
@@ -756,13 +771,13 @@ const Dashboard = () => {
           )}
 
         {/* Emergency SOS */}
-        <div className="px-4 pt-3 pb-2">
+        <div className="px-4 pt-2 pb-2">
           <button
             onClick={() => setShowEmergencyModal(true)}
-            className="w-full relative overflow-hidden rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-all"
+            className="w-full relative overflow-hidden rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
             style={{
-              background: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)',
-              boxShadow: '0 8px 20px -4px rgba(220, 38, 38, 0.4)',
+              background: 'linear-gradient(135deg, #F87171 0%, #DC2626 60%, #B91C1C 100%)',
+              boxShadow: '0 8px 20px -6px rgba(220, 38, 38, 0.45)',
             }}
           >
             {/* Ambient glow */}
