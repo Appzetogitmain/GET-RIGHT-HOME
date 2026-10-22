@@ -9,6 +9,7 @@ import {
   refreshToken,
   verifyLogin
  } from '../../controllers/workerControllers/workerAuthController.js';
+import { getPublicProfessions } from '../../controllers/professionController.js';
 import {  authenticate  } from '../../middlewares/authMiddleware.js';
 import {  isWorker  } from '../../middlewares/authMiddleware.js';
 
@@ -37,6 +38,7 @@ const loginValidation = [
 ];
 
 // Routes
+router.get('/professions', getPublicProfessions); // public: shown on the signup form
 router.post('/send-otp', sendOTPValidation, sendOTP);
 router.post('/verify-login', verifyLoginValidation, verifyLogin); // New Unified Entry
 router.post('/register', registerValidation, register);

@@ -332,6 +332,7 @@ export const createWorkerByAdmin = async (req, res) => {
       businessName,
       password = 'Worker@123',
       serviceCategories = [],
+      professionIds = [],
       bookingModes = ['slot'],
       zoneIds = [],
       approvalStatus = 'approved'
@@ -360,6 +361,7 @@ export const createWorkerByAdmin = async (req, res) => {
       businessName: businessName || name,
       password,
       serviceCategories,
+      professionIds: Array.isArray(professionIds) ? professionIds : [],
       bookingModes: normalizeBookingModes(bookingModes),
       zoneIds,
       zones: zoneNames,

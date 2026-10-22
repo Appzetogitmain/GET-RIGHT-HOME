@@ -1,6 +1,8 @@
 import Worker, { WORKER_LIGHT } from '../../models/Worker.js';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
+import Profession from '../../models/Profession.js';
+import { validProfessionIds } from '../professionController.js';
 
 // Stubs for services not yet configured in Hoomzo
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -278,9 +280,16 @@ const register = async (req, res) => {
       if (uploadRes.success) dlUrl = uploadRes.url;
     }
 
+    // Professions picked on the signup form (admin can change them later).
+    const professionIds = await validProfessionIds(req.body.professionIds);
+    if (!professionIds.length && await Profession.exists({ isActive: true })) {
+      return res.status(400).json({ success: false, message: 'Please select your profession.' });
+    }
+
     // Create worker
     const worker = await Worker.create({
       name, email, phone,
+      professionIds,
       isPhoneVerified: true,
       aadhar: {
         number: req.body.aadhar || aadharNumber,

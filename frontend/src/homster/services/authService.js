@@ -133,6 +133,12 @@ export const userAuthService = {
  * Worker Authentication Service
  */
 export const workerAuthService = {
+  // Professions the admin created (public: needed on the signup form)
+  getProfessions: async () => {
+    const response = await api.get('/workers/auth/professions');
+    return response.data;
+  },
+
   // Send OTP
   sendOTP: async (phone, email = null) => {
     const response = await api.post('/workers/auth/send-otp', { phone, email });

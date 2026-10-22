@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FiPhone, FiUserPlus, FiUsers, FiX, FiClock, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import workerService from '../../../../services/workerService';
@@ -106,9 +107,9 @@ const JobHelperSection = ({ job, onChanged, open: openProp, onOpenChange }) => {
         </div>
       )}
 
-      {open && (
-        <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-md rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+      {open && createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={() => setOpen(false)}>
+          <div className="w-full max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Request extra worker</h3>
               <button type="button" onClick={() => setOpen(false)} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100">
@@ -141,7 +142,8 @@ const JobHelperSection = ({ job, onChanged, open: openProp, onOpenChange }) => {
               {sending ? 'Sending…' : 'Send request to admin'}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

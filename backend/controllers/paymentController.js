@@ -20,7 +20,7 @@ import { activateLegacySubscriptionFromWebhook } from './subscriptionController.
 import { getIO } from '../sockets.js';
 import User from '../models/User.js';
 import { PAYMENT_STATUS } from '../utils/constants.js';
-import { isVipMember } from '../utils/vipAndAdvance.js';
+import { isVipMember, creditedAdvance } from '../utils/vipAndAdvance.js';
 import { dispatchBooking } from '../services/bookingDispatchService.js';
 
 // Initialize Razorpay
@@ -92,7 +92,8 @@ export const createPaymentOrder = async (req, res) => {
         orderType = 'booking_advance';
       } else if (isHomeService && (booking.advancePaid || 0) > 0) {
         // The advance is already with us — only the balance is due.
-        baseAmount = Math.max(0, baseAmount - booking.advancePaid);
+        // Before the worker's bill exists the total still includes visiting/penalty.
+        baseAmount = Math.max(0, baseAmount - (booking.finalOnlineAmount ? creditedAdvance(booking) : booking.advancePaid));
         if (baseAmount <= 0) {
           // Nothing left to pay (the advance covered the bill): settle directly.
           const settled = await settleBookingPayment(null, booking.advancePaymentId || 'ADVANCE', {

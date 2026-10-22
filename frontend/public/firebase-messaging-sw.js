@@ -38,6 +38,11 @@ messaging.onBackgroundMessage((payload) => {
     shownNotifications.delete(iterator.next().value);
   }
 
+  // A payload with a "notification" block is displayed by the browser/FCM itself;
+  // calling showNotification as well produced a duplicate. Only data-only
+  // messages need to be shown manually.
+  if (payload.notification) return;
+
   const notificationTitle = payload.notification?.title || payload.data?.title || 'New Notification';
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.body || '',

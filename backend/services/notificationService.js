@@ -4,29 +4,35 @@ import Notification from '../models/Notification.js';
 
 class NotificationService {
   /**
-   * Helper function to get all FCM tokens from a user (app + web)
+   * FCM tokens of a user, ordered so the native app token(s) come before the web
+   * token(s), with duplicates removed.
+   *
+   * The APK registers BOTH a native token and a web token (its webview) for the
+   * same phone. Sending to every token showed each notification twice on that
+   * phone, so callers send to these in order and stop at the first one that
+   * succeeds (the web token is only a fallback when the app token is stale).
    * @param {Object} user - User document
-   * @returns {Array<string>} - Array of FCM tokens
+   * @returns {Array<string>} - Ordered, de-duplicated FCM tokens
    */
   getUserFcmTokens(user) {
-    const tokens = [];
+    const app = [];
+    const web = [];
 
-    // Get platform-based tokens (app and web)
     if (user.fcmTokens) {
       if (Array.isArray(user.fcmTokens)) {
-        tokens.push(...user.fcmTokens);
+        web.push(...user.fcmTokens);
       } else {
-        if (user.fcmTokens.app) tokens.push(user.fcmTokens.app);
-        if (user.fcmTokens.web) tokens.push(user.fcmTokens.web);
+        if (user.fcmTokens.app) app.push(user.fcmTokens.app);
+        if (user.fcmTokens.web) web.push(user.fcmTokens.web);
       }
     }
 
-    // Handle mobile tokens for workers
+    // Mobile (app) tokens, e.g. workers
     if (user.fcmTokenMobile && Array.isArray(user.fcmTokenMobile)) {
-      tokens.push(...user.fcmTokenMobile);
+      app.push(...user.fcmTokenMobile);
     }
 
-    return tokens.filter(Boolean); // Remove null/undefined
+    return [...new Set([...app, ...web].filter(Boolean))];
   }
 
   /**
@@ -156,7 +162,10 @@ class NotificationService {
       for (const token of fcmTokens) {
         try {
           const result = await this.sendToToken(token, notification, data);
-          if (result.success) successCount++;
+          if (result.success) {
+            successCount++;
+            break; // one device, one push: don't also hit its web token
+          }
         } catch (err) {
           console.error('[NotificationService] FCM send exception:', err);
         }
@@ -244,6 +253,7 @@ class NotificationService {
             console.log('[NotificationService] Push Sent Successfully.');
             successCount++;
             lastResult = result;
+            break; // one device, one push: don't also hit its web token
           } else {
             console.warn('[NotificationService] Push Failed:', result.error);
           }

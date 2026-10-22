@@ -91,7 +91,13 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
   const bill = booking.bill;
 
   // Base Logic (Services)
-  const originalBase = bill ? (bill.originalServiceBase || 0) : (parseFloat(booking.basePrice) || 0);
+  // bill.originalServiceBase is the WORKER's cut (price minus platform commission).
+  // The customer must see the price they booked, so show booking.basePrice and
+  // list the discounts separately — otherwise a ₹1000 service reads as ₹900.
+  const originalBase = (parseFloat(booking.basePrice) || 0) || (bill ? (bill.originalServiceBase || 0) : 0);
+  const discountTotal = bill
+    ? (Number(booking.discount) || 0) + (Number(booking.promoDiscount) || 0) + (Number(booking.vipDiscount) || 0)
+    : 0;
 
   // Extra Services
   const allBillServices = bill?.services || [];
@@ -109,7 +115,7 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
     extraServiceGST += gst;
   });
 
-  const totalServiceBase = originalBase + extraServiceBase;
+  const totalServiceBase = originalBase + extraServiceBase - discountTotal;
 
   // Parts & Custom Items
   const parts = bill?.parts || [];
@@ -143,7 +149,13 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
   const tokenPaid = isEstimate ? (Number(booking.estimate?.tokenAmount) || 0) : 0;
 
   const baseOnlineTotal = bill?.finalOnlineAmount || booking.finalOnlineAmount || bill?.grandTotal || booking.finalAmount || 0;
-  const onlineTotal = isEstimate ? Math.max(0, baseOnlineTotal - tokenPaid) : baseOnlineTotal;
+  // The advance already paid online comes off the bill. Once the worker's bill
+  // exists it leaves out visiting charge / penalty, so those are taken out of the
+  // advance first (same rule as the payment API).
+  const advanceCredit = bill
+    ? Math.max(0, (Number(booking.advancePaid) || 0) - (Number(booking.visitingCharges) || 0) - (Number(booking.penalty) || 0))
+    : (Number(booking.advancePaid) || 0);
+  const onlineTotal = Math.max(0, (isEstimate ? Math.max(0, baseOnlineTotal - tokenPaid) : baseOnlineTotal) - advanceCredit);
 
   // --- 2. Identity Helpers ---
   const categoryName = booking.serviceCategory || 'General';
@@ -222,6 +234,13 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                 </div>
               </div>
 
+              {advanceCredit > 0 && (
+                <div className="flex justify-between text-sm text-emerald-600 -mt-2">
+                  <span>Advance already paid</span>
+                  <span className="font-mono">-₹{advanceCredit.toFixed(2)}</span>
+                </div>
+              )}
+
               {/* 1. Services */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -240,6 +259,12 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                       <span className="font-medium font-mono">₹{originalBase.toFixed(2)}</span>
                     )}
                   </div>
+                  {discountTotal > 0 && (
+                    <div className="flex justify-between text-sm text-emerald-600">
+                      <span>Discount</span>
+                      <span className="font-medium font-mono">-₹{discountTotal.toFixed(2)}</span>
+                    </div>
+                  )}
                   {services.map((s, idx) => (
                     <div key={`s-${idx}`} className="flex justify-between text-sm text-slate-600">
                       <span>{s.name} <span className="text-slate-400">x{s.quantity}</span></span>
@@ -252,7 +277,7 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                       <span className="font-mono">₹{(originalGST + extraServiceGST).toFixed(2)}</span>
                     </div>
                   )}
-                  {(services.length > 0 || (originalGST + extraServiceGST) > 0) && (
+                  {(services.length > 0 || discountTotal > 0 || (originalGST + extraServiceGST) > 0) && (
                     <div className="flex justify-between text-base font-bold text-slate-800 pt-2 border-t border-slate-100 mt-2">
                       <span>Total Service</span>
                       <span>₹{(totalServiceBase + originalGST + extraServiceGST).toFixed(2)}</span>

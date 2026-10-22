@@ -73,6 +73,7 @@ const Dashboard = () => {
     phone: '+91 9876543210',
     photo: null,
     categories: [],
+    professions: [],
     address: null,
     approvalStatus: 'pending',
     status: 'offline',
@@ -355,6 +356,7 @@ const Dashboard = () => {
           phone: profile.phone || '',
           photo: profile.profilePhoto || null,
           categories: profile.serviceCategories || (profile.serviceCategory ? [profile.serviceCategory] : []),
+          professions: (profile.professions || []).map((p) => p.name),
           address: profile.address,
           approvalStatus: profile.approvalStatus || 'pending',
           loaded: true,
@@ -605,9 +607,9 @@ const Dashboard = () => {
                   </div>
                 )}
               </div>
-              {workerProfile.categories && workerProfile.categories.length > 0 && (
+              {workerProfile.professions && workerProfile.professions.length > 0 && (
                 <p className="text-white text-[13px] font-medium truncate opacity-95 tracking-wide">
-                  {workerProfile.categories.join(' • ')}
+                  {workerProfile.professions.join(' • ')}
                 </p>
               )}
             </div>
@@ -739,7 +741,7 @@ const Dashboard = () => {
         )}
 
         {/* Incomplete Profile Prompt */}
-        {((!workerProfile.categories || workerProfile.categories.length === 0) ||
+        {((!workerProfile.professions || workerProfile.professions.length === 0) ||
           (!workerProfile.address || Object.keys(workerProfile.address).length === 0)) && (
             <div className="px-4 pt-2 -mb-2">
               <div
@@ -753,7 +755,7 @@ const Dashboard = () => {
                   <div className="ml-3">
                     <p className="text-sm font-bold text-blue-700">Profile Incomplete</p>
                     <p className="text-sm text-blue-600">
-                      Complete your profile (Address and Category) to start receiving jobs.
+                      Complete your profile (Address and Profession) to start receiving jobs.
                     </p>
                   </div>
                   <div className="ml-auto">

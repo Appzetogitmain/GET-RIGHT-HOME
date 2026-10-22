@@ -9,6 +9,8 @@ import { validationResult } from 'express-validator';
 import cloudinaryService from '../../services/cloudinaryService.js';
 import { createNotification } from '../notificationControllers/notificationController.js';
 
+const WORKER_CAN_EDIT_CATEGORIES = false;
+
 /**
  * Get worker profile
  */
@@ -21,6 +23,7 @@ const getProfile = async (req, res) => {
     // ?light=1 skips the heavy verification scans (the dashboard doesn't show them).
     const worker = await Worker.findById(workerId)
       .populate('zoneIds', 'name status')
+      .populate({ path: 'professionIds', select: 'name isActive categoryIds', populate: { path: 'categoryIds', select: 'title' } })
       .select(req.query.light === '1' ? `-password -__v ${WORKER_LIGHT}` : '-password -__v');
 
     if (!worker) {
@@ -52,6 +55,11 @@ const getProfile = async (req, res) => {
         phone: worker.phone,
         approvalStatus: worker.approvalStatus,
         serviceCategories: worker.serviceCategories || [],
+        professions: (worker.professionIds || []).map((p) => ({
+          id: p._id,
+          name: p.name,
+          categories: (p.categoryIds || []).map((c) => c.title)
+        })),
         pendingServiceCategories: worker.pendingServiceCategories || [],
         rejectedServiceCategories: worker.rejectedServiceCategories || [],
         skillRequests: worker.skillRequests || [],
@@ -124,7 +132,9 @@ const updateProfile = async (req, res) => {
     let customSuccessMessage = 'Profile updated successfully';
 
     // Handle categories with verification flow
-    if (serviceCategories !== undefined || serviceCategory !== undefined) {
+    // Workers no longer pick categories: bookings follow the profession(s) the
+    // admin (or signup) assigned. Incoming category edits are ignored.
+    if (WORKER_CAN_EDIT_CATEGORIES && (serviceCategories !== undefined || serviceCategory !== undefined)) {
       const incoming = (serviceCategories && Array.isArray(serviceCategories))
         ? serviceCategories.map(c => typeof c === 'string' ? c.trim() : '').filter(Boolean)
         : (serviceCategory ? [serviceCategory.trim()] : []);

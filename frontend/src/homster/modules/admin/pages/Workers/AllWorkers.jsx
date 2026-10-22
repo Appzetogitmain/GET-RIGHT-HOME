@@ -102,6 +102,7 @@ const AllWorkers = () => {
       mcqLevel: 'Not Certified',
       experienceYears: 0,
       serviceCategories: [],
+      professionIds: [],
       bookingModes: ['slot'],
       zoneIds: [],
       approvalStatus: 'approved',
@@ -131,6 +132,7 @@ const AllWorkers = () => {
       businessName: '',
       password: '',
       serviceCategories: [],
+      professionIds: [],
       bookingModes: ['slot'],
       zoneIds: [],
       approvalStatus: 'approved'
@@ -222,6 +224,9 @@ const AllWorkers = () => {
             totalJobs: worker.totalJobs || 0,
             completedJobs: worker.completedJobs || 0,
             serviceCategories: worker.serviceCategories || [],
+            // Without this the edit form reopened with no profession ticked and the
+            // next save wiped the saved ones.
+            professionIds: (worker.professionIds || []).map(String),
             // Was dropped here, so the edit form always reopened as Slot-only and
             // the next save silently overwrote the saved booking types.
             bookingModes: worker.bookingModes?.length ? worker.bookingModes : ['slot'],
@@ -687,6 +692,7 @@ const AllWorkers = () => {
             businessName: '',
             password: '',
             serviceCategories: [],
+            professionIds: [],
             bookingModes: ['slot'],
             zoneIds: [],
             approvalStatus: 'approved'
@@ -819,6 +825,7 @@ const AllWorkers = () => {
                     businessName: '',
                     password: '',
                     serviceCategories: [],
+                    professionIds: [],
                     bookingModes: ['slot'],
                     zoneIds: [],
                     approvalStatus: 'approved'
@@ -2023,6 +2030,44 @@ const AllWorkers = () => {
                 );
               })}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">Profession (select one or more)</label>
+            {professions.length === 0 ? (
+              <p className="text-[11px] text-amber-600 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                No professions yet. Create one in Workers → Professions.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {professions.map((p) => {
+                  const held = (addModal.formData.professionIds || []).includes(String(p._id));
+                  return (
+                    <label key={p._id} className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer text-xs ${held ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
+                      <input
+                        type="checkbox"
+                        checked={held}
+                        onChange={(e) => {
+                          const current = addModal.formData.professionIds || [];
+                          const rest = current.filter((id) => id !== String(p._id));
+                          setAddModal((prev) => ({
+                            ...prev,
+                            formData: { ...prev.formData, professionIds: e.target.checked ? [...rest, String(p._id)] : rest }
+                          }));
+                        }}
+                        className="w-4 h-4 mt-0.5 rounded text-emerald-600"
+                      />
+                      <span className="min-w-0">
+                        <b className="block text-gray-900">{p.name}</b>
+                        <span className="block text-[11px] text-gray-500">
+                          {(p.categoryIds || []).map((c) => c.title).join(', ') || 'No categories assigned'}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-200">

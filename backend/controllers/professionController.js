@@ -42,6 +42,29 @@ export const getActiveProfessions = async (req, res) => {
   }
 };
 
+/** Public (signup page): active professions that have at least one category. */
+export const getPublicProfessions = async (req, res) => {
+  try {
+    const professions = await Profession.find({ isActive: true, 'categoryIds.0': { $exists: true } })
+      .populate('categoryIds', 'title')
+      .select('name description categoryIds')
+      .sort({ name: 1 })
+      .lean();
+    res.json({ success: true, data: professions });
+  } catch (error) {
+    console.error('Get public professions error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch professions' });
+  }
+};
+
+// Keep only ids that are real, active professions.
+export const validProfessionIds = async (ids) => {
+  const clean = cleanIds(ids);
+  if (!clean.length) return [];
+  const found = await Profession.find({ _id: { $in: clean }, isActive: true }).select('_id').lean();
+  return found.map((p) => p._id);
+};
+
 const saveProfession = async (profession, body) => {
   const { name, description, categoryIds, isActive } = body;
   if (name !== undefined) profession.name = String(name).trim();
