@@ -75,7 +75,8 @@ const Dashboard = () => {
     categories: [],
     address: null,
     approvalStatus: 'pending',
-    status: 'offline'
+    status: 'offline',
+    loaded: false
   });
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [emergencyJobs, setEmergencyJobs] = useState([]);
@@ -191,6 +192,13 @@ const Dashboard = () => {
         ? "Today's availability is waiting for admin approval."
         : "Not marked for today. Mark today as Available in 'My availability' to go online.");
       navigate('/worker/availability');
+      return;
+    }
+
+    // Profile never loaded (e.g. server unreachable): don't claim "pending approval".
+    if (!workerProfile.loaded) {
+      const { toast } = await import('react-hot-toast');
+      toast.error('Could not load your profile. Check your internet connection and refresh.');
       return;
     }
 
@@ -330,7 +338,7 @@ const Dashboard = () => {
 
       // Fetch Profile, Stats, Recent Jobs and Offline Requests in parallel
       const [profileRes, statsRes, subRes, walletRes, offlineRes] = await Promise.all([
-        workerService.getProfile(),
+        workerService.getProfile({ light: 1 }),
         workerService.getDashboardStats(),
         workerService.getSubscriptionStatus(),
         workerWalletService.getWallet().catch(() => null),
@@ -349,6 +357,7 @@ const Dashboard = () => {
           categories: profile.serviceCategories || (profile.serviceCategory ? [profile.serviceCategory] : []),
           address: profile.address,
           approvalStatus: profile.approvalStatus || 'pending',
+          loaded: true,
           status: profile.status || (profile.isOnline ? 'online' : 'offline'),
           zoneNames,
           primaryZone

@@ -2,8 +2,8 @@ import api from './api';
 
 const workerService = {
   // Profile
-  getProfile: async () => {
-    const response = await api.get('/workers/profile');
+  getProfile: async (params) => {
+    const response = await api.get('/workers/profile', { params });
     return response.data;
   },
 

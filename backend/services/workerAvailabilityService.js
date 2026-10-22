@@ -1,4 +1,4 @@
-import Worker from '../models/Worker.js';
+import Worker, { WORKER_LIGHT } from '../models/Worker.js';
 import Settings from '../models/Settings.js';
 import PlatformSettings from '../models/PlatformSettings.js';
 import WorkerOfflineRequest from '../models/WorkerOfflineRequest.js';
@@ -178,7 +178,7 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
   const today = istYmd(new Date());
   // Independent reads run together — each one is a round trip to the database.
   const [worker, advanceDays, existing, bookings, cfg, pendingRequests, platformDoc] = await Promise.all([
-    Worker.findById(workerId),
+    Worker.findById(workerId).select(WORKER_LIGHT),
     // Workers manage the same window customers can book in (admin setting).
     getAdvanceBookingDays(),
     activeLeaves(workerId),

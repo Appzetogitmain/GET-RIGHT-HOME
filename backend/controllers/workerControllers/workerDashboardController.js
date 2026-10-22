@@ -1,5 +1,5 @@
 import HomeServiceBooking from '../../models/HomeServiceBooking.js';
-import Worker from '../../models/Worker.js';
+import Worker, { WORKER_LIGHT } from '../../models/Worker.js';
 import PlatformSettings from '../../models/PlatformSettings.js';
 import Admin from '../../models/Admin.js';
 import { BOOKING_STATUS } from '../../utils/constants.js';
@@ -13,7 +13,7 @@ const getDashboardStats = async (req, res) => {
     const workerId = req.user.id;
 
     // Get Worker Profile for Rating (fallback)
-    const worker = await Worker.findById(workerId);
+    const worker = await Worker.findById(workerId).select(WORKER_LIGHT);
 
     if (!worker) {
       return res.status(404).json({

@@ -1,4 +1,4 @@
-import Worker from '../../models/Worker.js';
+import Worker, { WORKER_LIGHT } from '../../models/Worker.js';
 import WorkerOfflineRequest from '../../models/WorkerOfflineRequest.js';
 import { findWorkerActiveJob, syncWorkerCapacityStatus } from '../../services/workerCapacityService.js';
 import Settings from '../../models/Settings.js';
@@ -18,9 +18,10 @@ const getProfile = async (req, res) => {
     await syncWorkerCapacityStatus(workerId);
     const { todayMarked, todayPending } = await syncOnlineWithTodayAvailability(workerId);
 
+    // ?light=1 skips the heavy verification scans (the dashboard doesn't show them).
     const worker = await Worker.findById(workerId)
       .populate('zoneIds', 'name status')
-      .select('-password -__v');
+      .select(req.query.light === '1' ? `-password -__v ${WORKER_LIGHT}` : '-password -__v');
 
     if (!worker) {
       return res.status(404).json({

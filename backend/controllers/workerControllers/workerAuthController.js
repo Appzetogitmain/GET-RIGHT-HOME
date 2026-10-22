@@ -1,4 +1,4 @@
-import Worker from '../../models/Worker.js';
+import Worker, { WORKER_LIGHT } from '../../models/Worker.js';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 
@@ -43,7 +43,7 @@ const sendOTP = async (req, res) => {
     const { phone, email } = req.body;
 
     // Check if worker exists and their approval status before sending OTP
-    const worker = await Worker.findOne({ phone });
+    const worker = await Worker.findOne({ phone }).select(WORKER_LIGHT);
     if (worker) {
       if (!worker.isActive) {
         return res.status(403).json({ success: false, message: 'Account deactivated.' });
@@ -122,7 +122,7 @@ const verifyLogin = async (req, res) => {
     }
 
     // 2. Check if worker exists
-    const worker = await Worker.findOne({ phone });
+    const worker = await Worker.findOne({ phone }).select(WORKER_LIGHT);
 
     if (worker) {
       // EXISTING WORKER
@@ -349,7 +349,7 @@ const login = async (req, res) => {
     }
 
     // Find worker
-    const worker = await Worker.findOne({ phone });
+    const worker = await Worker.findOne({ phone }).select(WORKER_LIGHT);
     if (!worker) {
       return res.status(404).json({
         success: false,
@@ -460,7 +460,7 @@ const refreshToken = async (req, res) => {
     }
 
     // Check if worker exists
-    const worker = await Worker.findById(decoded.userId);
+    const worker = await Worker.findById(decoded.userId).select(WORKER_LIGHT);
     if (!worker) {
       return res.status(404).json({
         success: false,

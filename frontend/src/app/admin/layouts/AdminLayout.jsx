@@ -230,6 +230,7 @@ const AdminLayout = () => {
         {
             title: 'OVERVIEW',
             items: [
+                { icon: LayoutDashboard, label: 'Dashboard Overview', path: '/admin/dashboard' },
                 { icon: LayoutDashboard, label: 'Services Dashboard', path: '/admin/home-service/dashboard' },
             ]
         },
@@ -311,10 +312,20 @@ const AdminLayout = () => {
     ], [supportUnreadCount, unreadCount]);
 
     // Active menu groups: the Home Services panel lives under /admin/home-service
-    const panelMode = location.pathname.startsWith('/admin/home-service') ? 'home_services' : 'real_estate';
+    // One sidebar for the whole admin panel: every Real Estate tab and every Home
+    // Services tab, whichever page is open. (Home Services pages keep their
+    // /admin/home-service/... URLs because names like users/bookings/settings
+    // already exist on the Real Estate side.)
     const currentMenuGroups = useMemo(() => {
-        return panelMode === 'home_services' ? HOME_SERVICES_MENU_GROUPS : MENU_GROUPS;
-    }, [panelMode, HOME_SERVICES_MENU_GROUPS, MENU_GROUPS]);
+        const realEstate = MENU_GROUPS.filter((g) => !['HOME SERVICES', 'SYSTEM'].includes(g.title));
+        const system = MENU_GROUPS.filter((g) => g.title === 'SYSTEM');
+        const homeServices = HOME_SERVICES_MENU_GROUPS
+            .filter((g) => g.title !== 'SYSTEM')
+            .map((g) => (g.title === 'OVERVIEW'
+                ? { ...g, title: 'HOME SERVICES', items: g.items.filter((i) => i.label !== 'Dashboard Overview') }
+                : g));
+        return [...realEstate, ...homeServices, ...system];
+    }, [HOME_SERVICES_MENU_GROUPS, MENU_GROUPS]);
 
     // Sidebar search: matches a group title, a tab, or a sub-tab. A matching
     // parent keeps all its sub-tabs; otherwise only the matching sub-tabs show.

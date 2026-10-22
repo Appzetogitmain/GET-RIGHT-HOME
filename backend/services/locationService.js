@@ -104,14 +104,9 @@ export const matchesWorkerCategory = (workerCategories, filters) => {
  * no profession keeps the legacy name matching.
  */
 export const workerServesBooking = (worker, filters, professions = []) => {
-  const byName = new Map(professions.map(p => [normalizeCategoryString(p.name), p]));
-  const held = [];
-  const plain = [];
-  for (const entry of worker.serviceCategories || []) {
-    const profession = byName.get(normalizeCategoryString(entry));
-    if (profession) held.push(profession);
-    else plain.push(entry);
-  }
+  const heldIds = new Set((worker.professionIds || []).map(String));
+  const held = professions.filter(p => heldIds.has(String(p._id)));
+  const plain = worker.serviceCategories || [];
   if (held.length > 0) {
     // A deactivated profession serves nothing; it must not fall back to fuzzy
     // name matching on the profession's label.

@@ -242,7 +242,14 @@ export default function GlobalWorkerJobAlert() {
   // the live socket alert (still loading, tab backgrounded, network drop) —
   // runs on mount and again whenever the tab regains focus/network.
   useEffect(() => {
+    let rejectedToken = null;
     const fetchPending = async () => {
+      // Only a logged-in worker has offers. Polling on the login/signup pages (or
+      // with another role's token) only produced 403s and extra server load.
+      const path = window.location.pathname;
+      if (path.startsWith('/worker/login') || path.startsWith('/worker/signup')) return;
+      const token = sessionStorage.getItem('workerAccessToken') || localStorage.getItem('workerAccessToken');
+      if (!token || token === rejectedToken) return;
       try {
         const res = await workerService.getPendingRequests();
         if (!res?.success) return;
@@ -272,8 +279,9 @@ export default function GlobalWorkerJobAlert() {
           }
           return validPrev;
         });
-      } catch {
-        // Silent — fallback sync
+      } catch (err) {
+        // Wrong role / expired token: don't retry that token; a fresh login works again.
+        if ([401, 403].includes(err?.response?.status)) rejectedToken = token;
       }
     };
 

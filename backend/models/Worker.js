@@ -317,6 +317,9 @@ const workerSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+  // Professions the admin gave this worker. Kept apart from serviceCategories
+  // so a profession name can never collide with a category name.
+  professionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Profession' }],
   // Business / Shop Details
   businessName: {
     type: String,
@@ -356,5 +359,9 @@ workerSchema.pre('save', async function () {
 workerSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
+
+// Verification scans are stored inline as base64 (MBs per worker). Hot paths such
+// as login and the auth middleware must not drag them over the wire on every call.
+export const WORKER_LIGHT = '-aadhar.document -aadhar.backDocument -panCard.document -drivingLicense.document -otherDocuments';
 
 export default mongoose.model('Worker', workerSchema);

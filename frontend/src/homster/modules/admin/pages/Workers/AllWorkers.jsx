@@ -488,6 +488,7 @@ const AllWorkers = () => {
         mcqLevel: worker.mcqLevel || 'Level 1 — Premium / Expert (80%+ Rating)',
         experienceYears: worker.experienceYears || 0,
         serviceCategories: [...(worker.serviceCategories || [])],
+        professionIds: (worker.professionIds || []).map(String),
         bookingModes: worker.bookingModes?.length ? [...worker.bookingModes] : ['slot'],
         zoneIds: workerZoneIds,
         approvalStatus: worker.approvalStatus || 'approved',
@@ -1495,18 +1496,18 @@ const AllWorkers = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {professions.map((p) => {
-                  const held = (editModal.formData.serviceCategories || []).some((c) => c.toLowerCase() === p.name.toLowerCase());
+                  const held = (editModal.formData.professionIds || []).includes(String(p._id));
                   return (
                     <label key={p._id} className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer text-xs ${held ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
                       <input
                         type="checkbox"
                         checked={held}
                         onChange={(e) => {
-                          const current = editModal.formData.serviceCategories || [];
-                          const rest = current.filter((c) => c.toLowerCase() !== p.name.toLowerCase());
+                          const current = editModal.formData.professionIds || [];
+                          const rest = current.filter((id) => id !== String(p._id));
                           setEditModal((prev) => ({
                             ...prev,
-                            formData: { ...prev.formData, serviceCategories: e.target.checked ? [...rest, p.name] : rest }
+                            formData: { ...prev.formData, professionIds: e.target.checked ? [...rest, String(p._id)] : rest }
                           }));
                         }}
                         className="w-4 h-4 mt-0.5 rounded text-emerald-600"
