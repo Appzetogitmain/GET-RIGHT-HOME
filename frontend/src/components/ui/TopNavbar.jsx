@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Suspense, lazy } from 'react';
-import { User, Globe, Bell, MapPin, ChevronDown } from 'lucide-react';
+import { User, Globe, Bell, MapPin, ChevronDown, Heart } from 'lucide-react';
 import logo from '../../assets/grh-logo.png';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -130,6 +130,14 @@ const TopNavbar = () => {
                         >
                             <span className={`${themeText} font-bold text-[14px] transition-colors duration-700`}>Post property</span>
                             <span className={`${themeBtn} text-white text-[10px] px-2 py-0.5 rounded uppercase font-black tracking-widest shadow-sm transition-colors duration-700`}>Free</span>
+                        </Link>
+                        <Link
+                            to={user ? '/saved-places' : '/login'}
+                            state={user ? undefined : { from: '/saved-places' }}
+                            title="Wishlist"
+                            className="p-2 text-gray-500 hover:text-red-500 hover:bg-gray-50 rounded-full transition-all active:scale-95"
+                        >
+                            <Heart size={20} strokeWidth={2} />
                         </Link>
                         <Link to="/notifications" className="relative p-2 text-gray-500 hover:bg-gray-50 rounded-full transition-all active:scale-95">
                             <Bell size={20} strokeWidth={2} />

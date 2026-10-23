@@ -41,19 +41,22 @@ export const sendNotificationToUser = async (userId, payload, userType = 'User')
       return;
     }
 
-    let tokens = [];
+    // App token(s) first; the web token is only used when there is no app token,
+    // otherwise the same phone (APK + its webview) got every push twice.
+    const appTokens = [];
+    const webTokens = [];
     if (user.fcmTokens) {
       if (Array.isArray(user.fcmTokens)) {
-        tokens.push(...user.fcmTokens);
+        webTokens.push(...user.fcmTokens);
       } else {
-        if (user.fcmTokens.app) tokens.push(user.fcmTokens.app);
-        if (user.fcmTokens.web) tokens.push(user.fcmTokens.web);
+        if (user.fcmTokens.app) appTokens.push(user.fcmTokens.app);
+        if (user.fcmTokens.web) webTokens.push(user.fcmTokens.web);
       }
     }
     if (user.fcmTokenMobile && Array.isArray(user.fcmTokenMobile)) {
-      tokens.push(...user.fcmTokenMobile);
+      appTokens.push(...user.fcmTokenMobile);
     }
-    tokens = [...new Set(tokens.filter(Boolean))];
+    let tokens = [...new Set((appTokens.length ? appTokens : webTokens).filter(Boolean))];
 
     if (!tokens.length) {
       console.warn(`[Firebase] No FCM tokens found for user: ${userId}`);

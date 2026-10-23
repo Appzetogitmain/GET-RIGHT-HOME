@@ -353,6 +353,9 @@ const JobMap = () => {
   const directionsCalculatedRef = useRef(false);
 
   const fullRoutePathRef = useRef([]);
+  // Road distance (m) / drive time (s) of the whole Directions leg, so the live
+  // numbers can shrink along the road instead of switching to straight-line.
+  const routeTotalsRef = useRef({ meters: 0, seconds: 0 });
 
   // Calculate Route ONCE on initial load only
   useEffect(() => {
@@ -373,6 +376,7 @@ const JobMap = () => {
             const leg = result.routes[0].legs[0];
             setDistance(leg.distance.text);
             setDuration(leg.duration.text);
+            routeTotalsRef.current = { meters: leg.distance.value, seconds: leg.duration.value };
 
             // Store full path and set initial state
             fullRoutePathRef.current = result.routes[0].overview_path;
@@ -399,25 +403,46 @@ const JobMap = () => {
   // Update distance, ETA, and Clear Traveled Path as worker moves
   useEffect(() => {
     if (isLoaded && currentLocation && coords && window.google && directionsCalculatedRef.current) {
-      // 1. Calculate straight-line distance
+      // 1. Remaining distance BY ROAD: follow the Directions route from the point
+      // nearest the rider to the destination (+ the hop from the rider onto the
+      // route). Straight-line is only a fallback when no road route exists.
       const riderPoint = new window.google.maps.LatLng(currentLocation);
       const destPoint = new window.google.maps.LatLng(coords);
-      const distanceMeters = window.google.maps.geometry.spherical.computeDistanceBetween(riderPoint, destPoint);
+      const path = fullRoutePathRef.current || [];
+      const totals = routeTotalsRef.current;
+      let distanceMeters;
+      let timeMinutes;
 
-      // Convert to km
+      if (path.length > 1 && totals.meters > 0) {
+        const spherical = window.google.maps.geometry.spherical;
+        let nearest = 0;
+        let nearestDist = Infinity;
+        path.forEach((p, idx) => {
+          const d = spherical.computeDistanceBetween(riderPoint, p);
+          if (d < nearestDist) { nearestDist = d; nearest = idx; }
+        });
+        let along = 0;
+        for (let i = nearest; i < path.length - 1; i += 1) {
+          along += spherical.computeDistanceBetween(path[i], path[i + 1]);
+        }
+        // overview_path is simplified, so rescale to Google's exact leg length
+        let pathTotal = 0;
+        for (let i = 0; i < path.length - 1; i += 1) pathTotal += spherical.computeDistanceBetween(path[i], path[i + 1]);
+        const scale = pathTotal > 0 ? totals.meters / pathTotal : 1;
+        distanceMeters = along * scale + nearestDist;
+        // Drive time shrinks in proportion to the road left
+        timeMinutes = Math.round(((totals.seconds || 0) * Math.min(1, distanceMeters / totals.meters)) / 60);
+      } else {
+        distanceMeters = window.google.maps.geometry.spherical.computeDistanceBetween(riderPoint, destPoint);
+        timeMinutes = Math.round((distanceMeters / 1000 / 30) * 60); // fallback: ~30 km/h
+      }
+
       const distanceKm = distanceMeters / 1000;
-
-      // Format distance
       if (distanceKm < 1) {
         setDistance(`${Math.round(distanceMeters)} m`);
       } else {
         setDistance(`${distanceKm.toFixed(1)} km`);
       }
-
-      // Estimate time (assuming average speed of 30 km/h in city)
-      const avgSpeedKmh = 30;
-      const timeHours = distanceKm / avgSpeedKmh;
-      const timeMinutes = Math.round(timeHours * 60);
 
       if (timeMinutes < 1) {
         setDuration('< 1 min');

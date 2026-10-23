@@ -1572,7 +1572,7 @@ export const getPlatformSettings = async (req, res) => {
       jobReminderConfirmMinutes: hsSettings.jobReminderConfirmMinutes ?? 15,
       advanceBookingDays: hsSettings.advanceBookingDays ?? 7,
       workerLeaveAutoApprove: !!hsSettings.workerLeaveAutoApprove,
-      availabilityRequiresApproval: hsSettings.availabilityRequiresApproval !== false,
+      availabilityRequiresApproval: hsSettings.availabilityRequiresApproval === true,
       requireDailyAvailability: hsSettings.requireDailyAvailability !== false,
       ...pickHsFinancials(hsSettings)
     };
@@ -1888,7 +1888,7 @@ export const updatePlatformSettings = async (req, res) => {
       jobReminderConfirmMinutes: hsSettings.jobReminderConfirmMinutes ?? 15,
       advanceBookingDays: hsSettings.advanceBookingDays ?? 7,
       workerLeaveAutoApprove: !!hsSettings.workerLeaveAutoApprove,
-      availabilityRequiresApproval: hsSettings.availabilityRequiresApproval !== false,
+      availabilityRequiresApproval: hsSettings.availabilityRequiresApproval === true,
       requireDailyAvailability: hsSettings.requireDailyAvailability !== false,
       ...pickHsFinancials(hsSettings)
     };

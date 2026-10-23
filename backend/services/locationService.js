@@ -104,18 +104,18 @@ export const matchesWorkerCategory = (workerCategories, filters) => {
  * no profession keeps the legacy name matching.
  */
 export const workerServesBooking = (worker, filters, professions = []) => {
-  const byName = new Map(professions.map(p => [normalizeCategoryString(p.name), p]));
-  const held = [];
-  const plain = [];
-  for (const entry of worker.serviceCategories || []) {
-    const profession = byName.get(normalizeCategoryString(entry));
-    if (profession) held.push(profession);
-    else plain.push(entry);
-  }
+  const heldIds = new Set((worker.professionIds || []).map(String));
+  const held = professions.filter(p => heldIds.has(String(p._id)));
+  const plain = worker.serviceCategories || [];
   if (held.length > 0) {
     // A deactivated profession serves nothing; it must not fall back to fuzzy
     // name matching on the profession's label.
-    return !!filters?.categoryId && held.some(p => p.isActive !== false) && held.filter(p => p.isActive !== false).some(p => (p.categoryIds || []).some(id => String(id) === String(filters.categoryId)));
+    const viaProfession = !!filters?.categoryId && held.some(p => p.isActive !== false) && held.filter(p => p.isActive !== false).some(p => (p.categoryIds || []).some(id => String(id) === String(filters.categoryId)));
+    if (viaProfession) return true;
+    // Extra skills the worker requested and an admin verified also qualify them.
+    // Only admin-verified skills count (never pending ones, never fuzzy profession labels).
+    const verifiedSkills = (worker.verifiedSkillsDetails || []).map(v => v.category).filter(Boolean);
+    return verifiedSkills.length > 0 && matchesWorkerCategory(verifiedSkills, filters);
   }
   return matchesWorkerCategory(plain, filters);
 };

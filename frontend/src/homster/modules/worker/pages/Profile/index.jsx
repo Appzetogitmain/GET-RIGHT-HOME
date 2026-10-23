@@ -68,6 +68,7 @@ const Profile = () => {
             totalJobs: workerData.totalJobs || 0,
             completedJobs: workerData.completedJobs || 0,
             serviceCategories: workerData.serviceCategories || (workerData.serviceCategory ? [workerData.serviceCategory] : []),
+            professions: (workerData.professions || []).map((p) => p.name),
             pendingServiceCategories: workerData.pendingServiceCategories || [],
             photo: workerData.profilePhoto || null,
             isPhoneVerified: workerData.isPhoneVerified || false,
@@ -93,6 +94,7 @@ const Profile = () => {
               totalJobs: localWorkerData.totalJobs || 0,
               completedJobs: localWorkerData.completedJobs || 0,
               serviceCategories: localWorkerData.serviceCategories || (localWorkerData.serviceCategory ? [localWorkerData.serviceCategory] : []),
+              professions: (localWorkerData.professions || []).map((p) => p.name),
               pendingServiceCategories: localWorkerData.pendingServiceCategories || [],
               photo: localWorkerData.profilePhoto || null
             });
@@ -119,6 +121,7 @@ const Profile = () => {
             totalJobs: localWorkerData.totalJobs || 0,
             completedJobs: localWorkerData.completedJobs || 0,
             serviceCategories: localWorkerData.serviceCategories || (localWorkerData.serviceCategory ? [localWorkerData.serviceCategory] : []),
+            professions: (localWorkerData.professions || []).map((p) => p.name),
             pendingServiceCategories: localWorkerData.pendingServiceCategories || [],
             photo: localWorkerData.profilePhoto || null
           });
@@ -260,15 +263,11 @@ const Profile = () => {
           {/* Categories & Location */}
           <div className="flex flex-col items-center gap-1 mb-2">
             <p className="text-white text-xs font-semibold">
-              {profile.serviceCategories && profile.serviceCategories.length > 0
-                ? profile.serviceCategories.join(' • ')
-                : 'Services not set'}
+              {profile.professions && profile.professions.length > 0
+                ? profile.professions.join(' • ')
+                : 'Profession not assigned'}
             </p>
-            {profile.pendingServiceCategories && profile.pendingServiceCategories.length > 0 && (
-              <span className="bg-amber-400/25 text-amber-100 border border-amber-300/40 text-[10px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                ⏳ Pending Verification: {profile.pendingServiceCategories.join(', ')}
-              </span>
-            )}
+            
           </div>
           <div className="flex items-center gap-2 text-white text-xs opacity-95 flex-wrap justify-center">
             <span className="flex items-center gap-1 bg-white/20 px-2.5 py-0.5 rounded-full border border-white/20">

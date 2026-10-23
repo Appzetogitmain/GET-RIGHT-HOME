@@ -1408,7 +1408,14 @@ const BookingDetails = () => {
                           // through the bill/booking fallback chain, which
                           // would silently drop it whenever a bill exists.
                           const tipAmount = Number(booking.tipAmount) || 0;
-                          const advancePaidAmt = Number(booking.advancePaid) || 0;
+                          // Once the worker's bill exists, the bill total leaves out visiting
+                          // charge / penalty, so those are taken out of the advance first
+                          // (same rule the payment API uses). Before a bill, the booking
+                          // total still includes them, so the whole advance counts.
+                          const billBasedTotal = (billFinalOnline != null && billFinalOnline > 0) || (billGrandTotal != null && billGrandTotal > 0);
+                          const advancePaidAmt = billBasedTotal
+                            ? Math.max(0, (Number(booking.advancePaid) || 0) - (Number(booking.visitingCharges) || 0) - (Number(booking.penalty) || 0))
+                            : (Number(booking.advancePaid) || 0);
                           const totalOnline = Math.max(0, (isEstimate ? Math.max(0, baseTotalOnline - tokenPaid) : baseTotalOnline) - advancePaidAmt) + tipAmount;
 
                           return (
@@ -1457,6 +1464,20 @@ const BookingDetails = () => {
                                 <div className="flex justify-between text-green-600 text-xs">
                                   <span>Promo ({booking.promoCode})</span>
                                   <span>-₹{booking.promoDiscount.toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              {!hasBill && Number(booking.discount) > 0 && (
+                                <div className="flex justify-between text-green-600 text-xs">
+                                  <span>Discount</span>
+                                  <span>-₹{Number(booking.discount).toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              {!hasBill && Number(booking.vipDiscount) > 0 && (
+                                <div className="flex justify-between text-green-600 text-xs">
+                                  <span>VIP discount</span>
+                                  <span>-₹{Number(booking.vipDiscount).toFixed(2)}</span>
                                 </div>
                               )}
 

@@ -1,4 +1,4 @@
-import Worker from '../../models/Worker.js';
+import Worker, { WORKER_LIGHT } from '../../models/Worker.js';
 import WorkerOfflineRequest from '../../models/WorkerOfflineRequest.js';
 import { findWorkerActiveJob, syncWorkerCapacityStatus } from '../../services/workerCapacityService.js';
 import Settings from '../../models/Settings.js';
@@ -9,6 +9,8 @@ import { validationResult } from 'express-validator';
 import cloudinaryService from '../../services/cloudinaryService.js';
 import { createNotification } from '../notificationControllers/notificationController.js';
 
+const WORKER_CAN_EDIT_CATEGORIES = true;
+
 /**
  * Get worker profile
  */
@@ -18,9 +20,11 @@ const getProfile = async (req, res) => {
     await syncWorkerCapacityStatus(workerId);
     const { todayMarked, todayPending } = await syncOnlineWithTodayAvailability(workerId);
 
+    // ?light=1 skips the heavy verification scans (the dashboard doesn't show them).
     const worker = await Worker.findById(workerId)
       .populate('zoneIds', 'name status')
-      .select('-password -__v');
+      .populate({ path: 'professionIds', select: 'name isActive categoryIds', populate: { path: 'categoryIds', select: 'title' } })
+      .select(req.query.light === '1' ? `-password -__v ${WORKER_LIGHT}` : '-password -__v');
 
     if (!worker) {
       return res.status(404).json({
@@ -51,6 +55,11 @@ const getProfile = async (req, res) => {
         phone: worker.phone,
         approvalStatus: worker.approvalStatus,
         serviceCategories: worker.serviceCategories || [],
+        professions: (worker.professionIds || []).map((p) => ({
+          id: p._id,
+          name: p.name,
+          categories: (p.categoryIds || []).map((c) => c.title)
+        })),
         pendingServiceCategories: worker.pendingServiceCategories || [],
         rejectedServiceCategories: worker.rejectedServiceCategories || [],
         skillRequests: worker.skillRequests || [],
@@ -123,7 +132,9 @@ const updateProfile = async (req, res) => {
     let customSuccessMessage = 'Profile updated successfully';
 
     // Handle categories with verification flow
-    if (serviceCategories !== undefined || serviceCategory !== undefined) {
+    // Workers can request extra skills (experience + optional certificate); they
+    // stay pending until an admin verifies them. Profession-based bookings are unaffected.
+    if (WORKER_CAN_EDIT_CATEGORIES && (serviceCategories !== undefined || serviceCategory !== undefined)) {
       const incoming = (serviceCategories && Array.isArray(serviceCategories))
         ? serviceCategories.map(c => typeof c === 'string' ? c.trim() : '').filter(Boolean)
         : (serviceCategory ? [serviceCategory.trim()] : []);

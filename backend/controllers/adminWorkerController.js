@@ -170,6 +170,7 @@ export const updateWorker = async (req, res) => {
       email,
       businessName,
       serviceCategories,
+      professionIds,
       bookingModes,
       zoneIds,
       zones,
@@ -232,6 +233,7 @@ export const updateWorker = async (req, res) => {
     if (Array.isArray(serviceCategories)) {
       worker.serviceCategories = serviceCategories;
     }
+    if (Array.isArray(professionIds)) worker.professionIds = professionIds;
     if (bookingModes !== undefined) worker.bookingModes = normalizeBookingModes(bookingModes);
 
     // Handle zones
@@ -330,6 +332,7 @@ export const createWorkerByAdmin = async (req, res) => {
       businessName,
       password = 'Worker@123',
       serviceCategories = [],
+      professionIds = [],
       bookingModes = ['slot'],
       zoneIds = [],
       approvalStatus = 'approved'
@@ -358,6 +361,7 @@ export const createWorkerByAdmin = async (req, res) => {
       businessName: businessName || name,
       password,
       serviceCategories,
+      professionIds: Array.isArray(professionIds) ? professionIds : [],
       bookingModes: normalizeBookingModes(bookingModes),
       zoneIds,
       zones: zoneNames,

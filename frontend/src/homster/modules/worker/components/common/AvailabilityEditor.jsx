@@ -175,6 +175,13 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
       return copy;
     });
   };
+  // Up to this many minutes off a day apply at once; more needs admin approval.
+  const instantMinutes = Infinity; // worker marks never need admin approval
+  const toMin = (hhmm) => { const [h, m] = String(hhmm || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+  const slotMinutes = (sl) => Math.max(0, toMin(sl.end) - toMin(sl.value)) || 60;
+  const dayOffMinutes = (date) => (slotsByDate[date] || [])
+    .filter((sl) => (slotOffs[date] || []).includes(sl.value))
+    .reduce((sum, sl) => sum + slotMinutes(sl), 0);
   const normSlotOffs = (obj) => JSON.stringify(Object.keys(obj || {}).sort().map((d) => [d, [...obj[d]].sort()]));
 
   const dirty = useMemo(() => {
@@ -247,7 +254,10 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
     const awaitingCount = windowDates.filter((d) => pendingAvailDates.has(d) && !availableDates.includes(d)).length;
     const openCount = windowDates.length - availCount - leaveCount - awaitingCount;
     const changesCount = windowDates.filter((d) => !lockedDates.has(d) && (availableDates.includes(d) || leaveDates.includes(d))).length;
-    const slotChangeCount = Object.keys(slotOffs).reduce((n, d) => n + slotOffs[d].filter((v) => !(data?.slotOffs?.[d] || []).includes(v)).length, 0);
+    const newSlotsOn = (d) => slotOffs[d].filter((v) => !(data?.slotOffs?.[d] || []).includes(v)).length;
+    const slotChangeCount = Object.keys(slotOffs).reduce((n, d) => n + newSlotsOn(d), 0);
+    // New slot-offs on days that go over the instant limit must be sent to admin.
+    const slotApprovalCount = Object.keys(slotOffs).reduce((n, d) => n + (dayOffMinutes(d) > instantMinutes ? newSlotsOn(d) : 0), 0);
 
     return (
       <div className="space-y-4">
@@ -372,7 +382,7 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
                         {open && (
                           <div className="mt-2.5">
                             <div className="mb-2 flex items-center justify-between text-[10px]">
-                              <span className="text-slate-400">Slot off needs admin approval; until then you still get jobs in it</span>
+                              <span className="text-slate-400">Slots you switch off apply at once — no bookings in them</span>
                               {usable.length > 0 && (
                                 <span className="font-bold">
                                   <button type="button" onClick={() => setDaySlots(date, false)} className="text-emerald-700 hover:underline">All on</button>
@@ -411,7 +421,7 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
                                   >
                                     <span className={`block text-[11px] font-bold leading-tight ${off ? 'line-through decoration-rose-300' : ''}`}>{sl.range || sl.display}</span>
                                     <span className="block text-[9px] font-semibold uppercase tracking-wide opacity-80">
-                                      {booked ? 'Booked' : elapsed ? 'Passed' : approved ? 'Off · approved' : waiting ? 'Awaiting approval' : off ? 'Off · will send' : 'Will work'}
+                                      {booked ? 'Booked' : elapsed ? 'Passed' : approved ? 'Off · approved' : waiting ? 'Awaiting approval' : off ? (dayOffMinutes(date) <= instantMinutes ? 'Off · applies at once' : 'Off · will send') : 'Will work'}
                                     </span>
                                   </button>
                                 );
@@ -438,7 +448,7 @@ export default function AvailabilityEditor({ data, onSave, saving = false, isAdm
             }}
             className="w-full py-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40 transition-colors shadow-md"
           >
-            {saving ? 'Saving…' : <><FiCheck className="w-4 h-4" /> {changesCount === 0 && slotChangeCount > 0 ? `Send ${slotChangeCount} slot${slotChangeCount === 1 ? '' : 's'} for approval` : `Save ${changesCount > 0 ? `${changesCount} day${changesCount === 1 ? '' : 's'}` : 'availability'}`}</>}
+            {saving ? 'Saving…' : <><FiCheck className="w-4 h-4" /> {changesCount === 0 && slotChangeCount > 0 ? (slotApprovalCount === 0 ? `Save ${slotChangeCount} slot${slotChangeCount === 1 ? '' : 's'} off` : slotApprovalCount === slotChangeCount ? `Send ${slotApprovalCount} slot${slotApprovalCount === 1 ? '' : 's'} for approval` : 'Save slot changes') : `Save ${changesCount > 0 ? `${changesCount} day${changesCount === 1 ? '' : 's'}` : 'availability'}`}</>}
           </button>
         </div>
       </div>

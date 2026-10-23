@@ -28,11 +28,13 @@ const WorkerSignup = () => {
     panCardNumber: '',
     drivingLicenseNumber: '',
     referralCode: '',
+    professionIds: [],
     aadharDocument: null,
     aadharBackDocument: null,
     panCardDocument: null,
     drivingLicenseDocument: null
   });
+  const [professions, setProfessions] = useState([]);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpToken, setOtpToken] = useState('');
   const [verificationToken, setVerificationToken] = useState('');
@@ -163,6 +165,20 @@ const WorkerSignup = () => {
     }));
   };
 
+  // Professions created by the admin; the worker picks one or more.
+  useEffect(() => {
+    workerAuthService.getProfessions()
+      .then((res) => { if (res?.success) setProfessions(res.data || []); })
+      .catch(() => {});
+  }, []);
+
+  const toggleProfession = (id) => setFormData((prev) => ({
+    ...prev,
+    professionIds: prev.professionIds.includes(id)
+      ? prev.professionIds.filter((p) => p !== id)
+      : [...prev.professionIds, id]
+  }));
+
   const handleDetailsSubmit = async (e) => {
     e.preventDefault();
 
@@ -179,6 +195,11 @@ const WorkerSignup = () => {
     if (!validationResult.success) {
       const errorList = validationResult.error.errors || validationResult.error.issues || [];
       errorList.forEach(err => toast.error(err.message));
+      return;
+    }
+
+    if (professions.length > 0 && formData.professionIds.length === 0) {
+      toast.error('Please select your profession');
       return;
     }
 
@@ -241,6 +262,7 @@ const WorkerSignup = () => {
           phone: formData.phoneNumber,
           aadhar: cleanAadhar,
           referralCode: formData.referralCode,
+          professionIds: formData.professionIds,
           aadharDocument: aadharDoc,
           aadharBackDocument: aadharBackDoc,
           panCardNumber: formData.panCardNumber,
@@ -344,6 +366,7 @@ const WorkerSignup = () => {
         drivingLicenseNumber: formData.drivingLicenseNumber,
         drivingLicenseDocument: dlDoc,
         referralCode: formData.referralCode,
+        professionIds: formData.professionIds,
         otp: otpValue,
         token: otpToken
       };
@@ -406,6 +429,38 @@ const WorkerSignup = () => {
                   />
                 </div>
               </div>
+
+              {professions.length > 0 && (
+                <div className="animate-stagger-2 animate-fade-in">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Profession <span className="text-xs text-gray-400">(select one or more)</span>
+                  </label>
+                  <div className="space-y-2">
+                    {professions.map((p) => {
+                      const on = formData.professionIds.includes(p._id);
+                      return (
+                        <label
+                          key={p._id}
+                          className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${on ? 'border-[#347989] bg-[#347989]/5' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => toggleProfession(p._id)}
+                            className="w-4 h-4 mt-0.5 accent-[#347989]"
+                          />
+                          <span className="min-w-0">
+                            <b className="block text-sm text-gray-900">{p.name}</b>
+                            <span className="block text-xs text-gray-500">
+                              {(p.categoryIds || []).map((c) => c.title).join(', ')}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="animate-stagger-2 animate-fade-in">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>

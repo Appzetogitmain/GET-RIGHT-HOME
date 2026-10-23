@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Partner from '../models/Partner.js';
 import Admin from '../models/Admin.js';
-import Worker from '../models/Worker.js';
+import Worker, { WORKER_LIGHT } from '../models/Worker.js';
 import Manager from '../models/Manager.js';
 
 export const protect = async (req, res, next) => {
@@ -43,7 +43,7 @@ export const protect = async (req, res, next) => {
     } else if (role === 'partner') {
       user = await Partner.findById(id);
     } else if (role === 'worker') {
-      user = await Worker.findById(id);
+      user = await Worker.findById(id).select(WORKER_LIGHT);
     } else if (role === 'manager') {
       user = await Manager.findById(id);
     } else {
@@ -55,7 +55,7 @@ export const protect = async (req, res, next) => {
       const candidates = await Promise.all([
         User.findById(id),
         Partner.findById(id),
-        Worker.findById(id),
+        Worker.findById(id).select(WORKER_LIGHT),
         Admin.findById(id),
         Manager.findById(id)
       ]);
@@ -130,7 +130,7 @@ export const optionalProtect = async (req, res, next) => {
       } else if (role === 'partner') {
         user = await Partner.findById(id);
       } else if (role === 'worker') {
-        user = await Worker.findById(id);
+        user = await Worker.findById(id).select(WORKER_LIGHT);
       } else if (role === 'manager') {
         user = await Manager.findById(id);
       } else {

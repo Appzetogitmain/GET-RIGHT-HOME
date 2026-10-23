@@ -21,7 +21,7 @@ const workerProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   phone: z.string().optional(), // Read-only but good to have in schema
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
-  serviceCategories: z.array(z.string()).min(1, "Select at least one category"),
+  serviceCategories: z.array(z.string()).optional(),
   address: z.object({
     addressLine1: z.string().optional(),
     city: z.string().optional(),
@@ -38,6 +38,7 @@ const EditProfile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [professions, setProfessions] = useState([]);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
   const [verifiedCategories, setVerifiedCategories] = useState([]);
@@ -76,14 +77,14 @@ const EditProfile = () => {
     const initData = async () => {
       try {
         setLoading(true);
-        const [profileRes, catalogRes, professionsRes] = await Promise.all([
+        const [profileRes, catalogRes] = await Promise.all([
           workerService.getProfile(),
-          publicCatalogService.getCategories(),
-          workerService.getProfessions().catch(() => ({ success: false }))
+          publicCatalogService.getCategories()
         ]);
 
         if (profileRes.success) {
           const w = profileRes.worker;
+          setProfessions(w.professions || []);
           const verified = w.serviceCategories || (w.serviceCategory ? [w.serviceCategory] : []);
           const pending = w.pendingServiceCategories || [];
           setVerifiedCategories(verified);
@@ -131,12 +132,7 @@ const EditProfile = () => {
           });
         }
 
-        // Workers pick a profession; it decides which categories' bookings they
-        // get. Until the admin defines any, fall back to the raw category list.
-        const professions = professionsRes?.success ? (professionsRes.data || []) : [];
-        if (professions.length > 0) {
-          setCategories(professions.map((p) => ({ _id: p._id, title: p.name })));
-        } else if (catalogRes.success) {
+        if (catalogRes.success) {
           setCategories(catalogRes.categories || []);
         }
       } catch (error) {
@@ -543,253 +539,192 @@ const EditProfile = () => {
 
           <div>
             <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">
-              Categories
+              Your Profession
             </label>
-            <div className="relative">
-              <div
-                onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between cursor-pointer"
-              >
-                <div className="flex flex-wrap gap-1.5">
-                  {formData.serviceCategories && formData.serviceCategories.length > 0 ? (
-                    formData.serviceCategories.map((cat, idx) => {
-                      const isVerified = verifiedCategories.includes(cat);
-                      const isPending = pendingCategories.includes(cat);
-                      return (
-                        <span
-                          key={idx}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 border ${
-                            isVerified
-                              ? 'bg-green-50 text-green-800 border-green-200'
-                              : isPending
-                                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                : 'bg-blue-50 text-blue-800 border-blue-200'
-                          }`}
-                        >
-                          {isVerified && <FiCheck className="w-3 h-3 text-green-600 shrink-0" />}
-                          {isPending && <FiClock className="w-3 h-3 text-amber-600 shrink-0" />}
-                          {!isVerified && !isPending && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>}
-                          <span>{cat}</span>
-                          <span
-                            className={`text-[9px] px-1 py-0.2 rounded font-bold uppercase ${
-                              isVerified
-                                ? 'bg-green-200/70 text-green-900'
-                                : isPending
-                                  ? 'bg-amber-200/70 text-amber-900'
-                                  : 'bg-blue-200/70 text-blue-900'
-                            }`}
-                          >
-                            {isVerified ? 'Verified' : isPending ? 'Pending' : 'New'}
-                          </span>
-                        </span>
-                      );
-                    })
-                  ) : (
-                    <span className="text-gray-400">Select Categories</span>
-                  )}
-                </div>
-                <FiChevronDown className={`w-5 h-5 text-gray-400 transition-transform shrink-0 ml-2 ${isCategoryOpen ? 'rotate-180' : ''}`} />
+            {professions.length === 0 ? (
+              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                No profession assigned yet. Contact admin to get one.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {professions.map((p) => (
+                  <div key={p.id} className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                    <p className="text-sm font-bold text-green-900 flex items-center gap-1.5">
+                      <FiCheck className="w-4 h-4 text-green-600" /> {p.name}
+                    </p>
+                    {p.categories.length > 0 && (
+                      <p className="text-xs text-green-800/80 mt-1">You receive bookings for: {p.categories.join(', ')}</p>
+                    )}
+                  </div>
+                ))}
+                <p className="text-[11px] text-gray-400">Profession is set by admin. Contact admin to change it.</p>
               </div>
+            )}
+          </div>
+
+          {/* Skills: worker can request extra skills; admin verifies before jobs are received for them */}
+          <div>
+            <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">
+              Categories / Skills
+            </label>
+
+            <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-3 space-y-2">
+              {formData.serviceCategories.length === 0 && (
+                <p className="text-xs text-gray-400 px-1 py-1">No skills added yet. Tap “Add skill” below.</p>
+              )}
+              {formData.serviceCategories.map((cat) => {
+                const isVerified = verifiedCategories.some(v => v.toLowerCase() === cat.toLowerCase());
+                const isPending = !isVerified && pendingCategories.some(p => p.toLowerCase() === cat.toLowerCase());
+                return (
+                  <div
+                    key={cat}
+                    className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 ${
+                      isVerified ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'
+                    }`}
+                  >
+                    <span className={`flex items-center gap-1.5 text-sm font-semibold ${isVerified ? 'text-green-900' : 'text-amber-900'}`}>
+                      {isVerified ? <FiCheck className="w-4 h-4 text-green-600 shrink-0" /> : <FiClock className="w-4 h-4 text-amber-600 shrink-0" />}
+                      {cat}
+                    </span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                        isVerified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {isVerified ? 'Verified' : isPending ? 'Pending' : 'New'}
+                      </span>
+                      {!isVerified && (
+                        <button
+                          type="button"
+                          onClick={() => handleCategoryChange(cat)}
+                          className="p-1 rounded-full text-amber-700 hover:bg-amber-100"
+                          aria-label={`Remove ${cat}`}
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => setIsCategoryOpen(o => !o)}
+                className="w-full flex items-center justify-between rounded-xl border border-dashed border-blue-300 bg-white px-3 py-2.5 text-sm font-bold text-blue-600 active:scale-[0.99] transition"
+              >
+                + Add skill
+                <FiChevronDown className={`w-4 h-4 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
+              </button>
 
               {isCategoryOpen && (
-                <div 
-                  className="mt-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-y-auto overscroll-contain max-h-[240px]"
-                  style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
-                >
-                  {categories.map((cat, index) => {
-                    const isSelected = formData.serviceCategories.includes(cat.title);
-                    const isVerified = verifiedCategories.includes(cat.title);
-                    const isPending = pendingCategories.includes(cat.title);
-                    return (
-                      <div
-                        key={cat._id || index}
-                        onClick={() => {
-                          handleCategoryChange(cat.title);
-                        }}
-                        className={`px-4 py-3 cursor-pointer border-b border-gray-50 last:border-0 font-medium flex justify-between items-center transition-colors ${
-                          isSelected ? 'bg-blue-50/60 text-blue-800' : 'hover:bg-gray-50 text-gray-700'
-                        }`}
+                <div className="max-h-60 overflow-y-auto rounded-xl border border-gray-100 bg-white divide-y divide-gray-50">
+                  {categories
+                    .filter(c => c.title && !formData.serviceCategories.some(s => s.toLowerCase() === c.title.toLowerCase()))
+                    .map(c => (
+                      <button
+                        key={c._id || c.id || c.title}
+                        type="button"
+                        onClick={() => { handleCategoryChange(c.title); setIsCategoryOpen(false); }}
+                        className="w-full text-left px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{cat.title}</span>
-                          {isVerified && (
-                            <span className="text-[10px] bg-green-100 text-green-800 font-bold px-1.5 py-0.5 rounded border border-green-200">
-                              Verified
-                            </span>
-                          )}
-                          {isPending && (
-                            <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded border border-amber-200">
-                              Pending Review
-                            </span>
-                          )}
-                          {isSelected && !isVerified && !isPending && (
-                            <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded border border-blue-200">
-                              New (Pending on Save)
-                            </span>
-                          )}
-                        </div>
-                        {isSelected && <FiCheck className="text-blue-600 w-4 h-4" />}
-                      </div>
-                    );
-                  })}
+                        {c.title}
+                      </button>
+                    ))}
+                  {categories.filter(c => c.title && !formData.serviceCategories.some(s => s.toLowerCase() === c.title.toLowerCase())).length === 0 && (
+                    <p className="px-3 py-3 text-xs text-gray-400">No more skills available.</p>
+                  )}
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Verification Info Note */}
-            <div className="mt-3 p-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-start gap-2.5 text-xs text-blue-800">
-              <FiAlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold">Skill Verification Notice:</span>
-                <p className="mt-0.5 text-blue-700 leading-relaxed text-[11px]">
-                  Newly added categories require admin review and verification before you can receive job requests for them. Your existing verified categories will continue receiving job requests without interruption.
-                </p>
-              </div>
-            </div>
+          {/* Experience & optional certificate for new / pending skills */}
+          {(() => {
+            const needsDetails = formData.serviceCategories.filter(
+              cat => !verifiedCategories.some(v => v.toLowerCase() === cat.toLowerCase())
+            );
+            if (needsDetails.length === 0) return null;
+            return (
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <FiFileText className="w-3.5 h-3.5 text-blue-600" /> New Skill Details & Verification
+                </h3>
+                {needsDetails.map(cat => {
+                  const data = skillsData[cat] || {};
+                  const isPending = pendingCategories.some(p => p.toLowerCase() === cat.toLowerCase());
+                  const preview = data.experienceLetterPreview;
+                  const isImage = preview && !/\.pdf($|\?)/i.test(preview) && !(data.letterFile && data.letterFile.type === 'application/pdf');
+                  return (
+                    <div key={cat} className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-bold text-gray-800">{cat}</p>
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-amber-100 text-amber-700">
+                          {isPending ? 'Pending Admin Review' : 'New Skill'}
+                        </span>
+                      </div>
 
-            {errors.serviceCategories && <p className="text-red-500 text-[10px] mt-1">{errors.serviceCategories}</p>}
+                      <div>
+                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-1">
+                          Years of experience
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          inputMode="numeric"
+                          value={data.experienceYears ?? ''}
+                          onChange={(e) => handleExperienceYearsChange(cat, e.target.value)}
+                          placeholder="e.g. 3"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        />
+                      </div>
 
-            {/* Experience & Optional Certificate for New / Pending Skills */}
-            {(() => {
-              const unverifiedCategories = (formData.serviceCategories || []).filter(c => !verifiedCategories.includes(c));
-              if (unverifiedCategories.length === 0) return null;
-
-              return (
-                <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
-                      <FiBriefcase className="w-3.5 h-3.5 text-blue-600" />
-                      New Skill Details & Verification
-                    </h3>
-                    <span className="text-[10px] text-gray-400 font-medium">Letter is Optional</span>
-                  </div>
-
-                  <p className="text-[11px] text-gray-500">
-                    Provide your years of experience and optionally upload an experience letter or certificate for faster approval.
-                  </p>
-
-                  <div className="space-y-3">
-                    {unverifiedCategories.map((cat) => {
-                      const isPending = pendingCategories.includes(cat);
-                      const data = skillsData[cat] || {};
-                      const expYears = data.experienceYears !== undefined && data.experienceYears !== null ? data.experienceYears : '';
-                      const preview = data.experienceLetterPreview || data.experienceLetter;
-
-                      return (
-                        <div
-                          key={cat}
-                          className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/70 space-y-3"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold text-gray-800">{cat}</span>
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                isPending
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                  : 'bg-blue-100 text-blue-800 border border-blue-200'
-                              }`}
+                      <div>
+                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-1">
+                          Certificate / experience letter <span className="normal-case font-medium text-gray-400">(optional)</span>
+                        </label>
+                        {preview ? (
+                          <div className="flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isImage ? (
+                                <img src={preview} alt="Certificate" className="w-10 h-10 rounded-lg object-cover" />
+                              ) : (
+                                <FiFileText className="w-6 h-6 text-blue-500 shrink-0" />
+                              )}
+                              <span className="text-xs text-gray-600 truncate">{data.letterFile?.name || 'Uploaded document'}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExperienceLetter(cat)}
+                              className="p-1.5 rounded-full text-red-500 hover:bg-red-50 shrink-0"
+                              aria-label="Remove document"
                             >
-                              {isPending ? 'Pending Admin Review' : 'New Skill'}
-                            </span>
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
                           </div>
+                        ) : (
+                          <label className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white px-3 py-3 text-xs font-semibold text-gray-500 cursor-pointer hover:bg-gray-50">
+                            <FiUploadCloud className="w-4 h-4" /> Upload certificate (image / PDF, max 5MB)
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="hidden"
+                              onChange={(e) => handleExperienceLetterChange(cat, e.target.files?.[0])}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
-                          {/* Experience Years */}
-                          <div>
-                            <label className="block text-[11px] font-semibold text-gray-600 mb-1">
-                              Experience in this Skill (Years)
-                            </label>
-                            <div className="relative">
-                              <input
-                                type="number"
-                                min="0"
-                                max="50"
-                                step="1"
-                                value={expYears}
-                                onChange={(e) => handleExperienceYearsChange(cat, e.target.value)}
-                                placeholder="e.g. 2"
-                                className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-100"
-                              />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold pointer-events-none">
-                                Years
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Experience Letter / Photo (Optional) */}
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="text-[11px] font-semibold text-gray-600">
-                                Experience Letter / Certificate Photo
-                              </label>
-                              <span className="text-[10px] text-gray-400 font-normal">Optional</span>
-                            </div>
-
-                            {preview ? (
-                              <div className="p-2.5 bg-white rounded-xl border border-gray-200 flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2.5 overflow-hidden">
-                                  <img
-                                    src={preview}
-                                    alt="Certificate"
-                                    className="w-12 h-12 object-cover rounded-lg border border-gray-100 shrink-0 bg-gray-50 cursor-pointer"
-                                    onClick={() => window.open(preview, '_blank')}
-                                    title="Click to view full image"
-                                  />
-                                  <div className="overflow-hidden">
-                                    <p className="text-xs font-bold text-gray-800 truncate">
-                                      {data.letterFile?.name || 'Experience Document'}
-                                    </p>
-                                    <a
-                                      href={preview}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-[10px] text-blue-600 font-semibold hover:underline"
-                                    >
-                                      View Photo ↗
-                                    </a>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveExperienceLetter(cat)}
-                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                                  title="Remove Photo"
-                                >
-                                  <FiTrash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div>
-                                <input
-                                  type="file"
-                                  id={`exp-letter-${cat.replace(/\s+/g, '-')}`}
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    if (e.target.files?.[0]) {
-                                      handleExperienceLetterChange(cat, e.target.files[0]);
-                                    }
-                                  }}
-                                />
-                                <label
-                                  htmlFor={`exp-letter-${cat.replace(/\s+/g, '-')}`}
-                                  className="flex items-center justify-center gap-2 py-2.5 px-3 bg-white border border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-all text-xs text-gray-600 font-semibold"
-                                >
-                                  <FiUploadCloud className="w-4 h-4 text-blue-500" />
-                                  <span>Upload Experience Letter (Photo - Optional)</span>
-                                </label>
-                                <p className="text-[10px] text-gray-400 mt-1 ml-1">
-                                  Optional photo of certificate, letter or past work (JPG, PNG)
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex gap-2">
+            <FiAlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-800 leading-relaxed">
+              <span className="font-bold">Skill Verification Notice:</span> Newly added skills require admin review and verification before you can receive job requests for them. Your existing verified skills keep receiving jobs without interruption.
+            </p>
           </div>
 
         </div>

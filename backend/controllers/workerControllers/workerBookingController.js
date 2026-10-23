@@ -25,6 +25,7 @@ import {
 } from '../../services/workerCapacityService.js';
 import { supportsBookingMode } from '../../utils/bookingModes.js';
 import { findWorkerIneligibility } from '../../services/locationService.js';
+import { creditedAdvance } from '../../utils/vipAndAdvance.js';
 import { sanitizeBookingForHelper, sanitizeBookingForLead } from '../../services/helperPayoutService.js';
 
 /**
@@ -1585,7 +1586,10 @@ const initiateOnlineCollection = async (req, res) => {
     await booking.save();
 
     const amount = booking.finalAmount || 0;
-    const upiUrl = `upi://pay?pa=hoomzoteam@ybl&pn=Hoomzo&am=${amount}&cu=INR&tn=HoomzoBooking_${booking.bookingNumber}`;
+    // The advance paid online at booking is already with us: the QR asks only
+    // for the balance (matches paymentController's final-payment amount).
+    const qrAmount = Math.max(0, parseFloat((amount - creditedAdvance(booking)).toFixed(2)));
+    const upiUrl = `upi://pay?pa=hoomzoteam@ybl&pn=Hoomzo&am=${qrAmount}&cu=INR&tn=HoomzoBooking_${booking.bookingNumber}`;
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiUrl)}`;
 
     const io = req.app.get('io');

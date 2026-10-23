@@ -1,5 +1,5 @@
 import WorkerOfflineRequest from '../../models/WorkerOfflineRequest.js';
-import Worker from '../../models/Worker.js';
+import Worker, { WORKER_LIGHT } from '../../models/Worker.js';
 import PlatformSettings from '../../models/PlatformSettings.js';
 import Settings from '../../models/Settings.js';
 import { createNotification } from '../notificationControllers/notificationController.js';
@@ -35,7 +35,7 @@ export const createOfflineRequest = async (req, res) => {
       });
     }
 
-    const worker = await Worker.findById(workerId);
+    const worker = await Worker.findById(workerId).select(WORKER_LIGHT);
     if (!worker) {
       return res.status(404).json({ success: false, message: 'Worker not found' });
     }

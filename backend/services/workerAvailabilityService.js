@@ -1,4 +1,4 @@
-import Worker from '../models/Worker.js';
+import Worker, { WORKER_LIGHT } from '../models/Worker.js';
 import Settings from '../models/Settings.js';
 import PlatformSettings from '../models/PlatformSettings.js';
 import WorkerOfflineRequest from '../models/WorkerOfflineRequest.js';
@@ -40,6 +40,11 @@ const activeLeaves = (workerId) => WorkerOfflineRequest.find({
 // Slot-wise leave: one WorkerOfflineRequest per slot (reviewed on the usual
 // offline-requests screen). Only an approved one blocks bookings.
 const SLOT_OFF_NOTE = 'slot_off';
+// A worker's own Available / Leave / slot-off marks never wait for admin
+// approval: they apply at once (admin can still change them afterwards).
+export const WORKER_MARKS_NEED_APPROVAL = false;
+const minutesBetween = (start, end) => Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000);
+
 const activeSlotLeaves = (workerId) => WorkerOfflineRequest.find({
   workerId,
   isFullDay: false,
@@ -159,13 +164,13 @@ export const getAvailabilityView = async (workerId) => {
     slotOffsPending: groupSlotLeaves(slotLeaves.filter((l) => l.status === 'pending')),
     // Days the worker asked to be Available that an admin hasn't approved yet.
     pendingAvailableDates: pendingAvailability.map((r) => r.dateStr).sort(),
-    availabilityRequiresApproval: hs?.availabilityRequiresApproval !== false,
+    availabilityRequiresApproval: WORKER_MARKS_NEED_APPROVAL,
     requireDailyAvailability,
     leaves: leaves.map((l) => ({ id: l._id, date: l.dateStr, status: l.status, reason: l.reason })),
     bookedDates: [...new Set(bookings.map((b) => istYmd(b.window.start)))].sort(),
     slotSchedule,
     advanceBookingDays,
-    leaveAutoApprove: !!hs?.workerLeaveAutoApprove
+    leaveAutoApprove: !WORKER_MARKS_NEED_APPROVAL
   };
 };
 
@@ -178,7 +183,7 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
   const today = istYmd(new Date());
   // Independent reads run together — each one is a round trip to the database.
   const [worker, advanceDays, existing, bookings, cfg, pendingRequests, platformDoc] = await Promise.all([
-    Worker.findById(workerId),
+    Worker.findById(workerId).select(WORKER_LIGHT),
     // Workers manage the same window customers can book in (admin setting).
     getAdvanceBookingDays(),
     activeLeaves(workerId),
@@ -275,8 +280,13 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
   // A day the worker newly marks Available is only a request until an admin
   // approves it; already-approved days stay as they are. Admin edits and
   // pre-calendar ("AVAILABLE") workers are applied directly.
-  const requiresApproval = !byAdmin && cfg?.availabilityRequiresApproval !== false
+  const requiresApproval = WORKER_MARKS_NEED_APPROVAL && !byAdmin && cfg?.availabilityRequiresApproval === true
     && !isLegacyAvailabilityEnabled(worker.availability);
+  // Without approval, days the worker marks Available take effect at once; they are
+  // still logged (as approved) so the admin sees who is available on which day.
+  const prevAvailable = new Set(worker.availability?.availableDates || []);
+  const autoLogged = (!byAdmin && !requiresApproval && availableDates !== undefined)
+    ? markedAvailable.filter((d) => !prevAvailable.has(d)) : [];
   const pendingDatesSet = new Set(pendingRequests.map((r) => r.dateStr));
   let newRequestDates = [];
   if (requiresApproval && availableDates !== undefined) {
@@ -294,6 +304,7 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
   // Admin edits apply at once.
   let slotLeaveToAdd = [];
   let slotLeaveToCancel = [];
+  const slotOffMinutesByDate = {}; // total off minutes per day after this save
   if (slotOffs && typeof slotOffs === 'object') {
     const existingSlotLeaves = await activeSlotLeaves(workerId);
     const hours = platformSlotsCfg || {};
@@ -313,6 +324,16 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
     slotLeaveToAdd = [...wanted.entries()].filter(([key]) => !haveKeys.has(key)).map(([, v]) => v);
     slotLeaveToCancel = existingSlotLeaves.filter((l) => !wanted.has(`${l.dateStr}|${l.startSlot?.value}`)
       && (byAdmin || l.status === 'pending'));
+
+    const cancelIds = new Set(slotLeaveToCancel.map((l) => String(l._id)));
+    for (const l of existingSlotLeaves) {
+      if (cancelIds.has(String(l._id))) continue;
+      slotOffMinutesByDate[l.dateStr] = (slotOffMinutesByDate[l.dateStr] || 0) + minutesBetween(l.startDateTime, l.endDateTime);
+    }
+    for (const { dateStr, slot } of slotLeaveToAdd) {
+      const w = getBookingWindow({ scheduledDate: istDayStart(dateStr), timeSlot: { start: slot.value, end: slot.end } });
+      slotOffMinutesByDate[dateStr] = (slotOffMinutesByDate[dateStr] || 0) + (w ? minutesBetween(w.start, w.end) : 0);
+    }
 
     // A slot that already holds a job can't be switched off.
     for (const { dateStr, slot } of slotLeaveToAdd) {
@@ -335,7 +356,7 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
     await WorkerOfflineRequest.updateMany({ _id: { $in: toRemove.map((l) => l._id) } }, { $set: { status: 'cancelled' } });
   }
 
-  const approveNow = byAdmin || !!cfg?.workerLeaveAutoApprove;
+  const approveNow = byAdmin || !WORKER_MARKS_NEED_APPROVAL || !!cfg?.workerLeaveAutoApprove;
   const leaveDocs = toAdd.map((dateStr) => {
     const start = istDayStart(dateStr);
     return {
@@ -361,7 +382,7 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
     if (worker.status !== 'busy') worker.status = 'offline';
   }
 
-  const slotApproveNow = byAdmin || !!cfg?.workerLeaveAutoApprove;
+  const slotApproveNow = byAdmin || !WORKER_MARKS_NEED_APPROVAL || !!cfg?.workerLeaveAutoApprove;
   const slotLeaveDocs = slotLeaveToAdd.map(({ dateStr, slot }) => {
     const window = getBookingWindow({ scheduledDate: istDayStart(dateStr), timeSlot: { start: slot.value, end: slot.end } });
     return {
@@ -392,6 +413,11 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
     newRequestDates.length
       ? WorkerAvailabilityRequest.insertMany(newRequestDates.map((dateStr) => ({ workerId, dateStr })))
       : null,
+    autoLogged.length
+      ? WorkerAvailabilityRequest.insertMany(autoLogged.map((dateStr) => ({ workerId, dateStr, status: 'approved', reviewedAt: new Date() })))
+      : null,
+    // A day marked Available and later turned into Leave no longer counts as available.
+    WorkerAvailabilityRequest.updateMany({ workerId, status: 'approved', dateStr: { $in: requestedLeave || [] } }, { $set: { status: 'cancelled' } }),
     supersededRequests.length
       ? WorkerAvailabilityRequest.updateMany({ _id: { $in: supersededRequests.map((r) => r._id) } }, { $set: { status: 'cancelled' } })
       : null
@@ -449,6 +475,7 @@ export const applyAvailability = async (workerId, { availableDays, availableDate
       kind: 'availability'
     });
   }
+  if (autoLogged.length) io?.to('admin_room').emit('worker_availability_marked', { workerId: worker._id, workerName: worker.name, dates: autoLogged });
   io?.to('admin_room').emit('offline_request_updated', { workerId: worker._id });
 
   return getAvailabilityView(workerId);

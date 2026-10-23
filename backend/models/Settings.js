@@ -109,11 +109,11 @@ const settingsSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  // When true (default), days a worker marks Available only take effect once
+  // When true, days a worker marks Available only take effect once
   // an admin approves them.
   availabilityRequiresApproval: {
     type: Boolean,
-    default: true
+    default: false
   },
   // Pre-job reminder: this many minutes before an assigned job starts, the
   // worker gets a popup asking them to confirm they're on their way.

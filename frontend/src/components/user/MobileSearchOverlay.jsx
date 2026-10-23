@@ -179,7 +179,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
           const types = p.types || [];
           const type = types.includes('locality') || types.includes('administrative_area_level_2') ? 'City'
             : types.some((x) => x.startsWith('sublocality') || x === 'neighborhood') ? 'Locality'
-            : types.some((x) => ['establishment', 'premise', 'point_of_interest', 'real_estate_agency'].includes(x)) ? 'Project' : 'Place';
+              : types.some((x) => ['establishment', 'premise', 'point_of_interest', 'real_estate_agency'].includes(x)) ? 'Project' : 'Place';
           return {
             type,
             name: p.structured_formatting?.main_text || p.description,

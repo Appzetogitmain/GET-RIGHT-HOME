@@ -2566,7 +2566,7 @@ export const getLocationSuggestions = async (req, res) => {
       // The user's own city first, then everywhere else.
       const [mine, others] = await Promise.all([
         homeCity ? Property.find({ status: 'approved', isLive: true, 'address.city': safeRegex(homeCity, { exact: false }), ...nameMatch }).select(pick).limit(20).lean() : [],
-        Property.find({ status: 'approved', isLive: true, ...nameMatch }).select(pick).limit(40).lean()
+        Property.find({ status: 'approved', isLive: true, ...nameMatch }).select(pick).limit(60).lean()
       ]);
       const props = [...mine, ...others];
       const seenP = new Set();
@@ -2582,7 +2582,7 @@ export const getLocationSuggestions = async (req, res) => {
     const list = [
       ...[...cities.entries()].map(([name, count]) => ({ type: 'City', name, city: name, label: name, count })),
       ...places,
-      ...projects.slice(0, 12)
+      ...projects.slice(0, 25)
     ];
     const rank = (x) => (x.name.toLowerCase() === lower ? 0 : x.name.toLowerCase().startsWith(lower) ? 1 : 2);
     list.sort((a, b) => rank(a) - rank(b) || b.count - a.count);

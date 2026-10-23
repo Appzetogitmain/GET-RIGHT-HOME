@@ -354,7 +354,8 @@ const BillingPage = () => {
     // The discount is applied ONLY to the platform fee — NOT to the worker's cut.
     const baseDiscount = Number(job.discount) || 0;
     const promoDiscount = Number(job.promoDiscount) || 0;
-    const totalDiscount = baseDiscount + promoDiscount;
+    // VIP discount comes out of the platform's cut too (same as createBill).
+    const totalDiscount = baseDiscount + promoDiscount + (Number(job.vipDiscount) || 0);
 
     const isEstimate = job.isEstimateBased;
     // Commission is a PERCENTAGE of the original booked price (matches
@@ -368,7 +369,8 @@ const BillingPage = () => {
 
     // Worker sees: basePrice - commission = 399 - 10% = 359.10
     const originalBase = isPlanBooking ? 0 : Math.max(0, (Number(job.basePrice) || 0) - originalPlatformFee);
-    const originalServiceGST = isPlanBooking ? 0 : parseFloat(((originalBase * serviceGstPct) / 100).toFixed(2));
+    // The booking's own tax, exactly as the backend bill uses it (createBill).
+    const originalServiceGST = isPlanBooking ? 0 : (Number(job.tax) || 0);
 
     let extraServiceBase = 0;
     let extraServiceGST = 0;
@@ -402,7 +404,7 @@ const BillingPage = () => {
 
     // totalServiceBase = worker's cut (80) + any extra services added by worker
     const totalServiceBase = originalBase + extraServiceBase;
-    const totalServiceGST = platformFees?.applyGst ? originalServiceGST + extraServiceGST : 0;
+    const totalServiceGST = originalServiceGST + (platformFees?.applyGst ? extraServiceGST : 0);
     const totalPartsBase = partsBase + customBase;
     const totalPartsGST = platformFees?.applyGst ? partsGST + customGST : 0;
 
@@ -424,10 +426,16 @@ const BillingPage = () => {
     // Calculate Prepaid Amount (if user already paid during booking)
     const isAlreadyPaid = job.paymentStatus === 'paid' || job.paymentStatus === 'SUCCESS';
     const tokenPaid = isEstimate ? (Number(job.estimate?.tokenAmount) || 0) : 0;
-    const hasPrepaid = isAlreadyPaid || tokenPaid > 0;
-    
-    // If already fully paid, the prepaid amount equals the full online amount
-    const prepaidAmount = isAlreadyPaid ? finalOnlineAmount : tokenPaid;
+    // What the customer already paid online when booking (the advance). The
+    // payment API charges the customer finalOnlineAmount - advancePaid, so the
+    // worker must see exactly that balance — i.e. only the extras added now.
+    // The advance also covered visiting charge / penalty (not part of this bill).
+    const advancePaid = Math.max(0, (Number(job.advancePaid) || 0) - (Number(job.visitingCharges) || 0) - (Number(job.penalty) || 0));
+    const hasPrepaid = advancePaid > 0 || isAlreadyPaid || tokenPaid > 0;
+
+    const prepaidAmount = advancePaid > 0
+      ? Math.min(advancePaid, finalOnlineAmount)
+      : (isAlreadyPaid ? finalOnlineAmount : tokenPaid);
     
     const finalBillAmount = Math.max(0, parseFloat((finalOnlineAmount - prepaidAmount).toFixed(2)));
     const finalCashCollectAmount = Math.max(0, parseFloat((finalCashAmount - prepaidAmount).toFixed(2)));

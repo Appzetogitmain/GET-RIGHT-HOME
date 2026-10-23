@@ -40,7 +40,7 @@ const AdminSettings = () => {
     jobReminderConfirmMinutes: 15,
     advanceBookingDays: 7,
     workerLeaveAutoApprove: false,
-    availabilityRequiresApproval: true,
+    availabilityRequiresApproval: false,
     requireDailyAvailability: true,
     isOnlinePaymentEnabled: true,
     advancePaymentThreshold: 2000,
@@ -165,7 +165,7 @@ const AdminSettings = () => {
             jobReminderConfirmMinutes: res.settings.jobReminderConfirmMinutes ?? 15,
             advanceBookingDays: res.settings.advanceBookingDays ?? 7,
             workerLeaveAutoApprove: !!res.settings.workerLeaveAutoApprove,
-            availabilityRequiresApproval: res.settings.availabilityRequiresApproval !== false,
+            availabilityRequiresApproval: res.settings.availabilityRequiresApproval === true,
             advancePaymentThreshold: res.settings.advancePaymentThreshold ?? 2000,
             advancePaymentPercent: res.settings.advancePaymentPercent ?? 30,
             vip: {
@@ -845,7 +845,7 @@ const AdminSettings = () => {
                           <button type="button"
                             onClick={() => handleFinancialChange({ target: { name: 'availabilityRequiresApproval', value: !financialSettings.availabilityRequiresApproval } })}
                             className={`px-4 py-2.5 rounded-lg border text-sm font-semibold w-full text-left ${financialSettings.availabilityRequiresApproval ? 'bg-green-50 border-green-300 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-600'}`}>
-                            {financialSettings.availabilityRequiresApproval ? 'Admin must approve Available days' : 'Auto-approve Available days'}
+                            {financialSettings.availabilityRequiresApproval ? 'Admin must approve Available days' : 'Available days go live at once (admin just sees them)'}
                           </button>
                           <p className="text-[10px] text-gray-400 mt-1">When on, a day a worker marks Available only takes effect after you approve it under Workers → Leave &amp; Availability</p>
                         </div>

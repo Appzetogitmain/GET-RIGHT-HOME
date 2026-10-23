@@ -1,6 +1,8 @@
-import Worker from '../../models/Worker.js';
+import Worker, { WORKER_LIGHT } from '../../models/Worker.js';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
+import Profession from '../../models/Profession.js';
+import { validProfessionIds } from '../professionController.js';
 
 // Stubs for services not yet configured in Hoomzo
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -43,7 +45,7 @@ const sendOTP = async (req, res) => {
     const { phone, email } = req.body;
 
     // Check if worker exists and their approval status before sending OTP
-    const worker = await Worker.findOne({ phone });
+    const worker = await Worker.findOne({ phone }).select(WORKER_LIGHT);
     if (worker) {
       if (!worker.isActive) {
         return res.status(403).json({ success: false, message: 'Account deactivated.' });
@@ -122,7 +124,7 @@ const verifyLogin = async (req, res) => {
     }
 
     // 2. Check if worker exists
-    const worker = await Worker.findOne({ phone });
+    const worker = await Worker.findOne({ phone }).select(WORKER_LIGHT);
 
     if (worker) {
       // EXISTING WORKER
@@ -278,9 +280,16 @@ const register = async (req, res) => {
       if (uploadRes.success) dlUrl = uploadRes.url;
     }
 
+    // Professions picked on the signup form (admin can change them later).
+    const professionIds = await validProfessionIds(req.body.professionIds);
+    if (!professionIds.length && await Profession.exists({ isActive: true })) {
+      return res.status(400).json({ success: false, message: 'Please select your profession.' });
+    }
+
     // Create worker
     const worker = await Worker.create({
       name, email, phone,
+      professionIds,
       isPhoneVerified: true,
       aadhar: {
         number: req.body.aadhar || aadharNumber,
@@ -349,7 +358,7 @@ const login = async (req, res) => {
     }
 
     // Find worker
-    const worker = await Worker.findOne({ phone });
+    const worker = await Worker.findOne({ phone }).select(WORKER_LIGHT);
     if (!worker) {
       return res.status(404).json({
         success: false,
@@ -460,7 +469,7 @@ const refreshToken = async (req, res) => {
     }
 
     // Check if worker exists
-    const worker = await Worker.findById(decoded.userId);
+    const worker = await Worker.findById(decoded.userId).select(WORKER_LIGHT);
     if (!worker) {
       return res.status(404).json({
         success: false,

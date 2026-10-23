@@ -10,6 +10,7 @@ import { paymentService } from '../../../../services/paymentService';
 import { toast } from 'react-hot-toast';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import LogoLoader from '../../../../components/common/LogoLoader';
+import ErrorBoundary from '../../components/common/ErrorBoundary';
 import PaymentVerificationModal from '../../components/booking/PaymentVerificationModal';
 import WorkerArrivalModal from '../../components/booking/WorkerArrivalModal';
 import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../../../../config/googleMaps';
@@ -59,6 +60,7 @@ const BookingTrack = () => {
   const [duration, setDuration] = useState('');
   const [routePath, setRoutePath] = useState([]);
   const [isAutoCenter, setIsAutoCenter] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // Once the rider has actually started the journey, the recenter button
   // zooms in closer for a turn-by-turn feel instead of the wider overview zoom.
@@ -236,13 +238,14 @@ const BookingTrack = () => {
         }
       }
     } catch (error) {
-      // Error fetching booking
+      console.error('[BookingTrack] could not load booking:', error);
+      if (isFirstLoad) setLoadError(error?.response?.data?.message || error?.message || 'Could not load this booking');
     } finally {
       if (isFirstLoad) setLoading(false);
     }
   }, [id, coords]);
 
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError: mapsLoadError } = useJsApiLoader({
     id: GOOGLE_MAPS_SCRIPT_ID,
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES
@@ -620,7 +623,29 @@ const BookingTrack = () => {
     </OverlayView>
   ), [animatedLocation, heading]);
 
-  if (!isLoaded || loading || !booking) return <LogoLoader />;
+  if (mapsLoadError) {
+    console.error('[BookingTrack] Google Maps failed to load:', mapsLoadError);
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-white p-6 text-center">
+        <p className="text-base font-bold text-gray-800">Map could not be loaded</p>
+        <p className="text-sm text-gray-500">Check your internet connection and try again.</p>
+        <button onClick={() => window.location.reload()} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-bold text-white">Retry</button>
+      </div>
+    );
+  }
+  if (!isLoaded || loading) return <LogoLoader />;
+  if (!booking) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-white p-6 text-center">
+        <p className="text-base font-bold text-gray-800">Could not load live tracking</p>
+        <p className="text-sm text-gray-500">{loadError || 'This booking could not be loaded.'}</p>
+        <div className="flex gap-2">
+          <button onClick={() => window.location.reload()} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-bold text-white">Retry</button>
+          <button onClick={() => navigate(`/user/booking/${id}`)} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-bold text-gray-700">Back</button>
+        </div>
+      </div>
+    );
+  }
 
   // Determine active provider based on priority: Worker -> Assigned -> Vendor
   const provider = booking?.workerId || booking?.assignedTo || booking?.vendorId || {};
@@ -1044,4 +1069,12 @@ const BookingTrack = () => {
   );
 };
 
+// The router lazy-loads this file's default export. It was missing, so the page
+// rendered nothing (white screen). The boundary shows an error instead of a blank page.
+const BookingTrackWithBoundary = () => (
+  <ErrorBoundary>
+    <BookingTrack />
+  </ErrorBoundary>
+);
 
+export default BookingTrackWithBoundary;

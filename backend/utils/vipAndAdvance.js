@@ -108,6 +108,19 @@ export const getAdvanceRule = (settings) => ({
 });
 
 /**
+ * How much of the advance a customer paid online counts toward the final bill.
+ * The advance also covers the visiting charge and any pending penalty, which are
+ * not part of the worker's bill — so those are taken out first. Otherwise a
+ * ₹49 visiting charge would silently absorb ₹49 of the customer's extra services.
+ */
+export const creditedAdvance = (booking) => {
+  const paid = Number(booking?.advancePaid) || 0;
+  if (paid <= 0) return 0;
+  const nonBill = (Number(booking?.visitingCharges) || 0) + (Number(booking?.penalty) || 0);
+  return Math.max(0, paid - nonBill);
+};
+
+/**
  * Splits a service total into what is paid now and what is paid after the work.
  * Below the threshold the whole amount is paid now.
  */

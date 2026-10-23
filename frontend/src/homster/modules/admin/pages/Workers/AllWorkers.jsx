@@ -52,6 +52,45 @@ const DEFAULT_CATEGORIES = [
   'Kitchen Deep Cleaning'
 ];
 
+// Experience + certificate the worker submitted for a skill. Verified details take
+// priority; fall back to the original request (e.g. right after approval in the UI).
+const findSkillDetail = (worker, cat) => {
+  const same = (c) => c?.category && String(c.category).trim().toLowerCase() === String(cat).trim().toLowerCase();
+  return (worker.verifiedSkillsDetails || []).find(same) || (worker.skillRequests || []).find(same) || null;
+};
+
+const SkillExperience = ({ detail, compact = false }) => {
+  if (!detail) return null;
+  const years = Number(detail.experienceYears) || 0;
+  const letter = detail.experienceLetter;
+  const isPdf = letter && /\.pdf($|\?)/i.test(letter);
+  return (
+    <div className={`flex items-center flex-wrap gap-x-3 gap-y-1 ${compact ? 'text-[11px] font-medium text-emerald-700' : 'text-xs text-gray-600'}`}>
+      <span className="inline-flex items-center gap-1">
+        <FiClock className="w-3 h-3" />
+        {years > 0 ? `${years} yr${years > 1 ? 's' : ''} experience` : 'Experience not provided'}
+      </span>
+      {letter ? (
+        <a
+          href={letter}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-blue-600 font-semibold hover:underline"
+        >
+          {isPdf ? (
+            <FiFileText className="w-3.5 h-3.5" />
+          ) : (
+            <img src={letter} alt="Certificate" className="w-6 h-6 rounded object-cover border" />
+          )}
+          View certificate
+        </a>
+      ) : (
+        <span className="text-gray-400 italic">No certificate</span>
+      )}
+    </div>
+  );
+};
+
 const AllWorkers = () => {
   const [workers, setWorkers] = useState([]);
   const [zones, setZones] = useState([]);
@@ -102,6 +141,7 @@ const AllWorkers = () => {
       mcqLevel: 'Not Certified',
       experienceYears: 0,
       serviceCategories: [],
+      professionIds: [],
       bookingModes: ['slot'],
       zoneIds: [],
       approvalStatus: 'approved',
@@ -131,6 +171,7 @@ const AllWorkers = () => {
       businessName: '',
       password: '',
       serviceCategories: [],
+      professionIds: [],
       bookingModes: ['slot'],
       zoneIds: [],
       approvalStatus: 'approved'
@@ -222,6 +263,9 @@ const AllWorkers = () => {
             totalJobs: worker.totalJobs || 0,
             completedJobs: worker.completedJobs || 0,
             serviceCategories: worker.serviceCategories || [],
+            // Without this the edit form reopened with no profession ticked and the
+            // next save wiped the saved ones.
+            professionIds: (worker.professionIds || []).map(String),
             // Was dropped here, so the edit form always reopened as Slot-only and
             // the next save silently overwrote the saved booking types.
             bookingModes: worker.bookingModes?.length ? worker.bookingModes : ['slot'],
@@ -488,6 +532,7 @@ const AllWorkers = () => {
         mcqLevel: worker.mcqLevel || 'Level 1 — Premium / Expert (80%+ Rating)',
         experienceYears: worker.experienceYears || 0,
         serviceCategories: [...(worker.serviceCategories || [])],
+        professionIds: (worker.professionIds || []).map(String),
         bookingModes: worker.bookingModes?.length ? [...worker.bookingModes] : ['slot'],
         zoneIds: workerZoneIds,
         approvalStatus: worker.approvalStatus || 'approved',
@@ -686,6 +731,7 @@ const AllWorkers = () => {
             businessName: '',
             password: '',
             serviceCategories: [],
+            professionIds: [],
             bookingModes: ['slot'],
             zoneIds: [],
             approvalStatus: 'approved'
@@ -818,6 +864,7 @@ const AllWorkers = () => {
                     businessName: '',
                     password: '',
                     serviceCategories: [],
+                    professionIds: [],
                     bookingModes: ['slot'],
                     zoneIds: [],
                     approvalStatus: 'approved'
@@ -1495,18 +1542,18 @@ const AllWorkers = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {professions.map((p) => {
-                  const held = (editModal.formData.serviceCategories || []).some((c) => c.toLowerCase() === p.name.toLowerCase());
+                  const held = (editModal.formData.professionIds || []).includes(String(p._id));
                   return (
                     <label key={p._id} className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer text-xs ${held ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
                       <input
                         type="checkbox"
                         checked={held}
                         onChange={(e) => {
-                          const current = editModal.formData.serviceCategories || [];
-                          const rest = current.filter((c) => c.toLowerCase() !== p.name.toLowerCase());
+                          const current = editModal.formData.professionIds || [];
+                          const rest = current.filter((id) => id !== String(p._id));
                           setEditModal((prev) => ({
                             ...prev,
-                            formData: { ...prev.formData, serviceCategories: e.target.checked ? [...rest, p.name] : rest }
+                            formData: { ...prev.formData, professionIds: e.target.checked ? [...rest, String(p._id)] : rest }
                           }));
                         }}
                         className="w-4 h-4 mt-0.5 rounded text-emerald-600"
@@ -2024,6 +2071,44 @@ const AllWorkers = () => {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">Profession (select one or more)</label>
+            {professions.length === 0 ? (
+              <p className="text-[11px] text-amber-600 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                No professions yet. Create one in Workers → Professions.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {professions.map((p) => {
+                  const held = (addModal.formData.professionIds || []).includes(String(p._id));
+                  return (
+                    <label key={p._id} className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer text-xs ${held ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
+                      <input
+                        type="checkbox"
+                        checked={held}
+                        onChange={(e) => {
+                          const current = addModal.formData.professionIds || [];
+                          const rest = current.filter((id) => id !== String(p._id));
+                          setAddModal((prev) => ({
+                            ...prev,
+                            formData: { ...prev.formData, professionIds: e.target.checked ? [...rest, String(p._id)] : rest }
+                          }));
+                        }}
+                        className="w-4 h-4 mt-0.5 rounded text-emerald-600"
+                      />
+                      <span className="min-w-0">
+                        <b className="block text-gray-900">{p.name}</b>
+                        <span className="block text-[11px] text-gray-500">
+                          {(p.categoryIds || []).map((c) => c.title).join(', ') || 'No categories assigned'}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-200">
             <button
               type="button"
@@ -2142,7 +2227,8 @@ const AllWorkers = () => {
                   </div>
                   <div className="space-y-1.5">
                     {selectedWorker.pendingServiceCategories.map((cat, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 bg-white rounded border border-amber-200">
+                      <div key={idx} className="p-2 bg-white rounded border border-amber-200 space-y-1.5">
+                      <div className="flex items-center justify-between">
                         <span className="font-bold text-gray-800">{cat}</span>
                         <div className="flex items-center gap-1.5">
                           <button
@@ -2159,6 +2245,8 @@ const AllWorkers = () => {
                           </button>
                         </div>
                       </div>
+                      <SkillExperience detail={findSkillDetail(selectedWorker, cat)} />
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -2169,21 +2257,28 @@ const AllWorkers = () => {
                 <div className="text-[10px] font-bold text-gray-500 uppercase mb-1.5">Verified Skills</div>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedWorker.serviceCategories && selectedWorker.serviceCategories.length > 0 ? (
-                    selectedWorker.serviceCategories.map((cat, idx) => (
-                      <span
+                    selectedWorker.serviceCategories.map((cat, idx) => {
+                      const detail = findSkillDetail(selectedWorker, cat);
+                      const hasDetail = detail && (detail.experienceYears > 0 || detail.experienceLetter);
+                      return (
+                      <div
                         key={idx}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-semibold text-xs"
+                        className="inline-flex flex-col gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-semibold text-xs"
                       >
-                        <FiCheck className="w-3 h-3 text-emerald-600" />
-                        {cat}
-                        <button
-                          onClick={() => handleRemoveSkill(selectedWorker.id, cat)}
-                          className="ml-1 text-gray-400 hover:text-rose-600"
-                        >
-                          <FiX className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))
+                        <span className="inline-flex items-center gap-1">
+                          <FiCheck className="w-3 h-3 text-emerald-600" />
+                          {cat}
+                          <button
+                            onClick={() => handleRemoveSkill(selectedWorker.id, cat)}
+                            className="ml-1 text-gray-400 hover:text-rose-600"
+                          >
+                            <FiX className="w-3 h-3" />
+                          </button>
+                        </span>
+                        {hasDetail && <SkillExperience detail={detail} compact />}
+                      </div>
+                      );
+                    })
                   ) : (
                     <span className="text-gray-400 italic">No verified skills</span>
                   )}

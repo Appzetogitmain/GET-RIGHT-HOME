@@ -1,4 +1,4 @@
-import Worker from '../../models/Worker.js';
+import Worker, { WORKER_LIGHT } from '../../models/Worker.js';
 import Transaction from '../../models/Transaction.js';
 import HomeServiceBooking from '../../models/HomeServiceBooking.js';
 import {  sendPushNotification  } from '../../services/firebaseAdmin.js';
@@ -27,7 +27,7 @@ try {
 const getWallet = async (req, res) => {
   try {
     const workerId = req.user.id;
-    const worker = await Worker.findById(workerId);
+    const worker = await Worker.findById(workerId).select(WORKER_LIGHT);
 
     if (!worker) {
       return res.status(404).json({ success: false, message: 'Worker not found' });
@@ -108,7 +108,7 @@ const requestPayout = async (req, res) => {
   try {
     const workerId = req.user.id;
     const { bookingId } = req.body;
-    const worker = await Worker.findById(workerId);
+    const worker = await Worker.findById(workerId).select(WORKER_LIGHT);
 
     if (!bookingId) {
       return res.status(400).json({ success: false, message: 'Booking ID is required' });
@@ -172,7 +172,7 @@ const requestWithdrawal = async (req, res) => {
     const workerId = req.user.id;
     const { amount, bankDetails } = req.body;
 
-    const worker = await Worker.findById(workerId);
+    const worker = await Worker.findById(workerId).select(WORKER_LIGHT);
     if (!worker) {
       return res.status(404).json({ success: false, message: 'Worker not found' });
     }
@@ -265,7 +265,7 @@ const payAdminDuesInitiate = async (req, res) => {
     const workerId = req.user.id;
     const { amount } = req.body;
 
-    const worker = await Worker.findById(workerId);
+    const worker = await Worker.findById(workerId).select(WORKER_LIGHT);
     if (!worker) {
       return res.status(404).json({ success: false, message: 'Worker not found' });
     }
@@ -313,7 +313,7 @@ const payAdminDuesVerify = async (req, res) => {
     const workerId = req.user.id;
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
 
-    const worker = await Worker.findById(workerId);
+    const worker = await Worker.findById(workerId).select(WORKER_LIGHT);
     if (!worker) {
       return res.status(404).json({ success: false, message: 'Worker not found' });
     }

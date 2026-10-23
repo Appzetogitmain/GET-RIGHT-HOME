@@ -242,13 +242,15 @@ export default function GlobalWorkerJobAlert() {
   // Catch up on any job offer sent while the app wasn't connected to receive
   // the live socket alert (still loading, tab backgrounded, network drop) —
   // runs on mount and again whenever the tab regains focus/network.
+  const rejectedTokenRef = useRef(null);
   const fetchPending = useCallback(async () => {
     {
-      // Not signed in as a worker (login/register screens, or no token): there
-      // is nothing to catch up on, and a stale token left over from another
-      // role in this browser would just 403 on every poll.
-      const onAuthPage = /^\/worker\/(login|register|signup)/.test(window.location.pathname);
-      if (onAuthPage || !localStorage.getItem('workerAccessToken')) return;
+      // Only a logged-in worker has offers. Polling on the login/signup pages (or
+      // with another role's token) only produced 403s and extra server load.
+      const path = window.location.pathname;
+      if (path.startsWith('/worker/login') || path.startsWith('/worker/signup')) return;
+      const token = sessionStorage.getItem('workerAccessToken') || localStorage.getItem('workerAccessToken');
+      if (!token || token === rejectedTokenRef.current) return;
       try {
         const res = await workerService.getPendingRequests();
         if (!res?.success) return;
@@ -278,8 +280,9 @@ export default function GlobalWorkerJobAlert() {
           }
           return validPrev;
         });
-      } catch {
-        // Silent — fallback sync
+      } catch (err) {
+        // Wrong role / expired token: don't retry that token; a fresh login works again.
+        if ([401, 403].includes(err?.response?.status)) rejectedTokenRef.current = token;
       }
     }
   }, []);

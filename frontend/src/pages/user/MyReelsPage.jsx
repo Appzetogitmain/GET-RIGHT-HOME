@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, X, Loader2, ArrowLeft, Video, Link, MapPin, Phone, Pencil, Trash2, Heart, Eye, MessageCircle } from 'lucide-react';
 import { reelService } from '../../services/reelService';
+import ReelAreaPicker from '../../components/reels/ReelAreaPicker';
 import toast from 'react-hot-toast';
 
 const BENGALURU_AREAS = [
@@ -512,7 +513,7 @@ export default function MyReelsPage() {
               <div>
                 <span className="font-black text-[9px] uppercase tracking-widest text-blue-500">Step {uploadStep} of 4</span>
                 <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">
-                  {uploadStep === 1 && "Select Bangalore City Area"}
+                  {uploadStep === 1 && "Select City Area"}
                   {uploadStep === 2 && "Select Target Budget"}
                   {uploadStep === 3 && "Add Video Reel Source"}
                   {uploadStep === 4 && "Add Property Specifications"}
@@ -530,28 +531,11 @@ export default function MyReelsPage() {
             {/* STEP 1: Bangalore City Selector */}
             {uploadStep === 1 && (
               <div className="space-y-3">
-                <span className="text-[10px] text-white/55 uppercase tracking-wide block mb-2">Select the area closest to the property:</span>
-                <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
-                  {BENGALURU_AREAS.map((area) => (
-                    <button
-                      key={area}
-                      type="button"
-                      onClick={() => setSelectedCity(area)}
-                      className={`py-3 px-3.5 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between ${
-                        selectedCity === area
-                          ? 'bg-blue-600 border-blue-500 text-white shadow-lg'
-                          : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
-                      }`}
-                    >
-                      <span>{area}</span>
-                      <MapPin size={11} className={selectedCity === area ? 'text-white' : 'text-neutral-500'} />
-                    </button>
-                  ))}
-                </div>
+                <ReelAreaPicker areas={BENGALURU_AREAS} value={selectedCity} onChange={setSelectedCity} />
 
                 <button
                   type="button"
-                  disabled={!selectedCity}
+                  disabled={!selectedCity.trim()}
                   onClick={() => setUploadStep(2)}
                   className="w-full mt-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg"
                 >
