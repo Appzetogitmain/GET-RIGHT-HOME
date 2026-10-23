@@ -57,6 +57,7 @@ const Support = lazyLoad(() => import('../pages/Support'));
 const Referrals = lazyLoad(() => import('../pages/Referrals'));
 const Complaints = lazyLoad(() => import('../pages/Complaints'));
 const PrivacyPolicy = lazyLoad(() => import('../pages/PrivacyPolicy'));
+const LegalDocument = lazyLoad(() => import('../pages/LegalDocument'));
 const DigitalId = lazyLoad(() => import('../pages/DigitalId'));
 const Availability = lazyLoad(() => import('../pages/Availability'));
 
@@ -122,6 +123,8 @@ const WorkerRoutes = () => {
                 <Route path="/complaints" element={<ProtectedRoute userType="worker"><Complaints /></ProtectedRoute>} />
                 <Route path="/digital-id" element={<ProtectedRoute userType="worker"><DigitalId /></ProtectedRoute>} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                <Route path="/privacy" element={<LegalDocument type="privacy" />} />
+                <Route path="/terms" element={<LegalDocument type="terms" />} />
               </Routes>
             </PageTransition>
           </Suspense>

@@ -238,7 +238,7 @@ const register = async (req, res) => {
     // Process Referral Code
     let referredById = null;
     if (req.body.referralCode) {
-      const referrer = await Worker.findOne({ referralCode: req.body.referralCode });
+      const referrer = await Worker.findOne({ referralCode: String(req.body.referralCode).trim().toUpperCase() });
       if (!referrer) {
         return res.status(400).json({
           success: false,
@@ -519,3 +519,21 @@ export {
   logout,
   refreshToken
  };
+
+// @desc    Check a referral code (public) so the signup form can flag a wrong one
+//          before any OTP is sent.
+// @route   GET /api/workers/auth/validate-referral/:code
+export const validateReferralCode = async (req, res) => {
+  try {
+    const code = String(req.params.code || '').trim().toUpperCase();
+    if (!code) return res.status(400).json({ success: false, valid: false, message: 'Referral code is required.' });
+
+    const referrer = await Worker.findOne({ referralCode: code }).select('name').lean();
+    if (!referrer) return res.json({ success: true, valid: false, message: 'Invalid referral code.' });
+
+    res.json({ success: true, valid: true, referrerName: referrer.name || '' });
+  } catch (error) {
+    console.error('Validate referral error:', error);
+    res.status(500).json({ success: false, valid: false, message: 'Could not verify referral code.' });
+  }
+};

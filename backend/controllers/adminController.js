@@ -1619,6 +1619,7 @@ export const updatePlatformSettings = async (req, res) => {
       workerReferralBonusReferrer,
       workerReferralBonusReferee,
       privacyPolicy,
+      termsAndConditions,
       supportEmail,
       supportPhone,
       supportWhatsapp,
@@ -1746,6 +1747,7 @@ export const updatePlatformSettings = async (req, res) => {
     if (workerReferralBonusReferrer !== undefined) settings.workerReferralBonusReferrer = Number(workerReferralBonusReferrer);
     if (workerReferralBonusReferee !== undefined) settings.workerReferralBonusReferee = Number(workerReferralBonusReferee);
     if (privacyPolicy !== undefined) settings.privacyPolicy = privacyPolicy;
+    if (termsAndConditions !== undefined) settings.termsAndConditions = termsAndConditions;
 
     await settings.save();
 

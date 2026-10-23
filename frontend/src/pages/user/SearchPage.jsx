@@ -464,6 +464,16 @@ const SearchPage = () => {
             const currentFilters = getInitialFilters();
             const params = getParamsFromFilters(currentFilters);
 
+            // When the category is a real id, the server already derives the right
+            // transaction types from it (same query the home-page sections use).
+            // Also AND-ing transactionType excluded listings that belong to the
+            // category but carry a different transactionType, so "View All" from a
+            // home section came back empty.
+            const isCategoryId = (v) => !!v && String(v).split(',').every(s => /^[a-f0-9]{24}$/i.test(s.trim()));
+            if (isCategoryId(params.type) && ['pg', 'rent', 'rent,pg'].includes(String(params.transactionType || '').toLowerCase())) {
+                delete params.transactionType;
+            }
+
             if (location) {
                 params.lat = location.lat;
                 params.lng = location.lng;

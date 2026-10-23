@@ -222,7 +222,12 @@ const handleUploadSubmit = async (e) => {
       navigate('/reels/my');
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to submit reel');
+      const serverMsg = err.response?.data?.message;
+      if (serverMsg) toast.error(serverMsg);
+      else if (err.response?.status === 413) toast.error('Video is too large. Please upload a video under 20MB.');
+      else if (err.code === 'ECONNABORTED') toast.error('Upload timed out. Check your connection or try a shorter video.');
+      else if (!err.response) toast.error('Could not reach the server. Check your connection and try again.');
+      else toast.error('Failed to submit reel');
     } finally {
       setUploading(false);
     }
@@ -233,8 +238,8 @@ const handleUploadSubmit = async (e) => {
 const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 30 * 1024 * 1024) {
-        toast.error('Video must be under 30MB');
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error('Video must be under 20MB');
         return;
       }
       setSelectedFile(file);
@@ -395,7 +400,7 @@ const handleFileChange = (e) => {
                     <span className="text-xs font-bold text-white">
                       {selectedFileName ? 'Change Selected Video' : 'Select MP4/WebM Video'}
                     </span>
-                    <span className="text-[9px] text-white/55 mt-1">Maximum size 30MB, duration max 30s.</span>
+                    <span className="text-[9px] text-white/55 mt-1">Maximum size 20MB, duration max 30s.</span>
                     {selectedFileName && (
                       <span className="mt-3 text-[10px] text-emerald-400 bg-emerald-950/40 border border-emerald-900/30 rounded-lg px-3 py-1 font-mono truncate max-w-[200px]">
                         {selectedFileName}

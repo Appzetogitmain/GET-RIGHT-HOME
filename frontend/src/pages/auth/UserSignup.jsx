@@ -7,17 +7,27 @@ import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import AuthLegalLinks from './AuthLegalLinks';
 
 const UserSignup = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { login } = useAuth();
     const [step, setStep] = useState(1); // 1: Enter Details, 2: Enter OTP
+    // Draft survives a refresh (form fields + already-uploaded document URLs)
+    const [draft] = useState(() => {
+        try {
+            return JSON.parse(sessionStorage.getItem('user_signup_draft')) || {};
+        } catch {
+            return {};
+        }
+    });
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
         email: '',
-        role: 'owner' // Default role
+        role: 'owner', // Default role
+        ...(draft.formData || {})
     });
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
@@ -26,7 +36,13 @@ const UserSignup = () => {
     const [resendTimer, setResendTimer] = useState(120);
     const [canResend, setCanResend] = useState(false);
     const [uploadingFiles, setUploadingFiles] = useState({});
-    const [uploadedFileNames, setUploadedFileNames] = useState({});
+    const [uploadedFileNames, setUploadedFileNames] = useState(draft.uploadedFileNames || {});
+
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('user_signup_draft', JSON.stringify({ formData, uploadedFileNames }));
+        } catch { /* storage unavailable */ }
+    }, [formData, uploadedFileNames]);
 
     const clearPendingSession = () => {
         sessionStorage.removeItem('pending_signup_data');
@@ -243,6 +259,7 @@ const UserSignup = () => {
 
             login(res.user);
             clearPendingSession();
+            sessionStorage.removeItem('user_signup_draft');
             navigate('/');
         } catch (err) {
             if (err.response?.data?.requiresLogin ||
@@ -762,6 +779,7 @@ const UserSignup = () => {
                     >
                         ← Back to Store
                     </Link>
+                    <AuthLegalLinks />
                 </div>
             </motion.div >
         </div >

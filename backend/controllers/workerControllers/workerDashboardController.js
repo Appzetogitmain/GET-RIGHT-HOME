@@ -242,7 +242,8 @@ const getPublicSettings = async (req, res) => {
       success: true,
       data: {
         supportContact: platformSettings.supportContact,
-        privacyPolicy: platformSettings.privacyPolicy
+        privacyPolicy: platformSettings.privacyPolicy,
+        termsAndConditions: platformSettings.termsAndConditions
       }
     });
   } catch (error) {

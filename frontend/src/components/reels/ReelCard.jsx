@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, memo, useState } from 'react';
-import { Heart, MessageCircle, Share2, Volume2, VolumeX, Trash2, Phone, Eye, Download, MapPin, Pencil, Play } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Volume2, VolumeX, Trash2, Phone, Eye, Download, MapPin, Pencil, Play, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const SafeIframe = memo(function SafeIframe({ src, className, style, title, allow, sandbox }) {
@@ -178,7 +178,7 @@ const ReelCard = memo(function ReelCard({
                 title={reel.title}
                 allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
-                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
+                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms allow-top-navigation-by-user-activation"
               />
             ) : (
               <img
@@ -399,6 +399,21 @@ const ReelCard = memo(function ReelCard({
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Linked reels (Instagram/YouTube): the embed's own buttons (profile, like,
+              comment) need an Instagram session and are often blocked in a webview,
+              so give a plain link that always opens the original post. */}
+          {reel.videoType === 'url' && reel.videoUrl && (
+            <a
+              href={reel.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest bg-white/15 text-white border border-white/20 backdrop-blur-md flex items-center justify-center gap-2 hover:bg-white/25 transition-all"
+            >
+              <ExternalLink size={14} />
+              {videoDetails.type === 'youtube' ? 'Watch on YouTube' : 'Watch on Instagram'}
+            </a>
           )}
 
           {/* Shortlist Project Action Button */}

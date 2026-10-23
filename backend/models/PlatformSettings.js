@@ -187,6 +187,10 @@ const platformSettingsSchema = new mongoose.Schema(
       type: String,
       default: 'Privacy Policy terms will appear here.'
     },
+    termsAndConditions: {
+      type: String,
+      default: 'Terms and Conditions will appear here.'
+    },
     trainingVideos: [{
       title: String,
       youtubeUrl: String,

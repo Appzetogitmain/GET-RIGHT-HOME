@@ -30,7 +30,7 @@ const Workers = () => {
     { name: 'Monthly Target', path: '/admin/home-service/workers/monthly-target', icon: FiActivity },
     { name: 'Worker Achievements', path: '/admin/home-service/workers/achievements', icon: FiActivity },
     { name: 'Support Settings', path: '/admin/home-service/workers/support', icon: FiActivity },
-    { name: 'Privacy Policy', path: '/admin/home-service/workers/privacy-policy', icon: FiActivity },
+    { name: 'Privacy & Terms', path: '/admin/home-service/workers/privacy-policy', icon: FiActivity },
     { name: 'Worker Training', path: '/admin/home-service/workers/training', icon: FiActivity },
     { name: 'Complaint Management', path: '/admin/home-service/workers/complaints', icon: FiActivity },
     { name: 'Worker Analytics', path: '/admin/home-service/workers/analytics', icon: FiActivity },

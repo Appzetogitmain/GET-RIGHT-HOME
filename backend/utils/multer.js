@@ -73,11 +73,12 @@ export const uploadDocuments = multer({
 
 // File filter for reels: video only (mp4, webm)
 const reelVideoFilter = (req, file, cb) => {
-  const allowedMimes = ['video/mp4', 'video/webm'];
+  // Phone cameras save .mov (iPhone) or .3gp / m4v; Cloudinary transcodes them.
+  const allowedMimes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/3gpp', 'video/x-m4v'];
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only video files (mp4, webm) are allowed for reels'), false);
+    cb(new Error('Only video files (mp4, mov, webm, 3gp) are allowed for reels'), false);
   }
 };
 

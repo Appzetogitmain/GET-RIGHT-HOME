@@ -16,31 +16,151 @@ const workerSignupSchema = z.object({
   aadhar: z.string().regex(/^\d{12}$/, "Aadhar number must be exactly 12 digits"),
 });
 
+// A refresh must not wipe a half-filled form (typed fields and uploaded
+// documents), so the draft lives in sessionStorage until registration succeeds.
+const DRAFT_KEY = 'workerSignupDraft';
+const DRAFT_FIELDS = ['name', 'email', 'phoneNumber', 'aadhar', 'panCardNumber', 'drivingLicenseNumber', 'referralCode', 'professionIds'];
+
+const loadDraft = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem(DRAFT_KEY)) || {};
+  } catch {
+    return {};
+  }
+};
+
+// Phone cameras produce 5-12MB photos (sometimes HEIC). Re-encode images to a
+// bounded JPEG data URL so they upload fast and fit in the draft.
+const MAX_IMAGE_SIDE = 1600;
+const readAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+
+const fileToDataUrl = async (file) => {
+  if (file.type === 'application/pdf') return readAsDataUrl(file);
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new window.Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = objectUrl;
+    });
+    const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.8);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
+
+const isAcceptedFile = (file) =>
+  file.type.startsWith('image/') || file.type === 'application/pdf' ||
+  // some mobile browsers leave type empty for camera/HEIC captures
+  (!file.type && /\.(jpe?g|png|webp|gif|heic|heif|pdf)$/i.test(file.name));
+
+const DocumentField = ({ label, preview, onPick, onRemove, uploadText }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+    {preview ? (
+      <div className="relative group overflow-hidden rounded-xl">
+        {preview.startsWith('data:application/pdf') ? (
+          <div className="w-full h-32 border rounded-xl flex items-center justify-center bg-gray-50 text-sm font-bold text-gray-600">
+            <FiFileText className="mr-2" /> PDF attached
+          </div>
+        ) : (
+          <img src={preview} alt={label} className="w-full h-32 object-cover border" />
+        )}
+        <button type="button" onClick={onRemove} className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors">
+          <FiX size={16} />
+        </button>
+      </div>
+    ) : (
+      <div className="grid grid-cols-2 gap-2">
+        <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#347989] bg-white cursor-pointer transition-all duration-300">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-2"><FiUpload className="w-6 h-6" /></div>
+          <span className="text-xs text-gray-500 font-bold">{uploadText}</span>
+          <input type="file" className="hidden" accept="image/*,application/pdf" onChange={onPick} />
+        </label>
+        <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#347989] bg-white cursor-pointer transition-all duration-300">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-2"><FiCamera className="w-6 h-6" /></div>
+          <span className="text-xs text-gray-500 font-bold">Take Photo</span>
+          <input type="file" className="hidden" accept="image/*" capture="environment" onChange={onPick} />
+        </label>
+      </div>
+    )}
+  </div>
+);
+
 const WorkerSignup = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [draft] = useState(loadDraft);
   const [step, setStep] = useState('details'); // 'details' or 'otp'
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phoneNumber: '',
-    aadhar: '',
-    panCardNumber: '',
-    drivingLicenseNumber: '',
-    referralCode: '',
-    professionIds: [],
-    aadharDocument: null,
-    aadharBackDocument: null,
-    panCardDocument: null,
-    drivingLicenseDocument: null
+    name: draft.name || '',
+    email: draft.email || '',
+    phoneNumber: draft.phoneNumber || '',
+    aadhar: draft.aadhar || '',
+    panCardNumber: draft.panCardNumber || '',
+    drivingLicenseNumber: draft.drivingLicenseNumber || '',
+    referralCode: draft.referralCode || new URLSearchParams(location.search).get('ref') || '',
+    professionIds: draft.professionIds || []
   });
   const [professions, setProfessions] = useState([]);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpToken, setOtpToken] = useState('');
   const [verificationToken, setVerificationToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [documentPreview, setDocumentPreview] = useState({});
+  const [documentPreview, setDocumentPreview] = useState(draft.documentPreview || {});
   const [resendTimer, setResendTimer] = useState(0);
+  // 'idle' | 'checking' | 'valid' | 'invalid'
+  const [referralStatus, setReferralStatus] = useState({ state: 'idle', message: '' });
+
+  // Persist the draft on every change
+  useEffect(() => {
+    const snapshot = { documentPreview };
+    DRAFT_FIELDS.forEach((k) => { snapshot[k] = formData[k]; });
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
+    } catch {
+      // Storage full (large documents): keep the text fields at least.
+      try {
+        delete snapshot.documentPreview;
+        sessionStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
+      } catch { /* ignore */ }
+    }
+  }, [formData, documentPreview]);
+
+  // Check the referral code as the user types, so a wrong one is flagged here
+  // and not after the OTP step.
+  useEffect(() => {
+    const code = formData.referralCode.trim();
+    if (!code) {
+      setReferralStatus({ state: 'idle', message: '' });
+      return undefined;
+    }
+    setReferralStatus({ state: 'checking', message: '' });
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await workerAuthService.validateReferral(code);
+        if (cancelled) return;
+        setReferralStatus(res.valid
+          ? { state: 'valid', message: res.referrerName ? `Referred by ${res.referrerName}` : 'Referral code applied' }
+          : { state: 'invalid', message: res.message || 'Invalid referral code' });
+      } catch {
+        if (!cancelled) setReferralStatus({ state: 'idle', message: '' });
+      }
+    }, 500);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [formData.referralCode]);
 
   // Timer countdown effect
   useEffect(() => {
@@ -56,6 +176,7 @@ const WorkerSignup = () => {
   // Refs for auto-focus
   const nameInputRef = useRef(null);
   const otpInputRefs = useRef([]);
+  const referralInputRef = useRef(null);
 
   // Pre-fill from navigation state (Unified Flow)
   useEffect(() => {
@@ -113,56 +234,30 @@ const WorkerSignup = () => {
     setFormData(p => ({ ...p, drivingLicenseNumber: val }));
   };
 
-  const handleDocumentUpload = (e, type) => {
+  const handleDocumentUpload = async (e, type) => {
     const file = e.target.files[0];
+    e.target.value = ''; // let the same photo be picked again after removing it
     if (!file) return;
 
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif', 'application/pdf'];
-    if (!validTypes.includes(file.type)) {
+    if (!isAcceptedFile(file)) {
       toast.error('Please upload a valid image or PDF');
       return;
     }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size should be less than 5MB');
+    if (file.type === 'application/pdf' && file.size > 5 * 1024 * 1024) {
+      toast.error('PDF size should be less than 5MB');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      let fieldName = type;
-      if (type === 'aadhar') fieldName = 'aadharDocument';
-      else if (type === 'aadharBack') fieldName = 'aadharBackDocument';
-      else if (type === 'pan') fieldName = 'panCardDocument';
-      else if (type === 'dl') fieldName = 'drivingLicenseDocument';
-
-      setFormData(prev => ({
-        ...prev,
-        [fieldName]: file
-      }));
-      setDocumentPreview(prev => ({
-        ...prev,
-        [type]: reader.result
-      }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setDocumentPreview(prev => ({ ...prev, [type]: dataUrl }));
+    } catch {
+      toast.error('Could not read this photo. Please try another one.');
+    }
   };
 
   const removeDocument = (type) => {
-    let fieldName = type;
-    if (type === 'aadhar') fieldName = 'aadharDocument';
-    else if (type === 'aadharBack') fieldName = 'aadharBackDocument';
-    else if (type === 'pan') fieldName = 'panCardDocument';
-    else if (type === 'dl') fieldName = 'drivingLicenseDocument';
-
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: null
-    }));
-    setDocumentPreview(prev => ({
-      ...prev,
-      [type]: null
-    }));
+    setDocumentPreview(prev => ({ ...prev, [type]: null }));
   };
 
   // Professions created by the admin; the worker picks one or more.
@@ -204,11 +299,11 @@ const WorkerSignup = () => {
     }
 
     // Manual Document Check
-    if (!formData.aadharDocument && !documentPreview.aadhar) {
+    if (!documentPreview.aadhar) {
       toast.error('Please upload Aadhar Front document');
       return;
     }
-    if (!formData.aadharBackDocument && !documentPreview.aadharBack) {
+    if (!documentPreview.aadharBack) {
       toast.error('Please upload Aadhar Back document');
       return;
     }
@@ -223,14 +318,14 @@ const WorkerSignup = () => {
       toast.error('Invalid PAN Card format (e.g. ABCDE1234F)');
       return;
     }
-    if (!formData.panCardDocument && !documentPreview.pan) {
+    if (!documentPreview.pan) {
       toast.error('Please upload PAN Card document');
       return;
     }
-    
+
     // DL is optional, so no check needed unless we want to enforce either both or neither
-    if ((formData.drivingLicenseNumber && (!formData.drivingLicenseDocument && !documentPreview.dl)) || 
-        (!formData.drivingLicenseNumber && (formData.drivingLicenseDocument || documentPreview.dl))) {
+    if ((formData.drivingLicenseNumber && !documentPreview.dl) ||
+        (!formData.drivingLicenseNumber && documentPreview.dl)) {
        toast.error('Please provide both DL Number and Document if you wish to add it.');
        return;
     }
@@ -239,13 +334,29 @@ const WorkerSignup = () => {
       return;
     }
     
-    e.preventDefault();
-
-    // const errors = validateForm(); // undefined function 'validateForm', removed call as validation is done above via Zod (line 122) or not needed. 
-    // Wait, check original code... line 141: `const errors = validateForm();`. That function is NOT defined in the viewed file snippet!
-    // It might be an oversight in original code or imported? 
-    // I see `workerSignupSchema` used at line 122. So explicit validateForm might be legacy.
-    // I will remove line 141-145 if validation matches Zod.
+    // Wrong referral code: flag it here, before any OTP is sent or the
+    // registration request is made.
+    const referral = formData.referralCode.trim();
+    if (referral) {
+      let status = referralStatus;
+      if (status.state !== 'valid' && status.state !== 'invalid') {
+        try {
+          const res = await workerAuthService.validateReferral(referral);
+          status = res.valid
+            ? { state: 'valid', message: res.referrerName ? `Referred by ${res.referrerName}` : 'Referral code applied' }
+            : { state: 'invalid', message: res.message || 'Invalid referral code' };
+          setReferralStatus(status);
+        } catch {
+          // Can't verify right now; the server re-checks on registration.
+        }
+      }
+      if (status.state === 'invalid') {
+        toast.error(status.message || 'Invalid referral code');
+        referralInputRef.current?.focus();
+        referralInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return;
+      }
+    }
 
     setIsLoading(true);
 
@@ -281,6 +392,7 @@ const WorkerSignup = () => {
             </div>,
             { icon: <FiCheckCircle className="text-green-500" /> }
           );
+          sessionStorage.removeItem(DRAFT_KEY);
           navigate('/worker/login');
         } else {
           toast.error(response.message || 'Registration failed');
@@ -375,6 +487,7 @@ const WorkerSignup = () => {
       if (response.success) {
         setIsLoading(false);
         toast.success(response.message || 'Registration successful! Your account is pending admin approval.');
+        sessionStorage.removeItem(DRAFT_KEY);
         navigate('/worker/login');
       } else {
         setIsLoading(false);
@@ -502,19 +615,25 @@ const WorkerSignup = () => {
               )}
 
               {/* Referral Code */}
-              <div className="animate-stagger-4 animate-fade-in relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#347989] transition-colors">
-                  <FiUser className="h-5 w-5" />
+              <div className="animate-stagger-4 animate-fade-in">
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#347989] transition-colors">
+                    <FiUser className="h-5 w-5" />
+                  </div>
+                  <input
+                    ref={referralInputRef}
+                    type="text"
+                    name="referralCode"
+                    value={formData.referralCode}
+                    onChange={(e) => setFormData(p => ({ ...p, referralCode: e.target.value.toUpperCase().replace(/\s/g, '') }))}
+                    className={`block w-full pl-12 pr-4 py-4 border rounded-xl focus:ring-2 focus:ring-offset-2 outline-none transition-all duration-300 bg-gray-50/50 focus:bg-white text-gray-900 placeholder-gray-400 ${referralStatus.state === 'invalid' ? 'border-red-400' : referralStatus.state === 'valid' ? 'border-green-400' : 'border-gray-200 hover:border-gray-300'}`}
+                    style={{ '--tw-ring-color': themeColors.primary }}
+                    placeholder="Referral Code (Optional)"
+                  />
                 </div>
-                <input
-                  type="text"
-                  name="referralCode"
-                  value={formData.referralCode}
-                  onChange={handleInputChange}
-                  className="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-offset-2 outline-none transition-all duration-300 hover:border-gray-300 bg-gray-50/50 focus:bg-white text-gray-900 placeholder-gray-400"
-                  style={{ '--tw-ring-color': themeColors.primary }}
-                  placeholder="Referral Code (Optional)"
-                />
+                {referralStatus.state === 'checking' && <p className="mt-1 text-xs text-gray-400">Checking code…</p>}
+                {referralStatus.state === 'invalid' && <p className="mt-1 text-xs font-semibold text-red-500">{referralStatus.message}</p>}
+                {referralStatus.state === 'valid' && <p className="mt-1 text-xs font-semibold text-green-600">{referralStatus.message}</p>}
               </div>
 
               <div className="animate-stagger-4-5 animate-fade-in mt-6">
@@ -536,55 +655,10 @@ const WorkerSignup = () => {
                 </div>
               </div>
 
-              {/* Aadhar Upload */}
-              {/* Aadhar Front Upload */}
-              <div className="animate-stagger-5 animate-fade-in">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Aadhar Front</label>
-                {documentPreview.aadhar ? (
-                  <div className="relative group overflow-hidden rounded-xl">
-                    <img src={documentPreview.aadhar} className="w-full h-32 object-cover border transform group-hover:scale-110 transition-transform duration-500" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <button type="button" onClick={() => removeDocument('aadhar')} className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors">
-                        <FiX size={20} />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:border-[#347989] group bg-white">
-                    <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
-                      <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-2 hover:bg-blue-100 transition-colors">
-                        <FiUpload className="w-6 h-6" />
-                      </div>
-                      <span className="text-xs text-gray-500 font-bold">Upload Front</span>
-                      <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'aadhar')} />
-                    </label>
-                  </div>
-                )}
-              </div>
-
-              {/* Aadhar Back Upload */}
-              <div className="animate-stagger-[5.5] animate-fade-in mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Aadhar Back</label>
-                {documentPreview.aadharBack ? (
-                  <div className="relative group overflow-hidden rounded-xl">
-                    <img src={documentPreview.aadharBack} className="w-full h-32 object-cover border transform group-hover:scale-110 transition-transform duration-500" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <button type="button" onClick={() => removeDocument('aadharBack')} className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors">
-                        <FiX size={20} />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:border-[#347989] group bg-white">
-                    <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
-                      <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-2 hover:bg-blue-100 transition-colors">
-                        <FiUpload className="w-6 h-6" />
-                      </div>
-                      <span className="text-xs text-gray-500 font-bold">Upload Back</span>
-                      <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'aadharBack')} />
-                    </label>
-                  </div>
-                )}
+              {/* Aadhar Front / Back */}
+              <div className="animate-stagger-5 animate-fade-in space-y-4">
+                <DocumentField label="Aadhar Front" uploadText="Upload Front" preview={documentPreview.aadhar} onPick={(e) => handleDocumentUpload(e, 'aadhar')} onRemove={() => removeDocument('aadhar')} />
+                <DocumentField label="Aadhar Back" uploadText="Upload Back" preview={documentPreview.aadharBack} onPick={(e) => handleDocumentUpload(e, 'aadharBack')} onRemove={() => removeDocument('aadharBack')} />
               </div>
 
               {/* PAN Card Section */}
@@ -607,27 +681,7 @@ const WorkerSignup = () => {
                   />
                 </div>
                 
-                <label className="block text-sm font-medium text-gray-700 mb-2">PAN Card Upload</label>
-                {documentPreview.pan ? (
-                  <div className="relative group overflow-hidden rounded-xl">
-                    <img src={documentPreview.pan} className="w-full h-32 object-cover border transform group-hover:scale-110 transition-transform duration-500" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <button type="button" onClick={() => removeDocument('pan')} className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors">
-                        <FiX size={20} />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:border-[#347989] group bg-white">
-                    <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
-                      <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-2 hover:bg-blue-100 transition-colors">
-                        <FiUpload className="w-6 h-6" />
-                      </div>
-                      <span className="text-xs text-gray-500 font-bold">Upload PAN Card</span>
-                      <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'pan')} />
-                    </label>
-                  </div>
-                )}
+                <DocumentField label="PAN Card Upload" uploadText="Upload PAN Card" preview={documentPreview.pan} onPick={(e) => handleDocumentUpload(e, 'pan')} onRemove={() => removeDocument('pan')} />
               </div>
 
               {/* Driving License Section (Optional) */}
@@ -649,27 +703,7 @@ const WorkerSignup = () => {
                   />
                 </div>
                 
-                <label className="block text-sm font-medium text-gray-700 mb-2">Driving License Upload (Optional)</label>
-                {documentPreview.dl ? (
-                  <div className="relative group overflow-hidden rounded-xl">
-                    <img src={documentPreview.dl} className="w-full h-32 object-cover border transform group-hover:scale-110 transition-transform duration-500" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <button type="button" onClick={() => removeDocument('dl')} className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors">
-                        <FiX size={20} />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:border-[#347989] group bg-white">
-                    <label className="flex flex-col items-center cursor-pointer w-full h-full justify-center">
-                      <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-2 hover:bg-blue-100 transition-colors">
-                        <FiUpload className="w-6 h-6" />
-                      </div>
-                      <span className="text-xs text-gray-500 font-bold">Upload DL</span>
-                      <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocumentUpload(e, 'dl')} />
-                    </label>
-                  </div>
-                )}
+                <DocumentField label="Driving License Upload (Optional)" uploadText="Upload DL" preview={documentPreview.dl} onPick={(e) => handleDocumentUpload(e, 'dl')} onRemove={() => removeDocument('dl')} />
               </div>
 
               <div className="animate-stagger-[6] animate-fade-in">

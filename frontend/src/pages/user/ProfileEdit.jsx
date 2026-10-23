@@ -718,14 +718,6 @@ const ProfileEdit = () => {
       to: '/user/home-services/bookings',
       badge: hsBookings.length > 0 ? hsBookings.length : null
     },
-    { 
-      label: 'Stay Bookings', 
-      desc: 'Hotel & room reservations', 
-      icon: Ticket, 
-      iconBg: 'bg-amber-50 text-amber-600', 
-      to: '/bookings',
-      badge: stayBookings.length > 0 ? stayBookings.length : null
-    },
     { label: 'Post Property', desc: 'Sell/Rent your property faster', icon: Home, iconBg: 'bg-blue-50 text-blue-500', to: '/list-property' },
     { label: 'Search Properties', desc: 'Explore residential and commercial listings', icon: Search, iconBg: 'bg-orange-50 text-orange-500', to: '/search' },
     { label: 'My Properties', desc: 'Manage your active listings', icon: Building2, iconBg: 'bg-teal-50 text-teal-500', to: '/my-properties' },

@@ -32,6 +32,9 @@ const Header = ({
   // Fetch unread count
   useEffect(() => {
     const fetchUnreadCount = async () => {
+      // Public pages (login/signup → Support, Privacy) reuse this header. A 401
+      // here would trigger the global logout redirect to /worker/login.
+      if (!localStorage.getItem('workerAccessToken') && !sessionStorage.getItem('workerAccessToken')) return;
       try {
         const res = await api.get('/notifications/worker');
         if (res.data.success && typeof res.data.unreadCount === 'number') {
