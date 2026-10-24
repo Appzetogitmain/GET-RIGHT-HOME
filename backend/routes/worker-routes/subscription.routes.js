@@ -1,4 +1,5 @@
 import express from 'express';
+import { requireFeature, getFeatureFlags } from '../../utils/featureFlags.js';
 const router = express.Router();
 import WorkerSubscriptionPlan from '../../models/WorkerSubscriptionPlan.js';
 import Worker from '../../models/Worker.js';
@@ -10,16 +11,29 @@ const createSubscriptionOrder = async (req, res) => res.status(501).json({ succe
 const verifySubscriptionPayment = async (req, res) => res.status(501).json({ success: false, message: 'Payment not configured yet' });
 
 // POST /api/workers/subscription/create-order → Create Razorpay order
-router.post('/create-order', authenticate, isWorker, createSubscriptionOrder);
+router.post('/create-order', authenticate, isWorker, requireFeature('workerSubscription'), requireFeature('workerRazorpay'), createSubscriptionOrder);
+
+// /activate grants a plan without payment, so it is only open while the admin has
+// switched Razorpay OFF for workers. With Razorpay ON it must go through payment.
+const onlyWhenPaymentOff = async (req, res, next) => {
+  try {
+    if ((await getFeatureFlags()).workerRazorpay !== false) {
+      return res.status(403).json({ success: false, message: 'Payment is required to activate a plan' });
+    }
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Server Error' });
+  }
+  next();
+};
 
 // POST /api/workers/subscription/verify-payment → Verify & activate
-router.post('/verify-payment', authenticate, isWorker, verifySubscriptionPayment);
+router.post('/verify-payment', authenticate, isWorker, requireFeature('workerSubscription'), verifySubscriptionPayment);
 
 /**
  * GET /api/workers/subscription/plans
  * Fetch all active subscription plans (for workers to browse & buy)
  */
-router.get('/plans', authenticate, isWorker, async (req, res) => {
+router.get('/plans', authenticate, isWorker, requireFeature('workerSubscription'), async (req, res) => {
   try {
     const plans = await WorkerSubscriptionPlan.find({ isActive: true }).sort({ price: 1 });
     res.status(200).json({ success: true, data: plans });
@@ -34,6 +48,10 @@ router.get('/plans', authenticate, isWorker, async (req, res) => {
  */
 router.get('/status', authenticate, isWorker, async (req, res) => {
   try {
+    // Admin switch OFF: report "disabled" (not an error) so the app just hides the feature.
+    if ((await getFeatureFlags()).workerSubscription === false) {
+      return res.status(200).json({ success: true, data: { disabled: true, isActive: false } });
+    }
     const worker = await Worker.findById(req.user.id).select('subscription wallet');
     if (!worker) {
       return res.status(404).json({ success: false, message: 'Worker not found' });
@@ -61,7 +79,7 @@ router.get('/status', authenticate, isWorker, async (req, res) => {
  * POST /api/workers/subscription/activate
  * Admin can manually activate a plan for a worker (or after Razorpay webhook)
  */
-router.post('/activate', authenticate, isWorker, async (req, res) => {
+router.post('/activate', authenticate, isWorker, requireFeature('workerSubscription'), onlyWhenPaymentOff, async (req, res) => {
   try {
     const { planId } = req.body;
     const plan = await WorkerSubscriptionPlan.findById(planId);

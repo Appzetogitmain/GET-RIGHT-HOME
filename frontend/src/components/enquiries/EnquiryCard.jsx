@@ -3,6 +3,7 @@ import { Share2, Phone, MessageSquare, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import LeadScoreStars from './LeadScoreStars';
+import useFeatureFlags from '../../homster/hooks/useFeatureFlags';
 import {
     fmtRelDate, getLeadScore, getListingTitle, getBuyerName, getBuyerPhone,
     getBuyerType, getEnquiryMessage, humanize
@@ -21,6 +22,7 @@ const propertyStatusLabel = (prop) => {
  */
 const EnquiryCard = ({ item, enquiryCount = 1, onViewDetail }) => {
     const navigate = useNavigate();
+    const featureFlags = useFeatureFlags();
     const prop = item.propertyId || {};
     const name = getBuyerName(item);
     const phone = getBuyerPhone(item);
@@ -94,7 +96,7 @@ const EnquiryCard = ({ item, enquiryCount = 1, onViewDetail }) => {
                     View Lead Detail
                 </button>
                 <div className="flex items-center gap-4">
-                    {!canContact && (
+                    {!canContact && featureFlags.userSubscription && (
                         <button
                             onClick={() => navigate(prop._id ? `/my-subscriptions?propertyId=${prop._id}` : '/my-subscriptions')}
                             className="flex items-center gap-1 text-[15px] font-semibold text-orange-600"

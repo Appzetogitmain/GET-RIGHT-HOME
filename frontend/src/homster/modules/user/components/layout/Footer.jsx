@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FiFacebook, FiTwitter, FiInstagram, FiLinkedin, FiMail, FiPhone, FiMapPin } from 'react-icons/fi';
 import Logo from '../../../../components/common/Logo';
+import useFeatureFlags from '../../../../hooks/useFeatureFlags';
 import { configService } from '../../../../services/configService';
 
 const Footer = () => {
   const location = useLocation();
+  const featureFlags = useFeatureFlags();
   const currentYear = new Date().getFullYear();
   const [settings, setSettings] = useState(null);
 
@@ -100,7 +102,7 @@ const Footer = () => {
             <div key={section.title} className="space-y-6">
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest">{section.title}</h3>
               <ul className="space-y-4">
-                {section.links.map((link) => (
+                {section.links.filter((link) => !(link.path === '/user/my-plan' && !featureFlags.userSubscription)).map((link) => (
                   <li key={link.label}>
                     {link.path.startsWith('http') || link.path.startsWith('mailto') || link.path.startsWith('tel') ? (
                       <a 

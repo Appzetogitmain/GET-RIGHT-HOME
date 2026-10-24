@@ -9,10 +9,12 @@ import {
 import { propertyService, enquiryService } from '../../services/apiService';
 import { toast } from 'react-hot-toast';
 import FreeAccessBanner from '../../components/user/FreeAccessBanner';
+import useFeatureFlags from '../../homster/hooks/useFeatureFlags';
 import { goBackOrHome } from '../../utils/navigation';
 
 const MyProperties = () => {
   const navigate = useNavigate();
+  const featureFlags = useFeatureFlags();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [properties, setProperties] = useState([]);
@@ -134,7 +136,7 @@ const MyProperties = () => {
     try {
       // No subscription -> this click becomes a lead in Admin > Enquiries.
       // Fire-and-forget: it must never block the submit itself.
-      enquiryService.createBoostLead(property._id).catch(() => {});
+      if (featureFlags.userSubscription) enquiryService.createBoostLead(property._id).catch(() => {});
       const res = await propertyService.submitForApproval(property._id);
       if (res.success) {
         toast.success('Submitted for approval.');
@@ -326,12 +328,12 @@ const MyProperties = () => {
                           disabled={submittingId === property._id}
                           className="px-4 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
                         >
-                          {submittingId === property._id ? 'Boosting...' : 'Boost'}
+                          {submittingId === property._id ? (featureFlags.userSubscription ? 'Boosting...' : 'Submitting...') : (featureFlags.userSubscription ? 'Boost' : 'Submit')}
                         </button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        {property.status === 'approved' && (
+                        {featureFlags.userSubscription && property.status === 'approved' && (
                           <button
                             onClick={() => navigate(`/my-subscriptions?propertyId=${property._id}`)}
                             className="px-4 py-2.5 bg-orange-50 text-orange-600 border border-orange-100 text-[10px] font-black uppercase tracking-widest rounded-xl active:scale-95 transition-all flex items-center gap-1"

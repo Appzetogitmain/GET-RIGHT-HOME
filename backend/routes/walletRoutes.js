@@ -1,4 +1,5 @@
 import express from 'express';
+import { requireFeature } from '../utils/featureFlags.js';
 import {
   getWallet,
   getTransactions,
@@ -24,7 +25,7 @@ router.get('/', getWallet);
 router.get('/stats', getWalletStats);
 
 // Add Money (Razorpay)
-router.post('/add-money', createAddMoneyOrder);
+router.post('/add-money', requireFeature('userRazorpay'), createAddMoneyOrder);
 router.post('/verify-add-money', verifyAddMoneyPayment);
 
 // Get transaction history

@@ -6,8 +6,15 @@ import BottomNav from '../components/layout/BottomNav';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
+import useFeatureFlags from '../../../hooks/useFeatureFlags';
 import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
 // Removed SocketProvider import since it's now global
+
+// Redirects away from a page whose admin feature switch is OFF.
+const FeatureRoute = ({ flag, children }) => {
+  const flags = useFeatureFlags();
+  return flags[flag] === false ? <Navigate to="/worker/dashboard" replace /> : children;
+};
 
 // Lazy load wrapper with error handling
 const lazyLoad = (importFunc) => {
@@ -116,7 +123,7 @@ const WorkerRoutes = () => {
                 <Route path="/settings" element={<ProtectedRoute userType="worker"><Settings /></ProtectedRoute>} />
                 <Route path="/notifications" element={<ProtectedRoute userType="worker"><Notifications /></ProtectedRoute>} />
                 <Route path="/wallet" element={<ProtectedRoute userType="worker"><Wallet /></ProtectedRoute>} />
-                <Route path="/subscription" element={<ProtectedRoute userType="worker"><Subscription /></ProtectedRoute>} />
+                <Route path="/subscription" element={<ProtectedRoute userType="worker"><FeatureRoute flag="workerSubscription"><Subscription /></FeatureRoute></ProtectedRoute>} />
                 <Route path="/training" element={<ProtectedRoute userType="worker"><Training /></ProtectedRoute>} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/referrals" element={<ProtectedRoute userType="worker"><Referrals /></ProtectedRoute>} />

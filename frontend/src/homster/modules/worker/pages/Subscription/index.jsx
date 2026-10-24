@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 import { toast } from 'react-hot-toast';
+import useFeatureFlags from '../../../../hooks/useFeatureFlags';
 import { FiCheck, FiClock, FiShield, FiZap, FiArrowLeft, FiStar } from 'react-icons/fi';
 
 const FEATURE_ICONS = ['🔔', '📍', '💰', '⚡', '🛡️', '🌟'];
 
 const Subscription = () => {
   const navigate = useNavigate();
+  const flags = useFeatureFlags();
   const [plans, setPlans] = useState([]);
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,19 @@ const Subscription = () => {
   const handleSubscribe = async (plan) => {
     setActivating(plan._id);
     try {
+      // Admin switched Razorpay OFF: activate the plan directly, no payment.
+      if (flags.workerRazorpay === false) {
+        const res = await api.post('/workers/subscription/activate', { planId: plan._id });
+        if (res.data.success) {
+          toast.success(res.data.message || 'Subscription activated!');
+          fetchData();
+        } else {
+          toast.error(res.data.message || 'Could not activate plan');
+        }
+        setActivating(null);
+        return;
+      }
+
       // Step 1: Load Razorpay script
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
