@@ -8,6 +8,7 @@ import {
 import { toast } from 'react-hot-toast';
 import propertySubscriptionService from '../../services/propertySubscriptionService';
 import { useAuth } from '../../context/AuthContext';
+import useFeatureFlags from '../../homster/hooks/useFeatureFlags';
 
 const loadRazorpay = () => new Promise((resolve) => {
     if (window.Razorpay) return resolve(true);
@@ -231,6 +232,7 @@ const PropertyPickerModal = ({ plan, properties, loading, onClose, onConfirm, su
 
 const PropertySubscriptionsPage = () => {
     const navigate = useNavigate();
+    const featureFlags = useFeatureFlags();
     const [searchParams] = useSearchParams();
     const scopedPropertyId = searchParams.get('propertyId');
     const { user } = useAuth();
@@ -389,6 +391,16 @@ const PropertySubscriptionsPage = () => {
         () => mySubscriptions.filter((s) => s.status === 'active' && new Date(s.expiryDate) > new Date()),
         [mySubscriptions]
     );
+
+    // Admin switched Subscription OFF: the page is not part of the app any more.
+    if (!featureFlags.userSubscription) {
+        return (
+            <div className="min-h-screen bg-[#F5F6F8] flex flex-col items-center justify-center gap-4 px-6 text-center">
+                <p className="text-sm text-slate-600">Subscription plans are currently unavailable.</p>
+                <button onClick={handleBack} className="px-5 py-2.5 rounded-xl bg-orange-600 text-white text-xs font-bold">Go back</button>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#F5F6F8] pb-28">

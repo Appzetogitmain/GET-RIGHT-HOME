@@ -1,4 +1,5 @@
 import express from 'express';
+import { requireFeature } from '../../utils/featureFlags.js';
 const router = express.Router();
 import {  authenticate  } from '../../middlewares/authMiddleware.js';
 import {  isWorker  } from '../../middlewares/authMiddleware.js';
@@ -24,7 +25,7 @@ router.post('/request-payout', authenticate, isWorker, requestPayout);
 router.post('/withdraw', authenticate, isWorker, requestWithdrawal);
 
 // Pay Admin Dues (Cash Collection)
-router.post('/dues/pay', authenticate, isWorker, payAdminDuesInitiate);
+router.post('/dues/pay', authenticate, isWorker, requireFeature('workerRazorpay'), payAdminDuesInitiate);
 router.post('/dues/verify', authenticate, isWorker, payAdminDuesVerify);
 
 export default router;

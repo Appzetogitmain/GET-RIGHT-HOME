@@ -20,6 +20,7 @@ import {
     getPropertySubscription,
 } from '../services/subscriptionCatalogService.js';
 import { settleOrder, activateSubscription, failOrder } from '../services/subscriptionActivationService.js';
+import { getFeatureFlags } from '../utils/featureFlags.js';
 import {
     SUBSCRIPTION_MODE,
     SUBSCRIPTION_STATUS,
@@ -124,6 +125,15 @@ export const createCheckout = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Choose a plan to continue' });
         }
 
+        // Admin switches (Feature Settings). Property owners / brokers / builders
+        // follow the User-app switches.
+        const flags = await getFeatureFlags();
+        if (flags.userSubscription === false) {
+            return res.status(403).json({ success: false, featureDisabled: 'userSubscription', message: 'Subscription is currently disabled' });
+        }
+        // Razorpay OFF: no payment is taken, the plan is activated straight away.
+        const paymentDisabled = flags.userRazorpay === false;
+
         const plan = await SubscriptionPlan.findById(planId);
         const ids = (Array.isArray(propertyIds) ? propertyIds : [propertyIds]).filter(Boolean);
 
@@ -151,7 +161,8 @@ export const createCheckout = async (req, res) => {
 
         // A free plan has nothing to charge for, and Razorpay rejects orders
         // below ₹1. Activate directly and tell the client to skip the sheet.
-        if (Number(plan.price) <= 0) {
+        // The same path serves "online payment switched off by the admin".
+        if (paymentDisabled || Number(plan.price) <= 0) {
             const subscription = await activateSubscription({
                 plan,
                 subject: { _id: userId, role: order.userRole, model: order.userModel },

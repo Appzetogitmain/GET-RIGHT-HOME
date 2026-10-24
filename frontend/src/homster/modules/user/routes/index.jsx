@@ -1,14 +1,21 @@
 import React, { lazy, Suspense } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import PageTransition from '../components/common/PageTransition';
 import BottomNav from '../components/layout/BottomNav';
 import Footer from '../components/layout/Footer';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
 import PublicRoute from '../../../components/auth/PublicRoute';
+import useFeatureFlags from '../../../hooks/useFeatureFlags';
 import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
 
 // Lazy load wrapper with error handling
+// Redirects away from a page whose admin feature switch is OFF.
+const FeatureRoute = ({ flag, children }) => {
+  const flags = useFeatureFlags();
+  return flags[flag] === false ? <Navigate to="/user/account" replace /> : children;
+};
+
 const lazyLoad = (importFunc) => {
   return lazy(() => {
     return Promise.resolve(importFunc()).catch((error) => {
@@ -137,8 +144,8 @@ const UserRoutes = () => {
               <Route path="/manage-payment-methods" element={<ProtectedRoute userType="user"><ManagePaymentMethods /></ProtectedRoute>} />
               <Route path="/manage-addresses" element={<ProtectedRoute userType="user"><ManageAddresses /></ProtectedRoute>} />
               <Route path="/wallet" element={<ProtectedRoute userType="user"><Wallet /></ProtectedRoute>} />
-              <Route path="/my-plan" element={<ProtectedRoute userType="user"><MyPlan /></ProtectedRoute>} />
-              <Route path="/my-plan/:id" element={<ProtectedRoute userType="user"><PlanDetails /></ProtectedRoute>} />
+              <Route path="/my-plan" element={<ProtectedRoute userType="user"><FeatureRoute flag="userSubscription"><MyPlan /></FeatureRoute></ProtectedRoute>} />
+              <Route path="/my-plan/:id" element={<ProtectedRoute userType="user"><FeatureRoute flag="userSubscription"><PlanDetails /></FeatureRoute></ProtectedRoute>} />
               <Route path="/my-rating" element={<ProtectedRoute userType="user"><MyRating /></ProtectedRoute>} />
               <Route path="/about-Truliq" element={<ProtectedRoute userType="user"><AboutTruliq /></ProtectedRoute>} />
               <Route path="/update-profile" element={<ProtectedRoute userType="user"><UpdateProfile /></ProtectedRoute>} />

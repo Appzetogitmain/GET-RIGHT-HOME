@@ -8,11 +8,13 @@ import {
 import { userService } from '../../services/apiService';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import useFeatureFlags from '../../homster/hooks/useFeatureFlags';
 
 const MobileMenu = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, logout } = useAuth();
+    const featureFlags = useFeatureFlags();
     const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
@@ -236,7 +238,9 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                     <SectionTitle title="Finance" />
                                     <div className="flex flex-col gap-1">
                                         <MenuItem icon={Wallet} label="My Wallet" path="/wallet" />
-                                        <MenuItem icon={CreditCard} label="Subscription Plans" path="/my-subscriptions" />
+                                        {featureFlags.userSubscription && (
+                                            <MenuItem icon={CreditCard} label="Subscription Plans" path="/my-subscriptions" />
+                                        )}
                                         <MenuItem icon={Gift} label="Refer & Earn" path="/refer" />
                                     </div>
                                 </div>

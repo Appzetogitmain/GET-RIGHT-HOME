@@ -109,5 +109,14 @@
       "admin"
     ],
     "children": []
+  },
+  {
+    "title": "Feature Settings",
+    "route": "/admin/home-service/feature-settings",
+    "allowedRoles": [
+      "super_admin",
+      "admin"
+    ],
+    "children": []
   }
 ]

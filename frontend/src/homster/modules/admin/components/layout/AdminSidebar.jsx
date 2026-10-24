@@ -38,6 +38,7 @@ const iconMap = {
   "Scrap Items": FiTrash2,
   Reviews: FiStar,
   Settings: FiSettings,
+  "Feature Settings": FiSettings,
   "Zone Setup": FiMap,
   Plans: FiPackage,
   "Worker Plans": FiBriefcase,

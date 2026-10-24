@@ -1,4 +1,5 @@
 import Razorpay from 'razorpay';
+import { blockIfDisabled } from '../utils/featureFlags.js';
 import crypto from 'crypto';
 import PaymentConfig from '../config/payment.config.js';
 import Admin from '../models/Admin.js';
@@ -69,6 +70,10 @@ export const createPaymentOrder = async (req, res) => {
       }
     }
     
+    // Admin switch: only home-service payments are governed by the user/worker flags.
+    if (isHomeService && (req.user?.role === 'user' || req.user?.role === 'worker')) {
+      if (await blockIfDisabled(res, req.user.role === 'worker' ? 'workerRazorpay' : 'userRazorpay')) return;
+    }
     if (!isEstimateToken && (booking.paymentStatus === 'paid' || booking.paymentStatus === 'SUCCESS')) return res.status(400).json({ message: 'Booking already paid' });
 
     // Use token amount if isEstimateToken is true, else use final amount

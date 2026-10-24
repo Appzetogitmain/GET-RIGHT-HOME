@@ -30,6 +30,7 @@ import ActiveBookingCard from '../../homster/modules/user/pages/Home/components/
 import { userService } from '../../services/apiService';
 import { toast } from 'react-hot-toast';
 import { createVipOrder, verifyVipPayment } from '../../homster/modules/user/services/planService';
+import useFeatureFlags from '../../homster/hooks/useFeatureFlags';
 
 const toAssetUrl = (url) => {
     if (!url) return '';
@@ -49,6 +50,7 @@ const HomeServicesPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isScrolled, setIsScrolled] = useState(false);
     const [vipLoading, setVipLoading] = useState(false);
+    const featureFlags = useFeatureFlags();
     const [activeBanner, setActiveBanner] = useState(0);
     const [activeFaqIndex, setActiveFaqIndex] = useState(null);
     const [copiedCode, setCopiedCode] = useState(false);
@@ -632,7 +634,7 @@ const HomeServicesPage = () => {
             )}
 
             {/* VIP Membership Section */}
-            {homeData?.isVipEnabled !== false && (
+            {featureFlags.userSubscription && homeData?.isVipEnabled !== false && (
                 <section className="mt-12 px-5 max-w-7xl mx-auto">
                     <div className="bg-[#111111] bg-gradient-to-br from-[#181818] to-[#0a0a0a] border border-neutral-800/80 rounded-xl p-5 shadow-2xl relative overflow-hidden">
                         {/* Shimmer text style injection */}
@@ -747,8 +749,10 @@ const HomeServicesPage = () => {
                                             setVipLoading(true);
                                             toast.loading('Initializing payment...', { id: 'vip-buy' });
 
-                                            const isLoaded = await loadRazorpay();
-                                            if (!isLoaded || !window.Razorpay) {
+                                            // Admin switched Razorpay OFF: the server activates VIP without payment.
+                                            const paymentOff = featureFlags.userRazorpay === false;
+                                            const isLoaded = paymentOff ? true : await loadRazorpay();
+                                            if (!isLoaded || (!paymentOff && !window.Razorpay)) {
                                                 toast.error('Payment gateway failed to load', { id: 'vip-buy' });
                                                 setVipLoading(false);
                                                 return;
@@ -759,6 +763,17 @@ const HomeServicesPage = () => {
 
                                             if (!orderRes.success) {
                                                 toast.error(orderRes.message || 'Failed to create payment order', { id: 'vip-buy' });
+                                                setVipLoading(false);
+                                                return;
+                                            }
+
+                                            if (orderRes.free) {
+                                                setUser(prev => ({ ...prev, isVip: true, vipExpiry: orderRes.vip?.vipExpiry }));
+                                                const stored = JSON.parse(localStorage.getItem('userData') || '{}');
+                                                stored.isVip = true;
+                                                stored.vipExpiry = orderRes.vip?.vipExpiry;
+                                                localStorage.setItem('userData', JSON.stringify(stored));
+                                                toast.success('🎉 VIP Membership Activated!', { id: 'vip-buy' });
                                                 setVipLoading(false);
                                                 return;
                                             }

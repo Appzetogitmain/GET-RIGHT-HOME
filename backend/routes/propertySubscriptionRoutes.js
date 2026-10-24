@@ -36,6 +36,7 @@ import {
     getUserProperties,
 } from '../controllers/adminSubscriptionController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
+import { requireFeature } from '../utils/featureFlags.js';
 import { checkManagerPermission } from '../middlewares/managerPermission.js';
 
 const router = express.Router();
@@ -75,8 +76,8 @@ router.use('/admin', admin);
 router.use(protect);
 
 router.get('/features', getFeatureCatalog);
-router.get('/catalog', getCatalog);
-router.get('/properties', getEligibleProperties);
+router.get('/catalog', requireFeature('userSubscription'), getCatalog);
+router.get('/properties', requireFeature('userSubscription'), getEligibleProperties);
 router.get('/mine', getMySubscriptions);
 router.get('/property/:propertyId/status', getPropertyStatus);
 

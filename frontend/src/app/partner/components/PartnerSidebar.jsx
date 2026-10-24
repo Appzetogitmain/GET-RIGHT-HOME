@@ -10,10 +10,12 @@ import {
 } from 'lucide-react';
 import usePartnerStore from '../store/partnerStore';
 import logo from '../../../assets/grh-logo.png';
+import useFeatureFlags from '../../../homster/hooks/useFeatureFlags';
 
 const PartnerSidebar = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
     const { formData } = usePartnerStore();
+    const featureFlags = useFeatureFlags();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     // Disable body scroll when sidebar is open
@@ -86,7 +88,7 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
             title: 'Growth & Finance',
             items: [
                 { icon: Wallet, label: 'Wallet', path: '/hotel/wallet' },
-                { icon: Crown, label: 'Subscription Plans', path: '/hotel/subscriptions' },
+                ...(featureFlags.userSubscription ? [{ icon: Crown, label: 'Subscription Plans', path: '/hotel/subscriptions' }] : []),
                 { icon: History, label: 'Booking History', path: '/hotel/bookings' },
             ]
         },

@@ -6,6 +6,7 @@ import ZoneSetup from '../pages/ZoneSetup';
 // Lazy load admin pages for code splitting
 const Dashboard = lazy(() => import('../pages/Dashboard'));
 const Settings = lazy(() => import('../pages/Settings'));
+const FeatureSettings = lazy(() => import('../pages/FeatureSettings'));
 const UserCategories = lazy(() => import('../pages/UserCategories'));
 const Users = lazy(() => import('../pages/Users'));
 const Workers = lazy(() => import('../pages/Workers'));
@@ -71,6 +72,7 @@ const HomeServiceAdminRoutes = () => {
         <Route path="estimate-pricing" element={<EstimatePricing />} />
         <Route path="reviews" element={<Reviews />} />
         <Route path="settings/*" element={<Settings />} />
+        <Route path="feature-settings" element={<FeatureSettings />} />
         <Route path="dev-settings" element={<DevSettings />} />
       </Routes>
     </Suspense>

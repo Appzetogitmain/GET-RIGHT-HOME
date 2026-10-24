@@ -15,6 +15,7 @@ import Property from '../models/Property.js';
 import User from '../models/User.js';
 import Partner from '../models/Partner.js';
 import PlatformSettings from '../models/PlatformSettings.js';
+import { getFeatureFlags } from './featureFlags.js';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -109,6 +110,11 @@ export const getListingEligibility = async (user) => {
   if (!SUBSCRIBED_ROLES.includes(role)) {
     // Admins and plain users aren't metered.
     return { found: true, requiresSubscription: false, canSubmit: true, reason: null };
+  }
+
+  // Admin switched Subscription OFF: nobody is metered or asked to subscribe.
+  if ((await getFeatureFlags()).userSubscription === false) {
+    return { found: true, requiresSubscription: false, canSubmit: true, reason: null, subscriptionDisabled: true };
   }
 
   const subject = role === 'partner'
