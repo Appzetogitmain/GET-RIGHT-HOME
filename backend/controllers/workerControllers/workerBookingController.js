@@ -1269,7 +1269,9 @@ const respondToJob = async (req, res) => {
       }
       // Zone + profession are re-checked at accept time: the admin may have
       // changed them after the offer went out.
-      const acceptingFull = await Worker.findById(workerId).select('name zoneIds zones serviceCategories').lean();
+      const acceptingFull = await Worker.findById(workerId)
+        .select('name zoneIds zones serviceCategories professionIds verifiedSkillsDetails')
+        .lean();
       // Admin-assigned jobs were approved by the admin, possibly as an override.
       const ineligible = acceptingFull && !adminOffered && await findWorkerIneligibility(acceptingFull, booking);
       if (ineligible) {

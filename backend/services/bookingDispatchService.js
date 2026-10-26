@@ -96,9 +96,9 @@ const findPartnersForCategory = async (booking, { excludeWorkerIds = [] } = {}) 
 };
 
 /**
- * Hands a slot booking to one specific worker with no accept step: the job is
- * simply theirs, shown in their jobs list. Used by auto-assignment, and by the
- * admin when assigning a slot booking.
+ * Hands a booking to one specific worker with no accept step: the job is
+ * simply theirs, shown in their jobs list. Used by automatic nearest-worker
+ * assignment, and by the admin when assigning a slot booking.
  *
  * Returns the updated booking, or null if it could not be assigned (someone
  * else got there first, or the worker is occupied right now).
@@ -215,12 +215,22 @@ export const directAssign = async (bookingId, workerId, { mode = 'auto', adminId
 };
 
 /**
- * Picks the best available worker for a slot booking (nearest first) and
+ * Picks the best available worker for a booking (nearest first) and
  * assigns it directly. Returns the chosen worker id, or null if nobody could
  * take it. `partners` should already be filtered for availability.
  */
-export const assignSlotAutomatically = async (booking, partners) => {
-  const ranked = [...(partners || [])].sort((a, b) => (a.distance || 0) - (b.distance || 0));
+export const assignBookingAutomatically = async (booking, partners) => {
+  // A worker without a live geo-location is still eligible for their zone, but
+  // must not rank ahead of a worker whose measured distance is greater than 0.
+  const distanceRank = (worker) => {
+    const coords = worker?.geoLocation?.coordinates;
+    const hasLocation = Array.isArray(coords) && coords.length === 2
+      && (Number(coords[0]) !== 0 || Number(coords[1]) !== 0);
+    return hasLocation && Number.isFinite(Number(worker.distance))
+      ? Number(worker.distance)
+      : Number.POSITIVE_INFINITY;
+  };
+  const ranked = [...(partners || [])].sort((a, b) => distanceRank(a) - distanceRank(b));
   for (const partner of ranked) {
     const claimed = await directAssign(booking._id, partner._id, { mode: 'auto' });
     if (claimed) return partner._id;
@@ -242,7 +252,7 @@ export const reassignSlotBooking = async (bookingId, { excludeWorkerIds = [] } =
     .filter((a) => ['cancelled_by_worker', 'unconfirmed', 'rejected'].includes(a.outcome))
     .map((a) => String(a.workerId));
   const partners = await findDispatchPartners(booking, { excludeWorkerIds: [...excludeWorkerIds, ...turnedDown] });
-  const workerId = await assignSlotAutomatically(booking, partners);
+  const workerId = await assignBookingAutomatically(booking, partners);
   if (workerId) return { assigned: true, workerId };
 
   await HomeServiceBooking.updateOne(
@@ -384,8 +394,8 @@ export const splitBookingByCategory = async (bookingId) => {
 
 /**
  * Sends a paid (or free) booking to professionals.
- *   - slot bookings  -> straight to an available worker (no accept popup)
- *   - instant        -> broadcast to every eligible worker in the zone
+ *   - every booking -> straight to the nearest eligible available worker
+ *                     (no accept/reject popup)
  * With nobody available the booking goes to the admin's manual queue.
  */
 export const dispatchBooking = async (bookingId) => {
@@ -437,20 +447,18 @@ export const dispatchBooking = async (bookingId) => {
       return;
     }
 
-    // Slot bookings are not broadcast: the booking goes straight to an available
-    // worker, who sees it in their jobs (no accept popup) and can still reject
-    // it with a reason.
-    if (bookingForBackground.bookingType !== 'instant') {
-      const assignedTo = await assignSlotAutomatically(bookingForBackground, foundPartners);
-      if (assignedTo) {
-        await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
-        sendBookingEmails(bookingForBackground, userForBackground, null, serviceForBackground)
-          .catch(err => console.error('[Dispatch] Email error:', err));
-        return { assigned: true, workerId: assignedTo };
-      }
-      // Nobody could take it — fall through to the manual-assignment queue below.
-      foundPartners = [];
+    // Do not broadcast a job and make multiple workers accept/reject it. This
+    // list already contains only workers whose zone, profession, booking mode
+    // and availability match; atomically assign the nearest one.
+    const assignedTo = await assignBookingAutomatically(bookingForBackground, foundPartners);
+    if (assignedTo) {
+      await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
+      sendBookingEmails(bookingForBackground, userForBackground, null, serviceForBackground)
+        .catch(err => console.error('[Dispatch] Email error:', err));
+      return { assigned: true, workerId: assignedTo };
     }
+    // Nobody could take it — fall through to the manual-assignment queue below.
+    foundPartners = [];
 
     // Partners already found above
     // WAVE-BASED ALERTING: Prioritize actively connected workers (app/dashboard open), then sort by distance
