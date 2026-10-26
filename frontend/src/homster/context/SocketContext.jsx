@@ -528,7 +528,6 @@ export const SocketProvider = ({ children }) => {
           },
           price: data.totalAmount || data.finalAmount || data.price,
           totalAmount: data.totalAmount || data.finalAmount || data.price,
-          workerAmount: data.workerAmount,
           scheduledDate: data.scheduledDate,
           scheduledTime: data.scheduledTime,
           timeSlot: {
@@ -576,7 +575,6 @@ export const SocketProvider = ({ children }) => {
           },
           price: data.totalAmount || data.finalAmount || data.price,
           totalAmount: data.totalAmount || data.finalAmount || data.price,
-          workerAmount: data.workerAmount,
           serviceCategory: data.serviceCategory,
           brandName: data.brandName,
           brandIcon: data.brandIcon,

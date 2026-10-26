@@ -282,7 +282,7 @@ const AssignedJobs = () => {
                             border: '1px solid rgba(59, 130, 246, 0.2)',
                           }}
                         >
-                          ₹{job.workerAmount ?? job.finalAmount}
+                          ₹{Number(job.finalAmount ?? job.totalAmount ?? job.basePrice ?? 0).toLocaleString('en-IN')}
                         </div>
                       )}
                     </div>

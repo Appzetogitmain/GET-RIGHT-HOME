@@ -214,13 +214,13 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
                 );
               })()}
 
-              {/* Payment Info — worker sees their own earning, not the
-                  customer's total bill value. */}
+              {/* Customer-facing booking amount. Net worker payout is credited
+                  separately to the wallet after successful payment. */}
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase">Your Earning</p>
-                  <p className="text-lg font-black text-emerald-600">
-                    ₹{(typeof job?.workerAmount === 'number' ? job.workerAmount : calculateTotal()).toFixed(2)}
+                  <p className="text-xs font-bold text-gray-400 uppercase">Customer Pays</p>
+                  <p className="text-lg font-black text-blue-600">
+                    ₹{calculateTotal().toFixed(2)}
                   </p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-white border border-gray-100 flex items-center justify-center text-green-600 shadow-sm">

@@ -211,7 +211,6 @@ const mapPendingRequestToJob = (data) => ({
   },
   price: data.totalAmount || data.finalAmount || data.price,
   totalAmount: data.totalAmount || data.finalAmount || data.price,
-  workerAmount: data.workerAmount,
   serviceCategory: data.serviceCategory,
   brandName: data.brandName,
   brandIcon: data.brandIcon,

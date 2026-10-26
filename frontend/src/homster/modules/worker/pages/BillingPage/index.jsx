@@ -372,6 +372,7 @@ const BillingPage = () => {
 
     // Worker sees: basePrice - commission = 399 - 10% = 359.10
     const originalBase = isPlanBooking ? 0 : Math.max(0, (Number(job.basePrice) || 0) - originalPlatformFee);
+    const customerServiceBase = isPlanBooking ? 0 : (Number(job.basePrice) || 0);
     // The booking's own tax, exactly as the backend bill uses it (createBill).
     const originalServiceGST = isPlanBooking ? 0 : (Number(job.tax) || 0);
 
@@ -454,6 +455,7 @@ const BillingPage = () => {
 
     return {
       originalBase,
+      customerServiceBase,
       extraServiceBase,
       partsBase: totalPartsBase,
       serviceGstPct,
@@ -908,7 +910,7 @@ const BillingPage = () => {
             <div className="bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-100 mb-6">
               <div className="bg-gray-900 px-6 py-8 text-white">
                 <p className="text-gray-400 text-xs font-medium uppercase tracking-widest mb-4 text-center">
-                  {calculations.isAlreadyPaid ? 'BALANCE TO COLLECT' : 'YOUR EARNINGS'}
+                  {calculations.isAlreadyPaid ? 'BALANCE TO COLLECT' : 'CUSTOMER PAYMENT'}
                 </p>
                 {calculations.isAlreadyPaid ? (
                   // Actionable for the worker — how much cash is still left
@@ -919,8 +921,8 @@ const BillingPage = () => {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center">
-                    <span className="text-gray-400 text-[10px] mb-1">YOU EARN</span>
-                    <span className="text-3xl font-black text-emerald-400">₹{calculations.totalWorkerEarnings.toFixed(2)}</span>
+                    <span className="text-gray-400 text-[10px] mb-1">CUSTOMER PAYS</span>
+                    <span className="text-3xl font-black text-blue-400">₹{calculations.finalBillAmount.toFixed(2)}</span>
                   </div>
                 )}
               </div>
@@ -933,11 +935,7 @@ const BillingPage = () => {
                   <div className="space-y-2 text-sm pl-2">
                     {(() => {
                       const mainServiceTitle = (typeof job?.serviceId === 'object' ? job?.serviceId?.title : null) || job?.serviceName || 'Service';
-                      // Vendor/worker's own price for this line — basePrice
-                      // minus the platform fee, i.e. what the worker actually
-                      // keeps from the service (not the customer-facing full
-                      // price).
-                      const basePriceToDisplay = Math.max(0, calculations.originalBase);
+                      const basePriceToDisplay = Math.max(0, calculations.customerServiceBase);
                       
                       return (
                         <>
@@ -968,13 +966,13 @@ const BillingPage = () => {
                           )}
                           
                           <div className="flex justify-between font-black text-gray-900 border-t border-gray-100 pt-2 mt-2">
-                            <span>Your Earnings</span>
-                            <span>₹{calculations.totalWorkerEarnings.toFixed(2)}</span>
+                            <span>Customer Bill</span>
+                            <span>₹{calculations.finalOnlineAmount.toFixed(2)}</span>
                           </div>
                           
                           {calculations.totalDiscount > 0 && (
                             <div className="flex justify-between text-rose-500 text-sm font-medium">
-                              <span>Subscription Discount (on fee)</span>
+                              <span>Discount</span>
                               <span>-₹{calculations.totalDiscount.toFixed(2)}</span>
                             </div>
                           )}
@@ -985,6 +983,11 @@ const BillingPage = () => {
                               <span>-₹{calculations.prepaidAmount.toFixed(2)}</span>
                             </div>
                           )}
+
+                          <div className="flex justify-between font-black text-blue-700 border-t border-gray-200 pt-2 mt-2">
+                            <span>Amount Due</span>
+                            <span>₹{calculations.finalBillAmount.toFixed(2)}</span>
+                          </div>
 
                         </>
                       );

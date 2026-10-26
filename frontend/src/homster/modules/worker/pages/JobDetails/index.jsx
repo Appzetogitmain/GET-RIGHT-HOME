@@ -21,8 +21,8 @@ import { toast } from 'react-hot-toast';
 import { useAppNotifications } from '../../../../hooks/useAppNotifications';
 import { useLocationTracking } from '../../../../hooks/useLocationTracking';
 
-// Hidden per request — UI only, none of the underlying data/computation
-// (job.workerAmount etc.) was touched. Flip to true to restore the card.
+// Hidden per request. If restored, this card shows only the customer-facing
+// booking amount; worker settlement stays in the wallet.
 const SHOW_PAYMENT_SUMMARY_CARD = false;
 
 const JobDetails = () => {
@@ -654,8 +654,7 @@ const JobDetails = () => {
           </div>
 
           <div className="space-y-3 text-sm">
-            {/* Base Price intentionally not shown to the worker — see
-                "Your Earning" below instead. */}
+            {/* Customer-facing payment breakdown. */}
 
             {job.tax > 0 && (
               <div className="flex justify-between items-center text-gray-600">
@@ -716,15 +715,12 @@ const JobDetails = () => {
 
             <div className="my-4 border-t border-gray-200"></div>
 
-            {/* Workers see their own earning, not the customer's total bill. */}
-            {job.workerAmount !== undefined && (
-              <div className="flex justify-between items-end mb-2">
-                <span className="text-gray-900 font-bold">Your Earning</span>
-                <span className="text-2xl font-bold text-emerald-600">
-                  ₹{job.workerAmount.toFixed(2)}
-                </span>
-              </div>
-            )}
+            <div className="flex justify-between items-end mb-2">
+              <span className="text-gray-900 font-bold">Customer Pays</span>
+              <span className="text-2xl font-bold text-blue-600">
+                ₹{Number(job.finalAmount ?? job.basePrice ?? 0).toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
         )}
