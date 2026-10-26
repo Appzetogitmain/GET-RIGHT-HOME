@@ -330,6 +330,7 @@ const BookingDetails = () => {
       case 'visited': return 'Agent Arrived';
       case 'in_progress': return 'In Progress';
       case 'work_done': return 'Work Done'; // Payment Pending
+      case 'awaiting_payment': return 'Payment Due';
       case 'completed': return 'Completed';
       case 'cancelled': return 'Cancelled';
       case 'requested':
@@ -899,12 +900,19 @@ const BookingDetails = () => {
           )}
 
           {/* Status Badge */}
-          <div className="flex items-center justify-center">
-            <div className={`px-4 py-2 rounded-full flex items-center gap-2 shadow-sm border ${getStatusColor(booking.status)}`}>
-              {getStatusIcon(booking.status)}
-              <span className="text-xs font-black uppercase tracking-wider">{getStatusLabel(booking.status)}</span>
-            </div>
-          </div>
+          {(() => {
+            // Payment is in but the job isn't closed yet (the professional still has to
+            // confirm with the code): say so instead of "Awaiting payment".
+            const paidNotClosed = isPaidStatus && ['work_done', 'awaiting_payment'].includes(booking.status?.toLowerCase());
+            return (
+              <div className="flex items-center justify-center">
+                <div className={`px-4 py-2 rounded-full flex items-center gap-2 shadow-sm border ${paidNotClosed ? 'bg-green-50 text-green-700 border-green-200' : getStatusColor(booking.status)}`}>
+                  {paidNotClosed ? <FiCheckCircle className="w-5 h-5 text-green-600" /> : getStatusIcon(booking.status)}
+                  <span className="text-xs font-black uppercase tracking-wider">{paidNotClosed ? 'Paid · Share Code' : getStatusLabel(booking.status)}</span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Broadcast/Searching State Card */}
           {!booking.workerId && !booking.assignedTo && ['requested', 'searching'].includes(booking.status?.toLowerCase()) && (
@@ -1204,7 +1212,9 @@ const BookingDetails = () => {
                         ? (
                           booking.paymentMethod === 'plan_benefit'
                             ? <p className="font-medium">Covered by your Membership Plan</p>
-                            : <p className="font-medium">Booking completed successfully. Thank you for choosing us!</p>
+                            : (booking.status?.toLowerCase() === 'completed'
+                              ? <p className="font-medium">Booking completed successfully. Thank you for choosing us!</p>
+                              : <p className="font-medium">Payment received. Your booking closes once the professional confirms with the code above.</p>)
                         )
                         : (
                           // Payment mode is online-only — no cash amount to show.

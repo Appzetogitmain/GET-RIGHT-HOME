@@ -115,6 +115,8 @@ const vendorBillSchema = new mongoose.Schema({
   // ==========================================
 
   /** Config snapshot — frozen at bill-generation time */
+  // Full admin / worker split of this bill (see utils/settlement.js)
+  settlement: { type: mongoose.Schema.Types.Mixed, default: null },
   payoutConfig: {
     serviceSplitPercentage: { type: Number, default: 70 },  // vendor gets 70% (legacy vendor-model bookings only)
     partsSplitPercentage: { type: Number, default: 10 },  // vendor gets 10% (legacy vendor-model bookings only)

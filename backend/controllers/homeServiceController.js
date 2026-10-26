@@ -2,6 +2,10 @@ import HomeServiceCategory from '../models/HomeServiceCategory.js';
 import HomeServiceSubCategory from '../models/HomeServiceSubCategory.js';
 import HomeServiceService from '../models/HomeServiceService.js';
 import Zone from '../models/Zone.js';
+import Worker from '../models/Worker.js';
+import Profession from '../models/Profession.js';
+import { workerServesBooking } from '../services/locationService.js';
+import { safeRegex } from '../utils/escapeRegex.js';
 import { normalizeBookingModes } from '../utils/bookingModes.js';
 
 const addAndFilter = (filter, clause) => {
@@ -54,6 +58,41 @@ const zoneClause = (scope) => ({
 
 const zoneCategoryIds = async (scope) => HomeServiceCategory.distinct('_id', zoneClause(scope));
 
+/**
+ * Ids of categories that some approved worker can actually take: in the customer's
+ * zone (when known) and covered by the worker's profession (or, for workers with no
+ * profession, their category list). Showing anything else lets a customer book a
+ * service nobody will ever accept. Returns null to skip the check (customer outside
+ * every zone — they get the "not serviceable" message at booking instead).
+ */
+const categoriesWithWorkers = async (scope) => {
+  if (scope && !scope.zoneId) return null;
+  const workerQuery = { approvalStatus: 'approved', isActive: true };
+  if (scope?.zoneId) {
+    const zone = await Zone.findById(scope.zoneId).select('name').lean();
+    workerQuery.$or = [{ zoneIds: scope.zoneId }, ...(zone ? [{ zones: safeRegex(zone.name, { exact: true }) }] : [])];
+  }
+  const [workers, professions, categories] = await Promise.all([
+    Worker.find(workerQuery).select('serviceCategories professionIds').lean(),
+    Profession.find({ isActive: true }).select('name categoryIds').lean(),
+    HomeServiceCategory.find({ isActive: true }).select('title slug').lean()
+  ]);
+  const ids = new Set();
+  for (const cat of categories) {
+    const filters = { service: cat.title, serviceName: cat.title, slug: cat.slug, categoryId: cat._id };
+    if (workers.some((w) => workerServesBooking(w, filters, professions))) ids.add(String(cat._id));
+  }
+  return ids;
+};
+
+const withWorkerCategories = async (filter, scope, field = '_id') => {
+  // Only for a customer whose location (and so zone) is known. Without it — e.g. the
+  // admin pages, which read the same public endpoints — every category must stay visible.
+  if (!scope) return;
+  const ids = await categoriesWithWorkers(scope);
+  if (ids) addAndFilter(filter, { [field]: { $in: [...ids] } });
+};
+
 // Categories
 export const getCategories = async (req, res) => {
   try {
@@ -82,6 +121,7 @@ export const getPublicCategories = async (req, res) => {
     } else if (cityId) {
       filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
     }
+    await withWorkerCategories(filter, scope, '_id');
     if (bookingMode === 'instant') {
       const legacyInstantCategoryIds = await HomeServiceService.distinct('categoryId', { isActive: true, isInstant: true });
       addAndFilter(filter, { $or: [{ bookingModes: 'instant' }, { _id: { $in: legacyInstantCategoryIds } }] });
@@ -192,6 +232,7 @@ export const getPublicSubCategories = async (req, res) => {
     } else if (cityId) {
       filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
     }
+    await withWorkerCategories(filter, scope, 'categoryId');
     if (bookingMode === 'instant') {
       const legacyInstantSubCategoryIds = await HomeServiceService.distinct('subCategoryId', { isActive: true, isInstant: true });
       addAndFilter(filter, { $or: [{ bookingModes: 'instant' }, { _id: { $in: legacyInstantSubCategoryIds } }] });
@@ -223,6 +264,7 @@ export const getPublicServices = async (req, res) => {
     } else if (cityId) {
       filter.$or = [{ cityIds: cityId }, { cityIds: 'default' }];
     }
+    await withWorkerCategories(filter, scope, 'categoryId');
 
     const services = await HomeServiceService.find(filter).populate('categoryId subCategoryId');
     res.json({ success: true, services });

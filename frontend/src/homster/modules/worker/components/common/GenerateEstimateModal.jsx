@@ -43,8 +43,6 @@ const GenerateEstimateModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
 
   const rule = card?.rule || { advanceType: 'percent', advanceValue: 30 };
   const advance = Math.min(amount, Math.round(rule.advanceType === 'fixed' ? Number(rule.advanceValue) : (amount * Number(rule.advanceValue)) / 100));
-  const commission = Math.round((amount * (card?.commissionPercent ?? 10)) / 100);
-  const yourAdvance = Math.max(0, advance - commission);
 
   const change = (item, delta) => {
     const cur = qty[item.id] || 0;
@@ -155,8 +153,7 @@ const GenerateEstimateModal = ({ isOpen, onClose, bookingId, onSuccess }) => {
                 {gst > 0 && <div className="flex justify-between text-gray-600"><span>GST @ {card.gst.ratePct}%</span><span>{inr(gst)}</span></div>}
                 <div className="flex justify-between"><span className="font-bold text-gray-900">Total estimate</span><span className="text-lg font-extrabold text-gray-900">{inr(amount)}</span></div>
                 <div className="flex justify-between text-xs text-gray-600"><span>Customer pays now ({rule.advanceType === 'fixed' ? 'fixed' : `${rule.advanceValue}%`})</span><span className="font-semibold">{inr(advance)}</span></div>
-                <div className="flex justify-between text-xs text-gray-500"><span>Platform commission on it</span><span>-{inr(commission)}</span></div>
-                <div className="flex justify-between border-t border-dashed border-gray-300 pt-1.5 text-xs font-bold" style={{ color: TEAL }}><span>Your advance share (to wallet)</span><span>{inr(yourAdvance)}</span></div>
+                <div className="flex justify-between border-t border-dashed border-gray-300 pt-1.5 text-xs font-bold" style={{ color: TEAL }}><span>Customer balance after advance</span><span>{inr(Math.max(0, amount - advance))}</span></div>
               </div>
             )}
             <button

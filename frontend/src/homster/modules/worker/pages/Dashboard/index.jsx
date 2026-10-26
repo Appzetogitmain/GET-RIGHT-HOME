@@ -5,7 +5,6 @@ import { FaWallet, FaHourglassHalf } from 'react-icons/fa';
 import { workerTheme as themeColors } from '../../../../theme';
 import Header from '../../components/layout/Header';
 import workerService from '../../../../services/workerService';
-import { registerFCMToken } from '../../../../services/pushNotificationService';
 import { SkeletonProfileHeader, SkeletonDashboardStats, SkeletonList } from '../../../../components/common/SkeletonLoaders';
 import OptimizedImage from '../../../../components/common/OptimizedImage';
 import { useSocket } from '../../../../context/SocketContext';
@@ -21,6 +20,28 @@ const ACHIEVEMENT_ICONS = {
   FiCheckCircle: FiCheckCircle,
   FiTrendingUp: FiTrendingUp,
   FiThumbsUp: FiThumbsUp
+};
+
+const readCachedWorkerProfile = () => {
+  try {
+    const cached = JSON.parse(localStorage.getItem('workerData') || 'null');
+    if (!cached?.id && !cached?._id) return null;
+    return {
+      name: cached.name || 'Worker Name',
+      phone: cached.phone || '',
+      photo: cached.profilePhoto || null,
+      categories: cached.serviceCategories || [],
+      professions: (cached.professions || []).map((p) => typeof p === 'string' ? p : p.name).filter(Boolean),
+      address: cached.address || null,
+      approvalStatus: cached.approvalStatus || 'pending',
+      status: cached.status || 'offline',
+      // Cached identity is enough to paint immediately, but actions which need
+      // fresh approval/status still wait for the profile request below.
+      loaded: false
+    };
+  } catch {
+    return null;
+  }
 };
 
 
@@ -68,9 +89,9 @@ const Dashboard = () => {
     workerReferralBonusReferrer: 0,
     workerReferralCode: null,
   });
-  const [workerProfile, setWorkerProfile] = useState({
+  const [workerProfile, setWorkerProfile] = useState(() => readCachedWorkerProfile() || ({
     name: 'Worker Name',
-    phone: '+91 9876543210',
+    phone: '',
     photo: null,
     categories: [],
     professions: [],
@@ -78,7 +99,7 @@ const Dashboard = () => {
     approvalStatus: 'pending',
     status: 'offline',
     loaded: false
-  });
+  }));
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [emergencyJobs, setEmergencyJobs] = useState([]);
   const [recentJobs, setRecentJobs] = useState([]);
@@ -103,7 +124,9 @@ const Dashboard = () => {
   }, []);
 
 
-  const [loading, setLoading] = useState(true);
+  // A successful login already gives us identity data. Use it for the first
+  // paint instead of showing a full-page skeleton while the network warms up.
+  const [loading, setLoading] = useState(() => !readCachedWorkerProfile());
   const [error, setError] = useState(null);
   const socket = useSocket();
 
@@ -335,16 +358,19 @@ const Dashboard = () => {
   // Fetch Dashboard Data Function
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
+      setError(null);
 
-      // Fetch Profile, Stats, Recent Jobs and Offline Requests in parallel
-      const [profileRes, statsRes, subRes, walletRes, offlineRes] = await Promise.all([
-        workerService.getProfile({ light: 1 }),
-        workerService.getDashboardStats(),
-        workerService.getSubscriptionStatus(),
+      // Start everything together, but only make the first screen wait for the
+      // profile. Stats, wallet, subscription and leave state progressively fill
+      // in afterwards; one slow secondary endpoint must not hold the whole UI.
+      const profileRequest = workerService.getProfile({ light: 1 });
+      const secondaryRequests = Promise.all([
+        workerService.getDashboardStats().catch((err) => { console.error('Dashboard stats failed:', err); return null; }),
+        workerService.getSubscriptionStatus().catch((err) => { console.error('Subscription status failed:', err); return null; }),
         workerWalletService.getWallet().catch(() => null),
         workerService.getActiveOfflineRequest().catch(() => null)
       ]);
+      const profileRes = await profileRequest;
 
       if (profileRes?.success && profileRes?.worker) {
         const profile = profileRes.worker;
@@ -369,7 +395,29 @@ const Dashboard = () => {
         setTodayMarked(profile.todayAvailabilityMarked !== false);
         setTodayPending(!!profile.todayAvailabilityPending);
         localStorage.setItem('workerIsBusy', profile.status === 'busy' ? 'true' : 'false');
+        try {
+          const cached = JSON.parse(localStorage.getItem('workerData') || '{}');
+          localStorage.setItem('workerData', JSON.stringify({
+            ...cached,
+            id: profile.id || profile._id || cached.id,
+            name: profile.name,
+            phone: profile.phone,
+            profilePhoto: profile.profilePhoto,
+            serviceCategories: profile.serviceCategories,
+            professions: profile.professions,
+            address: profile.address,
+            approvalStatus: profile.approvalStatus,
+            status: profile.status
+          }));
+        } catch {
+          // Storage can be unavailable in restricted webviews; live state still works.
+        }
       }
+
+      // The dashboard now has enough data for a useful first paint.
+      setLoading(false);
+
+      const [statsRes, subRes, walletRes, offlineRes] = await secondaryRequests;
 
       // Sync offline request and active leave schedule
       if (offlineRes?.success) {
@@ -382,7 +430,7 @@ const Dashboard = () => {
         if (offlineRes.todayAvailabilityPending !== undefined) setTodayPending(offlineRes.todayAvailabilityPending);
       }
 
-      if (statsRes.success) {
+      if (statsRes?.success) {
         const { totalEarnings, todayEarnings, thisWeekEarnings, thisMonthEarnings, activeJobs, pendingJobs, acceptedJobs, completedJobs, targetCompletedJobs, cancelledJobs, monthlyTarget, monthlyTargetBonus, targetStartDate, targetEndDate, workerAchievements, rating, recentJobs: apiRecentJobs, emergencyJobs: apiEmergencyJobs, workerReferralBonusReferrer, workerReferralCode } = statsRes.data;
         setStats(prev => ({
           ...prev,
@@ -429,7 +477,6 @@ const Dashboard = () => {
         setSubscriptionStatus(subRes.data);
       }
 
-      setLoading(false);
     } catch (err) {
       console.error('Dashboard fetch error:', err);
       setError('Failed to load dashboard data');
@@ -482,9 +529,6 @@ const Dashboard = () => {
   // Load real data from API
   useEffect(() => {
     fetchDashboardData();
-
-    // Ask for notification permission and register FCM
-    registerFCMToken('worker', true).catch(err => console.error('FCM registration failed:', err));
 
     // Listen for updates
     const handleUpdate = () => {

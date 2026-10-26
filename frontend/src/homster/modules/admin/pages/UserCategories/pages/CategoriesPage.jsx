@@ -22,7 +22,9 @@ const categorySchema = z.object({
   bookingModes: z.array(z.enum(['instant', 'slot'])).min(1, 'Select Instant, Slot, or both'),
 });
 
-const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = false }) => {
+// catalogMode: 'instant' | 'slot' (Normal) scopes this page to one booking type; undefined = all.
+const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = false, catalogMode }) => {
+  const modeLabel = catalogMode === 'instant' ? 'Instant' : 'Normal';
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -41,14 +43,17 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
     showOnHome: true,
     isEstimateBased: false,
     page: {},
-    bookingModes: ['slot'],
+    bookingModes: [catalogMode || 'slot'],
   });
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [draggedItem, setDraggedItem] = useState(null);
 
   const allCategories = (catalog.categories || []).sort((a, b) => (a.homeOrder || 0) - (b.homeOrder || 0));
-  const categories = allCategories.filter(c => isDirectFlow ? c.isDirectService : !c.isDirectService);
+  const inMode = (c) => !catalogMode || (c.bookingModes?.length ? c.bookingModes : ['slot']).includes(catalogMode);
+  const categories = allCategories
+    .filter(c => isDirectFlow ? c.isDirectService : !c.isDirectService)
+    .filter(inMode);
 
   const filteredCategories = useMemo(() => {
     return categories.filter(c => {
@@ -146,7 +151,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
         showOnHome: true,
         isEstimateBased: false,
         page: {},
-        bookingModes: ['slot'],
+        bookingModes: [catalogMode || 'slot'],
       });
       return;
     }
@@ -177,7 +182,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
       showOnHome: true,
       isEstimateBased: false,
       page: {},
-      bookingModes: ['slot'],
+      bookingModes: [catalogMode || 'slot'],
     });
     setIsModalOpen(false);
   };
@@ -563,7 +568,8 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
             )}
           </div>
 
-          {/* Booking Type Filter */}
+          {/* Booking Type Filter (not needed once the page is scoped to Instant or Normal) */}
+          {!catalogMode && (
           <div className="flex items-center gap-1.5 min-w-[150px]">
             <span className="text-xs font-bold text-gray-500 whitespace-nowrap">Booking:</span>
             <select
@@ -576,6 +582,7 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
               <option value="instant">Instant</option>
             </select>
           </div>
+          )}
 
           {/* Status Filter */}
           <div className="flex items-center gap-1.5 min-w-[140px]">
@@ -830,31 +837,34 @@ const CategoriesPage = ({ catalog, setCatalog, selectedCity, isDirectFlow = fals
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <label className="block text-base font-bold text-gray-900 mb-1">Booking type</label>
-            <p className="text-xs text-gray-500 mb-3">Choose where this category, its sub-categories and services will appear.</p>
+            <label className="block text-base font-bold text-gray-900 mb-1">Category type</label>
+            <p className="text-xs text-gray-500 mb-3">
+              {catalogMode
+                ? 'Switch the type to move this category (with its sub-categories and services) to the other section.'
+                : 'Where this category, its sub-categories and services will appear for customers.'}
+            </p>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { value: 'instant', label: 'Instant', help: 'ASAP booking' },
-                { value: 'slot', label: 'Slot', help: 'Scheduled booking' }
-              ].map((option) => (
-                <label key={option.value} className={`cursor-pointer rounded-lg border p-3 ${form.bookingModes.includes(option.value) ? 'border-emerald-500 bg-white ring-1 ring-emerald-500' : 'border-gray-200 bg-white'}`}>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={form.bookingModes.includes(option.value)}
-                      onChange={(e) => setForm((previous) => ({
-                        ...previous,
-                        bookingModes: e.target.checked
-                          ? [...new Set([...previous.bookingModes, option.value])]
-                          : previous.bookingModes.filter((mode) => mode !== option.value)
-                      }))}
-                    />
-                    <span className="font-bold text-gray-900">{option.label}</span>
-                  </div>
-                  <span className="ml-6 text-xs text-gray-500">{option.help}</span>
-                </label>
-              ))}
+                { value: 'instant', label: 'Instant', help: 'Booked ASAP, professional arrives in minutes' },
+                { value: 'slot', label: 'Normal', help: 'Customer picks a date and time slot' }
+              ].map((option) => {
+                const selected = form.bookingModes.length === 1 && form.bookingModes[0] === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setForm((previous) => ({ ...previous, bookingModes: [option.value] }))}
+                    className={`text-left rounded-lg border p-3 transition-colors ${selected ? 'border-emerald-500 bg-white ring-1 ring-emerald-500' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                  >
+                    <span className="block font-bold text-gray-900">{option.label}</span>
+                    <span className="block text-xs text-gray-500">{option.help}</span>
+                  </button>
+                );
+              })}
             </div>
+            {!(form.bookingModes.length === 1) && (
+              <p className="mt-2 text-[11px] text-amber-600">This category currently shows in both sections. Pick one to keep it in a single section.</p>
+            )}
           </div>
 
           <div className="flex items-center gap-3 pt-2">

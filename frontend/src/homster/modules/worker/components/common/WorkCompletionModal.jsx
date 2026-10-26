@@ -192,13 +192,35 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
                 </ul>
               </div>
 
-              {/* Payment Info — worker sees their own earning, not the
-                  customer's total bill value. */}
+              {/* What the worker must collect from the customer: the customer's bill
+                  minus the advance already paid online (same rule the payment API uses).
+                  Extra items added in the billing step raise this. */}
+              {(() => {
+                if (!job || job.paymentMethod === 'plan_benefit' || job.isEstimateBased) return null;
+                const num = (v) => Number(v) || 0;
+                const customerBill = Math.max(0, num(job.basePrice) - num(job.discount) - num(job.promoDiscount) - num(job.vipDiscount) + num(job.tax));
+                const advance = Math.max(0, num(job.advancePaid) - num(job.visitingCharges) - num(job.penalty));
+                const collect = Math.max(0, customerBill - advance);
+                return (
+                  <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                    <p className="text-xs font-bold text-blue-500 uppercase">Collect from customer</p>
+                    <p className="text-2xl font-black text-blue-700">₹{collect.toFixed(2)}</p>
+                    <p className="text-[11px] text-blue-600/80 mt-1">
+                      {advance > 0
+                        ? `Customer already paid ₹${advance.toFixed(2)} online. Extra items you add will increase this.`
+                        : 'Extra items you add will increase this.'}
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {/* Customer-facing booking amount. Net worker payout is credited
+                  separately to the wallet after successful payment. */}
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase">Your Earning</p>
-                  <p className="text-lg font-black text-emerald-600">
-                    ₹{(typeof job?.workerAmount === 'number' ? job.workerAmount : calculateTotal()).toFixed(2)}
+                  <p className="text-xs font-bold text-gray-400 uppercase">Customer Pays</p>
+                  <p className="text-lg font-black text-blue-600">
+                    ₹{calculateTotal().toFixed(2)}
                   </p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-white border border-gray-100 flex items-center justify-center text-green-600 shadow-sm">

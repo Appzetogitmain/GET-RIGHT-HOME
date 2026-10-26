@@ -9,6 +9,8 @@ import VendorBill from '../models/VendorBill.js';
 import { createNotification } from './notificationControllers/notificationController.js';
 import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
 import { findWorkerIneligibility } from '../services/locationService.js';
+import { computeSplit, splitConfig } from '../utils/settlement.js';
+import { creditedAdvance } from '../utils/vipAndAdvance.js';
 import { safeRegex } from '../utils/escapeRegex.js';
 import { findWorkerConflict, findWorkerUnavailability, getBufferMinutes, describeConflict } from '../utils/slotAvailability.js';
 import BookingRequest from '../models/HomeServiceBookingRequest.js';
@@ -388,7 +390,9 @@ export const getWorkerDetails = async (req, res) => {
       .populate('subscription.planId', 'title price durationDays features')
       .lean();
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
-    res.json({ success: true, data: worker, worker });
+    // Sent once under `data`: the same worker also under `worker` doubled a payload that
+    // carries multi-MB document scans (the admin page reads `res.data || res.worker`).
+    res.json({ success: true, data: worker });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -407,6 +411,17 @@ export const approveWorker = async (req, res) => {
       worker.pendingServiceCategories = [];
     }
     await worker.save();
+
+    await createNotification({
+      workerId: worker._id,
+      type: 'account_approved',
+      title: 'Account Approved',
+      message: 'Your expert account has been approved. You can now go online and receive orders.',
+      relatedId: worker._id,
+      relatedType: 'worker',
+      priority: 'high',
+      pushData: { type: 'account_approved', link: '/worker/dashboard' }
+    }).catch((error) => console.error('Worker approval notification failed:', error));
 
     // Process Referral Bonus
     if (worker.referredBy && !worker.referralBonusCredited) {
@@ -438,13 +453,14 @@ export const approveWorker = async (req, res) => {
             });
 
             await createNotification({
-              userId: referrer._id,
-              type: 'wallet_credit',
+              workerId: referrer._id,
+              type: 'referral_bonus',
               title: 'Referral Bonus! 🎉',
               message: `You received ₹${bonusReferrer} for referring ${worker.name}.`,
               relatedId: referrer._id,
               relatedType: 'wallet',
-              priority: 'high'
+              priority: 'high',
+              pushData: { type: 'referral_bonus', link: '/worker/wallet' }
             }).catch(e => console.error(e));
           }
 
@@ -467,13 +483,14 @@ export const approveWorker = async (req, res) => {
             });
 
             await createNotification({
-              userId: worker._id,
-              type: 'wallet_credit',
+              workerId: worker._id,
+              type: 'referral_bonus',
               title: 'Welcome Bonus! 🎉',
               message: `You received ₹${bonusReferee} referral bonus for joining via ${referrer.name}.`,
               relatedId: worker._id,
               relatedType: 'wallet',
-              priority: 'high'
+              priority: 'high',
+              pushData: { type: 'referral_bonus', link: '/worker/wallet' }
             }).catch(e => console.error(e));
           }
         }
@@ -498,6 +515,16 @@ export const rejectWorker = async (req, res) => {
       { new: true }
     );
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
+    await createNotification({
+      workerId: worker._id,
+      type: 'account_rejected',
+      title: 'Account Verification Update',
+      message: 'Your expert account verification was not approved. Please contact support for details.',
+      relatedId: worker._id,
+      relatedType: 'worker',
+      priority: 'high',
+      pushData: { type: 'account_rejected', link: '/worker/support' }
+    }).catch((error) => console.error('Worker rejection notification failed:', error));
     res.json({ success: true, message: 'Worker rejected successfully', worker });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -512,6 +539,16 @@ export const suspendWorker = async (req, res) => {
       { new: true }
     );
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
+    await createNotification({
+      workerId: worker._id,
+      type: 'account_suspended',
+      title: 'Account Suspended',
+      message: 'Your expert account has been suspended. Please contact support for assistance.',
+      relatedId: worker._id,
+      relatedType: 'worker',
+      priority: 'high',
+      pushData: { type: 'account_suspended', link: '/worker/support' }
+    }).catch((error) => console.error('Worker suspension notification failed:', error));
     res.json({ success: true, message: 'Worker suspended successfully', worker });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -527,6 +564,18 @@ export const toggleStatus = async (req, res) => {
       { new: true }
     );
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
+    await createNotification({
+      workerId: worker._id,
+      type: isActive ? 'account_activated' : 'account_deactivated',
+      title: isActive ? 'Account Activated' : 'Account Deactivated',
+      message: isActive
+        ? 'Your expert account has been activated.'
+        : 'Your expert account has been deactivated. Please contact support for assistance.',
+      relatedId: worker._id,
+      relatedType: 'worker',
+      priority: 'high',
+      pushData: { type: isActive ? 'account_activated' : 'account_deactivated', link: '/worker/support' }
+    }).catch((error) => console.error('Worker status notification failed:', error));
     res.json({ success: true, message: `Worker ${isActive ? 'activated' : 'deactivated'} successfully`, worker });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -667,6 +716,79 @@ export const getAllJobs = async (req, res) => {
   }
 };
 
+/**
+ * Money picture of one booking for the admin: what the customer paid, and who gets
+ * what. Uses the split frozen on the bill when there is one, otherwise an estimate
+ * from today's settings (flagged `estimated`).
+ */
+const buildBookingFinancials = async (booking, bill) => {
+  const n = (v) => Number(v) || 0;
+  const r = (v) => Math.round(n(v) * 100) / 100;
+  const platform = await PlatformSettings.getSettings();
+
+  const discounts = { offer: n(booking.discount), promo: n(booking.promoDiscount), vip: n(booking.vipDiscount) };
+  const totalDiscount = discounts.offer + discounts.promo + discounts.vip;
+  const settlement = bill?.settlement || computeSplit({
+    price: n(booking.basePrice),
+    discount: totalDiscount,
+    config: splitConfig(platform, booking.isEstimateBased ? 0 : booking.moverDetails?.commissionPercent)
+  });
+
+  const extras = bill ? {
+    services: r(n(bill.totalServiceValue) + n(bill.totalServiceGST)),
+    parts: r(n(bill.totalPartsValue) + n(bill.totalPartsGST)),
+    transport: r(bill.transportCharges)
+  } : { services: 0, parts: 0, transport: 0 };
+  // grandTotal = worker's base + base GST + everything the worker added, so it is the
+  // reliable total even for older bills whose per-type fields were never filled in.
+  const extrasFromBill = bill ? Math.max(0, n(bill.grandTotal) - n(bill.originalServiceBase) - n(bill.originalGST)) : 0;
+  const extrasTotal = r(Math.max(extras.services + extras.parts + extras.transport, extrasFromBill));
+  const tip = n(booking.tipAmount);
+
+  const billTotal = n(bill?.finalOnlineAmount) || n(booking.finalOnlineAmount) || n(booking.finalAmount);
+  const paidOnline = n(booking.advancePaid);
+  const isPaid = ['paid', 'collected_by_vendor', 'plan_covered'].includes(booking.paymentStatus);
+  const credited = creditedAdvance(booking);
+
+  return {
+    estimated: !bill?.settlement,
+    customer: {
+      servicePrice: r(booking.basePrice),
+      discounts,
+      totalDiscount: r(totalDiscount),
+      extras,
+      tax: r(booking.tax),
+      visitingCharges: r(booking.visitingCharges),
+      tip: r(tip),
+      billTotal: r(billTotal),
+      advancePaid: r(paidOnline),
+      balanceDue: isPaid ? 0 : r(Math.max(0, billTotal - credited)),
+      paymentStatus: booking.paymentStatus,
+      paymentMethod: booking.paymentMethod
+    },
+    settlement,
+    admin: {
+      share: settlement.adminShare,
+      discountFromAdmin: settlement.discountFromAdmin,
+      gst: settlement.gst,
+      netProfit: settlement.adminNet,
+      platformCommission: settlement.platformCommission,
+      totalIncome: settlement.adminTotalIncome
+    },
+    worker: {
+      share: settlement.workerShare,
+      sgst: settlement.sgst,
+      cgst: settlement.cgst,
+      platformCommission: settlement.platformCommission,
+      netForService: settlement.workerNet,
+      extras: extrasTotal,
+      tip: r(tip),
+      totalEarning: r(settlement.workerNet + extrasTotal + tip)
+    },
+    taxesPayable: settlement.taxesPayable
+  };
+};
+
 export const getJobById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -677,6 +799,8 @@ export const getJobById = async (req, res) => {
       .populate('categoryId', 'title slug')
       .populate('workerId', 'name phone rating totalJobs location profilePhoto')
       .populate('zoneId', 'name status')
+      // Work photos are base64 (MBs); the admin detail page doesn't need them inline.
+      .select('-workPhotos')
       .lean();
 
     if (!booking) {
@@ -687,10 +811,12 @@ export const getJobById = async (req, res) => {
       booking.zoneName = booking.zoneId?.name || booking.address?.city || null;
     }
 
-    const bill = await VendorBill.findOne({ bookingId: booking._id });
+    const bill = await VendorBill.findOne({ bookingId: booking._id }).lean();
     if (bill) {
       booking.bill = bill;
     }
+
+    booking.financials = await buildBookingFinancials(booking, bill);
 
     res.json({ success: true, data: booking });
   } catch (error) {
@@ -890,142 +1016,153 @@ export const getWorkerWithdrawals = async (req, res) => {
 
     const withdrawals = await Withdrawal.find(query)
       .populate('workerId', 'name phone email wallet')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
-    res.json({ success: true, data: withdrawals });
+    res.json({
+      success: true,
+      data: withdrawals.map((w) => ({
+        ...w,
+        utrNumber: w.processingDetails?.utrNumber || null,
+        rejectionReason: w.status === 'failed' ? (w.processingDetails?.remarks || null) : null
+      }))
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
+// Withdrawal flow: pending (worker asked) -> processing (admin approved, paying) ->
+// completed (admin paid and recorded the UTR) | failed (rejected, amount refunded).
+const notifyWorker = (workerId, type, title, message, withdrawalId) => createNotification({
+  workerId,
+  type,
+  title,
+  message,
+  relatedId: withdrawalId,
+  relatedType: 'withdrawal',
+  priority: 'high',
+  pushData: { type: 'withdrawal', withdrawalId: String(withdrawalId), link: '/worker/wallet' }
+}).catch((err) => console.error('Withdrawal notification failed:', err.message));
+
+/** Step 1: admin accepts the request and will pay it. Nothing is marked paid yet. */
 export const approveWorkerWithdrawal = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { utrNumber, remarks } = req.body || {};
-
-    const withdrawal = await Withdrawal.findById(id).populate('workerId');
-    if (!withdrawal) {
-      return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
-    }
-
-    if (withdrawal.status !== 'pending') {
-      return res.status(400).json({ success: false, message: `Cannot approve ${withdrawal.status} withdrawal` });
-    }
-
-    // Mark withdrawal as completed
-    const updatedWithdrawal = await Withdrawal.findByIdAndUpdate(
-      id,
-      {
-        $set: {
-          status: 'completed',
-          processingDetails: {
-            ...withdrawal.processingDetails,
-            completedAt: new Date(),
-            processedAt: new Date(),
-            utrNumber,
-            remarks
-          }
-        }
-      },
+    const withdrawal = await Withdrawal.findOneAndUpdate(
+      { _id: req.params.id, status: 'pending' },
+      { $set: { status: 'processing', 'processingDetails.initiatedAt': new Date() } },
       { new: true }
     );
-
-    // Update worker's total withdrawn
-    if (withdrawal.workerId && withdrawal.workerId._id) {
-      const worker = withdrawal.workerId;
-      await Worker.findByIdAndUpdate(
-        worker._id,
-        {
-          $inc: { 'wallet.totalWithdrawn': withdrawal.amount }
-        }
-      );
-
-      // Create transaction record
-      await Transaction.create({
-        workerId: worker._id,
-        amount: withdrawal.amount,
-        type: 'debit',
-        category: 'withdrawal',
-        balanceAfter: worker.wallet ? worker.wallet.balance : 0,
-        status: 'completed',
-        description: remarks || `Withdrawal Approved (UTR: ${utrNumber || 'N/A'})`
-      });
-
-      // Notify Worker
-      await createNotification({
-        workerId: worker._id,
-        type: 'withdrawal_approved',
-        title: 'Withdrawal Approved ✅',
-        message: `Your withdrawal request for ₹${withdrawal.amount} has been approved. UTR: ${utrNumber || 'N/A'}`,
-        relatedId: withdrawal._id,
-        relatedType: 'withdrawal',
-        priority: 'high',
-        pushData: { type: 'withdrawal', withdrawalId: withdrawal._id.toString(), link: '/worker/wallet' }
+    if (!withdrawal) {
+      const existing = await Withdrawal.findById(req.params.id).select('status');
+      return res.status(existing ? 400 : 404).json({
+        success: false,
+        message: existing ? `Cannot approve a ${existing.status} withdrawal` : 'Withdrawal request not found'
       });
     }
-
-    res.json({ success: true, message: 'Withdrawal approved successfully', data: updatedWithdrawal });
+    await Transaction.updateOne(
+      { reference: String(withdrawal._id), category: 'withdrawal' },
+      { $set: { status: 'processing', description: 'Withdrawal approved - admin is paying you' } }
+    );
+    await notifyWorker(withdrawal.workerId, 'withdrawal_approved', 'Withdrawal Approved ✅',
+      `Your withdrawal of ₹${withdrawal.amount} is approved. The money will be sent to you shortly.`, withdrawal._id);
+    res.json({ success: true, message: 'Approved. Pay the worker, then mark it as paid with the UTR.', data: withdrawal });
   } catch (error) {
     console.error('Approve Withdrawal Error:', error);
     res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
   }
 };
 
-export const rejectWorkerWithdrawal = async (req, res) => {
+/** Step 2: admin has actually paid the worker. A UTR / reference is mandatory. */
+export const completeWorkerWithdrawal = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { remarks } = req.body || {};
-
-    const withdrawal = await Withdrawal.findById(id).populate('workerId');
-    if (!withdrawal) {
-      return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+    const utrNumber = String(req.body?.utrNumber || '').trim();
+    const remarks = String(req.body?.remarks || '').trim();
+    if (utrNumber.length < 6) {
+      return res.status(400).json({ success: false, message: 'Enter the UTR / transaction reference of the payment you made (at least 6 characters).' });
     }
 
-    if (withdrawal.status !== 'pending') {
-      return res.status(400).json({ success: false, message: `Cannot reject ${withdrawal.status} withdrawal` });
-    }
-
-    // Mark as rejected
-    const updatedWithdrawal = await Withdrawal.findByIdAndUpdate(
-      id,
+    const withdrawal = await Withdrawal.findOneAndUpdate(
+      { _id: req.params.id, status: 'processing' },
       {
         $set: {
-          status: 'failed',
-          processingDetails: {
-            ...withdrawal.processingDetails,
-            failedAt: new Date(),
-            processedAt: new Date(),
-            remarks: remarks || 'Rejected by admin'
-          }
+          status: 'completed',
+          'processingDetails.utrNumber': utrNumber,
+          'processingDetails.remarks': remarks || undefined,
+          'processingDetails.processedAt': new Date(),
+          'processingDetails.completedAt': new Date()
         }
       },
       { new: true }
     );
-
-    // Refund the amount back to worker's balance!
-    if (withdrawal.workerId && withdrawal.workerId._id) {
-      const worker = withdrawal.workerId;
-      await Worker.findByIdAndUpdate(
-        worker._id,
-        {
-          $inc: { 'wallet.balance': withdrawal.amount }
-        }
-      );
-
-      // Notify Worker
-      await createNotification({
-        workerId: worker._id,
-        type: 'withdrawal_rejected',
-        title: 'Withdrawal Rejected ❌',
-        message: `Your withdrawal request for ₹${withdrawal.amount} was rejected. Amount has been refunded.`,
-        relatedId: withdrawal._id,
-        relatedType: 'withdrawal',
-        priority: 'high',
-        pushData: { type: 'withdrawal', withdrawalId: withdrawal._id.toString(), link: '/worker/wallet' }
+    if (!withdrawal) {
+      const existing = await Withdrawal.findById(req.params.id).select('status');
+      return res.status(existing ? 400 : 404).json({
+        success: false,
+        message: !existing ? 'Withdrawal request not found'
+          : existing.status === 'pending' ? 'Approve the request first, then mark it paid.'
+            : `This withdrawal is already ${existing.status}.`
       });
     }
 
-    res.json({ success: true, message: 'Withdrawal rejected and amount refunded', data: updatedWithdrawal });
+    await Worker.updateOne({ _id: withdrawal.workerId }, { $inc: { 'wallet.totalWithdrawn': withdrawal.amount } });
+    await Transaction.updateOne(
+      { reference: String(withdrawal._id), category: 'withdrawal' },
+      { $set: { status: 'completed', description: `Withdrawal paid (UTR: ${utrNumber})`, 'metadata.bankTransferUTR': utrNumber } }
+    );
+    await notifyWorker(withdrawal.workerId, 'withdrawal_completed', 'Withdrawal Paid 💸',
+      `₹${withdrawal.amount} has been sent to you. UTR: ${utrNumber}`, withdrawal._id);
+    res.json({ success: true, message: 'Marked as paid', data: withdrawal });
+  } catch (error) {
+    console.error('Complete Withdrawal Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+  }
+};
+
+/** Admin declines (before or while paying). The held amount goes back to the wallet. */
+export const rejectWorkerWithdrawal = async (req, res) => {
+  try {
+    const reason = String(req.body?.reason || req.body?.remarks || '').trim();
+    if (!reason) {
+      return res.status(400).json({ success: false, message: 'A rejection reason is required' });
+    }
+
+    const withdrawal = await Withdrawal.findOneAndUpdate(
+      { _id: req.params.id, status: { $in: ['pending', 'processing'] } },
+      { $set: { status: 'failed', 'processingDetails.failedAt': new Date(), 'processingDetails.processedAt': new Date(), 'processingDetails.remarks': reason } },
+      { new: true }
+    );
+    if (!withdrawal) {
+      const existing = await Withdrawal.findById(req.params.id).select('status');
+      return res.status(existing ? 400 : 404).json({
+        success: false,
+        message: existing ? `Cannot reject a ${existing.status} withdrawal` : 'Withdrawal request not found'
+      });
+    }
+
+    const refunded = await Worker.findByIdAndUpdate(
+      withdrawal.workerId,
+      { $inc: { 'wallet.balance': withdrawal.amount } },
+      { new: true }
+    ).select('wallet.balance');
+    await Transaction.updateOne(
+      { reference: String(withdrawal._id), category: 'withdrawal' },
+      { $set: { status: 'cancelled', description: `Withdrawal rejected: ${reason}` } }
+    );
+    await Transaction.create({
+      workerId: withdrawal.workerId,
+      type: 'credit',
+      category: 'refund',
+      amount: withdrawal.amount,
+      balanceAfter: refunded?.wallet?.balance ?? 0,
+      status: 'completed',
+      reference: String(withdrawal._id),
+      description: 'Withdrawal rejected - amount returned to your wallet',
+      metadata: { withdrawalId: String(withdrawal._id) }
+    });
+    await notifyWorker(withdrawal.workerId, 'withdrawal_rejected', 'Withdrawal Rejected ❌',
+      `Your withdrawal of ₹${withdrawal.amount} was rejected: ${reason}. The amount is back in your wallet.`, withdrawal._id);
+    res.json({ success: true, message: 'Withdrawal rejected and amount refunded', data: withdrawal });
   } catch (error) {
     console.error('Reject Withdrawal Error:', error);
     res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
@@ -1555,7 +1692,6 @@ export const approveWorkerSkill = async (req, res) => {
     // Notify Worker
     if (approvedList.length > 0) {
       await createNotification({
-        userId: worker._id,
         workerId: worker._id,
         type: 'skill_approved',
         title: 'Skill Verified! 🎉',
@@ -1629,7 +1765,6 @@ export const rejectWorkerSkill = async (req, res) => {
 
     // Notify Worker
     await createNotification({
-      userId: worker._id,
       workerId: worker._id,
       type: 'skill_rejected',
       title: 'Skill Verification Update',

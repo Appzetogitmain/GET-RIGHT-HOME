@@ -69,6 +69,7 @@ import {
   getWorkerAnalytics,
   getWorkerWithdrawals,
   approveWorkerWithdrawal,
+  completeWorkerWithdrawal,
   rejectWorkerWithdrawal
 } from '../controllers/adminWorkerController.js';
 import { getHomePageConfig, updateHomePageConfig } from '../controllers/homePageConfigController.js';
@@ -211,6 +212,7 @@ router.get('/reports/workers', checkManagerPermission('dashboard', 'view'), getW
 // Worker Withdrawals
 router.get('/worker-withdrawals', checkManagerPermission('finance', 'view'), getWorkerWithdrawals);
 router.put('/worker-withdrawals/:id/approve', checkManagerPermission('finance', 'edit'), approveWorkerWithdrawal);
+router.put('/worker-withdrawals/:id/complete', checkManagerPermission('finance', 'edit'), completeWorkerWithdrawal);
 router.put('/worker-withdrawals/:id/reject', checkManagerPermission('finance', 'edit'), rejectWorkerWithdrawal);
 
 // Password Management

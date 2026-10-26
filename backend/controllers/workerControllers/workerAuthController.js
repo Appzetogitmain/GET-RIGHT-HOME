@@ -5,12 +5,14 @@ import { getIO } from '../../sockets.js';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 import Profession from '../../models/Profession.js';
+import cloudinaryService from '../../services/cloudinaryService.js';
 import { validProfessionIds } from '../professionController.js';
+import { createNotification } from '../notificationControllers/notificationController.js';
 
 // Stubs for services not yet configured in Hoomzo
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 const hashOTP = (otp) => otp;
-const storeOTP = async () => {};
+const storeOTP = async () => { };
 const verifyOTP = async (phone, otp) => {
   const defaultOtp = process.env.DEFAULT_OTP || '123456';
   if (otp === defaultOtp) return { success: true };
@@ -27,7 +29,8 @@ const verifyRefreshToken = (token) => {
 const generateVerificationToken = (phone) => Buffer.from(phone).toString('base64');
 const verifyVerificationToken = (token) => { try { return Buffer.from(token, 'base64').toString(); } catch { return null; } };
 const sendSMSOTP = async (phone, otp) => { console.log(`[SMS Stub] OTP ${otp} for ${phone}`); return { success: true }; };
-const cloudinaryService = { uploadFile: async () => ({ success: false }) };
+// Real uploader: the old stub always failed, so Aadhar/PAN/licence scans were stored
+// as multi-MB base64 inside the worker document.
 const USER_ROLES = { WORKER: 'worker' };
 const WORKER_STATUS = { OFFLINE: 'offline' };
 
@@ -54,8 +57,8 @@ const sendOTP = async (req, res) => {
         return res.status(403).json({ success: false, message: 'Account deactivated.' });
       }
       if (worker.approvalStatus === 'pending') {
-        return res.status(403).json({ 
-          success: false, 
+        return res.status(403).json({
+          success: false,
           message: 'Your account is pending admin approval.',
           pendingApproval: true
         });
@@ -147,7 +150,7 @@ const verifyLogin = async (req, res) => {
 
       // SINGLE DEVICE LOGIN: Update Session ID & Clear OLD FCM tokens
       const loginSessionId = Date.now().toString();
-      await Worker.findByIdAndUpdate(worker._id, { 
+      await Worker.findByIdAndUpdate(worker._id, {
         loginSessionId,
         $set: { fcmTokens: [], fcmTokenMobile: [] } // Clear all old tokens
       });
@@ -210,8 +213,8 @@ const register = async (req, res) => {
     }
 
     // verificationToken handling
-    const { 
-      name, email, verificationToken, 
+    const {
+      name, email, verificationToken,
       aadharNumber, aadharDocument, aadharBackDocument,
       panCardNumber, panCardDocument,
       drivingLicenseNumber, drivingLicenseDocument
@@ -326,70 +329,17 @@ const register = async (req, res) => {
       approvalStatus: 'pending'
     });
 
-    // Notify all Admins about new worker registration (In-App + Push Notification)
-    try {
-      const admins = await Admin.find({
-        role: { $in: ['admin', 'superadmin', 'super_admin'] },
-        isActive: { $ne: false }
-      });
-
-      const notifTitle = '👷 New Worker Registered';
-      const notifBody = `${worker.name} (${worker.phone}) has registered and is awaiting approval.`;
-
-      // 1. In-App Notification & Push Notification via Firebase for each active Admin
-      await Promise.allSettled(
-        admins.map(admin =>
-          createNotification({
-            userId: admin._id,
-            userType: 'admin',
-            userModel: 'Admin',
-            type: 'worker_registration',
-            title: notifTitle,
-            body: notifBody,
-            priority: 'high',
-            data: {
-              type: 'worker_registration',
-              workerId: String(worker._id),
-              name: worker.name,
-              phone: worker.phone,
-              email: worker.email || '',
-              approvalStatus: worker.approvalStatus,
-              click_action: '/admin/workers',
-              link: '/admin/workers'
-            },
-            pushData: {
-              type: 'worker_registration',
-              workerId: String(worker._id),
-              click_action: '/admin/workers',
-              link: '/admin/workers'
-            }
-          })
-        )
-      );
-
-      // 2. Real-time broadcast to admin room via Socket.IO
-      const io = getIO();
-      if (io) {
-        io.to('admin_room').emit('new_worker_registered', {
-          workerId: String(worker._id),
-          name: worker.name,
-          phone: worker.phone,
-          email: worker.email,
-          approvalStatus: worker.approvalStatus,
-          createdAt: worker.createdAt
-        });
-        io.to('admin_room').emit('notification', {
-          title: notifTitle,
-          body: notifBody,
-          message: notifBody,
-          type: 'worker_registration',
-          workerId: String(worker._id),
-          click_action: '/admin/workers',
-          createdAt: new Date().toISOString()
-        });
-      }
-    } catch (notifErr) {
-      console.error('Error notifying admins about worker registration:', notifErr);
+    if (referredById) {
+      await createNotification({
+        workerId: referredById,
+        type: 'referral_signup',
+        title: 'New Expert Referral',
+        message: `${worker.name} registered using your referral code. We will notify you when the referral bonus is credited.`,
+        relatedId: worker._id,
+        relatedType: 'referral',
+        priority: 'high',
+        pushData: { type: 'referral_signup', referralWorkerId: worker._id.toString(), link: '/worker/referrals' }
+      }).catch((error) => console.error('Worker referral notification failed:', error));
     }
 
     res.status(201).json({
@@ -463,7 +413,7 @@ const login = async (req, res) => {
     }
 
     const loginSessionId = Date.now().toString();
-    await Worker.findByIdAndUpdate(worker._id, { 
+    await Worker.findByIdAndUpdate(worker._id, {
       loginSessionId,
       $set: { fcmTokens: [], fcmTokenMobile: [] } // Clear all old tokens
     });
@@ -593,14 +543,14 @@ const refreshToken = async (req, res) => {
   }
 };
 
-export { 
+export {
   sendOTP,
   verifyLogin,
   register,
   login,
   logout,
   refreshToken
- };
+};
 
 // @desc    Check a referral code (public) so the signup form can flag a wrong one
 //          before any OTP is sent.

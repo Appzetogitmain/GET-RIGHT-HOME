@@ -4,7 +4,6 @@ import { io } from 'socket.io-client';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { playNotificationSound, isSoundEnabled, playAlertRing, stopAlertRing, playApprovalSuccessSound, playRejectionSound, playAdminOfflineAlertSound, playManualAssignmentAlertSound } from '../utils/notificationSound';
-import { registerFCMToken, setupForegroundNotificationHandler } from '../services/pushNotificationService';
 
 const SwipeableNotification = ({ t, data, onClick }) => {
   const x = useMotionValue(0);
@@ -160,19 +159,20 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('connect', () => {
       console.log(`✅ [Socket] ${userType?.toUpperCase()} connected → socket.id: ${newSocket.id}`);
       
-      // Register FCM token for push notifications (on page load/refresh)
+      // Register FCM token for push notifications (on page load/refresh).
+      // Firebase is sizeable and is not needed to paint the app, so defer it
+      // until the socket is connected instead of putting it on the load path.
       if (userType && (token || hasUserAuth)) {
-        // Setup foreground notification listener
-        setupForegroundNotificationHandler((payload) => {
-          // Play sound and show notification (handled internally by the service)
-        });
-
-        registerFCMToken(userType, true).then((fcmToken) => {
-          if (fcmToken) {
-            console.log(`[Socket] ✅ FCM token registered for ${userType}`);
-          }
-        }).catch((err) => {
-          // silent
+        import('../services/pushNotificationService').then(({
+          registerFCMToken,
+          setupForegroundNotificationHandler
+        }) => {
+          setupForegroundNotificationHandler(() => {});
+          return registerFCMToken(userType, true);
+        }).then((fcmToken) => {
+          if (fcmToken) console.log(`[Socket] ✅ FCM token registered for ${userType}`);
+        }).catch(() => {
+          // Push registration is best-effort and must never block app startup.
         });
       }
 
@@ -545,7 +545,6 @@ export const SocketProvider = ({ children }) => {
           },
           price: data.totalAmount || data.finalAmount || data.price,
           totalAmount: data.totalAmount || data.finalAmount || data.price,
-          workerAmount: data.workerAmount,
           scheduledDate: data.scheduledDate,
           scheduledTime: data.scheduledTime,
           timeSlot: {
@@ -593,7 +592,6 @@ export const SocketProvider = ({ children }) => {
           },
           price: data.totalAmount || data.finalAmount || data.price,
           totalAmount: data.totalAmount || data.finalAmount || data.price,
-          workerAmount: data.workerAmount,
           serviceCategory: data.serviceCategory,
           brandName: data.brandName,
           brandIcon: data.brandIcon,

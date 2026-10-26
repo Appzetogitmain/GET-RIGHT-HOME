@@ -26,6 +26,8 @@ import {
 import { supportsBookingMode } from '../../utils/bookingModes.js';
 import { findWorkerIneligibility } from '../../services/locationService.js';
 import { creditedAdvance } from '../../utils/vipAndAdvance.js';
+import { offloadImages } from '../../utils/imageStorage.js';
+import { computeSplit, splitConfig } from '../../utils/settlement.js';
 import { sanitizeBookingForHelper, sanitizeBookingForLead } from '../../services/helperPayoutService.js';
 
 /**
@@ -93,18 +95,8 @@ const getAssignedJobs = async (req, res) => {
     // Get total count
     const total = await HomeServiceBooking.countDocuments(query);
 
-    // This list showed the raw booking `finalAmount` — the customer's full
-    // bill — as if it were what the worker earns, which overstates it by
-    // the platform's commission cut. Every other worker-facing screen
-    // (job-alert preview, pending-requests list, createBill) already shows
-    // the commission-adjusted amount; this was the one place still showing
-    // the customer's number instead of the worker's own.
-    const platformSettings = await PlatformSettings.getSettings();
-    const commissionPercentage = platformSettings?.defaultCommission ?? 10;
-    const bookingIds = bookings.map(b => b._id);
-    const bills = await VendorBill.find({ bookingId: { $in: bookingIds } }).select('bookingId vendorTotalEarning').lean();
-    const billByBookingId = new Map(bills.map(b => [String(b.bookingId), b]));
-
+    // Worker booking screens show the customer-facing amount. Net payout is
+    // deliberately kept in the settlement/wallet flow.
     // Lead workers of the jobs where I only help (to show who I'm working with).
     const leadIds = [...new Set(bookings.filter(b => String(b.workerId || '') !== String(workerId)).map(b => String(b.workerId)))];
     const leads = leadIds.length
@@ -112,7 +104,7 @@ const getAssignedJobs = async (req, res) => {
       : [];
     const leadById = new Map(leads.map(l => [String(l._id), l]));
 
-    const bookingsWithWorkerAmount = bookings.map(b => {
+    const workerBookings = bookings.map(b => {
       // Helper view: no money anywhere, read-only.
       if (String(b.workerId || '') !== String(workerId)) {
         const asHelper = b.toObject();
@@ -120,20 +112,15 @@ const getAssignedJobs = async (req, res) => {
         return sanitizeBookingForHelper(asHelper, workerId);
       }
       const obj = b.toObject();
-      const bill = billByBookingId.get(String(b._id));
-      // A finalized bill (job billed/completed) is the real, authoritative
-      // earning — parts/extra items can make it differ from the plain
-      // percentage estimate. Otherwise fall back to the same estimate the
-      // worker already saw before accepting.
-      obj.workerAmount = bill
-        ? bill.vendorTotalEarning
-        : Math.max(0, parseFloat((((b.basePrice || b.finalAmount || 0) * (100 - (b.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
+      // Booking screens show the customer's bill. Net earning is calculated
+      // separately at settlement time and credited to the worker wallet.
+      delete obj.workerAmount;
       return sanitizeBookingForLead(obj);
     });
 
     res.status(200).json({
       success: true,
-      data: bookingsWithWorkerAmount,
+      data: workerBookings,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -214,9 +201,6 @@ const getPendingRequests = async (req, res) => {
     }
     const bookingMap = new Map(offerable.map(b => [String(b._id), b]));
 
-    const platformSettings = await PlatformSettings.getSettings();
-    const commissionPercentage = platformSettings.defaultCommission ?? 10;
-
     // The worker's response window is Settings.waveDuration, counted from when
     // this wave went out — NOT BookingRequest.expiresAt, which is the record's
     // 1-hour TTL. The alert card used to hard-code 60s and auto-reject at zero,
@@ -229,7 +213,7 @@ const getPendingRequests = async (req, res) => {
       .map(r => {
         const booking = bookingMap.get(String(r.bookingId));
         if (!booking) return null;
-        const workerAmount = Math.max(0, parseFloat((((booking.basePrice || 0) * (100 - (booking.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
+        const customerAmount = booking.finalAmount || booking.basePrice || 0;
         // A direct admin offer has its own short window, counted from when it was sent.
         const adminOffered = booking.adminAssignedWorkerId && String(booking.adminAssignedWorkerId) === String(workerId);
         const offerWindowSec = adminOffered ? 60 : responseWindowSec;
@@ -240,9 +224,8 @@ const getPendingRequests = async (req, res) => {
           customerName: booking.userId?.name || 'Customer',
           customerPhone: booking.userId?.phone,
           scheduledDate: booking.scheduledDate,
-          price: booking.finalAmount || booking.basePrice || workerAmount,
-          workerAmount: workerAmount,
-          totalAmount: booking.finalAmount || booking.basePrice,
+          price: customerAmount,
+          totalAmount: customerAmount,
           address: booking.address,
           distance: r.distance,
           serviceCategory: booking.serviceCategory,
@@ -297,7 +280,7 @@ const getJobById = async (req, res) => {
       .populate('vendorId', 'name businessName phone email address')
       .populate('serviceId', 'title description iconUrl images')
       .populate('categoryId', 'title slug')
-      .select('+helpers +helperRequests')
+      .select('-workPhotos +helpers +helperRequests')
       .populate('helpers.workerId', 'name phone profilePhoto');
 
     if (!booking) {
@@ -315,21 +298,10 @@ const getJobById = async (req, res) => {
       return res.status(200).json({ success: true, data: sanitizeBookingForHelper(asHelper, workerId) });
     }
 
-    // Same fix as getAssignedJobs: the raw booking amount is what the
-    // CUSTOMER pays, not what the worker actually earns after the
-    // platform's commission cut. Add the commission-adjusted figure
-    // alongside it rather than replacing finalAmount, since the customer's
-    // total is still legitimately useful for the worker to see (e.g. when
-    // collecting payment) — it's just not their own earning.
     const bookingObj = booking.toObject();
-    const bill = await VendorBill.findOne({ bookingId: booking._id }).select('vendorTotalEarning').lean();
-    if (bill) {
-      bookingObj.workerAmount = bill.vendorTotalEarning;
-    } else {
-      const platformSettings = await PlatformSettings.getSettings();
-      const commissionPercentage = platformSettings?.defaultCommission ?? 10;
-      bookingObj.workerAmount = Math.max(0, parseFloat((((booking.basePrice || booking.finalAmount || 0) * (100 - (booking.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
-    }
+    // Details show the customer-facing amount; do not expose a net payout
+    // preview here. The final net payout remains available through the wallet.
+    delete bookingObj.workerAmount;
 
     res.status(200).json({
       success: true,
@@ -736,7 +708,7 @@ const completeJob = async (req, res) => {
     booking.status = BOOKING_STATUS.WORK_DONE;
 
     if (workPhotos && Array.isArray(workPhotos)) {
-      booking.workPhotos = workPhotos;
+      booking.workPhotos = await offloadImages(workPhotos, 'bookings/work-photos');
     }
     if (workDoneDetails) {
       booking.workDoneDetails = workDoneDetails;
@@ -954,8 +926,21 @@ const createBill = async (req, res) => {
     const finalOnlineAmount = parseFloat((grandTotal + adjustedAdminCommission).toFixed(2));
     const finalCashAmount = parseFloat((finalOnlineAmount + cashExtraFee).toFixed(2));
 
-    // Worker earning = grand total (their service cut)
-    const workerEarning = grandTotal;
+    // Split of the booked service price: admin share (minus discounts, minus GST) and
+    // worker share (minus SGST / CGST / platform commission). Extras and parts the
+    // worker adds stay 100% theirs.
+    const split = computeSplit({
+      price: trueOriginalServiceBase,
+      discount: totalDiscount,
+      config: splitConfig(platformSettings, isEstimate ? 0 : (booking.moverDetails?.commissionPercent ?? undefined))
+    });
+    bill.settlement = {
+      ...split,
+      extrasToWorker: parseFloat((totalServiceValue + totalServiceGST + totalPartsValue + totalPartsGST + transport).toFixed(2))
+    };
+
+    // Worker earning = grand total (their service cut) minus SGST / CGST / platform commission
+    const workerEarning = Math.max(0, parseFloat((grandTotal - split.workerDeductions).toFixed(2)));
 
     bill.vendorTotalEarning = workerEarning;
     bill.adminCommission = adjustedAdminCommission;

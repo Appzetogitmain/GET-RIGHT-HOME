@@ -31,6 +31,7 @@ import { computeBookingPricing, pricingMatchesClient } from '../utils/bookingPri
 import referralService from '../services/referralService.js';
 import { syncWorkerCapacityStatus } from '../services/workerCapacityService.js';
 import { supportsBookingMode } from '../utils/bookingModes.js';
+import { offloadImages } from '../utils/imageStorage.js';
 import { computeVip, splitAdvance } from '../utils/vipAndAdvance.js';
 import { dispatchBooking, NO_WORKERS_MESSAGE } from '../services/bookingDispatchService.js';
 
@@ -344,9 +345,13 @@ const createBooking = async (req, res) => {
     }
 
     if (!user) {
-      return res.status(404).json({
+      // The token is valid but isn't a customer account (e.g. an admin/partner/worker
+      // token left in this browser, or a deleted user). That's a login problem, not a
+      // missing record — 401 sends the app back to login instead of a dead-end toast.
+      return res.status(401).json({
         success: false,
-        message: 'User not found'
+        code: 'CUSTOMER_LOGIN_REQUIRED',
+        message: 'Please log in with your customer account to book.'
       });
     }
 
@@ -741,7 +746,7 @@ const createBooking = async (req, res) => {
 
       isConsultancyRequest: isConsultancyRequest || false,
       requirementText: requirementText || null,
-      requirementImages: requirementImages || [],
+      requirementImages: await offloadImages(requirementImages || [], 'bookings/requirements'),
 
       description: service.description,
       serviceImages: service.images || [],
@@ -989,7 +994,9 @@ const getBookingById = async (req, res) => {
     const { id } = req.params;
 
     const booking = await HomeServiceBooking.findOne({ _id: id, userId })
-      .select('+visitOtp +paymentOtp +customerConfirmationOTP') // Include secure OTPs for the user
+      // Secure OTPs for the user. workPhotos (base64, up to MBs) is never shown to customers.
+      // (customerConfirmationOTP is not select:false; "+"-ing it would make this an inclusion projection.)
+      .select('-workPhotos +visitOtp +paymentOtp')
       .populate('userId', 'name phone email')
       .populate('vendorId', 'name businessName phone email address profilePhoto')
       .populate('serviceId', 'title description iconUrl images')
@@ -1452,7 +1459,7 @@ const addReview = async (req, res) => {
     // Update booking
     booking.rating = rating;
     booking.review = review || null;
-    booking.reviewImages = reviewImages || [];
+    booking.reviewImages = await offloadImages(reviewImages || [], 'bookings/reviews');
     booking.reviewedAt = new Date();
 
     await booking.save();

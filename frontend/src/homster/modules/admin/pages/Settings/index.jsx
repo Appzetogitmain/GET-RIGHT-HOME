@@ -30,6 +30,10 @@ const AdminSettings = () => {
     tdsPercentage: 1,
     platformFeePercentage: 1,
     defaultCommission: 10,
+    gstOnAdminPercent: 0,
+    sgstPercent: 0,
+    cgstPercent: 0,
+    platformCommissionPercent: 0,
     platformFlatFee: 20,
     cashCollectionFee: 20,
     maxSearchTime: 5,
@@ -155,6 +159,10 @@ const AdminSettings = () => {
             partsPayoutPercentage: res.settings.partsPayoutPercentage ?? 100,
             tdsPercentage: res.settings.tdsPercentage ?? 1,
             defaultCommission: res.settings.defaultCommission ?? 10,
+            gstOnAdminPercent: res.settings.gstOnAdminPercent ?? 0,
+            sgstPercent: res.settings.sgstPercent ?? 0,
+            cgstPercent: res.settings.cgstPercent ?? 0,
+            platformCommissionPercent: res.settings.platformCommissionPercent ?? 0,
             platformFeePercentage: res.settings.platformFeePercentage ?? 1,
             platformFlatFee: res.settings.platformFlatFee ?? 20,
             cashCollectionFee: res.settings.cashCollectionFee ?? 20,
@@ -742,44 +750,89 @@ const AdminSettings = () => {
                 <form onSubmit={handleFinancialSave} className="space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-                    <div className="col-span-1 md:col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <label className="block text-sm font-bold text-gray-800">Apply GST</label>
-                          <p className="text-[10px] text-gray-500 mt-0.5">Toggle to apply GST on bookings and bills</p>
-                        </div>
-                        <button type="button" onClick={() => handleFinancialChange({ target: { name: 'applyGst', value: !financialSettings.applyGst }})} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${financialSettings.applyGst ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${financialSettings.applyGst ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Service GST (%)</label>
-                      <input type="number" name="serviceGstPercentage" value={financialSettings.serviceGstPercentage} onChange={handleFinancialChange}
-                        min="0" max="100"
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">GST rate applied to services</p>
-                    </div>
+                    {/* Money split: who gets what from each booking */}
+                    <div className="col-span-1 md:col-span-2 space-y-4">
+                      {(() => {
+                        const n = (v) => Math.max(0, Math.min(100, Number(v) || 0));
+                        const price = 1000;
+                        const adminPct = n(financialSettings.defaultCommission);
+                        const adminShare = (price * adminPct) / 100;
+                        const gst = financialSettings.applyGst ? (adminShare * n(financialSettings.gstOnAdminPercent)) / 100 : 0;
+                        const workerShare = price - adminShare;
+                        const sgst = financialSettings.applyGst ? (workerShare * n(financialSettings.sgstPercent)) / 100 : 0;
+                        const cgst = financialSettings.applyGst ? (workerShare * n(financialSettings.cgstPercent)) / 100 : 0;
+                        const platform = (workerShare * n(financialSettings.platformCommissionPercent)) / 100;
+                        const fmt = (v) => '₹' + (Math.round(v * 100) / 100).toLocaleString('en-IN');
+                        const field = 'w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all';
+                        const label = 'block text-xs font-semibold text-gray-500 uppercase mb-1.5';
+                        return (
+                          <>
+                            <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4">
+                              <h4 className="text-sm font-bold text-violet-900">Admin profit</h4>
+                              <p className="text-[11px] text-violet-700/80 mb-3">The part of every service price the admin keeps. The rest goes to the worker.</p>
+                              <label className={label}>Admin profit (%)</label>
+                              <input type="number" name="defaultCommission" value={financialSettings.defaultCommission} onChange={handleFinancialChange} min="0" max="100" className={field} />
+                            </div>
 
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="text-sm font-bold text-gray-800">Apply GST</h4>
+                                  <p className="text-[11px] text-gray-500">GST is cut from the admin's profit. SGST and CGST are cut from the worker's share.</p>
+                                </div>
+                                <button type="button" onClick={() => handleFinancialChange({ target: { name: 'applyGst', value: !financialSettings.applyGst } })} className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${financialSettings.applyGst ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${financialSettings.applyGst ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                              </div>
+                              {financialSettings.applyGst && (
+                                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                  <div>
+                                    <label className={label}>GST (%) <span className="normal-case text-violet-600">from admin</span></label>
+                                    <input type="number" name="gstOnAdminPercent" value={financialSettings.gstOnAdminPercent} onChange={handleFinancialChange} min="0" max="100" className={field} />
+                                  </div>
+                                  <div>
+                                    <label className={label}>SGST (%) <span className="normal-case text-emerald-600">from worker</span></label>
+                                    <input type="number" name="sgstPercent" value={financialSettings.sgstPercent} onChange={handleFinancialChange} min="0" max="100" className={field} />
+                                  </div>
+                                  <div>
+                                    <label className={label}>CGST (%) <span className="normal-case text-emerald-600">from worker</span></label>
+                                    <input type="number" name="cgstPercent" value={financialSettings.cgstPercent} onChange={handleFinancialChange} min="0" max="100" className={field} />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Estimate Services Commission (%)</label>
-                      <input type="number" name="defaultCommission" value={financialSettings.defaultCommission} onChange={handleFinancialChange}
-                        min="0" max="100"
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">Commission % for estimate-based bookings</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Platform Flat Fee (₹)</label>
-                      <input type="number" name="platformFlatFee" value={financialSettings.platformFlatFee} onChange={handleFinancialChange}
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">Flat commission per booking</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Cash Collection Fee (₹)</label>
-                      <input type="number" name="cashCollectionFee" value={financialSettings.cashCollectionFee} onChange={handleFinancialChange}
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                      <p className="text-[10px] text-gray-400 mt-1">Fee for cash payments</p>
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+                              <h4 className="text-sm font-bold text-emerald-900">Platform commission</h4>
+                              <p className="text-[11px] text-emerald-700/80 mb-3">Cut from the worker's share and kept by the platform.</p>
+                              <label className={label}>Platform commission (%)</label>
+                              <input type="number" name="platformCommissionPercent" value={financialSettings.platformCommissionPercent} onChange={handleFinancialChange} min="0" max="100" className={field} />
+                            </div>
+
+                            <div className="rounded-xl border border-gray-200 bg-white p-4">
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Example: a ₹1,000 service</h4>
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
+                                <div>
+                                  <p className="font-bold text-violet-800 mb-1">Admin</p>
+                                  <div className="flex justify-between text-gray-600"><span>Admin share ({adminPct}%)</span><span className="font-mono">{fmt(adminShare)}</span></div>
+                                  {gst > 0 && <div className="flex justify-between text-red-600"><span>− GST</span><span className="font-mono">{fmt(gst)}</span></div>}
+                                  <div className="flex justify-between font-bold text-gray-900 border-t border-gray-100 mt-1 pt-1"><span>Admin profit</span><span className="font-mono">{fmt(adminShare - gst + platform)}</span></div>
+                                  {platform > 0 && <p className="text-[10px] text-gray-400">includes {fmt(platform)} platform commission</p>}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-emerald-800 mb-1">Worker</p>
+                                  <div className="flex justify-between text-gray-600"><span>Worker share ({100 - adminPct}%)</span><span className="font-mono">{fmt(workerShare)}</span></div>
+                                  {sgst > 0 && <div className="flex justify-between text-red-600"><span>− SGST</span><span className="font-mono">{fmt(sgst)}</span></div>}
+                                  {cgst > 0 && <div className="flex justify-between text-red-600"><span>− CGST</span><span className="font-mono">{fmt(cgst)}</span></div>}
+                                  {platform > 0 && <div className="flex justify-between text-red-600"><span>− Platform commission</span><span className="font-mono">{fmt(platform)}</span></div>}
+                                  <div className="flex justify-between font-bold text-gray-900 border-t border-gray-100 mt-1 pt-1"><span>Worker gets</span><span className="font-mono">{fmt(workerShare - sgst - cgst - platform)}</span></div>
+                                </div>
+                              </div>
+                              <p className="mt-2 text-[10px] text-gray-400">Discounts given to the customer come out of the admin's share. Extra services and parts added by the worker, and tips, go 100% to the worker. None of this changes what the customer pays.</p>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                     {/* <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Cancellation Penalty (₹)</label>
@@ -800,12 +853,6 @@ const AdminSettings = () => {
                           <input type="number" name="waveDuration" value={financialSettings.waveDuration} onChange={handleFinancialChange}
                             className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
                           <p className="text-[10px] text-gray-400 mt-1">Time waited before alerting the next batch of vendors</p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Global Search Radius (Km)</label>
-                          <input type="number" name="searchRadius" value={financialSettings.searchRadius} onChange={handleFinancialChange}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-500 transition-all" />
-                          <p className="text-[10px] text-gray-400 mt-1">Default distance to hunt for vendors around booking location</p>
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Booking Buffer Time (Mins)</label>

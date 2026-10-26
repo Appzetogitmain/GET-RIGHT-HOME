@@ -75,6 +75,12 @@ const platformSettingsSchema = new mongoose.Schema(
       type: Boolean,
       default: false // Whether to apply GST on service/parts bills
     },
+    // Where money comes out (see utils/settlement.js). All default to 0 so nothing
+    // changes until the admin sets them.
+    gstOnAdminPercent: { type: Number, default: 0 },        // GST, taken from the admin's share
+    sgstPercent: { type: Number, default: 0 },              // SGST, taken from the worker's share
+    cgstPercent: { type: Number, default: 0 },              // CGST, taken from the worker's share
+    platformCommissionPercent: { type: Number, default: 0 }, // platform commission, taken from the worker's share
     reelCouponTarget: {
       type: Number,
       default: 1000 // Default target likes

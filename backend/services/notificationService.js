@@ -96,7 +96,7 @@ class NotificationService {
             badge: '/badge-72x72.png',
           },
           fcmOptions: {
-            link: data.url || '/', // Ensure URL is passed for web clicks
+            link: data.link || data.url || '/',
           },
         },
       };

@@ -1,4 +1,5 @@
 import WorkerComplaint from '../models/WorkerComplaint.js';
+import { createNotification } from './notificationControllers/notificationController.js';
 
 export const createComplaint = async (req, res) => {
   try {
@@ -16,6 +17,30 @@ export const createComplaint = async (req, res) => {
     });
 
     await complaint.save();
+
+    await createNotification({
+      workerId,
+      type: 'complaint_created',
+      title: 'Complaint Submitted',
+      message: `Your complaint ${complaint.ticketId} has been submitted. We will notify you about every update.`,
+      relatedId: complaint._id,
+      relatedType: 'complaint',
+      pushData: {
+        type: 'complaint_created',
+        complaintId: complaint._id.toString(),
+        link: '/worker/complaints'
+      }
+    });
+
+    createNotification({
+      recipientType: 'admin',
+      type: 'worker_complaint_created',
+      title: 'New Expert Complaint',
+      message: `${req.user.name || 'An expert'} submitted complaint ${complaint.ticketId}: ${subject}`,
+      relatedId: complaint._id,
+      relatedType: 'complaint',
+      pushData: { type: 'worker_complaint_created', complaintId: complaint._id.toString() }
+    }).catch((notificationError) => console.error('Admin complaint notification failed:', notificationError));
 
     res.status(201).json({
       success: true,
@@ -70,10 +95,32 @@ export const updateComplaintStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Complaint not found' });
     }
 
+    const previousStatus = complaint.status;
     if (status) complaint.status = status;
     if (adminResponse !== undefined) complaint.adminResponse = adminResponse;
 
     await complaint.save();
+
+    const responseChanged = adminResponse !== undefined;
+    const statusChanged = status && status !== previousStatus;
+    if (statusChanged || responseChanged) {
+      const responseText = adminResponse ? ` Admin response: ${adminResponse}` : '';
+      await createNotification({
+        workerId: complaint.workerId,
+        type: 'complaint_updated',
+        title: `Complaint ${complaint.status}`,
+        message: `Complaint ${complaint.ticketId} is now ${complaint.status}.${responseText}`,
+        relatedId: complaint._id,
+        relatedType: 'complaint',
+        priority: complaint.status === 'Resolved' ? 'high' : 'normal',
+        pushData: {
+          type: 'complaint_updated',
+          complaintId: complaint._id.toString(),
+          status: complaint.status,
+          link: '/worker/complaints'
+        }
+      });
+    }
 
     res.status(200).json({
       success: true,

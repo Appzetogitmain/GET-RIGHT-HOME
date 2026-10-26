@@ -77,6 +77,7 @@ const LoadingFallback = () => (
 
 import GlobalWorkerJobAlert from '../components/common/GlobalWorkerJobAlert';
 import JobReminderModal from '../components/common/JobReminderModal';
+import WorkerLocationGuard from '../components/common/WorkerLocationGuard';
 
 const WorkerRoutes = () => {
   const location = useLocation();
@@ -141,6 +142,8 @@ const WorkerRoutes = () => {
         {shouldShowBottomNav && <BottomNav />}
 
         <GlobalWorkerJobAlert />
+        {/* Logged-in workers must keep device location on */}
+        {isAuthenticated && !['/worker/login', '/worker/signup'].includes(location.pathname) && <WorkerLocationGuard />}
         <JobReminderModal />
       </ErrorBoundary>
 

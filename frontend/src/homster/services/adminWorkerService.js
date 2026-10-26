@@ -127,8 +127,16 @@ const adminWorkerService = {
   /**
    * Approve worker withdrawal
    */
-  approveWorkerWithdrawal: async (id, utrNumber) => {
-    const response = await api.put(`/admin/worker-withdrawals/${id}/approve`, { utrNumber });
+  approveWorkerWithdrawal: async (id) => {
+    const response = await api.put(`/admin/worker-withdrawals/${id}/approve`);
+    return response.data;
+  },
+
+  /**
+   * Mark an approved withdrawal as paid (UTR required)
+   */
+  completeWorkerWithdrawal: async (id, utrNumber, remarks) => {
+    const response = await api.put(`/admin/worker-withdrawals/${id}/complete`, { utrNumber, remarks });
     return response.data;
   },
 

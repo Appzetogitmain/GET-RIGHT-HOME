@@ -7,7 +7,6 @@ import Cart from '../models/Cart.js';
 import User from '../models/User.js';
 import Worker from '../models/Worker.js';
 import Settings from '../models/Settings.js';
-import PlatformSettings from '../models/PlatformSettings.js';
 import { BOOKING_STATUS } from '../utils/constants.js';
 import { createNotification } from '../controllers/notificationControllers/notificationController.js';
 import { findNearbyWorkers, geocodeAddress } from './locationService.js';
@@ -508,15 +507,9 @@ export const dispatchBooking = async (bookingId) => {
 
     await bookingForBackground.save();
 
-    // Fetch Platform Settings for Dynamic Worker Price — this is only the
-    // "Earn ₹X" preview shown in the job-alert notification, before the
-    // worker has even accepted; createBill computes the real, final split
-    // at job completion using this same percentage, so the two can't
-    // drift apart the way a separately-hardcoded flat fee could.
-    const platformSettings = await PlatformSettings.getSettings();
-    const commissionPercentage = platformSettings.defaultCommission ?? 10;
-    const workerAmount = Math.max(0, parseFloat((((bookingForBackground.basePrice || 0) * (100 - (bookingForBackground.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
-    console.log(`[WorkerAmount Calc] basePrice: ${bookingForBackground.basePrice}, commission%: ${commissionPercentage}, workerAmount: ${workerAmount}`);
+    // Alerts show the customer-facing job value. The worker's net payout is
+    // calculated only during settlement and credited to their wallet.
+    const customerAmount = bookingForBackground.finalAmount || bookingForBackground.basePrice || 0;
 
     const waveSettings = await Settings.findOne({ type: 'global' }).select('waveDuration').lean();
     const responseWindowSec = waveSettings?.waveDuration || 300;
@@ -547,7 +540,7 @@ export const dispatchBooking = async (bookingId) => {
             workerId: partner._id,
             type: 'new_job_available',
             title: 'New Job Available in Your Zone!',
-            message: `A new ${bookingForBackground.serviceName} job is available in your zone. Earn ₹${workerAmount}!`,
+            message: `A new ${bookingForBackground.serviceName} job worth ₹${customerAmount} is available in your zone.`,
             relatedId: bookingForBackground._id,
             relatedType: 'booking',
             priority: 'high',
@@ -638,10 +631,8 @@ export const dispatchBooking = async (bookingId) => {
           customerPhone: userForBackground.phone,
           scheduledDate: scheduledDate,
           scheduledTime: scheduledTime,
-          price: bookingForBackground.finalAmount || bookingForBackground.basePrice || workerAmount,
-          workerAmount: workerAmount,
-          workerEarnings: workerAmount,
-          totalAmount: bookingForBackground.finalAmount || bookingForBackground.basePrice,
+          price: customerAmount,
+          totalAmount: customerAmount,
           address: address,
           distance: partner.distance,
           serviceCategory: bookingForBackground.serviceCategory,
@@ -687,9 +678,8 @@ export const dispatchBooking = async (bookingId) => {
             scheduledDate: scheduledDate,
             scheduledTime: scheduledTime,
             location: address,
-            price: bookingForBackground.finalAmount || bookingForBackground.basePrice || workerAmount,
-            workerAmount: workerAmount,
-            totalAmount: bookingForBackground.finalAmount || bookingForBackground.basePrice,
+            price: customerAmount,
+            totalAmount: customerAmount,
             distance: partner.distance
           },
           pushData: {

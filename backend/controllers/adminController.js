@@ -1608,6 +1608,10 @@ export const updatePlatformSettings = async (req, res) => {
       freeAccessPaywallMessage,
       platformFlatFee,
       cashCollectionFee,
+      gstOnAdminPercent,
+      sgstPercent,
+      cgstPercent,
+      platformCommissionPercent,
       targetTitle,
       monthlyTarget,
       monthlyTargetBonus,
@@ -1731,6 +1735,14 @@ export const updatePlatformSettings = async (req, res) => {
     }
     if (typeof freeAccessPaywallTitle === 'string') settings.freeAccessPaywallTitle = freeAccessPaywallTitle.trim().slice(0, 120);
     if (typeof freeAccessPaywallMessage === 'string') settings.freeAccessPaywallMessage = freeAccessPaywallMessage.trim().slice(0, 500);
+    for (const [key, value] of Object.entries({ gstOnAdminPercent, sgstPercent, cgstPercent, platformCommissionPercent })) {
+      if (value === undefined) continue;
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        return res.status(400).json({ success: false, message: 'Percentages must be between 0 and 100' });
+      }
+      settings[key] = n;
+    }
     if (platformFlatFee !== undefined) settings.platformFlatFee = Number(platformFlatFee);
     if (cashCollectionFee !== undefined) settings.cashCollectionFee = Number(cashCollectionFee);
     if (targetTitle !== undefined) settings.targetTitle = targetTitle;

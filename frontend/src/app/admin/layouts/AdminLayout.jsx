@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
     Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin, ShieldCheck, Gift,
-    Wrench, UserCog, ShoppingBag, Package, ClipboardList, Layers, ChevronDown, FolderCog
+    Wrench, UserCog, ShoppingBag, Package, ClipboardList, Layers, ChevronDown, FolderCog, Zap, CalendarCheck
 } from 'lucide-react';
 
 import logo from '../../../assets/grh-logo.png';
@@ -280,12 +280,19 @@ const AdminLayout = () => {
                         { label: 'Blocked Users', path: '/admin/home-service/users/all?status=blocked' },
                     ]
                 },
+                { icon: Layers, label: 'Catalog Home', path: '/admin/home-service/user-categories/home' },
                 {
-                    icon: Layers, label: 'Service Catalog', children: [
-                        { label: 'Catalog Home', path: '/admin/home-service/user-categories' },
-                        { label: 'Categories', path: '/admin/home-service/user-categories/categories' },
-                        { label: 'Sub Categories', path: '/admin/home-service/user-categories/sub-categories' },
-                        { label: 'Services & Rates', path: '/admin/home-service/user-categories/sections' },
+                    icon: Zap, label: 'Instant Services', children: [
+                        { label: 'Categories', path: '/admin/home-service/user-categories/instant/categories' },
+                        { label: 'Sub Categories', path: '/admin/home-service/user-categories/instant/sub-categories' },
+                        { label: 'Services', path: '/admin/home-service/user-categories/instant/services' },
+                    ]
+                },
+                {
+                    icon: CalendarCheck, label: 'Normal Services', children: [
+                        { label: 'Categories', path: '/admin/home-service/user-categories/normal/categories' },
+                        { label: 'Sub Categories', path: '/admin/home-service/user-categories/normal/sub-categories' },
+                        { label: 'Services', path: '/admin/home-service/user-categories/normal/services' },
                     ]
                 },
                 { icon: Package, label: 'Packers & Movers', path: '/admin/home-service/packers-movers' },

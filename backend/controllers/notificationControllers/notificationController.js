@@ -4,43 +4,55 @@ import notificationService from '../../services/notificationService.js';
 
 export const createNotification = async (data) => {
   try {
-    // Ensure body exists for validation
-    data.body = data.body || data.message || 'Notification';
-    data.title = data.title || 'New Notification';
-    
-    // Map workerId/vendorId to userId for the DB schema
-    const dbData = { ...data };
-    if (dbData.workerId && !dbData.userId) {
-      dbData.userId = dbData.workerId;
-      dbData.userType = 'worker';
-      dbData.userModel = 'Worker';
-    } else if (dbData.vendorId && !dbData.userId) {
-      dbData.userId = dbData.vendorId;
-      dbData.userType = 'partner';
-      dbData.userModel = 'Partner';
-    } else if (!dbData.userId && (dbData.recipientType === 'admin' || dbData.userType === 'admin')) {
+    const body = data.body || data.message || 'Notification';
+    const title = data.title || 'New Notification';
+    const recipientType = data.workerId || data.recipientType === 'worker' || data.userType === 'worker'
+      ? 'worker'
+      : data.vendorId || data.recipientType === 'partner' || data.recipientType === 'vendor' || data.userType === 'partner' || data.userType === 'vendor'
+        ? 'partner'
+        : data.recipientType === 'admin' || data.userType === 'admin'
+          ? 'admin'
+          : 'user';
+
+    let recipientId = data.workerId || data.vendorId || data.userId;
+    if (!recipientId && recipientType === 'admin') {
       try {
         const Admin = (await import('../../models/Admin.js')).default;
         const admin = await Admin.findOne();
         if (admin) {
-          dbData.userId = admin._id;
-          dbData.userType = 'admin';
-          dbData.userModel = 'Admin';
+          recipientId = admin._id;
         }
       } catch (adminErr) {
         console.warn('Could not find admin user for notification:', adminErr.message);
       }
-    } else if (!dbData.userType) {
-      dbData.userType = 'user';
-      dbData.userModel = 'User';
     }
+
+    if (!recipientId) {
+      console.warn('[Notification] Skipping notification without a recipient');
+      return null;
+    }
+
+    const userModelByType = {
+      admin: 'Admin',
+      partner: 'Partner',
+      worker: 'Worker',
+      user: 'User'
+    };
+    const dbData = {
+      ...data,
+      userId: recipientId,
+      userType: recipientType,
+      userModel: userModelByType[recipientType],
+      title,
+      body
+    };
 
     const notification = await Notification.create(dbData);
 
     // Emit real-time socket notification to the relevant user/worker/vendor
     try {
       const io = getIO();
-      console.log(`[Notification] io available: ${!!io}, userId: ${data.userId}, type: ${data.type}`);
+      console.log(`[Notification] io available: ${!!io}, recipientId: ${recipientId}, type: ${data.type}`);
       if (io && notification) {
         const notifObj = notification.toObject();
         const payload = {
@@ -48,22 +60,20 @@ export const createNotification = async (data) => {
           bookingId: String(data.relatedId || ''),
           relatedId: String(data.relatedId || ''),
           message: notifObj.message || notifObj.body || data.message,
-          title: notifObj.title || data.title,
+          title: notifObj.title || title,
         };
 
-        if (data.userId) {
-          const userRoom = `user_${String(data.userId)}`;
-          console.log(`[Socket] Emitting 'notification' to room: ${userRoom}`);
-          io.to(userRoom).emit('notification', payload);
-          io.to(userRoom).emit('booking_updated', {
+        const roomPrefix = recipientType === 'partner' ? 'vendor' : recipientType;
+        const recipientRoom = recipientType === 'admin'
+          ? 'admin_room'
+          : `${roomPrefix}_${String(recipientId)}`;
+        console.log(`[Socket] Emitting 'notification' to room: ${recipientRoom}`);
+        io.to(recipientRoom).emit('notification', payload);
+        if (recipientType === 'user') {
+          io.to(recipientRoom).emit('booking_updated', {
             bookingId: String(data.relatedId || ''),
             ...payload
           });
-        }
-        if (data.userType === 'admin') {
-          console.log(`[Socket] Emitting 'notification' to room: admin_room`);
-          io.to('admin_room').emit('notification', payload);
-          io.to('admin_room').emit('admin_notification', payload);
         }
         if (data.workerId) {
           const workerRoom = `worker_${String(data.workerId)}`;
@@ -86,15 +96,12 @@ export const createNotification = async (data) => {
     // document was already created above. sendToUser would create a SECOND,
     // duplicate record here (see sendPushOnly's doc comment for why).
     try {
-      if (data.userId) {
-        await notificationService.sendPushOnly(data.userId, { title: data.title, body: data.body }, data.pushData || {}, data.userType || 'user');
-      }
-      if (data.workerId) {
-        await notificationService.sendPushOnly(data.workerId, { title: data.title, body: data.body }, data.pushData || {}, 'worker');
-      }
-      if (data.vendorId) {
-        await notificationService.sendPushOnly(data.vendorId, { title: data.title, body: data.body }, data.pushData || {}, 'vendor');
-      }
+      await notificationService.sendPushOnly(
+        recipientId,
+        { title, body },
+        data.pushData || data.data || {},
+        recipientType
+      );
     } catch (pushErr) {
       console.error('[FCM] Failed to send push notification:', pushErr.message);
     }

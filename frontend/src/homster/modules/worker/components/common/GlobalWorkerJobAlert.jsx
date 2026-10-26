@@ -125,7 +125,7 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft }) => {
               <h4 className="text-[14px] font-black text-gray-900 leading-tight">
                 {booking.serviceName || booking.serviceType || 'Service Job'}
               </h4>
-              
+
               {/* Display Booked Items or Requirement Text */}
               <div className="mt-2 space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar">
                 {booking.isConsultancyRequest && booking.requirementText && (
@@ -211,7 +211,6 @@ const mapPendingRequestToJob = (data) => ({
   },
   price: data.totalAmount || data.finalAmount || data.price,
   totalAmount: data.totalAmount || data.finalAmount || data.price,
-  workerAmount: data.workerAmount,
   serviceCategory: data.serviceCategory,
   brandName: data.brandName,
   brandIcon: data.brandIcon,
@@ -282,9 +281,21 @@ export default function GlobalWorkerJobAlert() {
         });
       } catch (err) {
         // Wrong role / expired token: don't retry that token; a fresh login works again.
-        if ([401, 403].includes(err?.response?.status)) rejectedTokenRef.current = token;
+        if ([401, 403].includes(err?.response?.status)) rejectedToken = token;
       }
-    }
+    };
+
+    fetchPending();
+    const interval = setInterval(fetchPending, 4000); // 4-second fail-safe background sync
+    window.addEventListener('focus', fetchPending);
+    window.addEventListener('online', fetchPending);
+    window.addEventListener('workerJobsUpdated', fetchPending);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', fetchPending);
+      window.removeEventListener('online', fetchPending);
+      window.removeEventListener('workerJobsUpdated', fetchPending);
+    };
   }, []);
 
   // Socket delivers live alerts; this only syncs on (re)connect, focus and

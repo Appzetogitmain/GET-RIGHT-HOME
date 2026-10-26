@@ -40,7 +40,7 @@ const serviceSchema = z.object({
   })).optional()
 });
 
-const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
+const ServicesPage = ({ catalog, setCatalog, selectedCity, catalogMode }) => {
   const [fetching, setFetching] = useState(false);
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
@@ -82,7 +82,8 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
           isEstimateBased: cat.isEstimateBased || false,
           bookingModes: cat.bookingModes?.length ? cat.bookingModes : ['slot']
         }));
-        setCategories(mappedCategories);
+        // Scoped to Instant / Normal: only that type's categories are listed.
+        setCategories(catalogMode ? mappedCategories.filter((c) => c.bookingModes.includes(catalogMode)) : mappedCategories);
       }
 
       let mappedSubCategories = [];
@@ -94,7 +95,8 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
           categoryId: (sc.categoryId?._id || sc.categoryId)?.toString() || "",
           categoryTitle: sc.categoryId?.title || "Uncategorized"
         }));
-        setSubCategories(mappedSubCategories);
+        const scopedIds = new Set(mappedCategories.filter((c) => !catalogMode || c.bookingModes.includes(catalogMode)).map((c) => c.id));
+        setSubCategories(catalogMode ? mappedSubCategories.filter((sc) => scopedIds.has(sc.categoryId)) : mappedSubCategories);
       }
 
       setCatalog(prev => {
@@ -117,7 +119,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
 
   useEffect(() => {
     fetchCatalogData();
-  }, [selectedCity]);
+  }, [selectedCity, catalogMode]);
 
   // Fetch Shared Services for "Interior Painting"
   useEffect(() => {
@@ -440,6 +442,12 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
       });
     }
 
+    // Scoped to Instant / Normal: only services under this section's categories
+    if (catalogMode) {
+      const ids = new Set(categories.map((c) => String(c.id)));
+      filtered = filtered.filter((s) => ids.has(String(s.categoryId?._id || s.categoryId)));
+    }
+
     // Filter by booking mode if not "all"
     if (selectedBookingModeFilter !== "all") {
       filtered = filtered.filter(s => {
@@ -466,7 +474,7 @@ const ServicesPage = ({ catalog, setCatalog, selectedCity }) => {
     }
 
     return filtered;
-  }, [services, searchTerm, selectedSubCategoryFilter, selectedBookingModeFilter, priceSort]);
+  }, [services, categories, catalogMode, searchTerm, selectedSubCategoryFilter, selectedBookingModeFilter, priceSort]);
 
   const hasActiveFilters = searchTerm.trim() !== "" || selectedSubCategoryFilter !== "all" || selectedBookingModeFilter !== "all" || priceSort !== "default";
 

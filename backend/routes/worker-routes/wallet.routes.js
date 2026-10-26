@@ -8,6 +8,7 @@ import {
   getTransactions,
   requestPayout,
   requestWithdrawal,
+  getMyWithdrawals,
   payAdminDuesInitiate,
   payAdminDuesVerify
  } from '../../controllers/workerControllers/workerWalletController.js';
@@ -23,6 +24,7 @@ router.post('/request-payout', authenticate, isWorker, requestPayout);
 
 // Request withdrawal from admin (Direct Worker Model)
 router.post('/withdraw', authenticate, isWorker, requestWithdrawal);
+router.get('/withdrawals', authenticate, isWorker, getMyWithdrawals);
 
 // Pay Admin Dues (Cash Collection)
 router.post('/dues/pay', authenticate, isWorker, requireFeature('workerRazorpay'), payAdminDuesInitiate);
