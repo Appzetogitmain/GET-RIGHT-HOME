@@ -262,9 +262,20 @@ app.get('/api/public/config', async (req, res) => {
   }
 });
 
-// Plans public endpoint (returns empty list if no plans configured)
-app.get('/api/public/plans', (req, res) => {
-  res.json({ success: true, data: [] });
+// Plans public endpoint
+app.get('/api/public/plans', async (req, res) => {
+  try {
+    const Plan = (await import('./models/Plan.js')).default;
+    const plans = await Plan.find({ isActive: true })
+      .populate('freeCategories', 'title name icon image')
+      .populate('freeServices', 'title name price categoryId')
+      .populate('bonusServices.categoryId', 'title name')
+      .populate('bonusServices.serviceId', 'title name price')
+      .sort({ price: 1 });
+    res.json({ success: true, data: plans });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 app.use('/api/public/insights', insightRoutes);
 app.use('/api/upload', uploadRoutes);

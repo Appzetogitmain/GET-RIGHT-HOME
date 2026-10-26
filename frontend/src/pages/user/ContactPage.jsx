@@ -93,22 +93,25 @@ const ContactPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-surface text-white p-6 pb-10 rounded-b-[30px] shadow-lg sticky top-0 z-20">
-        <div className="flex items-center gap-4 mb-4">
+      {/* Header */}
+      <div className="bg-surface text-white px-6 pt-5 pb-7 rounded-b-[32px] shadow-md">
+        <div className="flex items-center gap-4 mb-2">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"
+            className="p-2 bg-white/15 rounded-full hover:bg-white/25 active:scale-95 transition"
+            aria-label="Go back"
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-xl font-bold">Contact Us</h1>
+          <h1 className="text-lg font-bold tracking-wide">Contact Us</h1>
         </div>
-        <p className="text-xs text-white/70 max-w-xs">
+        <p className="text-xs text-white/80 max-w-sm pl-11">
           Have questions or need help with a booking? Share your query with us.
         </p>
       </div>
 
-      <div className="px-5 -mt-6 relative z-10 pb-28 space-y-4">
+      {/* Content */}
+      <div className="px-5 pt-4 pb-28 space-y-4 max-w-xl mx-auto">
         <div className="flex flex-col sm:flex-row gap-3 mt-4">
           <a href={`mailto:${supportEmail}`} className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3 overflow-hidden hover:bg-gray-50 transition cursor-pointer">
             <div className="w-9 h-9 shrink-0 rounded-full bg-surface/5 flex items-center justify-center text-surface">

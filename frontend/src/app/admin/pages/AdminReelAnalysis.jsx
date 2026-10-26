@@ -919,9 +919,8 @@ const AdminReelAnalysis = () => {
                                         className="w-full h-full object-cover"
                                         style={{ border: 0 }}
                                         title="Reel Preview"
-                                        allow="autoplay; encrypted-media; picture-in-picture"
+                                        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
                                         allowFullScreen
-                                        sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
                                     />
                                 );
                             } else {

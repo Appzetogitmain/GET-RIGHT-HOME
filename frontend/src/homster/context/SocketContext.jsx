@@ -246,8 +246,13 @@ export const SocketProvider = ({ children }) => {
           data={data}
           onClick={() => {
             toast.dismiss(t.id);
-            // Optional: navigate based on relatedId
-            if (data.relatedId) {
+            const targetUrl = data.click_action || data.data?.click_action || data.link || data.data?.link;
+            if (targetUrl) {
+              navigate(targetUrl);
+            } else if (data.workerId || data.data?.workerId) {
+              if (userType === 'admin') navigate('/admin/workers');
+              else if (userType === 'worker') navigate(`/worker/job/${data.workerId || data.data?.workerId}`);
+            } else if (data.relatedId) {
               if (userType === 'worker') navigate(`/worker/job/${data.relatedId}`);
               else navigate(`/user/booking/${data.relatedId}`);
             }
@@ -263,6 +268,18 @@ export const SocketProvider = ({ children }) => {
       if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
       if (userType === 'user') {
         window.dispatchEvent(new Event('userBookingsUpdated'));
+      }
+      if (userType === 'admin') {
+        window.dispatchEvent(new Event('adminNotificationsUpdated'));
+        window.dispatchEvent(new Event('adminWorkersUpdated'));
+      }
+    });
+
+    // Listen for new worker registration in admin room
+    newSocket.on('new_worker_registered', (data) => {
+      console.log(`[Socket] 👷 '${userType}' received NEW_WORKER_REGISTERED:`, data);
+      if (userType === 'admin') {
+        window.dispatchEvent(new Event('adminWorkersUpdated'));
       }
     });
 

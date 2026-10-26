@@ -176,9 +176,8 @@ const ReelCard = memo(function ReelCard({
                 className={`absolute inset-0 w-full h-full bg-neutral-900 ${isPlaying ? '' : 'pointer-events-none'}`}
                 style={{ border: 0, height: '100%', width: '100%' }}
                 title={reel.title}
-                allow="autoplay; encrypted-media; picture-in-picture"
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
                 allowFullScreen
-                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms allow-top-navigation-by-user-activation"
               />
             ) : (
               <img
@@ -405,15 +404,19 @@ const ReelCard = memo(function ReelCard({
               comment) need an Instagram session and are often blocked in a webview,
               so give a plain link that always opens the original post. */}
           {reel.videoType === 'url' && reel.videoUrl && (
-            <a
-              href={reel.videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest bg-white/15 text-white border border-white/20 backdrop-blur-md flex items-center justify-center gap-2 hover:bg-white/25 transition-all"
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (reel.videoUrl) {
+                  window.open(reel.videoUrl, '_blank', 'noopener,noreferrer');
+                }
+              }}
+              className="w-full py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest bg-gradient-to-r from-purple-600 via-pink-600 to-rose-500 text-white border border-white/20 shadow-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all cursor-pointer pointer-events-auto"
             >
               <ExternalLink size={14} />
-              {videoDetails.type === 'youtube' ? 'Watch on YouTube' : 'Watch on Instagram'}
-            </a>
+              <span>{videoDetails.type === 'youtube' ? 'Watch on YouTube' : 'Watch on Instagram'}</span>
+            </button>
           )}
 
           {/* Shortlist Project Action Button */}

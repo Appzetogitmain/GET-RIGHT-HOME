@@ -424,7 +424,8 @@ const ProfileEdit = () => {
           area: addressData.area,
           houseNo: addressData.houseNo,
           street: addressData.street,
-          zipCode: addressData.zipCode,
+          // PIN field is 6 digits; geocoders sometimes return "560 001" or a list.
+          zipCode: String(addressData.zipCode || '').replace(/\D/g, '').slice(0, 6),
           coordinates: { lat, lng }
         }
       }));
@@ -542,11 +543,12 @@ const ProfileEdit = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const isNameValid = validateField('name', formData.name);
-    const isEmailValid = validateField('email', formData.email);
-    const isPhoneValid = validateField('phone', formData.phone);
-
-    if (!isNameValid || !isEmailValid || !isPhoneValid) {
+    // Email and phone are locked (read-only, and the server ignores them), so
+    // they must not block saving: an account that signed up with only a phone,
+    // or only an email, could otherwise never save, with no visible reason.
+    if (!validateField('name', formData.name)) {
+      toast.error('Please enter a valid full name (letters only, at least 3 characters).');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 

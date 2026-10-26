@@ -60,6 +60,11 @@ export const createNotification = async (data) => {
             ...payload
           });
         }
+        if (data.userType === 'admin') {
+          console.log(`[Socket] Emitting 'notification' to room: admin_room`);
+          io.to('admin_room').emit('notification', payload);
+          io.to('admin_room').emit('admin_notification', payload);
+        }
         if (data.workerId) {
           const workerRoom = `worker_${String(data.workerId)}`;
           console.log(`[Socket] Emitting 'notification' to room: ${workerRoom}`);

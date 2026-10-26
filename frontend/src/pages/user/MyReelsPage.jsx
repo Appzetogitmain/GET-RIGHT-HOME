@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Loader2, ArrowLeft, Video, Link, MapPin, Phone, Pencil, Trash2, Heart, Eye, MessageCircle } from 'lucide-react';
+import { Plus, X, Loader2, ArrowLeft, Video, Link, MapPin, Phone, Pencil, Trash2, Heart, Eye, MessageCircle, ExternalLink } from 'lucide-react';
 import { reelService } from '../../services/reelService';
 import ReelAreaPicker from '../../components/reels/ReelAreaPicker';
 import toast from 'react-hot-toast';
@@ -76,13 +76,14 @@ export default function MyReelsPage() {
   const fetchMyReels = async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      const res = await reelService.getFeed({ creatorOnly: 'true', limit: 100 });
-      if (res.success && res.reels) {
-        setReels(res.reels);
+      const res = await reelService.getFeed({ creatorOnly: 'true', limit: 100, _t: Date.now() });
+      const list = res.reels || (Array.isArray(res) ? res : []);
+      if (list.length > 0 || res.success) {
+        setReels(list);
         
         // Compute stats
-        const views = res.reels.reduce((acc, curr) => acc + (curr.viewsCount || 0), 0);
-        const likes = res.reels.reduce((acc, curr) => acc + (curr.likesCount || 0), 0);
+        const views = list.reduce((acc, curr) => acc + (curr.viewsCount || 0), 0);
+        const likes = list.reduce((acc, curr) => acc + (curr.likesCount || 0), 0);
         setTotalViews(views);
         setTotalLikes(likes);
       }
@@ -264,7 +265,10 @@ export default function MyReelsPage() {
       }
 
       setUploadOpen(false);
-      fetchMyReels();
+      if (res?.reel) {
+        setReels((prev) => [res.reel, ...prev.filter((r) => r._id !== res.reel._id)]);
+      }
+      fetchMyReels(false);
     } catch (err) {
       console.error(err);
       const serverMsg = err.response?.data?.message;
@@ -449,72 +453,108 @@ export default function MyReelsPage() {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-neutral-950 w-full max-w-sm aspect-[9/16] rounded-2xl overflow-hidden relative shadow-2xl flex flex-col justify-between border border-neutral-800"
+            className="bg-neutral-950 w-full max-w-sm max-h-[85vh] rounded-2xl overflow-hidden relative shadow-2xl flex flex-col border border-neutral-800"
           >
             <button
               onClick={() => setPreviewReel(null)}
-              className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
+              className="absolute top-3 right-3 z-50 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors"
+              aria-label="Close preview"
             >
               <X size={16} />
             </button>
             
-            {previewReel.videoType === 'file' ? (
-              <video 
-                src={previewReel.videoUrl} 
-                className="w-full h-full object-cover" 
-                controls 
-                autoPlay 
-                loop
-              />
-            ) : (() => {
-              const url = previewReel.videoUrl || '';
-              const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i);
-              const instaMatch = url.match(/(?:instagram\.com\/(?:p|reel|reels|tv)\/)([^/?#&\s]+)/i);
+            <div className="relative w-full aspect-[9/16] max-h-[70vh] bg-neutral-900 overflow-hidden flex items-center justify-center">
+              {previewReel.videoType === 'file' ? (
+                <video 
+                  src={previewReel.videoUrl} 
+                  className="w-full h-full object-cover" 
+                  controls 
+                  autoPlay 
+                  loop
+                />
+              ) : (() => {
+                const url = previewReel.videoUrl || '';
+                const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i);
+                const instaMatch = url.match(/(?:instagram\.com\/(?:p|reel|reels|tv)\/)([^/?#&\s]+)/i);
 
-              if (ytMatch) {
-                return (
-                  <iframe
-                    src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}`}
-                    className="w-full h-full object-cover"
-                    style={{ border: 0 }}
-                    title="Reel Preview"
-                    allow="autoplay; encrypted-media"
-                  />
-                );
-              } else if (instaMatch) {
-                return (
-                  <iframe
-                    src={`https://www.instagram.com/reel/${instaMatch[1]}/embed/`}
-                    className="w-full h-full object-cover bg-neutral-900"
-                    style={{ border: 0 }}
-                    title="Reel Preview"
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                    sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
-                  />
-                );
-              } else {
-                return (
-                  <video
-                    src={previewReel.videoUrl}
-                    className="w-full h-full object-cover"
-                    controls
-                    autoPlay
-                    loop
-                  />
-                );
-              }
-            })()}
+                if (ytMatch) {
+                  return (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}`}
+                      className="w-full h-full object-cover"
+                      style={{ border: 0 }}
+                      title="Reel Preview"
+                      allow="autoplay; encrypted-media; picture-in-picture"
+                      allowFullScreen
+                    />
+                  );
+                } else if (instaMatch) {
+                  return (
+                    <iframe
+                      src={`https://www.instagram.com/reel/${instaMatch[1]}/embed/`}
+                      className="w-full h-full object-cover bg-neutral-900"
+                      style={{ border: 0 }}
+                      title="Reel Preview"
+                      allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  );
+                } else {
+                  return (
+                    <video
+                      src={previewReel.videoUrl}
+                      className="w-full h-full object-cover"
+                      controls
+                      autoPlay
+                      loop
+                    />
+                  );
+                }
+              })()}
+            </div>
+
+            {/* Direct Open in Instagram/YouTube Button */}
+            {previewReel.videoType === 'url' && previewReel.videoUrl && (
+              <div className="p-3 bg-neutral-950 border-t border-white/10 flex flex-col gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (previewReel.videoUrl) {
+                      window.open(previewReel.videoUrl, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-purple-600 via-pink-600 to-rose-500 hover:opacity-90 active:scale-95 text-white flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
+                >
+                  <ExternalLink size={14} />
+                  <span>
+                    {previewReel.videoUrl.includes('youtube.com') || previewReel.videoUrl.includes('youtu.be')
+                      ? 'Watch on YouTube'
+                      : 'Watch on Instagram'}
+                  </span>
+                </button>
+                <p className="text-[10px] text-white/50 text-center">
+                  Click above to open in app and like, comment, or follow.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* Multi-step Upload Modal Wizard */}
       {uploadOpen && (
-        <div className="fixed inset-0 z-[110] bg-black/90 flex items-end justify-center overscroll-none animate-fade-in">
-          <div className="bg-neutral-950 border border-white/10 w-full rounded-t-3xl md:max-w-md p-6 pb-20 safe-area-bottom shadow-2xl overflow-y-auto max-h-[90%] no-scrollbar">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6">
+        <div 
+          className="fixed inset-0 z-[110] bg-black/85 backdrop-blur-sm flex flex-col justify-end items-center animate-fade-in select-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setUploadOpen(false);
+          }}
+        >
+          <div 
+            className="bg-neutral-950 border-t border-white/10 w-full rounded-t-3xl md:max-w-md flex flex-col max-h-[85vh] max-h-[85dvh] shadow-2xl overscroll-contain select-auto overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header (Sticky at top) */}
+            <div className="flex justify-between items-center px-6 pt-5 pb-4 border-b border-white/10 shrink-0 bg-neutral-950 rounded-t-3xl">
               <div>
                 <span className="font-black text-[9px] uppercase tracking-widest text-blue-500">Step {uploadStep} of 4</span>
                 <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">
@@ -527,11 +567,18 @@ export default function MyReelsPage() {
               <button
                 type="button"
                 onClick={() => setUploadOpen(false)}
-                className="p-1 rounded-full bg-white/5 border border-white/10 text-white"
+                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+                aria-label="Close"
               >
                 <X size={16} />
               </button>
             </div>
+
+            {/* Scrollable Form Body Container */}
+            <div 
+              className="flex-1 overflow-y-auto min-h-0 px-6 py-5 pb-20 touch-pan-y overscroll-contain"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
 
             {/* STEP 1: Bangalore City Selector */}
             {uploadStep === 1 && (
@@ -781,11 +828,11 @@ export default function MyReelsPage() {
                 </div>
 
                 {/* Submit / Back Actions */}
-                <div className="flex gap-3 mt-6">
+                <div className="flex gap-3 mt-6 pb-6">
                   <button
                     type="button"
                     onClick={() => setUploadStep(3)}
-                    className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-widest"
+                    className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-widest hover:bg-white/5 transition-all"
                   >
                     Back
                   </button>
@@ -806,6 +853,7 @@ export default function MyReelsPage() {
                 </div>
               </form>
             )}
+            </div>
           </div>
         </div>
       )}

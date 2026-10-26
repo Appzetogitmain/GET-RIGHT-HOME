@@ -78,29 +78,35 @@ const Plans = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [plansRes, catsRes, brandsRes, servsRes] = await Promise.all([
+      const results = await Promise.allSettled([
         getPlans(),
         categoryService.getAll(),
         subCategoryService.getAll(),
         serviceService.getAll({ status: 'active' })
       ]);
 
-      if (plansRes.success) setPlans(plansRes.data);
+      const [plansRes, catsRes, brandsRes, servsRes] = results;
 
-      // Robust data extraction for categories
-      const categoriesData = catsRes.categories || catsRes.data || (Array.isArray(catsRes) ? catsRes : []);
-      const finalCats = Array.isArray(categoriesData) ? categoriesData : [];
-      setCategories(finalCats);
+      if (plansRes.status === 'fulfilled' && plansRes.value?.success) {
+        setPlans(plansRes.value.data || []);
+      } else if (plansRes.status === 'rejected') {
+        console.error('Failed to load plans', plansRes.reason);
+      }
 
-      // Robust data extraction for brands
-      const brandsData = brandsRes.brands || brandsRes.data || (Array.isArray(brandsRes) ? brandsRes : []);
-      const finalBrands = Array.isArray(brandsData) ? brandsData : [];
-      setBrandsList(finalBrands);
+      if (catsRes.status === 'fulfilled' && catsRes.value) {
+        const categoriesData = catsRes.value.categories || catsRes.value.data || (Array.isArray(catsRes.value) ? catsRes.value : []);
+        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+      }
 
-      // Robust data extraction for services
-      const servicesData = servsRes.services || servsRes.data || (Array.isArray(servsRes) ? servsRes : []);
-      const finalServices = Array.isArray(servicesData) ? servicesData : [];
-      setServicesList(finalServices);
+      if (brandsRes.status === 'fulfilled' && brandsRes.value) {
+        const brandsData = brandsRes.value.brands || brandsRes.value.data || (Array.isArray(brandsRes.value) ? brandsRes.value : []);
+        setBrandsList(Array.isArray(brandsData) ? brandsData : []);
+      }
+
+      if (servsRes.status === 'fulfilled' && servsRes.value) {
+        const servicesData = servsRes.value.services || servsRes.value.data || (Array.isArray(servsRes.value) ? servsRes.value : []);
+        setServicesList(Array.isArray(servicesData) ? servicesData : []);
+      }
 
     } catch (error) {
       console.error('fetchInitialData error', error);
@@ -267,7 +273,7 @@ const Plans = () => {
       <div className="flex justify-end items-center">
         <button
           onClick={openCreateModal}
-          className="px-3 py-1.5 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-primary-700 flex items-center gap-2 transition-colors shadow-sm"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2 transition-colors shadow-sm"
         >
           <FiPlus className="w-4 h-4" /> Add New Plan
         </button>
@@ -275,7 +281,7 @@ const Plans = () => {
 
       {loading ? (
         <div className="flex justify-center p-8">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

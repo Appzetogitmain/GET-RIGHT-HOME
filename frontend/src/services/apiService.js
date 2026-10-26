@@ -12,9 +12,14 @@ export const api = axios.create({
 // Simple GET request cache to prevent layout shifts on back navigation
 const apiCache = new Map();
 
-// A listing just went live: drop cached GETs so the next list/search fetch is fresh.
+export const clearApiCache = () => {
+  apiCache.clear();
+};
+
+// Drop cached GETs so subsequent list/search fetches are fresh.
 if (typeof window !== 'undefined') {
   window.addEventListener('propertyListed', () => apiCache.clear());
+  window.addEventListener('reelUploaded', () => apiCache.clear());
 }
 
 // In-flight GET de-duplication.
@@ -53,9 +58,15 @@ api.interceptors.request.use((config) => {
   if (config.method?.toLowerCase() === 'get') {
     const fullUrl = buildCacheKey(config);
     const isSavedPlaces = config.url?.includes('/users/saved-places');
+    const isLiveDashboard = config.url?.includes('/properties/my') ||
+                            config.url?.includes('/reels/feed') ||
+                            config.url?.includes('/users/profile') ||
+                            config.headers?.['Cache-Control'] === 'no-cache' ||
+                            config.noCache === true;
 
-    // Cache GET requests except saved-places to prevent layout collapse on back navigation
-    if (!isSavedPlaces) {
+    // Cache GET requests to prevent layout collapse on back navigation,
+    // but never cache dynamic user dashboards or feeds that mutate after upload
+    if (!isSavedPlaces && !isLiveDashboard) {
       const cached = apiCache.get(fullUrl);
 
       if (cached && Date.now() - cached.timestamp < 120000) {
@@ -112,15 +123,27 @@ api.interceptors.request.use((config) => {
   return config;
 }, (error) => Promise.reject(error));
 
-// Interceptor to handle 401 Unauthorized and populate Cache
 api.interceptors.response.use(
   (response) => {
-    if (response.config.method?.toLowerCase() === 'get') {
-      const fullUrl = buildCacheKey(response.config);
-      apiCache.set(fullUrl, {
-        data: response.data,
-        timestamp: Date.now()
-      });
+    const method = response.config.method?.toLowerCase();
+    if (method === 'get') {
+      const isSavedPlaces = response.config.url?.includes('/users/saved-places');
+      const isLiveDashboard = response.config.url?.includes('/properties/my') ||
+                              response.config.url?.includes('/reels/feed') ||
+                              response.config.headers?.['Cache-Control'] === 'no-cache' ||
+                              response.config.noCache === true;
+
+      if (!isSavedPlaces && !isLiveDashboard) {
+        const fullUrl = buildCacheKey(response.config);
+        apiCache.set(fullUrl, {
+          data: response.data,
+          timestamp: Date.now()
+        });
+      }
+    } else if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      // Whenever data is created, updated, or deleted, clear the in-memory GET cache immediately
+      // so all lists and feeds instantly reflect the new data without requiring a browser refresh!
+      apiCache.clear();
     }
     // Release any concurrent callers waiting on this request
     const key = response.config.__inFlightKey;

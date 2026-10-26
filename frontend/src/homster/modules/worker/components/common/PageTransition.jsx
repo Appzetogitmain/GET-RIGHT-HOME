@@ -30,7 +30,7 @@ const PageTransition = ({ children }) => {
       style={{
         opacity: isTransitioning ? 0.7 : 1,
         transition: 'opacity 100ms ease-out',
-        willChange: 'opacity',
+        willChange: isTransitioning ? 'opacity' : 'auto',
       }}
     >
       {cloneElement(children, { location: displayLocation })}

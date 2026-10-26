@@ -5,6 +5,16 @@ import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+const INDIA_STATES = [
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat',
+    'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh',
+    'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+    'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand',
+    'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh',
+    'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir', 'Ladakh',
+    'Lakshadweep', 'Puducherry'
+];
+
 const AdminManageLocalityInsights = () => {
     const [insights, setInsights] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -48,17 +58,18 @@ const AdminManageLocalityInsights = () => {
                 setLocationTree(tree);
                 
                 const india = tree.find(c => c.name.toLowerCase() === 'india');
-                if (india) {
-                    setSelectedCountryId(india._id);
-                    const karnataka = india.states?.find(s => s.name.toLowerCase() === 'karnataka');
-                    if (karnataka) {
-                        setAvailableStates([karnataka]);
-                        setSelectedStateId(karnataka._id);
-                        setAvailableDistricts(karnataka.districts || []);
-                    } else {
-                        setAvailableStates(india.states || []);
-                    }
-                }
+                if (india) setSelectedCountryId(india._id);
+
+                // India is fixed, so list every Indian state. States already
+                // configured in Locations keep their real id and districts;
+                // the rest are listed too (with no districts until added).
+                const configured = india?.states || [];
+                const byName = new Map(configured.map(s => [s.name.toLowerCase(), s]));
+                const all = INDIA_STATES.map(name =>
+                    byName.get(name.toLowerCase()) || { _id: `static:${name}`, name, districts: [] }
+                );
+                const extra = configured.filter(s => !INDIA_STATES.some(n => n.toLowerCase() === s.name.toLowerCase()));
+                setAvailableStates([...all, ...extra]);
             }
         } catch (error) {
             console.error("Failed to fetch cities", error);
@@ -275,7 +286,9 @@ const AdminManageLocalityInsights = () => {
                                     ) : (
                                         <>
                                             <select value={selectedDistrictId} onChange={handleDistrictChange} disabled={!selectedStateId} className={`w-full p-2 border rounded-md ${errors.city ? 'border-red-500' : ''}`}>
-                                                <option value="">Select District</option>
+                                                <option value="">
+                                                    {selectedStateId && availableDistricts.length === 0 ? 'No districts added for this state yet' : 'Select District'}
+                                                </option>
                                                 {availableDistricts.map(d => (
                                                     <option key={d._id} value={d._id}>{d.name}</option>
                                                 ))}

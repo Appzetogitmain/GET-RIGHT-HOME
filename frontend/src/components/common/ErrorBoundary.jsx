@@ -1,4 +1,5 @@
 import React from 'react';
+import { isChunkLoadError, reloadOnceForStaleChunk } from '../../utils/chunkReload';
 
 // Catches uncaught render/DOM errors anywhere below it so the app shows a
 // recoverable "Something went wrong" screen instead of going fully blank.
@@ -16,6 +17,8 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    // Stale page file after a deploy: refresh once instead of asking the user to.
+    if (isChunkLoadError(error) && reloadOnceForStaleChunk()) return;
     this.setState({ error, errorInfo });
     console.error('Unhandled UI error:', error, errorInfo);
   }

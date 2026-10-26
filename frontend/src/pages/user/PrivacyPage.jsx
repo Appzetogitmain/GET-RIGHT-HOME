@@ -45,17 +45,23 @@ const PrivacyPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-surface text-white p-6 pb-12 rounded-b-[30px] shadow-lg sticky top-0 z-20">
-        <div className="flex items-center gap-4 mb-4">
-          <button onClick={() => navigate(-1)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
+      {/* Header */}
+      <div className="bg-surface text-white px-6 pt-5 pb-7 rounded-b-[32px] shadow-md">
+        <div className="flex items-center gap-4 mb-3">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="p-2 bg-white/15 rounded-full hover:bg-white/25 active:scale-95 transition"
+            aria-label="Go back"
+          >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-xl font-bold">Legal</h1>
+          <h1 className="text-lg font-bold tracking-wide">Legal</h1>
         </div>
         <h2 className="text-2xl font-black">{audience === 'partner' ? 'Partner Privacy' : 'Privacy Policy'}</h2>
       </div>
 
-      <div className="px-5 -mt-6 relative z-10 pb-24">
+      {/* Content */}
+      <div className="px-5 pt-4 pb-24 max-w-xl mx-auto">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 min-h-[400px]">
           <div className="flex items-center gap-3 mb-6 text-surface border-b border-gray-100 pb-3">
             <Shield size={24} />

@@ -26,18 +26,23 @@ const SupportPage = () => {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
-            <div className="bg-surface text-white p-6 pb-12 rounded-b-[30px] shadow-lg">
-                <div className="flex items-center gap-4 mb-4">
-                    <button onClick={() => navigate(-1)} className="p-2 bg-white/10 rounded-full hover:bg-white/20">
+            <div className="bg-surface text-white px-6 pt-5 pb-7 rounded-b-[32px] shadow-md">
+                <div className="flex items-center gap-4 mb-3">
+                    <button 
+                        onClick={() => navigate(-1)} 
+                        className="p-2 bg-white/15 rounded-full hover:bg-white/25 active:scale-95 transition"
+                        aria-label="Go back"
+                    >
                         <ArrowLeft size={20} />
                     </button>
-                    <h1 className="text-xl font-bold">Help & Support</h1>
+                    <h1 className="text-lg font-bold tracking-wide">Help & Support</h1>
                 </div>
                 <h2 className="text-2xl font-black">How can we help you?</h2>
-                <p className="text-sm text-white/70">Find answers or contact our support team.</p>
+                <p className="text-xs text-white/80 mt-1">Find answers or contact our support team.</p>
             </div>
 
-            <div className="px-5 -mt-8 relative z-10 space-y-6 pb-20">
+            {/* Content */}
+            <div className="px-5 pt-4 space-y-6 pb-20 max-w-xl mx-auto">
 
                 {/* Contact Options */}
                 <div className="bg-white rounded-2xl p-5 shadow-lg shadow-gray-200/50 border border-white">

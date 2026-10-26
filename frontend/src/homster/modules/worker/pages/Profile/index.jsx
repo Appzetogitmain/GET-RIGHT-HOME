@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward, FiCalendar, FiShield } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward, FiCalendar, FiShield, FiX } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { workerTheme as themeColors } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
@@ -15,6 +16,8 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -135,7 +138,19 @@ const Profile = () => {
     fetchProfile();
   }, []);
 
+  // Prevent background scroll when logout confirmation modal is open
+  useEffect(() => {
+    if (showLogoutConfirm) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [showLogoutConfirm]);
+
   const handleLogout = async () => {
+    setIsLoggingOut(true);
     try {
       await workerAuthService.logout();
       toast.success('Logged out successfully');
@@ -147,6 +162,9 @@ const Profile = () => {
       localStorage.removeItem('workerData');
       toast.success('Logged out successfully');
       navigate('/worker/login');
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutConfirm(false);
     }
   };
 
@@ -359,13 +377,77 @@ const Profile = () => {
         <button
           onClick={(e) => {
             e.preventDefault();
-            handleLogout();
+            setShowLogoutConfirm(true);
           }}
-          className="w-full bg-[#FFE4E6] text-[#E11D48] rounded-2xl p-4 flex items-center justify-center gap-2 font-bold transition-all active:scale-95 border border-[#FECDD3]"
+          className="w-full bg-[#FFE4E6] text-[#E11D48] hover:bg-[#FEE2E2] rounded-2xl p-4 flex items-center justify-center gap-2 font-bold transition-all active:scale-95 border border-[#FECDD3] shadow-sm"
         >
           <FiLogOut className="w-5 h-5" /> Log Out
         </button>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && createPortal(
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => !isLoggingOut && setShowLogoutConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-3xl w-full max-w-sm sm:max-w-md p-6 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              disabled={isLoggingOut}
+              onClick={() => setShowLogoutConfirm(false)}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+              aria-label="Close"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center pt-2">
+              <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 mb-4 shadow-sm">
+                <FiLogOut className="w-8 h-8 ml-0.5" />
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Log Out Confirmation</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-6 px-2">
+                Are you sure you want to log out? You will need to sign in again to access your jobs, wallet, and leads.
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  disabled={isLoggingOut}
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 py-3.5 px-4 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isLoggingOut}
+                  onClick={handleLogout}
+                  className="flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white font-bold text-sm hover:from-rose-600 hover:to-red-700 active:scale-95 transition-all shadow-lg shadow-rose-500/25 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isLoggingOut ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Logging Out...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiLogOut className="w-4 h-4" />
+                      <span>Yes, Log Out</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <BottomNav />
     </div>

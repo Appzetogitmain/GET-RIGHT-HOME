@@ -39,22 +39,25 @@ const AboutPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-surface text-white p-6 pb-10 rounded-b-[30px] shadow-lg sticky top-0 z-20">
-        <div className="flex items-center gap-4 mb-4">
+      {/* Header */}
+      <div className="bg-surface text-white px-6 pt-5 pb-7 rounded-b-[32px] shadow-md">
+        <div className="flex items-center gap-4 mb-2">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"
+            className="p-2 bg-white/15 rounded-full hover:bg-white/25 active:scale-95 transition"
+            aria-label="Go back"
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-xl font-bold">About Us</h1>
+          <h1 className="text-lg font-bold tracking-wide">About Us</h1>
         </div>
-        <p className="text-xs text-white/70 max-w-xs">
+        <p className="text-xs text-white/80 max-w-sm pl-11">
           Learn more about the story, mission and values behind Get-Right-Home.
         </p>
       </div>
 
-      <div className="px-5 -mt-6 relative z-10 pb-24">
+      {/* Content */}
+      <div className="px-5 pt-4 pb-24 max-w-xl mx-auto">
         {error && (
           <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl px-4 py-2">
             {error}

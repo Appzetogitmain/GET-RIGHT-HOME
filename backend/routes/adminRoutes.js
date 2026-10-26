@@ -78,6 +78,12 @@ import {
   updateWorkerPlan,
   deleteWorkerPlan,
 } from '../controllers/adminWorkerPlanController.js';
+import {
+  getPlans,
+  createPlan,
+  updatePlan,
+  deletePlan,
+} from '../controllers/adminPlanController.js';
 import { checkManagerPermission, requireAdminOrManager } from '../middlewares/managerPermission.js';
 
 import builderRoutes from './builderRoutes.js';
@@ -194,6 +200,12 @@ router.get('/worker-plans', getWorkerPlans);
 router.post('/worker-plans', createWorkerPlan);
 router.put('/worker-plans/:id', updateWorkerPlan);
 router.delete('/worker-plans/:id', deleteWorkerPlan);
+
+// User subscription plans (Home-service 'User Plans' screen under Plans in admin panel)
+router.get('/plans', getPlans);
+router.post('/plans', createPlan);
+router.put('/plans/:id', updatePlan);
+router.delete('/plans/:id', deletePlan);
 router.get('/reports/workers', checkManagerPermission('dashboard', 'view'), getWorkerAnalytics);
 
 // Worker Withdrawals

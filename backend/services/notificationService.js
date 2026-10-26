@@ -32,6 +32,10 @@ class NotificationService {
       app.push(...user.fcmTokenMobile);
     }
 
+    if (typeof user.fcmToken === 'string' && user.fcmToken) {
+      web.push(user.fcmToken);
+    }
+
     return [...new Set([...app, ...web].filter(Boolean))];
   }
 

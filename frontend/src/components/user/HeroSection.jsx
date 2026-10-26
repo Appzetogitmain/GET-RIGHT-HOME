@@ -124,13 +124,17 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         }
     };
 
-    const handleLiveLocationDetect = async () => {
+    // `silent` is the automatic run on page open: no "detecting" toast and no
+    // error toasts if the user declines the permission prompt or it fails.
+    const handleLiveLocationDetect = async (options) => {
+        const silent = options?.silent === true;
         if (!navigator.geolocation) {
-            toast.error("Geolocation is not supported by your browser");
+            if (!silent) toast.error("Geolocation is not supported by your browser");
             return;
         }
+        if (detectingLocation) return; // a detection is already running
         setDetectingLocation(true);
-        const toastId = toast.loading("Detecting your live location...");
+        const toastId = silent ? null : toast.loading("Detecting your live location...", { id: 'detect-location' });
         try {
             const position = await new Promise((res, rej) =>
                 navigator.geolocation.getCurrentPosition(res, rej, { timeout: 6000 })
@@ -150,7 +154,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
 
             const state = geoData.address?.state || '';
 
-            toast.dismiss(toastId);
+            if (toastId) toast.dismiss(toastId);
 
             // Listings now exist across many cities (Indore, Pune, Bhopal,
             // Noida, ...), not just Bengaluru — see admin-cities. Detecting a
@@ -171,17 +175,34 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                     if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
                 toast.success(`Location set to ${cityToSet}!`);
-            } else {
+            } else if (!silent) {
                 toast.error("Couldn't determine your city. Please select it manually.");
             }
         } catch (err) {
             console.error("Geolocation error:", err);
-            toast.dismiss(toastId);
-            toast.error("Failed to detect live location. Please select your city manually.");
+            if (toastId) toast.dismiss(toastId);
+            if (!silent) toast.error("Failed to detect live location. Please select your city manually.");
         } finally {
             setDetectingLocation(false);
         }
     };
+
+    // Detect the live location automatically when the home page opens, so the
+    // user doesn't have to tap the pin. Only when they haven't already chosen
+    // or detected a city (that choice is stored), and only once per session so
+    // a declined permission prompt isn't repeated on every visit.
+    useEffect(() => {
+        let alreadyChosen = false;
+        let alreadyTried = false;
+        try {
+            alreadyChosen = !!localStorage.getItem('grh_selected_city');
+            alreadyTried = !!sessionStorage.getItem('grh-autodetect-tried');
+        } catch { /* storage blocked: fall through and try once */ }
+        if (alreadyChosen || alreadyTried) return;
+        try { sessionStorage.setItem('grh-autodetect-tried', '1'); } catch { /* ignore */ }
+        handleLiveLocationDetect({ silent: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <motion.section className="relative w-full pt-0 pb-2 flex flex-col bg-transparent">

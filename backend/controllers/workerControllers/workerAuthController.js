@@ -1,4 +1,7 @@
 import Worker, { WORKER_LIGHT } from '../../models/Worker.js';
+import Admin from '../../models/Admin.js';
+import { createNotification } from '../notificationControllers/notificationController.js';
+import { getIO } from '../../sockets.js';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 import Profession from '../../models/Profession.js';
@@ -286,6 +289,19 @@ const register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please select your profession.' });
     }
 
+    // Validate Driving License format if provided
+    let cleanDl = null;
+    if (drivingLicenseNumber && String(drivingLicenseNumber).trim()) {
+      cleanDl = String(drivingLicenseNumber).replace(/[\s-]/g, '').toUpperCase();
+      const dlPattern = /^[A-Z]{2}[0-9]{2}(19|20)\d{2}\d{7,8}$/;
+      if (!dlPattern.test(cleanDl)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid Driving License format. Example: MH0420110062821 or MH-04-2011-0062821'
+        });
+      }
+    }
+
     // Create worker
     const worker = await Worker.create({
       name, email, phone,
@@ -309,6 +325,72 @@ const register = async (req, res) => {
       status: WORKER_STATUS.OFFLINE,
       approvalStatus: 'pending'
     });
+
+    // Notify all Admins about new worker registration (In-App + Push Notification)
+    try {
+      const admins = await Admin.find({
+        role: { $in: ['admin', 'superadmin', 'super_admin'] },
+        isActive: { $ne: false }
+      });
+
+      const notifTitle = '👷 New Worker Registered';
+      const notifBody = `${worker.name} (${worker.phone}) has registered and is awaiting approval.`;
+
+      // 1. In-App Notification & Push Notification via Firebase for each active Admin
+      await Promise.allSettled(
+        admins.map(admin =>
+          createNotification({
+            userId: admin._id,
+            userType: 'admin',
+            userModel: 'Admin',
+            type: 'worker_registration',
+            title: notifTitle,
+            body: notifBody,
+            priority: 'high',
+            data: {
+              type: 'worker_registration',
+              workerId: String(worker._id),
+              name: worker.name,
+              phone: worker.phone,
+              email: worker.email || '',
+              approvalStatus: worker.approvalStatus,
+              click_action: '/admin/workers',
+              link: '/admin/workers'
+            },
+            pushData: {
+              type: 'worker_registration',
+              workerId: String(worker._id),
+              click_action: '/admin/workers',
+              link: '/admin/workers'
+            }
+          })
+        )
+      );
+
+      // 2. Real-time broadcast to admin room via Socket.IO
+      const io = getIO();
+      if (io) {
+        io.to('admin_room').emit('new_worker_registered', {
+          workerId: String(worker._id),
+          name: worker.name,
+          phone: worker.phone,
+          email: worker.email,
+          approvalStatus: worker.approvalStatus,
+          createdAt: worker.createdAt
+        });
+        io.to('admin_room').emit('notification', {
+          title: notifTitle,
+          body: notifBody,
+          message: notifBody,
+          type: 'worker_registration',
+          workerId: String(worker._id),
+          click_action: '/admin/workers',
+          createdAt: new Date().toISOString()
+        });
+      }
+    } catch (notifErr) {
+      console.error('Error notifying admins about worker registration:', notifErr);
+    }
 
     res.status(201).json({
       success: true,

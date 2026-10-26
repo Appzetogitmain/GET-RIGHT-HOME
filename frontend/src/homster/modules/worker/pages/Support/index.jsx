@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiHeadphones, FiPhone, FiMail, FiMapPin, FiSend } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -19,6 +20,17 @@ const Support = () => {
   useEffect(() => {
     fetchSupportContact();
   }, []);
+
+  // Lock body scroll when contact modal is open
+  useEffect(() => {
+    if (showContactForm) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [showContactForm]);
 
   const fetchSupportContact = async () => {
     try {
@@ -60,10 +72,10 @@ const Support = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-32">
+    <div className="min-h-screen bg-[#F8FAFC] pb-24">
       <Header title="Support" />
 
-      <div className="pt-24 px-4">
+      <div className="pt-4 sm:pt-6 px-4 max-w-xl mx-auto">
         <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100">
           <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-6 mx-auto shadow-inner">
             <FiHeadphones className="w-10 h-10" />
@@ -125,77 +137,86 @@ const Support = () => {
       </div>
 
       {/* Contact Form Modal */}
-      {showContactForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-3xl">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Submit a Request</h2>
-                <button
-                  onClick={() => setShowContactForm(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <FiArrowLeft className="w-5 h-5" />
-                </button>
-              </div>
+      {showContactForm && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => setShowContactForm(false)}
+        >
+          <div 
+            className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[85vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 rounded-t-3xl flex items-center justify-between z-10 flex-shrink-0">
+              <h2 className="text-xl font-bold text-gray-900">Submit a Request</h2>
+              <button
+                type="button"
+                onClick={() => setShowContactForm(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+                aria-label="Close"
+              >
+                <FiArrowLeft className="w-5 h-5" />
+              </button>
             </div>
 
-            <form onSubmit={handleContactSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleContactSubmit} className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition"
                   placeholder="Your name"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition"
                   placeholder="your.email@example.com"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Subject</label>
                 <input
                   type="text"
                   value={formData.subject}
                   onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition"
                   placeholder="Brief description of your issue"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Message</label>
                 <textarea
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  rows={6}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none resize-none"
+                  rows={5}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none resize-none text-sm transition"
                   placeholder="Describe your issue in detail..."
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] text-white rounded-xl p-4 font-semibold shadow-lg hover:shadow-xl transition-all active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <FiSend className="w-5 h-5" />
-                {submitting ? 'Sending...' : 'Submit Request'}
-              </button>
+              <div className="pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom,20px))]">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] text-white rounded-xl p-4 font-semibold shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <FiSend className="w-5 h-5" />
+                  {submitting ? 'Sending...' : 'Submit Request'}
+                </button>
+              </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

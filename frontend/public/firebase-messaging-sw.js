@@ -57,7 +57,7 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
-  const clickUrl = event.notification.data?.link || '/';
+  const clickUrl = event.notification.data?.link || event.notification.data?.click_action || '/';
   
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {

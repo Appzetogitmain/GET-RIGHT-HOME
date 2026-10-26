@@ -1,12 +1,68 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiCamera, FiX, FiArrowRight, FiChevronLeft, FiCheckCircle } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiFileText, FiUpload, FiCamera, FiX, FiArrowRight, FiChevronLeft, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../theme';
 import { workerAuthService } from '../../../services/authService';
 import Logo from '../../../components/common/Logo';
 
 import { z } from "zod";
+
+// Validates Indian Driving License number format (Sarathi / MoRTH standard)
+// Format: 2 State Letters + 2 RTO digits + 4-digit Year + 7 digits serial (15 characters)
+// Allows optional hyphens or spaces, e.g. MH0420110062821, MH-04-2011-0062821
+export const validateDrivingLicense = (dlNumber) => {
+  if (!dlNumber || !dlNumber.trim()) return { isValid: true, message: '', clean: '' };
+  const clean = dlNumber.replace(/[\s-]/g, '').toUpperCase();
+  
+  if (clean.length < 15) {
+    return {
+      isValid: false,
+      message: `DL number is incomplete (${clean.length}/15 characters). Format: SSRRYYYYNNNNNNN`,
+      clean
+    };
+  }
+  if (clean.length > 16) {
+    return {
+      isValid: false,
+      message: 'DL number cannot exceed 16 characters.',
+      clean
+    };
+  }
+  if (!/^[A-Z]{2}/.test(clean)) {
+    return {
+      isValid: false,
+      message: 'DL must begin with a 2-letter state code (e.g. DL, MH, UP).',
+      clean
+    };
+  }
+  if (!/^[A-Z]{2}[0-9]{2}/.test(clean)) {
+    return {
+      isValid: false,
+      message: 'State code must be followed by a 2-digit RTO code (e.g. MH04).',
+      clean
+    };
+  }
+  const yearPart = clean.slice(4, 8);
+  const currentYear = new Date().getFullYear();
+  const yearNum = parseInt(yearPart, 10);
+  if (isNaN(yearNum) || yearNum < 1960 || yearNum > currentYear) {
+    return {
+      isValid: false,
+      message: `Invalid issue year (${yearPart}). Must be between 1960 and ${currentYear}.`,
+      clean
+    };
+  }
+  const standardDlRegex = /^[A-Z]{2}[0-9]{2}(19|20)\d{2}\d{7,8}$/;
+  if (!standardDlRegex.test(clean)) {
+    return {
+      isValid: false,
+      message: 'Invalid DL format. Example: MH0420110062821 or MH-04-2011-0062821',
+      clean
+    };
+  }
+  return { isValid: true, message: 'Valid Driving License format', clean };
+};
 
 // Zod schema for Worker Signup
 const workerSignupSchema = z.object({
@@ -229,8 +285,8 @@ const WorkerSignup = () => {
   };
 
   const handleDlChange = (e) => {
-    let val = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-    if (val.length > 16) val = val.slice(0, 16);
+    let val = e.target.value.toUpperCase().replace(/[^A-Z0-9 -]/g, '');
+    if (val.length > 18) val = val.slice(0, 18);
     setFormData(p => ({ ...p, drivingLicenseNumber: val }));
   };
 
@@ -323,15 +379,18 @@ const WorkerSignup = () => {
       return;
     }
 
-    // DL is optional, so no check needed unless we want to enforce either both or neither
+    // DL is optional, but if provided must match valid format and document
+    if (formData.drivingLicenseNumber) {
+      const dlCheck = validateDrivingLicense(formData.drivingLicenseNumber);
+      if (!dlCheck.isValid) {
+        toast.error(dlCheck.message);
+        return;
+      }
+    }
     if ((formData.drivingLicenseNumber && !documentPreview.dl) ||
         (!formData.drivingLicenseNumber && documentPreview.dl)) {
        toast.error('Please provide both DL Number and Document if you wish to add it.');
        return;
-    }
-    if (formData.drivingLicenseNumber && formData.drivingLicenseNumber.length < 10) {
-      toast.error('Invalid Driving License format');
-      return;
     }
     
     // Wrong referral code: flag it here, before any OTP is sent or the
@@ -685,26 +744,77 @@ const WorkerSignup = () => {
               </div>
 
               {/* Driving License Section (Optional) */}
-              <div className="animate-stagger-[5.7] animate-fade-in mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Driving License Number (Optional)</label>
-                <div className="relative rounded-xl shadow-sm group mb-2">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
-                    <FiFileText className="text-gray-400" />
+              {(() => {
+                const dlVal = validateDrivingLicense(formData.drivingLicenseNumber);
+                const hasDlInput = Boolean(formData.drivingLicenseNumber?.trim());
+                return (
+                  <div className="animate-stagger-[5.7] animate-fade-in mt-6">
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-sm font-medium text-gray-700">Driving License Number (Optional)</label>
+                      {hasDlInput && (
+                        <span className={`text-[11px] font-semibold flex items-center gap-1 ${
+                          dlVal.isValid ? 'text-emerald-600' : 'text-amber-600'
+                        }`}>
+                          {dlVal.isValid ? (
+                            <>
+                              <FiCheckCircle className="w-3.5 h-3.5" /> Valid Format
+                            </>
+                          ) : (
+                            <>
+                              <FiAlertCircle className="w-3.5 h-3.5" /> Incomplete / Invalid
+                            </>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative rounded-xl shadow-sm group mb-1.5">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-[#347989] transition-colors">
+                        <FiFileText className="text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        name="drivingLicenseNumber"
+                        value={formData.drivingLicenseNumber}
+                        onChange={handleDlChange}
+                        className={`block w-full pl-10 pr-10 py-3 border rounded-xl focus:ring-2 focus:ring-offset-2 outline-none transition-all duration-300 uppercase ${
+                          hasDlInput
+                            ? dlVal.isValid
+                              ? 'border-emerald-400 focus:border-emerald-500 focus:ring-emerald-200'
+                              : 'border-amber-400 focus:border-amber-500 focus:ring-amber-200'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        style={{ '--tw-ring-color': hasDlInput && dlVal.isValid ? '#10B981' : brandColor }}
+                        placeholder="e.g. MH0420110062821"
+                        maxLength={18}
+                      />
+                      {hasDlInput && (
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                          {dlVal.isValid ? (
+                            <FiCheckCircle className="text-emerald-500 w-5 h-5" />
+                          ) : (
+                            <span className="text-[11px] font-bold text-amber-500">
+                              {formData.drivingLicenseNumber.replace(/[\s-]/g, '').length}/15
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {hasDlInput && !dlVal.isValid && (
+                      <p className="text-xs text-amber-600 font-medium mb-1.5 flex items-center gap-1">
+                        <FiAlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                        {dlVal.message}
+                      </p>
+                    )}
+
+                    <p className="text-[11px] text-gray-400 mb-2">
+                      Format: 2 State Letters + 2 RTO Digits + 4 Year Digits + 7 Serial Digits (e.g., MH0420110062821 or MH-04-2011-0062821)
+                    </p>
+                    
+                    <DocumentField label="Driving License Upload (Optional)" uploadText="Upload DL" preview={documentPreview.dl} onPick={(e) => handleDocumentUpload(e, 'dl')} onRemove={() => removeDocument('dl')} />
                   </div>
-                  <input
-                    type="text"
-                    name="drivingLicenseNumber"
-                    value={formData.drivingLicenseNumber}
-                    onChange={handleDlChange}
-                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-offset-2 outline-none transition-all duration-300 hover:border-gray-400 uppercase"
-                    style={{ '--tw-ring-color': brandColor }}
-                    placeholder="e.g. MH0420110062821"
-                    maxLength={16}
-                  />
-                </div>
-                
-                <DocumentField label="Driving License Upload (Optional)" uploadText="Upload DL" preview={documentPreview.dl} onPick={(e) => handleDocumentUpload(e, 'dl')} onRemove={() => removeDocument('dl')} />
-              </div>
+                );
+              })()}
 
               <div className="animate-stagger-[6] animate-fade-in">
                 <button

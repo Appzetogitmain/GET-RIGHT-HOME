@@ -134,7 +134,8 @@ export default function ReelsPage() {
         propertyType: filterType,
         status: filterStatus,
         search: searchQuery,
-        creatorOnly: filterOnlyMine ? 'true' : 'false'
+        creatorOnly: filterOnlyMine ? 'true' : 'false',
+        ...(isFresh && { _t: Date.now() })
       };
       if (cursor && !isFresh) {
         params.cursor = cursor;
@@ -404,6 +405,9 @@ export default function ReelsPage() {
 
       setUploadOpen(false);
       resetWizard();
+      if (res?.reel) {
+        setReels((prev) => [res.reel, ...prev.filter((r) => r._id !== res.reel._id)]);
+      }
       loadFeed(null, true);
     } catch (err) {
       console.error(err);
@@ -696,101 +700,115 @@ export default function ReelsPage() {
 
       {/* Slide-up Filter Bottom Sheet */}
       {filterOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/85 flex items-end justify-center animate-fade-in">
-          <div className="bg-neutral-900 border-t border-white/10 w-full rounded-t-3xl md:max-w-md p-6 pb-8 safe-area-bottom shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
+        <div 
+          className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex flex-col justify-end items-center animate-fade-in select-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setFilterOpen(false);
+          }}
+        >
+          <div 
+            className="bg-neutral-900 border-t border-white/10 w-full rounded-t-3xl md:max-w-md flex flex-col max-h-[85vh] max-h-[85dvh] shadow-2xl overscroll-contain select-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center px-6 pt-5 pb-4 border-b border-white/10 shrink-0">
               <span className="font-black text-xs uppercase tracking-widest text-white/50">Filter Shorts</span>
               <button
                 type="button"
                 onClick={() => setFilterOpen(false)}
-                className="p-1 rounded-full bg-white/5 border border-white/10 text-white"
+                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+                aria-label="Close"
               >
                 <X size={16} />
               </button>
             </div>
 
-            <div className="space-y-4">
-              {/* City Selection */}
-              <div>
-                <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">City Area</label>
-                <select
-                  value={filterCity}
-                  onChange={(e) => setFilterCity(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
-                >
-                  <option value="All" className="bg-neutral-950 text-white">All Bengaluru</option>
-                  {BENGALURU_AREAS.map((a) => (
-                    <option key={a} value={a} className="bg-neutral-950 text-white">{a}</option>
-                  ))}
-                </select>
+            <div 
+              className="flex-1 overflow-y-auto min-h-0 px-6 py-5 pb-8 touch-pan-y overscroll-contain"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+              <div className="space-y-4">
+                {/* City Selection */}
+                <div>
+                  <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">City Area</label>
+                  <select
+                    value={filterCity}
+                    onChange={(e) => setFilterCity(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="All" className="bg-neutral-950 text-white">All Bengaluru</option>
+                    {BENGALURU_AREAS.map((a) => (
+                      <option key={a} value={a} className="bg-neutral-950 text-white">{a}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Property Type */}
+                <div>
+                  <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">Property Type</label>
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="All" className="bg-neutral-950 text-white">All Types</option>
+                    {PROPERTY_TYPES.map((t) => (
+                      <option key={t} value={t} className="bg-neutral-950 text-white">{t}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">Property Status</label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="All" className="bg-neutral-950 text-white">All Statuses</option>
+                    <option value="Ready to move" className="bg-neutral-950 text-white">Ready to move</option>
+                    <option value="Under construction" className="bg-neutral-950 text-white">Under construction</option>
+                  </select>
+                </div>
+
+                {/* Budget Range */}
+                <div>
+                  <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">Budget Target</label>
+                  <select
+                    value={filterBudget}
+                    onChange={(e) => setFilterBudget(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="All" className="bg-neutral-950 text-white">All Budgets</option>
+                    {BUDGET_RANGES.map((r) => (
+                      <option key={r} value={r} className="bg-neutral-950 text-white">{r}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              {/* Property Type */}
-              <div>
-                <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">Property Type</label>
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterCity('All');
+                    setFilterBudget('All');
+                    setFilterType('All');
+                    setFilterStatus('All');
+                    setFilterOpen(false);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-wider hover:bg-white/5 transition-all"
                 >
-                  <option value="All" className="bg-neutral-950 text-white">All Types</option>
-                  {PROPERTY_TYPES.map((t) => (
-                    <option key={t} value={t} className="bg-neutral-950 text-white">{t}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">Property Status</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-lg transition-all"
                 >
-                  <option value="All" className="bg-neutral-950 text-white">All Statuses</option>
-                  <option value="Ready to move" className="bg-neutral-950 text-white">Ready to move</option>
-                  <option value="Under construction" className="bg-neutral-950 text-white">Under construction</option>
-                </select>
+                  Apply Filters
+                </button>
               </div>
-
-              {/* Budget Range */}
-              <div>
-                <label className="block text-[10px] font-black text-white/60 uppercase tracking-wider mb-2">Budget Target</label>
-                <select
-                  value={filterBudget}
-                  onChange={(e) => setFilterBudget(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-2 px-3 text-xs focus:outline-none focus:border-blue-500"
-                >
-                  <option value="All" className="bg-neutral-950 text-white">All Budgets</option>
-                  {BUDGET_RANGES.map((r) => (
-                    <option key={r} value={r} className="bg-neutral-950 text-white">{r}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterCity('All');
-                  setFilterBudget('All');
-                  setFilterType('All');
-                  setFilterStatus('All');
-                  setFilterOpen(false);
-                }}
-                className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-wider"
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterOpen(false)}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs uppercase tracking-wider shadow-lg"
-              >
-                Apply Filters
-              </button>
             </div>
           </div>
         </div>
@@ -798,10 +816,18 @@ export default function ReelsPage() {
 
       {/* Multi-page Multi-step Upload Modal Wizard */}
       {uploadOpen && (
-        <div className="fixed inset-0 z-[110] bg-black/90 flex items-end justify-center overscroll-none animate-fade-in">
-          <div className="bg-neutral-950 border-t border-white/10 w-full rounded-t-3xl md:max-w-md p-6 pb-20 safe-area-bottom shadow-2xl overflow-y-auto max-h-[90%] no-scrollbar">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6">
+        <div 
+          className="fixed inset-0 z-[110] bg-black/85 backdrop-blur-sm flex flex-col justify-end items-center animate-fade-in select-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setUploadOpen(false);
+          }}
+        >
+          <div 
+            className="bg-neutral-950 border-t border-white/10 w-full rounded-t-3xl md:max-w-md flex flex-col max-h-[85vh] max-h-[85dvh] shadow-2xl overscroll-contain select-auto overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header (Sticky at top) */}
+            <div className="flex justify-between items-center px-6 pt-5 pb-4 border-b border-white/10 shrink-0 bg-neutral-950 rounded-t-3xl">
               <div>
                 <span className="font-black text-[9px] uppercase tracking-widest text-blue-500">Step {uploadStep} of 4</span>
                 <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">
@@ -814,11 +840,18 @@ export default function ReelsPage() {
               <button
                 type="button"
                 onClick={() => setUploadOpen(false)}
-                className="p-1 rounded-full bg-white/5 border border-white/10 text-white"
+                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+                aria-label="Close"
               >
                 <X size={16} />
               </button>
             </div>
+
+            {/* Scrollable Form Body Container */}
+            <div 
+              className="flex-1 overflow-y-auto min-h-0 px-6 py-5 pb-20 touch-pan-y overscroll-contain"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
 
             {/* STEP 1: Bangalore City Selector */}
             {uploadStep === 1 && (
@@ -1065,11 +1098,11 @@ export default function ReelsPage() {
                 </div>
 
                 {/* Submit / Back Actions */}
-                <div className="flex gap-3 mt-6">
+                <div className="flex gap-3 mt-6 pb-6">
                   <button
                     type="button"
                     onClick={() => setUploadStep(3)}
-                    className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-widest"
+                    className="flex-1 py-2.5 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-widest hover:bg-white/5 transition-all"
                   >
                     Back
                   </button>
@@ -1090,6 +1123,7 @@ export default function ReelsPage() {
                 </div>
               </form>
             )}
+            </div>
           </div>
         </div>
       )}

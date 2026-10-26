@@ -163,8 +163,9 @@ const GuidedSearchFlowModal = ({
       toast.error('Geolocation is not supported by your browser');
       return;
     }
+    if (detectingLocation) return; // a detection is already running
     setDetectingLocation(true);
-    const toastId = toast.loading('Detecting your live location...');
+    const toastId = toast.loading('Detecting your live location...', { id: 'detect-location' });
     try {
       const pos = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Clock, Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import ToastLimiter from './components/common/ToastLimiter';
 
 // Eager Imports (Critical UI)
 import TopNavbar from './components/ui/TopNavbar';
@@ -466,6 +467,7 @@ function App() {
           <Router>
             <ScrollToTop />
             <Toaster position="top-center" reverseOrder={false} />
+            <ToastLimiter />
             <SocketProvider>
               <EnquiryModalProvider>
               <Layout>
