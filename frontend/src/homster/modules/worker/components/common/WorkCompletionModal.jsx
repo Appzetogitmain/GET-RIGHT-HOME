@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiX, FiTrash, FiCamera, FiDollarSign, FiCheckCircle } from 'react-icons/fi';
+import { FiX, FiTrash, FiImage, FiDollarSign, FiCheckCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import flutterBridge from '../../../../utils/flutterBridge';
@@ -7,31 +7,13 @@ import flutterBridge from '../../../../utils/flutterBridge';
 const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
   const [workPhotos, setWorkPhotos] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
-  const cameraInputRef = React.useRef(null);
-
-  const handleNativeCamera = async () => {
-    try {
-      setIsUploading(true);
-      const file = await flutterBridge.openCamera();
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setWorkPhotos(prev => [...prev, reader.result]);
-          setIsUploading(false);
-          flutterBridge.hapticFeedback('success');
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setIsUploading(false);
-      }
-    } catch (error) {
-      console.error('Native camera failed:', error);
-      setIsUploading(false);
-    }
-  };
+  const galleryInputRef = React.useRef(null);
 
   const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files);
+    const remainingSlots = Math.max(0, 5 - workPhotos.length);
+    const files = Array.from(e.target.files || []).slice(0, remainingSlots);
+    // Allow selecting the same photo again after it has been removed.
+    e.target.value = '';
     if (files.length === 0) return;
 
     setIsUploading(true);
@@ -46,6 +28,7 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
     Promise.all(uploadPromises).then(urls => {
       setWorkPhotos(prev => [...prev, ...urls]);
       setIsUploading(false);
+      flutterBridge.hapticFeedback('success');
     });
   };
 
@@ -116,7 +99,7 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
             <div className="px-8 pb-8 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
 
               <p className="text-sm text-gray-500 font-medium leading-relaxed">
-                Please upload proof of work from your camera to confirm completion.
+                Please choose work photos from your gallery to confirm completion.
               </p>
 
               {/* Photo Upload Section */}
@@ -145,17 +128,11 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
                   {workPhotos.length < 5 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        if (flutterBridge.isFlutter) {
-                          handleNativeCamera();
-                        } else {
-                          cameraInputRef.current?.click();
-                        }
-                      }}
+                      onClick={() => galleryInputRef.current?.click()}
                       className="aspect-square rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 hover:border-green-400 hover:bg-green-50/30 flex flex-col items-center justify-center text-gray-400 hover:text-green-500 cursor-pointer active:scale-95 transition-all"
                     >
-                      <FiCamera className="w-7 h-7 mb-1" />
-                      <span className="text-[10px] font-bold uppercase">Camera Only</span>
+                      <FiImage className="w-7 h-7 mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Choose Photos</span>
                     </button>
                   )}
                 </div>
@@ -163,8 +140,8 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
                 <input
                   type="file"
                   accept="image/*"
-                  capture="environment"
-                  ref={cameraInputRef}
+                  multiple
+                  ref={galleryInputRef}
                   onChange={handlePhotoUpload}
                   className="hidden"
                 />
