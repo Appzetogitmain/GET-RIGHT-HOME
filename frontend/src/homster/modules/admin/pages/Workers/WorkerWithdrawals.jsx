@@ -54,6 +54,12 @@ const WorkerWithdrawals = () => {
     setActiveModal('approve');
   };
 
+  const openPay = (item) => {
+    setSelectedItem(item);
+    setUtrNumber('');
+    setActiveModal('pay');
+  };
+
   const openReject = (item) => {
     setSelectedItem(item);
     setRejectionReason('');
@@ -67,23 +73,45 @@ const WorkerWithdrawals = () => {
     setUtrNumber('');
   };
 
+  const errorText = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
+
+  // Step 1: accept the request. Nothing is marked paid yet.
   const handleApprove = async () => {
-    if (!utrNumber.trim()) {
-      toast.error('Please enter the UTR / Transaction number');
-      return;
-    }
     try {
       setActionLoading(true);
-      const res = await adminWorkerService.approveWorkerWithdrawal(selectedItem._id, utrNumber);
+      const res = await adminWorkerService.approveWorkerWithdrawal(selectedItem._id);
       if (res.success) {
-        toast.success('Withdrawal approved and processed successfully');
+        toast.success(res.message || 'Approved');
         loadWithdrawals();
         closeModals();
       } else {
         toast.error(res.message || 'Failed to approve');
       }
     } catch (error) {
-      toast.error(error.message || 'Failed to approve withdrawal');
+      toast.error(errorText(error, 'Failed to approve withdrawal'));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Step 2: the money has been sent — the UTR is required to close it.
+  const handlePay = async () => {
+    if (utrNumber.trim().length < 6) {
+      toast.error('Enter the UTR / transaction reference of your payment');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const res = await adminWorkerService.completeWorkerWithdrawal(selectedItem._id, utrNumber.trim());
+      if (res.success) {
+        toast.success('Marked as paid. The worker has been notified.');
+        loadWithdrawals();
+        closeModals();
+      } else {
+        toast.error(res.message || 'Failed to mark as paid');
+      }
+    } catch (error) {
+      toast.error(errorText(error, 'Failed to mark as paid'));
     } finally {
       setActionLoading(false);
     }
@@ -187,9 +215,12 @@ const WorkerWithdrawals = () => {
                       <div className="text-xl font-bold text-blue-600">₹{request.amount?.toLocaleString()}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${request.status === 'pending' ? 'bg-orange-100 text-orange-700' : request.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {request.status.toUpperCase()}
+                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${request.status === 'pending' ? 'bg-orange-100 text-orange-700' : request.status === 'processing' ? 'bg-blue-100 text-blue-700' : request.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {({ pending: 'PENDING', processing: 'APPROVED · PAY NOW', completed: 'PAID', failed: 'REJECTED' })[request.status] || request.status.toUpperCase()}
                       </span>
+                      {request.status === 'completed' && request.utrNumber && (
+                        <div className="text-[11px] text-gray-500 mt-1">UTR: <span className="font-mono">{request.utrNumber}</span></div>
+                      )}
                       {request.rejectionReason && (
                         <div className="text-[11px] text-red-500 mt-1 max-w-[150px] truncate" title={request.rejectionReason}>
                           Reason: {request.rejectionReason}
@@ -197,15 +228,25 @@ const WorkerWithdrawals = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      {request.status === 'pending' ? (
+                      {['pending', 'processing'].includes(request.status) ? (
                         <div className="flex items-center justify-center space-x-3">
-                          <button
-                            onClick={() => openApprove(request)}
-                            className="flex items-center justify-center gap-1 text-green-700 bg-green-50 hover:bg-green-100 hover:text-green-800 px-3 py-1.5 rounded-lg transition-colors font-bold"
-                            title="Approve"
-                          >
-                            <FiCheck className="w-4 h-4" /> Approve
-                          </button>
+                          {request.status === 'pending' ? (
+                            <button
+                              onClick={() => openApprove(request)}
+                              className="flex items-center justify-center gap-1 text-green-700 bg-green-50 hover:bg-green-100 hover:text-green-800 px-3 py-1.5 rounded-lg transition-colors font-bold"
+                              title="Approve this request"
+                            >
+                              <FiCheck className="w-4 h-4" /> Approve
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openPay(request)}
+                              className="flex items-center justify-center gap-1 text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors font-bold"
+                              title="I have paid the worker"
+                            >
+                              <FiCheck className="w-4 h-4" /> Mark as paid
+                            </button>
+                          )}
                           <button
                             onClick={() => openReject(request)}
                             className="flex items-center justify-center gap-1 text-red-700 bg-red-50 hover:bg-red-100 hover:text-red-800 px-3 py-1.5 rounded-lg transition-colors font-bold"
@@ -263,17 +304,52 @@ const WorkerWithdrawals = () => {
         )}
       </CardShell>
 
-      {/* Approve Modal */}
+      {/* Approve Modal (step 1) */}
       <Modal
         isOpen={activeModal === 'approve'}
         onClose={closeModals}
         title="Approve Withdrawal"
       >
         <div className="p-4">
-          <p className="mb-4">Are you sure you want to approve this withdrawal request of <b>₹{selectedItem?.amount?.toLocaleString()}</b> for <b>{selectedItem?.workerId?.name}</b>?</p>
-          <div className="bg-yellow-50 text-yellow-800 p-3 rounded-lg text-sm mb-4 border border-yellow-200">
-            Please ensure you have transferred the amount to their provided bank account or UPI ID before approving this request. This action will mark it as completed.
+          <p className="mb-4">Approve the withdrawal of <b>₹{selectedItem?.amount?.toLocaleString()}</b> for <b>{selectedItem?.workerId?.name}</b>?</p>
+          {selectedItem?.bankDetails && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm mb-4 space-y-0.5">
+              {selectedItem.bankDetails.upiId && <div><span className="text-gray-500 text-xs">UPI:</span> <b>{selectedItem.bankDetails.upiId}</b></div>}
+              {selectedItem.bankDetails.accountNumber && <div><span className="text-gray-500 text-xs">Account:</span> <b>{selectedItem.bankDetails.accountNumber}</b> <span className="text-gray-500 text-xs">IFSC</span> <b>{selectedItem.bankDetails.ifscCode}</b></div>}
+              {selectedItem.bankDetails.accountHolderName && <div><span className="text-gray-500 text-xs">Name:</span> <b>{selectedItem.bankDetails.accountHolderName}</b></div>}
+            </div>
+          )}
+          <div className="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm mb-6 border border-blue-200">
+            This only accepts the request. It is <b>not</b> marked paid. Transfer the amount to the account above, then use <b>Mark as paid</b> and enter the UTR.
           </div>
+          <div className="flex justify-end gap-3">
+            <button onClick={closeModals} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">Cancel</button>
+            <button
+              onClick={handleApprove}
+              disabled={actionLoading}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold shadow-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {actionLoading ? <FiLoader className="animate-spin" /> : <FiCheck />} Approve
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Mark as paid Modal (step 2) */}
+      <Modal
+        isOpen={activeModal === 'pay'}
+        onClose={closeModals}
+        title="Mark as Paid"
+      >
+        <div className="p-4">
+          <p className="mb-4">Confirm you have sent <b>₹{selectedItem?.amount?.toLocaleString()}</b> to <b>{selectedItem?.workerId?.name}</b>.</p>
+          {selectedItem?.bankDetails && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm mb-4 space-y-0.5">
+              {selectedItem.bankDetails.upiId && <div><span className="text-gray-500 text-xs">UPI:</span> <b>{selectedItem.bankDetails.upiId}</b></div>}
+              {selectedItem.bankDetails.accountNumber && <div><span className="text-gray-500 text-xs">Account:</span> <b>{selectedItem.bankDetails.accountNumber}</b> <span className="text-gray-500 text-xs">IFSC</span> <b>{selectedItem.bankDetails.ifscCode}</b></div>}
+              {selectedItem.bankDetails.accountHolderName && <div><span className="text-gray-500 text-xs">Name:</span> <b>{selectedItem.bankDetails.accountHolderName}</b></div>}
+            </div>
+          )}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               UTR / Transaction Number <span className="text-red-500">*</span>
@@ -285,15 +361,16 @@ const WorkerWithdrawals = () => {
               placeholder="e.g. 312345678901"
               className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
             />
+            <p className="text-[11px] text-gray-400 mt-1">The worker sees this reference in their wallet.</p>
           </div>
           <div className="flex justify-end gap-3">
             <button onClick={closeModals} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">Cancel</button>
             <button
-              onClick={handleApprove}
-              disabled={actionLoading}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold shadow-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              onClick={handlePay}
+              disabled={actionLoading || utrNumber.trim().length < 6}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold shadow-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
             >
-              {actionLoading ? <FiLoader className="animate-spin" /> : <FiCheck />} Yes, Approved
+              {actionLoading ? <FiLoader className="animate-spin" /> : <FiCheck />} Confirm payment
             </button>
           </div>
         </div>

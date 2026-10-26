@@ -15,6 +15,7 @@ import { filterAvailableWorkers, isFutureIstDay } from '../utils/slotAvailabilit
 import { claimWorkerCapacity, isImmediateBooking, syncWorkerCapacityStatus } from './workerCapacityService.js';
 import { sendBookingEmails } from './emailService.js';
 import { getIO } from '../sockets.js';
+import { workerNetForPrice } from '../utils/settlement.js';
 
 export const NO_WORKERS_MESSAGE = 'No professional is available for this service in your area right now. Your booking has been sent to our team, who will assign a professional shortly.';
 
@@ -515,7 +516,7 @@ export const dispatchBooking = async (bookingId) => {
     // drift apart the way a separately-hardcoded flat fee could.
     const platformSettings = await PlatformSettings.getSettings();
     const commissionPercentage = platformSettings.defaultCommission ?? 10;
-    const workerAmount = Math.max(0, parseFloat((((bookingForBackground.basePrice || 0) * (100 - (bookingForBackground.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
+    const workerAmount = workerNetForPrice(bookingForBackground.basePrice || 0, platformSettings, bookingForBackground.moverDetails?.commissionPercent);
     console.log(`[WorkerAmount Calc] basePrice: ${bookingForBackground.basePrice}, commission%: ${commissionPercentage}, workerAmount: ${workerAmount}`);
 
     const waveSettings = await Settings.findOne({ type: 'global' }).select('waveDuration').lean();

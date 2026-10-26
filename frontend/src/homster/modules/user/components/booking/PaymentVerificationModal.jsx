@@ -372,7 +372,7 @@ const PaymentVerificationModal = ({ isOpen, onClose, booking, onPayOnline }) => 
                       <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
                         <FiAlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                         <p className="text-[10px] font-bold text-amber-800 uppercase tracking-tight">
-                           Online payment is temporarily unavailable. Please try again shortly.
+                          Online payment is temporarily unavailable. Please try again shortly.
                         </p>
                       </div>
                     )

@@ -192,6 +192,28 @@ const WorkCompletionModal = ({ isOpen, onClose, job, onComplete, loading }) => {
                 </ul>
               </div>
 
+              {/* What the worker must collect from the customer: the customer's bill
+                  minus the advance already paid online (same rule the payment API uses).
+                  Extra items added in the billing step raise this. */}
+              {(() => {
+                if (!job || job.paymentMethod === 'plan_benefit' || job.isEstimateBased) return null;
+                const num = (v) => Number(v) || 0;
+                const customerBill = Math.max(0, num(job.basePrice) - num(job.discount) - num(job.promoDiscount) - num(job.vipDiscount) + num(job.tax));
+                const advance = Math.max(0, num(job.advancePaid) - num(job.visitingCharges) - num(job.penalty));
+                const collect = Math.max(0, customerBill - advance);
+                return (
+                  <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                    <p className="text-xs font-bold text-blue-500 uppercase">Collect from customer</p>
+                    <p className="text-2xl font-black text-blue-700">₹{collect.toFixed(2)}</p>
+                    <p className="text-[11px] text-blue-600/80 mt-1">
+                      {advance > 0
+                        ? `Customer already paid ₹${advance.toFixed(2)} online. Extra items you add will increase this.`
+                        : 'Extra items you add will increase this.'}
+                    </p>
+                  </div>
+                );
+              })()}
+
               {/* Payment Info — worker sees their own earning, not the
                   customer's total bill value. */}
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex items-center justify-between">

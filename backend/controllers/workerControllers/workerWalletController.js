@@ -165,58 +165,87 @@ const requestPayout = async (req, res) => {
 
 
 /**
- * Request withdrawal of entire wallet balance to admin
+ * Request a withdrawal.
+ *
+ * Flow: worker requests (amount is held out of the wallet and shown as a PENDING
+ * entry) -> admin approves (PROCESSING) -> admin pays outside the app and records
+ * the UTR (COMPLETED), or rejects (the held amount is refunded). The request is
+ * never "paid" until the admin marks it paid with a UTR.
  */
 const requestWithdrawal = async (req, res) => {
   try {
     const workerId = req.user.id;
-    const { amount, bankDetails } = req.body;
+    const { bankDetails } = req.body;
 
-    const worker = await Worker.findById(workerId).select(WORKER_LIGHT);
-    if (!worker) {
-      return res.status(404).json({ success: false, message: 'Worker not found' });
-    }
-
-    const withdrawAmount = Number(amount);
+    const withdrawAmount = Math.round((Number(req.body.amount) || 0) * 100) / 100;
     if (!withdrawAmount || withdrawAmount <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid withdrawal amount' });
     }
 
-    if (worker.wallet.balance < withdrawAmount) {
+    // Where to pay: a UPI id, or complete bank details.
+    const bank = {
+      upiId: String(bankDetails?.upiId || '').trim(),
+      accountNumber: String(bankDetails?.accountNumber || '').trim(),
+      ifscCode: String(bankDetails?.ifscCode || '').trim().toUpperCase(),
+      accountHolderName: String(bankDetails?.accountHolderName || '').trim(),
+      bankName: String(bankDetails?.bankName || '').trim()
+    };
+    const hasUpi = !!bank.upiId;
+    const hasBank = !!(bank.accountNumber && bank.ifscCode && bank.accountHolderName);
+    if (!hasUpi && !hasBank) {
+      return res.status(400).json({ success: false, message: 'Add a UPI id or complete bank details so admin can pay you.' });
+    }
+
+    const worker = await Worker.findById(workerId).select('name');
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    // One open request at a time (pending = waiting for admin, processing = admin is paying)
+    const open = await Withdrawal.findOne({ workerId, status: { $in: ['pending', 'processing'] } }).select('_id');
+    if (open) {
+      return res.status(400).json({ success: false, message: 'You already have a withdrawal in progress. Wait until it is paid or rejected.' });
+    }
+
+    // Hold the amount atomically: two quick taps can't both pass the balance check.
+    const held = await Worker.findOneAndUpdate(
+      { _id: workerId, 'wallet.balance': { $gte: withdrawAmount } },
+      { $inc: { 'wallet.balance': -withdrawAmount } },
+      { new: true }
+    ).select('wallet.balance');
+    if (!held) {
       return res.status(400).json({ success: false, message: 'Insufficient balance' });
     }
 
-    // Check for existing pending withdrawal
-    const existingPending = await Withdrawal.findOne({ 
-      workerId, 
-      status: 'pending' 
-    });
-    
-    if (existingPending) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'You already have a pending withdrawal request' 
+    let withdrawal;
+    try {
+      withdrawal = await Withdrawal.create({
+        workerId,
+        amount: withdrawAmount,
+        bankDetails: bank,
+        status: 'pending'
       });
+      await Transaction.create({
+        workerId,
+        type: 'debit',
+        category: 'withdrawal',
+        amount: withdrawAmount,
+        balanceAfter: held.wallet?.balance ?? 0,
+        status: 'pending',
+        reference: String(withdrawal._id),
+        description: 'Withdrawal requested - waiting for admin',
+        metadata: { withdrawalId: String(withdrawal._id) }
+      });
+    } catch (createErr) {
+      // Couldn't record the request: give the held amount back.
+      await Worker.updateOne({ _id: workerId }, { $inc: { 'wallet.balance': withdrawAmount } });
+      if (withdrawal?._id) await Withdrawal.deleteOne({ _id: withdrawal._id });
+      throw createErr;
     }
 
-    // Create withdrawal request
-    const withdrawal = await Withdrawal.create({
-      workerId,
-      amount: withdrawAmount,
-      bankDetails: bankDetails || worker.bankDetails, // Use provided or saved bank details
-      status: 'pending',
-      requestDate: new Date()
-    });
-
-    // Deduct from worker balance
-    worker.wallet.balance -= withdrawAmount;
-    await worker.save();
-
-    // Notify Admin (fetch super_admin or admin to get a userId if needed)
     try {
       const Admin = (await import('../../models/Admin.js')).default;
       const adminUser = await Admin.findOne({ role: { $in: ['superadmin', 'super_admin', 'admin'] } });
-      
       if (adminUser) {
         await createNotification({
           userId: adminUser._id,
@@ -229,31 +258,50 @@ const requestWithdrawal = async (req, res) => {
           priority: 'high'
         });
       }
-
-      // Notify Worker
       await createNotification({
         workerId: worker._id,
         type: 'withdrawal_requested',
         title: 'Withdrawal Requested',
-        message: `Your withdrawal request for ₹${withdrawAmount} has been submitted successfully.`,
+        message: `Your request for ₹${withdrawAmount} is waiting for admin approval. You'll be notified when it is paid.`,
         relatedId: withdrawal._id,
         relatedType: 'withdrawal',
         priority: 'high',
         pushData: { type: 'withdrawal', withdrawalId: withdrawal._id.toString(), link: '/worker/wallet' }
       });
     } catch (notifErr) {
-      console.error('Failed to notify admin:', notifErr);
+      console.error('Failed to send withdrawal notifications:', notifErr);
     }
 
-    res.status(200).json({ 
-      success: true, 
-      message: 'Withdrawal request submitted successfully',
+    res.status(200).json({
+      success: true,
+      message: 'Withdrawal requested. It is paid once admin approves and transfers the amount.',
       data: withdrawal
     });
-
   } catch (error) {
     console.error('Request withdrawal error:', error);
     res.status(500).json({ success: false, message: 'Failed to submit withdrawal request' });
+  }
+};
+
+/** The worker's own withdrawal requests, with where each one stands. */
+const getMyWithdrawals = async (req, res) => {
+  try {
+    const rows = await Withdrawal.find({ workerId: req.user.id }).sort({ createdAt: -1 }).limit(50).lean();
+    res.json({
+      success: true,
+      data: rows.map((w) => ({
+        _id: w._id,
+        amount: w.amount,
+        status: w.status,
+        requestedAt: w.createdAt,
+        utrNumber: w.processingDetails?.utrNumber || null,
+        paidAt: w.processingDetails?.completedAt || null,
+        remarks: w.processingDetails?.remarks || null
+      }))
+    });
+  } catch (error) {
+    console.error('Get my withdrawals error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load withdrawals' });
   }
 };
 
@@ -363,6 +411,7 @@ export {
   getTransactions,
   requestPayout,
   requestWithdrawal,
+  getMyWithdrawals,
   payAdminDuesInitiate,
   payAdminDuesVerify
 };

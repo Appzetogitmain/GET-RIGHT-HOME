@@ -26,13 +26,15 @@ const subCategorySchema = z.object({
   pageStyle: z.enum(["standard", "premium", "landing"]).optional(),
 });
 
-const SubCategoriesPage = ({ catalog, setCatalog, selectedCity }) => {
+const SubCategoriesPage = ({ catalog, setCatalog, selectedCity, catalogMode }) => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
   // Connect to catalog state
-  const subCategories = catalog.subCategories || []; 
-  const categories = catalog.categories || [];
+  // Scoped to Instant / Normal: only that type's categories, and the sub-categories under them.
+  const inMode = (modes) => !catalogMode || (modes?.length ? modes : ['slot']).includes(catalogMode);
+  const categories = (catalog.categories || []).filter((c) => inMode(c.bookingModes));
+  const subCategories = (catalog.subCategories || []).filter((s) => !catalogMode || categories.some((c) => String(c.id) === String(s.categoryId)));
 
   const [editingId, setEditingId] = useState(null);
 

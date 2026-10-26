@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   FiSearch, FiCalendar, FiDownload, FiMoreVertical,
   FiClock, FiBox, FiTruck, FiXCircle, FiShoppingBag, FiBell,
@@ -67,7 +68,10 @@ const Bookings = () => {
 
   // Modals
   const [selectedAssignBooking, setSelectedAssignBooking] = useState(null);
+  const navigate = useNavigate();
   const [selectedDetailBooking, setSelectedDetailBooking] = useState(null);
+  // Details open as a full page (with the admin / worker money split), not a popup.
+  const openBooking = (booking) => navigate(`/admin/home-service/bookings/${booking._id}`);
 
   // Stats
   const [stats, setStats] = useState({
@@ -348,7 +352,7 @@ const Bookings = () => {
                   return (
                     <tr
                       key={booking._id}
-                      onClick={() => setSelectedDetailBooking(booking)}
+                      onClick={() => openBooking(booking)}
                       className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
                     >
                       {/* 1. Order & Service */}
@@ -521,7 +525,7 @@ const Bookings = () => {
                       <td className="px-3.5 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                           <button
-                            onClick={() => setSelectedDetailBooking(booking)}
+                            onClick={() => openBooking(booking)}
                             className="px-2.5 py-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-md text-[10px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
                             title="View Full Booking Details"
                           >

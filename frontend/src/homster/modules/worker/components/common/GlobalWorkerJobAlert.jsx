@@ -286,7 +286,7 @@ export default function GlobalWorkerJobAlert() {
     };
 
     fetchPending();
-    const interval = setInterval(fetchPending, 4000); // 4-second fail-safe background sync
+    const interval = setInterval(fetchPending, 10000); // fail-safe background sync (live offers arrive over the socket)
     window.addEventListener('focus', fetchPending);
     window.addEventListener('online', fetchPending);
     window.addEventListener('workerJobsUpdated', fetchPending);

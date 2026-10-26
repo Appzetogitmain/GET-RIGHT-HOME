@@ -18,7 +18,6 @@ import ScrollToTop from './components/ui/ScrollToTop';
 import { useLenis } from './app/shared/hooks/useLenis';
 import { legalService, userService } from './services/apiService';
 import adminService from './services/adminService';
-import { requestNotificationPermission, onMessageListener } from './utils/firebase';
 import logo from './assets/grh-logo.png';
 import { CityProvider } from './homster/context/CityContext';
 import { CartProvider } from './homster/context/CartContext';

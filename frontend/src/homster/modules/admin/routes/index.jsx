@@ -10,6 +10,7 @@ const UserCategories = lazy(() => import('../pages/UserCategories'));
 const Users = lazy(() => import('../pages/Users'));
 const Workers = lazy(() => import('../pages/Workers'));
 const Bookings = lazy(() => import('../pages/Bookings'));
+const BookingDetailPage = lazy(() => import('../pages/Bookings/BookingDetailPage'));
 const BookingTracking = lazy(() => import('../pages/Bookings/Tracking'));
 const BookingNotifications = lazy(() => import('../pages/Bookings/BookingNotifications'));
 const Payments = lazy(() => import('../pages/Payments'));
@@ -54,6 +55,7 @@ const HomeServiceAdminRoutes = () => {
         <Route path="workers/*" element={<Workers />} />
         <Route path="bookings" element={<Bookings />} />
         <Route path="bookings/tracking" element={<BookingTracking />} />
+        <Route path="bookings/:id" element={<BookingDetailPage />} />
         <Route path="bookings/notifications" element={<BookingNotifications />} />
         <Route path="user-categories/*" element={<UserCategories />} />
         <Route path="payments/*" element={<Payments />} />

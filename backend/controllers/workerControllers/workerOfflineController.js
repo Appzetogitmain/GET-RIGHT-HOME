@@ -367,7 +367,7 @@ export const approveOfflineRequest = async (req, res) => {
       // Send notification to worker
       try {
         await createNotification({
-          userId: worker._id,
+          workerId: worker._id,
           recipientType: 'worker',
           title: 'Offline Request Approved',
           message: isAdjusted
@@ -451,7 +451,7 @@ export const rejectOfflineRequest = async (req, res) => {
     // Send notification to worker
     try {
       await createNotification({
-        userId: request.workerId,
+        workerId: request.workerId,
         recipientType: 'worker',
         title: 'Offline Request Rejected',
         message: `Your offline request for ${request.dateStr} was rejected. ${reason ? `Reason: ${reason}` : ''}`,
@@ -690,7 +690,7 @@ export const forceWorkerOnline = async (req, res) => {
     // Send notification to worker
     try {
       await createNotification({
-        userId: worker._id,
+        workerId: worker._id,
         recipientType: 'worker',
         title: 'Status Updated to Online',
         message: 'Admin has set your status to Online.',

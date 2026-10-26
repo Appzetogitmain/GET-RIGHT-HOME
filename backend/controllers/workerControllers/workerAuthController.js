@@ -2,7 +2,9 @@ import Worker, { WORKER_LIGHT } from '../../models/Worker.js';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 import Profession from '../../models/Profession.js';
+import cloudinaryService from '../../services/cloudinaryService.js';
 import { validProfessionIds } from '../professionController.js';
+import { createNotification } from '../notificationControllers/notificationController.js';
 
 // Stubs for services not yet configured in Hoomzo
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -24,7 +26,8 @@ const verifyRefreshToken = (token) => {
 const generateVerificationToken = (phone) => Buffer.from(phone).toString('base64');
 const verifyVerificationToken = (token) => { try { return Buffer.from(token, 'base64').toString(); } catch { return null; } };
 const sendSMSOTP = async (phone, otp) => { console.log(`[SMS Stub] OTP ${otp} for ${phone}`); return { success: true }; };
-const cloudinaryService = { uploadFile: async () => ({ success: false }) };
+// Real uploader: the old stub always failed, so Aadhar/PAN/licence scans were stored
+// as multi-MB base64 inside the worker document.
 const USER_ROLES = { WORKER: 'worker' };
 const WORKER_STATUS = { OFFLINE: 'offline' };
 
@@ -309,6 +312,19 @@ const register = async (req, res) => {
       status: WORKER_STATUS.OFFLINE,
       approvalStatus: 'pending'
     });
+
+    if (referredById) {
+      await createNotification({
+        workerId: referredById,
+        type: 'referral_signup',
+        title: 'New Expert Referral',
+        message: `${worker.name} registered using your referral code. We will notify you when the referral bonus is credited.`,
+        relatedId: worker._id,
+        relatedType: 'referral',
+        priority: 'high',
+        pushData: { type: 'referral_signup', referralWorkerId: worker._id.toString(), link: '/worker/referrals' }
+      }).catch((error) => console.error('Worker referral notification failed:', error));
+    }
 
     res.status(201).json({
       success: true,

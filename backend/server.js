@@ -111,6 +111,9 @@ import { startJobReminderScheduler } from './cron/jobReminderScheduler.js';
 startJobReminderScheduler(io);
 
 // Middleware
+// gzip API responses (JSON compresses ~5-10x). Skipped for the live-tracking/SSE style
+// streams, which must not be buffered.
+app.use(compression({ filter: (req, res) => (req.headers.accept || '').includes('text/event-stream') ? false : compression.filter(req, res) }));
 app.use(morgan('dev'));
 // Middleware to log request start is handled by morgan
 
@@ -135,6 +138,7 @@ app.use(cors({
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import compression from 'compression';
 import adminDevRoutes from './routes/adminDevRoutes.js';
 import zoneCatalogRoutes from './routes/zoneCatalogRoutes.js';
 import offerRoutes from './routes/offerRoutes.js';

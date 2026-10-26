@@ -78,7 +78,7 @@ export const checkAndAwardTargetBonus = async (workerId) => {
 
           // Send Push Notification to Worker
           await createNotification({
-            userId: workerId,
+            workerId,
             type: 'wallet_credit',
             title: 'Target Achieved! 🎉',
             message: `Congratulations! You've achieved your target of ${monthlyTarget} jobs. ₹${monthlyTargetBonus} has been added to your wallet.`,

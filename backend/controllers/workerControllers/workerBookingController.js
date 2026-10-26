@@ -26,6 +26,8 @@ import {
 import { supportsBookingMode } from '../../utils/bookingModes.js';
 import { findWorkerIneligibility } from '../../services/locationService.js';
 import { creditedAdvance } from '../../utils/vipAndAdvance.js';
+import { offloadImages } from '../../utils/imageStorage.js';
+import { computeSplit, splitConfig, workerNetForPrice } from '../../utils/settlement.js';
 import { sanitizeBookingForHelper, sanitizeBookingForLead } from '../../services/helperPayoutService.js';
 
 /**
@@ -127,7 +129,7 @@ const getAssignedJobs = async (req, res) => {
       // worker already saw before accepting.
       obj.workerAmount = bill
         ? bill.vendorTotalEarning
-        : Math.max(0, parseFloat((((b.basePrice || b.finalAmount || 0) * (100 - (b.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
+        : workerNetForPrice(b.basePrice || b.finalAmount || 0, platformSettings, b.moverDetails?.commissionPercent);
       return sanitizeBookingForLead(obj);
     });
 
@@ -229,7 +231,7 @@ const getPendingRequests = async (req, res) => {
       .map(r => {
         const booking = bookingMap.get(String(r.bookingId));
         if (!booking) return null;
-        const workerAmount = Math.max(0, parseFloat((((booking.basePrice || 0) * (100 - (booking.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
+        const workerAmount = workerNetForPrice(booking.basePrice || 0, platformSettings, booking.moverDetails?.commissionPercent);
         // A direct admin offer has its own short window, counted from when it was sent.
         const adminOffered = booking.adminAssignedWorkerId && String(booking.adminAssignedWorkerId) === String(workerId);
         const offerWindowSec = adminOffered ? 60 : responseWindowSec;
@@ -297,7 +299,7 @@ const getJobById = async (req, res) => {
       .populate('vendorId', 'name businessName phone email address')
       .populate('serviceId', 'title description iconUrl images')
       .populate('categoryId', 'title slug')
-      .select('+helpers +helperRequests')
+      .select('-workPhotos +helpers +helperRequests')
       .populate('helpers.workerId', 'name phone profilePhoto');
 
     if (!booking) {
@@ -328,7 +330,7 @@ const getJobById = async (req, res) => {
     } else {
       const platformSettings = await PlatformSettings.getSettings();
       const commissionPercentage = platformSettings?.defaultCommission ?? 10;
-      bookingObj.workerAmount = Math.max(0, parseFloat((((booking.basePrice || booking.finalAmount || 0) * (100 - (booking.moverDetails?.commissionPercent ?? commissionPercentage))) / 100).toFixed(2)));
+      bookingObj.workerAmount = workerNetForPrice(booking.basePrice || booking.finalAmount || 0, platformSettings, booking.moverDetails?.commissionPercent);
     }
 
     res.status(200).json({
@@ -736,7 +738,7 @@ const completeJob = async (req, res) => {
     booking.status = BOOKING_STATUS.WORK_DONE;
 
     if (workPhotos && Array.isArray(workPhotos)) {
-      booking.workPhotos = workPhotos;
+      booking.workPhotos = await offloadImages(workPhotos, 'bookings/work-photos');
     }
     if (workDoneDetails) {
       booking.workDoneDetails = workDoneDetails;
@@ -954,8 +956,21 @@ const createBill = async (req, res) => {
     const finalOnlineAmount = parseFloat((grandTotal + adjustedAdminCommission).toFixed(2));
     const finalCashAmount = parseFloat((finalOnlineAmount + cashExtraFee).toFixed(2));
 
-    // Worker earning = grand total (their service cut)
-    const workerEarning = grandTotal;
+    // Split of the booked service price: admin share (minus discounts, minus GST) and
+    // worker share (minus SGST / CGST / platform commission). Extras and parts the
+    // worker adds stay 100% theirs.
+    const split = computeSplit({
+      price: trueOriginalServiceBase,
+      discount: totalDiscount,
+      config: splitConfig(platformSettings, isEstimate ? 0 : (booking.moverDetails?.commissionPercent ?? undefined))
+    });
+    bill.settlement = {
+      ...split,
+      extrasToWorker: parseFloat((totalServiceValue + totalServiceGST + totalPartsValue + totalPartsGST + transport).toFixed(2))
+    };
+
+    // Worker earning = grand total (their service cut) minus SGST / CGST / platform commission
+    const workerEarning = Math.max(0, parseFloat((grandTotal - split.workerDeductions).toFixed(2)));
 
     bill.vendorTotalEarning = workerEarning;
     bill.adminCommission = adjustedAdminCommission;

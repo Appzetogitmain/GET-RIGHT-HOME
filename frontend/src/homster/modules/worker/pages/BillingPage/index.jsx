@@ -188,7 +188,10 @@ const BillingPage = () => {
             platformFlatFee: billRes.platformSettings.platformFlatFee || 0,
             cashCollectionFee: billRes.platformSettings.cashCollectionFee || 0,
             applyGst: billRes.platformSettings.applyGst || false,
-            defaultCommission: billRes.platformSettings.defaultCommission ?? 10
+            defaultCommission: billRes.platformSettings.defaultCommission ?? 10,
+            sgstPercent: billRes.platformSettings.sgstPercent || 0,
+            cgstPercent: billRes.platformSettings.cgstPercent || 0,
+            platformCommissionPercent: billRes.platformSettings.platformCommissionPercent || 0
           });
         }
         
@@ -419,7 +422,16 @@ const BillingPage = () => {
     const finalCashAmount = parseFloat((finalOnlineAmount + cashCollectionFee).toFixed(2));
 
     // Worker earnings = totalValue (their service cut)
-    const totalWorkerEarnings = totalValue;
+    // SGST / CGST (only when GST is on) and platform commission come out of the worker's
+    // share of the booked service (same split the backend bill uses). Extras and parts
+    // the worker adds are not touched.
+    const workerShareOfService = isPlanBooking || isEstimate ? 0 : originalBase;
+    const pctOf = (v) => Math.min(100, Math.max(0, Number(v) || 0));
+    const workerDeductions = parseFloat((
+      (platformFees?.applyGst ? (workerShareOfService * (pctOf(platformFees.sgstPercent) + pctOf(platformFees.cgstPercent))) / 100 : 0) +
+      (workerShareOfService * pctOf(platformFees?.platformCommissionPercent)) / 100
+    ).toFixed(2));
+    const totalWorkerEarnings = Math.max(0, parseFloat((totalValue - workerDeductions).toFixed(2)));
     let workerServiceEarnings = parseFloat(((totalServiceBase * servicePayoutPct) / 100).toFixed(2));
     let workerPartsEarnings = parseFloat(((totalPartsBase * partsPayoutPct) / 100).toFixed(2));
 
