@@ -7,7 +7,6 @@ import { validationResult } from 'express-validator';
 import Profession from '../../models/Profession.js';
 import cloudinaryService from '../../services/cloudinaryService.js';
 import { validProfessionIds } from '../professionController.js';
-import { createNotification } from '../notificationControllers/notificationController.js';
 
 // Stubs for services not yet configured in Hoomzo
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
